@@ -4,15 +4,15 @@
  * Chỉ cài đặt đúng 3 thứ cần dùng: initialize, tools/list, tools/call.
  * Không kéo SDK MCP đầy đủ vào vì ta chỉ gọi vài tool — YAGNI.
  *
- * CẢNH BÁO: đường dẫn endpoint và tên tool ở đây suy ra từ tài liệu công khai của
- * MultiZen, CHƯA kiểm chứng bằng ứng dụng thật. Phase 00 bước 5 tồn tại để xác minh.
- * Nếu sai, sửa PATH_CANDIDATES và tên tool trong multizen-adapter.ts.
+ * Đối chiếu với README của MultiZen (multizenteam/multizen-browser, 26/07/2026):
+ * server nghe ở 127.0.0.1:7777, Streamable HTTP ở /mcp, SSE cũ ở /sse, và
+ * BẮT BUỘC có bearer token sinh ra ở lần chạy đầu (app: MCP → Connect an agent).
  */
 
 const PROTOCOL_VERSION = "2025-06-18";
 const REQUEST_TIMEOUT_MS = 30_000;
 
-/** MCP có thể được phục vụ ở /mcp hoặc ngay gốc, tùy cấu hình server. */
+/** Streamable HTTP ở /mcp; giữ "/" phòng bản cũ phục vụ ngay gốc. */
 const PATH_CANDIDATES = ["/mcp", "/"];
 
 export interface McpToolResultContent {
@@ -39,12 +39,27 @@ interface JsonRpcResponse {
   error?: { code: number; message: string };
 }
 
+/** Ném khi server từ chối token — tách riêng để báo đúng nguyên nhân, không đổ tại "app chưa mở". */
+export class McpUnauthorizedError extends McpClientError {
+  constructor(baseUrl: string) {
+    super(
+      `MultiZen tại ${baseUrl} từ chối token (HTTP 401/403).\n` +
+        `Mở app MultiZen → MCP → "Connect an agent", copy bearer token, ` +
+        `rồi dán vào MULTIZEN_MCP_TOKEN trong .env.`,
+    );
+    this.name = "McpUnauthorizedError";
+  }
+}
+
 export class MultizenMcpClient {
   private sessionId: string | null = null;
   private resolvedPath: string | null = null;
   private nextRequestId = 1;
 
-  constructor(private readonly baseUrl: string) {}
+  constructor(
+    private readonly baseUrl: string,
+    private readonly token?: string,
+  ) {}
 
   /** Gửi một lời gọi JSON-RPC, tự dò đường dẫn endpoint ở lần đầu. */
   private async send(method: string, params?: unknown): Promise<unknown> {
@@ -57,6 +72,8 @@ export class MultizenMcpClient {
         this.resolvedPath = path;
         return result;
       } catch (error) {
+        // Token sai thì đổi đường dẫn cũng vô ích — dừng ngay để báo đúng nguyên nhân.
+        if (error instanceof McpUnauthorizedError) throw error;
         lastError = error;
       }
     }
@@ -73,6 +90,8 @@ export class MultizenMcpClient {
       // Streamable HTTP cho phép server trả về JSON thường hoặc luồng SSE.
       Accept: "application/json, text/event-stream",
     };
+    // MultiZen bắt buộc bearer token; thiếu header này là mọi lời gọi ăn 401.
+    if (this.token) headers.Authorization = `Bearer ${this.token}`;
     if (this.sessionId) headers["Mcp-Session-Id"] = this.sessionId;
 
     const response = await fetch(`${this.baseUrl}${path}`, {
@@ -86,6 +105,10 @@ export class MultizenMcpClient {
       }),
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
+
+    if (response.status === 401 || response.status === 403) {
+      throw new McpUnauthorizedError(this.baseUrl);
+    }
 
     if (!response.ok) {
       throw new McpClientError(`MCP trả về HTTP ${response.status} tại ${path}.`);

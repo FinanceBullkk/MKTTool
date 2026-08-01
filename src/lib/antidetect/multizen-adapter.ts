@@ -1,13 +1,17 @@
 /**
  * Adapter MultiZen qua MCP server cục bộ (mặc định 127.0.0.1:7777).
  *
- * ĐIỂM CHƯA CHẮC CHẮN — đây chính là câu hỏi chặn đường của Phase 00:
- * MultiZen dùng CDP ở BÊN TRONG (chrome-remote-interface) nhưng KHÔNG công bố
- * endpoint CDP ra ngoài cho Playwright `connectOverCDP`. Nếu tool `launch` không
- * trả về endpoint nào, adapter này ném lỗi kèm hướng dẫn chuyển sang AdsPower.
+ * ĐÃ GIẢI XONG câu hỏi chặn đường của Phase 00 (đối chiếu README của
+ * multizenteam/multizen-browser, 26/07/2026):
  *
- * Kho danh tính (Phase 01) vẫn dùng được kể cả khi không có CDP: mở profile bằng
- * đúng proxy/vân tay rồi thao tác tay là đủ. CDP chỉ cần cho Phase 05 (tự động hóa).
+ * MultiZen dùng CDP ở BÊN TRONG (chrome-remote-interface) và KHÔNG công bố endpoint
+ * CDP ra ngoài. Đổi lại, nó phơi thẳng bộ tool điều khiển trình duyệt qua MCP —
+ * navigate, click, type, extract, screenshot. Nên Phase 05 KHÔNG cần Playwright,
+ * cũng KHÔNG cần chuyển sang AdsPower: gọi tool MCP là đủ, lại được thêm human
+ * handoff (người vào tay khi gặp 2FA/CAPTCHA) và mô phỏng hành vi người ở tầng CDP.
+ *
+ * Vì vậy `launchProfile` KHÔNG coi việc thiếu endpoint CDP là lỗi — profile mở ra
+ * là thành công. Chỉ AdsPower mới trả về endpoint đó.
  */
 import {
   type AntidetectAdapter,
@@ -15,17 +19,20 @@ import {
   AntidetectUnavailableError,
   type LaunchedProfile,
 } from "./antidetect-browser-adapter";
-import { MultizenMcpClient, extractText } from "./multizen-mcp-client";
+import { McpUnauthorizedError, MultizenMcpClient, extractText } from "./multizen-mcp-client";
 
 const PROVIDER = "MultiZen";
 
-/** Tên tool có thể khác giữa các bản MultiZen — thử lần lượt. */
-const LAUNCH_TOOL_NAMES = ["launch", "launch_profile", "open_profile"];
-const CLOSE_TOOL_NAMES = ["close", "close_profile", "stop_profile"];
+/** README công bố `launch_profile`/`close_profile`/`list_profiles`; giữ tên khác phòng bản cũ. */
+const LAUNCH_TOOL_NAMES = ["launch_profile", "launch", "open_profile"];
+const CLOSE_TOOL_NAMES = ["close_profile", "close", "stop_profile"];
 const LIST_TOOL_NAMES = ["list_profiles", "profiles"];
 
-/** Bắt ws://... hoặc http://127.0.0.1:<port> trong phản hồi của tool. */
-const CDP_ENDPOINT_PATTERN = /(wss?:\/\/[^\s"']+|https?:\/\/127\.0\.0\.1:\d+[^\s"']*)/;
+/**
+ * Bắt ws://... hoặc http://127.0.0.1:<port> trong phản hồi của tool.
+ * Loại cả ngoặc nhọn: phản hồi được ghép từ text và JSON, không được nuốt `{}` vào đuôi endpoint.
+ */
+const CDP_ENDPOINT_PATTERN = /(wss?:\/\/[^\s"'{}]+|https?:\/\/127\.0\.0\.1:\d+[^\s"'{}]*)/;
 
 export class MultizenAdapter implements AntidetectAdapter {
   readonly providerName = PROVIDER;
@@ -34,8 +41,11 @@ export class MultizenAdapter implements AntidetectAdapter {
   private initialized = false;
   private availableTools: string[] = [];
 
-  constructor(private readonly baseUrl: string) {
-    this.client = new MultizenMcpClient(baseUrl);
+  constructor(
+    private readonly baseUrl: string,
+    token?: string,
+  ) {
+    this.client = new MultizenMcpClient(baseUrl, token);
   }
 
   private async ensureInitialized(): Promise<void> {
@@ -45,6 +55,10 @@ export class MultizenAdapter implements AntidetectAdapter {
       this.availableTools = await this.client.listTools();
       this.initialized = true;
     } catch (cause) {
+      // Token sai không phải "app chưa mở" — giữ nguyên lời nhắc lấy token ở đâu.
+      if (cause instanceof McpUnauthorizedError) {
+        throw new AntidetectError(cause.message, PROVIDER, { cause });
+      }
       throw new AntidetectUnavailableError(PROVIDER, this.baseUrl, { cause });
     }
   }
@@ -77,22 +91,12 @@ export class MultizenAdapter implements AntidetectAdapter {
     }
 
     const result = await this.client.callTool(toolName, { profileId, profile_id: profileId });
-    const responseText = extractText(result) + JSON.stringify(result.structuredContent ?? {});
-    const cdpEndpoint = responseText.match(CDP_ENDPOINT_PATTERN)?.[0];
+    // Ngăn bằng xuống dòng: nối thẳng thì "{}" của structuredContent dính vào đuôi endpoint.
+    const responseText = [extractText(result), JSON.stringify(result.structuredContent ?? {})].join("\n");
 
-    if (!cdpEndpoint) {
-      throw new AntidetectError(
-        `${PROVIDER} đã mở profile "${profileId}" nhưng không trả về endpoint CDP nào, ` +
-          `nên Playwright không gắn vào được.\n` +
-          `Đây là kết luận cho câu hỏi chặn đường ở Phase 00: MultiZen không dùng được ` +
-          `cho tự động hóa (Phase 05).\n` +
-          `Cách xử lý: đặt ANTIDETECT_PROVIDER="adspower" trong .env và cài AdsPower. ` +
-          `Kho danh tính vẫn dùng bình thường nếu chỉ cần mở profile thao tác tay.`,
-        PROVIDER,
-      );
-    }
-
-    return { cdpEndpoint, profileId };
+    // Thiếu endpoint CDP là chuyện bình thường với MultiZen — xem chú thích đầu file.
+    // Vẫn bắt lấy nếu có, phòng bản tương lai công bố ra.
+    return { cdpEndpoint: responseText.match(CDP_ENDPOINT_PATTERN)?.[0], profileId };
   }
 
   async closeProfile(profileId: string): Promise<void> {

@@ -13,8 +13,12 @@ export interface LaunchedProfile {
   /**
    * Endpoint CDP để Playwright gắn vào bằng `chromium.connectOverCDP(...)`.
    * Có thể là `http://127.0.0.1:<port>` hoặc `ws://...`.
+   *
+   * KHÔNG BẮT BUỘC. MultiZen lái trình duyệt bằng chính tool MCP của nó
+   * (navigate/click/type/extract/screenshot) và không phơi CDP ra ngoài — vẫn mở
+   * profile hoàn toàn bình thường. Chỉ AdsPower mới trả về endpoint này.
    */
-  cdpEndpoint: string;
+  cdpEndpoint?: string;
   /** Id profile phía antidetect browser. */
   profileId: string;
 }

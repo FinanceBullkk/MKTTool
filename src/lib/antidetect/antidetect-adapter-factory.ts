@@ -18,7 +18,10 @@ export function createAntidetectAdapter(): AntidetectAdapter {
 
   switch (provider) {
     case "multizen":
-      return new MultizenAdapter(process.env.MULTIZEN_MCP_URL ?? DEFAULT_MULTIZEN_URL);
+      return new MultizenAdapter(
+        process.env.MULTIZEN_MCP_URL ?? DEFAULT_MULTIZEN_URL,
+        process.env.MULTIZEN_MCP_TOKEN,
+      );
     case "adspower":
       return new AdsPowerAdapter(process.env.ADSPOWER_API_URL ?? DEFAULT_ADSPOWER_URL);
     default:

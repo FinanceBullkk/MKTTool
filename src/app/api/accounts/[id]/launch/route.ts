@@ -52,10 +52,13 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
     return NextResponse.json({
       ok: true,
       message:
-        `Đã mở profile qua ${adapter.providerName} với proxy ${account.proxy.label} ` +
-        `(${account.proxy.country}). Kiểm tra IP trong trình duyệt trước khi thao tác.`,
+        `Đã mở profile qua ${adapter.providerName}. Proxy gắn với nick này là ` +
+        `${account.proxy.label} (${account.proxy.country}) — công cụ KHÔNG tự đẩy proxy sang ` +
+        `trình duyệt, proxy phải được cấu hình trong chính profile bên ${adapter.providerName}. ` +
+        `Mở ipinfo.io kiểm tra IP có khớp không TRƯỚC khi thao tác bất cứ thứ gì.`,
       // Chỉ dùng cho Phase 05; không hiển thị cho người dùng cuối.
-      cdpEndpoint: launched.cdpEndpoint,
+      // MultiZen không trả về endpoint này — đó là bình thường, không phải lỗi.
+      cdpEndpoint: launched.cdpEndpoint ?? null,
     });
   } catch (error) {
     const message =

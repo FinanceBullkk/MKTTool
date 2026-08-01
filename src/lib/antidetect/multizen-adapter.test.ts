@@ -1,0 +1,121 @@
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { MultizenAdapter } from "./multizen-adapter";
+
+const BASE_URL = "http://127.0.0.1:7777";
+const PROFILE_ID = "profile-abc";
+
+interface RecordedCall {
+  url: string;
+  method: string;
+  headers: Record<string, string>;
+}
+
+/**
+ * Giả lập MCP server của MultiZen: initialize -> tools/list -> tools/call.
+ * Trả về danh sách lời gọi để kiểm tra header gửi đi.
+ */
+function installFakeMcpServer(options: { status?: number; tools?: string[]; launchText?: string } = {}) {
+  const calls: RecordedCall[] = [];
+
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init: RequestInit) => {
+      const body = JSON.parse(init.body as string) as { id: number; method: string };
+      calls.push({ url, method: body.method, headers: init.headers as Record<string, string> });
+
+      if (options.status && options.status !== 200) {
+        return new Response("từ chối", { status: options.status });
+      }
+
+      const result =
+        body.method === "tools/list"
+          ? { tools: (options.tools ?? ["launch_profile", "close_profile"]).map((name) => ({ name })) }
+          : body.method === "tools/call"
+            ? { content: [{ type: "text", text: options.launchText ?? "Profile đã mở." }] }
+            : {};
+
+      return new Response(JSON.stringify({ jsonrpc: "2.0", id: body.id, result }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    }),
+  );
+
+  return calls;
+}
+
+afterEach(() => vi.unstubAllGlobals());
+
+describe("MultizenAdapter", () => {
+  it("gửi bearer token — thiếu header này MultiZen trả 401", async () => {
+    const calls = installFakeMcpServer();
+
+    await new MultizenAdapter(BASE_URL, "token-bi-mat").launchProfile(PROFILE_ID);
+
+    expect(calls.length).toBeGreaterThan(0);
+    for (const call of calls) {
+      expect(call.headers.Authorization).toBe("Bearer token-bi-mat");
+    }
+  });
+
+  it("gọi đúng endpoint /mcp", async () => {
+    const calls = installFakeMcpServer();
+    await new MultizenAdapter(BASE_URL, "t").launchProfile(PROFILE_ID);
+    expect(calls[0].url).toBe(`${BASE_URL}/mcp`);
+  });
+
+  it("mở profile THÀNH CÔNG dù phản hồi không có endpoint CDP", async () => {
+    // MultiZen lái trình duyệt bằng tool MCP của nó, không phơi CDP ra ngoài.
+    // Trước đây adapter coi đây là lỗi và khuyên chuyển AdsPower — sai.
+    installFakeMcpServer({ launchText: "Đã mở profile, không có thông tin nào khác." });
+
+    const launched = await new MultizenAdapter(BASE_URL, "t").launchProfile(PROFILE_ID);
+
+    expect(launched.profileId).toBe(PROFILE_ID);
+    expect(launched.cdpEndpoint).toBeUndefined();
+  });
+
+  it("vẫn bắt được endpoint CDP nếu bản MultiZen nào đó có trả về", async () => {
+    installFakeMcpServer({ launchText: "CDP tại ws://127.0.0.1:41234/devtools/browser/xyz" });
+
+    const launched = await new MultizenAdapter(BASE_URL, "t").launchProfile(PROFILE_ID);
+
+    expect(launched.cdpEndpoint).toBe("ws://127.0.0.1:41234/devtools/browser/xyz");
+  });
+
+  it("dùng được tool tên launch_profile theo README", async () => {
+    installFakeMcpServer({ tools: ["list_profiles", "launch_profile", "close_profile"] });
+    await expect(new MultizenAdapter(BASE_URL, "t").launchProfile(PROFILE_ID)).resolves.toBeTruthy();
+  });
+
+  it("không có tool mở profile nào thì báo rõ tool hiện có", async () => {
+    installFakeMcpServer({ tools: ["navigate", "click"] });
+    await expect(new MultizenAdapter(BASE_URL, "t").launchProfile(PROFILE_ID)).rejects.toThrow(
+      /navigate, click/,
+    );
+  });
+
+  it("401 báo thiếu token, KHÔNG đổ tại app chưa mở", async () => {
+    installFakeMcpServer({ status: 401 });
+
+    const error = await new MultizenAdapter(BASE_URL, "token-sai")
+      .launchProfile(PROFILE_ID)
+      .catch((caught: Error) => caught);
+
+    expect((error as Error).message).toContain("MULTIZEN_MCP_TOKEN");
+    expect((error as Error).message).not.toContain("đã mở chưa");
+  });
+
+  it("app chưa chạy thì vẫn báo đúng là không kết nối được", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => { throw new Error("ECONNREFUSED"); }));
+
+    await expect(new MultizenAdapter(BASE_URL, "t").launchProfile(PROFILE_ID)).rejects.toThrow(
+      /Không kết nối được/,
+    );
+  });
+
+  it("isAvailable trả false thay vì ném lỗi khi app chưa chạy", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => { throw new Error("ECONNREFUSED"); }));
+    await expect(new MultizenAdapter(BASE_URL, "t").isAvailable()).resolves.toBe(false);
+  });
+});
