@@ -1,0 +1,32 @@
+# deps
+node_modules/
+
+# next
+.next/
+out/
+next-env.d.ts
+
+# env & khóa mã hóa — TUYỆT ĐỐI KHÔNG COMMIT
+.env
+.env.*
+!.env.example
+*.key
+
+# database — chứa credential đã mã hóa, vẫn không commit
+# Prisma 7 tạo file ở gốc project (đường dẫn giải theo CWD), không phải trong prisma/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+prisma/*.db*
+
+# dữ liệu vận hành
+data/screenshots/
+data/logs/
+
+# misc
+.DS_Store
+*.log
+.vscode/
+.idea/
+tsconfig.tsbuildinfo
