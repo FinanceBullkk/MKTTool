@@ -16,7 +16,10 @@ datasource db {
 }
 
 /// Nhân vật: giọng điệu + mảng nội dung. Một nhân vật có thể có nick ở nhiều nền tảng.
-/// Tách khỏi Account để Phase 02 kiểm tra trùng nội dung theo nhân vật.
+/// Tách khỏi Account để mỗi nick giữ được một giọng riêng — nhiều nick viết giống nhau
+/// là tự khai cùng một người vận hành.
+/// Lưu ý: bộ luật Phase 02 KHÔNG dùng persona. Luật so trùng nội dung xét theo họ nền tảng
+/// và duyệt qua mọi nick, xem src/lib/rules/rule-content-similarity.ts.
 model Persona {
   id           String    @id @default(cuid())
   name         String    @unique

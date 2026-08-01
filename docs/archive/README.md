@@ -1,0 +1,31 @@
+# docs/archive — Tài liệu bản cũ
+
+Hai file trong thư mục này thuộc **bản trước khi xoay hướng** (tháng 7/2026).
+Giữ lại để tra cứu lịch sử và hiểu lý do đã bỏ hướng cũ.
+
+> **Không dùng hai file này làm căn cứ cho quyết định hiện tại.**
+> Thiết kế, quy mô, stack kỹ thuật và chiến thuật proxy đã thay đổi toàn bộ.
+
+## So sánh bản cũ với hiện tại
+
+| Hạng mục | Bản cũ (2 file này) | Dự án thật hiện nay |
+|---|---|---|
+| Quy mô nick | 50+ nick | 5-8 nick Reddit, 1-3 Fanpage Facebook |
+| Nền tảng chính | Twitter/X, TikTok | Reddit ~80%, Facebook phụ |
+| Hạ tầng | VPS Linux + Docker + microservices | Máy bàn, một process Next.js |
+| Điều khiển browser | Playwright trực tiếp | Tool MCP của MultiZen |
+| Proxy | IPRoyal tính theo GB (residential) | Static ISP tính theo IP, gắn 1:1 với nick |
+
+## Lý do xoay hướng
+
+Theo đúng 5 rủi ro mà chính `Technical_Analysis_And_Risk_Assessment.md` nêu ra:
+
+1. **Bẫy chi phí proxy dân cư tính theo GB** — ước tính ~5,4 triệu/tháng riêng tiền proxy,
+   cao gấp nhiều lần dự trù ban đầu. Chuyển sang static ISP tính theo IP.
+2. **Nghẽn RAM/CPU trên VPS** — 50+ profile Chromium cùng lúc không khả thi trên một VPS.
+3. **Đánh giá chủ quan rào cản anti-bot** giữa các nền tảng.
+4. **Tính ổn định của MultiZen và xung đột multi-user** chưa được kiểm chứng.
+5. **Thiếu luồng xử lý captcha, OTP/2FA và dò shadowban** — phần khó nhất bị bỏ qua.
+
+Ngoài ra, 50+ nick đòi cả một đội vận hành chứ không phải 1 người, nên quy mô được hạ xuống
+5-8 nick. VPS + Docker + microservices là over-engineering cho 1 người dùng trên 1 máy.

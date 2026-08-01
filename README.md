@@ -56,7 +56,7 @@ proxy, không cần tài khoản nào, và kiểm tra được phần lớn ch�
 | Chặng | Cần gì | Kiểm chứng điều gì |
 |---|---|---|
 | **A** | không gì cả | `npm run vault:smoke` + `npm run rules:smoke` + nhập dữ liệu giả qua UI: mã hóa, ràng buộc 1:1, copy mật khẩu, OTP (dùng `npm run vault:testotp` đối chiếu với Google Authenticator), và cả bộ luật an toàn |
-| **B** | MultiZen (miễn phí) | Profile trống, không đăng nhập gì. Bấm "Mở profile" → Playwright có nối được không (câu hỏi chặn đường của Phase 00) |
+| **B** | MultiZen (miễn phí) | Profile trống, không đăng nhập gì. Bấm "Mở profile" → công cụ có mở được profile không. ✅ **Đạt 02/08/2026** — đây từng là câu hỏi chặn đường của Phase 00 |
 | **C** | 1 proxy bất kỳ | Mở profile → vào trang kiểm tra IP → phải khớp proxy đã cấu hình. Không đăng nhập tài khoản nào |
 | **D** | nick thật + proxy đúng loại | Chỉ làm sau khi A/B/C xong. Xem quy trình cold-start ở [Phase 00](plans/260801-2030-multi-account-posting-console/phase-00-preparation-and-feasibility-check.md) |
 
@@ -127,8 +127,11 @@ src/
 Mỗi luật là một hàm thuần `(ctx: RuleContext) => RuleVerdict`. Toàn bộ việc hỏi database nằm ở
 `rule-context-builder.ts`, nên thêm luật mới chỉ là thêm một file và một dòng trong `rules-engine.ts`.
 
-Stack: Next.js 16 + TypeScript + Prisma 7 + SQLite + Playwright. Một process, chạy trên máy
-bạn MKT. Chưa cần VPS, Docker, Postgres hay Redis — những thứ đó chỉ cần khi lên Phase 05.
+Stack: Next.js 16 + TypeScript + Prisma 7 + SQLite + MCP client tới MultiZen. Một process, chạy
+trên máy bạn MKT. Chưa cần VPS, Docker, Postgres hay Redis.
+
+*(`playwright` còn trong dependencies nhưng chưa file nào dùng — để dành cho bộ dò shadowban ở
+Phase 03, chạy trực tiếp qua proxy quan sát viên chứ không qua antidetect browser.)*
 
 ## Antidetect browser
 
