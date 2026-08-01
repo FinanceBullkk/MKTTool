@@ -30,7 +30,7 @@ mà không bị shadowban / bóp tương tác.
 
 ## Tech stack
 
-Next.js (App Router) + TypeScript + Prisma + SQLite + Playwright (qua CDP tới antidetect browser).
+Next.js (App Router) + TypeScript + Prisma + SQLite + MCP client tới MultiZen (antidetect browser).
 Một process, một câu lệnh `npm run dev`. Không microservice.
 
 ## Các giai đoạn
@@ -39,7 +39,7 @@ Một process, một câu lệnh `npm run dev`. Không microservice.
 |---|---|---|---|---|
 | 0 | Chuẩn bị & kiểm chứng khả thi | 2 tuần | ⬜ Chưa bắt đầu | [phase-00](phase-00-preparation-and-feasibility-check.md) |
 | 1 | Kho danh tính | 5-7 ngày | ✅ Xong 01/08/2026 | [phase-01](phase-01-identity-vault.md) |
-| 2 | Hàng đợi content + Bộ luật an toàn | 7-10 ngày | ⬜ | [phase-02](phase-02-content-queue-and-safety-rules.md) |
+| 2 | Hàng đợi content + Bộ luật an toàn | 7-10 ngày | ✅ Xong 02/08/2026 | [phase-02](phase-02-content-queue-and-safety-rules.md) |
 | 3 | Theo dõi sức khỏe tài khoản | 4-5 ngày | ⬜ | [phase-03](phase-03-account-health-monitor.md) |
 | 4 | Facebook Pages publisher | 2-3 ngày | ⬜ | [phase-04](phase-04-facebook-pages-publisher.md) |
 | 5 | Bán tự động đăng Reddit | 7-10 ngày | ⬜ | [phase-05](phase-05-reddit-posting-automation.md) |
@@ -56,8 +56,13 @@ GĐ0 (mua proxy → mua nick → cold start → test CDP)
  └─→ GĐ4 (FB Pages API) — độc lập, làm song song bất cứ lúc nào
 ```
 
-**Chặn đường:** GĐ0 phải trả lời được "Playwright có nối được MultiZen không?" trước khi bắt đầu GĐ5.
-Nếu không → chuyển AdsPower/GoLogin (có local API tài liệu đầy đủ).
+**Chặn đường:** ~~"Playwright có nối được MultiZen không?"~~ — **đã giải 02/08/2026**: MultiZen phơi
+tool điều khiển qua MCP (`navigate`/`click`/`type`/`extract`/`screenshot`), nên GĐ5 dùng thẳng
+đường đó, bỏ Playwright, không phải chuyển AdsPower. Chi tiết ở
+[phase-00](phase-00-preparation-and-feasibility-check.md).
+
+Chặn đường còn lại của GĐ0 là **mua proxy + nick + 14 ngày cold-start** — đồng hồ thật, không
+rút ngắn được.
 
 ## Ngân sách
 

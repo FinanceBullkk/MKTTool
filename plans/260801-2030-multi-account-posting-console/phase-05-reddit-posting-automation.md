@@ -10,7 +10,24 @@
 - **Priority:** P2 — làm cuối cùng, giá trị thấp nhất, rủi ro cao nhất
 - **Status:** ⬜ Chưa bắt đầu
 - **Thời lượng:** 7-10 ngày
-- **Mục đích:** Playwright tự đăng bài/comment Reddit qua antidetect browser, thay vì bạn MKT dán tay.
+- **Mục đích:** tự đăng bài/comment Reddit qua antidetect browser, thay vì bạn MKT dán tay.
+
+> ### ⚠️ Cần viết lại phần kỹ thuật trước khi bắt đầu (ghi 02/08/2026)
+>
+> Kế hoạch dưới đây giả định **Playwright + `connectOverCDP`**. Giả định đó đã sai:
+> MultiZen không phơi endpoint CDP ra ngoài, mà phơi thẳng tool điều khiển qua MCP —
+> `navigate`, `click`, `type`, `extract`, `screenshot`. Xem [kết luận ở Phase 00](phase-00-preparation-and-feasibility-check.md).
+>
+> Ảnh hưởng tới phần này:
+>
+> - **Bỏ `connectOverCDP` và `browser-session-manager.ts`** — gọi tool MCP qua adapter sẵn có.
+> - **Insight số 5 tự giải quyết:** MultiZen lo nhịp gõ ở tầng CDP input, nên không còn chuyện
+>   "chồng hai tầng gõ chậm". Dùng tool `type` của nó, bỏ `pressSequentially`.
+> - **Human handoff có sẵn:** gặp 2FA/CAPTCHA thì người vào tay ngay trong cửa sổ đó rồi máy chạy
+>   tiếp — đúng cái "bán tự động" mà insight số 2 mô tả, không phải tự dựng.
+> - Selector vẫn là rủi ro như cũ, xử lý không đổi: không thấy nút thì chụp màn hình, dừng, báo người.
+>
+> Đổi lại thì phase này **nhẹ hơn** dự kiến, không nặng hơn.
 
 ## Key Insights
 
@@ -152,7 +169,7 @@ model AutomationRun {
 |---|---|---|---|
 | Reddit đổi UI → selector hỏng | Cao | Trung bình | Gom 1 file; hỏng thì dừng chứ không click bừa |
 | Bot bị nhận diện qua nhịp gõ | Trung bình | Cao | Delay ngẫu nhiên; chốt 1 tầng xử lý; chạy thử ở sub nháp trước |
-| MultiZen không nối được Playwright | Trung bình | Cao | Đã trả lời ở Phase 00; dự phòng AdsPower |
+| ~~MultiZen không nối được Playwright~~ | — | — | Đã giải ở Phase 00 (02/08/2026): dùng tool MCP của MultiZen, bỏ Playwright |
 | Bật tự động hoàn toàn quá sớm → đăng bậy hàng loạt | Trung bình | Rất cao | Mặc định chờ xác nhận; tự động chỉ cho `type=VALUE`; có công tắc tắt khẩn cấp |
 | Job treo, browser không đóng | Trung bình | Thấp | Timeout 5 phút, `finally` luôn đóng, dọn tiến trình mồ côi khi khởi động |
 

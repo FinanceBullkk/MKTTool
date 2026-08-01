@@ -8,7 +8,7 @@ người". Giai đoạn này chống "bị nhận ra là đang spam" — nguyên
 
 ## Overview
 - **Priority:** P0 — không có phần này thì các phần khác vô nghĩa
-- **Status:** ⬜ Chưa bắt đầu
+- **Status:** ✅ Xong 02/08/2026
 - **Thời lượng:** 7-10 ngày
 
 ## Key Insights
@@ -165,22 +165,34 @@ model RuleConfig {                             // ngưỡng chỉnh được
    (Phase 05 sẽ tự ghi, giờ nhập tay).
 
 ## Todo List
-- [ ] Schema bổ sung + migration
-- [ ] Text normalizer + similarity calculator + test
-- [ ] 8 luật, mỗi luật có test
-- [ ] Rules engine gộp verdict
-- [ ] UI nhập content
-- [ ] UI tạo job có kiểm tra realtime
-- [ ] UI hàng đợi
-- [ ] Bảng tỷ lệ promo theo cặp nick × sub
-- [ ] Form ghi tương tác thủ công
-- [ ] Build sạch
+- [x] Schema bổ sung + migration (`20260801171115_add_content_queue_and_safety_rules`)
+- [x] Text normalizer + similarity calculator + test
+- [x] 8 luật (thành 9 phép kiểm tra, tách cold-start khỏi sức khỏe nick), mỗi luật có test
+- [x] Rules engine gộp verdict
+- [x] UI nhập content
+- [x] UI tạo job có kiểm tra realtime
+- [x] UI hàng đợi
+- [x] Bảng tỷ lệ promo theo cặp nick × sub
+- [x] Form ghi tương tác thủ công
+- [x] Build sạch (`npm run build`, `npm run typecheck`, 78 test)
 
 ## Success Criteria
-- Thử tạo 2 job cùng nội dung cho 2 nick Reddit → job thứ 2 **bị chặn**, hiện lý do rõ ràng
-- Thử đăng bài PROMO khi nick mới có 3 bài VALUE → **bị chặn**, hiện "còn thiếu 6 bài hữu ích"
-- Thử cho 2 nick comment cùng 1 thread → **bị chặn**, không cho override
-- Bạn MKT xếp lịch 15 bài trong < 15 phút
+- [x] Thử tạo 2 job cùng nội dung cho 2 nick Reddit → job thứ 2 **bị chặn**, hiện lý do rõ ràng
+- [x] Thử đăng bài PROMO khi nick mới có 3 bài VALUE → **bị chặn**, hiện "còn thiếu 6 bài hữu ích"
+- [x] Thử cho 2 nick comment cùng 1 thread → **bị chặn**, không cho override
+- [ ] Bạn MKT xếp lịch 15 bài trong < 15 phút — chỉ đo được khi có người dùng thật
+
+Ba tiêu chí đầu được kiểm chứng tự động trên database thật: `npm run rules:smoke`.
+
+## Khác với kế hoạch ban đầu
+
+| Chỗ | Kế hoạch | Thực tế | Vì sao |
+|---|---|---|---|
+| Số luật | 8 | 9 phép kiểm tra trong 8 file | Bảng luật có cold-start, sơ đồ file có link policy — làm cả hai, cold-start tách hàm riêng trong `rule-account-health.ts` |
+| Mốc thời gian | `now` | `scheduledAt` | Xếp một bài vào sau ngày hết cold-start thì phải được cho qua |
+| So trùng | chỉ bài ĐÃ ĐĂNG | bài đã đăng **và** đang chờ | Không có phần này thì tiêu chí "2 job cùng nội dung" không bao giờ chặn được |
+| Tỷ lệ promo | "đủ 9 bài VALUE" | tỷ lệ trượt `(promo+1) × 9` | Cách đếm một lần cho phép spam quảng cáo vô hạn sau 9 bài đầu |
+| Khóa so thread | so URL thô | rút permalink Reddit về id bài | Cùng một bài có vô số URL; so chuỗi thô là bỏ lọt gần hết |
 
 ## Risk Assessment
 
