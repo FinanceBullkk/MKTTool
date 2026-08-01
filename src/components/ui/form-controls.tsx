@@ -77,6 +77,43 @@ export function SelectField({
   );
 }
 
+/** Ô nhập nhiều dòng — chiếm cả hàng trong lưới 2 cột của ActionForm. */
+export function TextareaField({
+  label,
+  name,
+  rows = 6,
+  required,
+  defaultValue,
+  placeholder,
+  hint,
+}: {
+  label: string;
+  name: string;
+  rows?: number;
+  required?: boolean;
+  defaultValue?: string;
+  placeholder?: string;
+  hint?: string;
+}) {
+  return (
+    <label className="block sm:col-span-2">
+      <span className="mb-1 block text-xs font-medium text-neutral-600 dark:text-neutral-400">
+        {label}
+        {required ? <span className="text-red-600"> *</span> : null}
+      </span>
+      <textarea
+        className={FIELD_CLASS}
+        name={name}
+        rows={rows}
+        required={required}
+        defaultValue={defaultValue}
+        placeholder={placeholder}
+      />
+      {hint ? <span className="mt-1 block text-xs text-neutral-500">{hint}</span> : null}
+    </label>
+  );
+}
+
 export function CheckboxField({
   label,
   name,

@@ -3,12 +3,14 @@ import Link from "next/link";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "MKTTool — Kho danh tính",
+  title: "MKTTool — Bảng điều khiển nhiều tài khoản",
   description: "Bảng điều khiển nhiều tài khoản cho team marketing",
 };
 
 const NAV_ITEMS = [
   { href: "/", label: "Tổng quan" },
+  { href: "/queue", label: "Hàng đợi" },
+  { href: "/content", label: "Content" },
   { href: "/accounts", label: "Tài khoản" },
   { href: "/personas", label: "Nhân vật" },
   { href: "/proxies", label: "Proxy" },

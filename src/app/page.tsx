@@ -11,12 +11,18 @@ import { prisma } from "@/lib/db/prisma-client";
 export const dynamic = "force-dynamic";
 
 export default async function OverviewPage() {
-  const [accounts, personaCount, proxyCount, targetCount] = await Promise.all([
-    prisma.account.findMany({ select: { id: true, username: true, status: true, coldStartUntil: true } }),
-    prisma.persona.count(),
-    prisma.proxy.count(),
-    prisma.platformTarget.count(),
-  ]);
+  const [accounts, personaCount, proxyCount, targetCount, contentCount, pendingJobCount, blockedJobCount] =
+    await Promise.all([
+      prisma.account.findMany({
+        select: { id: true, username: true, status: true, coldStartUntil: true },
+      }),
+      prisma.persona.count(),
+      prisma.proxy.count(),
+      prisma.platformTarget.count(),
+      prisma.contentItem.count(),
+      prisma.postJob.count({ where: { status: "PENDING" } }),
+      prisma.postJob.count({ where: { status: "BLOCKED" } }),
+    ]);
 
   const byStatus = new Map<AccountStatus, number>();
   for (const status of ACCOUNT_STATUSES) byStatus.set(status, 0);
@@ -30,6 +36,8 @@ export default async function OverviewPage() {
   );
 
   const counters = [
+    { label: "Chờ đăng", value: pendingJobCount, href: "/queue?status=PENDING" },
+    { label: "Content", value: contentCount, href: "/content" },
     { label: "Tài khoản", value: accounts.length, href: "/accounts" },
     { label: "Nhân vật", value: personaCount, href: "/personas" },
     { label: "Proxy", value: proxyCount, href: "/proxies" },
@@ -40,8 +48,20 @@ export default async function OverviewPage() {
     <>
       <PageHeading
         title="Tổng quan"
-        description="Kho danh tính — Phase 01. Hàng đợi content, bộ luật an toàn và bộ dò shadowban thuộc các phase sau."
+        description="Kho danh tính và bộ luật an toàn. Bộ dò shadowban + theo dõi karma thuộc Phase 03."
       />
+
+      {blockedJobCount > 0 ? (
+        <div className="mb-6 rounded-md border border-amber-300 bg-amber-50 px-4 py-3 dark:border-amber-900 dark:bg-amber-950">
+          <p className="text-sm text-amber-900 dark:text-amber-300">
+            {blockedJobCount} job bị bộ luật chặn khi kiểm tra lại —{" "}
+            <Link href="/queue?status=BLOCKED" className="underline">
+              xem lý do
+            </Link>
+            .
+          </p>
+        </div>
+      ) : null}
 
       {needsAttention.length > 0 ? (
         <div className="mb-6 rounded-md border border-red-300 bg-red-50 px-4 py-3 dark:border-red-900 dark:bg-red-950">
