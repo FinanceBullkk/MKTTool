@@ -83,9 +83,15 @@ const RULES: RuleDefinition[] = [
     overridable: true,
   },
   // Luật duy nhất không cho ghi đè — xem đầu file rule-thread-collision.ts.
+  //
+  // Nhãn nói "cùng đích" chứ không phải "đúng thread" là có chủ đích: lúc xếp lịch, bài
+  // chưa tồn tại nên chưa có thread để so, `ctx.threadCollisions` luôn rỗng và ở đây luật
+  // chỉ chạy được nhánh cảnh báo "nick khác vừa hoạt động cùng đích". Nhánh CHẶN theo đúng
+  // thread nằm ở form ghi tương tác (interaction-actions.ts), nơi mới có link thread thật.
+  // Ghi "Đụng độ thread ✓" trong checklist là để người dùng tưởng đã kiểm thứ chưa kiểm.
   {
     id: "thread-collision",
-    label: "Đụng độ thread",
+    label: "Đụng độ thread (nick khác cùng đích)",
     evaluate: ruleThreadCollision,
     overridable: false,
     platforms: COMMUNITY_PLATFORMS,

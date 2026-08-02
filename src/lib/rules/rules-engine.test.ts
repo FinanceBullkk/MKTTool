@@ -155,7 +155,7 @@ describe("luật theo nền tảng", () => {
   it("luật bị bỏ KHÔNG lặng lẽ biến mất — nêu tên trong skipped để người dùng biết", () => {
     const labels = evaluateRules(facebookPageContext()).skipped.map((rule) => rule.label);
     expect(labels).toContain("Hạn mức ngày");
-    expect(labels).toContain("Đụng độ thread");
+    expect(labels).toContain("Đụng độ thread (nick khác cùng đích)");
   });
 });
 
@@ -421,9 +421,30 @@ describe("normalizeThreadUrl", () => {
     expect(key).toBe("reddit:1a2b3c");
   });
 
-  it("URL thường thì bỏ www, query và dấu / cuối", () => {
+  it("URL thường thì bỏ www, tham số theo dõi và dấu / cuối", () => {
     expect(normalizeThreadUrl("https://www.facebook.com/pages/abc/?ref=bookmarks")).toBe(
       "facebook.com/pages/abc",
+    );
+    expect(normalizeThreadUrl("https://www.facebook.com/pages/abc?utm_source=x&__tn__=y")).toBe(
+      "facebook.com/pages/abc",
+    );
+  });
+
+  // Đây là bug đã sửa: bỏ nguyên query string thì mọi permalink.php ra cùng một khóa,
+  // và luật 8 (không cho ghi đè) chặn nhầm vĩnh viễn.
+  it("hai thread Facebook khác nhau nhưng cùng path cho hai khóa khác nhau", () => {
+    const first = normalizeThreadUrl("https://www.facebook.com/permalink.php?story_fbid=111&id=999");
+    const second = normalizeThreadUrl("https://www.facebook.com/permalink.php?story_fbid=222&id=999");
+
+    expect(first).not.toBe(second);
+    expect(normalizeThreadUrl("https://www.facebook.com/story.php?story_fbid=abc&id=1")).not.toBe(
+      normalizeThreadUrl("https://www.facebook.com/story.php?story_fbid=xyz&id=1"),
+    );
+  });
+
+  it("cùng một thread Facebook viết khác thứ tự tham số vẫn ra cùng khóa", () => {
+    expect(normalizeThreadUrl("https://www.facebook.com/permalink.php?story_fbid=111&id=999")).toBe(
+      normalizeThreadUrl("https://facebook.com/permalink.php?id=999&story_fbid=111&fbclid=abc"),
     );
   });
 

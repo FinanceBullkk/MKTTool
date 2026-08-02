@@ -47,6 +47,53 @@ export function ruleThreadCollision(ctx: ThreadCollisionContext): RuleVerdict {
 const REDDIT_POST_ID = /\/comments\/([a-z0-9]+)/;
 
 /**
+ * Tham số chỉ dùng để theo dõi lượt bấm — bỏ đi thì mọi biến thể share link của cùng
+ * một bài cho ra cùng một khóa.
+ *
+ * Cố ý là danh sách LOẠI TRỪ, không phải danh sách giữ lại. Hai kiểu sai không cân nhau:
+ *  - sót một tên tracking → khóa dư tham số → bỏ lọt một lần đụng độ, còn cảnh báo
+ *    "nick khác cùng đích" đỡ phía sau;
+ *  - bỏ nguyên query string → hai thread KHÁC NHAU ra cùng khóa. Facebook phát link group
+ *    dạng `permalink.php?story_fbid=…` và `story.php?story_fbid=…`, path giống hệt nhau,
+ *    chỉ query mới phân biệt. Mà luật 8 KHÔNG cho ghi đè, nên chặn nhầm là chặn vĩnh viễn,
+ *    không có đường gỡ từ giao diện.
+ */
+const TRACKING_PARAMS = new Set([
+  "ref",
+  "refid",
+  "ref_src",
+  "ref_url",
+  "fbclid",
+  "gclid",
+  "igshid",
+  "mibextid",
+  "rdt",
+  "share_id",
+  "share_source",
+  "correlation_id",
+  "notif_id",
+  "notif_t",
+  "_rdr",
+  "si",
+  "sh",
+]);
+
+/** `utm_*` của mọi nền tảng và `__cft__[0]` / `__tn__` của Facebook đều là tracking. */
+function isTrackingParam(key: string): boolean {
+  return TRACKING_PARAMS.has(key) || key.startsWith("utm_") || key.startsWith("__");
+}
+
+/** Phần query còn lại sau khi lọc tracking, sắp xếp để thứ tự tham số không đổi khóa. */
+function meaningfulQuery(params: URLSearchParams): string {
+  const kept = [...params.entries()]
+    .filter(([key]) => !isTrackingParam(key))
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([key, value]) => `${key}=${value}`);
+
+  return kept.length > 0 ? `?${kept.join("&")}` : "";
+}
+
+/**
  * Rút URL về một khóa so sánh ổn định.
  *
  * Cùng một bài Reddit có vô số URL khác nhau (có/không slug, old.reddit, share link kèm tham số
@@ -60,7 +107,8 @@ export function normalizeThreadUrl(raw: string): string {
 
   try {
     const url = new URL(trimmed.startsWith("http") ? trimmed : `https://${trimmed}`);
-    return `${url.host.replace(/^www\./, "")}${url.pathname.replace(/\/+$/, "")}`;
+    const path = url.pathname.replace(/\/+$/, "");
+    return `${url.host.replace(/^www\./, "")}${path}${meaningfulQuery(url.searchParams)}`;
   } catch {
     return trimmed.replace(/\/+$/, "");
   }
