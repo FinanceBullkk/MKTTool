@@ -19,6 +19,41 @@ export function formatDayMonthTime(date: Date): string {
   return `${formatDayMonth(date)} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
+/**
+ * `2026-07-28` — khóa gom nhóm theo ngày, theo giờ máy.
+ *
+ * KHÔNG dùng chuỗi hiển thị `28/07` làm khóa: nó không có năm, nên bài của hai năm khác nhau
+ * rơi vào cùng một nhóm và số đếm của nhóm đó sai.
+ */
+export function localDayKey(date: Date): string {
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+/**
+ * Đọc chuỗi `YYYY-MM-DD` của `<input type="date">` thành nửa đêm THEO GIỜ MÁY.
+ *
+ * `new Date("2026-08-16")` cho nửa đêm UTC, tức 07:00 ở giờ Việt Nam — lệch hẳn một buổi
+ * so với phần còn lại của app vốn tính ngày bằng `startOfLocalDay`. Chuỗi có kèm giờ
+ * (`datetime-local`) thì đã đúng giờ máy sẵn, trả nguyên về cho zod xử lý.
+ */
+export function parseLocalDateInput(value: string): Date | string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value.trim());
+  if (!match) return value;
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const parsed = new Date(year, month - 1, day);
+
+  // `new Date(2026, 12, 45)` KHÔNG ném lỗi — nó cuộn sang 14/02/2027, một Date hợp lệ mà
+  // zod vui vẻ nhận. Đối chiếu ngược để ngày rác quay về dạng chuỗi và bị zod chặn,
+  // đúng như `z.coerce.date()` vẫn làm trước khi có hàm này.
+  const roundTrips =
+    parsed.getFullYear() === year && parsed.getMonth() === month - 1 && parsed.getDate() === day;
+
+  return roundTrips ? parsed : value;
+}
+
 export const MS_PER_HOUR = 3_600_000;
 export const MS_PER_DAY = 86_400_000;
 

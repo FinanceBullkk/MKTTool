@@ -60,6 +60,18 @@ export function getJobStatusPresentation(status: string): JobStatusPresentation 
 /** Job còn "chiếm chỗ" trong lịch — dùng để đếm hạn mức, tỷ lệ promo, so trùng nội dung. */
 export const ACTIVE_JOB_STATUSES: JobStatus[] = ["PENDING", "POSTED"];
 
+/**
+ * Job chưa chốt: còn đổi trạng thái và còn chấm lại luật được.
+ *
+ * POSTED/SKIPPED/FAILED là trạng thái cuối. Lật chúng lại làm bẩn đúng dữ liệu mà bộ luật
+ * dựa vào để đếm, nên mọi đường ghi đều phải hỏi qua đây trước.
+ */
+export const OPEN_JOB_STATUSES: JobStatus[] = ["PENDING", "BLOCKED"];
+
+export function isOpenJobStatus(status: string): boolean {
+  return (OPEN_JOB_STATUSES as string[]).includes(status);
+}
+
 export const INTERACTION_KINDS = ["POST", "COMMENT", "UPVOTE"] as const;
 export type InteractionKind = (typeof INTERACTION_KINDS)[number];
 

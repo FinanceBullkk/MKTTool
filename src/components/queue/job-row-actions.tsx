@@ -8,7 +8,7 @@
  * được im lặng để đó rồi tới giờ cứ thế đăng.
  */
 import { useState, useTransition } from "react";
-import type { ActionResult } from "@/lib/accounts/account-actions";
+import type { ActionResult } from "@/lib/actions/action-result";
 import { markJobPosted, markJobSkipped, recheckJob } from "@/lib/queue/post-job-status-actions";
 import { FacebookPublishButton } from "./facebook-publish-button";
 
@@ -31,7 +31,15 @@ export function JobRowActions({
   const [showUrlInput, setShowUrlInput] = useState(false);
 
   function run(action: () => Promise<ActionResult>) {
-    startTransition(async () => setResult(await action()));
+    startTransition(async () => {
+      try {
+        setResult(await action());
+      } catch {
+        // Không có nhánh này thì lỗi phía server thành promise reject không ai bắt,
+        // và dòng job đứng im như thể chưa bấm gì.
+        setResult({ ok: false, message: "Thao tác hỏng. Xem log của dev server." });
+      }
+    });
   }
 
   const open = status === "PENDING" || status === "BLOCKED";

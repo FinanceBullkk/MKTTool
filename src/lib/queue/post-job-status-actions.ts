@@ -8,12 +8,12 @@
  */
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import type { ActionResult } from "@/lib/accounts/account-actions";
+import type { ActionResult } from "@/lib/actions/action-result";
+import { isOpenJobStatus } from "@/lib/content/content-types";
 import { prisma } from "@/lib/db/prisma-client";
 import { normalizeThreadUrl } from "@/lib/rules/rule-thread-collision";
-import { serializeEvaluation, summarizeEvaluation } from "@/lib/rules/rules-engine";
-import { shouldBlockOnRecheck } from "./post-job-override-policy";
-import { previewPostJobRules } from "./post-job-rule-preview";
+import { summarizeEvaluation } from "@/lib/rules/rules-engine";
+import { recheckOneJob } from "./recheck-jobs-batch";
 
 const urlSchema = z.string().url("Link bài đăng không hợp lệ");
 
@@ -32,6 +32,12 @@ export async function markJobPosted(jobId: string, postedUrl: string): Promise<A
   // nhân đôi dấu vết làm bẩn chính dữ liệu mà bộ luật dựa vào để đếm.
   if (job.status === "POSTED") {
     return { ok: false, message: "Job này đã được đánh dấu đã đăng rồi." };
+  }
+  if (!isOpenJobStatus(job.status)) {
+    return {
+      ok: false,
+      message: "Job này đã bỏ qua hoặc đã đánh dấu lỗi — không đánh dấu đã đăng được.",
+    };
   }
 
   await prisma.$transaction([
@@ -56,19 +62,29 @@ export async function markJobPosted(jobId: string, postedUrl: string): Promise<A
   return { ok: true, message: "Đã ghi nhận bài đăng. Nick khác sẽ bị chặn nếu đụng vào thread này." };
 }
 
+/**
+ * Kiểm ở tầng server chứ không chỉ ở nút bấm: server action là một endpoint HTTP công khai,
+ * và `prisma.update` trên id không tồn tại ném P2025 — lỗi đó đi thẳng ra trình duyệt thành
+ * một promise reject không ai bắt, người dùng bấm xong thấy màn hình đứng im.
+ */
+async function requireOpenJob(
+  jobId: string,
+): Promise<{ ok: true } | { ok: false; message: string }> {
+  const job = await prisma.postJob.findUnique({ where: { id: jobId }, select: { status: true } });
+  if (!job) return { ok: false, message: "Không tìm thấy job." };
+  if (!isOpenJobStatus(job.status)) {
+    return { ok: false, message: "Chỉ đổi được job đang chờ hoặc đang bị chặn." };
+  }
+  return { ok: true };
+}
+
 export async function markJobSkipped(jobId: string): Promise<ActionResult> {
+  const open = await requireOpenJob(jobId);
+  if (!open.ok) return open;
+
   await prisma.postJob.update({ where: { id: jobId }, data: { status: "SKIPPED" } });
   revalidatePath("/queue");
   return { ok: true, message: "Đã bỏ qua job. Nó không còn tính vào hạn mức và tỷ lệ promo nữa." };
-}
-
-export async function markJobFailed(jobId: string, errorMessage: string): Promise<ActionResult> {
-  await prisma.postJob.update({
-    where: { id: jobId },
-    data: { status: "FAILED", errorMessage: errorMessage.slice(0, 500) },
-  });
-  revalidatePath("/queue");
-  return { ok: true, message: "Đã đánh dấu lỗi." };
 }
 
 /**
@@ -81,29 +97,15 @@ export async function markJobFailed(jobId: string, errorMessage: string): Promis
 export async function recheckJob(jobId: string): Promise<ActionResult> {
   const job = await prisma.postJob.findUnique({ where: { id: jobId } });
   if (!job) return { ok: false, message: "Không tìm thấy job." };
-  if (job.status !== "PENDING" && job.status !== "BLOCKED") {
+  if (!isOpenJobStatus(job.status)) {
     return { ok: false, message: "Chỉ kiểm tra lại được job đang chờ hoặc đang bị chặn." };
   }
 
-  const preview = await previewPostJobRules({
-    contentItemId: job.contentItemId,
-    accountId: job.accountId,
-    targetId: job.targetId,
-    scheduledAt: job.scheduledAt,
-    excludeJobId: job.id,
-  });
-  if (!preview.ok) return { ok: false, message: preview.message };
-
-  const { evaluation } = preview;
-  // Job đã được ghi đè có chủ đích thì giữ nguyên trạng thái chờ — nhưng lý do cũ KHÔNG
-  // che được luật cấm ghi đè mới lòi ra (xem post-job-override-policy.ts).
-  const blocked = shouldBlockOnRecheck(evaluation, job.overrideReason);
-
-  await prisma.postJob.update({
-    where: { id: jobId },
-    data: { status: blocked ? "BLOCKED" : "PENDING", ruleVerdicts: serializeEvaluation(evaluation) },
-  });
+  // Cùng lõi với lúc chấm lại cả mẻ sau khi sửa content/đích/nick — hai đường phải cho ra
+  // đúng một kết quả, nếu không job được chấm bằng đường nào lại an toàn theo kiểu đó.
+  const outcome = await recheckOneJob(job);
+  if (!outcome.ok) return { ok: false, message: outcome.message };
 
   revalidatePath("/queue");
-  return { ok: !blocked, message: summarizeEvaluation(evaluation) };
+  return { ok: !outcome.blocked, message: summarizeEvaluation(outcome.evaluation) };
 }

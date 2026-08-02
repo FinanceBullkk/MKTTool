@@ -6,7 +6,7 @@
  */
 import { DataTable, EmptyState, StatusBadge } from "@/components/ui/page-section";
 import { CONTENT_TYPE_LABELS, type ContentType, getJobStatusPresentation } from "@/lib/content/content-types";
-import { formatDayMonth, formatDayMonthTime } from "@/lib/format/vietnamese-date-format";
+import { formatDayMonth, formatDayMonthTime, localDayKey } from "@/lib/format/vietnamese-date-format";
 import { deserializeEvaluation } from "@/lib/rules/rules-engine";
 import { JobRowActions } from "./job-row-actions";
 import { RuleVerdictBadge } from "./rule-verdict-badge";
@@ -54,18 +54,22 @@ export function QueueJobTable({ jobs }: { jobs: QueueJob[] }) {
     return <EmptyState>Không có job nào khớp bộ lọc.</EmptyState>;
   }
 
-  const byDay = new Map<string, QueueJob[]>();
+  // Khóa gom nhóm có năm; nhãn hiển thị mới là `28/07`. Dùng chuỗi hiển thị làm khóa
+  // thì bài của 02/08 năm nay và 02/08 năm sau chung một nhóm.
+  const byDay = new Map<string, { label: string; jobs: QueueJob[] }>();
   for (const job of jobs) {
-    const day = formatDayMonth(job.scheduledAt);
-    byDay.set(day, [...(byDay.get(day) ?? []), job]);
+    const key = localDayKey(job.scheduledAt);
+    const group = byDay.get(key) ?? { label: formatDayMonth(job.scheduledAt), jobs: [] };
+    group.jobs.push(job);
+    byDay.set(key, group);
   }
 
   return (
     <div className="space-y-6">
-      {[...byDay.entries()].map(([day, dayJobs]) => (
+      {[...byDay.entries()].map(([day, { label, jobs: dayJobs }]) => (
         <div key={day}>
           <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-neutral-500">
-            {day} — {dayJobs.length} bài
+            {label} — {dayJobs.length} bài
           </h3>
           <DataTable headers={["Giờ", "Content", "Nick", "Đích", "Trạng thái", "Luật", "Thao tác"]}>
             {dayJobs.map((job) => {
