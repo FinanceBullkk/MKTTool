@@ -21,7 +21,8 @@ const NAV_ITEMS = [
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="vi">
-      <body>
+      {/* Extension trình duyệt (Grammarly...) chèn attribute vào body trước khi React hydrate */}
+      <body suppressHydrationWarning>
         <div className="mx-auto max-w-6xl px-6 py-8">
           <header className="mb-8 flex flex-wrap items-center justify-between gap-4 border-b border-neutral-200 pb-4 dark:border-neutral-800">
             <Link href="/" className="text-lg font-semibold">
