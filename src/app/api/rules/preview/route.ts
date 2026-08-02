@@ -6,6 +6,7 @@
  */
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { CROSS_ORIGIN_MESSAGE, isSameOrigin } from "@/lib/http/same-origin-guard";
 import { previewPostJobRules } from "@/lib/queue/post-job-rule-preview";
 
 export const runtime = "nodejs";
@@ -19,6 +20,10 @@ const requestSchema = z.object({
 });
 
 export async function POST(request: Request) {
+  if (!isSameOrigin(request)) {
+    return NextResponse.json({ ok: false, message: CROSS_ORIGIN_MESSAGE }, { status: 403 });
+  }
+
   let payload: unknown;
   try {
     payload = await request.json();

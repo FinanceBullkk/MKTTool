@@ -13,10 +13,16 @@ import { AntidetectError } from "@/lib/antidetect/antidetect-browser-adapter";
 import { getAntidetectAdapter } from "@/lib/antidetect/antidetect-adapter-factory";
 import { ProxyConfigError, buildProxyConfig } from "@/lib/antidetect/proxy-config-builder";
 import { prisma } from "@/lib/db/prisma-client";
+import { CROSS_ORIGIN_MESSAGE, isSameOrigin } from "@/lib/http/same-origin-guard";
 
 export const runtime = "nodejs";
 
-export async function POST(_request: Request, context: { params: Promise<{ id: string }> }) {
+export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
+  // Route handler không được Next kiểm Origin sẵn như server action — xem same-origin-guard.ts.
+  if (!isSameOrigin(request)) {
+    return NextResponse.json({ ok: false, message: CROSS_ORIGIN_MESSAGE }, { status: 403 });
+  }
+
   const { id } = await context.params;
 
   const account = await prisma.account.findUnique({
