@@ -3,7 +3,7 @@
 Công cụ cho 1 bạn MKT specialist vận hành nhiều tài khoản mạng xã hội để đăng content của team
 mà không bị shadowban / bóp tương tác.
 
-**Ngày lập:** 2026-08-01 | **Trạng thái:** Chưa bắt đầu | **Branch:** master
+**Ngày lập:** 2026-08-01 | **Trạng thái:** GĐ1 + GĐ2 xong, đang chờ mua nick | **Branch:** master
 
 ---
 
@@ -37,7 +37,7 @@ Một process, một câu lệnh `npm run dev`. Không microservice.
 
 | # | Giai đoạn | Thời lượng | Trạng thái | File |
 |---|---|---|---|---|
-| 0 | Chuẩn bị & kiểm chứng khả thi | 2 tuần | ⬜ Chưa bắt đầu | [phase-00](phase-00-preparation-and-feasibility-check.md) |
+| 0 | Chuẩn bị & kiểm chứng khả thi | 2 tuần | 🟡 Phần kiểm chứng xong 02/08/2026 (Chặng B + C đạt). Còn mua proxy/nick + 14 ngày cold-start | [phase-00](phase-00-preparation-and-feasibility-check.md) |
 | 1 | Kho danh tính | 5-7 ngày | ✅ Xong 01/08/2026 | [phase-01](phase-01-identity-vault.md) |
 | 2 | Hàng đợi content + Bộ luật an toàn | 7-10 ngày | ✅ Xong 02/08/2026 | [phase-02](phase-02-content-queue-and-safety-rules.md) |
 | 3 | Theo dõi sức khỏe tài khoản | 4-5 ngày | ⬜ | [phase-03](phase-03-account-health-monitor.md) |
@@ -88,4 +88,8 @@ rút ngắn được.
 1. **Nguồn nick kém** — nick mua về chết trong 2 tuần đầu → GĐ0 tồn tại để phát hiện sớm.
 2. **Content không đủ** — 3 người không nuôi nổi nhiều nick → đã hạ quy mô xuống 5-8.
 3. **Reddit mod là người thật** — không có giải pháp kỹ thuật; phụ thuộc chất lượng nội dung.
-4. **MultiZen chưa kiểm chứng** — có phương án dự phòng AdsPower.
+4. ~~**MultiZen chưa kiểm chứng**~~ — **đã kiểm chứng 02/08/2026**: mở profile được, đẩy proxy tự
+   động được, IP trong profile khớp proxy. Không cần phương án dự phòng AdsPower nữa (adapter vẫn
+   giữ, không tốn gì).
+5. **Đồng hồ cold-start chưa chạy** — rủi ro lớn nhất còn lại và là đường găng thật. Code đã đi
+   trước phần mua nick khá xa; mỗi ngày chưa mua là một ngày lùi ngày đăng bài đầu tiên.
