@@ -173,7 +173,8 @@ kiểu thao tác thì đi cùng một đường.
 9. Build sạch, test đăng thử 1 bài lên Page nháp.
 
 ## Todo List
-- [ ] Tạo Meta App + xin quyền ← **việc của người, chưa làm**
+- [x] Tạo Meta App + xin quyền — xong 03/08/2026 (app loại Business + Facebook Login for Business,
+      quyền khai qua configuration, xem `FACEBOOK_LOGIN_CONFIG_ID`)
 - [x] Schema FacebookConnection + FacebookPage (bỏ GroupReminder, xem lý do trên)
 - [x] Graph API client + xử lý lỗi
 - [x] Token manager (long-lived + cảnh báo hạn)
@@ -181,7 +182,10 @@ kiểu thao tác thì đi cùng một đường.
 - [x] Page publisher (text/link/ảnh)
 - [x] Nối vào hàng đợi Phase 02
 - [x] Luồng nhắc việc Group thủ công
-- [ ] Test đăng thật lên Page nháp ← **chặn bởi Meta App**
+- [x] Test đăng thật lên Page nháp — đạt 03/08/2026. Job `POSTED` kèm URL thật, `Interaction` POST
+      tự ghi, `AuditLog` ghi `FACEBOOK_PAGE_PUBLISHED`, verdict luật lưu kèm job.
+      Phát hiện kèm theo: `Account` ép proxy + antidetect profile cho cả nick FACEBOOK — phải bịa
+      nick giả mới xếp lịch được. Việc sửa nằm ngoài phase này, đã ghi ở `docs/codebase-summary.md`.
 
 ## Success Criteria
 - Đăng được bài lên Fanpage từ tool, bài hiện đúng trên Facebook — ⏳ chờ Meta App

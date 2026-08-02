@@ -269,11 +269,26 @@ Chi tiết đầy đủ ở [README → Lệnh](../README.md#lệnh).
 
 ## Việc chưa làm
 
-- **Chưa gọi Graph API thật lần nào.** Toàn bộ đường đi trong máy đã nghiệm thu bằng
-  `npm run facebook:smoke` (11/11 đạt) — token mã hóa, tự tạo đích, chặn khi token hỏng,
-  nhắc việc group. Nhưng OAuth và việc đăng bài cần Meta App thật mới chạy được.
-- Dò shadowban + theo dõi karma → Phase 03.
 - Tự động đăng Reddit qua tool MCP → Phase 05.
+- **`Account` ép proxy + antidetect profile cho cả nick FACEBOOK.** `proxyId` và
+  `antidetectProfileId` đều bắt buộc và `@unique`, nhưng đăng Fanpage bằng Graph API không cần cả
+  hai — xếp lịch một bài Fanpage phải đốt một proxy thật và bịa một profile id. Cách sửa: cho hai
+  trường đó nullable khi `platform = "FACEBOOK"`, kèm validation ở form. Xem mục dưới về vì sao
+  smoke test không bắt được.
+
+## Đã gọi Graph API thật — 03/08/2026
+
+Phase 04 nghiệm thu xong bằng một bài đăng thật lên Fanpage nháp. Ba chi tiết đáng ghi:
+
+1. **Đổi token 2 giờ → 60 ngày chạy đúng.** `FacebookConnection.expiresAt` về đúng mốc 60 ngày.
+   Đây là bước tài liệu này vẫn cảnh báo là dễ bỏ nhất — nó không bị bỏ.
+2. **Meta App loại Business tạo từ 2025 chỉ thêm được "Facebook Login for Business"**, mà bản đó
+   khai quyền bằng `config_id` chứ không bằng `scope`. Đã thêm `FACEBOOK_LOGIN_CONFIG_ID` — có thì
+   gửi `config_id` và bỏ `scope`, không có thì giữ đường cũ. Xem `buildAuthorizeUrl()`.
+3. **Smoke test đi vòng qua chỗ người thật vấp.** `smoke-test-facebook-pages.ts` tạo `Account` bằng
+   `prisma.account.create()` với `antidetectProfileId` giả và một proxy gán đại, nên nó không bao
+   giờ chạm vào ràng buộc mà người dùng chạm ngay ở bước đầu. Bài học chung: smoke test tự dựng dữ
+   liệu đầu vào thì không nghiệm thu được đường nhập liệu.
 
 ---
 

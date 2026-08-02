@@ -3,9 +3,9 @@
 Bảng điều khiển nhiều tài khoản cho team marketing — đăng content lên Reddit và Facebook Pages
 mà không bị shadowban hay bóp tương tác.
 
-**Trạng thái:** Phase 01 (Kho danh tính), Phase 02 (Hàng đợi content + Bộ luật an toàn) và
-Phase 03 (Dò shadowban + theo dõi karma) đã xong.
-Phase 04 (Facebook Pages) xong phần khung — cắm Meta App vào là đăng được.
+**Trạng thái:** Phase 01 (Kho danh tính), Phase 02 (Hàng đợi content + Bộ luật an toàn),
+Phase 03 (Dò shadowban + theo dõi karma) và Phase 04 (Facebook Pages) đã xong —
+Phase 04 đã đăng thật lên Fanpage qua Graph API ngày 03/08/2026.
 Xem [kế hoạch triển khai](plans/260801-2030-multi-account-posting-console/plan.md).
 
 ## Đây là gì
@@ -243,13 +243,28 @@ chính sách tự động hóa. Không cần antidetect browser, không cần pr
 
 **Bốn bước cấu hình** (làm một lần, khi nào cần thì làm — thiếu nó cả app vẫn chạy bình thường):
 
-1. Tạo app loại Business ở [developers.facebook.com](https://developers.facebook.com/)
-2. Thêm Facebook Login, bật `pages_manage_posts` + `pages_read_engagement` + `pages_show_list`
-3. Khai redirect URI đúng bằng `http://localhost:3000/api/facebook/oauth/callback` — Facebook so
-   từng ký tự, lệch dấu `/` cuối là hỏng
-4. Điền `FACEBOOK_APP_ID` và `FACEBOOK_APP_SECRET` vào `.env`, khởi động lại dev server
+1. Tạo app ở [developers.facebook.com](https://developers.facebook.com/). Màn hình chọn use case
+   phải chọn **`Other`** rồi type **`Business`**. Chọn *"Authenticate and request data from users
+   with Facebook Login"* là app khóa vào nhánh chỉ có quyền cấp user — không thêm được quyền Page,
+   và **không sửa được**, phải tạo app khác (chính Meta nói vậy trong hộp thoại thêm use case).
+2. **Add Product → Facebook Login for Business** → tab **Configurations** → tạo một configuration
+   kiểu *General*, tick đúng ba quyền `pages_show_list` + `pages_read_engagement` +
+   `pages_manage_posts`. Chép lại **Configuration ID**.
+3. Tab **Settings** của sản phẩm đó → khai redirect URI đúng bằng
+   `http://localhost:3000/api/facebook/oauth/callback` — Facebook so từng ký tự, lệch dấu `/` cuối
+   là hỏng.
+4. Điền `FACEBOOK_APP_ID`, `FACEBOOK_APP_SECRET` (App settings → Basic) và
+   `FACEBOOK_LOGIN_CONFIG_ID` vào `.env`, khởi động lại dev server.
 
-Không cần App Review: chế độ Development đủ để đăng lên Page do chính mình quản trị.
+Không cần App Review: chế độ Development đủ để đăng lên Page do chính mình quản trị. Ba quyền trên
+sẽ ghi *"Requires App Review"* — kệ nó, bạn là admin của chính app nên Facebook vẫn cấp.
+
+> **Hai kiểu Facebook Login, khác nhau ở chỗ quyền khai ở đâu.** Bản thường khai bằng `scope` ngay
+> trong URL; bản **for Business** khai trước trong một configuration, URL chỉ trỏ tới bằng
+> `config_id`. App loại Business tạo từ 2025 chỉ thêm được bản for Business, nên phần lớn app mới
+> cần `FACEBOOK_LOGIN_CONFIG_ID`. Điền biến đó vào là quyền lấy theo configuration, **không** lấy
+> theo `REQUIRED_SCOPES` trong code nữa — thiếu quyền nào ở configuration thì tới lúc bấm đăng mới
+> lộ ra. App cũ dựng bằng Facebook Login thường thì để trống biến này.
 
 > ⚠️ **Kết nối Facebook phải mở app bằng đúng `http://localhost:3000`**, không phải
 > `http://127.0.0.1:3000`. Trình duyệt coi hai địa chỉ này là hai host khác nhau khi lưu cookie,
@@ -413,6 +428,21 @@ chuyển xấu từ lúc nào.
 ## Việc chưa làm
 
 - Tự động đăng Reddit → Phase 05
-- **Chưa đăng thử lên Fanpage thật lần nào.** Toàn bộ đường đi trong máy đã nghiệm thu bằng
-  `npm run facebook:smoke` (11/11 đạt), nhưng chính lời gọi Graph API thì phải có Meta App mới
-  chạy được — bước cuối của [Phase 04](plans/260801-2030-multi-account-posting-console/phase-04-facebook-pages-publisher.md).
+- **Nick nền tảng FACEBOOK vẫn phải khai proxy + antidetect profile + mật khẩu**, dù đăng Fanpage
+  bằng Graph API không cần thứ nào trong ba. Schema ép `Account.proxyId` và
+  `Account.antidetectProfileId` là bắt buộc và `@unique`, nên muốn xếp lịch một bài Fanpage là phải
+  đốt một proxy thật và bịa một profile id. Ràng buộc đó đúng cho Reddit, sai cho Fanpage.
+  `npm run facebook:smoke` không bắt được vì nó tự tạo `Account` bằng code — đi vòng đúng chỗ người
+  thật vấp. Đo được 03/08/2026 khi đăng thử lần đầu.
+
+## Đã kiểm chứng bằng thực tế
+
+| Việc | Ngày | Bằng chứng |
+|---|---|---|
+| Mở profile antidetect | 02/08/2026 | Chặng B |
+| Đẩy proxy vào profile, IP khớp | 02/08/2026 | [Chặng C](plans/reports/chang-c-260802-1443-proxy-push-verification.md) |
+| Dò shadowban đọc Reddit thật | 03/08/2026 | `npm run health:smoke` 17/17, bắt được 2 lỗi parser |
+| **Đăng thật lên Fanpage qua Graph API** | **03/08/2026** | Bài lên tường Page nháp; job `POSTED` kèm URL thật, `Interaction` tự ghi, `AuditLog` ghi `FACEBOOK_PAGE_PUBLISHED` |
+
+Chưa kiểm chứng: đăng bằng nick Reddit thật (Phase 05 chưa làm), và `npm run health` với nick thật
+— chưa nhập proxy quan sát viên nào.
