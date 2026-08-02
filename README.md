@@ -45,6 +45,7 @@ npm run dev                 # http://localhost:3000
 | `npm run build` | Build production |
 | `npm run db:migrate` | Áp migration |
 | `npm run db:backup` | Sao lưu database ra `data/backups/` |
+| `npm run proxies:import <file>` | Nhập hàng loạt proxy từ file `host:port:user:pass` của nhà cung cấp |
 | `npm run db:studio` | Mở Prisma Studio xem database |
 | `npm run vault:keygen` | Sinh khóa mã hóa mới |
 | `npm run vault:rekey` | Xoay `VAULT_KEY` — mã hóa lại toàn bộ credential |
@@ -234,6 +235,12 @@ chính sách tự động hóa. Không cần antidetect browser, không cần pr
 4. Điền `FACEBOOK_APP_ID` và `FACEBOOK_APP_SECRET` vào `.env`, khởi động lại dev server
 
 Không cần App Review: chế độ Development đủ để đăng lên Page do chính mình quản trị.
+
+> ⚠️ **Kết nối Facebook phải mở app bằng đúng `http://localhost:3000`**, không phải
+> `http://127.0.0.1:3000`. Trình duyệt coi hai địa chỉ này là hai host khác nhau khi lưu cookie,
+> nên cookie chống CSRF đặt ở một bên không tới được bên kia và luồng kết nối hỏng. Mở nhầm địa
+> chỉ thì công cụ chặn ngay từ lúc bấm nút và nói rõ phải sửa gì — không để lỗi nổ ở bước cuối.
+> (Meta cũng chỉ chấp nhận `http://` cho `localhost`, nên `localhost` là chuẩn của cả dự án.)
 
 Vào `/facebook` bấm **Kết nối nick Facebook**, đăng nhập bằng nick cá nhân đang quản trị Page.
 Công cụ tự đổi token 2 giờ → token 60 ngày → lấy Page token, và **tự tạo đích đăng** cho từng
