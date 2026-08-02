@@ -58,13 +58,18 @@ export function PostJobComposer({
     ? targets.filter((target) => isPlatformCompatible(selectedAccount.platform, target.platform))
     : targets;
 
-  // Đổi nick sang nền tảng khác thì đích đã chọn không còn hợp lệ.
+  // Đổi nick sang nền tảng khác thì đích đã chọn không còn hợp lệ. Suy ra thay vì xóa state
+  // trong effect: xóa bằng effect để lại đúng một lượt render mang đích lệch nền tảng, đủ để
+  // bộ luật chạy thử trên một cặp nick/đích không bao giờ tồn tại.
   const targetStillValid = !targetId || eligibleTargets.some((target) => target.id === targetId);
-  useEffect(() => {
-    if (!targetStillValid) setTargetId("");
-  }, [targetStillValid]);
+  const effectiveTargetId = targetStillValid ? targetId : "";
 
-  const preview = useRulePreview({ contentItemId, accountId, targetId, scheduledAt });
+  const preview = useRulePreview({
+    contentItemId,
+    accountId,
+    targetId: effectiveTargetId,
+    scheduledAt,
+  });
   const evaluation = preview.status === "ready" ? preview.evaluation : null;
   const blocked = evaluation?.level === "BLOCK";
   const canOverride = blocked && evaluation.overridable;
@@ -73,7 +78,7 @@ export function PostJobComposer({
     pending ||
     !contentItemId ||
     !accountId ||
-    !targetId ||
+    !effectiveTargetId ||
     !scheduledAt ||
     (blocked &&
       (!evaluation.overridable || overrideReason.trim().length < MIN_OVERRIDE_REASON_LENGTH));
@@ -85,7 +90,7 @@ export function PostJobComposer({
         <AccountSelect accounts={accounts} value={accountId} onChange={setAccountId} />
         <TargetSelect
           targets={eligibleTargets}
-          value={targetId}
+          value={effectiveTargetId}
           onChange={setTargetId}
           filtered={Boolean(selectedAccount)}
         />
