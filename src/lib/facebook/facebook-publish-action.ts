@@ -8,7 +8,7 @@
  * đều là lách bằng trình duyệt giả — đúng thứ khiến nick chết.
  */
 import { revalidatePath } from "next/cache";
-import type { ActionResult } from "@/lib/accounts/account-actions";
+import type { ActionResult } from "@/lib/actions/action-result";
 import { prisma } from "@/lib/db/prisma-client";
 import { markJobPosted } from "@/lib/queue/post-job-status-actions";
 import { FacebookPublishError, publishToPage, toPostContent } from "./facebook-page-publisher";
@@ -41,22 +41,12 @@ export async function publishJobToPage(jobId: string, imageUrl?: string): Promis
     };
   }
 
+  // Ranh giới quan trọng nhất của hàm này: chỉ lời gọi Graph nằm trong khối try dưới đây.
+  // Qua được nó nghĩa là bài ĐÃ nằm trên tường Facebook, và từ đó trở đi không lỗi nào
+  // được phép đẩy job về FAILED — người dùng thấy "lỗi" sẽ bấm đăng lại, thành hai bài.
+  let result: Awaited<ReturnType<typeof publishToPage>>;
   try {
-    const result = await publishToPage(page.pageId, toPostContent(job.contentItem), { imageUrl });
-
-    await prisma.auditLog.create({
-      data: {
-        accountId: job.accountId,
-        action: "FACEBOOK_PAGE_PUBLISHED",
-        detail: `job ${job.id} → page ${page.name} (${result.postId})`.slice(0, 500),
-      },
-    });
-
-    // Dùng lại đường đánh dấu đã đăng của hàng đợi: nó ghi luôn Interaction để
-    // luật chống đụng độ và tỷ lệ promo nhìn thấy bài này như mọi bài đăng tay.
-    await markJobPosted(jobId, result.postUrl);
-
-    return { ok: true, message: `Đã đăng lên "${page.name}". Mở link ở cột trạng thái để kiểm tra.` };
+    result = await publishToPage(page.pageId, toPostContent(job.contentItem), { imageUrl });
   } catch (error) {
     const message =
       error instanceof FacebookPublishError ? error.message : "Lỗi không xác định khi đăng bài.";
@@ -76,4 +66,31 @@ export async function publishJobToPage(jobId: string, imageUrl?: string): Promis
     revalidatePath("/queue");
     return { ok: false, message };
   }
+
+  await prisma.auditLog.create({
+    data: {
+      accountId: job.accountId,
+      action: "FACEBOOK_PAGE_PUBLISHED",
+      detail: `job ${job.id} → page ${page.name} (${result.postId})`.slice(0, 500),
+    },
+  });
+
+  // Dùng lại đường đánh dấu đã đăng của hàng đợi: nó ghi luôn Interaction để
+  // luật chống đụng độ và tỷ lệ promo nhìn thấy bài này như mọi bài đăng tay.
+  const marked = await markJobPosted(jobId, result.postUrl).catch((error: unknown) => ({
+    ok: false as const,
+    message: error instanceof Error ? error.message : "lỗi không rõ khi ghi trạng thái",
+  }));
+
+  if (!marked.ok) {
+    // Bài đã lên rồi mà job vẫn PENDING: phải nói thẳng, nếu không lần bấm sau là bài thứ hai.
+    return {
+      ok: false,
+      message:
+        `ĐÃ ĐĂNG THÀNH CÔNG lên "${page.name}" (${result.postUrl}) nhưng không ghi được trạng thái ` +
+        `job: ${marked.message} — ĐỪNG bấm đăng lại. Vào hàng đợi bấm "Đã đăng" và dán chính link này.`,
+    };
+  }
+
+  return { ok: true, message: `Đã đăng lên "${page.name}". Mở link ở cột trạng thái để kiểm tra.` };
 }
