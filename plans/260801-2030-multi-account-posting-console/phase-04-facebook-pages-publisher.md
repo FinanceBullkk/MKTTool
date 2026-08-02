@@ -111,7 +111,10 @@ model GroupReminder {                        // luồng thủ công cho Group
 
 **Sửa:**
 - `prisma/schema.prisma`
-- `lib/rules/rules-engine.ts` — bỏ qua luật 6 (9:1) và luật 8 (đụng thread) khi platform = FACEBOOK_PAGE
+- ~~`lib/rules/rules-engine.ts` — bỏ qua luật 6 (9:1) và luật 8 (đụng thread) khi platform = FACEBOOK_PAGE~~
+  **Xong 02/08/2026**, và rộng hơn kế hoạch: bỏ luôn luật 4 (hạn mức ngày) và luật 5 (nghỉ 24h)
+  cho FACEBOOK_PAGE. Fanpage đăng nhiều bài mỗi ngày là chuyện thường. Facebook **Group** thì
+  vẫn chạy đủ 9 luật — group vận hành như sub Reddit. Xem `COMMUNITY_PLATFORMS`.
 
 ## Implementation Steps
 

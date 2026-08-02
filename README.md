@@ -74,24 +74,31 @@ proxy, không cần tài khoản nào, và kiểm tra được phần lớn ch�
 
 ## Bộ luật an toàn
 
-Mỗi lần xếp lịch, 9 phép kiểm tra chạy trước và trả về `ALLOW | WARN | BLOCK` kèm lý do
+Mỗi lần xếp lịch, các phép kiểm tra chạy trước và trả về `ALLOW | WARN | BLOCK` kèm lý do
 tiếng Việt. Đèn hiện ngay lúc chọn nick/đích, không đợi tới lúc bấm lưu.
 
-| # | Luật | Chặn khi |
-|---|---|---|
-| 1 | Sức khỏe nick | trạng thái khác `ALIVE` |
-| 2 | Cold start | giờ đăng còn nằm trong cold-start |
-| 3 | Điều kiện đích | thiếu karma hoặc nick chưa đủ tuổi theo luật sub |
-| 4 | Hạn mức ngày | nick đã có 2 bài trong ngày đó |
-| 5 | Nghỉ giữa 2 bài | hai bài cùng sub cách nhau dưới 24 tiếng |
-| 6 | Tỷ lệ promo | chưa đủ 9 bài hữu ích cho bài quảng cáo tiếp theo |
-| 7 | Trùng nội dung | giống ≥ 70% một bài cùng nền tảng trong 30 ngày |
-| 8 | Đụng độ thread | nick khác của mình đã chạm đúng thread đó |
-| 9 | Chính sách link | sub cấm link mà bài có link |
+Cột **Áp cho** cho biết luật chạy ở đâu. `Cộng đồng` = Reddit và Facebook Group — nơi mình là
+khách trong nhà người khác, có mod và có hàng xóm để ý. Fanpage là kênh của chính mình nên
+bốn luật giữ nhịp không áp: đăng 5 bài một ngày hay đăng toàn nội dung bán hàng đều bình thường.
 
-Luật 6 và 8 là hai luật không nền tảng nào tha thứ. **Luật 8 không cho ghi đè** — hai nick cùng chủ
-đụng một thread là tín hiệu phối hợp rõ nhất mà nền tảng bắt được. Các luật còn lại ghi đè được
-nhưng bắt buộc nhập lý do và luôn để lại `AuditLog`.
+| # | Luật | Chặn khi | Áp cho |
+|---|---|---|---|
+| 1 | Sức khỏe nick | trạng thái khác `ALIVE` | mọi nền tảng |
+| 2 | Cold start | giờ đăng còn nằm trong cold-start | mọi nền tảng |
+| 3 | Điều kiện đích | thiếu karma hoặc nick chưa đủ tuổi theo luật sub | mọi nền tảng |
+| 4 | Hạn mức ngày | nick đã có 2 bài trong ngày đó | **cộng đồng** |
+| 5 | Nghỉ giữa 2 bài | hai bài cùng sub cách nhau dưới 24 tiếng | **cộng đồng** |
+| 6 | Tỷ lệ promo | chưa đủ 9 bài hữu ích cho bài quảng cáo tiếp theo | **cộng đồng** |
+| 7 | Trùng nội dung | giống ≥ 70% một bài cùng nền tảng trong 30 ngày | mọi nền tảng |
+| 8 | Đụng độ thread | nick khác của mình đã chạm đúng thread đó | **cộng đồng** |
+| 9 | Chính sách link | sub cấm link mà bài có link | mọi nền tảng |
+
+Luật 6 và 8 là hai luật không cộng đồng nào tha thứ. **Luật 8 không cho ghi đè** — hai nick cùng
+chủ đụng một thread là tín hiệu phối hợp rõ nhất mà nền tảng bắt được. Các luật còn lại ghi đè
+được nhưng bắt buộc nhập lý do và luôn để lại `AuditLog`.
+
+Luật bị bỏ qua **không im lặng**: checklist ghi rõ "Không áp dụng cho nền tảng này: …" để không ai
+tưởng công cụ đã kiểm mà thật ra không.
 
 Ngưỡng nằm ở bảng `RuleConfig`, sửa bằng `npm run db:studio` — không cần sửa code, không cần
 build lại. Thiếu key nào thì dùng mặc định trong `src/lib/rules/rule-thresholds.ts`.
@@ -195,8 +202,6 @@ trong MCP, file cấu hình, lẫn GUI).
 
 ## Việc chưa làm
 
-- Bộ luật an toàn **chạy y hệt nhau cho mọi nền tảng** — mấy luật hợp với Reddit thì vô lý với
-  Fanpage chính thức (2 bài/ngày, nghỉ 24h, đụng độ thread).
 - Dò shadowban + theo dõi karma → Phase 03
 - Facebook Pages qua Graph API → Phase 04
 - Tự động đăng Reddit → Phase 05

@@ -85,7 +85,7 @@ Quan hệ chính: `Account` → `Persona` (n:1), `Account` → `Proxy` (1:1), `P
 2. Xếp lịch (composer)  → src/components/queue/post-job-composer.tsx
    ├── Chọn nick + đích → gọi API /api/rules/preview (POST)
    │                     → src/lib/rules/rule-context-builder.ts   xây RuleContext
-   │                     → src/lib/rules/rules-engine.ts           chạy 9 luật
+   │                     → src/lib/rules/rules-engine.ts           chạy luật áp cho nền tảng đó
    │                     → trả verdict về UI realtime
    └── Bấm lưu          → src/lib/queue/post-job-actions.ts       → PostJob (PENDING|BLOCKED)
 3. Đăng bài (Phase 05)  → chưa có — hiện người dùng mở profile tay rồi copy/paste
@@ -144,9 +144,22 @@ Kiến trúc:
 | `rule-link-policy.ts` | Luật 9 (chính sách link) |
 | `content-similarity-calculator.ts` | Jaccard trên trigram ký tự |
 | `text-normalizer.ts` | Chuẩn hóa văn bản trước khi so trùng |
-| `rules-engine.ts` | Gom 9 luật, chạy tuần tự, mức nặng nhất thắng |
+| `rules-engine.ts` | Gom 9 luật, lọc theo nền tảng của đích, chạy tuần tự, mức nặng nhất thắng |
 
 **Thêm luật mới** = thêm 1 file luật + 1 dòng trong mảng `RULES` ở `rules-engine.ts`.
+
+### Luật theo nền tảng
+
+Mỗi mục trong `RULES` khai được `platforms` — bỏ trống nghĩa là áp cho mọi nền tảng. Bốn luật
+giữ nhịp (4 hạn mức ngày, 5 nghỉ 24h, 6 tỷ lệ promo, 8 đụng độ thread) chỉ áp cho
+`COMMUNITY_PLATFORMS` = Reddit + Facebook Group, vì Fanpage là kênh của chính mình chứ không
+phải cộng đồng mình vào nhờ.
+
+Luật bị loại **trước khi chạy** và nêu tên trong `RuleEvaluation.skipped`, không lặng lẽ trả
+ALLOW — checklist phải nói rõ nó chưa kiểm gì.
+
+`interaction-actions.ts` gọi thẳng luật 8 chứ không qua engine, nên nó hỏi cùng nguồn sự thật
+bằng `isCommunityPlatform()`. Hai đường lệch nhau là luật chặn ở chỗ này mà lọt ở chỗ kia.
 
 ---
 
@@ -195,8 +208,8 @@ Chi tiết đầy đủ ở [README → Lệnh](../README.md#lệnh).
 
 - **Chưa kiểm chứng IP trong profile khớp proxy** (Chặng C) — code đẩy proxy xong 02/08/2026,
   có test, nhưng chưa chạy với proxy thật lần nào.
-- **Bộ luật chạy y hệt nhau cho mọi nền tảng** — luật 4/5/8 hợp Reddit nhưng vô lý với Fanpage
-  chính thức. Cần cho mỗi luật khai danh sách nền tảng áp dụng.
+- **Chưa có nick Facebook thật để chạy thử luật Fanpage** — đường FACEBOOK_PAGE mới kiểm bằng
+  test và dữ liệu giả qua API preview, chưa qua Graph API lần nào (Phase 04).
 - Dò shadowban + theo dõi karma → Phase 03.
 - Facebook Pages qua Graph API → Phase 04.
 - Tự động đăng Reddit qua tool MCP → Phase 05.

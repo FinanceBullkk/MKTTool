@@ -69,7 +69,7 @@ Tra cứu thêm: [tài liệu sản phẩm](project-overview-pdr.md) · [bản �
 | **Đụng độ thread** | Hai nick cùng chủ chạm vào một thread (bài viết). | Tín hiệu phối hợp rõ nhất mà nền tảng bắt được. Luật 8, **không cho ghi đè**. | `rule-thread-collision.ts` |
 | **Trigram Jaccard** | So độ giống hai bài bằng Jaccard trên tập trigram ký tự (chuỗi 3 ký tự liền). | Chạy micro giây, không cần mạng, bắt được bài copy-paste sửa vài chữ. Bài viết lại hoàn toàn cùng ý thì lọt — chấp nhận. | `content-similarity-calculator.ts` |
 | **Chuẩn hóa văn bản** | Bỏ dấu tiếng Việt (NFD + xóa combining marks), hạ thường, `đ→d`, bỏ ký tự đặc biệt. | Hai bài chỉ khác dấu câu hay viết hoa phải cho ra cùng chuỗi khi so trùng. | `text-normalizer.ts` → `normalizeText()` |
-| **Verdict ALLOW/WARN/BLOCK** | Kết quả mỗi luật. **ALLOW/WARN**: lưu job bình thường, không cần làm gì thêm — WARN chỉ là lời nhắc. **BLOCK**: nút lưu khóa lại, muốn qua phải nhập lý do ghi đè (trừ luật 8, không có đường vòng). | UI hiện checklist đầy đủ cả 9 luật để người dùng thấy hết vấn đề trong một lần, không phải sửa xong lại lòi ra lỗi tiếp. | `rule-types.ts` → `RuleVerdict`; `post-job-actions.ts` |
+| **Verdict ALLOW/WARN/BLOCK** | Kết quả mỗi luật. **ALLOW/WARN**: lưu job bình thường, không cần làm gì thêm — WARN chỉ là lời nhắc. **BLOCK**: nút lưu khóa lại, muốn qua phải nhập lý do ghi đè (trừ luật 8, không có đường vòng). | UI hiện checklist đầy đủ mọi luật đã chạy để người dùng thấy hết vấn đề trong một lần, không phải sửa xong lại lòi ra lỗi tiếp. Luật không áp dụng cho nền tảng đó cũng nêu tên riêng, không giấu. | `rule-types.ts` → `RuleVerdict`; `post-job-actions.ts` |
 | **Ngưỡng (`RuleConfig`)** | Bảng key-value trong DB, ghi đè ngưỡng mặc định mà không cần sửa code. | Siết/nới nhanh khi có dữ liệu thật, không cần build lại. | `schema.prisma` → `RuleConfig`; `rule-thresholds.ts` |
 
 ## Kỹ thuật
@@ -88,17 +88,40 @@ Tra cứu thêm: [tài liệu sản phẩm](project-overview-pdr.md) · [bản �
 Bộ luật chạy tuần tự, **không dừng ở luật chặn đầu tiên** — người dùng cần thấy hết mọi vấn đề
 trong một lần. Ngưỡng mặc định lấy từ [`rule-thresholds.ts`](../src/lib/rules/rule-thresholds.ts).
 
-| # | Tên luật | BLOCK khi | WARN khi | Ghi đè? | Lý do nghiệp vụ |
-|---|---|---|---|---|---|
-| 1 | Sức khỏe nick | Trạng thái ≠ `ALIVE` | — | ✅ | Nick dính checkpoint hoặc shadowban mà đăng tiếp là biến cảnh báo mềm thành khóa vĩnh viễn |
-| 2 | Cold start | `scheduledAt` còn nằm trong cold-start | Vừa hết cold-start chưa quá 2 ngày | ✅ | Nick mới hoạt động mạnh ngay bị nền tảng soi kỹ. 14 ngày chỉ đọc là tối thiểu |
-| 3 | Điều kiện đích | Thiếu karma hoặc tuổi nick chưa đủ theo luật sub | Karma chỉ dư < 20% so với mức tối thiểu | ✅ | Bài bị AutoModerator gỡ im lặng. Lặp lại thì mod người thật soi cả cụm nick |
-| 4 | Hạn mức ngày | Nick đã có ≥ 2 bài trong ngày | Bài thứ 2 trong ngày | ✅ | Nhịp đăng đều và dày là dấu hiệu dễ nhận nhất của tài khoản vận hành bằng tool |
-| 5 | Nghỉ giữa 2 bài | Hai bài cùng đích cách < 24 tiếng | Cách < 48 tiếng | ✅ | Nhiều sub cấm cứng 1 bài/24h/người. Kể cả không cấm, mod vẫn để ý nick xuất hiện liên tục |
-| 6 | Tỷ lệ promo | Chưa đủ ratio bài hữu ích cho bài quảng cáo tiếp | Vừa khít hạn mức (đăng xong là hết quota) | ✅ | Một trong hai luật không nền tảng nào tha thứ. Vi phạm thì mod soi cả cụm |
-| 7 | Trùng nội dung | Jaccard ≥ 0.70 với bài cùng nền tảng trong 30 ngày | Jaccard ≥ 0.50 | ✅ | Nguyên nhân shadowban số 1. Reddit gọi thẳng tên: "coordinated inauthentic behavior" |
-| 8 | Đụng độ thread | Nick khác đã chạm đúng thread này | Nick khác hoạt động cùng đích trong 1 tiếng | **❌** | Tín hiệu phối hợp rõ nhất. Không có lý do kinh doanh nào đủ lớn để đánh đổi |
-| 9 | Chính sách link | Đích cấm link mà bài có link | Bài có ≥ 2 link | ✅ | Bài bị gỡ im lặng vì link là tệ nhất: mình tưởng đã đăng, thật ra không ai thấy |
+Cột **Áp cho**: `mọi` = mọi nền tảng, `cộng đồng` = Reddit + Facebook Group (xem
+[Nền tảng cộng đồng](#nền-tảng-cộng-đồng) bên dưới).
+
+| # | Tên luật | BLOCK khi | WARN khi | Ghi đè? | Áp cho | Lý do nghiệp vụ |
+|---|---|---|---|---|---|---|
+| 1 | Sức khỏe nick | Trạng thái ≠ `ALIVE` | — | ✅ | mọi | Nick dính checkpoint hoặc shadowban mà đăng tiếp là biến cảnh báo mềm thành khóa vĩnh viễn |
+| 2 | Cold start | `scheduledAt` còn nằm trong cold-start | Vừa hết cold-start chưa quá 2 ngày | ✅ | mọi | Nick mới hoạt động mạnh ngay bị nền tảng soi kỹ. 14 ngày chỉ đọc là tối thiểu |
+| 3 | Điều kiện đích | Thiếu karma hoặc tuổi nick chưa đủ theo luật sub | Karma chỉ dư < 20% so với mức tối thiểu | ✅ | mọi | Bài bị AutoModerator gỡ im lặng. Lặp lại thì mod người thật soi cả cụm nick |
+| 4 | Hạn mức ngày | Nick đã có ≥ 2 bài trong ngày | Bài thứ 2 trong ngày | ✅ | **cộng đồng** | Nhịp đăng đều và dày là dấu hiệu dễ nhận nhất của tài khoản vận hành bằng tool |
+| 5 | Nghỉ giữa 2 bài | Hai bài cùng đích cách < 24 tiếng | Cách < 48 tiếng | ✅ | **cộng đồng** | Nhiều sub cấm cứng 1 bài/24h/người. Kể cả không cấm, mod vẫn để ý nick xuất hiện liên tục |
+| 6 | Tỷ lệ promo | Chưa đủ ratio bài hữu ích cho bài quảng cáo tiếp | Vừa khít hạn mức (đăng xong là hết quota) | ✅ | **cộng đồng** | Một trong hai luật không cộng đồng nào tha thứ. Vi phạm thì mod soi cả cụm |
+| 7 | Trùng nội dung | Jaccard ≥ 0.70 với bài cùng nền tảng trong 30 ngày | Jaccard ≥ 0.50 | ✅ | mọi | Nguyên nhân shadowban số 1. Reddit gọi thẳng tên: "coordinated inauthentic behavior" |
+| 8 | Đụng độ thread | Nick khác đã chạm đúng thread này | Nick khác hoạt động cùng đích trong 1 tiếng | **❌** | **cộng đồng** | Tín hiệu phối hợp rõ nhất. Không có lý do kinh doanh nào đủ lớn để đánh đổi |
+| 9 | Chính sách link | Đích cấm link mà bài có link | Bài có ≥ 2 link | ✅ | mọi | Bài bị gỡ im lặng vì link là tệ nhất: mình tưởng đã đăng, thật ra không ai thấy |
+
+### Nền tảng cộng đồng
+
+`COMMUNITY_PLATFORMS = ["REDDIT", "FACEBOOK_GROUP"]` — nơi mình là **khách trong nhà người
+khác**: có mod, có luật riêng của sub/group, có hàng xóm để ý nhịp đăng.
+
+`FACEBOOK_PAGE` nằm ngoài vì Fanpage là **kênh của chính mình**. Đăng 5 bài một ngày, đăng đều
+đặn hằng ngày, hay đăng toàn nội dung bán hàng đều là chuyện bình thường của một trang thương
+hiệu — bốn luật giữ nhịp (4, 5, 6, 8) áp vào đó chỉ chặn nhầm nội dung hợp lệ. Đặc biệt luật 8:
+trang trả lời bình luận dưới bài của chính mình là chăm sóc khách hàng, không phải hai nick giả
+vờ đồng tình với nhau.
+
+Facebook Group thì **vẫn chạy đủ 9 luật** — group vận hành như sub Reddit, không phải như Page.
+
+Luật bị bỏ qua được liệt kê trong `RuleEvaluation.skipped` và hiện thẳng trên checklist
+("Không áp dụng cho nền tảng này: …"). Lỗ hổng im lặng trong hệ thống an toàn nguy hiểm hơn
+không có luật.
+
+→ `platform-family.ts` → `COMMUNITY_PLATFORMS`, `isCommunityPlatform()`;
+`rules-engine.ts` → `RuleDefinition.platforms`.
 
 ### 4 điểm phản trực giác
 
