@@ -7,18 +7,18 @@
  * vì thân bài hay chứa link sản phẩm kèm tham số theo dõi.
  */
 import { revalidatePath } from "next/cache";
-import { z } from "zod";
-import type { ActionResult } from "@/lib/accounts/account-actions";
+import {
+  contentItemCreateSchema,
+  contentItemUpdateSchema,
+  firstError,
+  formToObject,
+} from "@/lib/accounts/vault-form-schemas";
+import type { ActionResult } from "@/lib/actions/action-result";
 import { prisma } from "@/lib/db/prisma-client";
-import { CONTENT_TYPES, stringifyLinks } from "./content-types";
-
-const contentItemSchema = z.object({
-  title: z.string().min(1, "Tiêu đề không được để trống"),
-  body: z.string().min(1, "Thân bài không được để trống"),
-  type: z.enum(CONTENT_TYPES),
-  authorName: z.string().min(1, "Ghi tên người viết để sau còn truy được"),
-  linksText: z.string().optional(),
-});
+import { describeUnexpectedDbError } from "@/lib/db/prisma-error-helpers";
+import { blockDeleteWhenReferenced } from "@/lib/db/reference-guard";
+import { describeRecheck, recheckJobsMatching } from "@/lib/queue/recheck-jobs-batch";
+import { stringifyLinks } from "./content-types";
 
 /** Ô link là textarea: mỗi dòng một link, cho phép dán cả cụm rồi tự tách. */
 function parseLinksInput(raw: string | undefined): string[] {
@@ -30,10 +30,8 @@ export async function createContentItem(
   _prev: ActionResult | null,
   formData: FormData,
 ): Promise<ActionResult> {
-  const parsed = contentItemSchema.safeParse(Object.fromEntries(formData.entries()));
-  if (!parsed.success) {
-    return { ok: false, message: parsed.error.issues[0]?.message ?? "Dữ liệu không hợp lệ" };
-  }
+  const parsed = contentItemCreateSchema.safeParse(formToObject(formData));
+  if (!parsed.success) return { ok: false, message: firstError(parsed.error) };
 
   const { linksText, ...rest } = parsed.data;
 
@@ -47,4 +45,62 @@ export async function createContentItem(
     ok: true,
     message: `Đã lưu "${parsed.data.title}". Sang hàng đợi để xếp lịch đăng.`,
   };
+}
+
+/**
+ * Sửa content rồi chấm lại mọi job đang chờ dùng nó.
+ *
+ * Bắt buộc phải chấm lại: độ trùng nội dung (luật 7) và chính sách link (luật 9) đều tính
+ * trên thân bài, còn tỷ lệ promo (luật 6) tính trên `type`. Sửa xong mà để verdict cũ nằm im
+ * là hàng đợi hiện đèn xanh cho một bài đã khác hẳn bài từng được chấm.
+ */
+export async function updateContentItem(
+  _prev: ActionResult | null,
+  formData: FormData,
+): Promise<ActionResult> {
+  const parsed = contentItemUpdateSchema.safeParse(formToObject(formData));
+  if (!parsed.success) return { ok: false, message: firstError(parsed.error) };
+
+  const { id, linksText, ...rest } = parsed.data;
+
+  try {
+    await prisma.contentItem.update({
+      where: { id },
+      data: { ...rest, links: stringifyLinks(parseLinksInput(linksText)) },
+    });
+  } catch (error) {
+    return { ok: false, message: describeUnexpectedDbError(error, "sửa content") };
+  }
+
+  const recheck = await recheckJobsMatching({ contentItemId: id });
+
+  revalidatePath("/content");
+  revalidatePath(`/content/${id}`);
+  revalidatePath("/queue");
+  return { ok: true, message: `Đã lưu "${rest.title}".${describeRecheck(recheck)}` };
+}
+
+export async function deleteContentItem(contentItemId: string): Promise<ActionResult> {
+  const item = await prisma.contentItem.findUnique({
+    where: { id: contentItemId },
+    include: { _count: { select: { jobs: true } } },
+  });
+  if (!item) return { ok: false, message: "Không tìm thấy content." };
+
+  const blocked = blockDeleteWhenReferenced(
+    `content "${item.title}"`,
+    [{ label: "job đã xếp lịch", count: item._count.jobs }],
+    "Bài đã xếp lịch là dữ liệu bộ luật dùng để so trùng cho những bài sau — bỏ qua job đó " +
+      "ở hàng đợi thay vì xóa bài gốc.",
+  );
+  if (blocked) return { ok: false, message: blocked.message };
+
+  try {
+    await prisma.contentItem.delete({ where: { id: contentItemId } });
+  } catch (error) {
+    return { ok: false, message: describeUnexpectedDbError(error, "xóa content") };
+  }
+
+  revalidatePath("/content");
+  return { ok: true, message: `Đã xóa "${item.title}".` };
 }

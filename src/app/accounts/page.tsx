@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ActionForm, Field, SelectField } from "@/components/ui/form-controls";
+import { ActionForm } from "@/components/ui/form-controls";
 import {
   Card,
   DataTable,
@@ -7,9 +7,9 @@ import {
   PageHeading,
   StatusBadge,
 } from "@/components/ui/page-section";
-import { createAccount } from "@/lib/accounts/account-actions";
+import { AccountFormFields } from "@/components/vault/account-form-fields";
+import { createAccount } from "@/lib/accounts/vault-create-actions";
 import {
-  ACCOUNT_STATUSES,
   accountAgeInDays,
   coldStartDaysRemaining,
   getStatusPresentation,
@@ -103,77 +103,13 @@ export default async function AccountsPage() {
           </EmptyState>
         ) : (
           <ActionForm action={createAccount} submitLabel="Thêm nick">
-            <SelectField
-              label="Nền tảng"
-              name="platform"
-              required
-              options={[
-                { value: "REDDIT", label: "Reddit" },
-                { value: "FACEBOOK", label: "Facebook" },
-              ]}
-            />
-            <Field label="Username" name="username" required />
-            <Field label="Mật khẩu nick" name="password" type="password" required />
-            <Field
-              label="Email gốc"
-              name="emailAddress"
-              type="email"
-              required
-              hint="Không có email gốc thì đừng mua nick — người bán lấy lại được"
-            />
-            <Field label="Mật khẩu email" name="emailPassword" type="password" required />
-            <Field
-              label="TOTP secret"
-              name="totpSecret"
-              hint="Chuỗi base32 khi bật 2FA. Để trống nếu chưa bật."
-            />
-            <Field
-              label="Id profile antidetect"
-              name="antidetectProfileId"
-              required
-              hint="Id profile bên MultiZen/AdsPower"
-            />
-            <SelectField
-              label="Nhân vật"
-              name="personaId"
-              required
-              options={personas.map((persona) => ({ value: persona.id, label: persona.name }))}
-            />
-            <SelectField
-              label="Proxy"
-              name="proxyId"
-              required
-              hint={`${freeProxies.length} proxy chưa gắn nick`}
-              options={freeProxies.map((proxy) => ({
-                value: proxy.id,
+            <AccountFormFields
+              personas={personas.map((persona) => ({ id: persona.id, label: persona.name }))}
+              proxies={freeProxies.map((proxy) => ({
+                id: proxy.id,
                 label: `${proxy.label} — ${proxy.country}`,
               }))}
             />
-            <SelectField
-              label="Trạng thái"
-              name="status"
-              required
-              defaultValue="COLD_START"
-              options={ACCOUNT_STATUSES.map((status) => ({
-                value: status,
-                label: getStatusPresentation(status).label,
-              }))}
-            />
-            <Field label="Karma" name="karma" type="number" defaultValue={0} />
-            <Field
-              label="Cold-start tới ngày"
-              name="coldStartUntil"
-              type="date"
-              hint="Mua nick về thì đặt 14 ngày sau"
-            />
-            <Field
-              label="Ngày tạo nick trên nền tảng"
-              name="platformCreatedAt"
-              type="date"
-              hint="Dùng để kiểm tra điều kiện tuổi nick của subreddit"
-            />
-            <Field label="Ngày mua" name="purchasedAt" type="date" />
-            <Field label="Ghi chú mua" name="purchaseNote" placeholder="Nguồn, giá, quốc gia gốc" />
           </ActionForm>
         )}
       </Card>

@@ -39,13 +39,15 @@ export default async function ContentPage() {
             để xếp lịch.
           </EmptyState>
         ) : (
-          <DataTable headers={["Tiêu đề", "Loại", "Người viết", "Link", "Đã xếp", "Ngày tạo"]}>
+          <DataTable headers={["Tiêu đề", "Loại", "Người viết", "Link", "Đã xếp", "Ngày tạo", ""]}>
             {items.map((item) => {
               const type = item.type as ContentType;
               return (
                 <tr key={item.id}>
                   <td className="max-w-sm py-2 pr-4">
-                    <div className="font-medium">{item.title}</div>
+                    <Link href={`/content/${item.id}`} className="font-medium hover:underline">
+                      {item.title}
+                    </Link>
                     <div className="truncate text-xs text-neutral-500">{item.body}</div>
                   </td>
                   <td className="py-2 pr-4">
@@ -61,6 +63,14 @@ export default async function ContentPage() {
                   <td className="py-2 pr-4">{item._count.jobs} job</td>
                   <td className="py-2 pr-4 text-xs text-neutral-500">
                     {formatDayMonth(item.createdAt)}
+                  </td>
+                  <td className="py-2 pr-4 text-right">
+                    <Link
+                      href={`/content/${item.id}`}
+                      className="text-xs text-neutral-500 hover:underline"
+                    >
+                      Sửa
+                    </Link>
                   </td>
                 </tr>
               );

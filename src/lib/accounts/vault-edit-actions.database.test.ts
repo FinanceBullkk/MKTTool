@@ -1,0 +1,345 @@
+/**
+ * Sửa và xóa trong kho danh tính, chạy trên SQLite thật (xem vitest.global-setup.ts).
+ *
+ * Ba nhóm khẳng định, đều là chỗ hỏng thì hỏng âm thầm:
+ *  1. Ô bí mật để trống phải GIỮ NGUYÊN giá trị cũ. Hỏng ở đây là mỗi lần sửa karma là một
+ *     lần mất mật khẩu nick — mà chỉ lộ ra lúc cần đăng nhập.
+ *  2. Sửa xong phải chấm lại job đang chờ. Hỏng ở đây là verdict cũ nằm im trong hàng đợi,
+ *     trông y hệt verdict đúng.
+ *  3. Xóa phải bị chặn khi còn dữ liệu trỏ tới. Hỏng ở đây là mất lịch sử nuôi bộ luật.
+ */
+import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
+
+// revalidatePath chỉ chạy được trong ngữ cảnh request của Next; ở đây ta kiểm phần database.
+vi.mock("next/cache", () => ({ revalidatePath: () => {} }));
+
+process.env.VAULT_KEY = "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff";
+
+const { prisma } = await import("@/lib/db/prisma-client");
+const { encryptCredential, decryptCredential } = await import(
+  "@/lib/crypto/credential-encryption"
+);
+const { deleteAccount, deletePersona, deleteProxy, deleteTarget } = await import(
+  "./vault-delete-actions"
+);
+const { updateAccount, updateProxy, updateTarget } = await import("./vault-update-actions");
+const { deleteContentItem, updateContentItem } = await import(
+  "@/lib/content/content-item-actions"
+);
+
+const SCHEDULED_AT = new Date("2026-09-10T09:00:00+07:00");
+
+interface Seeded {
+  personaId: string;
+  proxyId: string;
+  accountId: string;
+  targetId: string;
+  contentId: string;
+  jobId: string;
+}
+
+async function clearAll() {
+  await prisma.interaction.deleteMany();
+  await prisma.postJob.deleteMany();
+  await prisma.contentItem.deleteMany();
+  await prisma.account.deleteMany();
+  await prisma.proxy.deleteMany();
+  await prisma.persona.deleteMany();
+  await prisma.platformTarget.deleteMany();
+  await prisma.auditLog.deleteMany();
+}
+
+/** Một nick khỏe, một sub dễ tính, một bài hữu ích đã xếp lịch và đang PENDING. */
+async function seed(): Promise<Seeded> {
+  const persona = await prisma.persona.create({
+    data: { name: "Nhân vật thử", voice: "điềm đạm", contentAngle: "self-hosting" },
+  });
+  const proxy = await prisma.proxy.create({
+    data: {
+      label: "proxy-thu",
+      host: "127.0.0.1",
+      port: 1080,
+      username: "user01",
+      passwordEnc: encryptCredential("mat-khau-cu"),
+      country: "GB",
+      protocol: "http",
+    },
+  });
+  const account = await prisma.account.create({
+    data: {
+      platform: "REDDIT",
+      username: "anna",
+      passwordEnc: encryptCredential("mat-khau-nick-cu"),
+      emailAddress: "anna@example.test",
+      emailPasswordEnc: encryptCredential("mat-khau-email-cu"),
+      totpSecretEnc: encryptCredential("JBSWY3DPEHPK3PXP"),
+      antidetectProfileId: "profile-anna",
+      personaId: persona.id,
+      proxyId: proxy.id,
+      status: "ALIVE",
+      karma: 500,
+    },
+  });
+  const target = await prisma.platformTarget.create({
+    data: { platform: "REDDIT", name: "r/thu", url: "https://reddit.com/r/thu", minKarma: 100 },
+  });
+  const content = await prisma.contentItem.create({
+    data: { title: "Bài hữu ích", body: "Nội dung ban đầu", type: "VALUE", authorName: "team" },
+  });
+  const job = await prisma.postJob.create({
+    data: {
+      contentItemId: content.id,
+      accountId: account.id,
+      targetId: target.id,
+      scheduledAt: SCHEDULED_AT,
+      status: "PENDING",
+    },
+  });
+
+  return {
+    personaId: persona.id,
+    proxyId: proxy.id,
+    accountId: account.id,
+    targetId: target.id,
+    contentId: content.id,
+    jobId: job.id,
+  };
+}
+
+/** Dựng FormData từ object — server action nhận FormData chứ không nhận object. */
+function form(fields: Record<string, string>): FormData {
+  const data = new FormData();
+  for (const [key, value] of Object.entries(fields)) data.set(key, value);
+  return data;
+}
+
+function accountForm(seeded: Seeded, overrides: Record<string, string> = {}): FormData {
+  return form({
+    id: seeded.accountId,
+    username: "anna",
+    emailAddress: "anna@example.test",
+    antidetectProfileId: "profile-anna",
+    personaId: seeded.personaId,
+    proxyId: seeded.proxyId,
+    status: "ALIVE",
+    karma: "500",
+    ...overrides,
+  });
+}
+
+function targetForm(seeded: Seeded, overrides: Record<string, string> = {}): FormData {
+  return form({
+    id: seeded.targetId,
+    name: "r/thu",
+    url: "https://reddit.com/r/thu",
+    minKarma: "100",
+    minAccountAgeDays: "0",
+    promoRatio: "9",
+    allowsLinks: "on",
+    active: "on",
+    ...overrides,
+  });
+}
+
+let seeded: Seeded;
+
+beforeEach(async () => {
+  await clearAll();
+  seeded = await seed();
+});
+
+afterAll(async () => {
+  await clearAll();
+  await prisma.$disconnect();
+});
+
+describe("ô bí mật để trống là giữ nguyên", () => {
+  it("sửa proxy không gõ mật khẩu thì mật khẩu cũ còn nguyên", async () => {
+    const before = await prisma.proxy.findUniqueOrThrow({ where: { id: seeded.proxyId } });
+
+    const result = await updateProxy(
+      null,
+      form({
+        id: seeded.proxyId,
+        label: "proxy-doi-ten",
+        host: "127.0.0.1",
+        port: "1080",
+        username: "user01",
+        password: "",
+        country: "GB",
+        type: "STATIC_ISP",
+        protocol: "socks5",
+      }),
+    );
+
+    expect(result.ok).toBe(true);
+    const after = await prisma.proxy.findUniqueOrThrow({ where: { id: seeded.proxyId } });
+    expect(after.label).toBe("proxy-doi-ten");
+    expect(after.protocol).toBe("socks5");
+    expect(after.passwordEnc).toBe(before.passwordEnc);
+    expect(decryptCredential(after.passwordEnc)).toBe("mat-khau-cu");
+  });
+
+  it("gõ mật khẩu mới thì thay thật", async () => {
+    await updateProxy(
+      null,
+      form({
+        id: seeded.proxyId,
+        label: "proxy-thu",
+        host: "127.0.0.1",
+        port: "1080",
+        username: "user01",
+        password: "mat-khau-moi",
+        country: "GB",
+        type: "STATIC_ISP",
+        protocol: "http",
+      }),
+    );
+
+    const after = await prisma.proxy.findUniqueOrThrow({ where: { id: seeded.proxyId } });
+    expect(decryptCredential(after.passwordEnc)).toBe("mat-khau-moi");
+  });
+
+  it("sửa nick không gõ ô bí mật nào thì cả ba giữ nguyên", async () => {
+    const before = await prisma.account.findUniqueOrThrow({ where: { id: seeded.accountId } });
+
+    const result = await updateAccount(null, accountForm(seeded, { karma: "750" }));
+
+    expect(result.ok).toBe(true);
+    const after = await prisma.account.findUniqueOrThrow({ where: { id: seeded.accountId } });
+    expect(after.karma).toBe(750);
+    expect(after.passwordEnc).toBe(before.passwordEnc);
+    expect(after.emailPasswordEnc).toBe(before.emailPasswordEnc);
+    expect(after.totpSecretEnc).toBe(before.totpSecretEnc);
+  });
+});
+
+describe("sửa xong thì chấm lại job đang chờ", () => {
+  it("nâng minKarma của đích quá karma nick thì job chuyển sang BLOCKED", async () => {
+    const result = await updateTarget(null, targetForm(seeded, { minKarma: "9000" }));
+
+    expect(result.ok).toBe(true);
+    expect(result.message).toContain("chấm lại");
+    expect(result.message).toContain("BỊ CHẶN");
+
+    const job = await prisma.postJob.findUniqueOrThrow({ where: { id: seeded.jobId } });
+    expect(job.status).toBe("BLOCKED");
+    expect(job.ruleVerdicts).toContain("BLOCK");
+  });
+
+  it("hạ karma nick xuống dưới ngưỡng của đích thì job chuyển sang BLOCKED", async () => {
+    const result = await updateAccount(null, accountForm(seeded, { karma: "0" }));
+
+    expect(result.ok).toBe(true);
+    const job = await prisma.postJob.findUniqueOrThrow({ where: { id: seeded.jobId } });
+    expect(job.status).toBe("BLOCKED");
+  });
+
+  it("đổi nick sang trạng thái chết thì job chuyển sang BLOCKED", async () => {
+    await updateAccount(null, accountForm(seeded, { status: "DEAD" }));
+
+    const job = await prisma.postJob.findUniqueOrThrow({ where: { id: seeded.jobId } });
+    expect(job.status).toBe("BLOCKED");
+  });
+
+  it("sửa content thành bài quảng cáo thì job vướng luật tỷ lệ 9:1", async () => {
+    const result = await updateContentItem(
+      null,
+      form({
+        id: seeded.contentId,
+        title: "Bài hữu ích",
+        body: "Nội dung đã sửa hẳn",
+        type: "PROMO",
+        authorName: "team",
+      }),
+    );
+
+    expect(result.ok).toBe(true);
+    const job = await prisma.postJob.findUniqueOrThrow({ where: { id: seeded.jobId } });
+    expect(job.status).toBe("BLOCKED");
+    expect(job.ruleVerdicts).toContain("Tỷ lệ promo");
+  });
+
+  it("sửa thứ vô hại thì job vẫn ở PENDING", async () => {
+    const result = await updateTarget(null, targetForm(seeded, { notes: "mod dễ tính" }));
+
+    expect(result.ok).toBe(true);
+    const job = await prisma.postJob.findUniqueOrThrow({ where: { id: seeded.jobId } });
+    expect(job.status).toBe("PENDING");
+  });
+
+  it("job đã đăng KHÔNG bị chấm lại — trạng thái cuối là cuối", async () => {
+    await prisma.postJob.update({ where: { id: seeded.jobId }, data: { status: "POSTED" } });
+
+    await updateTarget(null, targetForm(seeded, { minKarma: "9000" }));
+
+    const job = await prisma.postJob.findUniqueOrThrow({ where: { id: seeded.jobId } });
+    expect(job.status).toBe("POSTED");
+  });
+});
+
+describe("xóa bị chặn khi còn dữ liệu trỏ tới", () => {
+  it("nhân vật còn nick thì không xóa được", async () => {
+    const result = await deletePersona(seeded.personaId);
+
+    expect(result.ok).toBe(false);
+    expect(result.message).toContain("1 nick");
+    expect(await prisma.persona.count()).toBe(1);
+  });
+
+  it("proxy đang gắn nick thì không xóa được", async () => {
+    const result = await deleteProxy(seeded.proxyId);
+
+    expect(result.ok).toBe(false);
+    expect(result.message).toContain("anna");
+    expect(await prisma.proxy.count()).toBe(1);
+  });
+
+  it("nick còn job thì không xóa được", async () => {
+    const result = await deleteAccount(seeded.accountId);
+
+    expect(result.ok).toBe(false);
+    expect(result.message).toContain("1 job");
+    expect(await prisma.account.count()).toBe(1);
+  });
+
+  it("đích còn job thì không xóa được", async () => {
+    const result = await deleteTarget(seeded.targetId);
+
+    expect(result.ok).toBe(false);
+    expect(result.message).toContain("1 job");
+    expect(await prisma.platformTarget.count()).toBe(1);
+  });
+
+  it("content đã xếp lịch thì không xóa được", async () => {
+    const result = await deleteContentItem(seeded.contentId);
+
+    expect(result.ok).toBe(false);
+    expect(result.message).toContain("1 job đã xếp lịch");
+    expect(await prisma.contentItem.count()).toBe(1);
+  });
+
+  it("dọn hết thứ trỏ tới rồi thì xóa được, đúng thứ tự phụ thuộc", async () => {
+    await prisma.postJob.deleteMany();
+
+    expect((await deleteContentItem(seeded.contentId)).ok).toBe(true);
+    expect((await deleteTarget(seeded.targetId)).ok).toBe(true);
+    expect((await deleteAccount(seeded.accountId)).ok).toBe(true);
+    // Nick đi rồi thì proxy và nhân vật mới hết bị trỏ tới.
+    expect((await deleteProxy(seeded.proxyId)).ok).toBe(true);
+    expect((await deletePersona(seeded.personaId)).ok).toBe(true);
+
+    expect(await prisma.account.count()).toBe(0);
+    expect(await prisma.proxy.count()).toBe(0);
+  });
+
+  it("xóa nick vẫn giữ AuditLog — nhật ký phải sống lâu hơn thứ nó ghi lại", async () => {
+    await prisma.postJob.deleteMany();
+    await prisma.auditLog.create({
+      data: { accountId: seeded.accountId, action: "CREDENTIAL_REVEALED", detail: "password" },
+    });
+
+    expect((await deleteAccount(seeded.accountId)).ok).toBe(true);
+    expect(await prisma.auditLog.count({ where: { action: "CREDENTIAL_REVEALED" } })).toBe(1);
+  });
+});

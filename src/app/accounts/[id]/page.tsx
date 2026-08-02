@@ -1,11 +1,16 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { DeleteEntityButton } from "@/components/ui/delete-entity-button";
+import { ActionForm } from "@/components/ui/form-controls";
 import { Card, PageHeading, StatusBadge } from "@/components/ui/page-section";
+import { AccountFormFields } from "@/components/vault/account-form-fields";
 import {
   accountAgeInDays,
   coldStartDaysRemaining,
   getStatusPresentation,
 } from "@/lib/accounts/account-status";
+import { deleteAccount } from "@/lib/accounts/vault-delete-actions";
+import { updateAccount } from "@/lib/accounts/vault-update-actions";
 import { prisma } from "@/lib/db/prisma-client";
 import { AccountVaultActionsPanel } from "./account-vault-actions-panel";
 
@@ -33,11 +38,17 @@ export default async function AccountDetailPage({
   const coldDays = coldStartDaysRemaining(account.coldStartUntil);
   const age = accountAgeInDays(account.platformCreatedAt);
 
-  const auditLogs = await prisma.auditLog.findMany({
-    where: { accountId: id },
-    orderBy: { at: "desc" },
-    take: 20,
-  });
+  const [auditLogs, personas, selectableProxies] = await Promise.all([
+    prisma.auditLog.findMany({ where: { accountId: id }, orderBy: { at: "desc" }, take: 20 }),
+    prisma.persona.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
+    // Proxy còn trống CỘNG proxy đang gắn cho chính nick này — thiếu vế sau thì mở form sửa
+    // ra là ô proxy trống rỗng, bấm lưu một phát là đổi mất proxy của nick.
+    prisma.proxy.findMany({
+      where: { OR: [{ account: null }, { account: { id } }] },
+      orderBy: { label: "asc" },
+      select: { id: true, label: true, country: true },
+    }),
+  ]);
 
   const facts: [string, string][] = [
     ["Nền tảng", account.platform],
@@ -104,6 +115,38 @@ export default async function AccountDetailPage({
             {account.purchaseNote}
           </p>
         ) : null}
+      </Card>
+
+      <Card title="Sửa nick">
+        <p className="mb-4 text-sm text-neutral-600 dark:text-neutral-400">
+          Karma, trạng thái và cold-start là đầu vào của luật 1, 2 và 3 — sửa xong là mọi job
+          đang chờ của nick này được chấm lại ngay, job hết an toàn chuyển sang BỊ CHẶN.
+          Nền tảng không đổi được sau khi tạo.
+        </p>
+        <ActionForm action={updateAccount} submitLabel="Lưu">
+          <input type="hidden" name="id" value={account.id} />
+          <AccountFormFields
+            personas={personas.map((persona) => ({ id: persona.id, label: persona.name }))}
+            proxies={selectableProxies.map((proxy) => ({
+              id: proxy.id,
+              label: `${proxy.label} — ${proxy.country}`,
+            }))}
+            defaults={account}
+          />
+        </ActionForm>
+      </Card>
+
+      <Card title="Xóa nick">
+        <p className="mb-3 text-sm text-neutral-600 dark:text-neutral-400">
+          Chỉ xóa được khi nick chưa có job, tương tác hay kết nối Facebook nào. Nick không dùng
+          nữa thì đổi trạng thái sang &quot;Đã chết&quot; ở form trên — lịch sử giữ nguyên để bộ
+          luật còn đếm hạn mức và tỷ lệ promo cho những nick còn lại.
+        </p>
+        <DeleteEntityButton
+          action={deleteAccount.bind(null, account.id)}
+          label={`nick "${account.username}"`}
+          redirectTo="/accounts"
+        />
       </Card>
 
       <Card title="Nhật ký gần đây">

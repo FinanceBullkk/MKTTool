@@ -10,7 +10,7 @@
  */
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import type { ActionResult } from "@/lib/accounts/account-actions";
+import type { ActionResult } from "@/lib/actions/action-result";
 import { prisma } from "@/lib/db/prisma-client";
 import { serializeEvaluation, summarizeEvaluation } from "@/lib/rules/rules-engine";
 import { canOverride } from "./post-job-override-policy";

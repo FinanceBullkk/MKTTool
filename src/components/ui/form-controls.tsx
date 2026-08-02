@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import type { ActionResult } from "@/lib/accounts/account-actions";
+import type { ActionResult } from "@/lib/actions/action-result";
 
 const FIELD_CLASS =
   "w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm " +

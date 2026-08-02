@@ -8,7 +8,7 @@
  * được, nên phải biết cặp nào đi với cặp nào trước lúc chuyện đó xảy ra.
  */
 import { useState, useTransition } from "react";
-import type { ActionResult } from "@/lib/accounts/account-actions";
+import type { ActionResult } from "@/lib/actions/action-result";
 import { assignPageAdmin, disconnectPage } from "@/lib/facebook/facebook-page-actions";
 
 const BUTTON_CLASS =

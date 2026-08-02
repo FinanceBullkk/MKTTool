@@ -1,6 +1,8 @@
-import { ActionForm, Field } from "@/components/ui/form-controls";
+import Link from "next/link";
+import { ActionForm } from "@/components/ui/form-controls";
 import { Card, DataTable, EmptyState, PageHeading } from "@/components/ui/page-section";
-import { createPersona } from "@/lib/accounts/account-actions";
+import { PersonaFormFields } from "@/components/vault/persona-form-fields";
+import { createPersona } from "@/lib/accounts/vault-create-actions";
 import { prisma } from "@/lib/db/prisma-client";
 
 export const dynamic = "force-dynamic";
@@ -22,15 +24,27 @@ export default async function PersonasPage() {
         {personas.length === 0 ? (
           <EmptyState>Chưa có nhân vật nào. Tạo nhân vật trước rồi mới thêm nick.</EmptyState>
         ) : (
-          <DataTable headers={["Tên", "Giọng điệu", "Mảng nội dung", "Số nick"]}>
+          <DataTable headers={["Tên", "Giọng điệu", "Mảng nội dung", "Số nick", ""]}>
             {personas.map((persona) => (
               <tr key={persona.id}>
-                <td className="py-2 pr-4 font-medium">{persona.name}</td>
+                <td className="py-2 pr-4 font-medium">
+                  <Link href={`/personas/${persona.id}`} className="hover:underline">
+                    {persona.name}
+                  </Link>
+                </td>
                 <td className="py-2 pr-4 text-neutral-600 dark:text-neutral-400">{persona.voice}</td>
                 <td className="py-2 pr-4 text-neutral-600 dark:text-neutral-400">
                   {persona.contentAngle}
                 </td>
                 <td className="py-2 pr-4">{persona._count.accounts}</td>
+                <td className="py-2 pr-4 text-right">
+                  <Link
+                    href={`/personas/${persona.id}`}
+                    className="text-xs text-neutral-500 hover:underline"
+                  >
+                    Sửa
+                  </Link>
+                </td>
               </tr>
             ))}
           </DataTable>
@@ -39,20 +53,7 @@ export default async function PersonasPage() {
 
       <Card title="Thêm nhân vật">
         <ActionForm action={createPersona} submitLabel="Tạo nhân vật">
-          <Field label="Tên" name="name" required placeholder="Minh — dev backend" />
-          <Field
-            label="Giọng điệu"
-            name="voice"
-            required
-            placeholder="Thẳng thắn, kỹ thuật, hay dẫn số liệu"
-          />
-          <Field
-            label="Mảng nội dung"
-            name="contentAngle"
-            required
-            placeholder="Tự host, DevOps, tối ưu chi phí hạ tầng"
-          />
-          <Field label="Ghi chú" name="notes" placeholder="Tùy chọn" />
+          <PersonaFormFields />
         </ActionForm>
       </Card>
     </>

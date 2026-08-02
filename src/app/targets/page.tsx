@@ -1,11 +1,8 @@
-import {
-  ActionForm,
-  CheckboxField,
-  Field,
-  SelectField,
-} from "@/components/ui/form-controls";
-import { Card, DataTable, EmptyState, PageHeading } from "@/components/ui/page-section";
-import { createTarget } from "@/lib/accounts/account-actions";
+import Link from "next/link";
+import { ActionForm } from "@/components/ui/form-controls";
+import { Card, DataTable, EmptyState, PageHeading, StatusBadge } from "@/components/ui/page-section";
+import { TargetFormFields } from "@/components/vault/target-form-fields";
+import { createTarget } from "@/lib/accounts/vault-create-actions";
 import { prisma } from "@/lib/db/prisma-client";
 
 export const dynamic = "force-dynamic";
@@ -30,7 +27,16 @@ export default async function TargetsPage() {
           </EmptyState>
         ) : (
           <DataTable
-            headers={["Nền tảng", "Tên", "Karma tối thiểu", "Tuổi nick (ngày)", "Tỷ lệ promo", "Cho link"]}
+            headers={[
+              "Nền tảng",
+              "Tên",
+              "Karma tối thiểu",
+              "Tuổi nick (ngày)",
+              "Tỷ lệ promo",
+              "Cho link",
+              "Đang dùng",
+              "",
+            ]}
           >
             {targets.map((target) => (
               <tr key={target.id}>
@@ -38,14 +44,32 @@ export default async function TargetsPage() {
                   {target.platform}
                 </td>
                 <td className="py-2 pr-4 font-medium">
-                  <a href={target.url} target="_blank" rel="noreferrer" className="hover:underline">
+                  <Link href={`/targets/${target.id}`} className="hover:underline">
                     {target.name}
-                  </a>
+                  </Link>
                 </td>
                 <td className="py-2 pr-4">{target.minKarma}</td>
                 <td className="py-2 pr-4">{target.minAccountAgeDays}</td>
                 <td className="py-2 pr-4">{target.promoRatio}:1</td>
                 <td className="py-2 pr-4">{target.allowsLinks ? "có" : "không"}</td>
+                <td className="py-2 pr-4">
+                  {target.active ? (
+                    "có"
+                  ) : (
+                    <StatusBadge
+                      label="đã nghỉ"
+                      className="bg-neutral-200 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400"
+                    />
+                  )}
+                </td>
+                <td className="py-2 pr-4 text-right">
+                  <Link
+                    href={`/targets/${target.id}`}
+                    className="text-xs text-neutral-500 hover:underline"
+                  >
+                    Sửa
+                  </Link>
+                </td>
               </tr>
             ))}
           </DataTable>
@@ -54,45 +78,7 @@ export default async function TargetsPage() {
 
       <Card title="Thêm đích">
         <ActionForm action={createTarget} submitLabel="Thêm đích">
-          <SelectField
-            label="Nền tảng"
-            name="platform"
-            required
-            options={[
-              { value: "REDDIT", label: "Reddit (subreddit)" },
-              { value: "FACEBOOK_PAGE", label: "Facebook Page" },
-              { value: "FACEBOOK_GROUP", label: "Facebook Group (đăng tay)" },
-            ]}
-          />
-          <Field label="Tên" name="name" required placeholder="r/selfhosted" />
-          <Field
-            label="URL"
-            name="url"
-            required
-            placeholder="https://www.reddit.com/r/selfhosted/"
-          />
-          <Field
-            label="Karma tối thiểu"
-            name="minKarma"
-            type="number"
-            defaultValue={0}
-            hint="Nhiều sub ngách giờ đòi 100-500"
-          />
-          <Field
-            label="Tuổi nick tối thiểu (ngày)"
-            name="minAccountAgeDays"
-            type="number"
-            defaultValue={0}
-          />
-          <Field
-            label="Tỷ lệ promo"
-            name="promoRatio"
-            type="number"
-            defaultValue={9}
-            hint="9 nghĩa là 9 bài hữu ích mới được 1 bài quảng cáo"
-          />
-          <CheckboxField label="Sub cho phép đăng link" name="allowsLinks" defaultChecked />
-          <Field label="Ghi chú" name="notes" placeholder="Mod hoạt động mạnh, luật riêng…" />
+          <TargetFormFields />
         </ActionForm>
       </Card>
     </>

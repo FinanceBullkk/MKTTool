@@ -79,6 +79,30 @@ proxy, không cần tài khoản nào, và kiểm tra được phần lớn ch�
 
 Riêng Fanpage không phải nhập tay ở bước 4: kết nối ở `/facebook` là công cụ tự tạo đích đăng.
 
+### Sửa và xóa
+
+Bấm vào tên bất kỳ dòng nào trong bảng là vào trang chi tiết, ở đó sửa được mọi thứ và có nút
+xóa. Ba điều cần biết trước khi dùng:
+
+**Ô mật khẩu để trống là giữ nguyên.** Mật khẩu không bao giờ được đổ ngược ra màn hình nên form
+sửa không thể hiện giá trị cũ. Chỉ gõ vào khi thật sự muốn thay.
+
+**Sửa nick, đích hoặc content là bộ luật tự chấm lại.** Karma, trạng thái, `minKarma`, tỷ lệ promo,
+thân bài — tất cả đều là đầu vào của luật. Sửa xong, mọi job đang chờ liên quan được chấm lại ngay
+và thông báo nói rõ đã chấm mấy job, mấy job vừa chuyển sang **BỊ CHẶN**. Job đã đăng thì không đụng
+tới: trạng thái cuối là cuối.
+
+**Xóa bị chặn khi còn thứ trỏ tới**, kèm câu nói rõ vướng gì ("còn 12 job, 30 tương tác đã ghi").
+Đó không phải phiền hà mà là chủ ý: job và tương tác cũ chính là thứ luật hạn mức, luật tỷ lệ promo
+và luật đụng độ thread đếm — xóa đi thì bộ luật cho qua những bài lẽ ra phải chặn, mà không có gì
+báo rằng nó vừa mù đi.
+
+> Nghỉ một nick thì đổi trạng thái sang **Đã chết**, nghỉ một đích thì bỏ tick **Đang dùng**.
+> Cả hai giữ nguyên lịch sử. Nút xóa chỉ để dọn thứ vừa nhập sai vài phút trước.
+
+Nền tảng của nick và của đích **không sửa được** sau khi tạo: đổi nó là biến mọi job cũ thành
+nick-nền-tảng-này đăng vào đích-nền-tảng-kia, đúng thứ bị chặn ngay từ lúc tạo.
+
 ## Bộ luật an toàn
 
 Mỗi lần xếp lịch, các phép kiểm tra chạy trước và trả về `ALLOW | WARN | BLOCK` kèm lý do
@@ -104,11 +128,21 @@ Luật 6 và 8 là hai luật không cộng đồng nào tha thứ. **Luật 8 k
 chủ đụng một thread là tín hiệu phối hợp rõ nhất mà nền tảng bắt được. Các luật còn lại ghi đè
 được nhưng bắt buộc nhập lý do và luôn để lại `AuditLog`.
 
+Luật 8 chạy ở hai chỗ với hai mức khác nhau, và checklist ghi rõ đang là mức nào:
+
+- **Lúc xếp lịch** bài chưa tồn tại nên chưa có thread để so — luật chỉ cảnh báo "nick khác vừa
+  hoạt động cùng đích". Checklist hiện đúng tên đó, không ghi trống "Đụng độ thread ✓" để khỏi
+  ai tưởng đã kiểm thứ chưa kiểm được.
+- **Lúc ghi tương tác** (`/queue` → "Ghi tương tác thủ công") mới có link thread thật, và đó là
+  nơi nhánh CHẶN chạy.
+
 Luật bị bỏ qua **không im lặng**: checklist ghi rõ "Không áp dụng cho nền tảng này: …" để không ai
 tưởng công cụ đã kiểm mà thật ra không.
 
-Ngưỡng nằm ở bảng `RuleConfig`, sửa bằng `npm run db:studio` — không cần sửa code, không cần
-build lại. Thiếu key nào thì dùng mặc định trong `src/lib/rules/rule-thresholds.ts`.
+Ngưỡng chung nằm ở bảng `RuleConfig`, sửa bằng `npm run db:studio` — không cần sửa code, không
+cần build lại. Thiếu key nào thì dùng mặc định trong `src/lib/rules/rule-thresholds.ts`.
+Ngưỡng riêng của từng sub (karma, tuổi nick, tỷ lệ promo, cho link hay không) thì sửa thẳng ở
+trang chi tiết của đích đó.
 
 > Đăng xong nhớ bấm **"Đã đăng"** và ghi lại các lần comment/upvote. Bộ luật chỉ biết những gì
 > được ghi lại — không ghi thì luật chặn đụng độ thread không có gì để so.
@@ -118,18 +152,18 @@ build lại. Thiếu key nào thì dùng mặc định trong `src/lib/rules/rule
 ```
 src/
 ├── app/                     Next.js App Router — trang và API
-│   ├── accounts/            danh sách + chi tiết nick
+│   ├── accounts/            danh sách + chi tiết nick (sửa, xóa, copy credential)
 │   ├── content/             kho content team viết
 │   ├── queue/               hàng đợi + trang xếp lịch có chấm luật realtime
 │   ├── facebook/            kết nối Fanpage, trạng thái token
-│   ├── personas/ proxies/ targets/
+│   ├── personas/ proxies/ targets/  danh sách + trang chi tiết để sửa/xóa
 │   └── api/
 │       ├── accounts/[id]/launch/   mở profile antidetect
 │       ├── facebook/oauth/         start + callback của luồng OAuth
 │       └── rules/preview/          chạy thử bộ luật, trả verdict
-├── components/              khối UI dùng chung (ui/, queue/, content/, facebook/)
+├── components/              khối UI dùng chung (ui/, vault/, queue/, content/, facebook/)
 └── lib/
-    ├── accounts/            server actions + quy tắc trạng thái nick
+    ├── accounts/            server actions (thêm/sửa/xóa) + schema form + trạng thái nick
     ├── antidetect/          adapter MultiZen / AdsPower (đổi bằng 1 dòng .env)
     ├── content/             từ vựng content + server action kho content
     ├── crypto/              AES-256-GCM cho credential
@@ -234,6 +268,8 @@ bấm đăng là việc của người. Đăng xong quay lại hàng đợi bấ
 - Mật khẩu không bao giờ render ra màn hình — bấm copy là chép thẳng vào clipboard
 - Mọi lần lộ credential / mở profile đều ghi `AuditLog`
 - App chỉ nghe `127.0.0.1` — ép bằng cờ `-H` trong `package.json`, không phải mặc định
+- Route `POST` trong `api/` đối chiếu `Origin` với `Host` — Next tự làm việc này cho server
+  action nhưng không làm cho route handler, mà route handler chính là chỗ có nút mở profile
 - `.env` và `*.db` đã nằm trong `.gitignore`
 
 ### Không có đăng nhập — nên chỗ app lắng nghe là toàn bộ hàng rào

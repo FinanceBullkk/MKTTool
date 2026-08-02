@@ -1,4 +1,5 @@
-import { ActionForm, Field, SelectField } from "@/components/ui/form-controls";
+import Link from "next/link";
+import { ActionForm } from "@/components/ui/form-controls";
 import {
   Card,
   DataTable,
@@ -6,7 +7,8 @@ import {
   PageHeading,
   StatusBadge,
 } from "@/components/ui/page-section";
-import { createProxy } from "@/lib/accounts/account-actions";
+import { ProxyFormFields } from "@/components/vault/proxy-form-fields";
+import { createProxy } from "@/lib/accounts/vault-create-actions";
 import { prisma } from "@/lib/db/prisma-client";
 
 export const dynamic = "force-dynamic";
@@ -34,11 +36,15 @@ export default async function ProxiesPage() {
           </EmptyState>
         ) : (
           <DataTable
-            headers={["Nhãn", "Địa chỉ", "Giao thức", "Quốc gia", "Loại", "Nick đang gắn"]}
+            headers={["Nhãn", "Địa chỉ", "Giao thức", "Quốc gia", "Loại", "Nick đang gắn", ""]}
           >
             {proxies.map((proxy) => (
               <tr key={proxy.id}>
-                <td className="py-2 pr-4 font-medium">{proxy.label}</td>
+                <td className="py-2 pr-4 font-medium">
+                  <Link href={`/proxies/${proxy.id}`} className="hover:underline">
+                    {proxy.label}
+                  </Link>
+                </td>
                 <td className="py-2 pr-4 font-mono text-xs text-neutral-600 dark:text-neutral-400">
                   {proxy.host}:{proxy.port}
                 </td>
@@ -57,6 +63,14 @@ export default async function ProxiesPage() {
                     />
                   )}
                 </td>
+                <td className="py-2 pr-4 text-right">
+                  <Link
+                    href={`/proxies/${proxy.id}`}
+                    className="text-xs text-neutral-500 hover:underline"
+                  >
+                    Sửa
+                  </Link>
+                </td>
               </tr>
             ))}
           </DataTable>
@@ -65,40 +79,7 @@ export default async function ProxiesPage() {
 
       <Card title="Thêm proxy">
         <ActionForm action={createProxy} submitLabel="Thêm proxy">
-          <Field label="Nhãn" name="label" required placeholder="reddit-01-us" />
-          <Field label="Host" name="host" required placeholder="1.2.3.4" />
-          <Field label="Port" name="port" type="number" required placeholder="8080" />
-          <SelectField
-            label="Giao thức"
-            name="protocol"
-            required
-            defaultValue="http"
-            hint="Phải khớp cổng nhà cung cấp cấp cho giao thức đó — SOCKS5 thường ở cổng khác HTTP"
-            options={[
-              { value: "http", label: "HTTP / HTTPS" },
-              { value: "socks5", label: "SOCKS5" },
-            ]}
-          />
-          <Field label="Username" name="username" required />
-          <Field label="Mật khẩu" name="password" type="password" required />
-          <Field
-            label="Quốc gia"
-            name="country"
-            required
-            placeholder="US"
-            hint="Phải khớp quốc gia nick từng hoạt động"
-          />
-          <SelectField
-            label="Loại"
-            name="type"
-            required
-            defaultValue="STATIC_ISP"
-            options={[
-              { value: "STATIC_ISP", label: "Static ISP / Residential tĩnh" },
-              { value: "MOBILE", label: "Mobile 4G" },
-            ]}
-          />
-          <Field label="Ghi chú" name="notes" placeholder="Nhà cung cấp, ngày hết hạn…" />
+          <ProxyFormFields />
         </ActionForm>
       </Card>
     </>

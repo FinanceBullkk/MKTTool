@@ -23,6 +23,17 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["src/**/*.test.ts"],
+    /**
+     * Chạy lần lượt từng file, KHÔNG song song.
+     *
+     * Các file `*.database.test.ts` dùng chung đúng một file SQLite tạm và mỗi file đều
+     * `deleteMany()` để bắt đầu từ bảng sạch. Chạy song song thì file này xóa mất dữ liệu
+     * seed của file kia — test đỏ ngẫu nhiên, mỗi lượt một chỗ khác nhau, và cái đắt nhất
+     * là nó dạy người đọc quen với việc "chạy lại là xanh".
+     *
+     * Cả bộ chỉ mất thêm vài giây, đổi lại loại hẳn một lớp test chập chờn.
+     */
+    fileParallelism: false,
     // Dựng database tạm một lần cho cả lượt chạy, xóa khi xong.
     globalSetup: ["./vitest.global-setup.ts"],
     env: {

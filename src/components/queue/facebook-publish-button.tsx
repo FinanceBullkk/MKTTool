@@ -7,7 +7,7 @@
  * antidetect (Phase 05), Group thì Meta đã gỡ quyền tự đăng từ 04/2024.
  */
 import { useState, useTransition } from "react";
-import type { ActionResult } from "@/lib/accounts/account-actions";
+import type { ActionResult } from "@/lib/actions/action-result";
 import { publishJobToPage } from "@/lib/facebook/facebook-publish-action";
 
 const BUTTON_CLASS =

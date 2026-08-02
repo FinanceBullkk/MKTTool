@@ -7,6 +7,7 @@
  * bắt người ta chuyển tab để Ctrl+V từng ô là chỗ dễ nản nhất của cả quy trình.
  */
 import { useActionState, useRef, useState } from "react";
+import type { ActionResult } from "@/lib/actions/action-result";
 import { CONTENT_TYPES, CONTENT_TYPE_LABELS } from "@/lib/content/content-types";
 import { createContentItem } from "@/lib/content/content-item-actions";
 
@@ -16,8 +17,34 @@ const FIELD_CLASS =
 
 const LABEL_CLASS = "mb-1 block text-xs font-medium text-neutral-600 dark:text-neutral-400";
 
-export function ContentItemForm({ defaultAuthorName }: { defaultAuthorName?: string }) {
-  const [state, formAction, pending] = useActionState(createContentItem, null);
+export interface ContentItemDefaults {
+  id: string;
+  title: string;
+  body: string;
+  type: string;
+  authorName: string;
+  /** Mỗi dòng một link — đúng dạng ô nhập chờ đợi. */
+  linksText: string;
+}
+
+/**
+ * Form nhập/sửa content.
+ *
+ * `action` truyền vào chứ không nhúng cứng: thêm mới và sửa dùng chung đúng bộ ô, chỉ khác
+ * đích đến. Có `defaults` là đang sửa — kèm luôn ô ẩn `id`.
+ */
+export function ContentItemForm({
+  defaultAuthorName,
+  action = createContentItem,
+  defaults,
+  submitLabel,
+}: {
+  defaultAuthorName?: string;
+  action?: (prev: ActionResult | null, formData: FormData) => Promise<ActionResult>;
+  defaults?: ContentItemDefaults;
+  submitLabel?: string;
+}) {
+  const [state, formAction, pending] = useActionState(action, null);
   const bodyRef = useRef<HTMLTextAreaElement>(null);
   const [pasteError, setPasteError] = useState<string | null>(null);
 
@@ -35,19 +62,27 @@ export function ContentItemForm({ defaultAuthorName }: { defaultAuthorName?: str
 
   return (
     <form action={formAction} className="space-y-4">
+      {defaults ? <input type="hidden" name="id" value={defaults.id} /> : null}
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="block sm:col-span-2">
           <span className={LABEL_CLASS}>
             Tiêu đề <span className="text-red-600">*</span>
           </span>
-          <input className={FIELD_CLASS} name="title" required />
+          <input className={FIELD_CLASS} name="title" defaultValue={defaults?.title} required />
         </label>
 
         <label className="block sm:col-span-2">
           <span className={LABEL_CLASS}>
             Thân bài <span className="text-red-600">*</span>
           </span>
-          <textarea className={FIELD_CLASS} name="body" rows={8} ref={bodyRef} required />
+          <textarea
+            className={FIELD_CLASS}
+            name="body"
+            rows={8}
+            ref={bodyRef}
+            defaultValue={defaults?.body}
+            required
+          />
           <button
             type="button"
             onClick={pasteIntoBody}
@@ -62,7 +97,7 @@ export function ContentItemForm({ defaultAuthorName }: { defaultAuthorName?: str
           <span className={LABEL_CLASS}>
             Loại <span className="text-red-600">*</span>
           </span>
-          <select className={FIELD_CLASS} name="type" defaultValue="VALUE" required>
+          <select className={FIELD_CLASS} name="type" defaultValue={defaults?.type ?? "VALUE"} required>
             {CONTENT_TYPES.map((type) => (
               <option key={type} value={type}>
                 {CONTENT_TYPE_LABELS[type]}
@@ -78,7 +113,12 @@ export function ContentItemForm({ defaultAuthorName }: { defaultAuthorName?: str
           <span className={LABEL_CLASS}>
             Người viết <span className="text-red-600">*</span>
           </span>
-          <input className={FIELD_CLASS} name="authorName" defaultValue={defaultAuthorName} required />
+          <input
+            className={FIELD_CLASS}
+            name="authorName"
+            defaultValue={defaults?.authorName ?? defaultAuthorName}
+            required
+          />
         </label>
 
         <label className="block sm:col-span-2">
@@ -87,6 +127,7 @@ export function ContentItemForm({ defaultAuthorName }: { defaultAuthorName?: str
             className={FIELD_CLASS}
             name="linksText"
             rows={2}
+            defaultValue={defaults?.linksText}
             placeholder="Mỗi dòng một link"
           />
           <span className="mt-1 block text-xs text-neutral-500">
@@ -112,7 +153,7 @@ export function ContentItemForm({ defaultAuthorName }: { defaultAuthorName?: str
         disabled={pending}
         className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-neutral-700 disabled:opacity-50 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-300"
       >
-        {pending ? "Đang lưu…" : "Lưu content"}
+        {pending ? "Đang lưu…" : (submitLabel ?? "Lưu content")}
       </button>
     </form>
   );

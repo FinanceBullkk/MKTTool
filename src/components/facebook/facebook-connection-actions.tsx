@@ -2,7 +2,7 @@
 
 /** Nút kiểm tra toàn bộ token và nút ngắt kết nối một nick. */
 import { useState, useTransition } from "react";
-import type { ActionResult } from "@/lib/accounts/account-actions";
+import type { ActionResult } from "@/lib/actions/action-result";
 import { checkAllPageTokens, disconnectConnection } from "@/lib/facebook/facebook-page-actions";
 
 const BUTTON_CLASS =

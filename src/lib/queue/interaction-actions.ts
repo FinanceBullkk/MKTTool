@@ -12,7 +12,7 @@
  */
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import type { ActionResult } from "@/lib/accounts/account-actions";
+import type { ActionResult } from "@/lib/actions/action-result";
 import { INTERACTION_KINDS } from "@/lib/content/content-types";
 import { prisma } from "@/lib/db/prisma-client";
 import { isCommunityPlatform } from "@/lib/platforms/platform-family";

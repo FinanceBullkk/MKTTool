@@ -6,7 +6,7 @@
  */
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import type { ActionResult } from "@/lib/accounts/account-actions";
+import type { ActionResult } from "@/lib/actions/action-result";
 import { prisma } from "@/lib/db/prisma-client";
 import { verifyAllPageTokens } from "./facebook-token-manager";
 
