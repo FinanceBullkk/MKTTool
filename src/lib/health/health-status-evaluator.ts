@@ -89,12 +89,18 @@ export function evaluateHealth(input: HealthEvaluationInput): HealthEvaluation {
     return conclude("ERROR", profile.reason);
   }
 
+  // Không có bài nào để so thì lần dò này chỉ chứng minh nick còn tồn tại với người ngoài —
+  // KHÔNG chứng minh bài của nó hiện ra. Đây từng trả "HEALTHY" và đó là chỗ duy nhất trong
+  // bộ dò dịch "thiếu dữ liệu" thành "tin tốt": ai đó đăng đều mà quên bấm "Đã đăng" sẽ thấy
+  // một bảng toàn màu xanh đúng vào lúc không ai còn canh gì cả.
   if (expectedPosts === 0) {
     return conclude(
-      "HEALTHY",
-      `Nick hiện ra bình thường với người ngoài. Chưa có bài nào đánh dấu đã đăng trong ` +
-        `${windowDays} ngày qua nên chưa đối chiếu được số bài thấy được — ` +
-        "đây mới là “nhìn thấy nick”, chưa phải “nhìn thấy bài của nick”.",
+      "NO_BASELINE",
+      `Nick hiện ra bình thường với người ngoài, nhưng chưa bài nào được đánh dấu đã đăng ` +
+        `trong ${windowDays} ngày qua nên không có gì để đối chiếu — ` +
+        "đây mới là “nhìn thấy nick”, chưa phải “nhìn thấy bài của nick”. " +
+        "Nick đang nghỉ thì bình thường; còn nếu vừa đăng thật thì vào /queue bấm “Đã đăng”, " +
+        "vì không đánh dấu là bộ dò mù mà bảng vẫn xanh.",
     );
   }
 

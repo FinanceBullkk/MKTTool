@@ -1,9 +1,15 @@
 /**
  * Kết luận của một lần dò sức khỏe nick, và cách hiển thị nó.
  *
- * Năm kết luận, và `ERROR` là cái quan trọng nhất trong số đó: khi Reddit đổi HTML hoặc proxy
- * quan sát viên chết, bộ dò PHẢI nói "tôi không biết" chứ không được nói "khỏe". Một hệ thống
- * cảnh báo hỏng thầm lặng còn tệ hơn không có hệ thống cảnh báo — vì lúc đó người ta tin nó.
+ * Sáu kết luận, và hai trong số đó tồn tại chỉ để bộ dò nói được câu "tôi không biết":
+ *
+ *  • `ERROR` — bộ dò KHÔNG chạy được. Reddit đổi HTML, proxy quan sát viên chết.
+ *  • `NO_BASELINE` — bộ dò chạy ngon nhưng KHÔNG CÓ GÌ ĐỂ SO, vì chưa bài nào được đánh dấu
+ *    đã đăng trong cửa sổ quan sát.
+ *
+ * Hai cái này khác nhau về nguyên nhân nhưng giống nhau ở chỗ quan trọng nhất: cả hai đều
+ * KHÔNG phải "khỏe". Một hệ thống cảnh báo hỏng thầm lặng còn tệ hơn không có hệ thống cảnh
+ * báo — vì lúc đó người ta tin nó.
  */
 import type { AccountStatus } from "@/lib/accounts/account-status";
 
@@ -12,6 +18,7 @@ export const HEALTH_VERDICTS = [
   "SHADOWBANNED",
   "ERROR",
   "WARN",
+  "NO_BASELINE",
   "HEALTHY",
 ] as const;
 
@@ -53,9 +60,15 @@ export const VERDICT_PRESENTATION: Record<HealthVerdict, VerdictPresentation> = 
     className: "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300",
     hint: "Thấy ít bài hơn số đã đăng. Theo dõi thêm vài ngày trước khi kết luận.",
   },
+  NO_BASELINE: {
+    label: "Chưa đối chiếu được",
+    severity: 4,
+    className: "bg-slate-200 text-slate-800 dark:bg-slate-800 dark:text-slate-300",
+    hint: "Thấy nick, chưa thấy bài nào để so. Nhớ bấm “Đã đăng” sau mỗi lần đăng.",
+  },
   HEALTHY: {
     label: "Khỏe",
-    severity: 4,
+    severity: 5,
     className: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300",
     hint: "Người ngoài nhìn thấy nick và bài của nó bình thường.",
   },

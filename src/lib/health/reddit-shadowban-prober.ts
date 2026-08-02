@@ -30,9 +30,15 @@ export function redditProfileUrl(username: string): string {
   return `https://old.reddit.com/user/${encodeURIComponent(username)}/`;
 }
 
-/** Kết luận nào đáng giữ lại ảnh màn hình để người soi bằng mắt. */
+/**
+ * Kết luận nào đáng giữ lại ảnh màn hình để người soi bằng mắt.
+ *
+ * `NO_BASELINE` không nằm trong đó dù nó không phải "khỏe": trang profile lúc đó trông hoàn
+ * toàn bình thường, thứ thiếu nằm ở phía mình (chưa đánh dấu bài nào) chứ không phải ở trang.
+ * Ảnh chụp không cho biết thêm gì, chỉ tốn đĩa mỗi ngày cho mọi nick đang nghỉ.
+ */
 function shouldKeepScreenshot(evaluation: HealthEvaluation): boolean {
-  return evaluation.verdict !== "HEALTHY";
+  return evaluation.verdict !== "HEALTHY" && evaluation.verdict !== "NO_BASELINE";
 }
 
 export async function probeRedditAccount(

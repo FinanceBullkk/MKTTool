@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { type HealthEvaluationInput, evaluateHealth } from "./health-status-evaluator";
+import { statusForcedBy } from "./health-verdict";
 
 function input(overrides: Partial<HealthEvaluationInput> = {}): HealthEvaluationInput {
   return {
@@ -78,10 +79,23 @@ describe("evaluateHealth", () => {
     expect(result.verdict).toBe("CHECKPOINT");
   });
 
-  it("chưa đăng bài nào thì khỏe, nhưng lý do nói rõ chưa đối chiếu được", () => {
+  it("chưa bài nào đánh dấu đã đăng thì KHÔNG được nói khỏe", () => {
     const result = evaluateHealth(input({ expectedPosts: 0, visiblePosts: 0 }));
-    expect(result.verdict).toBe("HEALTHY");
+    expect(result.verdict).toBe("NO_BASELINE");
+    expect(result.shadowbanned).toBe(false);
     expect(result.detail).toContain("chưa phải");
+  });
+
+  it("thấy bài mà không có bài nào để so cũng vẫn là NO_BASELINE", () => {
+    // Người ngoài thấy 3 bài nhưng mình chưa đánh dấu bài nào — vẫn không đối chiếu được,
+    // và số bài thấy được tự nó không chứng minh bài MÌNH đăng có hiện ra hay không.
+    expect(evaluateHealth(input({ expectedPosts: 0, visiblePosts: 3 })).verdict).toBe(
+      "NO_BASELINE",
+    );
+  });
+
+  it("NO_BASELINE không được ép đổi trạng thái nick", () => {
+    expect(statusForcedBy("NO_BASELINE")).toBeNull();
   });
 
   it("đọc được profile nhưng không đọc được danh sách bài là ERROR", () => {

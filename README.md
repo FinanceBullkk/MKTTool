@@ -132,8 +132,9 @@ bốn luật giữ nhịp không áp: đăng 5 bài một ngày hay đăng toàn
 Luật 10 đọc thứ **người ngoài nhìn thấy**, còn luật 1 đọc thứ **mình tự đặt**. Chỗ hai cái lệch
 nhau mới là chỗ đáng lo: gỡ cách ly một nick về "Khỏe" bằng tay thì luật 1 cho qua ngay, nhưng
 luật 10 vẫn thấy lần dò cuối nói nick bị ẩn và chặn cho tới khi có lần dò mới chứng minh ngược lại.
-Nick chưa dò lần nào, hoặc dò lâu quá (mặc định 3 ngày), thì luật cảnh báo — *không có tin xấu*
-không phải là *tin tốt*, đó là *không có tin*.
+Nick chưa dò lần nào, dò lâu quá (mặc định 3 ngày), bộ dò hỏng, hoặc dò xong mà không có bài nào
+đánh dấu đã đăng để đối chiếu — cả bốn đều làm luật cảnh báo. *Không có tin xấu* không phải là
+*tin tốt*, đó là *không có tin*.
 
 Luật 6 và 8 là hai luật không cộng đồng nào tha thứ. **Luật 8 không cho ghi đè** — hai nick cùng
 chủ đụng một thread là tín hiệu phối hợp rõ nhất mà nền tảng bắt được. Các luật còn lại ghi đè
@@ -371,6 +372,12 @@ Kết quả vào bảng ở `/health` và trang chủ, kèm biểu đồ karma 3
 | Thấy dưới một nửa số bài đã đăng | **Nghi ngờ** — có thể chỉ là mod xóa bài |
 | Trang báo tài khoản bị treo | **Dính checkpoint** |
 | Bộ dò bị captcha / Reddit đổi HTML | **Không dò được** — *không phải* tin tốt |
+| Profile bình thường, nhưng chưa bài nào đánh dấu đã đăng | **Chưa đối chiếu được** — cũng *không phải* tin tốt |
+
+Hai kết luận cuối bảng đều có nghĩa "chưa biết", chỉ khác nguyên nhân: **Không dò được** là bộ
+dò hỏng, **Chưa đối chiếu được** là bộ dò chạy ngon nhưng không có gì để so. Nick mới hoặc đang
+nghỉ thì đó là bình thường; nhưng nick đăng đều mà không ai bấm **"Đã đăng"** cũng rơi vào đúng ô
+này — và đó mới là lúc cần cảnh báo nhất. Cả hai đều làm luật 10 cảnh báo, không cho qua im lặng.
 
 Nick bị kết luận **Bị ẩn** hoặc **Dính checkpoint** sẽ tự chuyển trạng thái và bộ luật chặn mọi
 job của nó. Chiều ngược lại thì không: một lần dò khỏe **không** tự gỡ cách ly, vì nó chỉ chứng

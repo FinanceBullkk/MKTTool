@@ -48,6 +48,14 @@ export function ruleHealthCheck(ctx: RuleContext): RuleVerdict {
     );
   }
 
+  if (latest.verdict === "NO_BASELINE") {
+    return warn(
+      `Lần dò gần nhất (${formatDayMonth(latest.checkedAt)}) chỉ thấy nick còn hiện ra, chưa ` +
+        "kiểm được bài nào vì không bài nào được đánh dấu đã đăng. Nick mới hoặc đang nghỉ thì " +
+        "bình thường; đăng rồi mà quên bấm “Đã đăng” thì bộ dò đang mù mà bảng vẫn xanh.",
+    );
+  }
+
   if (latest.verdict === "WARN") {
     return warn(
       `Lần dò gần nhất thấy ít bài hơn số đã đăng (${formatDayMonth(latest.checkedAt)}). ` +

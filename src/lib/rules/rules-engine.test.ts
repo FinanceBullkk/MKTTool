@@ -210,6 +210,19 @@ describe("luật 10 — kết quả dò gần nhất", () => {
     });
     expect(levelOf(ctx, "health-check")).toBe("WARN");
   });
+
+  /**
+   * Dò xong mà không có bài nào để so thì lần dò đó chỉ chứng minh nick còn tồn tại. Đây là
+   * trạng thái của một nick đăng đều nhưng không ai bấm "Đã đăng" — đúng lúc cần cảnh báo
+   * nhất thì cũng đúng lúc dễ trông như khỏe nhất.
+   */
+  it("dò xong nhưng không có bài nào để đối chiếu thì cảnh báo, không cho qua", () => {
+    const ctx = makeContext({
+      latestHealthCheck: { verdict: "NO_BASELINE", checkedAt: new Date(AT.getTime() - 1 * HOUR) },
+    });
+    expect(levelOf(ctx, "health-check")).toBe("WARN");
+    expect(reasonOf(ctx, "health-check")).toContain("Đã đăng");
+  });
 });
 
 describe("luật 1 — sức khỏe nick", () => {
