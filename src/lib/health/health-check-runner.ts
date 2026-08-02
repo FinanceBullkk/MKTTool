@@ -11,10 +11,12 @@
  *     ai biết ra sao.
  */
 import { prisma } from "@/lib/db/prisma-client";
+import { acquireHealthCheckLock } from "./health-check-lock";
 import { type AccountToCheck, countExpectedPosts, recordHealthCheck } from "./health-check-recorder";
 import type { HealthVerdict } from "./health-verdict";
 import { type ObserverSession, openObserverSession } from "./observer-browser-session";
 import { OBSERVATION_WINDOW_DAYS, probeRedditAccount } from "./reddit-shadowban-prober";
+import { pruneOldScreenshots } from "./screenshot-retention";
 
 /** Giãn ngẫu nhiên giữa hai nick. Xem lý do ở đầu file. */
 export const DEFAULT_SPACING = { minMs: 30_000, maxMs: 90_000 } as const;
@@ -36,6 +38,8 @@ export interface HealthCheckRunOptions {
   onProgress?: (line: string) => void;
   /** Bơm phiên trình duyệt sẵn có, dùng cho kiểm chứng tay. */
   session?: ObserverSession;
+  /** Đổi chỗ đặt file khóa. Chỉ dùng trong test. */
+  lockPath?: string;
 }
 
 export interface HealthCheckRunResult {
@@ -95,20 +99,53 @@ export async function runHealthCheck(
     now = new Date(),
     onProgress = () => {},
     session: providedSession,
+    lockPath,
   } = options;
 
   const startedAt = Date.now();
-  const proxy = await loadObserverProxy();
-  const accounts = await loadAccounts(accountIds);
 
-  if (accounts.length === 0) {
-    onProgress("Không có nick Reddit nào để dò.");
-    return { checked: 0, byVerdict: {}, statusChanges: [], durationMs: Date.now() - startedAt };
+  // Giành khóa TRƯỚC mọi thứ khác. Hai lượt chạy chồng nhau làm proxy quan sát viên bắn
+  // request dồn dập và bị Reddit chặn — xem đầu health-check-lock.ts.
+  const lock = acquireHealthCheckLock({ lockPath, now });
+
+  try {
+    const proxy = await loadObserverProxy();
+    const accounts = await loadAccounts(accountIds);
+
+    if (accounts.length === 0) {
+      onProgress("Không có nick Reddit nào để dò.");
+      return { checked: 0, byVerdict: {}, statusChanges: [], durationMs: Date.now() - startedAt };
+    }
+
+    onProgress(
+      `Dò ${accounts.length} nick qua proxy quan sát viên "${proxy.label}" (${proxy.country}).`,
+    );
+
+    return await probeAll({
+      accounts,
+      proxy,
+      providedSession,
+      spacing,
+      now,
+      onProgress,
+      startedAt,
+    });
+  } finally {
+    lock.release();
   }
+}
 
-  onProgress(
-    `Dò ${accounts.length} nick qua proxy quan sát viên "${proxy.label}" (${proxy.country}).`,
-  );
+/** Vòng dò chính. Tách khỏi `runHealthCheck` để phần giành/thả khóa đọc được trong một màn hình. */
+async function probeAll(input: {
+  accounts: AccountToCheck[];
+  proxy: Parameters<typeof openObserverSession>[0];
+  providedSession?: ObserverSession;
+  spacing: { minMs: number; maxMs: number };
+  now: Date;
+  onProgress: (line: string) => void;
+  startedAt: number;
+}): Promise<HealthCheckRunResult> {
+  const { accounts, proxy, providedSession, spacing, now, onProgress, startedAt } = input;
 
   const session = providedSession ?? (await openObserverSession(proxy));
   const byVerdict: Partial<Record<string, number>> = {};
@@ -153,6 +190,15 @@ export async function runHealthCheck(
     }
   } finally {
     if (!providedSession) await session.close();
+  }
+
+  // Dọn ảnh cũ ở cuối lượt: thư mục ảnh không bao giờ tự nhỏ lại, và đây là chỗ duy nhất chắc
+  // chắn chạy đều đặn. Dọn hỏng thì KHÔNG được làm hỏng kết quả dò — đó mới là thứ đáng giá.
+  try {
+    const pruned = await pruneOldScreenshots({ now });
+    if (pruned.deleted > 0) onProgress(`Đã dọn ${pruned.deleted} ảnh chụp quá hạn.`);
+  } catch (error) {
+    onProgress(`Không dọn được ảnh cũ: ${error instanceof Error ? error.message : String(error)}`);
   }
 
   return {

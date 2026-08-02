@@ -12,7 +12,7 @@ import { useState } from "react";
 export function HealthCheckNowButton({ accountId }: { accountId: string }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
-  const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
+  const [message, setMessage] = useState<{ tone: "ok" | "cho" | "loi"; text: string } | null>(null);
 
   async function run() {
     setPending(true);
@@ -24,14 +24,24 @@ export function HealthCheckNowButton({ accountId }: { accountId: string }) {
         body: JSON.stringify({ accountId }),
       });
       const data: { ok: boolean; message: string } = await response.json();
-      setMessage({ ok: data.ok, text: data.message });
+
+      // 409 = đang có lượt dò khác chạy. Đó là chuyện bình thường, không phải hỏng —
+      // tô đỏ nó là dạy người dùng bỏ qua màu đỏ.
+      const tone = data.ok ? "ok" : response.status === 409 ? "cho" : "loi";
+      setMessage({ tone, text: data.message });
       if (data.ok) router.refresh();
     } catch {
-      setMessage({ ok: false, text: "Không gọi được bộ dò. Xem log của dev server." });
+      setMessage({ tone: "loi", text: "Không gọi được bộ dò. Xem log của dev server." });
     } finally {
       setPending(false);
     }
   }
+
+  const TONE_CLASS = {
+    ok: "text-neutral-600 dark:text-neutral-400",
+    cho: "text-amber-700 dark:text-amber-400",
+    loi: "text-red-700 dark:text-red-400",
+  } as const;
 
   return (
     <div className="space-y-1 text-right">
@@ -43,13 +53,7 @@ export function HealthCheckNowButton({ accountId }: { accountId: string }) {
       >
         {pending ? "Đang dò…" : "Dò lại ngay"}
       </button>
-      {message ? (
-        <p
-          className={`text-xs ${message.ok ? "text-neutral-600 dark:text-neutral-400" : "text-red-700 dark:text-red-400"}`}
-        >
-          {message.text}
-        </p>
-      ) : null}
+      {message ? <p className={`text-xs ${TONE_CLASS[message.tone]}`}>{message.text}</p> : null}
     </div>
   );
 }

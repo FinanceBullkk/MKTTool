@@ -7,6 +7,7 @@
  * nick đáng ngờ ngay lúc đang nhìn nó.
  */
 import { NextResponse } from "next/server";
+import { HealthCheckBusyError } from "@/lib/health/health-check-lock";
 import {
   HealthCheckSetupError,
   runHealthCheck,
@@ -61,6 +62,12 @@ export async function POST(request: Request) {
         : `Kết quả: ${verdict}.`,
     });
   } catch (error) {
+    // Bận là chuyện bình thường, không phải hỏng — 409 để giao diện nói "chờ chút" thay vì
+    // báo lỗi đỏ, và để lượt chạy theo lịch không bị người bấm nút chen ngang.
+    if (error instanceof HealthCheckBusyError) {
+      return NextResponse.json({ ok: false, message: error.message }, { status: 409 });
+    }
+
     const message =
       error instanceof HealthCheckSetupError || error instanceof ObserverSessionError
         ? error.message

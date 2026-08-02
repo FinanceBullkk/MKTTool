@@ -9,6 +9,7 @@
  *   --no-spacing           chạy liền mạch, không nghỉ 30-90 giây. CHỈ dùng khi thử nghiệm.
  */
 import { prisma } from "../src/lib/db/prisma-client";
+import { HealthCheckBusyError } from "../src/lib/health/health-check-lock";
 import {
   HealthCheckSetupError,
   runHealthCheck,
@@ -72,7 +73,11 @@ async function main() {
 
 main()
   .catch((error) => {
-    if (error instanceof HealthCheckSetupError || error instanceof ObserverSessionError) {
+    if (
+      error instanceof HealthCheckBusyError ||
+      error instanceof HealthCheckSetupError ||
+      error instanceof ObserverSessionError
+    ) {
       console.error(`\n${error.message}`);
     } else {
       console.error("\nLượt dò hỏng giữa chừng:", error);
