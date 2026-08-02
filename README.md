@@ -40,11 +40,14 @@ npm run dev                 # http://localhost:3000
 |---|---|
 | `npm run dev` | Chạy app ở localhost:3000 |
 | `npm test` | Chạy unit test |
+| `npm run lint` | Chạy ESLint |
 | `npm run typecheck` | Kiểm tra TypeScript |
 | `npm run build` | Build production |
 | `npm run db:migrate` | Áp migration |
+| `npm run db:backup` | Sao lưu database ra `data/backups/` |
 | `npm run db:studio` | Mở Prisma Studio xem database |
 | `npm run vault:keygen` | Sinh khóa mã hóa mới |
+| `npm run vault:rekey` | Xoay `VAULT_KEY` — mã hóa lại toàn bộ credential |
 | `npm run vault:smoke` | Kiểm chứng nghiệm thu Phase 01 trên DB thật |
 | `npm run vault:testotp` | Sinh TOTP secret dùng thử để kiểm chứng tính năng OTP |
 | `npm run rules:smoke` | Kiểm chứng nghiệm thu Phase 02 (bộ luật) trên DB thật |
@@ -230,8 +233,55 @@ bấm đăng là việc của người. Đăng xong quay lại hàng đợi bấ
 - Khóa nằm ở biến môi trường, không nằm trong DB
 - Mật khẩu không bao giờ render ra màn hình — bấm copy là chép thẳng vào clipboard
 - Mọi lần lộ credential / mở profile đều ghi `AuditLog`
-- App chỉ nghe localhost
+- App chỉ nghe `127.0.0.1` — ép bằng cờ `-H` trong `package.json`, không phải mặc định
 - `.env` và `*.db` đã nằm trong `.gitignore`
+
+### Không có đăng nhập — nên chỗ app lắng nghe là toàn bộ hàng rào
+
+Công cụ không có màn hình đăng nhập: ai mở được trang là làm được mọi thứ, gồm copy mật khẩu
+nick và sinh mã OTP. Mã hóa AES không đỡ được tình huống đó — chính app giữ khóa và giải mã
+cho bất kỳ ai hỏi.
+
+Vì vậy `npm run dev` và `npm start` đều gắn cứng `-H 127.0.0.1`. Mặc định của Next.js là nghe
+mọi card mạng, tức là cả người ngồi cùng wifi cũng mở được `http://<ip-máy-bạn>:3000`.
+
+> ⚠️ **Đừng bỏ cờ `-H`, và đừng chạy `next dev` trực tiếp** để "cho nhanh". Cũng đừng đưa app
+> ra sau reverse proxy hay ngrok khi chưa có lớp xác thực — lúc đó kho danh tính thành trang web
+> công khai.
+
+### Sao lưu — hai nửa, cất hai nơi
+
+```bash
+npm run db:backup     # → data/backups/mkttool-<ngày>-<giờ>.db
+```
+
+Chạy được khi app đang mở. Dùng `VACUUM INTO` chứ không copy file, vì SQLite chạy chế độ WAL:
+copy mỗi file `.db` là ra một bản sao thiếu dữ liệu mới nhất, và cái thiếu đó chỉ lộ ra đúng
+lúc cần khôi phục.
+
+Khôi phục: chép file sao lưu đè lên `dev.db` (tắt app trước).
+
+> Bản sao lưu và `VAULT_KEY` là **hai nửa của một thứ**. Có bản sao mà mất khóa thì mở ra chỉ
+> thấy chuỗi vô nghĩa; có khóa mà mất bản sao thì chẳng còn gì để mở. Cất hai nơi khác nhau —
+> để chung là đưa cả ổ lẫn chìa cho người nhặt được.
+
+### Khóa bị lộ thì xoay, không phải nhập lại từ đầu
+
+Lỡ commit `.env`, lỡ dán khóa vào chat, máy nghi bị xâm nhập:
+
+```bash
+npm run vault:keygen                            # sinh khóa mới
+npm run vault:rekey -- --new-key=<hex>          # THỬ: giải mã hết, không ghi gì
+npm run vault:rekey -- --new-key=<hex> --apply  # tự sao lưu rồi ghi đè
+```
+
+Lượt `--apply` giải mã sạch toàn bộ **trước khi** ghi bất cứ thứ gì, tự sao lưu, rồi ghi trong
+một transaction. Một bản ghi hỏng là dừng cả mẻ — database xoay khóa được một nửa thì không
+khóa nào mở nổi nữa.
+
+Xong lệnh **chưa phải là xong**: phải tự sửa `VAULT_KEY` trong `.env`, khởi động lại app, rồi
+mở một nick bấm copy mật khẩu để kiểm. Giữ khóa cũ tới khi kiểm xong — bản sao lưu vừa tạo
+vẫn mã hóa bằng khóa cũ.
 
 ### WebRTC — cần luật firewall, đừng bỏ
 

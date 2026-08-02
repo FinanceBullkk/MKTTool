@@ -15,6 +15,7 @@ import {
   encryptOptionalCredential,
 } from "@/lib/crypto/credential-encryption";
 import { prisma } from "@/lib/db/prisma-client";
+import { describeUnexpectedDbError, isUniqueConstraintError } from "@/lib/db/prisma-error-helpers";
 import { TARGET_PLATFORMS } from "@/lib/platforms/platform-family";
 import { generateTotpCode, isValidTotpSecret, normalizeTotpSecret } from "@/lib/totp/totp-code-generator";
 import { ACCOUNT_STATUSES } from "./account-status";
@@ -98,7 +99,10 @@ export async function createPersona(_prev: ActionResult | null, formData: FormDa
 
   try {
     await prisma.persona.create({ data: parsed.data });
-  } catch {
+  } catch (error) {
+    if (!isUniqueConstraintError(error)) {
+      return { ok: false, message: describeUnexpectedDbError(error, "tạo nhân vật") };
+    }
     return { ok: false, message: `Tên nhân vật "${parsed.data.name}" đã tồn tại.` };
   }
 
@@ -113,7 +117,10 @@ export async function createProxy(_prev: ActionResult | null, formData: FormData
   const { password, ...rest } = parsed.data;
   try {
     await prisma.proxy.create({ data: { ...rest, passwordEnc: encryptCredential(password) } });
-  } catch {
+  } catch (error) {
+    if (!isUniqueConstraintError(error)) {
+      return { ok: false, message: describeUnexpectedDbError(error, "thêm proxy") };
+    }
     return { ok: false, message: "Proxy trùng nhãn hoặc trùng host/port/username đã có." };
   }
 
@@ -142,7 +149,10 @@ export async function createAccount(_prev: ActionResult | null, formData: FormDa
         totpSecretEnc: encryptOptionalCredential(totpSecret ? normalizeTotpSecret(totpSecret) : null),
       },
     });
-  } catch {
+  } catch (error) {
+    if (!isUniqueConstraintError(error)) {
+      return { ok: false, message: describeUnexpectedDbError(error, "thêm nick") };
+    }
     return {
       ok: false,
       message:
@@ -165,7 +175,10 @@ export async function createTarget(_prev: ActionResult | null, formData: FormDat
 
   try {
     await prisma.platformTarget.create({ data: parsed.data });
-  } catch {
+  } catch (error) {
+    if (!isUniqueConstraintError(error)) {
+      return { ok: false, message: describeUnexpectedDbError(error, "thêm đích đăng") };
+    }
     return { ok: false, message: `Đích "${parsed.data.name}" đã tồn tại trên nền tảng này.` };
   }
 
@@ -199,12 +212,16 @@ export async function revealCredential(
   const account = await prisma.account.findUnique({ where: { id: accountId } });
   if (!account) return { ok: false, message: "Không tìm thấy nick." };
 
+  // Giải mã TRƯỚC rồi mới ghi nhật ký: giải mã hỏng mà đã ghi thì nhật ký nói credential
+  // đã lộ trong khi thật ra không ai đọc được gì — sai theo đúng hướng khó phát hiện nhất.
+  const encrypted = field === "password" ? account.passwordEnc : account.emailPasswordEnc;
+  const value = decryptCredential(encrypted);
+
   await prisma.auditLog.create({
     data: { accountId, action: "CREDENTIAL_REVEALED", detail: field },
   });
 
-  const encrypted = field === "password" ? account.passwordEnc : account.emailPasswordEnc;
-  return { value: decryptCredential(encrypted) };
+  return { value };
 }
 
 export interface OtpResult {

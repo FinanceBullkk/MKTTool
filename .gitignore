@@ -23,6 +23,8 @@ prisma/*.db*
 # dữ liệu vận hành
 data/screenshots/
 data/logs/
+# bản sao lưu database — chứa credential đã mã hóa
+data/backups/
 
 # misc
 .DS_Store

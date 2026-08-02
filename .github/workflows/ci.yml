@@ -1,0 +1,34 @@
+name: CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    env:
+      # Giá trị giả, chỉ để build/test chạy được. KHÔNG có credential thật nào trong CI:
+      # database ở đây là file rỗng do migrate dựng ra, không phải kho danh tính.
+      DATABASE_URL: "file:./ci.db"
+      VAULT_KEY: "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      # Prisma Client phải sinh trước typecheck — nếu không, mọi lời gọi prisma.* đều đỏ.
+      - run: npm run db:generate
+
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build

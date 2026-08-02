@@ -13,6 +13,7 @@ import { z } from "zod";
 import type { ActionResult } from "@/lib/accounts/account-actions";
 import { prisma } from "@/lib/db/prisma-client";
 import { serializeEvaluation, summarizeEvaluation } from "@/lib/rules/rules-engine";
+import { canOverride } from "./post-job-override-policy";
 import { joinReasons, previewPostJobRules } from "./post-job-rule-preview";
 
 const postJobSchema = z.object({
@@ -41,19 +42,15 @@ export async function createPostJob(
 
   const { evaluation } = preview;
 
-  if (evaluation.level === "BLOCK") {
-    if (!evaluation.overridable) {
-      return {
-        ok: false,
-        message: `Không xếp lịch được, luật này không cho ghi đè. ${joinReasons(evaluation)}`,
-      };
-    }
-    if (!overrideReason) {
-      return {
-        ok: false,
-        message: `Bị chặn: ${joinReasons(evaluation)} — nhập lý do ghi đè nếu vẫn muốn xếp lịch.`,
-      };
-    }
+  // Cùng một phép quyết định với lúc chấm lại job — xem post-job-override-policy.ts.
+  // Chỉ phần câu chữ là khác, vì người dùng cần biết mình vướng cái nào.
+  if (evaluation.level === "BLOCK" && !canOverride(evaluation, overrideReason)) {
+    return {
+      ok: false,
+      message: !evaluation.overridable
+        ? `Không xếp lịch được, luật này không cho ghi đè. ${joinReasons(evaluation)}`
+        : `Bị chặn: ${joinReasons(evaluation)} — nhập lý do ghi đè nếu vẫn muốn xếp lịch.`,
+    };
   }
 
   const created = await prisma.postJob.create({

@@ -12,6 +12,7 @@ import type { ActionResult } from "@/lib/accounts/account-actions";
 import { prisma } from "@/lib/db/prisma-client";
 import { normalizeThreadUrl } from "@/lib/rules/rule-thread-collision";
 import { serializeEvaluation, summarizeEvaluation } from "@/lib/rules/rules-engine";
+import { shouldBlockOnRecheck } from "./post-job-override-policy";
 import { previewPostJobRules } from "./post-job-rule-preview";
 
 const urlSchema = z.string().url("Link bài đăng không hợp lệ");
@@ -26,6 +27,12 @@ export async function markJobPosted(jobId: string, postedUrl: string): Promise<A
 
   const job = await prisma.postJob.findUnique({ where: { id: jobId } });
   if (!job) return { ok: false, message: "Không tìm thấy job." };
+
+  // Bấm hai lần thì lần sau không được ghi thêm Interaction: một bài đăng là một dấu vết,
+  // nhân đôi dấu vết làm bẩn chính dữ liệu mà bộ luật dựa vào để đếm.
+  if (job.status === "POSTED") {
+    return { ok: false, message: "Job này đã được đánh dấu đã đăng rồi." };
+  }
 
   await prisma.$transaction([
     prisma.postJob.update({
@@ -88,8 +95,9 @@ export async function recheckJob(jobId: string): Promise<ActionResult> {
   if (!preview.ok) return { ok: false, message: preview.message };
 
   const { evaluation } = preview;
-  // Job đã được ghi đè có chủ đích thì giữ nguyên trạng thái chờ, chỉ cập nhật verdict.
-  const blocked = evaluation.level === "BLOCK" && !job.overrideReason;
+  // Job đã được ghi đè có chủ đích thì giữ nguyên trạng thái chờ — nhưng lý do cũ KHÔNG
+  // che được luật cấm ghi đè mới lòi ra (xem post-job-override-policy.ts).
+  const blocked = shouldBlockOnRecheck(evaluation, job.overrideReason);
 
   await prisma.postJob.update({
     where: { id: jobId },
