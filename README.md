@@ -4,6 +4,7 @@ Bảng điều khiển nhiều tài khoản cho team marketing — đăng conten
 mà không bị shadowban hay bóp tương tác.
 
 **Trạng thái:** Phase 01 (Kho danh tính) và Phase 02 (Hàng đợi content + Bộ luật an toàn) đã xong.
+Phase 04 (Facebook Pages) xong phần khung — cắm Meta App vào là đăng được.
 Xem [kế hoạch triển khai](plans/260801-2030-multi-account-posting-console/plan.md).
 
 ## Đây là gì
@@ -47,6 +48,7 @@ npm run dev                 # http://localhost:3000
 | `npm run vault:smoke` | Kiểm chứng nghiệm thu Phase 01 trên DB thật |
 | `npm run vault:testotp` | Sinh TOTP secret dùng thử để kiểm chứng tính năng OTP |
 | `npm run rules:smoke` | Kiểm chứng nghiệm thu Phase 02 (bộ luật) trên DB thật |
+| `npm run facebook:smoke` | Kiểm chứng nghiệm thu Phase 04 (Facebook Pages) — không cần Meta App |
 
 ## Cách test
 
@@ -55,7 +57,7 @@ proxy, không cần tài khoản nào, và kiểm tra được phần lớn ch�
 
 | Chặng | Cần gì | Kiểm chứng điều gì |
 |---|---|---|
-| **A** | không gì cả | `npm run vault:smoke` + `npm run rules:smoke` + nhập dữ liệu giả qua UI: mã hóa, ràng buộc 1:1, copy mật khẩu, OTP (dùng `npm run vault:testotp` đối chiếu với Google Authenticator), và cả bộ luật an toàn |
+| **A** | không gì cả | `npm run vault:smoke` + `npm run rules:smoke` + `npm run facebook:smoke` + nhập dữ liệu giả qua UI: mã hóa, ràng buộc 1:1, copy mật khẩu, OTP (dùng `npm run vault:testotp` đối chiếu với Google Authenticator), bộ luật an toàn, và đường đi Facebook trong máy |
 | **B** | MultiZen (miễn phí) | Profile trống, không đăng nhập gì. Bấm "Mở profile" → công cụ có mở được profile không. ✅ **Đạt 02/08/2026** — đây từng là câu hỏi chặn đường của Phase 00 |
 | **C** | 1 proxy bất kỳ | Nhập proxy vào `/proxies`, gắn cho nick, bấm "Mở profile" → vào `ipinfo.io` → IP phải khớp proxy. Không cần chạm vào cài đặt MultiZen. ✅ **Đạt 02/08/2026** — [báo cáo](plans/reports/chang-c-260802-1443-proxy-push-verification.md) |
 | **D** | nick thật + proxy đúng loại | Chỉ làm sau khi A/B/C xong. Xem quy trình cold-start ở [Phase 00](plans/260801-2030-multi-account-posting-console/phase-00-preparation-and-feasibility-check.md) |
@@ -71,6 +73,8 @@ proxy, không cần tài khoản nào, và kiểm tra được phần lớn ch�
 4. **Đích đăng** (`/targets`) — subreddit kèm luật thật của sub đó
 5. **Content** (`/content`) — bài team viết; phải nằm ở đây thì bộ luật mới so trùng được
 6. **Hàng đợi** (`/queue`) — xếp lịch đăng, bộ luật chấm trước khi cho lưu
+
+Riêng Fanpage không phải nhập tay ở bước 4: kết nối ở `/facebook` là công cụ tự tạo đích đăng.
 
 ## Bộ luật an toàn
 
@@ -114,17 +118,20 @@ src/
 │   ├── accounts/            danh sách + chi tiết nick
 │   ├── content/             kho content team viết
 │   ├── queue/               hàng đợi + trang xếp lịch có chấm luật realtime
+│   ├── facebook/            kết nối Fanpage, trạng thái token
 │   ├── personas/ proxies/ targets/
 │   └── api/
 │       ├── accounts/[id]/launch/   mở profile antidetect
+│       ├── facebook/oauth/         start + callback của luồng OAuth
 │       └── rules/preview/          chạy thử bộ luật, trả verdict
-├── components/              khối UI dùng chung (ui/, queue/, content/)
+├── components/              khối UI dùng chung (ui/, queue/, content/, facebook/)
 └── lib/
     ├── accounts/            server actions + quy tắc trạng thái nick
     ├── antidetect/          adapter MultiZen / AdsPower (đổi bằng 1 dòng .env)
     ├── content/             từ vựng content + server action kho content
     ├── crypto/              AES-256-GCM cho credential
     ├── db/                  Prisma client
+    ├── facebook/            Graph API: OAuth, token, đăng Fanpage, nhắc việc group
     ├── format/ platforms/   định dạng ngày, gộp họ nền tảng
     ├── queue/               server action cho job + tương tác
     ├── rules/               bộ luật an toàn — mỗi luật một file
@@ -176,9 +183,50 @@ MultiZen không phơi endpoint CDP ra ngoài (Playwright không gắn vào đư�
 không phải lỗi**. Nó lái trình duyệt bằng chính tool MCP của nó (`navigate`, `click`, `type`,
 `extract`, `screenshot`), và Phase 05 sẽ đi đường đó. AdsPower thì có trả về endpoint CDP.
 
+## Facebook
+
+Fanpage đăng bằng **Graph API chính thức** — miễn phí, hợp lệ, không bao giờ bị khóa vì vi phạm
+chính sách tự động hóa. Không cần antidetect browser, không cần proxy.
+
+**Bốn bước cấu hình** (làm một lần, khi nào cần thì làm — thiếu nó cả app vẫn chạy bình thường):
+
+1. Tạo app loại Business ở [developers.facebook.com](https://developers.facebook.com/)
+2. Thêm Facebook Login, bật `pages_manage_posts` + `pages_read_engagement` + `pages_show_list`
+3. Khai redirect URI đúng bằng `http://localhost:3000/api/facebook/oauth/callback` — Facebook so
+   từng ký tự, lệch dấu `/` cuối là hỏng
+4. Điền `FACEBOOK_APP_ID` và `FACEBOOK_APP_SECRET` vào `.env`, khởi động lại dev server
+
+Không cần App Review: chế độ Development đủ để đăng lên Page do chính mình quản trị.
+
+Vào `/facebook` bấm **Kết nối nick Facebook**, đăng nhập bằng nick cá nhân đang quản trị Page.
+Công cụ tự đổi token 2 giờ → token 60 ngày → lấy Page token, và **tự tạo đích đăng** cho từng
+Page nên xếp lịch được ngay. Job có đích Fanpage sẽ có nút **"Đăng lên Page"** ngay trong hàng đợi.
+
+> Ở màn hình cấp quyền nhớ **tick chọn từng Page**. Bỏ sót Page nào là Page đó không hiện ra.
+
+> Trên Facebook nên đặt **2 nick làm quản trị viên Page**. Mất nick admin duy nhất là mất Page,
+> và token đang dùng chết theo ngay lập tức.
+
+**Token chết không báo trước** — nick admin đổi mật khẩu, gỡ app, hoặc bị Meta khóa là token
+thành rác ngay, và điều đó chỉ lộ ra ở lần đăng tiếp theo. Bấm "Kiểm tra token tất cả Page"
+ở `/facebook` theo thói quen, đừng đợi tới lúc cần đăng gấp.
+
+### Group phải đăng tay — không phải thiếu tính năng
+
+Meta gỡ quyền `publish_to_groups` tháng 04/2024. Không công cụ nào tự đăng group được nữa,
+Buffer/Hootsuite/Make đều đã bỏ. Thứ tự nhận làm được chỉ có thể là lái trình duyệt giả người
+dùng — đúng hành vi khiến nick bị khóa.
+
+Bài group vẫn xếp lịch ở `/queue` với đích loại Facebook Group và **vẫn bị chấm đủ 9 luật** như
+Reddit. Đến hạn, trang tổng quan nhắc việc kèm nút **mở profile** + **copy nội dung**; dán và
+bấm đăng là việc của người. Đăng xong quay lại hàng đợi bấm "Đã đăng".
+
 ## Bảo mật
 
-- Mật khẩu, mật khẩu email, TOTP secret: mã hóa AES-256-GCM trước khi chạm database
+- Mật khẩu, mật khẩu email, TOTP secret, **token Facebook**: mã hóa AES-256-GCM trước khi chạm database
+- `FACEBOOK_APP_SECRET` chỉ nằm ở server, không có component client nào import tới nó
+- Thông báo lỗi Graph API đi qua bộ che token trước khi hiện ra hoặc ghi `AuditLog` — Graph hay
+  vọng lại nguyên tham số đã gửi
 - Khóa nằm ở biến môi trường, không nằm trong DB
 - Mật khẩu không bao giờ render ra màn hình — bấm copy là chép thẳng vào clipboard
 - Mọi lần lộ credential / mở profile đều ghi `AuditLog`
@@ -203,5 +251,7 @@ trong MCP, file cấu hình, lẫn GUI).
 ## Việc chưa làm
 
 - Dò shadowban + theo dõi karma → Phase 03
-- Facebook Pages qua Graph API → Phase 04
 - Tự động đăng Reddit → Phase 05
+- **Chưa đăng thử lên Fanpage thật lần nào.** Toàn bộ đường đi trong máy đã nghiệm thu bằng
+  `npm run facebook:smoke` (11/11 đạt), nhưng chính lời gọi Graph API thì phải có Meta App mới
+  chạy được — bước cuối của [Phase 04](plans/260801-2030-multi-account-posting-console/phase-04-facebook-pages-publisher.md).

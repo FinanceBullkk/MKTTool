@@ -21,7 +21,7 @@ export interface QueueJob {
   errorMessage: string | null;
   contentItem: { title: string; type: string };
   account: { username: string };
-  target: { name: string };
+  target: { name: string; platform: string };
 }
 
 function VerdictCell({ job }: { job: QueueJob }) {
@@ -109,7 +109,11 @@ export function QueueJobTable({ jobs }: { jobs: QueueJob[] }) {
                     <VerdictCell job={job} />
                   </td>
                   <td className="py-2 pr-4">
-                    <JobRowActions jobId={job.id} status={job.status} />
+                    <JobRowActions
+                      jobId={job.id}
+                      status={job.status}
+                      targetPlatform={job.target.platform}
+                    />
                   </td>
                 </tr>
               );

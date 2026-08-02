@@ -3,7 +3,7 @@
 Công cụ cho 1 bạn MKT specialist vận hành nhiều tài khoản mạng xã hội để đăng content của team
 mà không bị shadowban / bóp tương tác.
 
-**Ngày lập:** 2026-08-01 | **Trạng thái:** GĐ1 + GĐ2 xong, đang chờ mua nick | **Branch:** master
+**Ngày lập:** 2026-08-01 | **Trạng thái:** GĐ1 + GĐ2 xong, GĐ4 xong phần khung, đang chờ mua nick | **Branch:** master
 
 ---
 
@@ -41,7 +41,7 @@ Một process, một câu lệnh `npm run dev`. Không microservice.
 | 1 | Kho danh tính | 5-7 ngày | ✅ Xong 01/08/2026 | [phase-01](phase-01-identity-vault.md) |
 | 2 | Hàng đợi content + Bộ luật an toàn | 7-10 ngày | ✅ Xong 02/08/2026 | [phase-02](phase-02-content-queue-and-safety-rules.md) |
 | 3 | Theo dõi sức khỏe tài khoản | 4-5 ngày | ⬜ | [phase-03](phase-03-account-health-monitor.md) |
-| 4 | Facebook Pages publisher | 2-3 ngày | ⬜ | [phase-04](phase-04-facebook-pages-publisher.md) |
+| 4 | Facebook Pages publisher | 2-3 ngày | 🟡 Khung xong 02/08/2026, chờ Meta App để đăng thử thật | [phase-04](phase-04-facebook-pages-publisher.md) |
 | 5 | Bán tự động đăng Reddit | 7-10 ngày | ⬜ | [phase-05](phase-05-reddit-posting-automation.md) |
 
 **Tổng: ~6-8 tuần** (2 tuần GĐ0 chạy song song được với GĐ1).

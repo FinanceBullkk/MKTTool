@@ -15,6 +15,7 @@ const NAV_ITEMS = [
   { href: "/personas", label: "Nhân vật" },
   { href: "/proxies", label: "Proxy" },
   { href: "/targets", label: "Đích đăng" },
+  { href: "/facebook", label: "Facebook" },
 ];
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

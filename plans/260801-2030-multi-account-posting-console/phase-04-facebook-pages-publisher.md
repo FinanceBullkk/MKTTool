@@ -7,7 +7,7 @@
 
 ## Overview
 - **Priority:** P1
-- **Status:** ⬜ Chưa bắt đầu
+- **Status:** 🟡 Khung xong 02/08/2026 — còn chờ Meta App thật để chạy bước 9 (đăng thử lên Page nháp)
 - **Thời lượng:** 2-3 ngày
 - **Mục đích:** Đăng nội dung thương hiệu lên 1-3 Fanpage qua Graph API. Miễn phí, hợp lệ,
   không bao giờ bị khóa vì vi phạm chính sách tự động hóa.
@@ -72,42 +72,84 @@ tập trung một chỗ và rules engine kiểm soát được.
 
 ## Database Schema (bổ sung)
 
+**Đã dựng 02/08/2026 — khác kế hoạch ở hai chỗ, lý do ghi ngay dưới.**
+
 ```prisma
-model FacebookPage {
-  id              String   @id @default(cuid())
-  pageId          String   @unique          // id Page trên Facebook
-  name            String
-  accessTokenEnc  String                    // mã hóa
-  adminAccountId  String                    // nick cá nhân quản trị (FK Account)
-  tokenCheckedAt  DateTime?
-  tokenValid      Boolean  @default(true)
+model FacebookConnection {   // ← THÊM so với kế hoạch
+  id             String    @id @default(cuid())
+  fbUserId       String    @unique
+  name           String
+  accessTokenEnc String                    // user token long-lived, mã hóa
+  expiresAt      DateTime?
+  accountId      String?                   // nick trong kho danh tính, nếu đã nhập
+  pages          FacebookPage[]
 }
 
-model GroupReminder {                        // luồng thủ công cho Group
-  id            String   @id @default(cuid())
-  contentItemId String
-  accountId     String                       // nick cá nhân sẽ đăng
-  groupName     String
-  groupUrl      String
-  dueAt         DateTime
-  status        String   @default("PENDING") // PENDING | DONE | SKIPPED
-  doneAt        DateTime?
-  note          String?
+model FacebookPage {
+  id             String    @id @default(cuid())
+  pageId         String    @unique
+  name           String
+  accessTokenEnc String                    // mã hóa
+  connectionId   String
+  targetId       String?   @unique         // nối PlatformTarget để hàng đợi xếp lịch được
+  adminAccountId String?                   // nick quản trị — KHÔNG bắt buộc
+  tokenValid     Boolean   @default(true)
+  tokenCheckedAt DateTime?
+  tokenNote      String?
 }
 ```
 
+### Khác kế hoạch #1 — thêm `FacebookConnection`
+
+Kế hoạch chỉ có `FacebookPage`, nhưng yêu cầu "cảnh báo token sắp hết hạn" không làm được
+nếu không lưu user token: **Page token thừa hưởng tuổi thọ của user token sinh ra nó**.
+Nhét `expiresAt` vào từng Page là chép cùng một sự thật ra n dòng rồi sửa chỗ này quên chỗ
+kia. Một connection → n Page mới đúng hình dạng thật của dữ liệu.
+
+`adminAccountId` chuyển thành **không bắt buộc**: kết nối Page được ngay cả khi chưa mua nick
+cá nhân, gán sau. Trường này chỉ để tra ngược "mất nick nào thì mất Page nào" — công cụ đăng
+bằng Page token chứ không mượn nick.
+
+### Khác kế hoạch #2 — KHÔNG có `GroupReminder`
+
+Đối chiếu từng trường: `contentItemId`, `accountId`, `groupName`/`groupUrl`, `dueAt`,
+`status` (PENDING|DONE|SKIPPED) — **đúng bằng một `PostJob` có đích FACEBOOK_GROUP**
+(`contentItemId`, `accountId`, `targetId`, `scheduledAt`, `status` PENDING|POSTED|SKIPPED).
+
+Dựng bảng song song thì bài group đi vòng qua bộ luật, mà group vận hành y hệt subreddit và
+phải chấm đủ 9 luật (xem `COMMUNITY_PLATFORMS`). Nó cũng khiến bài group vô hình với luật 6
+(tỷ lệ promo) và luật 8 (đụng độ thread) — đúng hai luật không cộng đồng nào tha thứ.
+
+Việc còn thiếu thật sự chỉ là *nhắc đúng giờ*, và đó là **một câu truy vấn** chứ không phải
+một bảng: `facebook-group-reminder.ts` lọc `PostJob` PENDING có đích FACEBOOK_GROUP đến hạn
+trong 24h tới; trang tổng quan hiện kèm nút mở profile + copy nội dung.
+
 ## Related Code Files
 
-**Tạo mới:**
-- `lib/facebook/facebook-graph-client.ts`
-- `lib/facebook/facebook-token-manager.ts`
-- `lib/facebook/facebook-page-publisher.ts`
-- `lib/facebook/facebook-group-reminder.ts`
-- `app/facebook/pages/page.tsx` — danh sách Page, trạng thái token
-- `app/facebook/connect/page.tsx` — luồng OAuth
-- `app/facebook/groups/page.tsx` — danh sách nhắc việc group
-- `app/api/facebook/oauth/callback/route.ts`
-- `app/api/facebook/publish/route.ts`
+**Đã tạo 02/08/2026:**
+- `lib/facebook/facebook-app-config.ts` — đọc env, quyền cần xin, redirect URI
+- `lib/facebook/facebook-graph-client.ts` — GET/POST + che token trong mọi thông báo lỗi
+- `lib/facebook/facebook-graph-error-messages.ts` — dịch mã lỗi Graph sang câu hành động được
+- `lib/facebook/facebook-oauth-flow.ts` — authorize URL, đổi code → token 60 ngày, lấy Page
+- `lib/facebook/facebook-token-manager.ts` — lưu mã hóa, tự tạo đích, kiểm token hàng loạt
+- `lib/facebook/facebook-token-health.ts` — hàm thuần chấm sức khỏe token
+- `lib/facebook/facebook-post-payload.ts` — hàm thuần dựng nội dung + tham số đăng
+- `lib/facebook/facebook-page-publisher.ts` — đăng thật, trả post id + URL
+- `lib/facebook/facebook-page-actions.ts` — server action: kiểm token, gán admin, ngắt kết nối
+- `lib/facebook/facebook-publish-action.ts` — đăng một job trong hàng đợi
+- `lib/facebook/facebook-group-reminder.ts` — truy vấn nhắc việc group (không phải bảng)
+- `app/facebook/page.tsx` — một trang gộp: kết nối + Page + token + giải thích về Group
+- `app/api/facebook/oauth/start/route.ts` + `callback/route.ts`
+- `components/facebook/*`, `components/queue/facebook-publish-button.tsx`,
+  `components/queue/group-post-reminders.tsx`
+- `scripts/smoke-test-facebook-pages.ts` — nghiệm thu không cần Meta App (`npm run facebook:smoke`)
+
+**Khác kế hoạch #3 — gộp 3 trang thành 1, bỏ `api/facebook/publish/route.ts`.**
+Ba trang (`pages`/`connect`/`groups`) thực chất là ba khối của cùng một câu hỏi "Facebook đang
+thế nào" → một trang `/facebook`. Nhắc việc group nằm ở trang tổng quan vì đó là nơi bạn MKT mở
+đầu ngày, không phải một trang phải nhớ mà vào. Việc đăng dùng **server action** như mọi thao
+tác khác của hàng đợi (`markJobPosted`, `recheckJob`) thay vì thêm một API route — cùng một
+kiểu thao tác thì đi cùng một đường.
 
 **Sửa:**
 - `prisma/schema.prisma`
@@ -131,21 +173,28 @@ model GroupReminder {                        // luồng thủ công cho Group
 9. Build sạch, test đăng thử 1 bài lên Page nháp.
 
 ## Todo List
-- [ ] Tạo Meta App + xin quyền
-- [ ] Schema FacebookPage + GroupReminder
-- [ ] Graph API client + xử lý lỗi
-- [ ] Token manager (long-lived + cảnh báo hạn)
-- [ ] Luồng OAuth + chọn Page
-- [ ] Page publisher (text/link/ảnh)
-- [ ] Nối vào hàng đợi Phase 02
-- [ ] Luồng nhắc việc Group thủ công
-- [ ] Test đăng thật lên Page nháp
+- [ ] Tạo Meta App + xin quyền ← **việc của người, chưa làm**
+- [x] Schema FacebookConnection + FacebookPage (bỏ GroupReminder, xem lý do trên)
+- [x] Graph API client + xử lý lỗi
+- [x] Token manager (long-lived + cảnh báo hạn)
+- [x] Luồng OAuth + chọn Page
+- [x] Page publisher (text/link/ảnh)
+- [x] Nối vào hàng đợi Phase 02
+- [x] Luồng nhắc việc Group thủ công
+- [ ] Test đăng thật lên Page nháp ← **chặn bởi Meta App**
 
 ## Success Criteria
-- Đăng được bài lên Fanpage từ tool, bài hiện đúng trên Facebook
-- Token sống > 60 ngày, có cảnh báo trước khi hết
-- Nhắc việc group hiện đúng giờ, bấm 1 nút là mở đúng profile + có sẵn nội dung trong clipboard
-- **Không có bất kỳ đoạn code nào cố tự động đăng vào Group**
+- Đăng được bài lên Fanpage từ tool, bài hiện đúng trên Facebook — ⏳ chờ Meta App
+- Token sống > 60 ngày, có cảnh báo trước khi hết — ✅ code + test xong (`facebook-token-health`)
+- Nhắc việc group hiện đúng giờ, bấm 1 nút là mở đúng profile + có sẵn nội dung trong clipboard — ✅
+- **Không có bất kỳ đoạn code nào cố tự động đăng vào Group** — ✅ và ghi rõ lý do trong
+  `schema.prisma`, `facebook-publish-action.ts`, `facebook-publish-button.tsx`, trang `/facebook`
+
+### Đã nghiệm thu được mà không cần Meta App (`npm run facebook:smoke`, 11/11 đạt)
+Token mã hóa trước khi chạm DB · giải mã lại đúng nguyên bản · kết nối lại ghi đè chứ không đẻ
+dòng trùng · Page tự sinh đích đăng · token hỏng thì chặn đăng **trước** khi gọi mạng và nêu
+đúng lý do · Page chưa kết nối thì báo rõ · job group đến giờ hiện ở nhắc việc kèm nội dung
+copy đủ tiêu đề + thân bài + link.
 
 ## Risk Assessment
 

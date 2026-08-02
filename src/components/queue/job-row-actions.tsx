@@ -10,12 +10,21 @@
 import { useState, useTransition } from "react";
 import type { ActionResult } from "@/lib/accounts/account-actions";
 import { markJobPosted, markJobSkipped, recheckJob } from "@/lib/queue/post-job-status-actions";
+import { FacebookPublishButton } from "./facebook-publish-button";
 
 const BUTTON_CLASS =
   "rounded-md border border-neutral-300 px-2 py-1 text-xs transition hover:bg-neutral-100 " +
   "disabled:opacity-50 dark:border-neutral-700 dark:hover:bg-neutral-800";
 
-export function JobRowActions({ jobId, status }: { jobId: string; status: string }) {
+export function JobRowActions({
+  jobId,
+  status,
+  targetPlatform,
+}: {
+  jobId: string;
+  status: string;
+  targetPlatform: string;
+}) {
   const [pending, startTransition] = useTransition();
   const [result, setResult] = useState<ActionResult | null>(null);
   const [postedUrl, setPostedUrl] = useState("");
@@ -61,6 +70,10 @@ export function JobRowActions({ jobId, status }: { jobId: string; status: string
           <span className="text-xs text-neutral-400">—</span>
         )}
       </div>
+
+      {targetPlatform === "FACEBOOK_PAGE" && status === "PENDING" ? (
+        <FacebookPublishButton jobId={jobId} />
+      ) : null}
 
       {showUrlInput && open ? (
         <div className="flex flex-wrap items-center gap-1">

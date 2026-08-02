@@ -101,6 +101,10 @@ model Account {
   jobs         PostJob[]
   interactions Interaction[]
 
+  // Nick cá nhân Facebook có thể là quản trị viên của Fanpage (Phase 04).
+  facebookConnections FacebookConnection[]
+  facebookPages       FacebookPage[]
+
   @@unique([platform, username])
   @@index([status])
 }
@@ -122,6 +126,9 @@ model PlatformTarget {
 
   jobs         PostJob[]
   interactions Interaction[]
+
+  /// Fanpage tương ứng nếu đích này đăng được bằng Graph API (Phase 04).
+  facebookPage FacebookPage?
 
   @@unique([platform, name])
 }
@@ -197,6 +204,66 @@ model Interaction {
 model RuleConfig {
   key   String @id
   value String
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Facebook Pages qua Graph API chính thức (Phase 04)
+// Xem plans/260801-2030-multi-account-posting-console/phase-04-facebook-pages-publisher.md
+//
+// KHÔNG có model nào cho việc tự đăng vào Group, và sẽ không bao giờ có:
+// Meta khai tử `publish_to_groups` tháng 04/2024. Group đăng tay — nhắc việc đi qua
+// PostJob với đích FACEBOOK_GROUP để vẫn được bộ luật chấm như mọi bài khác.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Một lần OAuth với nick cá nhân Facebook — nguồn sinh ra mọi Page token.
+///
+/// Tách khỏi FacebookPage vì Page token thừa hưởng tuổi thọ của user token này:
+/// user token long-lived sống 60 ngày, hết hạn là mọi Page token dưới nó chết theo.
+/// Nhét hạn dùng vào từng Page là chép cùng một sự thật ra nhiều dòng.
+model FacebookConnection {
+  id             String    @id @default(cuid())
+  fbUserId       String    @unique
+  name           String
+  accessTokenEnc String // user token long-lived, đã mã hóa
+  expiresAt      DateTime? // null = Facebook không trả về hạn
+  /// Nick trong kho danh tính, nếu nick đó đã được nhập. Không bắt buộc để
+  /// kết nối được Page trước cả khi mua nick.
+  accountId      String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  account Account?       @relation(fields: [accountId], references: [id])
+  pages   FacebookPage[]
+
+  @@index([accountId])
+}
+
+/// Một Fanpage đã kết nối. `accessTokenEnc` là Page token — quyền rất mạnh, mã hóa như credential nick.
+model FacebookPage {
+  id             String @id @default(cuid())
+  pageId         String @unique // id Page trên Facebook
+  name           String
+  accessTokenEnc String
+
+  connectionId String
+  /// Đích đăng tương ứng — nối để hàng đợi Phase 02 biết job này đăng bằng API.
+  /// @unique ép 1 đích : 1 Page, không cho hai Page cùng trỏ về một đích.
+  targetId     String? @unique
+  /// Quản trị viên trong kho danh tính. Đặt 2 nick làm admin trên Facebook,
+  /// mất 1 nick không mất Page — nhưng ở đây chỉ ghi nick chính.
+  adminAccountId String?
+
+  tokenValid     Boolean   @default(true)
+  tokenCheckedAt DateTime?
+  tokenNote      String? // vì sao token bị coi là hỏng, hiện thẳng cho người dùng
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  connection   FacebookConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  target       PlatformTarget?    @relation(fields: [targetId], references: [id])
+  adminAccount Account?           @relation(fields: [adminAccountId], references: [id])
+
+  @@index([connectionId])
 }
 
 /// Nhật ký thao tác nhạy cảm: mở profile, xem credential, ghi đè luật.

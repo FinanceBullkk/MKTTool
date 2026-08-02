@@ -20,12 +20,16 @@ src/
 │   ├── targets/                Đích đăng (subreddit, Fanpage…)
 │   ├── content/                Kho content team viết
 │   ├── queue/                  Hàng đợi + trang xếp lịch (chấm luật realtime)
+│   ├── facebook/               Kết nối Fanpage, trạng thái token, giải thích về Group
 │   └── api/
 │       ├── accounts/[id]/launch/   API mở profile antidetect browser
+│       ├── facebook/oauth/         start (sinh state + redirect) và callback (đổi token)
 │       └── rules/preview/          Chạy thử bộ luật, trả verdict (POST)
 ├── components/
 │   ├── ui/                     Khối UI dùng chung: form controls, page section
-│   ├── queue/                  UI hàng đợi: composer, bảng job, verdict badge, form tương tác
+│   ├── queue/                  UI hàng đợi: composer, bảng job, verdict badge, nút đăng Page,
+│   │                           nhắc việc group
+│   ├── facebook/               Bảng Page: gán nick quản trị, kiểm token, ngắt kết nối
 │   └── content/                Form nhập content
 └── lib/
     ├── accounts/               Server actions + quy tắc trạng thái nick
@@ -33,6 +37,7 @@ src/
     ├── content/                Hằng số loại content, trạng thái job, loại tương tác
     ├── crypto/                 AES-256-GCM cho credential (mã hóa/giải mã + key loader)
     ├── db/                     Prisma client singleton
+    ├── facebook/               Graph API: OAuth, token, đăng Fanpage (chi tiết bên dưới)
     ├── format/                 Định dạng ngày tiếng Việt
     ├── platforms/              Gộp họ nền tảng (REDDIT / FACEBOOK)
     ├── queue/                  Server actions: tạo job, đổi trạng thái, ghi tương tác, tóm tắt promo
@@ -44,13 +49,14 @@ Thư mục khác ở gốc repo:
 
 ```
 prisma/
-├── schema.prisma               Schema duy nhất, 10 model
+├── schema.prisma               Schema duy nhất, 12 model
 └── migrations/                 Lịch sử migration
 scripts/
 ├── generate-vault-key.ts       Sinh VAULT_KEY
 ├── generate-test-totp-secret.ts  Sinh TOTP secret dùng thử
 ├── smoke-test-identity-vault.ts  Kiểm chứng Phase 01
-└── smoke-test-content-rules.ts   Kiểm chứng Phase 02
+├── smoke-test-content-rules.ts   Kiểm chứng Phase 02
+└── smoke-test-facebook-pages.ts  Kiểm chứng Phase 04 (không cần Meta App)
 plans/                          Kế hoạch triển khai (chỉ đọc, không sửa)
 docs/                           Tài liệu dự án
 ```
@@ -59,7 +65,7 @@ docs/                           Tài liệu dự án
 
 ## Mô hình dữ liệu
 
-10 model trong `prisma/schema.prisma`. Các ràng buộc `@unique` là chỗ nguyên tắc 1:1 được ép.
+12 model trong `prisma/schema.prisma`. Các ràng buộc `@unique` là chỗ nguyên tắc 1:1 được ép.
 
 | Model | Ý nghĩa | Ràng buộc đáng chú ý |
 |---|---|---|
@@ -72,9 +78,16 @@ docs/                           Tài liệu dự án
 | `PostJob` | Một lần đăng đã xếp lịch | `ruleVerdicts`: JSON kết quả luật tại lúc tạo; `overrideReason`: bắt buộc nếu ghi đè |
 | `Interaction` | Nick chạm vào thread (post/comment/upvote) | `threadKey`: URL đã chuẩn hóa, khóa so đụng độ |
 | `RuleConfig` | Ngưỡng luật, sửa bằng `db:studio` | `key @id` — mỗi ngưỡng một dòng |
-| `AuditLog` | Nhật ký thao tác nhạy cảm | Ghi mọi lần: mở profile, xem credential, ghi đè luật |
+| `AuditLog` | Nhật ký thao tác nhạy cảm | Ghi mọi lần: mở profile, xem credential, ghi đè luật, đăng Fanpage |
+| `FacebookConnection` | Một lần OAuth với nick cá nhân — nguồn sinh mọi Page token | `fbUserId @unique`; `expiresAt` là hạn của user token, mọi Page dưới nó chết theo |
+| `FacebookPage` | Một Fanpage đã kết nối | `pageId @unique`; `targetId @unique` ép 1 đích : 1 Page |
 
-Quan hệ chính: `Account` → `Persona` (n:1), `Account` → `Proxy` (1:1), `PostJob` → `Account` + `PlatformTarget` + `ContentItem`, `Interaction` → `Account` + `PlatformTarget`.
+Quan hệ chính: `Account` → `Persona` (n:1), `Account` → `Proxy` (1:1), `PostJob` → `Account` + `PlatformTarget` + `ContentItem`, `Interaction` → `Account` + `PlatformTarget`, `FacebookPage` → `FacebookConnection` (n:1) + `PlatformTarget` (1:1).
+
+**Không có model nào cho việc tự đăng Facebook Group, và sẽ không có** — Meta gỡ
+`publish_to_groups` từ 04/2024. Bài group là `PostJob` với đích FACEBOOK_GROUP như mọi bài khác,
+nên vẫn bị chấm đủ 9 luật; phần nhắc việc là một truy vấn (`facebook-group-reminder.ts`), không
+phải một bảng.
 
 ---
 
@@ -83,12 +96,14 @@ Quan hệ chính: `Account` → `Persona` (n:1), `Account` → `Proxy` (1:1), `P
 ```
 1. Nhập content         → src/lib/content/content-item-actions.ts  → ContentItem
 2. Xếp lịch (composer)  → src/components/queue/post-job-composer.tsx
+   (đích Fanpage không phải nhập tay: kết nối ở /facebook là tự sinh PlatformTarget)
    ├── Chọn nick + đích → gọi API /api/rules/preview (POST)
    │                     → src/lib/rules/rule-context-builder.ts   xây RuleContext
    │                     → src/lib/rules/rules-engine.ts           chạy luật áp cho nền tảng đó
    │                     → trả verdict về UI realtime
    └── Bấm lưu          → src/lib/queue/post-job-actions.ts       → PostJob (PENDING|BLOCKED)
-3. Đăng bài (Phase 05)  → chưa có — hiện người dùng mở profile tay rồi copy/paste
+3. Đăng bài             → Fanpage: nút "Đăng lên Page" gọi Graph API (Phase 04)
+                          Reddit/Group: người mở profile tay rồi copy/paste (Reddit → Phase 05)
 4. Đánh dấu đã đăng     → src/lib/queue/post-job-status-actions.ts  → status = POSTED
 5. Ghi tương tác        → src/lib/queue/interaction-actions.ts     → Interaction
 ```
@@ -117,6 +132,49 @@ IP cũ. Đẩy thất bại mà vẫn mở là mở bằng IP nhà — nên mọ
 Mật khẩu proxy dạng trần chỉ tồn tại trong `proxy-config-builder.ts` và lời gọi adapter. Thông
 báo lỗi của cả hai adapter đều che mật khẩu trước khi trả về — API của provider hay vọng lại
 nguyên tham số đã gửi.
+
+---
+
+## Luồng Facebook Pages
+
+```
+Kết nối (một lần cho mỗi nick quản trị Page)
+  /facebook → GET /api/facebook/oauth/start      sinh state, cất cookie, đẩy sang Facebook
+            → GET /api/facebook/oauth/callback   đối chiếu state
+              1. code → user token 2 giờ         facebook-oauth-flow.exchangeCodeForToken
+              2. → user token 60 ngày            exchangeForLongLivedToken   ← KHÔNG được bỏ
+              3. → danh sách Page + Page token    fetchManagedPages
+              4. lưu (mã hóa) + tự tạo đích đăng  facebook-token-manager.saveConnectionWithPages
+
+Đăng bài
+  /queue → nút "Đăng lên Page"  → facebook-publish-action.publishJobToPage
+              1. chặn nếu đích không phải Fanpage / job không PENDING / chưa nối Page
+              2. facebook-page-publisher.publishToPage
+                 - chấm token trước (evaluateTokenHealth), hỏng thì DỪNG, không gọi mạng
+                 - dựng tham số (facebook-post-payload) → POST {pageId}/feed hoặc /photos
+                 - Facebook từ chối token → ghi tokenValid=false ngay
+              3. markJobPosted() — dùng lại đường của hàng đợi, ghi luôn Interaction
+```
+
+Bước 2 của phần kết nối là chỗ dễ bỏ nhất và hỏng nặng nhất: Page token thừa hưởng tuổi thọ
+của user token, dừng ở token 2 giờ thì trưa hôm sau công cụ ngừng đăng mà không rõ vì sao.
+
+| File | Việc |
+|---|---|
+| `facebook-app-config.ts` | Đọc env, quyền cần xin, redirect URI, phiên bản Graph |
+| `facebook-graph-client.ts` | GET/POST + `redactTokens()` che token trong mọi thông báo lỗi |
+| `facebook-graph-error-messages.ts` | Dịch mã lỗi Graph sang câu hành động được (hàm thuần) |
+| `facebook-oauth-flow.ts` | Authorize URL, đổi code → token, lấy Page |
+| `facebook-token-manager.ts` | Lưu mã hóa, tự tạo `PlatformTarget`, kiểm token hàng loạt |
+| `facebook-token-health.ts` | Chấm sức khỏe token: OK / WARN / EXPIRED / INVALID (hàm thuần) |
+| `facebook-post-payload.ts` | Ghép nội dung + chọn `/feed` hay `/photos` (hàm thuần) |
+| `facebook-page-publisher.ts` | Đăng thật, trả post id + URL |
+| `facebook-page-actions.ts` | Server action: kiểm token, gán nick quản trị, ngắt kết nối |
+| `facebook-publish-action.ts` | Đăng một job trong hàng đợi |
+| `facebook-group-reminder.ts` | Truy vấn nhắc việc group — **không phải bảng** |
+
+Bốn file `*-health`, `*-payload`, `*-error-messages`, và phần dựng URL là hàm thuần: test được
+không cần token thật, không cần mạng, không cần database.
 
 ---
 
@@ -185,6 +243,7 @@ bằng `isCommunityPlatform()`. Hai đường lệch nhau là luật chặn ở 
 | `npm run db:studio` | Mở Prisma Studio xem/sửa database |
 | `npm run vault:smoke` | Kiểm chứng nghiệm thu Phase 01 |
 | `npm run rules:smoke` | Kiểm chứng nghiệm thu Phase 02 |
+| `npm run facebook:smoke` | Kiểm chứng nghiệm thu Phase 04 (không cần Meta App) |
 
 Chi tiết đầy đủ ở [README → Lệnh](../README.md#lệnh).
 
@@ -202,16 +261,18 @@ Chi tiết đầy đủ ở [README → Lệnh](../README.md#lệnh).
 3. **Script trong `scripts/` cần `tsx --env-file=.env`** vì `prisma-client.ts` đọc
    `DATABASE_URL` ngay lúc import. Quên `--env-file` thì lỗi `Thiếu DATABASE_URL`.
 
+4. **`prisma migrate dev` không phải lúc nào cũng sinh lại client.** Thêm model xong, migration
+   áp thành công mà `tsc` vẫn báo `Property 'facebookPage' does not exist on type 'PrismaClient'`
+   — chạy `npm run db:generate` là hết. Đừng đi sửa code theo lỗi đó.
+
 ---
 
 ## Việc chưa làm
 
-- **Chưa kiểm chứng IP trong profile khớp proxy** (Chặng C) — code đẩy proxy xong 02/08/2026,
-  có test, nhưng chưa chạy với proxy thật lần nào.
-- **Chưa có nick Facebook thật để chạy thử luật Fanpage** — đường FACEBOOK_PAGE mới kiểm bằng
-  test và dữ liệu giả qua API preview, chưa qua Graph API lần nào (Phase 04).
+- **Chưa gọi Graph API thật lần nào.** Toàn bộ đường đi trong máy đã nghiệm thu bằng
+  `npm run facebook:smoke` (11/11 đạt) — token mã hóa, tự tạo đích, chặn khi token hỏng,
+  nhắc việc group. Nhưng OAuth và việc đăng bài cần Meta App thật mới chạy được.
 - Dò shadowban + theo dõi karma → Phase 03.
-- Facebook Pages qua Graph API → Phase 04.
 - Tự động đăng Reddit qua tool MCP → Phase 05.
 
 ---

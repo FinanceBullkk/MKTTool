@@ -80,6 +80,11 @@ Tra cứu thêm: [tài liệu sản phẩm](project-overview-pdr.md) · [bản �
 | **CDP** | Chrome DevTools Protocol — giao thức điều khiển Chromium ở tầng thấp. | MultiZen **không phơi** CDP ra ngoài. AdsPower thì có. | `antidetect-browser-adapter.ts` → `cdpEndpoint?` (optional) |
 | **Human handoff** | Khi bot gặp 2FA/captcha, dừng lại để người bước vào xử lý tay. | MultiZen hỗ trợ sẵn (profile mở, người thao tác trực tiếp). Không tự giải captcha. | Tính năng của MultiZen, tham chiếu ở `project-overview-pdr.md` |
 | **Behavioral injection** | MultiZen mô phỏng hành vi người ở tầng CDP (di chuột, cuộn trang, delay ngẫu nhiên). | Giảm khả năng bị nhận diện là bot. | Tính năng nội tại của MultiZen |
+| **Graph API** | API chính thức của Meta. Đường đăng Fanpage **duy nhất** được dùng ở đây: miễn phí, hợp lệ, không bao giờ bị khóa vì vi phạm chính sách tự động hóa. | Khác hẳn Reddit — Reddit không có đường API dùng được nên phải qua trình duyệt. | `src/lib/facebook/facebook-graph-client.ts` |
+| **User token / Page token** | OAuth trả về *user token* của nick cá nhân; từ nó lấy ra *Page token* cho từng Fanpage. Page token là thứ dùng để đăng. | **Page token thừa hưởng tuổi thọ của user token sinh ra nó** — đây là quan hệ quyết định toàn bộ thiết kế `FacebookConnection` → `FacebookPage`. | `facebook-oauth-flow.ts`; `schema.prisma` |
+| **Long-lived token** | Token 60 ngày, đổi từ token ngắn hạn 2 giờ bằng `grant_type=fb_exchange_token`. | Bỏ bước đổi này thì trưa hôm sau công cụ ngừng đăng mà không rõ vì sao. Page token sinh từ long-lived token thì **không có hạn**. | `facebook-oauth-flow.ts` → `exchangeForLongLivedToken()` |
+| **`publish_to_groups`** | Quyền cho phép tự đăng vào Facebook Group. **Meta xóa khỏi mọi phiên bản Graph API từ 04/2024.** | Group bắt buộc đăng tay. Mọi tool nhận làm được đều đang lái trình duyệt giả người dùng — đúng hành vi khiến nick chết. | Ghi rõ lý do ở `schema.prisma`, `facebook-publish-action.ts`, trang `/facebook` |
+| **Chế độ Development (Meta App)** | Trạng thái mặc định của app mới tạo, chưa qua App Review. | **Đủ dùng** để đăng lên Page do chính mình quản trị — không phải nộp hồ sơ duyệt. Chỉ xin đúng 3 quyền, xin thừa là tự chuốc App Review. | `facebook-app-config.ts` → `REQUIRED_SCOPES` |
 
 ---
 

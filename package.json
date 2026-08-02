@@ -16,6 +16,7 @@
     "vault:keygen": "tsx scripts/generate-vault-key.ts",
     "vault:smoke": "tsx scripts/smoke-test-identity-vault.ts",
     "rules:smoke": "tsx --env-file=.env scripts/smoke-test-content-rules.ts",
+    "facebook:smoke": "tsx --env-file=.env scripts/smoke-test-facebook-pages.ts",
     "vault:testotp": "tsx scripts/generate-test-totp-secret.ts"
   },
   "dependencies": {

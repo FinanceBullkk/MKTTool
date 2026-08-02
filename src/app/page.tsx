@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { GroupPostReminders } from "@/components/queue/group-post-reminders";
 import { Card, PageHeading, StatusBadge } from "@/components/ui/page-section";
 import {
   ACCOUNT_STATUSES,
@@ -7,12 +8,21 @@ import {
   getStatusPresentation,
 } from "@/lib/accounts/account-status";
 import { prisma } from "@/lib/db/prisma-client";
+import { loadDueGroupReminders } from "@/lib/facebook/facebook-group-reminder";
 
 export const dynamic = "force-dynamic";
 
 export default async function OverviewPage() {
-  const [accounts, personaCount, proxyCount, targetCount, contentCount, pendingJobCount, blockedJobCount] =
-    await Promise.all([
+  const [
+    accounts,
+    personaCount,
+    proxyCount,
+    targetCount,
+    contentCount,
+    pendingJobCount,
+    blockedJobCount,
+    groupReminders,
+  ] = await Promise.all([
       prisma.account.findMany({
         select: { id: true, username: true, status: true, coldStartUntil: true },
       }),
@@ -22,6 +32,7 @@ export default async function OverviewPage() {
       prisma.contentItem.count(),
       prisma.postJob.count({ where: { status: "PENDING" } }),
       prisma.postJob.count({ where: { status: "BLOCKED" } }),
+      loadDueGroupReminders(),
     ]);
 
   const byStatus = new Map<AccountStatus, number>();
@@ -95,6 +106,16 @@ export default async function OverviewPage() {
           </Link>
         ))}
       </div>
+
+      {groupReminders.length > 0 ? (
+        <Card title={`Đăng tay vào Facebook Group — ${groupReminders.length} bài`}>
+          <p className="mb-3 text-sm text-neutral-600 dark:text-neutral-400">
+            Group không tự đăng được (Meta gỡ quyền từ 04/2024). Bấm mở profile, copy nội dung, dán
+            và đăng — xong nhớ quay lại hàng đợi bấm &quot;Đã đăng&quot;.
+          </p>
+          <GroupPostReminders reminders={groupReminders} />
+        </Card>
+      ) : null}
 
       <Card title="Sức khỏe đàn nick">
         {accounts.length === 0 ? (

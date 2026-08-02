@@ -25,7 +25,7 @@ export default async function QueuePage({
       include: {
         contentItem: { select: { title: true, type: true } },
         account: { select: { username: true } },
-        target: { select: { name: true } },
+        target: { select: { name: true, platform: true } },
       },
     }),
     loadPromoRatioRows(),
