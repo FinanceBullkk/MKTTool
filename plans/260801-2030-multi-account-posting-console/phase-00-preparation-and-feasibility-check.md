@@ -67,12 +67,20 @@ Hai điều **bắt buộc phải biết** trước khi test:
 2. **Proxy hiện phải cấu hình TRONG MultiZen, theo từng profile.** MKTTool chưa đẩy proxy sang
    trình duyệt — nó mới chỉ lưu "proxy nào thuộc nick nào" và ép ràng buộc 1:1. Nhập proxy vào
    MKTTool mà quên nhập trong MultiZen thì trình duyệt vẫn chạy bằng IP nhà bạn.
-   **Sẽ tự động hóa:** `update_profile` nhận được object proxy đầy đủ
-   (`type`/`host`/`port`/`username`/`password`, kèm SOCKS5 bridge để DNS phân giải từ xa), nên
-   MKTTool sẽ đồng bộ proxy trước mỗi lần mở profile — xem "Việc tiếp theo" ở cuối file.
+   **Đã tự động hóa 02/08/2026:** `update_profile` nhận object proxy đầy đủ
+   (`type`/`host`/`port`/`username`/`password`, kèm SOCKS5 bridge để DNS phân giải từ xa).
+   MKTTool đồng bộ proxy trước mỗi lần mở profile.
 
-Điểm cộng: MultiZen **tự căn múi giờ, ngôn ngữ và `navigator.geolocation` theo IP proxy** — thứ
-hay bị quên và là dấu hiệu lộ rất nặng (nick "ở Mỹ" mà máy báo múi giờ +7).
+Điểm cộng: MultiZen **tự căn múi giờ theo IP proxy** — thứ hay bị quên và là dấu hiệu lộ rất
+nặng (nick "ở Mỹ" mà máy báo múi giờ +7).
+
+> ⚠️ **Nhưng KHÔNG căn ngôn ngữ.** Đo trong Chặng C 02/08/2026: proxy GB → `timezone` thành
+> `Europe/London` (dù cấu hình ghi `Europe/Stockholm`), còn `navigator.language` vẫn là `sv-SE`
+> của vân tay gốc.
+>
+> **Bổ sung vào Bước 4 (cold start), làm TRƯỚC lần đăng nhập đầu tiên:** với mỗi profile, gắn
+> proxy xong thì vào tab Fingerprint bấm **"Match proxy"** để căn ngôn ngữ. Bấm sau khi nick đã
+> nuôi thì đừng — đổi ngôn ngữ giữa chừng còn đáng ngờ hơn là để lệch.
 
 ## Requirements
 
@@ -157,10 +165,25 @@ Làm được ngay bây giờ, không cần mua gì, không cần nick nào.
 
 **Chặng C — kiểm proxy có ăn không, dùng proxy free**
 
+> Từ 02/08/2026 MKTTool **tự đẩy proxy** sang profile trước khi mở (`applyProxy` →
+> `update_profile`), nên **không cần nhập proxy trong MultiZen nữa**. Chặng C giờ kiểm luôn cả
+> đường đẩy tự động đó.
+
 6. Đăng ký [webshare.io](https://www.webshare.io/) bản miễn phí (10 proxy, không cần thẻ).
-7. **Nhập proxy đó vào MultiZen**, trong phần cài đặt của chính profile vừa test. ← *bước hay bị bỏ sót*
-8. Nhập cùng proxy đó vào MKTTool (`/proxies`), sửa tài khoản giả cho trỏ vào nó.
+   Trong bảng điều khiển Webshare, ghi lại **host, port, username, password** và chú ý cổng nào
+   là HTTP, cổng nào là SOCKS5 — điền sai cặp cổng/giao thức là profile không nối được.
+7. Nhập proxy vào MKTTool (`/proxies`), chọn đúng **Giao thức**. Sửa tài khoản giả cho trỏ vào nó.
+8. **Để trống phần proxy trong MultiZen** — nếu MKTTool đẩy đúng thì profile vẫn ra IP proxy.
+   Đây chính là phép thử. (Profile còn proxy nhập tay từ trước thì xoá đi rồi hãy thử.)
 9. Mở profile → vào `ipinfo.io` → **IP phải khớp proxy Webshare**. Chỉ cần đúng một điều đó.
+
+| Kết quả | Nghĩa là | Làm gì tiếp |
+|---|---|---|
+| IP khớp proxy | ✅ Đạt — đường đẩy proxy chạy đúng | Ghi kết quả, chuyển Chặng D |
+| IP là IP nhà | Profile mở nhưng không ăn proxy | Xem `AuditLog` của nick: có dòng `PROFILE_LAUNCHED` kèm giao thức không. Kiểm tra profile trong MultiZen có nhận proxy sau khi mở không |
+| *"…không nhận cấu hình proxy…"* | `update_profile` từ chối | Lý do gốc nằm ngay trong thông báo (đã che mật khẩu). Thường là sai giao thức hoặc sai cổng |
+| *"…không có tool cập nhật profile nào…"* | Bản MultiZen đổi tên tool | Thông báo hiện luôn danh sách tool thật — thêm vào `UPDATE_TOOL_NAMES` trong `multizen-adapter.ts` |
+| Không mở profile, báo lỗi giải mã | Sai `VAULT_KEY` so với lúc nhập proxy | Nhập lại proxy bằng khóa hiện tại |
 
 > **TUYỆT ĐỐI không đăng nhập tài khoản thật nào ở Chặng B/C**, kể cả nick phụ. Proxy free của
 > Webshare là datacenter dùng chung, IP đã nằm trong danh sách đen từ lâu — đăng nhập Facebook
@@ -178,7 +201,8 @@ Làm được ngay bây giờ, không cần mua gì, không cần nick nào.
 ## Todo List
 - [x] Trả lời câu hỏi chặn đường về MultiZen (02/08/2026 — không cần Playwright, không đổi AdsPower)
 - [x] **Chặng B: mở profile từ MKTTool — ĐẠT 02/08/2026**
-- [ ] **Chặng C: kiểm IP trong profile khớp proxy — 0đ, làm ngay được**
+- [x] Đẩy proxy tự động sang antidetect browser (02/08/2026 — `applyProxy`, có test)
+- [x] **Chặng C: IP trong profile khớp proxy — ĐẠT 02/08/2026** → [báo cáo](../reports/chang-c-260802-1443-proxy-push-verification.md)
 - [ ] Chốt 2-3 subreddit + ghi luật từng sub
 - [ ] Mua & test 11 static ISP proxy (mua thử 2 cái trước)
 - [ ] Mua 8 nick Reddit + 3 nick FB (đủ checklist)
@@ -192,7 +216,7 @@ Làm được ngay bây giờ, không cần mua gì, không cần nick nào.
 - ≥ 2/3 nick FB sống, không dính checkpoint đòi CCCD
 - [x] Có kết luận rõ ràng: **dùng MultiZen**, Phase 05 đi qua tool MCP của nó
 - Có bảng luật của 2-3 subreddit mục tiêu
-- Chặng C: IP trong profile khớp proxy đã cấu hình
+- [x] Chặng C: IP trong profile khớp proxy đã cấu hình (02/08/2026)
 
 ## Risk Assessment
 
@@ -202,7 +226,8 @@ Làm được ngay bây giờ, không cần mua gì, không cần nick nào.
 | Người bán lấy lại nick | Trung bình | Cao | Bắt buộc có email gốc + đổi hết thông tin trong 1 giờ đầu |
 | FB đòi xác minh CCCD | Cao | Cao | Chấp nhận mất nick FB; không phụ thuộc FB cá nhân (xem Phase 04) |
 | ~~MultiZen không nối được Playwright~~ | — | — | **Đã giải 02/08/2026**: dùng tool MCP của MultiZen, không cần Playwright |
-| Quên gán proxy trong MultiZen, tưởng MKTTool tự đẩy | Cao | Cao | Chặng C bắt kiểm `ipinfo.io`; thông báo sau khi mở profile nhắc thẳng điều này |
+| ~~Quên gán proxy trong MultiZen, tưởng MKTTool tự đẩy~~ | — | — | **Đã đóng 02/08/2026**: MKTTool đẩy proxy trước khi mở; đẩy hỏng thì không mở profile |
+| Proxy hết hạn / bị chặn nhưng vẫn ăn cấu hình | Trung bình | Cao | Đẩy thành công không bảo đảm proxy sống — thông báo sau khi mở vẫn bắt kiểm `ipinfo.io` |
 | Sub mục tiêu cấm quảng cáo hoàn toàn | Trung bình | Cao | Đổi sub, hoặc đổi chiến lược sang trả lời câu hỏi thay vì đăng bài |
 
 ## Security Considerations

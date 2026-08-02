@@ -57,7 +57,7 @@ proxy, không cần tài khoản nào, và kiểm tra được phần lớn ch�
 |---|---|---|
 | **A** | không gì cả | `npm run vault:smoke` + `npm run rules:smoke` + nhập dữ liệu giả qua UI: mã hóa, ràng buộc 1:1, copy mật khẩu, OTP (dùng `npm run vault:testotp` đối chiếu với Google Authenticator), và cả bộ luật an toàn |
 | **B** | MultiZen (miễn phí) | Profile trống, không đăng nhập gì. Bấm "Mở profile" → công cụ có mở được profile không. ✅ **Đạt 02/08/2026** — đây từng là câu hỏi chặn đường của Phase 00 |
-| **C** | 1 proxy bất kỳ | Mở profile → vào trang kiểm tra IP → phải khớp proxy đã cấu hình. Không đăng nhập tài khoản nào |
+| **C** | 1 proxy bất kỳ | Nhập proxy vào `/proxies`, gắn cho nick, bấm "Mở profile" → vào `ipinfo.io` → IP phải khớp proxy. Không cần chạm vào cài đặt MultiZen. ✅ **Đạt 02/08/2026** — [báo cáo](plans/reports/chang-c-260802-1443-proxy-push-verification.md) |
 | **D** | nick thật + proxy đúng loại | Chỉ làm sau khi A/B/C xong. Xem quy trình cold-start ở [Phase 00](plans/260801-2030-multi-account-posting-console/phase-00-preparation-and-feasibility-check.md) |
 
 > Đừng gộp proxy test với proxy dùng thật. Proxy datacenter giá rẻ dùng để kiểm tra
@@ -140,10 +140,30 @@ Sửa `ANTIDETECT_PROVIDER` trong `.env` thành `multizen` hoặc `adspower`. Kh
 MultiZen đòi **bearer token**: lấy trong app ở `MCP → Connect an agent`, dán vào
 `MULTIZEN_MCP_TOKEN`. Thiếu token là mọi lời gọi ăn HTTP 401.
 
-> ⚠️ **Proxy phải được cấu hình TRONG MultiZen/AdsPower, theo từng profile.**
-> MKTTool không đẩy proxy sang trình duyệt — nó chỉ lưu "proxy nào thuộc nick nào" (có mã hóa)
-> và ép ràng buộc 1 proxy : 1 nick. Nhập proxy vào MKTTool mà quên nhập trong MultiZen thì
-> trình duyệt vẫn chạy bằng IP nhà bạn. **Mở `ipinfo.io` kiểm tra sau mỗi lần mở profile mới.**
+### Proxy được đẩy tự động
+
+Bấm "Mở profile" là MKTTool **ghi proxy của nick vào profile trước, rồi mới mở** — không phải
+nhập tay hai nơi nữa. Đẩy hỏng thì **không mở profile**, vì profile thiếu proxy sẽ chạy thẳng
+bằng IP nhà mà không ai nhận ra.
+
+Trường **Giao thức** (`http` / `socks5`) ở `/proxies` phải khớp cổng nhà cung cấp cấp — nhiều nơi
+dùng cổng khác nhau cho hai giao thức (Webshare thì cùng cổng phục vụ cả hai).
+
+Chọn giao thức nào cũng được: **DNS phân giải từ xa trong cả hai chế độ** (đo 02/08/2026 — resolver
+thấy được là chính IP proxy), vì trình duyệt luôn nói chuyện với cầu SOCKS5 nội bộ của MultiZen,
+giao thức upstream chỉ là chặng sau đó.
+
+> ⚠️ **MultiZen căn múi giờ theo IP proxy, nhưng KHÔNG căn ngôn ngữ.** Đo được 02/08/2026:
+> profile cấu hình `Europe/Stockholm` + `Svenska`, chạy qua proxy GB thì `timezone` thành
+> `Europe/London` (tự ghi đè lúc chạy, đúng) còn `navigator.language` vẫn là `sv-SE` — tiếng
+> Thụy Điển trên IP Anh, tín hiệu bất thường rõ ràng.
+>
+> **Quy trình tạo profile:** gắn proxy → tab Fingerprint → bấm **"Match proxy"** → *rồi mới*
+> đăng nhập lần đầu. Đừng đổi ngôn ngữ của profile đang nuôi: nick dùng `sv-SE` suốt 3 tháng rồi
+> đột ngột sang `en-GB` còn đáng ngờ hơn là cứ để lệch.
+
+> ⚠️ Đẩy thành công **không** có nghĩa proxy còn sống. Vẫn mở `ipinfo.io` kiểm IP sau mỗi lần
+> mở profile mới — proxy hết hạn hoặc bị chặn vẫn ăn cấu hình bình thường.
 
 MultiZen không phơi endpoint CDP ra ngoài (Playwright không gắn vào được) — đó là **bình thường,
 không phải lỗi**. Nó lái trình duyệt bằng chính tool MCP của nó (`navigate`, `click`, `type`,
@@ -158,12 +178,25 @@ không phải lỗi**. Nó lái trình duyệt bằng chính tool MCP của nó 
 - App chỉ nghe localhost
 - `.env` và `*.db` đã nằm trong `.gitignore`
 
+### WebRTC — cần luật firewall, đừng bỏ
+
+MultiZen che IP trong ICE candidate ở tầng JS (thay bằng chuỗi `auto`), nhưng **gói UDP vẫn rời
+máy bằng IP nhà**: cầu SOCKS5 của nó không chuyển tiếp UDP. Site tự chạy STUN/TURN server riêng
+thì thấy IP thật — đủ để nối mọi nick về một hộ gia đình. Không chỉnh được từ MultiZen (không có
+trong MCP, file cấu hình, lẫn GUI).
+
+Đã bịt 02/08/2026 bằng luật Windows Firewall chặn UDP ra ngoài cho `chrome.exe` của cloakbrowser.
+Đo lại: candidate `srflx` bằng 0, duyệt web không chậm đi (Chrome không dùng QUIC khi có proxy).
+
+> ⚠️ Đường dẫn trong luật có **số phiên bản chromium**. Nâng cấp MultiZen là đường dẫn đổi và luật
+> **lặng lẽ hết tác dụng**. Sau mỗi lần nâng cấp: tạo lại luật rồi đo lại.
+> Luật cũng chỉ chạy khi firewall bật cho profile mạng đang dùng.
+> Câu lệnh + cách đo: [báo cáo Chặng C](plans/reports/chang-c-260802-1443-proxy-push-verification.md).
+
 ## Việc chưa làm
 
-- **Proxy chưa được đẩy tự động sang antidetect browser** — hiện phải nhập tay ở cả hai nơi.
-  `update_profile` của MultiZen nhận được object proxy nên sẽ tự động hóa được.
-- **Chưa kiểm chứng IP trong profile khớp proxy** (Chặng C) — mở profile đã chạy được từ
-  02/08/2026, còn phần proxy thì chưa thử.
+- Bộ luật an toàn **chạy y hệt nhau cho mọi nền tảng** — mấy luật hợp với Reddit thì vô lý với
+  Fanpage chính thức (2 bài/ngày, nghỉ 24h, đụng độ thread).
 - Dò shadowban + theo dõi karma → Phase 03
 - Facebook Pages qua Graph API → Phase 04
 - Tự động đăng Reddit → Phase 05

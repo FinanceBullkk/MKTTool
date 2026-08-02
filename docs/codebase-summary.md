@@ -64,7 +64,7 @@ docs/                           Tài liệu dự án
 | Model | Ý nghĩa | Ràng buộc đáng chú ý |
 |---|---|---|
 | `Persona` | Nhân vật: giọng điệu + mảng nội dung | `name @unique` |
-| `Proxy` | Proxy tĩnh gắn 1:1 với nick | `label @unique`; `@@unique([host, port, username])` |
+| `Proxy` | Proxy tĩnh gắn 1:1 với nick | `label @unique`; `@@unique([host, port, username])`; `type` = cách mua (STATIC_ISP/MOBILE), `protocol` = giao thức mạng (http/socks5) — hai thứ khác nhau |
 | `ObserverProxy` | Proxy dò shadowban, KHÔNG được dùng đăng nhập | `label @unique` |
 | `Account` | Nick Reddit/Facebook | `antidetectProfileId @unique` — ép 1 nick : 1 profile; `proxyId @unique` — ép 1 nick : 1 proxy; `@@unique([platform, username])` |
 | `PlatformTarget` | Đích đăng: sub/page/group kèm luật riêng | `@@unique([platform, name])` |
@@ -92,6 +92,31 @@ Quan hệ chính: `Account` → `Persona` (n:1), `Account` → `Proxy` (1:1), `P
 4. Đánh dấu đã đăng     → src/lib/queue/post-job-status-actions.ts  → status = POSTED
 5. Ghi tương tác        → src/lib/queue/interaction-actions.ts     → Interaction
 ```
+
+---
+
+## Luồng mở profile antidetect
+
+```
+Bấm "Mở profile" → POST /api/accounts/[id]/launch
+  1. Chặn theo trạng thái nick    → account-status.ts (canLaunch)
+  2. Dựng cấu hình proxy          → antidetect/proxy-config-builder.ts (giải mã passwordEnc)
+  3. ĐẨY proxy vào profile        → adapter.applyProxy()   ← hỏng thì DỪNG, không mở
+  4. Mở profile                   → adapter.launchProfile()
+  5. Ghi AuditLog PROFILE_LAUNCHED kèm nhãn proxy + giao thức
+```
+
+Thứ tự 3 trước 4 là bắt buộc: đổi proxy sau khi profile đã mở thì phiên đang chạy vẫn đi bằng
+IP cũ. Đẩy thất bại mà vẫn mở là mở bằng IP nhà — nên mọi đường thất bại ở bước 2/3 đều chặn hẳn.
+
+| Provider | Đẩy proxy bằng |
+|---|---|
+| MultiZen | tool MCP `update_profile`, field `proxy: { type: http\|socks5, host, port, username?, password? }` |
+| AdsPower | `POST /api/v1/user/update` với `user_proxy_config.proxy_soft = "other"`; adapter tự giãn 1,1s/lời gọi cho khỏi vượt hạn mức 1 req/s |
+
+Mật khẩu proxy dạng trần chỉ tồn tại trong `proxy-config-builder.ts` và lời gọi adapter. Thông
+báo lỗi của cả hai adapter đều che mật khẩu trước khi trả về — API của provider hay vọng lại
+nguyên tham số đã gửi.
 
 ---
 
@@ -168,10 +193,10 @@ Chi tiết đầy đủ ở [README → Lệnh](../README.md#lệnh).
 
 ## Việc chưa làm
 
-- **Proxy chưa được đẩy tự động sang antidetect browser** — hiện phải nhập tay ở cả hai nơi
-  (MKTTool và MultiZen). `update_profile` của MultiZen nhận object proxy đầy đủ
-  (`type`, `host`, `port`, `username`, `password`) nên sẽ tự động hóa được.
-- **Chưa kiểm chứng IP trong profile khớp proxy** (Chặng C).
+- **Chưa kiểm chứng IP trong profile khớp proxy** (Chặng C) — code đẩy proxy xong 02/08/2026,
+  có test, nhưng chưa chạy với proxy thật lần nào.
+- **Bộ luật chạy y hệt nhau cho mọi nền tảng** — luật 4/5/8 hợp Reddit nhưng vô lý với Fanpage
+  chính thức. Cần cho mỗi luật khai danh sách nền tảng áp dụng.
 - Dò shadowban + theo dõi karma → Phase 03.
 - Facebook Pages qua Graph API → Phase 04.
 - Tự động đăng Reddit qua tool MCP → Phase 05.
