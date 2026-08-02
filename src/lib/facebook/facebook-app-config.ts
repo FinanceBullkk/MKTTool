@@ -23,6 +23,17 @@ export interface FacebookAppConfig {
   appSecret: string;
   redirectUri: string;
   graphVersion: string;
+  /** Chỉ có khi dùng "Facebook Login for Business" — xem buildAuthorizeUrl(). */
+  loginConfigId: string | null;
+}
+
+/**
+ * Id của configuration bên "Facebook Login for Business", hoặc `null` nếu dùng Facebook Login
+ * thường. App loại Business tạo từ 2025 chỉ thêm được bản for Business, nên phần lớn app mới
+ * sẽ cần biến này; app cũ để trống là đúng.
+ */
+export function loginConfigId(): string | null {
+  return process.env.FACEBOOK_LOGIN_CONFIG_ID?.trim() || null;
 }
 
 export class FacebookConfigError extends Error {
@@ -65,5 +76,11 @@ export function loadFacebookAppConfig(): FacebookAppConfig {
     );
   }
 
-  return { appId, appSecret, redirectUri: redirectUri(), graphVersion: graphVersion() };
+  return {
+    appId,
+    appSecret,
+    redirectUri: redirectUri(),
+    graphVersion: graphVersion(),
+    loginConfigId: loginConfigId(),
+  };
 }

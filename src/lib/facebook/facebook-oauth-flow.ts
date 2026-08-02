@@ -41,7 +41,19 @@ export interface LongLivedToken {
   expiresAt: Date | null;
 }
 
-/** Dialog OAuth nằm ở www.facebook.com, không phải graph.facebook.com. */
+/**
+ * Dialog OAuth nằm ở www.facebook.com, không phải graph.facebook.com.
+ *
+ * Hai kiểu Facebook Login, khác nhau ở chỗ quyền được khai ở ĐÂU:
+ *
+ *  • **Facebook Login** (thường) — quyền khai trong URL bằng `scope`. App loại cũ dùng cái này.
+ *  • **Facebook Login for Business** — quyền khai TRƯỚC trong một "configuration" ở Meta App,
+ *    URL chỉ trỏ tới nó bằng `config_id`. App loại Business mới chỉ cho thêm bản này.
+ *
+ * Gửi cả hai cùng lúc là Facebook báo lỗi, nên `config_id` có thì `scope` phải rút lui. Quyền
+ * lúc đó do configuration quyết định — nhớ tick đủ ba quyền trong REQUIRED_SCOPES ở Meta App,
+ * vì thiếu quyền nào thì tới lúc đăng mới lộ ra.
+ */
 export function buildAuthorizeUrl(state: string): string {
   const config = loadFacebookAppConfig();
   const url = new URL(`https://www.facebook.com/${graphVersion()}/dialog/oauth`);
@@ -49,8 +61,13 @@ export function buildAuthorizeUrl(state: string): string {
   url.searchParams.set("client_id", config.appId);
   url.searchParams.set("redirect_uri", config.redirectUri);
   url.searchParams.set("state", state);
-  url.searchParams.set("scope", REQUIRED_SCOPES.join(","));
   url.searchParams.set("response_type", "code");
+
+  if (config.loginConfigId) {
+    url.searchParams.set("config_id", config.loginConfigId);
+  } else {
+    url.searchParams.set("scope", REQUIRED_SCOPES.join(","));
+  }
 
   return url.toString();
 }
