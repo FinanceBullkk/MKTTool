@@ -98,20 +98,64 @@ async function run() {
   }));
 
   // 5. DB ép 1 profile antidetect chỉ gắn 1 nick
+  check("nick Reddit có id profile antidetect", stored.antidetectProfileId !== null);
   check("DB chặn 2 nick dùng chung 1 profile antidetect", await createFails({
     username: `${PREFIX}dup-profile`,
-    antidetectProfileId: stored.antidetectProfileId, // trùng profile
+    antidetectProfileId: stored.antidetectProfileId ?? `${PREFIX}profile`, // trùng profile
     personaId: persona.id,
     proxyId: proxyB.id,
+  }));
+
+  // ── 6. Nick Facebook: bỏ trống proxy + profile antidetect ──────────────────
+  //
+  // Fanpage đăng bằng Graph API nên không cần cả hai. Nhưng nới ràng buộc kiểu này rất dễ
+  // nới quá tay: `@unique` trên cột nullable phải cho NHIỀU nick cùng để trống, mà vẫn chặn
+  // hai nick cùng trỏ vào MỘT proxy thật. Ba kiểm tra dưới đây canh đúng ranh giới đó.
+
+  const fb = await prisma.account.create({
+    data: {
+      platform: "FACEBOOK",
+      username: `${PREFIX}fb-1`,
+      passwordEnc: encryptCredential("x"),
+      emailAddress: "fb1@example.com",
+      emailPasswordEnc: encryptCredential("x"),
+      personaId: persona.id,
+      status: "ALIVE",
+      // KHÔNG khai antidetectProfileId lẫn proxyId — đó chính là điều đang nghiệm thu.
+    },
+  });
+  check(
+    "nick Facebook tạo được mà không cần proxy lẫn profile antidetect",
+    fb.proxyId === null && fb.antidetectProfileId === null,
+  );
+
+  const fb2 = await prisma.account.create({
+    data: {
+      platform: "FACEBOOK",
+      username: `${PREFIX}fb-2`,
+      passwordEnc: encryptCredential("x"),
+      emailAddress: "fb2@example.com",
+      emailPasswordEnc: encryptCredential("x"),
+      personaId: persona.id,
+      status: "ALIVE",
+    },
+  }).catch(() => null);
+  check("hai nick cùng bỏ trống KHÔNG bị coi là trùng ràng buộc", fb2 !== null);
+
+  check("nhưng vẫn chặn 2 nick dùng chung 1 proxy thật", await createFails({
+    username: `${PREFIX}fb-dup-proxy`,
+    antidetectProfileId: null,
+    personaId: persona.id,
+    proxyId: proxyA.id, // đã gắn nick khác
   }));
 }
 
 /** Thử tạo nick, trả về true nếu database từ chối. */
 async function createFails(data: {
   username: string;
-  antidetectProfileId: string;
+  antidetectProfileId: string | null;
   personaId: string;
-  proxyId: string;
+  proxyId: string | null;
 }): Promise<boolean> {
   try {
     await prisma.account.create({

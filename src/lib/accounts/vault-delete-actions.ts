@@ -101,7 +101,9 @@ export async function deleteAccount(accountId: string): Promise<ActionResult> {
   revalidatePath("/accounts");
   return {
     ok: true,
-    message: `Đã xóa nick "${account.username}". Proxy "${account.proxy.label}" giờ gắn được cho nick khác.`,
+    message:
+      `Đã xóa nick "${account.username}".` +
+      (account.proxy ? ` Proxy "${account.proxy.label}" giờ gắn được cho nick khác.` : ""),
   };
 }
 

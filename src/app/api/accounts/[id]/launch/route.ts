@@ -42,15 +42,38 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     );
   }
 
+  // Nick Facebook được phép không có proxy lẫn profile antidetect — Fanpage đăng bằng Graph API
+  // nên không cần cả hai. Nhưng "không cần" khác "mở được": tới đây mà thiếu thì phải nói rõ,
+  // vì nhánh dưới sẽ mở một profile không có proxy, tức là chạy bằng IP nhà.
+  const { proxy, antidetectProfileId } = account;
+  if (!antidetectProfileId || !proxy) {
+    const thieu = [
+      !antidetectProfileId ? "id profile antidetect" : null,
+      !proxy ? "proxy" : null,
+    ].filter(Boolean);
+    return NextResponse.json(
+      {
+        ok: false,
+        message:
+          `Nick này chưa có ${thieu.join(" và ")}, nên không mở profile được. ` +
+          (account.platform === "FACEBOOK"
+            ? "Nick Facebook không bắt buộc có hai thứ đó vì Fanpage đăng bằng Graph API — " +
+              "muốn mở trình duyệt riêng cho nó thì vào trang chi tiết nick khai thêm."
+            : "Vào trang chi tiết nick khai đủ rồi thử lại."),
+      },
+      { status: 409 },
+    );
+  }
+
   const adapter = getAntidetectAdapter();
 
   try {
     // Đẩy proxy TRƯỚC khi mở. Thứ tự này quan trọng: profile đã mở rồi mới đổi proxy
     // thì phiên đang chạy vẫn đi bằng IP cũ.
-    const proxyConfig = buildProxyConfig(account.proxy);
-    await adapter.applyProxy(account.antidetectProfileId, proxyConfig);
+    const proxyConfig = buildProxyConfig(proxy);
+    await adapter.applyProxy(antidetectProfileId, proxyConfig);
 
-    const launched = await adapter.launchProfile(account.antidetectProfileId);
+    const launched = await adapter.launchProfile(antidetectProfileId);
 
     await prisma.$transaction([
       prisma.account.update({ where: { id }, data: { lastActionAt: new Date() } }),
@@ -58,7 +81,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
         data: {
           accountId: id,
           action: "PROFILE_LAUNCHED",
-          detail: `${adapter.providerName} / proxy ${account.proxy.label} (${proxyConfig.protocol})`,
+          detail: `${adapter.providerName} / proxy ${proxy.label} (${proxyConfig.protocol})`,
         },
       }),
     ]);
@@ -66,7 +89,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     return NextResponse.json({
       ok: true,
       message:
-        `Đã đẩy proxy ${account.proxy.label} (${account.proxy.country}, ${proxyConfig.protocol}) ` +
+        `Đã đẩy proxy ${proxy.label} (${proxy.country}, ${proxyConfig.protocol}) ` +
         `vào profile rồi mở qua ${adapter.providerName}. ` +
         `Vẫn nên mở ipinfo.io kiểm tra IP khớp proxy trước khi thao tác — ` +
         `đẩy thành công không bảo đảm proxy còn sống.`,

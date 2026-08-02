@@ -95,9 +95,10 @@ export const proxyUpdateSchema = z.object({
 const accountShape = {
   username: z.string().min(1, "Username không được để trống"),
   emailAddress: z.string().email("Email gốc không hợp lệ"),
-  antidetectProfileId: z.string().min(1, "Thiếu id profile antidetect"),
+  // Bắt buộc hay không tùy nền tảng — xem validatePlatformIdentityFields() ngay dưới.
+  antidetectProfileId: optionalText,
   personaId: z.string().min(1, "Chọn nhân vật"),
-  proxyId: z.string().min(1, "Chọn proxy"),
+  proxyId: optionalText,
   status: z.enum(ACCOUNT_STATUSES),
   karma: z.coerce.number().int().min(0).default(0),
   quarantineReason: optionalText,
@@ -107,7 +108,44 @@ const accountShape = {
   purchaseNote: optionalText,
 };
 
-export const accountCreateSchema = z.object({
+/**
+ * Proxy và profile antidetect: Reddit bắt buộc, Facebook không.
+ *
+ * Nick Reddit phải lén — thiếu proxy là nick đi bằng IP nhà, thiếu profile antidetect là không
+ * mở nổi trình duyệt riêng cho nó. Fanpage đăng bằng Graph API với token chính thức: không mở
+ * trình duyệt, không giả vân tay, không qua proxy. Ép hai trường đó là bắt người dùng đốt một
+ * proxy thật và bịa một id chỉ để thỏa ràng buộc.
+ *
+ * Hàm thuần, và là nguồn sự thật DUY NHẤT cho luật này — cả đường tạo lẫn đường sửa đều gọi nó.
+ * Khai hai lần là sớm muộn có một đường bị siết còn đường kia lỏng, đúng cái bẫy mà chú thích
+ * đầu file này nói tới.
+ */
+export function validatePlatformIdentityFields(
+  platform: string,
+  values: { antidetectProfileId?: string | null; proxyId?: string | null },
+): string | null {
+  if (platform !== "REDDIT") return null;
+  if (!values.antidetectProfileId?.trim()) {
+    return "Nick Reddit bắt buộc có id profile antidetect — thiếu nó thì không mở được profile riêng.";
+  }
+  if (!values.proxyId?.trim()) {
+    return "Nick Reddit bắt buộc gắn một proxy — thiếu nó là nick chạy bằng IP nhà.";
+  }
+  return null;
+}
+
+/** Gắn luật trên vào một schema zod, để lỗi hiện ra cùng chỗ với mọi lỗi form khác. */
+function withPlatformIdentityCheck<T extends z.ZodTypeAny>(schema: T, platform: string) {
+  return schema.superRefine((value, ctx) => {
+    const message = validatePlatformIdentityFields(
+      platform,
+      value as { antidetectProfileId?: string; proxyId?: string },
+    );
+    if (message) ctx.addIssue({ code: "custom", message, path: ["proxyId"] });
+  });
+}
+
+const accountCreateBase = z.object({
   ...accountShape,
   platform: z.enum(["REDDIT", "FACEBOOK"]),
   password: z.string().min(1, "Mật khẩu không được để trống"),
@@ -115,7 +153,17 @@ export const accountCreateSchema = z.object({
   totpSecret: optionalText,
 });
 
-/** Sửa nick: ba ô bí mật để trống đều là giữ nguyên giá trị cũ. */
+export const accountCreateSchema = accountCreateBase.superRefine((value, ctx) => {
+  const message = validatePlatformIdentityFields(value.platform, value);
+  if (message) ctx.addIssue({ code: "custom", message, path: ["proxyId"] });
+});
+
+/**
+ * Sửa nick: ba ô bí mật để trống đều là giữ nguyên giá trị cũ.
+ *
+ * `platform` không sửa được nên form không gửi nó lên — luật theo nền tảng phải chấm bằng nền
+ * tảng đọc từ DB. Dùng `accountUpdateSchemaFor(platform)` thay vì schema trần khi đã biết nick.
+ */
 export const accountUpdateSchema = z.object({
   ...accountShape,
   id: requiredId,
@@ -123,6 +171,10 @@ export const accountUpdateSchema = z.object({
   emailPassword: optionalText,
   totpSecret: optionalText,
 });
+
+export function accountUpdateSchemaFor(platform: string) {
+  return withPlatformIdentityCheck(accountUpdateSchema, platform);
+}
 
 // ─── Đích đăng ───────────────────────────────────────────────────────────────
 

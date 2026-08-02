@@ -214,6 +214,113 @@ describe("ô bí mật để trống là giữ nguyên", () => {
   });
 });
 
+/**
+ * Proxy và profile antidetect: Reddit bắt buộc, Facebook không.
+ *
+ * Chỗ này có một cái bẫy riêng của Prisma: trong `update`, `undefined` nghĩa là GIỮ NGUYÊN chứ
+ * không phải xóa. Nên ô để trống mà truyền thẳng xuống thì gỡ proxy sẽ im lặng không có tác
+ * dụng gì — người dùng thấy thông báo "đã lưu", mở lại vẫn thấy proxy cũ, và không đoán được
+ * vì sao. Hai test đầu canh đúng chỗ đó.
+ */
+describe("proxy + profile antidetect theo nền tảng", () => {
+  async function makeFacebookAccount() {
+    return prisma.account.create({
+      data: {
+        platform: "FACEBOOK",
+        username: "trang-fb",
+        passwordEnc: encryptCredential("mk"),
+        emailAddress: "fb@example.test",
+        emailPasswordEnc: encryptCredential("mk"),
+        personaId: seeded.personaId,
+        antidetectProfileId: "profile-cu",
+        proxyId: null,
+        status: "ALIVE",
+      },
+    });
+  }
+
+  it("gỡ proxy khỏi nick Facebook thì gỡ THẬT, không im lặng giữ nguyên", async () => {
+    const proxy = await prisma.proxy.create({
+      data: {
+        label: "proxy-fb",
+        host: "127.0.0.2",
+        port: 1080,
+        username: "u",
+        passwordEnc: encryptCredential("p"),
+        country: "US",
+      },
+    });
+    const fb = await prisma.account.create({
+      data: {
+        platform: "FACEBOOK",
+        username: "trang-fb-2",
+        passwordEnc: encryptCredential("mk"),
+        emailAddress: "fb2@example.test",
+        emailPasswordEnc: encryptCredential("mk"),
+        personaId: seeded.personaId,
+        proxyId: proxy.id,
+        status: "ALIVE",
+      },
+    });
+
+    const result = await updateAccount(
+      null,
+      form({
+        id: fb.id,
+        username: "trang-fb-2",
+        emailAddress: "fb2@example.test",
+        antidetectProfileId: "",
+        personaId: seeded.personaId,
+        proxyId: "",
+        status: "ALIVE",
+        karma: "0",
+      }),
+    );
+
+    expect(result.ok).toBe(true);
+    const after = await prisma.account.findUniqueOrThrow({ where: { id: fb.id } });
+    expect(after.proxyId).toBeNull();
+    expect(after.antidetectProfileId).toBeNull();
+  });
+
+  it("gỡ xong thì proxy đó gắn được cho nick khác", async () => {
+    const fb = await makeFacebookAccount();
+    await updateAccount(
+      null,
+      form({
+        id: fb.id,
+        username: "trang-fb",
+        emailAddress: "fb@example.test",
+        antidetectProfileId: "",
+        personaId: seeded.personaId,
+        proxyId: seeded.proxyId, // proxy đang gắn nick Reddit "anna"
+        status: "ALIVE",
+        karma: "0",
+      }),
+    );
+    const after = await prisma.account.findUniqueOrThrow({ where: { id: fb.id } });
+    // Proxy đó đã gắn nick khác nên phải bị từ chối, không được cướp mất của nick Reddit.
+    expect(after.proxyId).toBeNull();
+  });
+
+  it("nick Reddit xóa trắng proxy thì BỊ CHẶN, không nới theo Facebook", async () => {
+    const result = await updateAccount(null, accountForm(seeded, { proxyId: "" }));
+
+    expect(result.ok).toBe(false);
+    expect(result.message).toContain("IP nhà");
+    const after = await prisma.account.findUniqueOrThrow({ where: { id: seeded.accountId } });
+    expect(after.proxyId).toBe(seeded.proxyId);
+  });
+
+  it("nick Reddit xóa trắng profile antidetect cũng bị chặn", async () => {
+    const result = await updateAccount(null, accountForm(seeded, { antidetectProfileId: "" }));
+
+    expect(result.ok).toBe(false);
+    const after = await prisma.account.findUniqueOrThrow({ where: { id: seeded.accountId } });
+    expect(after.antidetectProfileId).toBe("profile-anna");
+  });
+});
+
 describe("sửa xong thì chấm lại job đang chờ", () => {
   it("nâng minKarma của đích quá karma nick thì job chuyển sang BLOCKED", async () => {
     const result = await updateTarget(null, targetForm(seeded, { minKarma: "9000" }));

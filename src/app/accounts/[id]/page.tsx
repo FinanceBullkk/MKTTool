@@ -56,10 +56,12 @@ export default async function AccountDetailPage({
     ["Mảng nội dung", account.persona.contentAngle],
     [
       "Proxy",
-      `${account.proxy.label} — ${account.proxy.protocol}://${account.proxy.host}:${account.proxy.port} ` +
-        `(${account.proxy.country})`,
+      account.proxy
+        ? `${account.proxy.label} — ${account.proxy.protocol}://${account.proxy.host}:${account.proxy.port} ` +
+          `(${account.proxy.country})`
+        : "— không gắn (đăng Fanpage bằng Graph API thì không cần)",
     ],
-    ["Profile antidetect", account.antidetectProfileId],
+    ["Profile antidetect", account.antidetectProfileId ?? "— không có (không mở profile được)"],
     ["Email gốc", account.emailAddress],
     ["Karma", String(account.karma)],
     ["Tuổi nick", age === null ? "—" : `${age} ngày`],

@@ -75,7 +75,7 @@ export default async function AccountsPage() {
                     {account.persona.name}
                   </td>
                   <td className="py-2 pr-4 font-mono text-xs text-neutral-600 dark:text-neutral-400">
-                    {account.proxy.label} ({account.proxy.country})
+                    {account.proxy ? `${account.proxy.label} (${account.proxy.country})` : "—"}
                   </td>
                   <td className="py-2 pr-4">{account.karma}</td>
                   <td className="py-2 pr-4">{age === null ? "—" : `${age}d`}</td>

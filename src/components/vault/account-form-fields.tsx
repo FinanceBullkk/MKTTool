@@ -11,12 +11,21 @@ import { Field, SelectField } from "@/components/ui/form-controls";
 import { ACCOUNT_STATUSES, getStatusPresentation } from "@/lib/accounts/account-status";
 import { localDayKey } from "@/lib/format/vietnamese-date-format";
 
+/**
+ * Hai ô này bắt buộc với Reddit, bỏ trống được với Facebook — nhưng form không biết nền tảng
+ * lúc đang gõ (ô nền tảng nằm ngay trên, và lúc sửa thì không có ô đó). Nên thay vì bật/tắt
+ * `required` theo nền tảng, ô để mở và luật chấm ở server: bỏ trống cho nick Reddit thì thông
+ * báo nói thẳng thiếu gì. Xem validatePlatformIdentityFields().
+ */
+const OPTIONAL_FOR_FACEBOOK_HINT =
+  "Bắt buộc với nick Reddit. Nick Facebook bỏ trống được — Fanpage đăng bằng Graph API, không mở trình duyệt.";
+
 export interface AccountDefaults {
   username: string;
   emailAddress: string;
-  antidetectProfileId: string;
+  antidetectProfileId: string | null;
   personaId: string;
-  proxyId: string;
+  proxyId: string | null;
   status: string;
   karma: number;
   quarantineReason: string | null;
@@ -101,9 +110,8 @@ export function AccountFormFields({
       <Field
         label="Id profile antidetect"
         name="antidetectProfileId"
-        required
-        defaultValue={defaults?.antidetectProfileId}
-        hint="Id profile bên MultiZen/AdsPower"
+        defaultValue={defaults?.antidetectProfileId ?? undefined}
+        hint={OPTIONAL_FOR_FACEBOOK_HINT}
       />
       <SelectField
         label="Nhân vật"
@@ -115,10 +123,16 @@ export function AccountFormFields({
       <SelectField
         label="Proxy"
         name="proxyId"
-        required
-        defaultValue={defaults?.proxyId}
-        hint={editing ? "Chỉ hiện proxy còn trống và proxy đang gắn cho nick này" : `${proxies.length} proxy chưa gắn nick`}
-        options={proxies.map((proxy) => ({ value: proxy.id, label: proxy.label }))}
+        defaultValue={defaults?.proxyId ?? undefined}
+        hint={
+          editing
+            ? `${OPTIONAL_FOR_FACEBOOK_HINT} Chỉ hiện proxy còn trống và proxy đang gắn cho nick này.`
+            : `${OPTIONAL_FOR_FACEBOOK_HINT} ${proxies.length} proxy chưa gắn nick.`
+        }
+        options={[
+          { value: "", label: "— không gắn (chỉ nick Facebook) —" },
+          ...proxies.map((proxy) => ({ value: proxy.id, label: proxy.label })),
+        ]}
       />
       <SelectField
         label="Trạng thái"

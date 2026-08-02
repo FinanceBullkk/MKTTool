@@ -28,6 +28,7 @@ import {
   personaUpdateSchema,
   proxyUpdateSchema,
   targetUpdateSchema,
+  validatePlatformIdentityFields,
 } from "./vault-form-schemas";
 
 export async function updatePersona(
@@ -95,6 +96,14 @@ export async function updateAccount(
 
   const { id, password, emailPassword, totpSecret, ...data } = parsed.data;
 
+  // `platform` không sửa được nên form không gửi lên — phải đọc từ DB thì mới chấm được luật
+  // "Reddit bắt buộc proxy + profile antidetect".
+  const existing = await prisma.account.findUnique({ where: { id }, select: { platform: true } });
+  if (!existing) return { ok: false, message: "Không tìm thấy nick cần sửa." };
+
+  const identityError = validatePlatformIdentityFields(existing.platform, data);
+  if (identityError) return { ok: false, message: identityError };
+
   // Kiểm secret dùng được TRƯỚC khi lưu — phát hiện sai ngay lúc nhập, không phải lúc
   // đang cần đăng nhập gấp.
   if (totpSecret && !(await isValidTotpSecret(totpSecret))) {
@@ -106,6 +115,10 @@ export async function updateAccount(
       where: { id },
       data: {
         ...data,
+        // Với Prisma, `undefined` nghĩa là GIỮ NGUYÊN — nên ô để trống phải ép về `null`, không
+        // thì gỡ proxy khỏi một nick Facebook sẽ im lặng không có tác dụng gì.
+        antidetectProfileId: data.antidetectProfileId?.trim() || null,
+        proxyId: data.proxyId?.trim() || null,
         ...(password ? { passwordEnc: encryptCredential(password) } : {}),
         ...(emailPassword ? { emailPasswordEnc: encryptCredential(emailPassword) } : {}),
         ...(totpSecret

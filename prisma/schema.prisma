@@ -110,10 +110,19 @@ model Account {
   emailPasswordEnc String
   totpSecretEnc    String?
 
-  // liên kết bắt buộc 1:1
-  antidetectProfileId String @unique // id profile bên MultiZen/AdsPower
+  /// Liên kết 1:1 — BẮT BUỘC với nick Reddit, bỏ trống được với nick Facebook.
+  ///
+  /// Reddit phải lén: mỗi nick một vân tay, một IP, không được để lộ là cùng chủ. Fanpage thì
+  /// đăng bằng Graph API có token chính thức — không mở trình duyệt, không giả vân tay, không
+  /// đi qua proxy. Ép hai trường này cho nick Facebook là bắt đốt một proxy thật và bịa một id
+  /// profile chỉ để thỏa ràng buộc, rồi chính dữ liệu giả đó nằm lại trong kho.
+  ///
+  /// `@unique` trên cột nullable vẫn chặn hai nick dùng chung một proxy (SQLite cho phép nhiều
+  /// NULL nhưng chỉ một giá trị thật), nên nguyên tắc 1 nick = 1 proxy KHÔNG bị nới cho Reddit.
+  /// Chỗ ép "Reddit thì không được trống" nằm ở validatePlatformIdentityFields().
+  antidetectProfileId String? @unique // id profile bên MultiZen/AdsPower
   personaId           String
-  proxyId             String @unique // @unique ép quan hệ 1:1, chặn 2 nick chung IP
+  proxyId             String? @unique // @unique ép quan hệ 1:1, chặn 2 nick chung IP
 
   // trạng thái vận hành
   status           String    @default("COLD_START") // COLD_START | ALIVE | CHECKPOINT | SHADOWBANNED | DEAD
@@ -131,7 +140,7 @@ model Account {
   updatedAt    DateTime  @updatedAt
 
   persona      Persona       @relation(fields: [personaId], references: [id])
-  proxy        Proxy         @relation(fields: [proxyId], references: [id])
+  proxy        Proxy?        @relation(fields: [proxyId], references: [id])
   jobs         PostJob[]
   interactions Interaction[]
   healthChecks HealthCheck[]

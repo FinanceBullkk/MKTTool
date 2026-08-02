@@ -16,6 +16,11 @@ và 1-3 Fanpage. Team tự viết content, công cụ lo phần danh tính và a
 Nguyên tắc bất di bất dịch: **1 nick = 1 proxy tĩnh = 1 vân tay = 1 nhân vật.**
 Ràng buộc này do database ép, không lách được.
 
+> Nguyên tắc trên là **cho nick Reddit**. Nick Facebook quản trị Fanpage thì bỏ trống proxy và
+> profile antidetect được, vì Fanpage đăng bằng Graph API có token chính thức — không mở trình
+> duyệt, không giả vân tay, không đi qua proxy. Database vẫn chặn hai nick dùng chung một proxy
+> thật; chỉ là không bắt phải có.
+
 ## Yêu cầu
 
 - Node.js 22+ (dự án đang chạy trên 24)
@@ -428,12 +433,6 @@ chuyển xấu từ lúc nào.
 ## Việc chưa làm
 
 - Tự động đăng Reddit → Phase 05
-- **Nick nền tảng FACEBOOK vẫn phải khai proxy + antidetect profile + mật khẩu**, dù đăng Fanpage
-  bằng Graph API không cần thứ nào trong ba. Schema ép `Account.proxyId` và
-  `Account.antidetectProfileId` là bắt buộc và `@unique`, nên muốn xếp lịch một bài Fanpage là phải
-  đốt một proxy thật và bịa một profile id. Ràng buộc đó đúng cho Reddit, sai cho Fanpage.
-  `npm run facebook:smoke` không bắt được vì nó tự tạo `Account` bằng code — đi vòng đúng chỗ người
-  thật vấp. Đo được 03/08/2026 khi đăng thử lần đầu.
 
 ## Đã kiểm chứng bằng thực tế
 

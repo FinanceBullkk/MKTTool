@@ -84,6 +84,10 @@ export async function createAccount(
     await prisma.account.create({
       data: {
         ...rest,
+        // Ô để trống phải thành NULL chứ không phải chuỗi rỗng: `@unique` coi hai chuỗi rỗng là
+        // trùng nhau, nên nick Facebook thứ hai sẽ ăn lỗi trùng ràng buộc mà không hiểu vì sao.
+        antidetectProfileId: rest.antidetectProfileId?.trim() || null,
+        proxyId: rest.proxyId?.trim() || null,
         passwordEnc: encryptCredential(password),
         emailPasswordEnc: encryptCredential(emailPassword),
         totpSecretEnc: encryptOptionalCredential(totpSecret ? normalizeTotpSecret(totpSecret) : null),

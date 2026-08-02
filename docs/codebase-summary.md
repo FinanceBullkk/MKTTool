@@ -72,7 +72,7 @@ docs/                           Tài liệu dự án
 | `Persona` | Nhân vật: giọng điệu + mảng nội dung | `name @unique` |
 | `Proxy` | Proxy tĩnh gắn 1:1 với nick | `label @unique`; `@@unique([host, port, username])`; `type` = cách mua (STATIC_ISP/MOBILE), `protocol` = giao thức mạng (http/socks5) — hai thứ khác nhau |
 | `ObserverProxy` | Proxy dò shadowban, KHÔNG được dùng đăng nhập | `label @unique` |
-| `Account` | Nick Reddit/Facebook | `antidetectProfileId @unique` — ép 1 nick : 1 profile; `proxyId @unique` — ép 1 nick : 1 proxy; `@@unique([platform, username])` |
+| `Account` | Nick Reddit/Facebook | `antidetectProfileId @unique` và `proxyId @unique` — ép 1 nick : 1 profile : 1 proxy. Cả hai **nullable**: bắt buộc với Reddit, bỏ trống được với Facebook (xem mục riêng bên dưới); `@@unique([platform, username])` |
 | `PlatformTarget` | Đích đăng: sub/page/group kèm luật riêng | `@@unique([platform, name])` |
 | `ContentItem` | Bài do team viết | `type`: VALUE hoặc PROMO |
 | `PostJob` | Một lần đăng đã xếp lịch | `ruleVerdicts`: JSON kết quả luật tại lúc tạo; `overrideReason`: bắt buộc nếu ghi đè |
@@ -270,11 +270,31 @@ Chi tiết đầy đủ ở [README → Lệnh](../README.md#lệnh).
 ## Việc chưa làm
 
 - Tự động đăng Reddit qua tool MCP → Phase 05.
-- **`Account` ép proxy + antidetect profile cho cả nick FACEBOOK.** `proxyId` và
-  `antidetectProfileId` đều bắt buộc và `@unique`, nhưng đăng Fanpage bằng Graph API không cần cả
-  hai — xếp lịch một bài Fanpage phải đốt một proxy thật và bịa một profile id. Cách sửa: cho hai
-  trường đó nullable khi `platform = "FACEBOOK"`, kèm validation ở form. Xem mục dưới về vì sao
-  smoke test không bắt được.
+
+## Proxy + profile antidetect: bắt buộc với Reddit, không với Facebook
+
+`Account.proxyId` và `Account.antidetectProfileId` là nullable từ 03/08/2026. Trước đó cả hai bắt
+buộc, nên muốn xếp lịch một bài Fanpage là phải đốt một proxy thật và bịa một id profile — trong
+khi Graph API không cần cả hai.
+
+Ba chỗ giữ cho việc nới này không nới quá tay:
+
+| Chỗ | Việc |
+|---|---|
+| `@unique` trên cột nullable | SQLite cho nhiều NULL nhưng chỉ một giá trị thật, nên **1 nick = 1 proxy vẫn nguyên** cho Reddit |
+| `validatePlatformIdentityFields()` ở `vault-form-schemas.ts` | Hàm thuần, nguồn sự thật DUY NHẤT cho luật "Reddit bắt buộc". Cả `createAccount` lẫn `updateAccount` gọi nó |
+| Route `api/accounts/[id]/launch` | Thiếu proxy hoặc profile thì từ chối mở kèm lý do, không mở profile trần bằng IP nhà |
+
+Hai cái bẫy đã vấp và đã có test canh:
+
+1. **Prisma `update` coi `undefined` là "giữ nguyên"**, không phải "xóa". Truyền thẳng ô form để
+   trống xuống thì gỡ proxy sẽ im lặng không có tác dụng, mà giao diện vẫn báo "đã lưu". Phải ép
+   về `null`.
+2. **Chuỗi rỗng không phải NULL.** `@unique` coi hai chuỗi rỗng là trùng nhau, nên nick Facebook
+   thứ hai sẽ ăn lỗi trùng ràng buộc mà không hiểu vì sao.
+
+`accountUpdateSchema` không có `platform` (nền tảng cố định sau khi tạo nên form không gửi lên) —
+`updateAccount` phải đọc nền tảng từ DB rồi mới chấm. Quên bước đó là đường sửa lỏng hơn đường tạo.
 
 ## Đã gọi Graph API thật — 03/08/2026
 
