@@ -3,7 +3,7 @@
 Công cụ cho 1 bạn MKT specialist vận hành nhiều tài khoản mạng xã hội để đăng content của team
 mà không bị shadowban / bóp tương tác.
 
-**Ngày lập:** 2026-08-01 | **Trạng thái:** GĐ1 + GĐ2 xong, GĐ4 xong phần khung, đang chờ mua nick | **Branch:** master
+**Ngày lập:** 2026-08-01 | **Trạng thái:** GĐ1 + GĐ2 + GĐ3 xong, GĐ4 xong phần khung, đang chờ mua nick | **Branch:** master
 
 ---
 
@@ -40,7 +40,7 @@ Một process, một câu lệnh `npm run dev`. Không microservice.
 | 0 | Chuẩn bị & kiểm chứng khả thi | 2 tuần | 🟡 Phần kiểm chứng xong 02/08/2026 (Chặng B + C đạt). Còn mua proxy/nick + 14 ngày cold-start | [phase-00](phase-00-preparation-and-feasibility-check.md) |
 | 1 | Kho danh tính | 5-7 ngày | ✅ Xong 01/08/2026 | [phase-01](phase-01-identity-vault.md) |
 | 2 | Hàng đợi content + Bộ luật an toàn | 7-10 ngày | ✅ Xong 02/08/2026 | [phase-02](phase-02-content-queue-and-safety-rules.md) |
-| 3 | Theo dõi sức khỏe tài khoản | 4-5 ngày | ⬜ | [phase-03](phase-03-account-health-monitor.md) |
+| 3 | Theo dõi sức khỏe tài khoản | 4-5 ngày | ✅ Xong 03/08/2026 — còn chờ mua proxy quan sát viên để chạy với nick thật | [phase-03](phase-03-account-health-monitor.md) |
 | 4 | Facebook Pages publisher | 2-3 ngày | 🟡 Khung xong 02/08/2026, chờ Meta App để đăng thử thật | [phase-04](phase-04-facebook-pages-publisher.md) |
 | 5 | Bán tự động đăng Reddit | 7-10 ngày | ⬜ | [phase-05](phase-05-reddit-posting-automation.md) |
 

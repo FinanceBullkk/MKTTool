@@ -5,8 +5,45 @@
 
 ## Overview
 - **Priority:** P1 — làm ngay sau Phase 02, vì đây là thứ đo được hệ thống có hoạt động không
-- **Status:** ⬜ Chưa bắt đầu
+- **Status:** ✅ Xong 03/08/2026. Còn chờ mua proxy quan sát viên + nick thật để chạy tuyến cuối
 - **Thời lượng:** 4-5 ngày
+
+## Đã làm khác kế hoạch — và vì sao
+
+Ba chỗ lệch so với bản kế hoạch gốc, cả ba đều do đo thực tế chứ không phải đổi ý:
+
+**1. `checkpoint-detector` phân biệt "ai bị chặn".** Kế hoạch gốc gộp captcha vào chung với
+"nick dính checkpoint". Sai nguy hiểm: bộ dò xem trang ở chế độ chưa đăng nhập, nên captcha là
+tin về **proxy quan sát viên**, không phải về nick. Gộp lại thì mỗi lần Reddit bóp proxy là cả
+đàn nick khỏe bị cách ly cùng lúc. Giờ tín hiệu có `scope: ACCOUNT | PROBE`, và `PROBE` cho ra
+`ERROR` chứ không cho ra `CHECKPOINT`.
+
+**2. Tín hiệu shadowban là HTTP 404, không phải câu chữ.** Kế hoạch gốc dựa vào câu *"nobody on
+Reddit goes by that name"*. Đo trên Reddit thật 03/08/2026: **câu đó không còn nữa**, trang 404
+giờ là "page not found" thường và vẫn có đủ header, thanh điều hướng, ô đăng nhập. Bản parser
+đầu tiên nhận nhầm nó là "profile rỗng" — tức nick chết mà báo còn sống. Mã HTTP là thứ ổn định
+hơn câu chữ nên giờ nó là tín hiệu chính.
+
+**3. Tách `reddit-shadowban-prober` thành parser thuần + lớp trình duyệt.** Kế hoạch gốc gộp làm
+một. Tách ra thì toàn bộ việc đọc HTML test được bằng HTML mẫu, không cần mạng — và đó chính là
+chỗ bắt được cả hai lỗi trên.
+
+Ngoài ra `reddit-karma-reader.ts` không tồn tại thành file riêng: karma nằm ngay trong sidebar
+của cùng trang profile, đọc riêng là tải trang hai lần vô ích.
+
+## Kết quả kiểm chứng 03/08/2026
+
+`npm run health:smoke` — **17/17 đạt**:
+- Phần A (không chạm mạng): ghi bản ghi dò → ép trạng thái nick → bộ luật Phase 02 chặn job,
+  AuditLog có ghi, dò khỏe không tự gỡ cách ly, giữ đủ lịch sử.
+- Phần B (Reddit thật, không cần nick/proxy): đọc được karma 940.312 của `u/spez`, đếm được
+  2 bài + 23 comment, tên không tồn tại trả 404 → `MISSING` → `SHADOWBANNED`.
+
+Toàn tuyến qua **proxy thật** (Webshare GB) cũng đã chạy: mở phiên, tải trang, đọc karma,
+chụp ảnh, ra kết luận.
+
+**Chưa kiểm được:** lượt `npm run health` với proxy quan sát viên đã mua riêng và nick Reddit
+thật. Cả hai đều là chặn đường của GĐ0 (mua), không phải của code.
 
 ## Key Insights
 
@@ -127,16 +164,19 @@ model ObserverProxy {                        // proxy riêng để dò, không g
 9. Nút "Kiểm tra ngay" + hướng dẫn đặt lịch chạy hằng ngày bằng Task Scheduler (Windows).
 
 ## Todo List
-- [ ] Mua proxy quan sát viên riêng
-- [ ] Schema HealthCheck + ObserverProxy
-- [ ] Checkpoint detector
-- [ ] Reddit shadowban prober
-- [ ] Karma reader
-- [ ] Health status evaluator
-- [ ] Runner có giãn thời gian ngẫu nhiên
-- [ ] Dashboard + biểu đồ karma
-- [ ] Nối kết quả vào rule-account-health (Phase 02)
-- [ ] Đặt lịch chạy hằng ngày
+- [ ] **Mua proxy quan sát viên riêng** — việc duy nhất còn lại, và là việc mua chứ không phải code
+- [x] Schema HealthCheck + ObserverProxy
+- [x] Checkpoint detector (có phân biệt ACCOUNT / PROBE)
+- [x] Reddit shadowban prober (parser thuần tách khỏi lớp trình duyệt)
+- [x] Đọc karma — gộp vào parser, không tách file riêng
+- [x] Health status evaluator
+- [x] Runner có giãn ngẫu nhiên 30-90 giây
+- [x] UI nhập proxy quan sát viên ở /proxies
+- [x] Dashboard trang chủ + trang /health + biểu đồ karma SVG
+- [x] Nút "Dò lại ngay" (một nick) qua `POST /api/health/run`
+- [x] Nối kết quả vào bộ luật — thành **luật 10** riêng, không nhét vào luật 1
+- [x] `npm run health` + `npm run health:smoke`
+- [ ] Đặt lịch chạy hằng ngày bằng Task Scheduler — làm sau khi có proxy quan sát viên
 
 ## Success Criteria
 - Chạy 1 lệnh → có báo cáo sức khỏe 8 nick trong < 10 phút

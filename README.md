@@ -3,7 +3,8 @@
 Bảng điều khiển nhiều tài khoản cho team marketing — đăng content lên Reddit và Facebook Pages
 mà không bị shadowban hay bóp tương tác.
 
-**Trạng thái:** Phase 01 (Kho danh tính) và Phase 02 (Hàng đợi content + Bộ luật an toàn) đã xong.
+**Trạng thái:** Phase 01 (Kho danh tính), Phase 02 (Hàng đợi content + Bộ luật an toàn) và
+Phase 03 (Dò shadowban + theo dõi karma) đã xong.
 Phase 04 (Facebook Pages) xong phần khung — cắm Meta App vào là đăng được.
 Xem [kế hoạch triển khai](plans/260801-2030-multi-account-posting-console/plan.md).
 
@@ -53,6 +54,8 @@ npm run dev                 # http://localhost:3000
 | `npm run vault:testotp` | Sinh TOTP secret dùng thử để kiểm chứng tính năng OTP |
 | `npm run rules:smoke` | Kiểm chứng nghiệm thu Phase 02 (bộ luật) trên DB thật |
 | `npm run facebook:smoke` | Kiểm chứng nghiệm thu Phase 04 (Facebook Pages) — không cần Meta App |
+| `npm run health` | Dò shadowban + đọc karma cho mọi nick Reddit (đặt lịch chạy hằng ngày) |
+| `npm run health:smoke` | Kiểm chứng nghiệm thu Phase 03 — không cần nick, không cần proxy |
 
 ## Cách test
 
@@ -61,7 +64,7 @@ proxy, không cần tài khoản nào, và kiểm tra được phần lớn ch�
 
 | Chặng | Cần gì | Kiểm chứng điều gì |
 |---|---|---|
-| **A** | không gì cả | `npm run vault:smoke` + `npm run rules:smoke` + `npm run facebook:smoke` + nhập dữ liệu giả qua UI: mã hóa, ràng buộc 1:1, copy mật khẩu, OTP (dùng `npm run vault:testotp` đối chiếu với Google Authenticator), bộ luật an toàn, và đường đi Facebook trong máy |
+| **A** | không gì cả | `npm run vault:smoke` + `npm run rules:smoke` + `npm run facebook:smoke` + `npm run health:smoke` + nhập dữ liệu giả qua UI: mã hóa, ràng buộc 1:1, copy mật khẩu, OTP (dùng `npm run vault:testotp` đối chiếu với Google Authenticator), bộ luật an toàn, và đường đi Facebook trong máy |
 | **B** | MultiZen (miễn phí) | Profile trống, không đăng nhập gì. Bấm "Mở profile" → công cụ có mở được profile không. ✅ **Đạt 02/08/2026** — đây từng là câu hỏi chặn đường của Phase 00 |
 | **C** | 1 proxy bất kỳ | Nhập proxy vào `/proxies`, gắn cho nick, bấm "Mở profile" → vào `ipinfo.io` → IP phải khớp proxy. Không cần chạm vào cài đặt MultiZen. ✅ **Đạt 02/08/2026** — [báo cáo](plans/reports/chang-c-260802-1443-proxy-push-verification.md) |
 | **D** | nick thật + proxy đúng loại | Chỉ làm sau khi A/B/C xong. Xem quy trình cold-start ở [Phase 00](plans/260801-2030-multi-account-posting-console/phase-00-preparation-and-feasibility-check.md) |
@@ -124,6 +127,13 @@ bốn luật giữ nhịp không áp: đăng 5 bài một ngày hay đăng toàn
 | 7 | Trùng nội dung | giống ≥ 70% một bài cùng nền tảng trong 30 ngày | mọi nền tảng |
 | 8 | Đụng độ thread | nick khác của mình đã chạm đúng thread đó | **cộng đồng** |
 | 9 | Chính sách link | sub cấm link mà bài có link | mọi nền tảng |
+| 10 | Kết quả dò gần nhất | lần dò cuối nói nick bị ẩn / dính checkpoint | **Reddit** |
+
+Luật 10 đọc thứ **người ngoài nhìn thấy**, còn luật 1 đọc thứ **mình tự đặt**. Chỗ hai cái lệch
+nhau mới là chỗ đáng lo: gỡ cách ly một nick về "Khỏe" bằng tay thì luật 1 cho qua ngay, nhưng
+luật 10 vẫn thấy lần dò cuối nói nick bị ẩn và chặn cho tới khi có lần dò mới chứng minh ngược lại.
+Nick chưa dò lần nào, hoặc dò lâu quá (mặc định 3 ngày), thì luật cảnh báo — *không có tin xấu*
+không phải là *tin tốt*, đó là *không có tin*.
 
 Luật 6 và 8 là hai luật không cộng đồng nào tha thứ. **Luật 8 không cho ghi đè** — hai nick cùng
 chủ đụng một thread là tín hiệu phối hợp rõ nhất mà nền tảng bắt được. Các luật còn lại ghi đè
@@ -157,12 +167,14 @@ src/
 │   ├── content/             kho content team viết
 │   ├── queue/               hàng đợi + trang xếp lịch có chấm luật realtime
 │   ├── facebook/            kết nối Fanpage, trạng thái token
+│   ├── health/              bảng sức khỏe, lịch sử dò, biểu đồ karma
 │   ├── personas/ proxies/ targets/  danh sách + trang chi tiết để sửa/xóa
 │   └── api/
 │       ├── accounts/[id]/launch/   mở profile antidetect
 │       ├── facebook/oauth/         start + callback của luồng OAuth
+│       ├── health/run/             dò lại một nick ngay
 │       └── rules/preview/          chạy thử bộ luật, trả verdict
-├── components/              khối UI dùng chung (ui/, vault/, queue/, content/, facebook/)
+├── components/              khối UI dùng chung (ui/, vault/, queue/, content/, facebook/, health/)
 └── lib/
     ├── accounts/            server actions (thêm/sửa/xóa) + schema form + trạng thái nick
     ├── antidetect/          adapter MultiZen / AdsPower (đổi bằng 1 dòng .env)
@@ -171,6 +183,7 @@ src/
     ├── db/                  Prisma client
     ├── facebook/            Graph API: OAuth, token, đăng Fanpage, nhắc việc group
     ├── format/ platforms/   định dạng ngày, gộp họ nền tảng
+    ├── health/              bộ dò shadowban: phiên trình duyệt sạch, parser, đánh giá, runner
     ├── queue/               server action cho job + tương tác
     ├── rules/               bộ luật an toàn — mỗi luật một file
     └── totp/                sinh mã OTP 2FA
@@ -182,8 +195,9 @@ Mỗi luật là một hàm thuần `(ctx: RuleContext) => RuleVerdict`. Toàn b
 Stack: Next.js 16 + TypeScript + Prisma 7 + SQLite + MCP client tới MultiZen. Một process, chạy
 trên máy bạn MKT. Chưa cần VPS, Docker, Postgres hay Redis.
 
-*(`playwright` còn trong dependencies nhưng chưa file nào dùng — để dành cho bộ dò shadowban ở
-Phase 03, chạy trực tiếp qua proxy quan sát viên chứ không qua antidetect browser.)*
+`playwright` chỉ dùng cho bộ dò shadowban, chạy trực tiếp qua proxy quan sát viên chứ không qua
+antidetect browser — xem [Dò shadowban](#dò-shadowban). Lần đầu chạy phải cài trình duyệt:
+`npx playwright install chromium`.
 
 ## Antidetect browser
 
@@ -341,9 +355,46 @@ trong MCP, file cấu hình, lẫn GUI).
 > Luật cũng chỉ chạy khi firewall bật cho profile mạng đang dùng.
 > Câu lệnh + cách đo: [báo cáo Chặng C](plans/reports/chang-c-260802-1443-proxy-push-verification.md).
 
+## Dò shadowban
+
+Shadowban im lặng: bài vẫn hiện với chính mình, người ngoài không thấy gì. Không đo thì ba tháng
+sau mới phát hiện cả cụm đã chết.
+
+`npm run health` mở trang profile công khai của từng nick ở chế độ **chưa đăng nhập**, qua một
+**proxy quan sát viên riêng**, rồi đối chiếu số bài thấy được với số bài đã đánh dấu đã đăng.
+Kết quả vào bảng ở `/health` và trang chủ, kèm biểu đồ karma 30 ngày.
+
+| Đo được gì | Kết luận |
+|---|---|
+| Reddit trả HTTP 404 cho trang profile | **Bị ẩn** — shadowban toàn cục |
+| Profile hiện ra, nhưng 0/N bài đã đăng nhìn thấy được | **Bị ẩn** — kiểu ẩn từng bài |
+| Thấy dưới một nửa số bài đã đăng | **Nghi ngờ** — có thể chỉ là mod xóa bài |
+| Trang báo tài khoản bị treo | **Dính checkpoint** |
+| Bộ dò bị captcha / Reddit đổi HTML | **Không dò được** — *không phải* tin tốt |
+
+Nick bị kết luận **Bị ẩn** hoặc **Dính checkpoint** sẽ tự chuyển trạng thái và bộ luật chặn mọi
+job của nó. Chiều ngược lại thì không: một lần dò khỏe **không** tự gỡ cách ly, vì nó chỉ chứng
+minh lần dò đó không thấy vấn đề. Gỡ là quyết định của người, ở trang chi tiết nick.
+
+> ⚠️ **Proxy quan sát viên phải là IP riêng, không bao giờ đăng nhập nick nào.** Dò bằng chính
+> proxy của nick là tự nhìn mình trong gương rồi kết luận người ngoài cũng thấy vậy. Nhập ở
+> `/proxies`, khối "Proxy quan sát viên". Chưa có thì `npm run health` dừng ngay từ đầu — cố ý,
+> vì dò bằng IP nhà còn tệ hơn không dò.
+
+Chỉ nhận proxy **HTTP**: Chromium không xác thực được với SOCKS5, nó bỏ qua user/mật khẩu rồi
+đi tiếp — hoặc hỏng, hoặc tệ hơn là chạy bằng IP nhà mà không ai biết.
+
+Lượt đầy đủ nghỉ **ngẫu nhiên 30-90 giây giữa các nick**, nên 8 nick mất gần mười phút. Đó là
+chủ ý: tám lượt xem profile bắn ra trong ba giây từ một IP là hành vi của máy, và chính bộ dò
+sẽ bị chặn trước tiên. **Một lần mỗi ngày là đủ** — đặt lịch bằng Task Scheduler. Nút "Dò lại
+ngay" trên bảng chỉ dò một nick, dùng khi đang nhìn một nick đáng ngờ.
+
+> Bộ dò đọc HTML của `old.reddit.com`. Reddit đổi giao diện là nó hỏng — và khi hỏng thì nó báo
+> **"Không dò được"** chứ không bao giờ báo "khỏe". `npm run health:smoke` chạy đối chiếu với
+> Reddit thật (không cần nick, không cần proxy) nên đó là thứ chạy đầu tiên khi thấy kết quả lạ.
+
 ## Việc chưa làm
 
-- Dò shadowban + theo dõi karma → Phase 03
 - Tự động đăng Reddit → Phase 05
 - **Chưa đăng thử lên Fanpage thật lần nào.** Toàn bộ đường đi trong máy đã nghiệm thu bằng
   `npm run facebook:smoke` (11/11 đạt), nhưng chính lời gọi Graph API thì phải có Meta App mới
