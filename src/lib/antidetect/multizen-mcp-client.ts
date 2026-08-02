@@ -39,6 +39,21 @@ interface JsonRpcResponse {
   error?: { code: number; message: string };
 }
 
+/**
+ * Ném khi chính TOOL trả về lỗi — nghĩa là phiên MCP vẫn tốt, lời gọi đã tới nơi và
+ * MultiZen đã trả lời "không".
+ *
+ * Tách khỏi McpClientError (lỗi tầng vận chuyển) để phía trên biết khi nào thử lại có
+ * nghĩa: mở lại phiên rồi gọi lại một lời gọi vốn đã được trả lời thì chỉ tốn thêm một
+ * vòng, mà với `launch_profile` còn có nguy cơ mở profile lần thứ hai.
+ */
+export class McpToolError extends McpClientError {
+  constructor(message: string) {
+    super(message);
+    this.name = "McpToolError";
+  }
+}
+
 /** Ném khi server từ chối token — tách riêng để báo đúng nguyên nhân, không đổ tại "app chưa mở". */
 export class McpUnauthorizedError extends McpClientError {
   constructor(baseUrl: string) {
@@ -126,6 +141,16 @@ export class MultizenMcpClient {
     return payload.result;
   }
 
+  /**
+   * Quên phiên đang giữ để lần gọi sau bắt tay lại từ đầu.
+   *
+   * Cần khi MultiZen khởi động lại: `Mcp-Session-Id` cũ thành vô hiệu và mọi lời gọi
+   * ăn lỗi, nhưng client không có cách nào tự biết ngoài việc thấy lời gọi hỏng.
+   */
+  resetSession(): void {
+    this.sessionId = null;
+  }
+
   /** Bắt tay với server. Phải gọi trước mọi tool call. */
   async initialize(): Promise<void> {
     await this.send("initialize", {
@@ -144,7 +169,7 @@ export class MultizenMcpClient {
   async callTool(name: string, args: Record<string, unknown>): Promise<McpToolResult> {
     const result = (await this.send("tools/call", { name, arguments: args })) as McpToolResult;
     if (result?.isError) {
-      throw new McpClientError(`Tool "${name}" báo lỗi: ${extractText(result)}`);
+      throw new McpToolError(`Tool "${name}" báo lỗi: ${extractText(result)}`);
     }
     return result;
   }

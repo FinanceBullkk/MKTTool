@@ -20,7 +20,13 @@ import {
   AntidetectUnavailableError,
   type LaunchedProfile,
 } from "./antidetect-browser-adapter";
-import { McpUnauthorizedError, MultizenMcpClient, extractText } from "./multizen-mcp-client";
+import {
+  McpToolError,
+  type McpToolResult,
+  McpUnauthorizedError,
+  MultizenMcpClient,
+  extractText,
+} from "./multizen-mcp-client";
 
 const PROVIDER = "MultiZen";
 
@@ -76,6 +82,34 @@ export class MultizenAdapter implements AntidetectAdapter {
     return candidates.find((name) => this.availableTools.includes(name)) ?? null;
   }
 
+  /**
+   * Gọi tool, bắt tay lại đúng MỘT lần nếu hỏng.
+   *
+   * Adapter là singleton sống cùng tiến trình Next. MultiZen khởi động lại là session id
+   * đang giữ thành vô hiệu, mà `initialized` vẫn true nên `ensureInitialized` return ngay —
+   * không có gì bắt tay lại, và "Mở profile" hỏng vĩnh viễn tới khi restart cả app.
+   * Mở lại phiên rồi thử lại một lần là đủ; hỏng tiếp thì đúng là MultiZen có vấn đề thật.
+   */
+  private async callToolWithRehandshake(
+    name: string,
+    args: Record<string, unknown>,
+  ): Promise<McpToolResult> {
+    try {
+      return await this.client.callTool(name, args);
+    } catch (cause) {
+      // Token sai thì bắt tay lại cũng vô ích — để lỗi đi thẳng ra với lời nhắc lấy token.
+      if (cause instanceof McpUnauthorizedError) throw cause;
+      // Tool đã chạy và trả lời "không": phiên vẫn tốt, gọi lại chỉ tốn thêm một vòng —
+      // mà với launch_profile còn có nguy cơ mở profile lần thứ hai.
+      if (cause instanceof McpToolError) throw cause;
+
+      this.initialized = false;
+      this.client.resetSession();
+      await this.ensureInitialized();
+      return await this.client.callTool(name, args);
+    }
+  }
+
   async isAvailable(): Promise<boolean> {
     try {
       await this.ensureInitialized();
@@ -124,7 +158,7 @@ export class MultizenAdapter implements AntidetectAdapter {
     try {
       // Gửi cả camelCase lẫn snake_case cho id giống launchProfile — các bản MultiZen
       // khác nhau nhận tên khác nhau, gửi thừa một khoá vô hại.
-      await this.client.callTool(toolName, {
+      await this.callToolWithRehandshake(toolName, {
         profileId,
         profile_id: profileId,
         proxy: proxyPayload,
@@ -155,7 +189,10 @@ export class MultizenAdapter implements AntidetectAdapter {
       );
     }
 
-    const result = await this.client.callTool(toolName, { profileId, profile_id: profileId });
+    const result = await this.callToolWithRehandshake(toolName, {
+      profileId,
+      profile_id: profileId,
+    });
     // Ngăn bằng xuống dòng: nối thẳng thì "{}" của structuredContent dính vào đuôi endpoint.
     const responseText = [extractText(result), JSON.stringify(result.structuredContent ?? {})].join("\n");
 
@@ -170,7 +207,7 @@ export class MultizenAdapter implements AntidetectAdapter {
     const toolName = this.resolveTool(CLOSE_TOOL_NAMES);
     if (!toolName) return; // không có tool đóng thì bỏ qua, người dùng tự đóng cửa sổ
 
-    await this.client.callTool(toolName, { profileId, profile_id: profileId });
+    await this.callToolWithRehandshake(toolName, { profileId, profile_id: profileId });
   }
 
   async isRunning(profileId: string): Promise<boolean> {
@@ -179,7 +216,7 @@ export class MultizenAdapter implements AntidetectAdapter {
       const toolName = this.resolveTool(LIST_TOOL_NAMES);
       if (!toolName) return false;
 
-      const result = await this.client.callTool(toolName, {});
+      const result = await this.callToolWithRehandshake(toolName, {});
       const text = extractText(result) + JSON.stringify(result.structuredContent ?? {});
       // Phản hồi liệt kê profile đang mở — tìm id trong đó là đủ cho nhu cầu hiện tại.
       return text.includes(profileId);

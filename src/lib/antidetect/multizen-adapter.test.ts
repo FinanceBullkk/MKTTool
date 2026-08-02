@@ -159,6 +159,72 @@ describe("MultizenAdapter", () => {
   });
 });
 
+describe("MultizenAdapter — MultiZen khởi động lại giữa chừng", () => {
+  /**
+   * Adapter là singleton sống cùng tiến trình Next: nó bắt tay một lần rồi giữ session id.
+   * MultiZen restart là session id đó thành vô hiệu. Trước khi sửa, `initialized` vẫn true
+   * nên không có gì bắt tay lại và "Mở profile" hỏng vĩnh viễn tới khi restart cả app.
+   */
+  it("bắt tay lại rồi thử lại khi session cũ bị từ chối", async () => {
+    let toolCallsSeen = 0;
+    const methods: string[] = [];
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_url: string, init: RequestInit) => {
+        const body = JSON.parse(init.body as string) as { id: number; method: string };
+        methods.push(body.method);
+
+        if (body.method === "tools/call") {
+          toolCallsSeen += 1;
+          // Lời gọi đầu tiên đụng đúng lúc MultiZen vừa restart.
+          if (toolCallsSeen === 1) return new Response("phiên không còn", { status: 404 });
+        }
+
+        const result =
+          body.method === "tools/list"
+            ? { tools: [{ name: "launch_profile" }] }
+            : { content: [{ type: "text", text: "Profile đã mở." }] };
+
+        return new Response(JSON.stringify({ jsonrpc: "2.0", id: body.id, result }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      }),
+    );
+
+    const adapter = new MultizenAdapter(BASE_URL, "t");
+    await expect(adapter.launchProfile(PROFILE_ID)).resolves.toMatchObject({
+      profileId: PROFILE_ID,
+    });
+
+    // Bắt tay hai lần: một lần lúc đầu, một lần sau khi thấy session hỏng.
+    expect(methods.filter((method) => method === "initialize")).toHaveLength(2);
+    expect(toolCallsSeen).toBe(2);
+  });
+
+  it("401 vẫn đi thẳng ra, không phí lượt bắt tay lại", async () => {
+    installFakeMcpServer({ status: 401 });
+
+    await expect(new MultizenAdapter(BASE_URL, "token-sai").launchProfile(PROFILE_ID)).rejects.toThrow(
+      /MULTIZEN_MCP_TOKEN/,
+    );
+  });
+
+  /**
+   * Tool trả lời "không" nghĩa là lời gọi ĐÃ tới nơi và đã được xử lý — phiên vẫn tốt.
+   * Gọi lại chỉ tốn thêm một vòng, mà với launch_profile còn có nguy cơ mở profile hai lần.
+   */
+  it("tool báo lỗi thì KHÔNG bắt tay lại — phiên vẫn tốt, gọi lại là mở profile hai lần", async () => {
+    const calls = installFakeMcpServer({ failingTool: "launch_profile" });
+
+    await expect(new MultizenAdapter(BASE_URL, "t").launchProfile(PROFILE_ID)).rejects.toThrow();
+
+    expect(calls.filter((call) => call.method === "initialize")).toHaveLength(1);
+    expect(calls.filter((call) => call.method === "tools/call")).toHaveLength(1);
+  });
+});
+
 describe("MultizenAdapter.applyProxy", () => {
   it("gửi object proxy đúng dạng MultiZen chờ đợi", async () => {
     const calls = installFakeMcpServer();
