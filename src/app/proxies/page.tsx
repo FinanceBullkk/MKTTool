@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ObserverProxySection } from "@/components/health/observer-proxy-section";
 import { ActionForm } from "@/components/ui/form-controls";
 import {
   Card,
@@ -82,6 +83,8 @@ export default async function ProxiesPage() {
           <ProxyFormFields />
         </ActionForm>
       </Card>
+
+      <ObserverProxySection />
     </>
   );
 }

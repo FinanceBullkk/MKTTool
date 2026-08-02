@@ -10,6 +10,7 @@ export const metadata: Metadata = {
 const NAV_ITEMS = [
   { href: "/", label: "Tổng quan" },
   { href: "/queue", label: "Hàng đợi" },
+  { href: "/health", label: "Sức khỏe" },
   { href: "/content", label: "Content" },
   { href: "/accounts", label: "Tài khoản" },
   { href: "/personas", label: "Nhân vật" },

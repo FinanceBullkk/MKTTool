@@ -53,6 +53,10 @@ model Proxy {
 
 /// Proxy riêng để dò shadowban từ góc nhìn người ngoài (Phase 03).
 /// TUYỆT ĐỐI không dùng để đăng nhập bất kỳ nick nào, kể cả một lần.
+///
+/// Tách hẳn khỏi `Proxy` chứ không thêm một cờ vào đó, dù hai bảng gần giống nhau: `Proxy`
+/// có quan hệ 1:1 với Account, nên một bản ghi nằm trong bảng này thì KHÔNG có đường nào
+/// gắn được vào nick. Đó là ràng buộc do cấu trúc ép, không phải do người dùng nhớ.
 model ObserverProxy {
   id          String   @id @default(cuid())
   label       String   @unique
@@ -61,8 +65,38 @@ model ObserverProxy {
   username    String
   passwordEnc String
   country     String
+  /// Giao thức mạng: http | socks5. Giống `Proxy.protocol` — xem giải thích ở đó.
+  protocol    String   @default("http")
   active      Boolean  @default(true)
+  notes       String?
   createdAt   DateTime @default(now())
+}
+
+/// Một lần dò sức khỏe nick từ góc nhìn người ngoài (Phase 03).
+///
+/// Giữ cả `visiblePosts` lẫn `expectedPosts` chứ không chỉ giữ kết luận: khi Reddit đổi HTML
+/// và bộ dò đếm sai, hai con số này là thứ duy nhất cho biết nó sai từ lúc nào.
+model HealthCheck {
+  id             String   @id @default(cuid())
+  accountId      String
+  checkedAt      DateTime @default(now())
+  /// HEALTHY | WARN | SHADOWBANNED | CHECKPOINT | ERROR — xem src/lib/health/health-verdict.ts.
+  /// Không parse được trang thì phải là ERROR, TUYỆT ĐỐI không được là HEALTHY:
+  /// bộ dò hỏng mà báo khỏe là kiểu hỏng nguy hiểm nhất của một hệ thống cảnh báo.
+  verdict        String
+  shadowbanned   Boolean  @default(false)
+  karma          Int?
+  /// Số bài người ngoài nhìn thấy được, đếm ở trang profile công khai.
+  visiblePosts   Int?
+  /// Số bài đáng lẽ phải thấy, theo PostJob đã đánh dấu POSTED.
+  expectedPosts  Int?
+  detail         String?
+  screenshotPath String?
+
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([accountId, checkedAt])
+  @@index([checkedAt])
 }
 
 model Account {
@@ -100,6 +134,7 @@ model Account {
   proxy        Proxy         @relation(fields: [proxyId], references: [id])
   jobs         PostJob[]
   interactions Interaction[]
+  healthChecks HealthCheck[]
 
   // Nick cá nhân Facebook có thể là quản trị viên của Fanpage (Phase 04).
   facebookConnections FacebookConnection[]

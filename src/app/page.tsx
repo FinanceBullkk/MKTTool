@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AccountHealthTable } from "@/components/health/account-health-table";
 import { GroupPostReminders } from "@/components/queue/group-post-reminders";
 import { Card, PageHeading, StatusBadge } from "@/components/ui/page-section";
 import {
@@ -9,6 +10,7 @@ import {
 } from "@/lib/accounts/account-status";
 import { prisma } from "@/lib/db/prisma-client";
 import { loadDueGroupReminders } from "@/lib/facebook/facebook-group-reminder";
+import { loadAccountHealthRows } from "@/lib/health/health-dashboard-queries";
 
 export const dynamic = "force-dynamic";
 
@@ -22,6 +24,7 @@ export default async function OverviewPage() {
     pendingJobCount,
     blockedJobCount,
     groupReminders,
+    healthRows,
   ] = await Promise.all([
       prisma.account.findMany({
         select: { id: true, username: true, status: true, coldStartUntil: true },
@@ -33,7 +36,11 @@ export default async function OverviewPage() {
       prisma.postJob.count({ where: { status: "PENDING" } }),
       prisma.postJob.count({ where: { status: "BLOCKED" } }),
       loadDueGroupReminders(),
+      loadAccountHealthRows(),
     ]);
+
+  // "Chưa dò" và "dò lâu rồi" đều là KHÔNG BIẾT, và không biết thì phải hiện ra.
+  const staleHealth = healthRows.filter((row) => row.stale);
 
   const byStatus = new Map<AccountStatus, number>();
   for (const status of ACCOUNT_STATUSES) byStatus.set(status, 0);
@@ -59,8 +66,21 @@ export default async function OverviewPage() {
     <>
       <PageHeading
         title="Tổng quan"
-        description="Kho danh tính và bộ luật an toàn. Bộ dò shadowban + theo dõi karma thuộc Phase 03."
+        description="Kho danh tính, bộ luật an toàn và bộ dò shadowban."
       />
+
+      {staleHealth.length > 0 ? (
+        <div className="mb-6 rounded-md border border-amber-300 bg-amber-50 px-4 py-3 dark:border-amber-900 dark:bg-amber-950">
+          <p className="text-sm text-amber-900 dark:text-amber-300">
+            {staleHealth.length} nick chưa được dò gần đây — chưa biết bài của chúng còn hiện với
+            người ngoài không.{" "}
+            <Link href="/health" className="underline">
+              xem bảng sức khỏe
+            </Link>
+            .
+          </p>
+        </div>
+      ) : null}
 
       {blockedJobCount > 0 ? (
         <div className="mb-6 rounded-md border border-amber-300 bg-amber-50 px-4 py-3 dark:border-amber-900 dark:bg-amber-950">
@@ -123,17 +143,30 @@ export default async function OverviewPage() {
             Chưa có nick nào. Thứ tự làm: tạo nhân vật → thêm proxy → thêm nick.
           </p>
         ) : (
-          <div className="flex flex-wrap gap-3">
-            {ACCOUNT_STATUSES.map((status) => {
-              const presentation = getStatusPresentation(status);
-              return (
-                <div key={status} className="flex items-center gap-2">
-                  <StatusBadge label={presentation.label} className={presentation.className} />
-                  <span className="text-sm font-medium">{byStatus.get(status) ?? 0}</span>
-                </div>
-              );
-            })}
-          </div>
+          <>
+            <div className="mb-5 flex flex-wrap gap-3">
+              {ACCOUNT_STATUSES.map((status) => {
+                const presentation = getStatusPresentation(status);
+                return (
+                  <div key={status} className="flex items-center gap-2">
+                    <StatusBadge label={presentation.label} className={presentation.className} />
+                    <span className="text-sm font-medium">{byStatus.get(status) ?? 0}</span>
+                  </div>
+                );
+              })}
+            </div>
+
+            <AccountHealthTable rows={healthRows} />
+
+            <p className="mt-3 text-xs text-neutral-500">
+              Trạng thái ở trên là thứ mình tự đặt; bảng dưới là thứ người ngoài thật sự nhìn
+              thấy. Hai cái lệch nhau chính là lúc cần xem kỹ —{" "}
+              <Link href="/health" className="underline">
+                lịch sử dò và xu hướng karma
+              </Link>
+              .
+            </p>
+          </>
         )}
       </Card>
 
