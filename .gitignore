@@ -20,6 +20,9 @@ next-env.d.ts
 *.db-shm
 prisma/*.db*
 
+# database tạm của test, dựng và xóa trong mỗi lượt chạy
+.test-tmp/
+
 # dữ liệu vận hành
 data/screenshots/
 data/logs/
