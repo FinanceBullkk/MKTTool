@@ -39,7 +39,11 @@ model Proxy {
   username    String
   passwordEnc String
   country     String
-  type        String   @default("STATIC_ISP") // STATIC_ISP | MOBILE
+  type        String   @default("STATIC_ISP") // STATIC_ISP | MOBILE — cách mua, KHÔNG phải giao thức
+  /// Giao thức mạng, đây mới là thứ trình duyệt cần: http | socks5.
+  /// Nhà bán proxy thường cho cả hai trên hai cổng khác nhau — điền sai cổng/giao thức
+  /// thì profile không nối được, tệ hơn là lặng lẽ chạy bằng IP nhà.
+  protocol    String   @default("http")
   notes       String?
   createdAt   DateTime @default(now())
   account     Account?

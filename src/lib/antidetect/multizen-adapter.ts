@@ -16,6 +16,7 @@
 import {
   type AntidetectAdapter,
   AntidetectError,
+  type AntidetectProxyConfig,
   AntidetectUnavailableError,
   type LaunchedProfile,
 } from "./antidetect-browser-adapter";
@@ -27,12 +28,19 @@ const PROVIDER = "MultiZen";
 const LAUNCH_TOOL_NAMES = ["launch_profile", "launch", "open_profile"];
 const CLOSE_TOOL_NAMES = ["close_profile", "close", "stop_profile"];
 const LIST_TOOL_NAMES = ["list_profiles", "profiles"];
+const UPDATE_TOOL_NAMES = ["update_profile", "edit_profile", "set_profile"];
 
 /**
  * Bắt ws://... hoặc http://127.0.0.1:<port> trong phản hồi của tool.
  * Loại cả ngoặc nhọn: phản hồi được ghép từ text và JSON, không được nuốt `{}` vào đuôi endpoint.
  */
 const CDP_ENDPOINT_PATTERN = /(wss?:\/\/[^\s"'{}]+|https?:\/\/127\.0\.0\.1:\d+[^\s"'{}]*)/;
+
+/** Thay mật khẩu bằng dấu sao trong chuỗi sắp hiển thị cho người dùng. */
+function redact(text: string, secret?: string): string {
+  if (!secret) return text;
+  return text.split(secret).join("***");
+}
 
 export class MultizenAdapter implements AntidetectAdapter {
   readonly providerName = PROVIDER;
@@ -74,6 +82,63 @@ export class MultizenAdapter implements AntidetectAdapter {
       return true;
     } catch {
       return false;
+    }
+  }
+
+  /**
+   * Ghi proxy vào profile qua `update_profile`.
+   *
+   * MultiZen nhận nguyên object proxy `{ type, host, port, username?, password? }` và tự
+   * dựng SOCKS5 bridge để DNS phân giải ở đầu xa — không rò tên miền ra ISP nhà.
+   * Nó tự căn múi giờ theo IP proxy, nhưng **không** căn ngôn ngữ (đo 02/08/2026: proxy GB cho
+   * `Europe/London` mà `navigator.language` vẫn là `sv-SE` của vân tay gốc).
+   *
+   * `update_profile` có nhận `fingerprint.localeId` nhưng ta CỐ Ý không đụng vào: đổi ngôn ngữ
+   * của một nick đang nuôi còn đáng ngờ hơn là để lệch. Ngôn ngữ căn một lần lúc tạo profile,
+   * bằng nút "Match proxy" trong GUI của MultiZen.
+   *
+   * Field tên `type` bên MultiZen là GIAO THỨC (http/socks5), không phải cách mua proxy.
+   */
+  async applyProxy(profileId: string, proxy: AntidetectProxyConfig): Promise<void> {
+    await this.ensureInitialized();
+
+    const toolName = this.resolveTool(UPDATE_TOOL_NAMES);
+    if (!toolName) {
+      throw new AntidetectError(
+        `${PROVIDER} không có tool cập nhật profile nào trong số [${UPDATE_TOOL_NAMES.join(", ")}]. ` +
+          `Tool hiện có: [${this.availableTools.join(", ")}]. ` +
+          `Không đẩy được proxy nên KHÔNG mở profile — nhập proxy tay trong MultiZen, ` +
+          `hoặc cập nhật UPDATE_TOOL_NAMES trong multizen-adapter.ts.`,
+        PROVIDER,
+      );
+    }
+
+    const proxyPayload = {
+      type: proxy.protocol,
+      host: proxy.host,
+      port: proxy.port,
+      ...(proxy.username ? { username: proxy.username } : {}),
+      ...(proxy.password ? { password: proxy.password } : {}),
+    };
+
+    try {
+      // Gửi cả camelCase lẫn snake_case cho id giống launchProfile — các bản MultiZen
+      // khác nhau nhận tên khác nhau, gửi thừa một khoá vô hại.
+      await this.client.callTool(toolName, {
+        profileId,
+        profile_id: profileId,
+        proxy: proxyPayload,
+      });
+    } catch (cause) {
+      // Thông báo của MCP hay vọng lại tham số đã gửi — trong đó có mật khẩu proxy.
+      // Vẫn giữ lý do gốc để còn gỡ lỗi, nhưng che mật khẩu đi trước.
+      const reason = redact(cause instanceof Error ? cause.message : String(cause), proxy.password);
+
+      throw new AntidetectError(
+        `${PROVIDER} không nhận cấu hình proxy cho profile "${profileId}". ` +
+          `Chưa đẩy được proxy nên KHÔNG mở profile. Lý do: ${reason}`,
+        PROVIDER,
+      );
     }
   }
 

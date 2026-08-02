@@ -8,28 +8,67 @@ interface RecordedCall {
   url: string;
   method: string;
   headers: Record<string, string>;
+  params?: { name?: string; arguments?: Record<string, unknown> };
+}
+
+const PROXY = {
+  protocol: "socks5",
+  host: "5.6.7.8",
+  port: 1080,
+  username: "user01",
+  password: "mat-khau-proxy",
+} as const;
+
+/** Lấy đối số của lời gọi tools/call đầu tiên tới tool có tên cho trước. */
+function argsOf(calls: RecordedCall[], toolName: string): Record<string, unknown> {
+  const call = calls.find((item) => item.method === "tools/call" && item.params?.name === toolName);
+  if (!call) throw new Error(`Không thấy lời gọi tool "${toolName}".`);
+  return call.params?.arguments ?? {};
 }
 
 /**
  * Giả lập MCP server của MultiZen: initialize -> tools/list -> tools/call.
  * Trả về danh sách lời gọi để kiểm tra header gửi đi.
  */
-function installFakeMcpServer(options: { status?: number; tools?: string[]; launchText?: string } = {}) {
+function installFakeMcpServer(
+  options: { status?: number; tools?: string[]; launchText?: string; failingTool?: string } = {},
+) {
   const calls: RecordedCall[] = [];
 
   vi.stubGlobal(
     "fetch",
     vi.fn(async (url: string, init: RequestInit) => {
-      const body = JSON.parse(init.body as string) as { id: number; method: string };
-      calls.push({ url, method: body.method, headers: init.headers as Record<string, string> });
+      const body = JSON.parse(init.body as string) as {
+        id: number;
+        method: string;
+        params?: { name?: string; arguments?: Record<string, unknown> };
+      };
+      calls.push({
+        url,
+        method: body.method,
+        headers: init.headers as Record<string, string>,
+        params: body.params,
+      });
 
       if (options.status && options.status !== 200) {
         return new Response("từ chối", { status: options.status });
       }
 
-      const result =
-        body.method === "tools/list"
-          ? { tools: (options.tools ?? ["launch_profile", "close_profile"]).map((name) => ({ name })) }
+      const isFailingTool =
+        body.method === "tools/call" && body.params?.name === options.failingTool;
+
+      const result = isFailingTool
+        ? {
+            isError: true,
+            // Cố tình vọng lại tham số đã gửi — MCP thật cũng hay làm vậy.
+            content: [{ type: "text", text: `Từ chối: ${JSON.stringify(body.params?.arguments)}` }],
+          }
+        : body.method === "tools/list"
+          ? {
+              tools: (options.tools ?? ["launch_profile", "close_profile", "update_profile"]).map(
+                (name) => ({ name }),
+              ),
+            }
           : body.method === "tools/call"
             ? { content: [{ type: "text", text: options.launchText ?? "Profile đã mở." }] }
             : {};
@@ -117,5 +156,59 @@ describe("MultizenAdapter", () => {
   it("isAvailable trả false thay vì ném lỗi khi app chưa chạy", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => { throw new Error("ECONNREFUSED"); }));
     await expect(new MultizenAdapter(BASE_URL, "t").isAvailable()).resolves.toBe(false);
+  });
+});
+
+describe("MultizenAdapter.applyProxy", () => {
+  it("gửi object proxy đúng dạng MultiZen chờ đợi", async () => {
+    const calls = installFakeMcpServer();
+
+    await new MultizenAdapter(BASE_URL, "t").applyProxy(PROFILE_ID, PROXY);
+
+    const args = argsOf(calls, "update_profile");
+    // `type` bên MultiZen là GIAO THỨC, không phải cách mua proxy.
+    expect(args.proxy).toEqual({
+      type: "socks5",
+      host: "5.6.7.8",
+      port: 1080,
+      username: "user01",
+      password: "mat-khau-proxy",
+    });
+    expect(args.profile_id).toBe(PROFILE_ID);
+  });
+
+  it("proxy không cần xác thực thì bỏ hẳn username/password", async () => {
+    const calls = installFakeMcpServer();
+
+    await new MultizenAdapter(BASE_URL, "t").applyProxy(PROFILE_ID, {
+      protocol: "http",
+      host: "1.2.3.4",
+      port: 8080,
+    });
+
+    expect(argsOf(calls, "update_profile").proxy).toEqual({
+      type: "http",
+      host: "1.2.3.4",
+      port: 8080,
+    });
+  });
+
+  it("thiếu tool cập nhật thì ném lỗi — không được im lặng bỏ qua proxy", async () => {
+    installFakeMcpServer({ tools: ["launch_profile", "close_profile"] });
+
+    await expect(new MultizenAdapter(BASE_URL, "t").applyProxy(PROFILE_ID, PROXY)).rejects.toThrow(
+      /KHÔNG mở profile/,
+    );
+  });
+
+  it("tool báo lỗi thì KHÔNG để mật khẩu proxy lọt vào thông báo", async () => {
+    installFakeMcpServer({ failingTool: "update_profile" });
+
+    const error = await new MultizenAdapter(BASE_URL, "t")
+      .applyProxy(PROFILE_ID, PROXY)
+      .catch((caught: Error) => caught);
+
+    expect((error as Error).message).not.toContain(PROXY.password);
+    expect((error as Error).message).toContain("KHÔNG mở profile");
   });
 });

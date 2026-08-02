@@ -43,7 +43,11 @@ export default async function AccountDetailPage({
     ["Nền tảng", account.platform],
     ["Nhân vật", `${account.persona.name} — ${account.persona.voice}`],
     ["Mảng nội dung", account.persona.contentAngle],
-    ["Proxy", `${account.proxy.label} — ${account.proxy.host}:${account.proxy.port} (${account.proxy.country})`],
+    [
+      "Proxy",
+      `${account.proxy.label} — ${account.proxy.protocol}://${account.proxy.host}:${account.proxy.port} ` +
+        `(${account.proxy.country})`,
+    ],
     ["Profile antidetect", account.antidetectProfileId],
     ["Email gốc", account.emailAddress],
     ["Karma", String(account.karma)],

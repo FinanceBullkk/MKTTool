@@ -33,13 +33,16 @@ export default async function ProxiesPage() {
             là cách phổ biến nhất để đốt tiền.
           </EmptyState>
         ) : (
-          <DataTable headers={["Nhãn", "Địa chỉ", "Quốc gia", "Loại", "Nick đang gắn"]}>
+          <DataTable
+            headers={["Nhãn", "Địa chỉ", "Giao thức", "Quốc gia", "Loại", "Nick đang gắn"]}
+          >
             {proxies.map((proxy) => (
               <tr key={proxy.id}>
                 <td className="py-2 pr-4 font-medium">{proxy.label}</td>
                 <td className="py-2 pr-4 font-mono text-xs text-neutral-600 dark:text-neutral-400">
                   {proxy.host}:{proxy.port}
                 </td>
+                <td className="py-2 pr-4 font-mono text-xs">{proxy.protocol}</td>
                 <td className="py-2 pr-4">{proxy.country}</td>
                 <td className="py-2 pr-4 text-neutral-600 dark:text-neutral-400">{proxy.type}</td>
                 <td className="py-2 pr-4">
@@ -65,6 +68,17 @@ export default async function ProxiesPage() {
           <Field label="Nhãn" name="label" required placeholder="reddit-01-us" />
           <Field label="Host" name="host" required placeholder="1.2.3.4" />
           <Field label="Port" name="port" type="number" required placeholder="8080" />
+          <SelectField
+            label="Giao thức"
+            name="protocol"
+            required
+            defaultValue="http"
+            hint="Phải khớp cổng nhà cung cấp cấp cho giao thức đó — SOCKS5 thường ở cổng khác HTTP"
+            options={[
+              { value: "http", label: "HTTP / HTTPS" },
+              { value: "socks5", label: "SOCKS5" },
+            ]}
+          />
           <Field label="Username" name="username" required />
           <Field label="Mật khẩu" name="password" type="password" required />
           <Field

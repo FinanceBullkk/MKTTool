@@ -44,6 +44,8 @@ const proxySchema = z.object({
   password: z.string().min(1, "Mật khẩu không được để trống"),
   country: z.string().min(2, "Nhập mã quốc gia, ví dụ US"),
   type: z.enum(["STATIC_ISP", "MOBILE"]),
+  // Giao thức mạng — thứ được đẩy sang antidetect browser. Khác `type` (cách mua proxy).
+  protocol: z.enum(["http", "socks5"]),
   notes: optionalText,
 });
 

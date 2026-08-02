@@ -23,12 +23,38 @@ export interface LaunchedProfile {
   profileId: string;
 }
 
+/**
+ * Cấu hình proxy đẩy sang antidetect browser.
+ *
+ * `protocol` là giao thức mạng (http/socks5), KHÔNG phải cách mua proxy
+ * (STATIC_ISP/MOBILE trong DB). Hai khái niệm này hay bị lẫn.
+ *
+ * Mật khẩu ở đây là dạng TRẦN — đã giải mã. Không log, không đưa vào thông báo lỗi.
+ */
+export interface AntidetectProxyConfig {
+  protocol: "http" | "socks5";
+  host: string;
+  port: number;
+  username?: string;
+  password?: string;
+}
+
 export interface AntidetectAdapter {
   /** Tên hiển thị, dùng cho log và thông báo lỗi. */
   readonly providerName: string;
 
   /** Kiểm tra ứng dụng antidetect có đang chạy và nghe API không. */
   isAvailable(): Promise<boolean>;
+
+  /**
+   * Ghi proxy vào profile TRƯỚC khi mở.
+   *
+   * Trước đây người dùng phải nhập proxy hai nơi (MKTTool và antidetect browser);
+   * quên một nơi là profile chạy bằng IP nhà mà không ai hay. Đẩy tự động đóng khe hở đó.
+   *
+   * Gọi thất bại thì TUYỆT ĐỐI không được mở profile — thà không mở còn hơn mở sai IP.
+   */
+  applyProxy(profileId: string, proxy: AntidetectProxyConfig): Promise<void>;
 
   /** Mở profile, trả về endpoint CDP. */
   launchProfile(profileId: string): Promise<LaunchedProfile>;

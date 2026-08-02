@@ -3,10 +3,11 @@
  *
  * AdsPower chạy local API mặc định ở http://local.adspower.net:50325.
  * Endpoint dùng ở đây:
- *   GET /status                          kiểm tra ứng dụng có chạy không
- *   GET /api/v1/browser/start?user_id=   mở profile, trả về ws endpoint cho Playwright
- *   GET /api/v1/browser/stop?user_id=    đóng profile
- *   GET /api/v1/browser/active?user_id=  kiểm tra profile đang mở
+ *   GET  /status                          kiểm tra ứng dụng có chạy không
+ *   POST /api/v1/user/update              ghi proxy vào profile
+ *   GET  /api/v1/browser/start?user_id=   mở profile, trả về ws endpoint cho Playwright
+ *   GET  /api/v1/browser/stop?user_id=    đóng profile
+ *   GET  /api/v1/browser/active?user_id=  kiểm tra profile đang mở
  *
  * Quy ước phản hồi của AdsPower: { code: 0, msg: "success", data: {...} }.
  * code khác 0 nghĩa là lỗi, kể cả khi HTTP status vẫn là 200.
@@ -14,12 +15,19 @@
 import {
   type AntidetectAdapter,
   AntidetectError,
+  type AntidetectProxyConfig,
   AntidetectUnavailableError,
   type LaunchedProfile,
 } from "./antidetect-browser-adapter";
 
 const PROVIDER = "AdsPower";
 const REQUEST_TIMEOUT_MS = 30_000;
+
+/**
+ * API cục bộ của AdsPower chỉ nhận 1 lời gọi mỗi giây; vượt là trả code != 0.
+ * Chuỗi "ghi proxy rồi mở profile" chắc chắn chạm ngưỡng này nếu không giãn ra.
+ */
+const MIN_REQUEST_INTERVAL_MS = 1_100;
 
 interface AdsPowerResponse<T> {
   code: number;
@@ -35,14 +43,33 @@ interface AdsPowerStartData {
 export class AdsPowerAdapter implements AntidetectAdapter {
   readonly providerName = PROVIDER;
 
+  private lastRequestAt = 0;
+
   constructor(private readonly baseUrl: string) {}
 
-  private async request<T>(path: string): Promise<AdsPowerResponse<T>> {
+  /** Giãn lời gọi cho đủ khoảng cách tối thiểu mà AdsPower đòi hỏi. */
+  private async waitForRateLimit(): Promise<void> {
+    const elapsed = Date.now() - this.lastRequestAt;
+    if (this.lastRequestAt > 0 && elapsed < MIN_REQUEST_INTERVAL_MS) {
+      await new Promise((resolve) => setTimeout(resolve, MIN_REQUEST_INTERVAL_MS - elapsed));
+    }
+    this.lastRequestAt = Date.now();
+  }
+
+  private async request<T>(path: string, body?: unknown): Promise<AdsPowerResponse<T>> {
     const url = `${this.baseUrl}${path}`;
     let response: Response;
 
+    await this.waitForRateLimit();
+
     try {
-      response = await fetch(url, { signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
+      response = await fetch(url, {
+        method: body === undefined ? "GET" : "POST",
+        ...(body === undefined
+          ? {}
+          : { headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }),
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      });
     } catch (cause) {
       throw new AntidetectUnavailableError(PROVIDER, this.baseUrl, { cause });
     }
@@ -63,6 +90,35 @@ export class AdsPowerAdapter implements AntidetectAdapter {
       return result.code === 0;
     } catch {
       return false;
+    }
+  }
+
+  /**
+   * Ghi proxy vào profile qua `/api/v1/user/update`.
+   *
+   * `proxy_soft: "other"` = proxy tự nhập, không phải nhà cung cấp AdsPower tích hợp sẵn.
+   * Đây là giá trị đúng cho mọi proxy mua ngoài (Webshare, IPRoyal…).
+   */
+  async applyProxy(profileId: string, proxy: AntidetectProxyConfig): Promise<void> {
+    const result = await this.request<unknown>("/api/v1/user/update", {
+      user_id: profileId,
+      user_proxy_config: {
+        proxy_soft: "other",
+        proxy_type: proxy.protocol,
+        proxy_host: proxy.host,
+        proxy_port: String(proxy.port),
+        proxy_user: proxy.username ?? "",
+        proxy_password: proxy.password ?? "",
+      },
+    });
+
+    if (result.code !== 0) {
+      // `msg` của AdsPower có thể vọng lại tham số đã gửi, kể cả mật khẩu proxy — không ghép vào.
+      throw new AntidetectError(
+        `${PROVIDER} không nhận cấu hình proxy cho profile "${profileId}". ` +
+          `Chưa đẩy được proxy nên KHÔNG mở profile.`,
+        PROVIDER,
+      );
     }
   }
 
