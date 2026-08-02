@@ -108,6 +108,17 @@ export async function loadComparableContent(
     }));
 }
 
+/** Lần dò sức khỏe gần nhất của nick (Phase 03). `null` khi chưa dò lần nào. */
+export function loadLatestHealthCheck(
+  accountId: string,
+): Promise<{ verdict: string; checkedAt: Date } | null> {
+  return prisma.healthCheck.findFirst({
+    where: { accountId },
+    orderBy: { checkedAt: "desc" },
+    select: { verdict: true, checkedAt: true },
+  });
+}
+
 /** Nick KHÁC của mình đã chạm đúng thread này — bất kể lâu tới đâu, dấu vết vẫn còn đó. */
 export async function loadThreadCollisions(
   threadKey: string | null,

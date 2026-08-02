@@ -12,6 +12,7 @@ import {
   countPostsSameDay,
   hoursToNearestSameTarget,
   loadComparableContent,
+  loadLatestHealthCheck,
   loadOwnJobs,
   loadSameTargetNeighbors,
   loadThreadCollisions,
@@ -69,19 +70,25 @@ export async function buildRuleContext(
   const thresholds = applyThresholdOverrides(thresholdRows);
   const threadKey = input.threadUrl ? normalizeThreadUrl(input.threadUrl) : null;
 
-  const [ownJobs, recentContentSamePlatform, threadCollisions, sameTargetNeighbors] =
-    await Promise.all([
-      loadOwnJobs(input.accountId, input.excludeJobId),
-      loadComparableContent(target.platform, at, thresholds.similarityWindowDays, input.excludeJobId),
-      loadThreadCollisions(threadKey, input.accountId),
-      loadSameTargetNeighbors(
-        input.targetId,
-        input.accountId,
-        at,
-        thresholds.threadCollisionWarnHours,
-        input.excludeJobId,
-      ),
-    ]);
+  const [
+    ownJobs,
+    recentContentSamePlatform,
+    threadCollisions,
+    sameTargetNeighbors,
+    latestHealthCheck,
+  ] = await Promise.all([
+    loadOwnJobs(input.accountId, input.excludeJobId),
+    loadComparableContent(target.platform, at, thresholds.similarityWindowDays, input.excludeJobId),
+    loadThreadCollisions(threadKey, input.accountId),
+    loadSameTargetNeighbors(
+      input.targetId,
+      input.accountId,
+      at,
+      thresholds.threadCollisionWarnHours,
+      input.excludeJobId,
+    ),
+    loadLatestHealthCheck(input.accountId),
+  ]);
 
   return {
     ok: true,
@@ -112,6 +119,7 @@ export async function buildRuleContext(
       recentContentSamePlatform,
       threadCollisions,
       sameTargetNeighbors,
+      latestHealthCheck,
       thresholds,
     },
   };

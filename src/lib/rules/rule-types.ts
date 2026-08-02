@@ -92,6 +92,13 @@ export interface RuleContext {
   threadCollisions: OtherAccountActivity[];
   /** Nick khác của mình hoạt động ở cùng đích quanh mốc `at`. */
   sameTargetNeighbors: OtherAccountActivity[];
+  /**
+   * Lần dò sức khỏe gần nhất của nick (Phase 03). `null` = chưa dò lần nào.
+   *
+   * Cố ý tách khỏi `account.status`: status là thứ mình tự đặt, còn cái này là thứ người
+   * ngoài nhìn thấy. Luật 10 sống nhờ đúng chỗ hai thứ đó lệch nhau.
+   */
+  latestHealthCheck: { verdict: string; checkedAt: Date } | null;
   thresholds: RuleThresholds;
 }
 

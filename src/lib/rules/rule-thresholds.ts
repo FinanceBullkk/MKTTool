@@ -29,6 +29,8 @@ export interface RuleThresholds {
   threadCollisionWarnHours: number;
   /** Bài có từ ngần này link trở lên thì cảnh báo (dễ dính bộ lọc tự động). */
   linkCountWarn: number;
+  /** Kết quả dò sức khỏe cũ hơn ngần này ngày thì coi như chưa biết gì (Phase 03). */
+  healthCheckStaleDays: number;
 }
 
 export const DEFAULT_RULE_THRESHOLDS: RuleThresholds = {
@@ -43,6 +45,7 @@ export const DEFAULT_RULE_THRESHOLDS: RuleThresholds = {
   coldStartWarnDays: 2,
   threadCollisionWarnHours: 1,
   linkCountWarn: 2,
+  healthCheckStaleDays: 3,
 };
 
 /**

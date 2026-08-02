@@ -16,6 +16,7 @@ import { COMMUNITY_PLATFORMS } from "@/lib/platforms/platform-family";
 import { ruleAccountHealth, ruleColdStart } from "./rule-account-health";
 import { ruleContentSimilarity } from "./rule-content-similarity";
 import { ruleDailyCap } from "./rule-daily-cap";
+import { ruleHealthCheck } from "./rule-health-check";
 import { ruleLinkPolicy } from "./rule-link-policy";
 import { rulePromoRatio } from "./rule-promo-ratio";
 import { ruleTargetCooldown } from "./rule-target-cooldown";
@@ -97,6 +98,15 @@ const RULES: RuleDefinition[] = [
     platforms: COMMUNITY_PLATFORMS,
   },
   { id: "link-policy", label: "Chính sách link", evaluate: ruleLinkPolicy, overridable: true },
+  // Chỉ Reddit: Fanpage đăng bằng Graph API nên đăng hỏng là báo lỗi ngay, không có kiểu
+  // bài lên mà không ai thấy. Xem đầu file rule-health-check.ts.
+  {
+    id: "health-check",
+    label: "Kết quả dò gần nhất",
+    evaluate: ruleHealthCheck,
+    overridable: true,
+    platforms: ["REDDIT"],
+  },
 ];
 
 /** Luật nào chạy cho nền tảng này. Bỏ trống `platforms` nghĩa là áp cho tất cả. */

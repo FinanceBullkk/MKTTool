@@ -37,6 +37,9 @@ function makeContext(overrides: Partial<RuleContext> = {}): RuleContext {
     recentContentSamePlatform: [],
     threadCollisions: [],
     sameTargetNeighbors: [],
+    // Vừa dò xong và khỏe — "ngữ cảnh mọi thứ đều ổn" phải gồm cả việc ĐÃ KIỂM CHỨNG là ổn,
+    // không phải chỉ là chưa có tin xấu.
+    latestHealthCheck: { verdict: "HEALTHY", checkedAt: new Date(AT.getTime() - 2 * HOUR) },
     thresholds: DEFAULT_RULE_THRESHOLDS,
     ...overrides,
   };
@@ -60,8 +63,8 @@ describe("ngữ cảnh sạch", () => {
     expect(evaluation.warnings).toHaveLength(0);
   });
 
-  it("chạy đủ 9 luật, mỗi luật báo cáo một lần", () => {
-    expect(evaluateRules(makeContext()).results).toHaveLength(9);
+  it("chạy đủ 10 luật, mỗi luật báo cáo một lần", () => {
+    expect(evaluateRules(makeContext()).results).toHaveLength(10);
   });
 });
 
@@ -78,25 +81,29 @@ function facebookPageContext(overrides: Partial<RuleContext> = {}): RuleContext 
 
 describe("luật theo nền tảng", () => {
   const COMMUNITY_ONLY = ["daily-cap", "target-cooldown", "promo-ratio", "thread-collision"];
+  /** Chỉ Reddit mới có bộ dò shadowban — xem đầu rule-health-check.ts. */
+  const REDDIT_ONLY = ["health-check"];
 
-  it("Reddit chạy đủ 9 luật, không bỏ luật nào", () => {
+  it("Reddit chạy đủ 10 luật, không bỏ luật nào", () => {
     const evaluation = evaluateRules(makeContext());
-    expect(evaluation.results).toHaveLength(9);
+    expect(evaluation.results).toHaveLength(10);
     expect(evaluation.skipped).toHaveLength(0);
   });
 
-  it("Facebook Group cũng chạy đủ 9 luật — group là cộng đồng, có mod như sub", () => {
+  it("Facebook Group giữ 4 luật cộng đồng, chỉ bỏ luật dò shadowban", () => {
     const ctx = facebookPageContext({
       target: { ...makeContext().target, name: "Group Homelab VN", platform: "FACEBOOK_GROUP" },
     });
     expect(evaluateRules(ctx).results).toHaveLength(9);
-    expect(evaluateRules(ctx).skipped).toHaveLength(0);
+    expect(evaluateRules(ctx).skipped.map((rule) => rule.id)).toEqual(REDDIT_ONLY);
   });
 
-  it("Fanpage bỏ 4 luật giữ nhịp, giữ 5 luật còn lại", () => {
+  it("Fanpage bỏ 4 luật giữ nhịp cộng luật dò, giữ 5 luật còn lại", () => {
     const evaluation = evaluateRules(facebookPageContext());
 
-    expect(evaluation.skipped.map((rule) => rule.id).sort()).toEqual([...COMMUNITY_ONLY].sort());
+    expect(evaluation.skipped.map((rule) => rule.id).sort()).toEqual(
+      [...COMMUNITY_ONLY, ...REDDIT_ONLY].sort(),
+    );
     expect(evaluation.results).toHaveLength(5);
     expect(evaluation.results.map((result) => result.id).sort()).toEqual([
       "account-health",
@@ -156,6 +163,52 @@ describe("luật theo nền tảng", () => {
     const labels = evaluateRules(facebookPageContext()).skipped.map((rule) => rule.label);
     expect(labels).toContain("Hạn mức ngày");
     expect(labels).toContain("Đụng độ thread (nick khác cùng đích)");
+    expect(labels).toContain("Kết quả dò gần nhất");
+  });
+});
+
+describe("luật 10 — kết quả dò gần nhất", () => {
+  it("vừa dò xong và khỏe thì cho qua", () => {
+    expect(levelOf(makeContext(), "health-check")).toBe("ALLOW");
+  });
+
+  it("chưa dò lần nào thì cảnh báo — không có tin xấu không phải là tin tốt", () => {
+    expect(levelOf(makeContext({ latestHealthCheck: null }), "health-check")).toBe("WARN");
+  });
+
+  it("dò lâu rồi thì cảnh báo, số liệu cũ không nói được gì về hôm nay", () => {
+    const ctx = makeContext({
+      latestHealthCheck: { verdict: "HEALTHY", checkedAt: new Date(AT.getTime() - 9 * DAY) },
+    });
+    expect(levelOf(ctx, "health-check")).toBe("WARN");
+    expect(reasonOf(ctx, "health-check")).toContain("9 ngày trước");
+  });
+
+  /**
+   * Lý do chính khiến luật này tồn tại tách khỏi luật 1: luật 1 đọc `status` — thứ người tự
+   * đặt — nên gỡ cách ly bằng tay là nó cho qua ngay. Luật này đọc thứ người ngoài nhìn thấy.
+   */
+  it("gỡ cách ly bằng tay mà chưa dò lại thì VẪN bị chặn", () => {
+    const ctx = makeContext({
+      account: { ...makeContext().account, status: "ALIVE" },
+      latestHealthCheck: { verdict: "SHADOWBANNED", checkedAt: new Date(AT.getTime() - 1 * DAY) },
+    });
+    expect(levelOf(ctx, "account-health")).toBe("ALLOW");
+    expect(levelOf(ctx, "health-check")).toBe("BLOCK");
+  });
+
+  it("bộ dò đang mù (ERROR) thì cảnh báo, không im lặng cho qua", () => {
+    const ctx = makeContext({
+      latestHealthCheck: { verdict: "ERROR", checkedAt: new Date(AT.getTime() - 1 * HOUR) },
+    });
+    expect(levelOf(ctx, "health-check")).toBe("WARN");
+  });
+
+  it("thấy ít bài hơn số đã đăng thì cảnh báo", () => {
+    const ctx = makeContext({
+      latestHealthCheck: { verdict: "WARN", checkedAt: new Date(AT.getTime() - 1 * HOUR) },
+    });
+    expect(levelOf(ctx, "health-check")).toBe("WARN");
   });
 });
 

@@ -31,6 +31,7 @@ function check(name: string, passed: boolean, detail = "") {
 
 async function cleanup() {
   const where = { account: { username: { startsWith: PREFIX } } };
+  await prisma.healthCheck.deleteMany({ where });
   await prisma.interaction.deleteMany({ where });
   await prisma.postJob.deleteMany({ where });
   await prisma.contentItem.deleteMany({ where: { authorName: { startsWith: PREFIX } } });
@@ -40,9 +41,15 @@ async function cleanup() {
   await prisma.platformTarget.deleteMany({ where: { name: { startsWith: PREFIX } } });
 }
 
-/** Nick khỏe, hết cold-start, dư karma — để chỉ luật đang thử nghiệm là thứ duy nhất lên tiếng. */
+/**
+ * Nick khỏe, hết cold-start, dư karma — để chỉ luật đang thử nghiệm là thứ duy nhất lên tiếng.
+ *
+ * Kèm luôn một lần dò sức khỏe vừa xong và khỏe (Phase 03): với nick Reddit, "khỏe" phải gồm cả
+ * việc ĐÃ KIỂM CHỨNG là người ngoài còn nhìn thấy nick, chứ không chỉ là chưa có tin xấu.
+ * Thiếu nó thì luật 10 cảnh báo "chưa dò lần nào" và mọi phép thử ở đây đều lẫn thêm một WARN.
+ */
 async function createAccount(suffix: string, proxyId: string, personaId: string) {
-  return prisma.account.create({
+  const account = await prisma.account.create({
     data: {
       platform: "REDDIT",
       username: `${PREFIX}${suffix}`,
@@ -58,6 +65,19 @@ async function createAccount(suffix: string, proxyId: string, personaId: string)
       platformCreatedAt: new Date(Date.now() - 700 * DAY),
     },
   });
+
+  await prisma.healthCheck.create({
+    data: {
+      accountId: account.id,
+      verdict: "HEALTHY",
+      karma: 5000,
+      visiblePosts: 0,
+      expectedPosts: 0,
+      detail: "Dữ liệu dựng sẵn của smoke test.",
+    },
+  });
+
+  return account;
 }
 
 async function verdictFor(input: {
