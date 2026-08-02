@@ -389,6 +389,16 @@ chủ ý: tám lượt xem profile bắn ra trong ba giây từ một IP là hà
 sẽ bị chặn trước tiên. **Một lần mỗi ngày là đủ** — đặt lịch bằng Task Scheduler. Nút "Dò lại
 ngay" trên bảng chỉ dò một nick, dùng khi đang nhìn một nick đáng ngờ.
 
+**Hai lượt dò không bao giờ chạy chồng nhau.** Lượt đang chạy giữ một file khóa
+(`data/health-check.lock`); lượt thứ hai bị từ chối kèm câu nói rõ ai đang giữ và giữ bao lâu
+rồi. Khóa là file chứ không phải biến trong bộ nhớ vì `npm run health` chạy ở tiến trình riêng —
+cặp dễ đụng nhau nhất chính là lịch chạy 3 giờ sáng gặp người đang bấm nút. Tiến trình bị tắt
+ngang để lại khóa mồ côi thì sau 30 phút lượt sau tự giành lấy.
+
+Ảnh chụp màn hình **chỉ giữ khi kết luận khác "khỏe"**, và tự xóa sau 30 ngày ở cuối mỗi lượt
+dò. Bản ghi kết luận thì giữ nguyên vĩnh viễn — đó là thứ vẽ ra xu hướng karma và cho biết nick
+chuyển xấu từ lúc nào.
+
 > Bộ dò đọc HTML của `old.reddit.com`. Reddit đổi giao diện là nó hỏng — và khi hỏng thì nó báo
 > **"Không dò được"** chứ không bao giờ báo "khỏe". `npm run health:smoke` chạy đối chiếu với
 > Reddit thật (không cần nick, không cần proxy) nên đó là thứ chạy đầu tiên khi thấy kết quả lạ.
