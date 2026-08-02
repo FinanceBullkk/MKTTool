@@ -8,7 +8,7 @@
  * không lộ, log không dính.
  */
 import { useEffect, useState } from "react";
-import { requestOtpCode, revealCredential } from "@/lib/accounts/account-actions";
+import { requestOtpCode, revealCredential } from "@/lib/accounts/vault-credential-actions";
 
 type Feedback = { kind: "ok" | "error"; text: string } | null;
 
@@ -74,6 +74,10 @@ export function AccountVaultActionsPanel({
         return;
       }
       setOtp(result);
+    } catch {
+      // Thiếu nhánh này là lỗi phía server biến thành promise reject không ai bắt:
+      // nút bấm xong không hiện gì cả, người dùng không biết chuyện gì đang xảy ra.
+      setFeedback({ kind: "error", text: "Không sinh được mã OTP. Xem log của dev server." });
     } finally {
       setBusy(false);
     }
