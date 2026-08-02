@@ -1,12 +1,18 @@
 /**
- * Bộ luật an toàn — chạy tuần tự 9 phép kiểm tra, gom mọi verdict, mức nặng nhất thắng.
+ * Bộ luật an toàn — 9 phép kiểm tra, chạy tuần tự những luật áp cho nền tảng của đích,
+ * gom mọi verdict, mức nặng nhất thắng.
  *
  * Nguyên tắc: KHÔNG dừng ở luật chặn đầu tiên. Bạn MKT cần thấy hết mọi vấn đề trong một lần
  * để sửa một lượt, chứ không phải sửa xong lại lòi ra lỗi tiếp.
  *
- * Chạy hết 9 luật trên dữ liệu đã nạp sẵn tốn chưa tới 1ms — phần chậm duy nhất là truy vấn
+ * Không phải luật nào cũng áp cho mọi nền tảng — xem `platforms` ở từng mục trong RULES.
+ * Luật không áp dụng bị loại TRƯỚC khi chạy và được liệt kê riêng trong `skipped`, chứ không
+ * lặng lẽ trả ALLOW: lỗ hổng im lặng trong một hệ thống an toàn là thứ nguy hiểm nhất.
+ *
+ * Chạy hết luật trên dữ liệu đã nạp sẵn tốn chưa tới 1ms — phần chậm duy nhất là truy vấn
  * database ở rule-context-builder.ts.
  */
+import { COMMUNITY_PLATFORMS } from "@/lib/platforms/platform-family";
 import { ruleAccountHealth, ruleColdStart } from "./rule-account-health";
 import { ruleContentSimilarity } from "./rule-content-similarity";
 import { ruleDailyCap } from "./rule-daily-cap";
@@ -29,6 +35,13 @@ interface RuleDefinition {
   evaluate: RuleEvaluator;
   /** Người dùng có được phép bỏ qua khi luật này chặn không. */
   overridable: boolean;
+  /**
+   * Nền tảng mà luật này áp dụng. Bỏ trống = áp cho mọi nền tảng.
+   *
+   * Chỉ khai khi luật thật sự VÔ NGHĨA ở nền tảng khác, đừng khai để né phiền: mặc định
+   * phải là "luật áp cho tất cả", nếu không bộ luật sẽ mục ruỗng dần từng nền tảng một.
+   */
+  platforms?: readonly string[];
 }
 
 const RULES: RuleDefinition[] = [
@@ -40,9 +53,29 @@ const RULES: RuleDefinition[] = [
     evaluate: ruleTargetEligibility,
     overridable: true,
   },
-  { id: "daily-cap", label: "Hạn mức ngày", evaluate: ruleDailyCap, overridable: true },
-  { id: "target-cooldown", label: "Nghỉ giữa 2 bài", evaluate: ruleTargetCooldown, overridable: true },
-  { id: "promo-ratio", label: "Tỷ lệ promo", evaluate: rulePromoRatio, overridable: true },
+  // Bốn luật dưới đây giữ nhịp cho nick đi xin phép ở nhà người khác. Fanpage là kênh của
+  // chính mình nên không áp — xem COMMUNITY_PLATFORMS trong platform-family.ts.
+  {
+    id: "daily-cap",
+    label: "Hạn mức ngày",
+    evaluate: ruleDailyCap,
+    overridable: true,
+    platforms: COMMUNITY_PLATFORMS,
+  },
+  {
+    id: "target-cooldown",
+    label: "Nghỉ giữa 2 bài",
+    evaluate: ruleTargetCooldown,
+    overridable: true,
+    platforms: COMMUNITY_PLATFORMS,
+  },
+  {
+    id: "promo-ratio",
+    label: "Tỷ lệ promo",
+    evaluate: rulePromoRatio,
+    overridable: true,
+    platforms: COMMUNITY_PLATFORMS,
+  },
   {
     id: "content-similarity",
     label: "Trùng nội dung",
@@ -55,9 +88,15 @@ const RULES: RuleDefinition[] = [
     label: "Đụng độ thread",
     evaluate: ruleThreadCollision,
     overridable: false,
+    platforms: COMMUNITY_PLATFORMS,
   },
   { id: "link-policy", label: "Chính sách link", evaluate: ruleLinkPolicy, overridable: true },
 ];
+
+/** Luật nào chạy cho nền tảng này. Bỏ trống `platforms` nghĩa là áp cho tất cả. */
+function appliesTo(rule: RuleDefinition, platform: string): boolean {
+  return !rule.platforms || rule.platforms.includes(platform);
+}
 
 export interface RuleResult {
   id: string;
@@ -67,12 +106,19 @@ export interface RuleResult {
   overridable: boolean;
 }
 
+export interface SkippedRule {
+  id: string;
+  label: string;
+}
+
 export interface RuleEvaluation {
   level: RuleLevel;
-  /** Kết quả của mọi luật, kể cả luật cho qua — để UI hiện checklist đầy đủ. */
+  /** Kết quả của mọi luật ĐÃ CHẠY, kể cả luật cho qua — để UI hiện checklist đầy đủ. */
   results: RuleResult[];
   blocks: RuleResult[];
   warnings: RuleResult[];
+  /** Luật không áp dụng cho nền tảng của đích này. Hiện ra để người dùng biết còn thiếu gì. */
+  skipped: SkippedRule[];
   /** false khi có ít nhất một luật không-cho-ghi-đè đang chặn. */
   overridable: boolean;
 }
@@ -88,7 +134,16 @@ function toResult(rule: RuleDefinition, verdict: RuleVerdict): RuleResult {
 }
 
 export function evaluateRules(ctx: RuleContext): RuleEvaluation {
-  const results = RULES.map((rule) => toResult(rule, rule.evaluate(ctx)));
+  const platform = ctx.target.platform;
+
+  const results = RULES.filter((rule) => appliesTo(rule, platform)).map((rule) =>
+    toResult(rule, rule.evaluate(ctx)),
+  );
+
+  const skipped = RULES.filter((rule) => !appliesTo(rule, platform)).map((rule) => ({
+    id: rule.id,
+    label: rule.label,
+  }));
 
   const blocks = results.filter((result) => result.level === "BLOCK");
   const warnings = results.filter((result) => result.level === "WARN");
@@ -103,6 +158,7 @@ export function evaluateRules(ctx: RuleContext): RuleEvaluation {
     results,
     blocks,
     warnings,
+    skipped,
     overridable: blocks.every((result) => result.overridable),
   };
 }
@@ -131,7 +187,11 @@ export function deserializeEvaluation(raw: string | null): RuleEvaluation | null
   if (!raw) return null;
   try {
     const parsed = JSON.parse(raw) as RuleEvaluation;
-    return Array.isArray(parsed?.results) ? parsed : null;
+    if (!Array.isArray(parsed?.results)) return null;
+
+    // Verdict lưu trước khi có luật theo nền tảng không có trường `skipped`.
+    // Bù mảng rỗng, đừng để trang hàng đợi sập vì một bản ghi cũ.
+    return { ...parsed, skipped: Array.isArray(parsed.skipped) ? parsed.skipped : [] };
   } catch {
     return null;
   }

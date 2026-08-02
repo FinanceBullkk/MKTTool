@@ -52,12 +52,15 @@ function RuleResultRow({ result }: { result: RuleResult }) {
 }
 
 /**
- * Checklist đầy đủ 9 luật. Luật cho qua vẫn hiện — bạn MKT cần thấy công cụ đã kiểm tra gì,
- * không chỉ thấy thứ bị chặn.
+ * Checklist đầy đủ. Luật cho qua vẫn hiện — bạn MKT cần thấy công cụ đã kiểm tra gì,
+ * không chỉ thấy thứ bị chặn. Luật không áp dụng cho nền tảng này cũng nói rõ, chứ không
+ * để người dùng tưởng nó đã kiểm mà thật ra không.
  */
 export function RuleVerdictPanel({ evaluation }: { evaluation: RuleEvaluation }) {
   const failed = evaluation.results.filter((result) => result.level !== "ALLOW");
   const passed = evaluation.results.filter((result) => result.level === "ALLOW");
+  // Verdict cũ lưu trước khi có luật theo nền tảng không có trường này.
+  const skipped = evaluation.skipped ?? [];
 
   return (
     <div className="space-y-3">
@@ -87,6 +90,12 @@ export function RuleVerdictPanel({ evaluation }: { evaluation: RuleEvaluation })
             ))}
           </ul>
         </details>
+      ) : null}
+
+      {skipped.length > 0 ? (
+        <p className="text-xs text-neutral-500">
+          Không áp dụng cho nền tảng này: {skipped.map((rule) => rule.label).join(", ")}.
+        </p>
       ) : null}
     </div>
   );

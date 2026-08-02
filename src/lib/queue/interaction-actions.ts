@@ -8,15 +8,18 @@
  *
  * Chính thao tác ghi này cũng bị luật 8 chặn: nếu nick khác đã ở trong thread đó thì
  * không cho ghi thêm, để bạn MKT biết mình sắp làm hỏng cả cụm nick TRƯỚC khi bấm.
+ * Chỉ chặn ở nền tảng cộng đồng, giống hệt lúc chạy qua rules-engine.
  */
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import type { ActionResult } from "@/lib/accounts/account-actions";
 import { INTERACTION_KINDS } from "@/lib/content/content-types";
 import { prisma } from "@/lib/db/prisma-client";
+import { isCommunityPlatform } from "@/lib/platforms/platform-family";
 import { loadSameTargetNeighbors, loadThreadCollisions } from "@/lib/rules/rule-context-queries";
 import { normalizeThreadUrl, ruleThreadCollision } from "@/lib/rules/rule-thread-collision";
 import { DEFAULT_RULE_THRESHOLDS, applyThresholdOverrides } from "@/lib/rules/rule-thresholds";
+import { ALLOW } from "@/lib/rules/rule-types";
 
 const interactionSchema = z.object({
   accountId: z.string().min(1, "Chọn nick"),
@@ -53,20 +56,24 @@ export async function recordInteraction(
     loadSameTargetNeighbors(rest.targetId, rest.accountId, at, thresholds.threadCollisionWarnHours),
   ]);
 
-  const verdict = ruleThreadCollision({
-    target: {
-      id: target.id,
-      name: target.name,
-      platform: target.platform,
-      minKarma: target.minKarma,
-      minAccountAgeDays: target.minAccountAgeDays,
-      promoRatio: target.promoRatio,
-      allowsLinks: target.allowsLinks,
-    },
-    threadCollisions,
-    sameTargetNeighbors,
-    thresholds,
-  });
+  // Luật 8 chỉ áp cho nền tảng cộng đồng, giống hệt lúc chạy qua rules-engine. Trang trả lời
+  // dưới bài của chính mình là chăm sóc khách hàng, không phải hai nick giả vờ đồng tình.
+  const verdict = isCommunityPlatform(target.platform)
+    ? ruleThreadCollision({
+        target: {
+          id: target.id,
+          name: target.name,
+          platform: target.platform,
+          minKarma: target.minKarma,
+          minAccountAgeDays: target.minAccountAgeDays,
+          promoRatio: target.promoRatio,
+          allowsLinks: target.allowsLinks,
+        },
+        threadCollisions,
+        sameTargetNeighbors,
+        thresholds,
+      })
+    : ALLOW;
 
   // Luật 8 không cho ghi đè — chặn là chặn, không có nút nào bỏ qua.
   if (verdict.level === "BLOCK") {

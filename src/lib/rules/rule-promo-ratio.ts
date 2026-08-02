@@ -1,12 +1,15 @@
 /**
- * Luật 6 — Tỷ lệ 9:1.
+ * Luật 6 — Tỷ lệ 9:1. CHỈ ÁP CHO NỀN TẢNG CỘNG ĐỒNG.
  *
- * Một trong hai luật không nền tảng nào tha thứ. Hầu hết sub ngách áp tỷ lệ
+ * Một trong hai luật không cộng đồng nào tha thứ. Hầu hết sub ngách áp tỷ lệ
  * 9 đóng góp hữu ích : 1 bài có nhắc sản phẩm. Vi phạm thì mod (người thật) để ý,
  * mà mod để ý thì soi cả cụm nick chứ không chỉ bài đó.
  *
  * Cách đếm là TỶ LỆ TRƯỢT, không phải "đủ 9 bài một lần rồi thôi": bài quảng cáo thứ N
  * đòi N × ratio bài hữu ích. Đăng quảng cáo xong thì phải nuôi tiếp mới được quảng cáo nữa.
+ *
+ * Không áp cho Fanpage: kênh thương hiệu vốn dĩ để bán hàng, bắt 9 bài hữu ích mới cho
+ * quảng cáo một lần là chặn gần hết nội dung hợp lệ.
  */
 import { ALLOW, type RuleContext, type RuleVerdict, block, warn } from "./rule-types";
 

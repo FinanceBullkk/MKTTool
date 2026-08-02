@@ -1,8 +1,10 @@
 /**
- * Luật 5 — Nghỉ giữa hai lần đăng cùng một đích.
+ * Luật 5 — Nghỉ giữa hai lần đăng cùng một đích. CHỈ ÁP CHO NỀN TẢNG CỘNG ĐỒNG.
  *
  * Nhiều sub có luật cứng "1 bài / 24h / người". Kể cả sub không ghi luật, mod vẫn để ý
  * nick nào ngày nào cũng xuất hiện ở trang chủ sub.
+ *
+ * Không áp cho Fanpage: đích chính là trang của mình, đăng hằng ngày mới là đúng việc.
  */
 import { ALLOW, type RuleContext, type RuleVerdict, block, warn } from "./rule-types";
 

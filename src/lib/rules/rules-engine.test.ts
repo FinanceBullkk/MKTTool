@@ -65,6 +65,100 @@ describe("ngữ cảnh sạch", () => {
   });
 });
 
+/** Đích Fanpage — nick vẫn là FACEBOOK, chỉ khác loại đích. */
+function facebookPageContext(overrides: Partial<RuleContext> = {}): RuleContext {
+  const base = makeContext();
+  return {
+    ...base,
+    account: { ...base.account, platform: "FACEBOOK", username: "Trang Cửa Hàng" },
+    target: { ...base.target, name: "Fanpage chính thức", platform: "FACEBOOK_PAGE" },
+    ...overrides,
+  };
+}
+
+describe("luật theo nền tảng", () => {
+  const COMMUNITY_ONLY = ["daily-cap", "target-cooldown", "promo-ratio", "thread-collision"];
+
+  it("Reddit chạy đủ 9 luật, không bỏ luật nào", () => {
+    const evaluation = evaluateRules(makeContext());
+    expect(evaluation.results).toHaveLength(9);
+    expect(evaluation.skipped).toHaveLength(0);
+  });
+
+  it("Facebook Group cũng chạy đủ 9 luật — group là cộng đồng, có mod như sub", () => {
+    const ctx = facebookPageContext({
+      target: { ...makeContext().target, name: "Group Homelab VN", platform: "FACEBOOK_GROUP" },
+    });
+    expect(evaluateRules(ctx).results).toHaveLength(9);
+    expect(evaluateRules(ctx).skipped).toHaveLength(0);
+  });
+
+  it("Fanpage bỏ 4 luật giữ nhịp, giữ 5 luật còn lại", () => {
+    const evaluation = evaluateRules(facebookPageContext());
+
+    expect(evaluation.skipped.map((rule) => rule.id).sort()).toEqual([...COMMUNITY_ONLY].sort());
+    expect(evaluation.results).toHaveLength(5);
+    expect(evaluation.results.map((result) => result.id).sort()).toEqual([
+      "account-health",
+      "cold-start",
+      "content-similarity",
+      "link-policy",
+      "target-eligibility",
+    ]);
+  });
+
+  it("Fanpage đăng 5 bài một ngày không bị chặn — chuyện thường của kênh thương hiệu", () => {
+    const evaluation = evaluateRules(facebookPageContext({ postsSameDay: 5 }));
+    expect(evaluation.level).toBe("ALLOW");
+  });
+
+  it("Fanpage đăng liên tiếp cùng ngày không bị luật nghỉ 24h chặn", () => {
+    const evaluation = evaluateRules(facebookPageContext({ hoursToNearestPostSameTarget: 2 }));
+    expect(evaluation.level).toBe("ALLOW");
+  });
+
+  it("Fanpage đăng toàn bài quảng cáo không bị tỷ lệ 9:1 chặn", () => {
+    const evaluation = evaluateRules(
+      facebookPageContext({
+        content: { type: "PROMO", title: "Giảm giá 20%", body: "Tuần này thôi.", links: [] },
+        promoTally: { valueCount: 0, promoCount: 12 },
+      }),
+    );
+    expect(evaluation.level).toBe("ALLOW");
+  });
+
+  it("Fanpage trả lời dưới bài của chính mình không bị luật đụng độ chặn", () => {
+    const evaluation = evaluateRules(
+      facebookPageContext({
+        threadCollisions: [{ accountUsername: "Nick admin", kind: "COMMENT", at: AT }],
+      }),
+    );
+    expect(evaluation.level).toBe("ALLOW");
+    expect(evaluation.overridable).toBe(true);
+  });
+
+  it("Fanpage VẪN bị chặn bởi luật sức khỏe nick — luật này áp cho mọi nền tảng", () => {
+    const base = facebookPageContext();
+    const ctx = { ...base, account: { ...base.account, status: "CHECKPOINT" } };
+    expect(levelOf(ctx, "account-health")).toBe("BLOCK");
+  });
+
+  it("Fanpage VẪN bị chặn khi copy nguyên si bài đã đăng — Meta nhìn thấy hết", () => {
+    const ctx = facebookPageContext({
+      recentContentSamePlatform: [
+        { label: "Fanpage phụ ngày 05/08", text: "Backup homelab\nRestic + NAS cũ." },
+      ],
+    });
+    expect(levelOf(ctx, "content-similarity")).toBe("BLOCK");
+  });
+
+  it("luật bị bỏ KHÔNG lặng lẽ biến mất — nêu tên trong skipped để người dùng biết", () => {
+    const labels = evaluateRules(facebookPageContext()).skipped.map((rule) => rule.label);
+    expect(labels).toContain("Hạn mức ngày");
+    expect(labels).toContain("Đụng độ thread");
+  });
+});
+
 describe("luật 1 — sức khỏe nick", () => {
   it("chặn mọi trạng thái không phải ALIVE", () => {
     for (const status of ["COLD_START", "CHECKPOINT", "SHADOWBANNED", "DEAD"]) {
@@ -285,6 +379,18 @@ describe("gộp verdict", () => {
   it("JSON hỏng không làm sập trang", () => {
     expect(deserializeEvaluation("{ không phải json")).toBeNull();
     expect(deserializeEvaluation(null)).toBeNull();
+  });
+
+  it("verdict cũ chưa có trường skipped vẫn đọc được, bù mảng rỗng", () => {
+    // Bản ghi lưu trước khi có luật theo nền tảng — không được làm sập trang hàng đợi.
+    const legacy = JSON.stringify({
+      level: "ALLOW",
+      results: [{ id: "daily-cap", label: "Hạn mức ngày", level: "ALLOW", reason: null, overridable: true }],
+      blocks: [],
+      warnings: [],
+      overridable: true,
+    });
+    expect(deserializeEvaluation(legacy)?.skipped).toEqual([]);
   });
 });
 

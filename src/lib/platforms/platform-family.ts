@@ -9,6 +9,29 @@
 export const PLATFORM_FAMILIES = ["REDDIT", "FACEBOOK"] as const;
 export type PlatformFamily = (typeof PLATFORM_FAMILIES)[number];
 
+/** Mọi loại đích đăng được. Dùng chung cho form và bộ luật để hai nơi không lệch nhau. */
+export const TARGET_PLATFORMS = ["REDDIT", "FACEBOOK_PAGE", "FACEBOOK_GROUP"] as const;
+export type TargetPlatform = (typeof TARGET_PLATFORMS)[number];
+
+/**
+ * Nền tảng cộng đồng — mình là KHÁCH trong nhà người khác: có mod, có luật riêng của
+ * sub/group, có hàng xóm để ý xem nick nào ngày nào cũng xuất hiện.
+ *
+ * FACEBOOK_PAGE nằm ngoài danh sách này vì Fanpage là kênh của chính mình: đăng 5 bài một
+ * ngày, đăng đều đặn, hay đăng toàn nội dung quảng cáo đều là chuyện bình thường và không
+ * ai phạt. Mấy luật giữ nhịp cho nick đi xin phép chỉ đúng với nền tảng cộng đồng.
+ */
+export const COMMUNITY_PLATFORMS = ["REDDIT", "FACEBOOK_GROUP"] as const;
+
+/**
+ * Dùng ở hai chỗ: bộ luật (rules-engine.ts) và form ghi tương tác tay
+ * (interaction-actions.ts) — form đó gọi thẳng luật 8 chứ không đi qua engine.
+ * Cả hai phải hỏi cùng một nguồn, lệch nhau là luật chặn ở đường này mà lọt ở đường kia.
+ */
+export function isCommunityPlatform(platform: string): boolean {
+  return (COMMUNITY_PLATFORMS as readonly string[]).includes(platform);
+}
+
 export function platformFamily(platform: string): PlatformFamily | string {
   if (platform === "REDDIT") return "REDDIT";
   if (platform.startsWith("FACEBOOK")) return "FACEBOOK";

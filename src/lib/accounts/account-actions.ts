@@ -15,6 +15,7 @@ import {
   encryptOptionalCredential,
 } from "@/lib/crypto/credential-encryption";
 import { prisma } from "@/lib/db/prisma-client";
+import { TARGET_PLATFORMS } from "@/lib/platforms/platform-family";
 import { generateTotpCode, isValidTotpSecret, normalizeTotpSecret } from "@/lib/totp/totp-code-generator";
 import { ACCOUNT_STATUSES } from "./account-status";
 
@@ -68,7 +69,7 @@ const accountSchema = z.object({
 });
 
 const targetSchema = z.object({
-  platform: z.enum(["REDDIT", "FACEBOOK_PAGE", "FACEBOOK_GROUP"]),
+  platform: z.enum(TARGET_PLATFORMS),
   name: z.string().min(1, "Tên đích không được để trống"),
   url: z.string().url("URL không hợp lệ"),
   minKarma: z.coerce.number().int().min(0).default(0),

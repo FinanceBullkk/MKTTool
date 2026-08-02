@@ -1,11 +1,15 @@
 /**
- * Luật 8 — Đụng độ thread. KHÔNG CHO GHI ĐÈ.
+ * Luật 8 — Đụng độ thread. KHÔNG CHO GHI ĐÈ. CHỈ ÁP CHO NỀN TẢNG CỘNG ĐỒNG.
  *
  * Hai nick của cùng một người chạm vào một thread là tín hiệu phối hợp rõ nhất mà nền tảng
  * bắt được. Trên Reddit, hai nick chung IP cùng tương tác một bài là shadowban tức thì;
  * IP khác nhau vẫn bị chấm điểm nghi ngờ vì mẫu hành vi quá lộ.
  *
- * Không có lý do kinh doanh nào đủ lớn để đánh đổi, nên đây là luật duy nhất không cho ghi đè.
+ * Không có lý do kinh doanh nào đủ lớn để đánh đổi, nên trong phạm vi áp dụng thì đây là
+ * luật duy nhất không cho ghi đè.
+ *
+ * Không áp cho Fanpage: trang trả lời bình luận dưới bài của chính mình là chăm sóc khách
+ * hàng, không phải giả làm hai người lạ đồng tình với nhau.
  */
 import { getInteractionKindLabel } from "@/lib/content/content-types";
 import { formatDayMonthTime } from "@/lib/format/vietnamese-date-format";
