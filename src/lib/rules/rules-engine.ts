@@ -1,6 +1,9 @@
 /**
- * Bộ luật an toàn — 9 phép kiểm tra, chạy tuần tự những luật áp cho nền tảng của đích,
+ * Bộ luật an toàn — 10 phép kiểm tra, chạy tuần tự những luật áp cho nền tảng của đích,
  * gom mọi verdict, mức nặng nhất thắng.
+ *
+ * Số luật thực chạy khác nhau theo nền tảng: Reddit 10, Facebook Group 9 (trừ luật dò
+ * shadowban), Fanpage 5 (trừ thêm bốn luật giữ nhịp cộng đồng).
  *
  * Nguyên tắc: KHÔNG dừng ở luật chặn đầu tiên. Bạn MKT cần thấy hết mọi vấn đề trong một lần
  * để sửa một lượt, chứ không phải sửa xong lại lòi ra lỗi tiếp.

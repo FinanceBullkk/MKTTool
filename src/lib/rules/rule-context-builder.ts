@@ -2,7 +2,7 @@
  * Lắp RuleContext cho bộ luật.
  *
  * Cùng với rule-context-queries.ts, đây là nơi DUY NHẤT trong bộ luật chạm vào database.
- * Mọi thứ trả về là object thuần để 9 luật kia giữ được tính thuần túy và test được
+ * Mọi thứ trả về là object thuần để 10 luật kia giữ được tính thuần túy và test được
  * mà không cần database.
  */
 import { type ContentType, isContentType, parseLinks } from "@/lib/content/content-types";

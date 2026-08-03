@@ -114,7 +114,8 @@ export default async function FacebookPage({
           <Link href="/queue" className="underline">
             hàng đợi
           </Link>{" "}
-          với đích loại Facebook Group, vẫn được bộ luật chấm đủ 9 luật như Reddit. Đến giờ,{" "}
+          với đích loại Facebook Group, vẫn được bộ luật chấm 9 trong 10 luật — đúng như Reddit,
+          trừ luật dò shadowban vốn chỉ áp cho Reddit. Đến giờ,{" "}
           <Link href="/" className="underline">
             trang tổng quan
           </Link>{" "}

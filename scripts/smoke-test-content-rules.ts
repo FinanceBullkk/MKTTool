@@ -1,7 +1,7 @@
 /**
  * Kiểm chứng các tiêu chí nghiệm thu của Phase 02 trên database thật.
  *
- * Unit test chỉ chứng minh 9 luật tính đúng trên dữ liệu dựng tay. Script này chứng minh
+ * Unit test chỉ chứng minh 10 luật tính đúng trên dữ liệu dựng tay. Script này chứng minh
  * phần còn lại: truy vấn có lấy đúng dữ liệu không, ràng buộc có khớp thực tế không.
  *
  * Idempotent: dọn rác của lần chạy trước khi bắt đầu, và luôn dọn khi kết thúc.
