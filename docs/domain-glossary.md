@@ -7,7 +7,7 @@ từng khái niệm để 6 tháng nữa vẫn hiểu vì sao ngưỡng Jaccard 
 
 Mỗi mục: **thuật ngữ → định nghĩa → vì sao quan trọng → nơi xuất hiện trong code.**
 
-Tra cứu thêm: [tài liệu sản phẩm](project-overview-pdr.md) · [bản đồ mã nguồn](codebase-summary.md) · [README](../README.md)
+Tra cứu thêm: [mục lục tài liệu](README.md) · [tài liệu sản phẩm](project-overview-pdr.md) · [bản đồ mã nguồn](codebase-summary.md) · [README](../README.md)
 
 ---
 

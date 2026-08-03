@@ -1,11 +1,10 @@
 # MKTTool — Tài liệu sản phẩm
 
-**Cập nhật:** 03/08/2026 · **Trạng thái:** Phase 01–04 xong (Phase 04 đã đăng thật lên Fanpage);
-Phase 00 còn chờ mua proxy/nick + cold-start; Phase 05 chưa làm
+**Cập nhật:** 03/08/2026 · **Trạng thái:** [development-roadmap.md](development-roadmap.md)
 
 Tài liệu này trả lời "vì sao" và "phạm vi tới đâu". Chi tiết thi công nằm ở
 [plans/260801-2030-multi-account-posting-console/](../plans/260801-2030-multi-account-posting-console/plan.md).
-Thuật ngữ tra ở [domain-glossary.md](domain-glossary.md).
+Thuật ngữ tra ở [domain-glossary.md](domain-glossary.md); mục lục tài liệu ở [docs/README.md](README.md).
 
 ---
 

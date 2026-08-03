@@ -6,7 +6,10 @@ mà không bị shadowban hay bóp tương tác.
 **Trạng thái:** Phase 01 (Kho danh tính), Phase 02 (Hàng đợi content + Bộ luật an toàn),
 Phase 03 (Dò shadowban + theo dõi karma) và Phase 04 (Facebook Pages) đã xong —
 Phase 04 đã đăng thật lên Fanpage qua Graph API ngày 03/08/2026.
-Xem [kế hoạch triển khai](plans/260801-2030-multi-account-posting-console/plan.md).
+Chi tiết ở [lộ trình phát triển](docs/development-roadmap.md).
+
+File này là **cẩm nang vận hành** — cài, chạy, dùng từng màn hình. Tài liệu dự án (vì sao làm,
+kiến trúc, bản đồ code, quy ước, nhật ký thay đổi) nằm ở [docs/](docs/README.md).
 
 ## Đây là gì
 

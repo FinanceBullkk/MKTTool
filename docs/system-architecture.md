@@ -1,0 +1,128 @@
+# Kiến trúc hệ thống
+
+**Cập nhật:** 03/08/2026
+
+Tài liệu này trả lời: hệ thống **chạy ở đâu**, **tin ai**, **phụ thuộc gì**, và **hỏng thì hỏng
+thế nào**. Code nằm ở đâu thì tra [codebase-summary.md](codebase-summary.md); thuật ngữ tra
+[domain-glossary.md](domain-glossary.md).
+
+---
+
+## 1. Hình dung tổng thể
+
+```
+        MÁY BÀN CỦA BẠN MKT (Windows/macOS)
+┌─────────────────────────────────────────────────────┐
+│                                                     │
+│  Trình duyệt ──▶ Next.js (127.0.0.1:3000)           │
+│                   │  server actions + route handler │
+│                   ▼                                 │
+│              SQLite dev.db ── credential đã mã hóa  │
+│                   │                                 │
+│                   ├──▶ MultiZen (MCP 127.0.0.1:7777)│──▶ profile ──▶ proxy tĩnh ──▶ Reddit
+│                   │                                 │
+│                   ├──▶ Playwright (Chromium riêng)  │──▶ proxy quan sát viên ──▶ old.reddit.com
+│                   │                                 │
+│                   └──▶ Graph API (HTTPS)            │──▶ Facebook Fanpage
+│                                                     │
+│  data/  ảnh chụp · sao lưu · file khóa              │
+│  .env   VAULT_KEY (không nằm trong database)        │
+└─────────────────────────────────────────────────────┘
+```
+
+**Một tiến trình, một máy, một người.** Không server, không container, không hàng đợi việc,
+không cache. `npm run dev` là toàn bộ hệ thống đang chạy.
+
+Ba đường ra internet đi qua **ba IP khác nhau và không được lẫn**: nick đi bằng proxy tĩnh của
+chính nó, bộ dò đi bằng proxy quan sát viên, Graph API đi bằng IP nhà. Lẫn đường nào cũng phá
+đúng thứ nó đang bảo vệ.
+
+## 2. Ranh giới tin cậy
+
+| Ranh giới | Cách canh |
+|---|---|
+| **Mạng** | App chỉ nghe `127.0.0.1` (cả `dev` lẫn `start`). Không có đường vào từ LAN — nên **cũng không share được**: mỗi người một bản cài, một DB, một `VAULT_KEY` |
+| **Không có đăng nhập** | Cố ý. Ai ngồi được trước máy là dùng được toàn bộ. Hàng rào thật là khóa màn hình + mã hóa ổ đĩa của máy đó |
+| **Route handler trong `api/`** | Đối chiếu `Origin`/`Host` (`same-origin-guard.ts`) — chặn trang khác trong cùng trình duyệt gọi sang |
+| **Credential** | Mã hóa AES-256-GCM trước khi ghi. 8 cột ở 5 bảng, khai trong `encrypted-field-registry.ts`; test đọc thẳng `schema.prisma` để bắt cột `*Enc` khai thiếu |
+| **Khóa mã hóa** | `VAULT_KEY` ở `.env`, **không** nằm trong database. Database bị chép đi mà không có khóa thì vô dụng — nên hai thứ này phải cất **hai nơi khác nhau** |
+| **Bí mật lọt ra log** | Mật khẩu proxy chỉ tồn tại dạng trần trong `proxy-config-builder.ts` và lời gọi adapter; token Facebook đi qua `redactTokens()` trước mọi thông báo lỗi |
+| **Nhật ký** | `AuditLog` ghi mọi thao tác nhạy cảm: mở profile, xem credential, ghi đè luật, đăng Fanpage |
+
+**Cái chưa canh:** không có phân quyền, không mã hóa ổ đĩa ở tầng ứng dụng, không chống người
+dùng chính mình. Đúng mô hình một người dùng — nếu sau này nhiều người dùng chung một bản cài thì
+toàn bộ mục này phải làm lại.
+
+## 3. Nơi dữ liệu nằm
+
+| Thứ | Ở đâu | Sao lưu thế nào | Mất thì sao |
+|---|---|---|---|
+| Nick, proxy, content, job, tương tác, nhật ký | `dev.db` (SQLite) | `npm run db:backup` (VACUUM INTO, chạy được khi app đang mở) | Mất toàn bộ lịch sử → bộ luật mù, cho qua bài lẽ ra phải chặn |
+| Mật khẩu, TOTP secret, token Facebook | cùng `dev.db`, dạng ciphertext | như trên | – |
+| `VAULT_KEY` | `.env` | **Password manager, thủ công** | Mất khóa = mất vĩnh viễn mọi credential. Không có đường khôi phục |
+| Ảnh chụp lúc dò | `data/screenshots/` | không | Chỉ mất bằng chứng hình ảnh; bản ghi kết luận vẫn còn |
+| Bản sao lưu | `data/backups/` | – | – |
+| File khóa lượt dò | `data/health-check.lock` | – | Trạng thái máy đang chạy, không phải dữ liệu dự án |
+
+Toàn bộ `data/`, `.env`, `*.db` đều nằm trong `.gitignore`. Repo **không bao giờ** chứa credential.
+
+## 4. Phụ thuộc bên ngoài và cách chúng hỏng
+
+| Phụ thuộc | Dùng để | Hỏng thì biểu hiện | Xử lý đã cài sẵn |
+|---|---|---|---|
+| **MultiZen** (MCP cục bộ) | Mở profile antidetect, đẩy proxy | HTTP 401 (thiếu bearer token), hoặc app khởi động lại giữa chừng | Bắt tay lại tự động; đẩy proxy hỏng thì **không mở profile** |
+| **Proxy tĩnh** (nhà cung cấp) | Đường ra của từng nick | Đẩy vào profile vẫn "thành công" dù proxy đã chết | Không tự phát hiện được — phải mở `ipinfo.io` kiểm IP sau mỗi lần mở profile mới |
+| **Proxy quan sát viên** | Dò shadowban | Chưa nhập thì `npm run health` dừng ngay từ đầu | Cố ý dừng: dò bằng IP nhà còn tệ hơn không dò |
+| **HTML `old.reddit.com`** | Nguồn dữ liệu dò shadowban + karma | Reddit đổi giao diện → parser hỏng | Hỏng thì kết luận **`ERROR` ("Không dò được")**, tuyệt đối không bao giờ là `HEALTHY`. `npm run health:smoke` đối chiếu Reddit thật |
+| **Facebook Graph API** | Đăng Fanpage | Token hết hạn/bị thu hồi | Chấm sức khỏe token **trước khi gọi mạng**; Facebook từ chối thì ghi `tokenValid=false` ngay |
+| **Chromium của Playwright** | Phiên trình duyệt sạch để dò | Chưa cài | `npx playwright install chromium` |
+
+Không phụ thuộc nào có phương án dự phòng tự động, và đó là chủ ý: mỗi lần hỏng đều **dừng và
+nói rõ**, không đoán tiếp. Cả bốn cái chết thầm lặng nguy hiểm nhất — mở profile thiếu proxy, dò
+bằng IP nhà, kết luận "khỏe" khi thật ra không đọc được, đăng bằng token đã chết — đều bị chặn
+bằng một đường dừng hẳn chứ không phải một cảnh báo.
+
+## 5. Kiến trúc phần mềm — ba quyết định định hình mọi thứ
+
+**1. Mỗi luật an toàn là một hàm thuần `(ctx: RuleContext) => RuleVerdict`.**
+Toàn bộ việc hỏi database gom ở `rule-context-builder.ts`. Thêm luật mới = thêm một file + một
+dòng trong `rules-engine.ts`. Test được không cần database. Đây là lý do phần giá trị nhất của
+dự án cũng là phần dễ sửa nhất.
+
+**2. Antidetect browser nằm sau một interface.** `AntidetectBrowserAdapter` có hai cài đặt
+(MultiZen, AdsPower), đổi bằng một dòng `.env`. Không có lời gọi MultiZen nào rò ra ngoài
+`lib/antidetect/`.
+
+**3. Ràng buộc nghiệp vụ ép ở tầng database, không ở tầng UI.** `antidetectProfileId @unique`,
+`proxyId @unique`, `@@unique([platform, username])` — quy tắc "1 nick = 1 proxy = 1 vân tay"
+không lách được kể cả khi viết sai code ứng dụng. UI chỉ giải thích lỗi cho dễ hiểu.
+
+Hệ quả của cả ba: phần khó thay đổi nhất (schema) giữ thứ quan trọng nhất (ràng buộc danh tính),
+phần dễ thay đổi nhất (file luật) giữ thứ hay đổi nhất (kinh nghiệm vận hành).
+
+## 6. Vì sao không chọn cái khác
+
+| Đã chọn | Thay vì | Lý do |
+|---|---|---|
+| Máy bàn, một tiến trình | VPS + Docker + microservices | Antidetect browser là app desktop. 1 người dùng, 1 máy — mọi lớp hạ tầng thêm vào đều là chi phí không đổi lấy gì |
+| SQLite + Prisma | Postgres + Redis | Một người dùng, không truy cập đồng thời. Migrate sau nếu thật sự lên VPS |
+| Server actions của Next.js | REST/GraphQL API riêng | Không có client thứ hai. API tách ra chỉ để tự gọi mình là công vô ích |
+| Reddit qua trình duyệt | Reddit API | API free cấm mục đích thương mại; API thương mại ~$12k/tháng |
+| Facebook Pages qua Graph API | Tự động hóa trình duyệt | Miễn phí, hợp lệ, không bao giờ bị khóa vì vi phạm chính sách tự động hóa |
+| Facebook Group đăng tay | Groups API | Meta khai tử `publish_to_groups` từ 04/2024. Không tool nào làm được nữa |
+| Proxy tĩnh tính theo IP | Proxy dân cư tính theo GB | Bản cũ ước tính ~5,4 triệu/tháng tiền băng thông; IP đổi liên tục còn phá ràng buộc 1 nick : 1 IP |
+| Playwright cho bộ dò | Dò qua chính antidetect browser | Dò phải đi bằng IP khác và phiên sạch. Dùng lại profile của nick là tự nhìn mình trong gương |
+
+Chi tiết bối cảnh từng quyết định ở [project-overview-pdr.md](project-overview-pdr.md) và
+[plan.md](../plans/260801-2030-multi-account-posting-console/plan.md).
+
+## 7. Đường lớn lên nếu quy mô đổi
+
+Không làm bây giờ. Ghi lại để lần sau khỏi tranh luận lại từ đầu:
+
+| Nếu | Phải đổi gì |
+|---|---|
+| Nhiều người dùng chung một bản | Thêm đăng nhập + phân quyền, chuyển SQLite → Postgres, chuyển `VAULT_KEY` sang KMS/vault thật. Toàn bộ §2 làm lại |
+| Chạy 24/7 không ai ngồi máy | Cần hàng đợi việc thật (không phải bảng `PostJob`) + máy luôn bật. Nhưng xem lại mục "không làm" ở PDR trước đã |
+| Trên 20 nick | Antidetect browser trên máy bàn hết chỗ; cần VPS có GUI hoặc nhiều máy. Chi phí proxy tăng tuyến tính |
+| Thêm nền tảng mới | Thêm giá trị vào `platform-family.ts`; đích chưa có bộ đăng tự động sẽ tự rơi vào nhắc việc đăng tay — không im lặng biến mất |

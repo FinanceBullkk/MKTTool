@@ -2,7 +2,9 @@
 
 **Cập nhật:** 03/08/2026
 
-Tài liệu dành cho người mới và AI agent định vị nhanh trong codebase.
+Tài liệu dành cho người mới và AI agent định vị nhanh trong codebase — **code nằm ở đâu**.
+Hệ thống chạy ở đâu và phụ thuộc gì thì xem [system-architecture.md](system-architecture.md);
+quy ước viết code ở [code-standards.md](code-standards.md).
 Thuật ngữ tra ở [domain-glossary.md](domain-glossary.md). Cách cài và chạy xem [README](../README.md).
 
 ---
