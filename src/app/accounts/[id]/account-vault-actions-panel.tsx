@@ -32,16 +32,17 @@ export function AccountVaultActionsPanel({
   const [otp, setOtp] = useState<{ code: string; secondsRemaining: number } | null>(null);
 
   // Đếm ngược mã OTP. Hết giờ thì xóa mã đi thay vì hiện mã đã hết hạn.
+  //
+  // Chính lượt đếm cuối xóa mã, chứ không phải một effect chạy sau đó nhìn thấy số 0 rồi mới
+  // dọn: xóa trong thân effect để lại đúng một lượt render mang mã đã hết hạn ra màn hình.
   useEffect(() => {
-    if (!otp) return;
-    if (otp.secondsRemaining <= 0) {
-      setOtp(null);
-      return;
-    }
+    if (!otp || otp.secondsRemaining <= 0) return;
     const timer = setTimeout(() => {
-      setOtp((current) =>
-        current ? { ...current, secondsRemaining: current.secondsRemaining - 1 } : null,
-      );
+      setOtp((current) => {
+        if (!current) return null;
+        const secondsRemaining = current.secondsRemaining - 1;
+        return secondsRemaining > 0 ? { ...current, secondsRemaining } : null;
+      });
     }, 1000);
     return () => clearTimeout(timer);
   }, [otp]);

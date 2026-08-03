@@ -5,6 +5,12 @@
  *
  * Hủy request cũ khi lựa chọn đổi tiếp — nếu không, phản hồi chậm của lần chọn trước
  * có thể về sau và ghi đè verdict của lần chọn hiện tại (đèn xanh sai = mất nick).
+ *
+ * "Chưa chọn đủ" và "đang chạy" đều SUY RA từ lựa chọn hiện tại chứ không lưu thành state:
+ * kết quả trả về mang theo khóa của lựa chọn đã sinh ra nó, nên khóa lệch nghĩa là thứ đang
+ * cầm thuộc về lựa chọn cũ. Nhờ vậy effect chỉ ghi state trong callback bất đồng bộ, không
+ * ghi thẳng trong thân effect — bớt một lượt render thừa mỗi lần đổi lựa chọn, và khóa trở
+ * thành lớp chặn thứ hai cho phản hồi lạc nếu abort vì lý do nào đó không kịp.
  */
 import { useEffect, useState } from "react";
 import type { RuleEvaluation } from "@/lib/rules/rules-engine";
@@ -22,18 +28,25 @@ export interface PreviewSelection {
   scheduledAt: string;
 }
 
+/** Hai nhánh cuối của PreviewState — thứ duy nhất cần lưu, vì hai nhánh đầu suy ra được. */
+type SettledState = Extract<PreviewState, { status: "error" | "ready" }>;
+
+/** Khóa nhận dạng một lựa chọn. Chuỗi rỗng = chưa chọn đủ bốn ô. */
+function selectionKey(selection: PreviewSelection): string {
+  const { contentItemId, accountId, targetId, scheduledAt } = selection;
+  if (!contentItemId || !accountId || !targetId || !scheduledAt) return "";
+  return JSON.stringify([contentItemId, accountId, targetId, scheduledAt]);
+}
+
 export function useRulePreview(selection: PreviewSelection): PreviewState {
   const { contentItemId, accountId, targetId, scheduledAt } = selection;
-  const [preview, setPreview] = useState<PreviewState>({ status: "idle" });
+  const key = selectionKey(selection);
+  const [settled, setSettled] = useState<{ key: string; state: SettledState } | null>(null);
 
   useEffect(() => {
-    if (!contentItemId || !accountId || !targetId || !scheduledAt) {
-      setPreview({ status: "idle" });
-      return;
-    }
+    if (!key) return;
 
     const controller = new AbortController();
-    setPreview({ status: "loading" });
 
     fetch("/api/rules/preview", {
       method: "POST",
@@ -43,16 +56,22 @@ export function useRulePreview(selection: PreviewSelection): PreviewState {
     })
       .then((response) => response.json())
       .then((data: { ok: boolean; evaluation?: RuleEvaluation; message?: string }) => {
-        if (data.ok && data.evaluation) setPreview({ status: "ready", evaluation: data.evaluation });
-        else setPreview({ status: "error", message: data.message ?? "Không chạy được bộ luật." });
+        setSettled({
+          key,
+          state:
+            data.ok && data.evaluation
+              ? { status: "ready", evaluation: data.evaluation }
+              : { status: "error", message: data.message ?? "Không chạy được bộ luật." },
+        });
       })
       .catch((error: unknown) => {
         if (error instanceof DOMException && error.name === "AbortError") return;
-        setPreview({ status: "error", message: "Không gọi được bộ luật." });
+        setSettled({ key, state: { status: "error", message: "Không gọi được bộ luật." } });
       });
 
     return () => controller.abort();
-  }, [contentItemId, accountId, targetId, scheduledAt]);
+  }, [key, contentItemId, accountId, targetId, scheduledAt]);
 
-  return preview;
+  if (!key) return { status: "idle" };
+  return settled?.key === key ? settled.state : { status: "loading" };
 }

@@ -47,9 +47,14 @@ export function PostJobComposer({
   const [overrideReason, setOverrideReason] = useState("");
 
   // Đặt giờ mặc định sau khi mount, không đặt lúc render — server và client lệch giờ là vỡ hydrate.
+  //
+  // Đây là ngoại lệ có chủ ý của luật set-state-in-effect: giá trị này CHỈ tính được ở client
+  // (nó phụ thuộc múi giờ máy người dùng), nên không có cách nào suy ra lúc render mà vẫn
+  // hydrate sạch. Đổi một lượt render thừa lúc mount để lấy giờ đúng là đánh đổi đáng.
   useEffect(() => {
     const nextHour = new Date();
     nextHour.setHours(nextHour.getHours() + 1, 0, 0, 0);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setScheduledAt(toLocalInputValue(nextHour));
   }, []);
 
