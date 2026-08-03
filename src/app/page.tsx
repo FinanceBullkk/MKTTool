@@ -12,6 +12,7 @@ import {
 } from "@/lib/accounts/account-status";
 import { prisma } from "@/lib/db/prisma-client";
 import { loadFacebookTokenWarnings } from "@/lib/facebook/facebook-token-warnings";
+import { loadDuplicatePostedUrls } from "@/lib/queue/duplicate-posted-url-check";
 import { loadDueManualPostReminders } from "@/lib/queue/manual-post-reminders";
 import { loadPostingLoopSummary } from "@/lib/queue/posting-loop-summary";
 import { loadAccountHealthRows } from "@/lib/health/health-dashboard-queries";
@@ -35,6 +36,7 @@ export default async function OverviewPage() {
     brokenProxies,
     tokenWarnings,
     activeObserverProxyCount,
+    duplicatePostedUrls,
   ] = await Promise.all([
       prisma.account.findMany({
         select: { id: true, username: true, status: true, coldStartUntil: true },
@@ -56,6 +58,7 @@ export default async function OverviewPage() {
       }),
       loadFacebookTokenWarnings(),
       prisma.observerProxy.count({ where: { active: true } }),
+      loadDuplicatePostedUrls(),
     ]);
 
   // "Chưa dò" và "dò lâu rồi" đều là KHÔNG BIẾT — nhưng là hai kiểu không biết khác nhau, cần
@@ -112,6 +115,40 @@ export default async function OverviewPage() {
               </li>
             ))}
           </ul>
+        </AlertBanner>
+      ) : null}
+
+      {/* Lỗi sổ sách, không phải lỗi nick — nhưng nó làm bộ luật đếm sai nên phải hiện sớm. */}
+      {duplicatePostedUrls.length > 0 ? (
+        <AlertBanner tone="amber">
+          <p className="font-medium">
+            {duplicatePostedUrls.length} link bị dán cho nhiều bài khác nhau — nhiều khả năng bấm
+            &quot;Đã đăng&quot; nhầm link:
+          </p>
+          <ul className="mt-2 space-y-1">
+            {duplicatePostedUrls.map((conflict) => (
+              <li key={conflict.threadKey}>
+                <a
+                  href={conflict.sampleUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="underline"
+                >
+                  {conflict.threadKey}
+                </a>{" "}
+                <span className="text-neutral-600 dark:text-neutral-400">
+                  — {conflict.jobs.map((job) => `“${job.contentTitle}”`).join(" và ")}
+                </span>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-2">
+            Bài nào chưa đăng thật thì{" "}
+            <Link href="/queue?status=POSTED" className="underline">
+              trả job đó về Chờ đăng
+            </Link>{" "}
+            — để nguyên là luật 7 coi content đó đã dùng rồi và sẽ chặn khi bạn đăng nó thật.
+          </p>
         </AlertBanner>
       ) : null}
 

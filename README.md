@@ -461,8 +461,20 @@ Kết quả vào bảng ở `/health` và trang chủ, kèm biểu đồ karma 3
 | Profile hiện ra, nhưng 0/N bài đã đăng nhìn thấy được | **Bị ẩn** — kiểu ẩn từng bài |
 | Thấy dưới một nửa số bài đã đăng | **Nghi ngờ** — có thể chỉ là mod xóa bài |
 | Trang báo tài khoản bị treo | **Dính checkpoint** |
+| **Thấy nhiều bài hơn số đã ghi trong kho** | **Có bài chưa ghi** — bộ luật đang đếm thiếu |
 | Bộ dò bị captcha / Reddit đổi HTML | **Không dò được** — *không phải* tin tốt |
 | Profile bình thường, nhưng chưa bài nào đánh dấu đã đăng | **Chưa đối chiếu được** — cũng *không phải* tin tốt |
+
+**"Có bài chưa ghi" là kết luận về SỔ SÁCH, không phải về nick** — nên nó không cách ly nick.
+Nhưng đừng bỏ qua: bộ luật đếm theo job, nên mỗi bài không được ghi làm luật hạn mức ngày, giãn
+cách cùng đích, tỷ lệ promo và chặn đụng độ thread **đều dễ dãi hơn thực tế**. Bài bị ẩn thì mất
+reach; bài không được ghi thì bộ luật lặng lẽ cho qua những bài lẽ ra phải chặn — và đó mới là
+đường dẫn tới shadowban. Kể cả bài đăng tay để nuôi nick hay bài của chủ cũ khi mua nick cổ cũng
+nên ghi.
+
+Bộ dò đọc `data-permalink` của từng bài nên chỉ được **đích danh bài nào** chưa ghi, và job nào
+khai đã đăng mà không thấy bài. Khóa sinh bằng đúng `normalizeThreadUrl()` mà luật 8 dùng, nên
+hai bên ghép được với nhau.
 
 Hai kết luận cuối bảng đều có nghĩa "chưa biết", chỉ khác nguyên nhân: **Không dò được** là bộ
 dò hỏng, **Chưa đối chiếu được** là bộ dò chạy ngon nhưng không có gì để so. Nick mới hoặc đang

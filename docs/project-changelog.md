@@ -7,6 +7,49 @@ Dự án chưa phát hành phiên bản (`0.1.0`, dùng nội bộ). Mốc chia 
 
 ---
 
+## 04/08/2026 — Bộ dò chuyển từ ĐẾM sang ĐỐI CHIẾU
+
+Câu hỏi mở đầu: *"observer có kiểm chứng được không?"* — trước đợt này thì **không**. Parser chỉ
+moi `data-type` và `data-timestamp`, nên bộ dò biết "có 1 bài trong 7 ngày" mà không biết **bài
+nào**. Mọi so sánh đều là số lượng với số lượng: lệch thì biết, nhưng không chỉ được vào đâu.
+
+**Tính năng**
+
+- **Parser đọc khóa bài.** Thẻ `.thing` của old.reddit vốn mang sẵn `data-permalink` và
+  `data-fullname` — id bài nằm ngay trong thuộc tính parser đang bỏ qua. Cho permalink đi qua
+  đúng `normalizeThreadUrl()` của luật 8 để hai bên sinh khóa bằng cùng một hàm; hai cách rút
+  gọn riêng là hai cách sai khác nhau. Không thêm request nào.
+- **Kết luận thứ bảy: "Có bài chưa ghi"** (`thấy > đã ghi`). Đây là chiều so sánh bộ dò từng mù
+  hoàn toàn, và nó nguy hiểm hơn chiều đang kiểm: bài bị ẩn thì mất reach, còn bài không được
+  ghi làm **bốn luật giữ nhịp đếm thiếu** — hạn mức ngày, giãn cách cùng đích, tỷ lệ promo và
+  chặn đụng độ thread đều dễ dãi hơn thực tế. Tức lỗi sổ sách âm thầm biến bộ luật thành thứ
+  tạo ra chính cái nó phải ngăn.
+  Kết luận này **không** đổi trạng thái nick: nick khỏe, hỏng là sổ sách của mình.
+- **Nhánh "chưa đối chiếu được" hết nói sai.** Nick có 0 job trong kho mà 3 bài trên profile
+  từng trả *"chưa bài nào được đánh dấu nên không có gì để đối chiếu"* — đúng lúc đang có rất
+  nhiều thứ để đối chiếu. Giờ ra "Có bài chưa ghi".
+- **Cảnh báo hai job khác nội dung dán trùng một link.** Không phải việc của bộ dò: không cần
+  mạng, không cần proxy, không phụ thuộc Reddit đổi HTML — chỉ là một câu hỏi đặt cho chính kho.
+  Cần nó vì phép gộp job theo link (đúng về mẫu số) đã **xóa mất manh mối** của lỗi này khỏi
+  màn hình, nên manh mối phải được đọc ở chỗ khác.
+- **Cắt khoảng trắng trong username.** Kiểm dữ liệu thật thấy một nick lưu là `" IllBlueberry5395"`.
+  Username là khóa tra cứu của bộ dò, và khoảng trắng thừa thành `%20` trong URL — cùng lớp lỗi
+  với gõ sai username, mà lớp đó dẫn thẳng tới 404 → tự cách ly một nick đang khỏe.
+
+**Vì sao vẫn giữ nhánh đếm bên cạnh nhánh khóa:** nick nào bộ dò không đọc được `data-permalink`
+sẽ im lặng trở lại nếu chỉ dựa vào khóa. Có khóa thì chỉ đích danh, không có thì vẫn kết luận
+được bằng số lượng.
+
+**Không làm, có chủ ý:** đối chiếu theo TIÊU ĐỀ. Nó bắt được ca "link đúng nhưng nội dung khác"
+— nhưng tiêu đề sửa được sau khi đăng và người dùng có thể gõ khác lúc dán, nên mong manh. Đúng
+ca đó đã có cảnh báo trùng link bắt, rẻ hơn nhiều và không phụ thuộc Reddit.
+
+**Kiểm chứng:** `typecheck` + `lint` + `403 test`; đo trên dữ liệu thật — cảnh báo trùng link chỉ
+đúng vào cặp job có thật, `loadRecordedPostKeys` trả đúng `reddit:1veg99o`.
+Xem [plan](../plans/260804-0353-dua-bo-do-shadowban-vao-chay-that/plan.md).
+
+---
+
 ## 04/08/2026 — Đưa bộ dò shadowban vào chạy thật
 
 Đo trạng thái kho: **0 proxy quan sát viên, 0 lượt dò đã chạy**. Cả Phase 03 — parser
