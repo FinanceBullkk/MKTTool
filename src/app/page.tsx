@@ -15,6 +15,7 @@ import { loadFacebookTokenWarnings } from "@/lib/facebook/facebook-token-warning
 import { loadDueManualPostReminders } from "@/lib/queue/manual-post-reminders";
 import { loadPostingLoopSummary } from "@/lib/queue/posting-loop-summary";
 import { loadAccountHealthRows } from "@/lib/health/health-dashboard-queries";
+import { evaluateHealthSetup } from "@/lib/health/health-setup-warning";
 import { PROBLEM_VERDICTS, PROXY_CHECK_LABEL } from "@/lib/proxies/proxy-liveness-verdict";
 
 export const dynamic = "force-dynamic";
@@ -33,6 +34,7 @@ export default async function OverviewPage() {
     loopSummary,
     brokenProxies,
     tokenWarnings,
+    activeObserverProxyCount,
   ] = await Promise.all([
       prisma.account.findMany({
         select: { id: true, username: true, status: true, coldStartUntil: true },
@@ -53,10 +55,17 @@ export default async function OverviewPage() {
         orderBy: { label: "asc" },
       }),
       loadFacebookTokenWarnings(),
+      prisma.observerProxy.count({ where: { active: true } }),
     ]);
 
-  // "Chưa dò" và "dò lâu rồi" đều là KHÔNG BIẾT, và không biết thì phải hiện ra.
-  const staleHealth = healthRows.filter((row) => row.stale);
+  // "Chưa dò" và "dò lâu rồi" đều là KHÔNG BIẾT — nhưng là hai kiểu không biết khác nhau, cần
+  // hai câu khác nhau và hai việc phải làm khác nhau. Xem health-setup-warning.ts.
+  const healthWarning = evaluateHealthSetup({
+    redditAccountCount: healthRows.length,
+    activeObserverProxyCount,
+    neverCheckedCount: healthRows.filter((row) => row.latest === null).length,
+    staleCount: healthRows.filter((row) => row.latest !== null && row.stale).length,
+  });
 
   const byStatus = new Map<AccountStatus, number>();
   for (const status of ACCOUNT_STATUSES) byStatus.set(status, 0);
@@ -138,12 +147,11 @@ export default async function OverviewPage() {
         </AlertBanner>
       ) : null}
 
-      {staleHealth.length > 0 ? (
-        <AlertBanner tone="amber">
-          {staleHealth.length} nick chưa được dò gần đây — chưa biết bài của chúng còn hiện với
-          người ngoài không.{" "}
-          <Link href="/health" className="underline">
-            xem bảng sức khỏe
+      {healthWarning ? (
+        <AlertBanner tone={healthWarning.tone}>
+          {healthWarning.message}{" "}
+          <Link href={healthWarning.href} className="underline">
+            {healthWarning.linkLabel}
           </Link>
           .
         </AlertBanner>
