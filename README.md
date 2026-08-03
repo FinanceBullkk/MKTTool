@@ -234,6 +234,7 @@ src/
     ├── facebook/            Graph API: OAuth, token, đăng Fanpage
     ├── format/ platforms/   định dạng ngày, gộp họ nền tảng
     ├── health/              bộ dò shadowban: phiên trình duyệt sạch, parser, đánh giá, runner
+    ├── proxies/             kiểm proxy còn sống: hỏi IP ra qua proxy, kết luận, chặn mở profile
     ├── queue/               server action cho job + tương tác, nhắc việc đăng tay
     ├── rules/               bộ luật an toàn — mỗi luật một file
     └── totp/                sinh mã OTP 2FA
@@ -278,8 +279,28 @@ giao thức upstream chỉ là chặng sau đó.
 > đăng nhập lần đầu. Đừng đổi ngôn ngữ của profile đang nuôi: nick dùng `sv-SE` suốt 3 tháng rồi
 > đột ngột sang `en-GB` còn đáng ngờ hơn là cứ để lệch.
 
-> ⚠️ Đẩy thành công **không** có nghĩa proxy còn sống. Vẫn mở `ipinfo.io` kiểm IP sau mỗi lần
-> mở profile mới — proxy hết hạn hoặc bị chặn vẫn ăn cấu hình bình thường.
+### Proxy được kiểm trước khi mở
+
+Bấm "Mở profile" là công cụ **đi qua chính proxy đó hỏi xem người ngoài nhìn thấy IP nào**, rồi
+mới đẩy và mở. Năm kết luận:
+
+| Kết luận | Nghĩa là | Có mở profile không |
+|---|---|---|
+| **Sống** | proxy trả lời, IP ra khác IP nhà | ✅ mở |
+| **Chết** | không nối được, sai mật khẩu, hoặc proxy không ra được internet | ❌ **không mở** |
+| **Không đổi IP** | proxy trả lời bình thường nhưng IP ra **đúng bằng IP máy này** | ❌ **không mở** |
+| **Lệch nước** | proxy sống nhưng ra ở nước khác nước đã khai | ⚠️ mở, có nói rõ |
+| **Không kiểm được** | dịch vụ tra cứu hỏng hoặc mất mạng — *không phải* tin tốt | ⚠️ mở, có nói rõ |
+
+Kiểm cả kho bằng nút **"Kiểm tất cả"** ở `/proxies`; mỗi dòng cũng có nút **"Kiểm"** riêng và
+một cột ghi kết luận của lần kiểm gần nhất. Proxy hỏng nổi lên thành dải cảnh báo đỏ ở trang
+**Hôm nay** — không phải mở giao diện antidetect mới thấy.
+
+Proxy **chưa kiểm lần nào** hiện đúng chữ "chưa kiểm lần nào", không hiện như đang khỏe.
+
+> ⚠️ Phép đo trên là của **công cụ**, không phải của trình duyệt: nó chứng minh proxy còn sống,
+> không chứng minh MultiZen đang thật sự dùng nó. Lần đầu mở một profile mới vẫn nên vào
+> `ipinfo.io` trong chính profile đó đối chiếu.
 
 MultiZen không phơi endpoint CDP ra ngoài (Playwright không gắn vào được) — đó là **bình thường,
 không phải lỗi**. Nó lái trình duyệt bằng chính tool MCP của nó (`navigate`, `click`, `type`,
@@ -485,6 +506,7 @@ chuyển xấu từ lúc nào.
 | Mở profile antidetect | 02/08/2026 | Chặng B |
 | Đẩy proxy vào profile, IP khớp | 02/08/2026 | [Chặng C](plans/reports/chang-c-260802-1443-proxy-push-verification.md) |
 | Dò shadowban đọc Reddit thật | 03/08/2026 | `npm run health:smoke` 17/17, bắt được 2 lỗi parser |
+| Kiểm proxy còn sống qua chính proxy đó | 04/08/2026 | 10/10 proxy Webshare ra đúng IP và đúng quốc gia; nhánh SOCKS5 và nhánh HTTP trên cùng một proxy cho cùng một IP |
 | **Đăng thật lên Fanpage qua Graph API** | **03/08/2026** | Bài lên tường Page nháp; job `POSTED` kèm URL thật, `Interaction` tự ghi, `AuditLog` ghi `FACEBOOK_PAGE_PUBLISHED` |
 
 Chưa kiểm chứng: đăng bằng nick Reddit thật (Phase 05 chưa làm), và `npm run health` với nick thật
