@@ -7,6 +7,50 @@ Dự án chưa phát hành phiên bản (`0.1.0`, dùng nội bộ). Mốc chia 
 
 ---
 
+## 03/08/2026 — Băng chuyền vòng đăng bài
+
+**Tính năng**
+
+- **Băng chuyền ở trang xếp lịch** — `Content → Nick → Đích → Giờ → 10 luật`, mỗi chặng đổi màu
+  theo trạng thái thật, bấm chặng nào thì con trỏ nhảy vào ô nhập đó. Đèn chặng cuối lấy thẳng
+  từ verdict nên không thể lệch với bảng luật bên dưới.
+- **Băng chuyền vòng đăng bài ở trang Hôm nay** — `Chờ đăng → Quá giờ → Đã đăng hôm nay →
+  Tương tác 30 ngày`. Chặng **Quá giờ** là thứ chưa từng hiện ở đâu: job tới giờ mà vẫn `PENDING`
+  nghĩa là hoặc chưa đăng, hoặc đã đăng mà quên bấm "Đã đăng" — vế sau làm bộ luật coi như bài
+  đó chưa từng tồn tại.
+- **Sơ đồ vòng đời một bài đăng** trong [system-architecture.md](system-architecture.md) — ba
+  đường ngược từ `Interaction`/`ContentItem` về bộ luật vẽ rõ vì sao quên một nút lại làm cả bộ
+  luật dại đi.
+
+**Chưa làm, có chủ ý:** không biến đèn luật thành đồng hồ đo (hiện "7/9 bài hữu ích" thay cho
+dấu ✓), vì việc đó phải sửa cả 10 file luật để giữ `reason` khi verdict là ALLOW. Đợi băng chuyền
+được dùng thật đã rồi mới đụng vào lõi. Không dựng canvas kéo-thả — form bốn ô nhanh hơn kéo dây
+cho việc đăng từng bài. Xem [plan](../plans/260803-2257-bang-chuyen-vong-dang-bai/plan.md).
+
+---
+
+## 03/08/2026 — Rút gọn luồng người dùng: mỗi bài từ 4 trang xuống 2
+
+**Tính năng**
+
+- **Nav 9 mục gom còn 4, chia theo tần suất dùng.** `Hôm nay · Hàng đợi · Sức khỏe` nằm ngang,
+  sáu trang kho (Nick, Nhân vật, Proxy, Đích đăng, Content, Facebook) vào dropdown "Kho" — mở
+  được bằng bàn phím, đóng bằng Escape hoặc bấm ra ngoài. Không route nào bị xóa hay đổi tên.
+- **Bấm "Đã đăng" kèm link ngay ở thẻ nhắc việc trang Hôm nay**, không phải sang hàng đợi. Cùng
+  một component với hàng đợi (`mark-posted-control.tsx`) nên hai đường ghi không thể lệch nhau.
+- **Viết content mới thẳng ở trang xếp lịch** — tab `Viết mới | Chọn từ kho`. Đèn luật chạy
+  realtime cho cả hai tab (bộ luật đã hỗ trợ nhánh nháp sẵn, chặn nằm ở hai schema tầng trên).
+  Kho content trống không còn chặn trang xếp lịch.
+
+**Ràng buộc giữ nguyên:** nháp được LƯU thành `ContentItem` khi bấm xếp lịch — chấm luật trước,
+lưu sau, để bài không tự so trùng với chính nó. Job không bao giờ trỏ vào content ảo, nên luật 7
+(trùng nội dung 30 ngày) vẫn đủ dữ liệu để so.
+
+**Kiểm chứng:** `typecheck` + `lint` + `358 test` + `rules:smoke` (6/6) + `next build` đều xanh.
+Thêm `post-job-actions.database.test.ts` khóa đúng ràng buộc trên.
+
+---
+
 ## 03/08/2026 — Phase 03 + Phase 04 nghiệm thu bằng thực tế
 
 **Tính năng**

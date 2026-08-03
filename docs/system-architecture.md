@@ -37,7 +37,38 @@ Ba đường ra internet đi qua **ba IP khác nhau và không được lẫn**:
 chính nó, bộ dò đi bằng proxy quan sát viên, Graph API đi bằng IP nhà. Lẫn đường nào cũng phá
 đúng thứ nó đang bảo vệ.
 
-## 2. Ranh giới tin cậy
+## 2. Vòng đời một bài đăng — và vòng phản hồi nuôi bộ luật
+
+```mermaid
+flowchart LR
+  C["ContentItem<br/>kho content"] --> J["PostJob"]
+  A["Account<br/>nick"] --> J
+  T["PlatformTarget<br/>đích đăng"] --> J
+  J --> R{"10 luật"}
+  R -->|BLOCK| X["Bị chặn<br/>nêu rõ luật nào"]
+  R -->|"ALLOW / WARN"| P["PENDING<br/>chờ đăng"]
+  P --> M["Đăng tay<br/>mở profile · copy · dán"]
+  M --> D["Đã đăng + link<br/>markJobPosted"]
+  D --> I["Interaction<br/>tự ghi khi đánh dấu"]
+  I -.->|"luật 8: đụng độ thread"| R
+  D -.->|"luật 4, 6: giãn cách, tỷ lệ 9:1"| R
+  C -.->|"luật 7: trùng nội dung 30 ngày"| R
+```
+
+Đường liền là một bài đi từ trái sang phải. **Ba đường đứt mới là thứ đáng nhớ**: chúng chạy
+ngược về bộ luật, và chúng là lý do bộ luật ngày càng chính xác thay vì đứng yên.
+
+Hệ quả trực tiếp: **quên bấm "Đã đăng" là cắt cả ba đường ngược cùng lúc.** Job nằm mãi ở
+`PENDING`, không có `Interaction` nào được ghi, và với bộ luật thì bài đó **chưa từng tồn tại** —
+nick khác đụng đúng thread ấy sẽ được cho qua, giãn cách đếm sai, tỷ lệ 9:1 đếm thiếu. Không có
+thông báo lỗi nào cho tình huống này, vì đứng từ trong app nhìn ra thì không có gì hỏng cả. Đó là
+lý do nút "Đã đăng" được đặt ngay tại thẻ nhắc việc ở trang Hôm nay chứ không bắt đổi trang.
+
+Cùng lý do đó, content gõ thẳng ở trang xếp lịch vẫn phải được lưu thành `ContentItem` thật:
+luật 7 so bài mới với kho trong 30 ngày, content không vào kho thì mỗi bài viết thẳng lại xóa
+một mẩu trí nhớ của luật ấy. Lưu **sau** khi chấm luật, để bài không tự so trùng với chính nó.
+
+## 3. Ranh giới tin cậy
 
 | Ranh giới | Cách canh |
 |---|---|
@@ -53,7 +84,7 @@ chính nó, bộ dò đi bằng proxy quan sát viên, Graph API đi bằng IP n
 dùng chính mình. Đúng mô hình một người dùng — nếu sau này nhiều người dùng chung một bản cài thì
 toàn bộ mục này phải làm lại.
 
-## 3. Nơi dữ liệu nằm
+## 4. Nơi dữ liệu nằm
 
 | Thứ | Ở đâu | Sao lưu thế nào | Mất thì sao |
 |---|---|---|---|
@@ -66,7 +97,7 @@ toàn bộ mục này phải làm lại.
 
 Toàn bộ `data/`, `.env`, `*.db` đều nằm trong `.gitignore`. Repo **không bao giờ** chứa credential.
 
-## 4. Phụ thuộc bên ngoài và cách chúng hỏng
+## 5. Phụ thuộc bên ngoài và cách chúng hỏng
 
 | Phụ thuộc | Dùng để | Hỏng thì biểu hiện | Xử lý đã cài sẵn |
 |---|---|---|---|
@@ -82,7 +113,7 @@ nói rõ**, không đoán tiếp. Cả bốn cái chết thầm lặng nguy hi�
 bằng IP nhà, kết luận "khỏe" khi thật ra không đọc được, đăng bằng token đã chết — đều bị chặn
 bằng một đường dừng hẳn chứ không phải một cảnh báo.
 
-## 5. Kiến trúc phần mềm — ba quyết định định hình mọi thứ
+## 6. Kiến trúc phần mềm — ba quyết định định hình mọi thứ
 
 **1. Mỗi luật an toàn là một hàm thuần `(ctx: RuleContext) => RuleVerdict`.**
 Toàn bộ việc hỏi database gom ở `rule-context-builder.ts`. Thêm luật mới = thêm một file + một
@@ -100,7 +131,7 @@ không lách được kể cả khi viết sai code ứng dụng. UI chỉ giả
 Hệ quả của cả ba: phần khó thay đổi nhất (schema) giữ thứ quan trọng nhất (ràng buộc danh tính),
 phần dễ thay đổi nhất (file luật) giữ thứ hay đổi nhất (kinh nghiệm vận hành).
 
-## 6. Vì sao không chọn cái khác
+## 7. Vì sao không chọn cái khác
 
 | Đã chọn | Thay vì | Lý do |
 |---|---|---|
@@ -116,13 +147,13 @@ phần dễ thay đổi nhất (file luật) giữ thứ hay đổi nhất (kinh
 Chi tiết bối cảnh từng quyết định ở [project-overview-pdr.md](project-overview-pdr.md) và
 [plan.md](../plans/260801-2030-multi-account-posting-console/plan.md).
 
-## 7. Đường lớn lên nếu quy mô đổi
+## 8. Đường lớn lên nếu quy mô đổi
 
 Không làm bây giờ. Ghi lại để lần sau khỏi tranh luận lại từ đầu:
 
 | Nếu | Phải đổi gì |
 |---|---|
-| Nhiều người dùng chung một bản | Thêm đăng nhập + phân quyền, chuyển SQLite → Postgres, chuyển `VAULT_KEY` sang KMS/vault thật. Toàn bộ §2 làm lại |
+| Nhiều người dùng chung một bản | Thêm đăng nhập + phân quyền, chuyển SQLite → Postgres, chuyển `VAULT_KEY` sang KMS/vault thật. Toàn bộ §3 làm lại |
 | Chạy 24/7 không ai ngồi máy | Cần hàng đợi việc thật (không phải bảng `PostJob`) + máy luôn bật. Nhưng xem lại mục "không làm" ở PDR trước đã |
 | Trên 20 nick | Antidetect browser trên máy bàn hết chỗ; cần VPS có GUI hoặc nhiều máy. Chi phí proxy tăng tuyến tính |
 | Thêm nền tảng mới | Thêm giá trị vào `platform-family.ts`; đích chưa có bộ đăng tự động sẽ tự rơi vào nhắc việc đăng tay — không im lặng biến mất |
