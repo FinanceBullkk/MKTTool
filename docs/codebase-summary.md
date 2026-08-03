@@ -1,6 +1,6 @@
 # Bản đồ mã nguồn
 
-**Cập nhật:** 02/08/2026
+**Cập nhật:** 03/08/2026
 
 Tài liệu dành cho người mới và AI agent định vị nhanh trong codebase.
 Thuật ngữ tra ở [domain-glossary.md](domain-glossary.md). Cách cài và chạy xem [README](../README.md).
@@ -21,24 +21,31 @@ src/
 │   ├── content/                Kho content team viết
 │   ├── queue/                  Hàng đợi + trang xếp lịch (chấm luật realtime)
 │   ├── facebook/               Kết nối Fanpage, trạng thái token, giải thích về Group
+│   ├── health/                 Bảng sức khỏe nick, lịch sử dò, biểu đồ karma 30 ngày
 │   └── api/
 │       ├── accounts/[id]/launch/   API mở profile antidetect browser
 │       ├── facebook/oauth/         start (sinh state + redirect) và callback (đổi token)
+│       ├── health/run/             Dò lại một nick ngay (POST)
 │       └── rules/preview/          Chạy thử bộ luật, trả verdict (POST)
 ├── components/
 │   ├── ui/                     Khối UI dùng chung: form controls, page section
 │   ├── queue/                  UI hàng đợi: composer, bảng job, verdict badge, nút đăng Page,
-│   │                           nhắc việc group
+│   │                           nhắc việc đăng tay (Reddit + Group)
 │   ├── facebook/               Bảng Page: gán nick quản trị, kiểm token, ngắt kết nối
+│   ├── health/                 Bảng sức khỏe, nút dò lại, biểu đồ karma, quản lý proxy quan sát viên
 │   └── content/                Form nhập content
 └── lib/
     ├── accounts/               Server actions + quy tắc trạng thái nick
+    ├── actions/                Kiểu ActionResult dùng chung cho mọi server action
     ├── antidetect/             Adapter MultiZen / AdsPower (đổi bằng 1 dòng .env)
     ├── content/                Hằng số loại content, trạng thái job, loại tương tác
     ├── crypto/                 AES-256-GCM cho credential (mã hóa/giải mã + key loader)
-    ├── db/                     Prisma client singleton
+    ├── db/                     Prisma client singleton, sao lưu, chặn xóa khi còn tham chiếu
     ├── facebook/               Graph API: OAuth, token, đăng Fanpage (chi tiết bên dưới)
     ├── format/                 Định dạng ngày tiếng Việt
+    ├── health/                 Bộ dò shadowban: phiên trình duyệt sạch qua proxy quan sát viên,
+    │                           parser HTML Reddit, đánh giá kết luận, runner, khóa chống chạy chồng
+    ├── http/                   Đối chiếu Origin/Host cho route handler trong api/
     ├── platforms/              Gộp họ nền tảng (REDDIT / FACEBOOK)
     ├── queue/                  Server actions: tạo job, đổi trạng thái, ghi tương tác, tóm tắt promo
     ├── rules/                  Bộ luật an toàn — mỗi luật một file (chi tiết bên dưới)
@@ -49,13 +56,18 @@ Thư mục khác ở gốc repo:
 
 ```
 prisma/
-├── schema.prisma               Schema duy nhất, 12 model
+├── schema.prisma               Schema duy nhất, 13 model
 └── migrations/                 Lịch sử migration
 scripts/
 ├── generate-vault-key.ts       Sinh VAULT_KEY
 ├── generate-test-totp-secret.ts  Sinh TOTP secret dùng thử
+├── rekey-vault-key.ts          Xoay VAULT_KEY, mã hóa lại toàn bộ credential
+├── backup-database.ts          Sao lưu bằng VACUUM INTO (chạy được khi app đang mở)
+├── import-proxies-from-provider-list.ts  Nhập hàng loạt proxy từ file nhà cung cấp
+├── run-health-check.ts         Dò shadowban + đọc karma mọi nick Reddit (Phase 03)
 ├── smoke-test-identity-vault.ts  Kiểm chứng Phase 01
 ├── smoke-test-content-rules.ts   Kiểm chứng Phase 02
+├── smoke-test-account-health.ts  Kiểm chứng Phase 03 (có phần đọc HTML Reddit thật)
 └── smoke-test-facebook-pages.ts  Kiểm chứng Phase 04 (không cần Meta App)
 plans/                          Kế hoạch triển khai (chỉ đọc, không sửa)
 docs/                           Tài liệu dự án
@@ -65,13 +77,14 @@ docs/                           Tài liệu dự án
 
 ## Mô hình dữ liệu
 
-12 model trong `prisma/schema.prisma`. Các ràng buộc `@unique` là chỗ nguyên tắc 1:1 được ép.
+13 model trong `prisma/schema.prisma`. Các ràng buộc `@unique` là chỗ nguyên tắc 1:1 được ép.
 
 | Model | Ý nghĩa | Ràng buộc đáng chú ý |
 |---|---|---|
 | `Persona` | Nhân vật: giọng điệu + mảng nội dung | `name @unique` |
 | `Proxy` | Proxy tĩnh gắn 1:1 với nick | `label @unique`; `@@unique([host, port, username])`; `type` = cách mua (STATIC_ISP/MOBILE), `protocol` = giao thức mạng (http/socks5) — hai thứ khác nhau |
-| `ObserverProxy` | Proxy dò shadowban, KHÔNG được dùng đăng nhập | `label @unique` |
+| `ObserverProxy` | Proxy dò shadowban, KHÔNG được dùng đăng nhập | `label @unique`. Tách hẳn khỏi `Proxy` chứ không thêm cờ: bản ghi nằm ở bảng này thì **không có đường nào** gắn vào nick |
+| `HealthCheck` | Một lần dò sức khỏe nick từ góc nhìn người ngoài | Giữ cả `visiblePosts` lẫn `expectedPosts`, không chỉ giữ kết luận — khi Reddit đổi HTML thì hai số này là thứ duy nhất cho biết bộ dò sai từ lúc nào. Không parse được **phải** là `ERROR`, tuyệt đối không phải `HEALTHY` |
 | `Account` | Nick Reddit/Facebook | `antidetectProfileId @unique` và `proxyId @unique` — ép 1 nick : 1 profile : 1 proxy. Cả hai **nullable**: bắt buộc với Reddit, bỏ trống được với Facebook (xem mục riêng bên dưới); `@@unique([platform, username])` |
 | `PlatformTarget` | Đích đăng: sub/page/group kèm luật riêng | `@@unique([platform, name])` |
 | `ContentItem` | Bài do team viết | `type`: VALUE hoặc PROMO |
@@ -86,8 +99,14 @@ Quan hệ chính: `Account` → `Persona` (n:1), `Account` → `Proxy` (1:1), `P
 
 **Không có model nào cho việc tự đăng Facebook Group, và sẽ không có** — Meta gỡ
 `publish_to_groups` từ 04/2024. Bài group là `PostJob` với đích FACEBOOK_GROUP như mọi bài khác,
-nên vẫn bị chấm đủ 9 luật; phần nhắc việc là một truy vấn (`facebook-group-reminder.ts`), không
-phải một bảng.
+nên vẫn bị chấm 9 trong 10 luật; phần nhắc việc là một truy vấn
+(`queue/manual-post-reminders.ts`), không phải một bảng.
+
+Bộ nhắc việc đó **dùng chung cho Reddit và Group** — hai đường đăng tay giống nhau tới từng bước.
+Danh sách "đích nào phải đăng tay" được **suy ra** trong `platform-family.ts`
+(`MANUAL_POST_PLATFORMS` = mọi đích trừ `AUTO_PUBLISH_PLATFORMS`), nên thêm một loại đích mới mà
+chưa viết bộ đăng tự động thì nó mặc định rơi vào "đăng tay" — hiện ra ở nhắc việc thay vì im lặng
+biến mất. Khác biệt duy nhất giữa hai nền tảng là số ô nhập: Reddit hai ô (tiêu đề rời), Facebook một.
 
 ---
 
@@ -103,7 +122,11 @@ phải một bảng.
    │                     → trả verdict về UI realtime
    └── Bấm lưu          → src/lib/queue/post-job-actions.ts       → PostJob (PENDING|BLOCKED)
 3. Đăng bài             → Fanpage: nút "Đăng lên Page" gọi Graph API (Phase 04)
-                          Reddit/Group: người mở profile tay rồi copy/paste (Reddit → Phase 05)
+                          Reddit/Group: thẻ "Đăng tay" ở trang tổng quan
+                          → src/lib/queue/manual-post-reminders.ts   job đến hạn trong 24h
+                          → src/components/queue/manual-post-reminders.tsx
+                            mở profile + copy sẵn nội dung; dán và bấm đăng là việc của người
+                            (tự đăng Reddit → Phase 05)
 4. Đánh dấu đã đăng     → src/lib/queue/post-job-status-actions.ts  → status = POSTED
 5. Ghi tương tác        → src/lib/queue/interaction-actions.ts     → Interaction
 ```
@@ -171,7 +194,6 @@ của user token, dừng ở token 2 giờ thì trưa hôm sau công cụ ngừn
 | `facebook-page-publisher.ts` | Đăng thật, trả post id + URL |
 | `facebook-page-actions.ts` | Server action: kiểm token, gán nick quản trị, ngắt kết nối |
 | `facebook-publish-action.ts` | Đăng một job trong hàng đợi |
-| `facebook-group-reminder.ts` | Truy vấn nhắc việc group — **không phải bảng** |
 
 Bốn file `*-health`, `*-payload`, `*-error-messages`, và phần dựng URL là hàm thuần: test được
 không cần token thật, không cần mạng, không cần database.
@@ -200,9 +222,10 @@ Kiến trúc:
 | `rule-content-similarity.ts` | Luật 7 (trùng nội dung) |
 | `rule-thread-collision.ts` | Luật 8 (đụng độ thread) — `overridable: false` |
 | `rule-link-policy.ts` | Luật 9 (chính sách link) |
+| `rule-health-check.ts` | Luật 10 (kết quả dò gần nhất) — chỉ áp cho Reddit |
 | `content-similarity-calculator.ts` | Jaccard trên trigram ký tự |
 | `text-normalizer.ts` | Chuẩn hóa văn bản trước khi so trùng |
-| `rules-engine.ts` | Gom 9 luật, lọc theo nền tảng của đích, chạy tuần tự, mức nặng nhất thắng |
+| `rules-engine.ts` | Gom 10 luật, lọc theo nền tảng của đích, chạy tuần tự, mức nặng nhất thắng |
 
 **Thêm luật mới** = thêm 1 file luật + 1 dòng trong mảng `RULES` ở `rules-engine.ts`.
 
@@ -211,7 +234,10 @@ Kiến trúc:
 Mỗi mục trong `RULES` khai được `platforms` — bỏ trống nghĩa là áp cho mọi nền tảng. Bốn luật
 giữ nhịp (4 hạn mức ngày, 5 nghỉ 24h, 6 tỷ lệ promo, 8 đụng độ thread) chỉ áp cho
 `COMMUNITY_PLATFORMS` = Reddit + Facebook Group, vì Fanpage là kênh của chính mình chứ không
-phải cộng đồng mình vào nhờ.
+phải cộng đồng mình vào nhờ. Luật 10 hẹp hơn nữa — chỉ Reddit, vì bộ dò chỉ đọc được profile
+Reddit và Fanpage đăng hỏng thì Graph API báo lỗi ngay.
+
+Số luật thực chạy: **Reddit 10 · Facebook Group 9 · Fanpage 5**.
 
 Luật bị loại **trước khi chạy** và nêu tên trong `RuleEvaluation.skipped`, không lặng lẽ trả
 ALLOW — checklist phải nói rõ nó chưa kiểm gì.
@@ -240,9 +266,12 @@ bằng `isCommunityPlatform()`. Hai đường lệch nhau là luật chặn ở 
 | `npm run typecheck` | Kiểm tra TypeScript (`tsc --noEmit`) |
 | `npm run build` | Build production |
 | `npm run db:migrate` | Áp migration Prisma |
-| `npm run db:studio` | Mở Prisma Studio xem/sửa database |
+| `npm run db:studio` | Mở Prisma Studio xem/sửa database (nơi sửa ngưỡng `RuleConfig`) |
+| `npm run db:backup` | Sao lưu database ra `data/backups/` |
+| `npm run health` | Dò shadowban + đọc karma mọi nick Reddit (đặt lịch chạy hằng ngày) |
 | `npm run vault:smoke` | Kiểm chứng nghiệm thu Phase 01 |
 | `npm run rules:smoke` | Kiểm chứng nghiệm thu Phase 02 |
+| `npm run health:smoke` | Kiểm chứng nghiệm thu Phase 03 (không cần nick, không cần proxy) |
 | `npm run facebook:smoke` | Kiểm chứng nghiệm thu Phase 04 (không cần Meta App) |
 
 Chi tiết đầy đủ ở [README → Lệnh](../README.md#lệnh).
@@ -314,13 +343,15 @@ Phase 04 nghiệm thu xong bằng một bài đăng thật lên Fanpage nháp. B
 
 ## Câu hỏi chưa có lời giải
 
-- `playwright` nằm trong `dependencies` nhưng **hiện chưa file nào import**. Đừng gỡ vội:
-  [Phase 03](../plans/260801-2030-multi-account-posting-console/phase-03-account-health-monitor.md)
-  dự định dùng Playwright **trực tiếp, không qua antidetect browser** để dò shadowban từ proxy
-  quan sát viên — đó là truy cập ẩn danh công khai, không cần giả vân tay.
-  *(Không phải do adapter AdsPower cần: adapter đó chỉ trả về một chuỗi URL endpoint.)*
 - Ngưỡng luật hiện lấy theo kinh nghiệm chung, chưa có số liệu thật từ đàn nick này —
   xem [domain-glossary](domain-glossary.md#câu-hỏi-chưa-có-lời-giải).
+- `npm run health` chưa chạy được với nick thật lần nào: bảng `ObserverProxy` đang rỗng. Cho tới
+  khi có proxy quan sát viên, luật 10 sẽ cảnh báo trên **mọi** job Reddit ("chưa dò lần nào").
+
+> **`playwright` giờ đã được dùng thật**, không còn là dependency treo: `observer-browser-session.ts`
+> và `smoke-test-account-health.ts` import `chromium` để dò shadowban **trực tiếp, không qua
+> antidetect browser** — đó là truy cập ẩn danh công khai, không cần giả vân tay. Máy mới phải chạy
+> `npx playwright install chromium` một lần.
 
 > **Tailwind CSS đang được dùng ở khắp nơi, đừng gỡ.** `globals.css` ngắn (16 dòng) là đúng
 > thiết kế của Tailwind v4: một dòng `@import "tailwindcss"` kéo toàn bộ vào, phần còn lại là

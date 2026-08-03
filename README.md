@@ -164,6 +164,31 @@ trang chi tiết của đích đó.
 > Đăng xong nhớ bấm **"Đã đăng"** và ghi lại các lần comment/upvote. Bộ luật chỉ biết những gì
 > được ghi lại — không ghi thì luật chặn đụng độ thread không có gì để so.
 
+## Đăng bài
+
+Chỉ **Fanpage** đăng được bằng một nút (Graph API). **Reddit và Facebook Group phải đăng tay** —
+Reddit chưa có bộ tự đăng (Phase 05), còn Group thì Meta gỡ quyền từ 04/2024.
+
+Xếp lịch **không phải là hẹn giờ tự đăng**: nó ghi giờ dự kiến và chấm luật theo giờ đó. Đến giờ,
+bài không tự lên.
+
+Bài đăng tay đến hạn trong 24 tiếng tới hiện ở thẻ **"Đăng tay"** ngay trang tổng quan, cũ nhất
+lên trước, quá giờ thì có nhãn riêng. Mỗi dòng có sẵn:
+
+| Nút | Việc |
+|---|---|
+| **Mở profile** | Đẩy proxy vào profile antidetect rồi mở — không phải sang trang nick tìm lại |
+| **Copy tiêu đề** / **Copy thân bài** | Chỉ Reddit, vì form Reddit có hai ô rời. Thân bài **không kèm tiêu đề**, dán vào là không bị lặp |
+| **Copy nội dung** | Chỉ Facebook Group, vì ô đăng của group chỉ có một |
+| Tên đích | Mở thẳng sub/group ở tab mới |
+
+Link trong content luôn được dán kèm cuối phần thân bài: Reddit và Group đều không dựng thẻ xem
+trước từ tham số như Page, nên link nằm ngoài thân bài là link biến mất khỏi bài.
+
+> Đăng xong **phải quay lại `/queue` bấm "Đã đăng"** và dán link bài. Bộ luật chỉ biết những gì
+> được ghi lại: không bấm thì luật đụng độ thread không có gì để so, và bộ dò shadowban không có
+> bài nào để đối chiếu — nick sẽ rơi vào ô "Chưa đối chiếu được" dù vẫn đang đăng đều.
+
 ## Kiến trúc
 
 ```
@@ -187,10 +212,10 @@ src/
     ├── content/             từ vựng content + server action kho content
     ├── crypto/              AES-256-GCM cho credential
     ├── db/                  Prisma client
-    ├── facebook/            Graph API: OAuth, token, đăng Fanpage, nhắc việc group
+    ├── facebook/            Graph API: OAuth, token, đăng Fanpage
     ├── format/ platforms/   định dạng ngày, gộp họ nền tảng
     ├── health/              bộ dò shadowban: phiên trình duyệt sạch, parser, đánh giá, runner
-    ├── queue/               server action cho job + tương tác
+    ├── queue/               server action cho job + tương tác, nhắc việc đăng tay
     ├── rules/               bộ luật an toàn — mỗi luật một file
     └── totp/                sinh mã OTP 2FA
 ```
@@ -296,9 +321,9 @@ Meta gỡ quyền `publish_to_groups` tháng 04/2024. Không công cụ nào t�
 Buffer/Hootsuite/Make đều đã bỏ. Thứ tự nhận làm được chỉ có thể là lái trình duyệt giả người
 dùng — đúng hành vi khiến nick bị khóa.
 
-Bài group vẫn xếp lịch ở `/queue` với đích loại Facebook Group và **vẫn bị chấm đủ 9 luật** như
-Reddit. Đến hạn, trang tổng quan nhắc việc kèm nút **mở profile** + **copy nội dung**; dán và
-bấm đăng là việc của người. Đăng xong quay lại hàng đợi bấm "Đã đăng".
+Bài group vẫn xếp lịch ở `/queue` với đích loại Facebook Group và **vẫn bị chấm 9 trong 10 luật**
+— đúng như Reddit, trừ luật 10 vốn chỉ áp cho Reddit. Đến hạn nó hiện ở thẻ nhắc việc chung với
+bài Reddit — xem [Đăng bài](#đăng-bài).
 
 ## Bảo mật
 

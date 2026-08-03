@@ -1,6 +1,7 @@
 # MKTTool — Tài liệu sản phẩm
 
-**Cập nhật:** 02/08/2026 · **Trạng thái:** Phase 01 + 02 xong, Phase 00 đang chạy
+**Cập nhật:** 03/08/2026 · **Trạng thái:** Phase 01–04 xong (Phase 04 đã đăng thật lên Fanpage);
+Phase 00 còn chờ mua proxy/nick + cold-start; Phase 05 chưa làm
 
 Tài liệu này trả lời "vì sao" và "phạm vi tới đâu". Chi tiết thi công nằm ở
 [plans/260801-2030-multi-account-posting-console/](../plans/260801-2030-multi-account-posting-console/plan.md).
@@ -66,10 +67,15 @@ Nếu sau này có ai đề xuất thêm một trong các mục trên, đây là
 4. **Facebook Pages dùng Graph API chính thức.** Miễn phí, hợp lệ, không bao giờ bị khóa vì
    vi phạm chính sách tự động hóa.
 5. **SQLite + Prisma**, không Postgres/Redis. Một người dùng, một máy.
-6. **Điều khiển trình duyệt qua MCP của MultiZen, không dùng Playwright.**
+6. **Điều khiển trình duyệt của NICK qua MCP của MultiZen, không dùng Playwright.**
    Kiểm chứng 02/08/2026: MultiZen không phơi endpoint CDP ra ngoài mà phơi thẳng bộ tool
    (`navigate`, `click`, `type`, `extract`, `screenshot`). Đường này còn tốt hơn vì có sẵn
    *human handoff* (người vào tay khi gặp 2FA/captcha) và mô phỏng hành vi người ở tầng CDP.
+7. **Nhưng bộ dò shadowban thì dùng Playwright trực tiếp** (Phase 03) — hai việc trái ngược
+   nhau nên đi hai đường. Đăng bài cần *giả làm người có danh tính*; dò shadowban cần *đúng là
+   một người lạ vô danh*: chưa đăng nhập, IP khác hẳn, không vân tay nào của nick. Mở nó bằng
+   chính profile antidetect của nick là tự nhìn mình trong gương rồi kết luận người ngoài cũng
+   thấy vậy.
 
 ## 6. Nguyên tắc bất di bất dịch
 
@@ -119,16 +125,24 @@ thực, không có cách nào đi tắt. Phần mềm xong sớm không giúp g�
 
 | # | Giai đoạn | Trạng thái |
 |---|---|---|
-| 0 | Chuẩn bị & kiểm chứng khả thi | 🔄 Chặng B đạt 02/08/2026; còn mua proxy/nick + cold-start |
+| 0 | Chuẩn bị & kiểm chứng khả thi | 🔄 Chặng B + C đạt 02/08/2026; còn mua proxy/nick + cold-start |
 | 1 | Kho danh tính | ✅ 01/08/2026 |
 | 2 | Hàng đợi content + bộ luật an toàn | ✅ 02/08/2026 |
-| 3 | Theo dõi sức khỏe tài khoản | ⬜ |
-| 4 | Facebook Pages publisher *(độc lập, làm lúc nào cũng được)* | ⬜ |
+| 3 | Theo dõi sức khỏe tài khoản | ✅ 03/08/2026 — bộ dò đọc được Reddit thật; **chưa chạy với nick thật** vì chưa có proxy quan sát viên |
+| 4 | Facebook Pages publisher *(độc lập, làm lúc nào cũng được)* | ✅ 03/08/2026 — đã đăng thật lên Fanpage qua Graph API |
 | 5 | Bán tự động đăng Reddit | ⬜ |
+
+> **Chưa có bộ đặt lịch tự động, và đó là chủ ý.** "Xếp lịch" = ghi giờ dự kiến + chấm luật;
+> đến giờ bài **không** tự lên. Fanpage phải bấm "Đăng lên Page", Reddit và Group đăng tay.
+> Phase 05 cũng sẽ là "bán tự động": máy soạn sẵn, người bấm nút cuối — xem mục 4.
 
 ## Câu hỏi chưa có lời giải
 
 - Ngưỡng luật hiện lấy theo kinh nghiệm chung, chưa có số liệu thật của chính đàn nick này.
-  Phải chờ Phase 03 mới biết nên siết hay nới.
+  Phase 03 đã xong nên đã có chỗ để đo, nhưng chưa nhập proxy quan sát viên nào nên chưa có số
+  liệu để quyết siết hay nới.
 - Chưa chốt 2-3 subreddit mục tiêu và luật cụ thể của từng sub (việc của Phase 00 bước 1).
 - Chưa đo được "xếp 15 bài trong 15 phút" vì chưa có người dùng thật chạy quy trình đầy đủ.
+- Mục 2 ghi rõ công cụ phục vụ **1 người**. Nếu sau này nhiều người trong team cần dùng chung
+  một kho danh tính thì phải thêm đăng nhập + phân quyền và đổi SQLite sang DB dùng chung —
+  chưa có Phase nào nhận việc này.

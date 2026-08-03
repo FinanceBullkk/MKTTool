@@ -1,6 +1,6 @@
 # Từ điển thuật ngữ nghiệp vụ
 
-**Cập nhật:** 02/08/2026
+**Cập nhật:** 03/08/2026
 
 Bộ luật an toàn là tri thức nghiệp vụ được mã hóa thành code. Tài liệu này giải thích
 từng khái niệm để 6 tháng nữa vẫn hiểu vì sao ngưỡng Jaccard là 0.70 chứ không phải 0.85.
@@ -88,13 +88,15 @@ Tra cứu thêm: [tài liệu sản phẩm](project-overview-pdr.md) · [bản �
 
 ---
 
-## 9 luật an toàn — vì sao mỗi luật tồn tại
+## 10 luật an toàn — vì sao mỗi luật tồn tại
 
 Bộ luật chạy tuần tự, **không dừng ở luật chặn đầu tiên** — người dùng cần thấy hết mọi vấn đề
 trong một lần. Ngưỡng mặc định lấy từ [`rule-thresholds.ts`](../src/lib/rules/rule-thresholds.ts).
 
 Cột **Áp cho**: `mọi` = mọi nền tảng, `cộng đồng` = Reddit + Facebook Group (xem
 [Nền tảng cộng đồng](#nền-tảng-cộng-đồng) bên dưới).
+
+Số luật **thực chạy** khác nhau theo nền tảng: Reddit **10**, Facebook Group **9**, Fanpage **5**.
 
 | # | Tên luật | BLOCK khi | WARN khi | Ghi đè? | Áp cho | Lý do nghiệp vụ |
 |---|---|---|---|---|---|---|
@@ -107,6 +109,7 @@ Cột **Áp cho**: `mọi` = mọi nền tảng, `cộng đồng` = Reddit + Fac
 | 7 | Trùng nội dung | Jaccard ≥ 0.70 với bài cùng nền tảng trong 30 ngày | Jaccard ≥ 0.50 | ✅ | mọi | Nguyên nhân shadowban số 1. Reddit gọi thẳng tên: "coordinated inauthentic behavior" |
 | 8 | Đụng độ thread | Nick khác đã chạm đúng thread này | Nick khác hoạt động cùng đích trong 1 tiếng | **❌** | **cộng đồng** | Tín hiệu phối hợp rõ nhất. Không có lý do kinh doanh nào đủ lớn để đánh đổi |
 | 9 | Chính sách link | Đích cấm link mà bài có link | Bài có ≥ 2 link | ✅ | mọi | Bài bị gỡ im lặng vì link là tệ nhất: mình tưởng đã đăng, thật ra không ai thấy |
+| 10 | Kết quả dò gần nhất | Lần dò cuối kết luận `SHADOWBANNED` hoặc `CHECKPOINT` | Chưa dò lần nào; dò quá 3 ngày; dò lỗi (`ERROR`); không có bài nào để đối chiếu (`NO_BASELINE`); thấy ít bài hơn đã đăng (`WARN`) | ✅ | **Reddit** | Luật 1 đọc thứ **mình tự đặt**, luật này đọc thứ **người ngoài nhìn thấy**. Gỡ cách ly bằng tay mà chưa dò lại thì luật 1 cho qua, luật này vẫn chặn. *Không có tin xấu* không phải *tin tốt* |
 
 ### Nền tảng cộng đồng
 
@@ -119,7 +122,8 @@ hiệu — bốn luật giữ nhịp (4, 5, 6, 8) áp vào đó chỉ chặn nh�
 trang trả lời bình luận dưới bài của chính mình là chăm sóc khách hàng, không phải hai nick giả
 vờ đồng tình với nhau.
 
-Facebook Group thì **vẫn chạy đủ 9 luật** — group vận hành như sub Reddit, không phải như Page.
+Facebook Group thì **vẫn chạy 9 trong 10 luật** — group vận hành như sub Reddit, không phải như
+Page. Luật duy nhất không áp là luật 10 (dò shadowban), vì bộ dò chỉ đọc được profile Reddit.
 
 Luật bị bỏ qua được liệt kê trong `RuleEvaluation.skipped` và hiện thẳng trên checklist
 ("Không áp dụng cho nền tảng này: …"). Lỗ hổng im lặng trong hệ thống an toàn nguy hiểm hơn
@@ -149,9 +153,38 @@ không có luật.
 
 ---
 
+## Dò shadowban — 6 kết luận (Phase 03)
+
+`npm run health` mở profile công khai của nick ở chế độ **chưa đăng nhập**, qua **proxy quan sát
+viên riêng**, rồi đối chiếu số bài thấy được với số bài đã đánh dấu `POSTED`.
+
+| Kết luận | Đo được gì | Hệ quả |
+|---|---|---|
+| `HEALTHY` | Profile bình thường, thấy đủ bài | Luật 10 cho qua. **Không** tự gỡ cách ly |
+| `SHADOWBANNED` | HTTP 404, hoặc 0/N bài đã đăng nhìn thấy được | Nick tự chuyển trạng thái, luật 10 **chặn** |
+| `CHECKPOINT` | Trang báo tài khoản bị treo | Nick tự chuyển trạng thái, luật 10 **chặn** |
+| `WARN` | Thấy dưới một nửa số bài đã đăng | Có thể chỉ là mod xóa bài — luật 10 cảnh báo |
+| `ERROR` | Bộ dò dính captcha, hoặc Reddit đổi HTML | **Không phải tin tốt** — luật 10 cảnh báo |
+| `NO_BASELINE` | Bộ dò chạy ngon nhưng không bài nào được đánh dấu đã đăng | **Không phải tin tốt** — luật 10 cảnh báo |
+
+Hai kết luận cuối đều nghĩa là "chưa biết", khác nhau ở nguyên nhân: `ERROR` là **bộ dò hỏng**,
+`NO_BASELINE` là **bộ dò chạy nhưng không có gì để so**. Nick mới hoặc đang nghỉ rơi vào
+`NO_BASELINE` là bình thường; nick đăng đều mà không ai bấm "Đã đăng" cũng rơi vào đúng ô này —
+và đó mới là lúc cần cảnh báo nhất.
+
+**Chiều gỡ cách ly không tự động.** Nick bị kết luận `SHADOWBANNED`/`CHECKPOINT` tự đổi trạng
+thái; nhưng một lần dò khỏe **không** tự gỡ, vì nó chỉ chứng minh lần dò đó không thấy vấn đề.
+Gỡ là quyết định của người.
+
+→ `health-verdict.ts`, `health-status-evaluator.ts`, `reddit-shadowban-prober.ts`,
+`rule-health-check.ts`
+
+---
+
 ## Câu hỏi chưa có lời giải
 
 - Ngưỡng Jaccard 0.70 lấy theo kinh nghiệm chung, chưa có số liệu thật từ chính đàn nick này.
-  Phải chờ Phase 03 mới biết nên siết hay nới.
+  Phase 03 đã xong nên có chỗ để đo, nhưng chưa nhập proxy quan sát viên nào — chưa có số liệu
+  thật để quyết siết hay nới.
 - Chưa rõ cần thêm luật "cùng IP range" hay không — hiện proxy tĩnh đã ép 1:1, nhưng chưa kiểm
   tra hai proxy có nằm cùng /24 không.
