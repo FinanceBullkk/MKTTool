@@ -11,7 +11,7 @@
  */
 import { prisma } from "../src/lib/db/prisma-client";
 import { decryptCredential } from "../src/lib/crypto/credential-encryption";
-import { loadDueGroupReminders } from "../src/lib/facebook/facebook-group-reminder";
+import { loadDueManualPostReminders } from "../src/lib/queue/manual-post-reminders";
 import { FacebookPublishError, publishToPage } from "../src/lib/facebook/facebook-page-publisher";
 import { saveConnectionWithPages } from "../src/lib/facebook/facebook-token-manager";
 
@@ -158,7 +158,7 @@ async function run() {
     },
   });
 
-  const reminders = await loadDueGroupReminders();
+  const reminders = await loadDueManualPostReminders();
   const mine = reminders.find((reminder) => reminder.accountUsername === `${PREFIX}nick-fb`);
   check("job group đến giờ hiện ở nhắc việc", Boolean(mine));
   check(

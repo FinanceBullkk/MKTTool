@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { AccountHealthTable } from "@/components/health/account-health-table";
-import { GroupPostReminders } from "@/components/queue/group-post-reminders";
+import { ManualPostReminders } from "@/components/queue/manual-post-reminders";
 import { Card, PageHeading, StatusBadge } from "@/components/ui/page-section";
 import {
   ACCOUNT_STATUSES,
@@ -9,7 +9,7 @@ import {
   getStatusPresentation,
 } from "@/lib/accounts/account-status";
 import { prisma } from "@/lib/db/prisma-client";
-import { loadDueGroupReminders } from "@/lib/facebook/facebook-group-reminder";
+import { loadDueManualPostReminders } from "@/lib/queue/manual-post-reminders";
 import { loadAccountHealthRows } from "@/lib/health/health-dashboard-queries";
 
 export const dynamic = "force-dynamic";
@@ -23,7 +23,7 @@ export default async function OverviewPage() {
     contentCount,
     pendingJobCount,
     blockedJobCount,
-    groupReminders,
+    manualReminders,
     healthRows,
   ] = await Promise.all([
       prisma.account.findMany({
@@ -35,7 +35,7 @@ export default async function OverviewPage() {
       prisma.contentItem.count(),
       prisma.postJob.count({ where: { status: "PENDING" } }),
       prisma.postJob.count({ where: { status: "BLOCKED" } }),
-      loadDueGroupReminders(),
+      loadDueManualPostReminders(),
       loadAccountHealthRows(),
     ]);
 
@@ -127,13 +127,14 @@ export default async function OverviewPage() {
         ))}
       </div>
 
-      {groupReminders.length > 0 ? (
-        <Card title={`Đăng tay vào Facebook Group — ${groupReminders.length} bài`}>
+      {manualReminders.length > 0 ? (
+        <Card title={`Đăng tay — ${manualReminders.length} bài`}>
           <p className="mb-3 text-sm text-neutral-600 dark:text-neutral-400">
-            Group không tự đăng được (Meta gỡ quyền từ 04/2024). Bấm mở profile, copy nội dung, dán
-            và đăng — xong nhớ quay lại hàng đợi bấm &quot;Đã đăng&quot;.
+            Reddit chưa có bộ tự đăng, còn Group thì Meta gỡ quyền từ 04/2024. Bấm mở profile, copy
+            nội dung, dán và đăng — xong nhớ quay lại hàng đợi bấm &quot;Đã đăng&quot;, vì bộ luật
+            chỉ biết những gì được ghi lại.
           </p>
-          <GroupPostReminders reminders={groupReminders} />
+          <ManualPostReminders reminders={manualReminders} />
         </Card>
       ) : null}
 

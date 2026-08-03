@@ -24,6 +24,28 @@ export type TargetPlatform = (typeof TARGET_PLATFORMS)[number];
 export const COMMUNITY_PLATFORMS = ["REDDIT", "FACEBOOK_GROUP"] as const;
 
 /**
+ * Đích đăng được bằng API chính thức — hiện chỉ Fanpage (Graph API, xem facebook-page-publisher.ts).
+ */
+export const AUTO_PUBLISH_PLATFORMS = ["FACEBOOK_PAGE"] as const;
+
+/**
+ * Đích phải đăng tay: người mở profile, dán nội dung, tự bấm đăng.
+ *
+ * SUY RA từ hai hằng trên chứ không khai tay danh sách thứ ba — hai danh sách phải giữ khớp
+ * bằng tay là chỗ sớm muộn cũng lệch. Cách suy này còn cho mặc định AN TOÀN: thêm một loại
+ * đích mới mà chưa viết bộ đăng tự động cho nó thì nó rơi vào "đăng tay", tức vẫn hiện ở
+ * nhắc việc — thay vì im lặng biến mất khỏi mọi màn hình.
+ */
+export const MANUAL_POST_PLATFORMS: readonly string[] = TARGET_PLATFORMS.filter(
+  (platform) => !(AUTO_PUBLISH_PLATFORMS as readonly string[]).includes(platform),
+);
+
+/** Đích này có phải đăng tay không. Dùng ở bộ nhắc việc và ở bảng hàng đợi. */
+export function isManualPostPlatform(platform: string): boolean {
+  return MANUAL_POST_PLATFORMS.includes(platform);
+}
+
+/**
  * Dùng ở hai chỗ: bộ luật (rules-engine.ts) và form ghi tương tác tay
  * (interaction-actions.ts) — form đó gọi thẳng luật 8 chứ không đi qua engine.
  * Cả hai phải hỏi cùng một nguồn, lệch nhau là luật chặn ở đường này mà lọt ở đường kia.
