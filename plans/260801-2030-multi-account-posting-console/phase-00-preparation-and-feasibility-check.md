@@ -8,7 +8,8 @@
 
 ## Overview
 - **Priority:** P0 — chặn đường mọi giai đoạn sau
-- **Status:** ⬜ Chưa bắt đầu
+- **Status:** 🟡 Đang chạy — phần kiểm chứng kỹ thuật xong 02/08/2026 (Chặng B + C đạt).
+  Còn mua proxy/nick + 14 ngày cold-start
 - **Thời lượng:** 2 tuần (chủ yếu là chờ, không phải làm)
 - **Mục đích:** Trả lời 2 câu hỏi có thể giết dự án, TRƯỚC khi đầu tư công sức code.
 

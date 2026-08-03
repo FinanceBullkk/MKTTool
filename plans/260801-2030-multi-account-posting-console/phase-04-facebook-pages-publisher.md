@@ -7,7 +7,8 @@
 
 ## Overview
 - **Priority:** P1
-- **Status:** 🟡 Khung xong 02/08/2026 — còn chờ Meta App thật để chạy bước 9 (đăng thử lên Page nháp)
+- **Status:** ✅ Xong 03/08/2026 — đã đăng thật lên Fanpage nháp qua Graph API (job `POSTED` kèm
+  URL thật, `Interaction` và `AuditLog` tự ghi)
 - **Thời lượng:** 2-3 ngày
 - **Mục đích:** Đăng nội dung thương hiệu lên 1-3 Fanpage qua Graph API. Miễn phí, hợp lệ,
   không bao giờ bị khóa vì vi phạm chính sách tự động hóa.
@@ -188,7 +189,7 @@ kiểu thao tác thì đi cùng một đường.
       nick giả mới xếp lịch được. Việc sửa nằm ngoài phase này, đã ghi ở `docs/codebase-summary.md`.
 
 ## Success Criteria
-- Đăng được bài lên Fanpage từ tool, bài hiện đúng trên Facebook — ⏳ chờ Meta App
+- Đăng được bài lên Fanpage từ tool, bài hiện đúng trên Facebook — ✅ đạt 03/08/2026 (xem checklist trên)
 - Token sống > 60 ngày, có cảnh báo trước khi hết — ✅ code + test xong (`facebook-token-health`)
 - Nhắc việc group hiện đúng giờ, bấm 1 nút là mở đúng profile + có sẵn nội dung trong clipboard — ✅
 - **Không có bất kỳ đoạn code nào cố tự động đăng vào Group** — ✅ và ghi rõ lý do trong
