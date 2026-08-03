@@ -7,6 +7,49 @@ Dự án chưa phát hành phiên bản (`0.1.0`, dùng nội bộ). Mốc chia 
 
 ---
 
+## 04/08/2026 — Công cụ tự phát hiện hỏng hóc
+
+**Tính năng**
+
+- **Kiểm proxy còn sống, ngay trong công cụ.** Nút "Kiểm" từng dòng và "Kiểm tất cả" ở `/proxies`;
+  mỗi lượt đi qua đúng proxy đó hỏi dịch vụ tra cứu xem người ngoài nhìn thấy IP nào. Trước đợt
+  này việc đó hoàn toàn nằm ngoài công cụ — `launch/route.ts` chỉ in ra câu "vẫn nên mở ipinfo.io
+  kiểm tra IP" rồi để người dùng tự làm, nên proxy chết chỉ lộ ra trên giao diện antidetect.
+- **Năm kết luận, và "không đo được" không nằm chung với "khỏe":** Sống · Chết · **Không đổi IP** ·
+  Lệch nước · Không kiểm được. Nhánh *Không đổi IP* là nhánh đáng tiền nhất — proxy trả lời bình
+  thường nhưng lưu lượng vẫn ra bằng IP nhà, đúng kiểu hỏng mà `launch/route.ts` sợ nhất và trước
+  đây không ai phát hiện được.
+- **Lớp chặn thứ tư trước khi mở profile.** Proxy kết luận *Chết* hoặc *Không đổi IP* thì **không
+  mở**, ghi `PROFILE_LAUNCH_BLOCKED_PROXY` vào `AuditLog`. Lệch nước và không kiểm được thì vẫn mở
+  nhưng nói rõ — chặn ở hai nhánh đó là biến công cụ thành thứ không mở nổi profile mỗi khi mạng
+  chập chờn.
+- **Trang Hôm nay hiện proxy hỏng và token Facebook hỏng.** Hai dải cảnh báo mới, đọc thẳng từ
+  database nên không thêm lời gọi mạng nào vào trang mở nhiều nhất. Token dùng lại
+  `evaluateTokenHealth()` của luồng đăng bài — hai nơi tự đánh giá "token còn dùng được không" là
+  hai nơi chắc chắn sẽ lệch.
+
+**Không thêm dependency:** `undici.ProxyAgent` không resolve được trong dự án, nên phần đi qua
+proxy tự viết trên `node:net` — proxy HTTP dùng request dạng tuyệt đối, proxy SOCKS5 bắt tay tay
+theo RFC 1928/1929. Xin `HTTP/1.0` để phần thân không bao giờ bị chia khối.
+
+**Sửa theo đo thật:** lượt đo đầu trên 10 proxy Webshare, ipinfo.io trả 429 cho hai IP và 403 cho
+một IP, lặp lại y hệt ở lượt sau — tức chặn theo IP chứ không phải giới hạn tần suất. Một nhà cung
+cấp duy nhất nghĩa là 3/10 proxy vĩnh viễn "không kiểm được", nên thêm chuỗi dự phòng
+(`ipinfo.io` → `ip-api.com` → `icanhazip.com`). Sau khi thêm: **10/10**.
+
+**Kiểm chứng:** `typecheck` + `lint` + `375 test` xanh; đo thật 10 proxy Webshare (10/10 đúng IP
+và đúng quốc gia); nhánh SOCKS5 đối chiếu với nhánh HTTP trên cùng một proxy, hai đường ra cùng
+một IP. Xem [plan](../plans/260804-0321-cong-cu-tu-phat-hien-hong-hoc/plan.md).
+
+**Đã cân nhắc và quyết định KHÔNG làm:** hẹn giờ đăng Fanpage bằng `scheduled_publish_time`.
+Giao bài cho Facebook giữ là bộ luật mất quyền chặn trong khoảng từ lúc hẹn tới lúc lên — nặng
+nhất là job bị chấm lại thành **BỊ CHẶN** trong khi Facebook vẫn đăng đúng giờ, tức giao diện
+nói một đằng thực tế một nẻo. Fanpage tiếp tục bấm tay đúng giờ. Lý do đầy đủ giữ ở
+[phase-03](../plans/260804-0321-cong-cu-tu-phat-hien-hong-hoc/phase-03-hen-gio-dang-fanpage-bang-facebook.md)
+để lần sau không phải cân nhắc lại từ đầu.
+
+---
+
 ## 03/08/2026 — Băng chuyền vòng đăng bài
 
 **Tính năng**

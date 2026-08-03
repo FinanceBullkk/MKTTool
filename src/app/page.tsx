@@ -2,6 +2,7 @@ import Link from "next/link";
 import { AccountHealthTable } from "@/components/health/account-health-table";
 import { ManualPostReminders } from "@/components/queue/manual-post-reminders";
 import { PostingLoopStrip } from "@/components/queue/posting-loop-strip";
+import { AlertBanner } from "@/components/ui/alert-banner";
 import { Card, PageHeading, StatusBadge } from "@/components/ui/page-section";
 import {
   ACCOUNT_STATUSES,
@@ -10,9 +11,11 @@ import {
   getStatusPresentation,
 } from "@/lib/accounts/account-status";
 import { prisma } from "@/lib/db/prisma-client";
+import { loadFacebookTokenWarnings } from "@/lib/facebook/facebook-token-warnings";
 import { loadDueManualPostReminders } from "@/lib/queue/manual-post-reminders";
 import { loadPostingLoopSummary } from "@/lib/queue/posting-loop-summary";
 import { loadAccountHealthRows } from "@/lib/health/health-dashboard-queries";
+import { PROBLEM_VERDICTS, PROXY_CHECK_LABEL } from "@/lib/proxies/proxy-liveness-verdict";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +31,8 @@ export default async function OverviewPage() {
     manualReminders,
     healthRows,
     loopSummary,
+    brokenProxies,
+    tokenWarnings,
   ] = await Promise.all([
       prisma.account.findMany({
         select: { id: true, username: true, status: true, coldStartUntil: true },
@@ -41,6 +46,13 @@ export default async function OverviewPage() {
       loadDueManualPostReminders(),
       loadAccountHealthRows(),
       loadPostingLoopSummary(),
+      // Chỉ đọc kết quả lần kiểm gần nhất — trang này không gọi mạng.
+      prisma.proxy.findMany({
+        where: { lastCheckVerdict: { in: PROBLEM_VERDICTS } },
+        select: { id: true, label: true, lastCheckVerdict: true, lastCheckDetail: true },
+        orderBy: { label: "asc" },
+      }),
+      loadFacebookTokenWarnings(),
     ]);
 
   // "Chưa dò" và "dò lâu rồi" đều là KHÔNG BIẾT, và không biết thì phải hiện ra.
@@ -73,37 +85,84 @@ export default async function OverviewPage() {
         description="Bài phải đăng tay trong 24 tiếng tới, nick cần xử lý, và sức khỏe cả đàn."
       />
 
-      {staleHealth.length > 0 ? (
-        <div className="mb-6 rounded-md border border-amber-300 bg-amber-50 px-4 py-3 dark:border-amber-900 dark:bg-amber-950">
-          <p className="text-sm text-amber-900 dark:text-amber-300">
-            {staleHealth.length} nick chưa được dò gần đây — chưa biết bài của chúng còn hiện với
-            người ngoài không.{" "}
-            <Link href="/health" className="underline">
-              xem bảng sức khỏe
-            </Link>
-            .
+      {/* Proxy đứng trước mọi cảnh báo khác: nick chạy bằng IP sai là hỏng không gỡ lại được,
+          còn job bị chặn hay token hết hạn thì chỉ là chưa đăng được. */}
+      {brokenProxies.length > 0 ? (
+        <AlertBanner tone="red">
+          <p className="font-medium">{brokenProxies.length} proxy không dùng được:</p>
+          <ul className="mt-2 space-y-1">
+            {brokenProxies.map((proxy) => (
+              <li key={proxy.id}>
+                <Link href={`/proxies/${proxy.id}`} className="underline">
+                  {proxy.label}
+                </Link>{" "}
+                <span className="text-neutral-600 dark:text-neutral-400">
+                  — {PROXY_CHECK_LABEL[proxy.lastCheckVerdict as "DEAD"] ?? proxy.lastCheckVerdict}
+                  {proxy.lastCheckDetail ? `: ${proxy.lastCheckDetail}` : ""}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </AlertBanner>
+      ) : null}
+
+      {tokenWarnings.broken.length > 0 ? (
+        <AlertBanner tone="red">
+          <p className="font-medium">
+            {tokenWarnings.broken.length} Fanpage không đăng được vì token hỏng:
           </p>
-        </div>
+          <ul className="mt-2 space-y-1">
+            {tokenWarnings.broken.map((warning) => (
+              <li key={warning.pageId}>
+                {warning.pageName}{" "}
+                <span className="text-neutral-600 dark:text-neutral-400">— {warning.message}</span>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-2">
+            <Link href="/facebook" className="underline">
+              kết nối lại ở trang Facebook
+            </Link>
+          </p>
+        </AlertBanner>
+      ) : null}
+
+      {tokenWarnings.expiringSoon.length > 0 ? (
+        <AlertBanner tone="amber">
+          {tokenWarnings.expiringSoon.length} Fanpage có token sắp hết hạn — hết giữa chừng là mọi
+          Page dưới cùng một nick ngừng đăng được cùng lúc.{" "}
+          <Link href="/facebook" className="underline">
+            kết nối lại
+          </Link>
+          .
+        </AlertBanner>
+      ) : null}
+
+      {staleHealth.length > 0 ? (
+        <AlertBanner tone="amber">
+          {staleHealth.length} nick chưa được dò gần đây — chưa biết bài của chúng còn hiện với
+          người ngoài không.{" "}
+          <Link href="/health" className="underline">
+            xem bảng sức khỏe
+          </Link>
+          .
+        </AlertBanner>
       ) : null}
 
       {blockedJobCount > 0 ? (
-        <div className="mb-6 rounded-md border border-amber-300 bg-amber-50 px-4 py-3 dark:border-amber-900 dark:bg-amber-950">
-          <p className="text-sm text-amber-900 dark:text-amber-300">
-            {blockedJobCount} job bị bộ luật chặn khi kiểm tra lại —{" "}
-            <Link href="/queue?status=BLOCKED" className="underline">
-              xem lý do
-            </Link>
-            .
-          </p>
-        </div>
+        <AlertBanner tone="amber">
+          {blockedJobCount} job bị bộ luật chặn khi kiểm tra lại —{" "}
+          <Link href="/queue?status=BLOCKED" className="underline">
+            xem lý do
+          </Link>
+          .
+        </AlertBanner>
       ) : null}
 
       {needsAttention.length > 0 ? (
-        <div className="mb-6 rounded-md border border-red-300 bg-red-50 px-4 py-3 dark:border-red-900 dark:bg-red-950">
-          <p className="text-sm font-medium text-red-800 dark:text-red-300">
-            {needsAttention.length} nick cần xử lý tay:
-          </p>
-          <ul className="mt-2 space-y-1 text-sm">
+        <AlertBanner tone="red">
+          <p className="font-medium">{needsAttention.length} nick cần xử lý tay:</p>
+          <ul className="mt-2 space-y-1">
             {needsAttention.map((account) => (
               <li key={account.id}>
                 <Link href={`/accounts/${account.id}`} className="underline">
@@ -115,7 +174,7 @@ export default async function OverviewPage() {
               </li>
             ))}
           </ul>
-        </div>
+        </AlertBanner>
       ) : null}
 
       <div className="mb-8 grid grid-cols-2 gap-4 sm:grid-cols-4">
