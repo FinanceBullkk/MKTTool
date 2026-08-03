@@ -42,7 +42,7 @@ export async function recheckOneJob(job: RecheckableJob): Promise<RecheckOutcome
   }
 
   const preview = await previewPostJobRules({
-    contentItemId: job.contentItemId,
+    content: { contentItemId: job.contentItemId },
     accountId: job.accountId,
     targetId: job.targetId,
     scheduledAt: job.scheduledAt,

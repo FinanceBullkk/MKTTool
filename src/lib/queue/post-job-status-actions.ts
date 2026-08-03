@@ -58,7 +58,10 @@ export async function markJobPosted(jobId: string, postedUrl: string): Promise<A
     prisma.account.update({ where: { id: job.accountId }, data: { lastActionAt: new Date() } }),
   ]);
 
+  // Cả "/" nữa: thẻ nhắc việc đăng tay nằm ở trang Hôm nay và bấm "Đã đăng" được ngay tại đó,
+  // job vừa xong phải biến khỏi danh sách nhắc chứ không nằm lại chờ bấm thêm lần nữa.
   revalidatePath("/queue");
+  revalidatePath("/");
   return { ok: true, message: "Đã ghi nhận bài đăng. Nick khác sẽ bị chặn nếu đụng vào thread này." };
 }
 

@@ -99,3 +99,15 @@ export function parseLinks(raw: string | null): string[] {
 export function stringifyLinks(links: string[]): string | null {
   return links.length > 0 ? JSON.stringify(links) : null;
 }
+
+/**
+ * Ô link là textarea: mỗi dòng một link, cho phép dán cả cụm rồi tự tách.
+ *
+ * Nằm ở đây chứ không ở content-item-actions.ts vì file đó là `"use server"` — mọi thứ export
+ * ra từ đó đều thành endpoint HTTP. Kho content và tab "Viết mới" ở trang xếp lịch phải tách
+ * link y hệt nhau, nếu không cùng một ô nhập lại ra hai kết quả khác nhau tùy đường vào.
+ */
+export function parseLinksInput(raw: string | undefined): string[] {
+  if (!raw) return [];
+  return [...new Set(raw.split(/[\s,]+/).map((item) => item.trim()).filter(Boolean))];
+}

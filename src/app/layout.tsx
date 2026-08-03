@@ -1,23 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { PrimaryNav } from "@/components/layout/primary-nav";
 import "./globals.css";
 
 export const metadata: Metadata = {
   title: "MKTTool — Bảng điều khiển nhiều tài khoản",
   description: "Bảng điều khiển nhiều tài khoản cho team marketing",
 };
-
-const NAV_ITEMS = [
-  { href: "/", label: "Tổng quan" },
-  { href: "/queue", label: "Hàng đợi" },
-  { href: "/health", label: "Sức khỏe" },
-  { href: "/content", label: "Content" },
-  { href: "/accounts", label: "Tài khoản" },
-  { href: "/personas", label: "Nhân vật" },
-  { href: "/proxies", label: "Proxy" },
-  { href: "/targets", label: "Đích đăng" },
-  { href: "/facebook", label: "Facebook" },
-];
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -29,17 +18,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <Link href="/" className="text-lg font-semibold">
               MKTTool
             </Link>
-            <nav className="flex flex-wrap gap-1 text-sm">
-              {NAV_ITEMS.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className="rounded-md px-3 py-1.5 text-neutral-600 transition hover:bg-neutral-200 hover:text-neutral-900 dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-neutral-100"
-                >
-                  {item.label}
-                </Link>
-              ))}
-            </nav>
+            <PrimaryNav />
           </header>
           <main>{children}</main>
         </div>

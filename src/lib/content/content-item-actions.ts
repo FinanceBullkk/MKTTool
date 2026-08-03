@@ -18,13 +18,7 @@ import { prisma } from "@/lib/db/prisma-client";
 import { describeUnexpectedDbError } from "@/lib/db/prisma-error-helpers";
 import { blockDeleteWhenReferenced } from "@/lib/db/reference-guard";
 import { describeRecheck, recheckJobsMatching } from "@/lib/queue/recheck-jobs-batch";
-import { stringifyLinks } from "./content-types";
-
-/** Ô link là textarea: mỗi dòng một link, cho phép dán cả cụm rồi tự tách. */
-function parseLinksInput(raw: string | undefined): string[] {
-  if (!raw) return [];
-  return [...new Set(raw.split(/[\s,]+/).map((item) => item.trim()).filter(Boolean))];
-}
+import { parseLinksInput, stringifyLinks } from "./content-types";
 
 export async function createContentItem(
   _prev: ActionResult | null,

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { AccountHealthTable } from "@/components/health/account-health-table";
 import { ManualPostReminders } from "@/components/queue/manual-post-reminders";
+import { PostingLoopStrip } from "@/components/queue/posting-loop-strip";
 import { Card, PageHeading, StatusBadge } from "@/components/ui/page-section";
 import {
   ACCOUNT_STATUSES,
@@ -10,6 +11,7 @@ import {
 } from "@/lib/accounts/account-status";
 import { prisma } from "@/lib/db/prisma-client";
 import { loadDueManualPostReminders } from "@/lib/queue/manual-post-reminders";
+import { loadPostingLoopSummary } from "@/lib/queue/posting-loop-summary";
 import { loadAccountHealthRows } from "@/lib/health/health-dashboard-queries";
 
 export const dynamic = "force-dynamic";
@@ -25,6 +27,7 @@ export default async function OverviewPage() {
     blockedJobCount,
     manualReminders,
     healthRows,
+    loopSummary,
   ] = await Promise.all([
       prisma.account.findMany({
         select: { id: true, username: true, status: true, coldStartUntil: true },
@@ -37,6 +40,7 @@ export default async function OverviewPage() {
       prisma.postJob.count({ where: { status: "BLOCKED" } }),
       loadDueManualPostReminders(),
       loadAccountHealthRows(),
+      loadPostingLoopSummary(),
     ]);
 
   // "Chưa dò" và "dò lâu rồi" đều là KHÔNG BIẾT, và không biết thì phải hiện ra.
@@ -65,8 +69,8 @@ export default async function OverviewPage() {
   return (
     <>
       <PageHeading
-        title="Tổng quan"
-        description="Kho danh tính, bộ luật an toàn và bộ dò shadowban."
+        title="Hôm nay"
+        description="Bài phải đăng tay trong 24 tiếng tới, nick cần xử lý, và sức khỏe cả đàn."
       />
 
       {staleHealth.length > 0 ? (
@@ -127,11 +131,19 @@ export default async function OverviewPage() {
         ))}
       </div>
 
+      <Card title="Vòng đăng bài">
+        <PostingLoopStrip summary={loopSummary} />
+        <p className="mt-3 text-xs text-neutral-500">
+          Bấm &quot;Đã đăng&quot; là thứ khép vòng này lại: nó ghi một Interaction, và chính dữ
+          liệu đó nuôi luật chặn đụng độ thread, giãn cách và tỷ lệ 9:1 cho những bài sau.
+        </p>
+      </Card>
+
       {manualReminders.length > 0 ? (
         <Card title={`Đăng tay — ${manualReminders.length} bài`}>
           <p className="mb-3 text-sm text-neutral-600 dark:text-neutral-400">
             Reddit chưa có bộ tự đăng, còn Group thì Meta gỡ quyền từ 04/2024. Bấm mở profile, copy
-            nội dung, dán và đăng — xong nhớ quay lại hàng đợi bấm &quot;Đã đăng&quot;, vì bộ luật
+            nội dung, dán và đăng — xong bấm &quot;Đã đăng&quot; kèm link ngay tại đây, vì bộ luật
             chỉ biết những gì được ghi lại.
           </p>
           <ManualPostReminders reminders={manualReminders} />

@@ -22,6 +22,7 @@
     "vault:smoke": "tsx scripts/smoke-test-identity-vault.ts",
     "rules:smoke": "tsx --env-file=.env scripts/smoke-test-content-rules.ts",
     "facebook:smoke": "tsx --env-file=.env scripts/smoke-test-facebook-pages.ts",
+    "facebook:inspect": "tsx --env-file=.env scripts/inspect-facebook-post.ts",
     "health": "tsx --env-file=.env scripts/run-health-check.ts",
     "health:smoke": "tsx --env-file=.env scripts/smoke-test-account-health.ts",
     "vault:testotp": "tsx scripts/generate-test-totp-secret.ts"

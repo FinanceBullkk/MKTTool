@@ -6,15 +6,15 @@
  * "Kiểm tra lại" tồn tại vì bối cảnh đổi sau lúc xếp lịch — nick tụt karma, nick khác vừa đăng
  * cùng sub, hoặc vừa có job trùng nội dung. Job hết an toàn thì phải đổi sang BỊ CHẶN, không
  * được im lặng để đó rồi tới giờ cứ thế đăng.
+ *
+ * Phần "Đã đăng" nằm ở mark-posted-control.tsx vì trang Hôm nay cũng cần đúng nút đó.
  */
 import { useState, useTransition } from "react";
 import type { ActionResult } from "@/lib/actions/action-result";
-import { markJobPosted, markJobSkipped, recheckJob } from "@/lib/queue/post-job-status-actions";
+import { SMALL_BUTTON_CLASS } from "@/components/ui/page-section";
+import { markJobSkipped, recheckJob } from "@/lib/queue/post-job-status-actions";
 import { FacebookPublishButton } from "./facebook-publish-button";
-
-const BUTTON_CLASS =
-  "rounded-md border border-neutral-300 px-2 py-1 text-xs transition hover:bg-neutral-100 " +
-  "disabled:opacity-50 dark:border-neutral-700 dark:hover:bg-neutral-800";
+import { MarkPostedControl } from "./mark-posted-control";
 
 export function JobRowActions({
   jobId,
@@ -27,8 +27,6 @@ export function JobRowActions({
 }) {
   const [pending, startTransition] = useTransition();
   const [result, setResult] = useState<ActionResult | null>(null);
-  const [postedUrl, setPostedUrl] = useState("");
-  const [showUrlInput, setShowUrlInput] = useState(false);
 
   function run(action: () => Promise<ActionResult>) {
     startTransition(async () => {
@@ -46,20 +44,14 @@ export function JobRowActions({
 
   return (
     <div className="space-y-1">
-      <div className="flex flex-wrap items-center gap-1">
+      {/* items-start: ô dán link mở ra thì rơi xuống dưới nút "Đã đăng", hai nút kia đứng yên. */}
+      <div className="flex flex-wrap items-start gap-1">
         {open ? (
           <>
+            <MarkPostedControl jobId={jobId} />
             <button
               type="button"
-              className={BUTTON_CLASS}
-              disabled={pending}
-              onClick={() => setShowUrlInput((visible) => !visible)}
-            >
-              Đã đăng
-            </button>
-            <button
-              type="button"
-              className={BUTTON_CLASS}
+              className={SMALL_BUTTON_CLASS}
               disabled={pending}
               onClick={() => run(() => recheckJob(jobId))}
             >
@@ -67,7 +59,7 @@ export function JobRowActions({
             </button>
             <button
               type="button"
-              className={BUTTON_CLASS}
+              className={SMALL_BUTTON_CLASS}
               disabled={pending}
               onClick={() => run(() => markJobSkipped(jobId))}
             >
@@ -81,25 +73,6 @@ export function JobRowActions({
 
       {targetPlatform === "FACEBOOK_PAGE" && status === "PENDING" ? (
         <FacebookPublishButton jobId={jobId} />
-      ) : null}
-
-      {showUrlInput && open ? (
-        <div className="flex flex-wrap items-center gap-1">
-          <input
-            className="w-56 rounded-md border border-neutral-300 px-2 py-1 text-xs dark:border-neutral-700 dark:bg-neutral-900"
-            placeholder="Dán link bài vừa đăng"
-            value={postedUrl}
-            onChange={(event) => setPostedUrl(event.target.value)}
-          />
-          <button
-            type="button"
-            className={BUTTON_CLASS}
-            disabled={pending || postedUrl.trim() === ""}
-            onClick={() => run(() => markJobPosted(jobId, postedUrl))}
-          >
-            Lưu
-          </button>
-        </div>
       ) : null}
 
       {result ? (

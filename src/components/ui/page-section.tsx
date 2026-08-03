@@ -1,5 +1,10 @@
 /** Các khối bố cục dùng lại ở mọi trang. Thuần trình bày, không có logic. */
 
+/** Nút nhỏ trong bảng và thẻ nhắc việc — khai một chỗ để hàng đợi và trang Hôm nay không lệch nhau. */
+export const SMALL_BUTTON_CLASS =
+  "rounded-md border border-neutral-300 px-2 py-1 text-xs transition hover:bg-neutral-100 " +
+  "disabled:opacity-50 dark:border-neutral-700 dark:hover:bg-neutral-800";
+
 export function PageHeading({ title, description }: { title: string; description?: string }) {
   return (
     <div className="mb-6">
