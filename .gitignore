@@ -31,6 +31,9 @@ data/*.lock
 # bản sao lưu database — chứa credential đã mã hóa
 data/backups/
 
+# cấu hình Claude Code của riêng từng máy (quyền đã duyệt, không phải của dự án)
+.claude/settings.local.json
+
 # misc
 .DS_Store
 *.log
