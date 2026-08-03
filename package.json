@@ -12,6 +12,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "db:migrate": "prisma migrate dev",
+    "db:upgrade": "tsx --env-file=.env scripts/upgrade-database.ts",
     "db:generate": "prisma generate",
     "db:studio": "prisma studio",
     "db:backup": "tsx --env-file=.env scripts/backup-database.ts",
