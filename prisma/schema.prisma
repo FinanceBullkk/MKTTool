@@ -83,6 +83,15 @@ model ObserverProxy {
   active      Boolean  @default(true)
   notes       String?
   createdAt   DateTime @default(now())
+
+  /// Kết quả lần kiểm proxy còn sống gần nhất — bốn cột y hệt `Proxy`, xem giải thích ở đó.
+  ///
+  /// Ở bảng này chúng quan trọng hơn: proxy của nick chết là mất một nick, còn proxy quan sát
+  /// viên chết là MÙ CẢ ĐÀN — mọi kết luận shadowban đều nhìn qua đúng một IP này.
+  lastCheckedAt    DateTime?
+  lastCheckVerdict String?
+  lastCheckDetail  String?
+  lastExitIp       String?
 }
 
 /// Một lần dò sức khỏe nick từ góc nhìn người ngoài (Phase 03).

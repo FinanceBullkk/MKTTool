@@ -6,6 +6,7 @@
  * vào bất kỳ nick nào. Nhầm một lần là bộ dò tự nối mình vào đàn nick — đúng thứ nó sinh ra
  * để phát hiện ở người khác.
  */
+import { ProxyLastCheckCell } from "@/components/proxies/proxy-last-check-cell";
 import { ActionForm, Field } from "@/components/ui/form-controls";
 import { Card, DataTable, EmptyState, StatusBadge } from "@/components/ui/page-section";
 import { prisma } from "@/lib/db/prisma-client";
@@ -27,11 +28,15 @@ export async function ObserverProxySection() {
 
       {proxies.length === 0 ? (
         <EmptyState>
-          Chưa có proxy quan sát viên. Thiếu nó thì <code>npm run health</code> dừng ngay từ đầu —
-          cố ý như vậy, vì dò bằng IP nhà còn tệ hơn không dò.
+          Chưa có proxy quan sát viên. Thiếu nó thì bộ dò shadowban dừng ngay từ đầu — cố ý như
+          vậy, vì dò bằng IP nhà còn tệ hơn không dò. Khai một cái vào đây rồi bấm{" "}
+          <strong>&quot;Dò cả đàn&quot;</strong> ở trang Sức khỏe là chạy được ngay, không cần
+          mở terminal.
         </EmptyState>
       ) : (
-        <DataTable headers={["Nhãn", "Địa chỉ", "Quốc gia", "Trạng thái", "Ghi chú", ""]}>
+        <DataTable
+          headers={["Nhãn", "Địa chỉ", "Quốc gia", "Trạng thái", "Lần kiểm gần nhất", "Ghi chú", ""]}
+        >
           {proxies.map((proxy) => (
             <tr key={proxy.id}>
               <td className="py-2 pr-4 font-medium">{proxy.label}</td>
@@ -47,6 +52,13 @@ export async function ObserverProxySection() {
                       ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
                       : "bg-neutral-200 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400"
                   }
+                />
+              </td>
+              <td className="py-2 pr-4">
+                <ProxyLastCheckCell
+                  verdict={proxy.lastCheckVerdict}
+                  checkedAt={proxy.lastCheckedAt}
+                  exitIp={proxy.lastExitIp}
                 />
               </td>
               <td className="py-2 pr-4 text-neutral-600 dark:text-neutral-400">

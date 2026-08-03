@@ -8,7 +8,11 @@
  */
 import { useState, useTransition } from "react";
 import type { ActionResult } from "@/lib/actions/action-result";
-import { deleteObserverProxy, setObserverProxyActive } from "@/lib/health/observer-proxy-actions";
+import {
+  checkObserverProxy,
+  deleteObserverProxy,
+  setObserverProxyActive,
+} from "@/lib/health/observer-proxy-actions";
 
 const BUTTON_CLASS =
   "rounded-md border border-neutral-300 px-2 py-1 text-xs transition hover:bg-neutral-100 " +
@@ -31,6 +35,14 @@ export function ObserverProxyRowActions({ id, active }: { id: string; active: bo
   return (
     <div className="space-y-1 text-right">
       <div className="flex flex-wrap justify-end gap-1">
+        <button
+          type="button"
+          className={BUTTON_CLASS}
+          disabled={pending}
+          onClick={() => run(() => checkObserverProxy(id))}
+        >
+          {pending ? "Đang kiểm…" : "Kiểm"}
+        </button>
         <button
           type="button"
           className={BUTTON_CLASS}

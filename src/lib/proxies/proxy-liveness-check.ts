@@ -41,20 +41,28 @@ async function directExitIp(): Promise<ProbeOutcome> {
   return outcome;
 }
 
-/** Đo một proxy rồi ghi kết quả. Không bao giờ ném lỗi: mọi hỏng hóc đều thành một kết luận. */
-export async function checkProxyLiveness(proxy: ProxyRecordForCheck): Promise<ProxyLiveness> {
+/**
+ * Đo một proxy. KHÔNG ghi database — bên gọi quyết định ghi vào bảng nào.
+ *
+ * Tách khỏi phần ghi vì có hai loại proxy ở hai bảng khác nhau (`Proxy` của nick và
+ * `ObserverProxy` của bộ dò) mà phép đo thì y hệt. Chép phép đo ra hai bản là hai chỗ để
+ * lệch nhau, và lệch ở đây nghĩa là cùng một proxy cho hai kết luận khác nhau tùy đường vào.
+ *
+ * Không bao giờ ném lỗi: mọi hỏng hóc đều thành một kết luận.
+ */
+export async function measureProxyLiveness(proxy: ProxyRecordForCheck): Promise<ProxyLiveness> {
   let password: string;
   try {
     password = decryptCredential(proxy.passwordEnc);
   } catch {
     // Giải mã hỏng là chuyện của VAULT_KEY, không phải của proxy — không được kết luận "chết".
-    return persist(proxy.id, {
+    return {
       verdict: "UNKNOWN",
       message:
         "Không giải mã được mật khẩu proxy (VAULT_KEY đã đổi?). Chưa kiểm được proxy còn sống không.",
       exitIp: null,
       blocksLaunch: false,
-    });
+    };
   }
 
   const direct = await directExitIp();
@@ -66,22 +74,38 @@ export async function checkProxyLiveness(proxy: ProxyRecordForCheck): Promise<Pr
     protocol: proxy.protocol?.toLowerCase() ?? "http",
   });
 
-  return persist(
-    proxy.id,
-    evaluateProxyLiveness({ throughProxy, direct, declaredCountry: proxy.country }),
-  );
+  return evaluateProxyLiveness({ throughProxy, direct, declaredCountry: proxy.country });
 }
 
-async function persist(proxyId: string, liveness: ProxyLiveness): Promise<ProxyLiveness> {
-  await prisma.proxy.update({
-    where: { id: proxyId },
-    data: {
-      lastCheckedAt: new Date(),
-      lastCheckVerdict: liveness.verdict,
-      lastCheckDetail: liveness.message.slice(0, 500),
-      lastExitIp: liveness.exitIp,
-    },
-  });
+/** Bốn cột kết quả, giống hệt nhau ở cả hai bảng. */
+function checkColumns(liveness: ProxyLiveness) {
+  return {
+    lastCheckedAt: new Date(),
+    lastCheckVerdict: liveness.verdict,
+    lastCheckDetail: liveness.message.slice(0, 500),
+    lastExitIp: liveness.exitIp,
+  };
+}
+
+/** Đo một proxy của nick rồi ghi kết quả. */
+export async function checkProxyLiveness(proxy: ProxyRecordForCheck): Promise<ProxyLiveness> {
+  const liveness = await measureProxyLiveness(proxy);
+  await prisma.proxy.update({ where: { id: proxy.id }, data: checkColumns(liveness) });
+  return liveness;
+}
+
+/**
+ * Đo proxy quan sát viên rồi ghi kết quả.
+ *
+ * Đặt cạnh hàm trên có chủ ý: hai đường ghi phải nhìn thấy nhau. Nhưng hậu quả khi hỏng thì
+ * KHÁC HẲN — proxy của nick chết là mất một nick, proxy quan sát viên chết là mù cả đàn, vì
+ * mọi kết luận shadowban đều nhìn qua đúng một IP này.
+ */
+export async function checkObserverProxyLiveness(
+  proxy: ProxyRecordForCheck,
+): Promise<ProxyLiveness> {
+  const liveness = await measureProxyLiveness(proxy);
+  await prisma.observerProxy.update({ where: { id: proxy.id }, data: checkColumns(liveness) });
   return liveness;
 }
 

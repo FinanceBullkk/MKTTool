@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ObserverProxySection } from "@/components/health/observer-proxy-section";
 import { CheckAllProxiesButton, CheckOneProxyButton } from "@/components/proxies/proxy-check-controls";
+import { ProxyLastCheckCell } from "@/components/proxies/proxy-last-check-cell";
 import { ActionForm } from "@/components/ui/form-controls";
 import {
   Card,
@@ -12,50 +13,8 @@ import {
 import { ProxyFormFields } from "@/components/vault/proxy-form-fields";
 import { createProxy } from "@/lib/accounts/vault-create-actions";
 import { prisma } from "@/lib/db/prisma-client";
-import { formatDayMonthTime } from "@/lib/format/vietnamese-date-format";
-import {
-  PROXY_CHECK_CLASS,
-  PROXY_CHECK_LABEL,
-  type ProxyCheckVerdict,
-} from "@/lib/proxies/proxy-liveness-verdict";
 
 export const dynamic = "force-dynamic";
-
-/**
- * Ô "lần kiểm gần nhất".
- *
- * Chưa kiểm lần nào KHÔNG được hiện như một ô trống hiền lành: proxy chưa đo là proxy chưa
- * biết còn sống không, và đó chính là trạng thái mặc định của mọi proxy vừa nhập.
- */
-function LastCheckCell({
-  verdict,
-  checkedAt,
-  exitIp,
-}: {
-  verdict: string | null;
-  checkedAt: Date | null;
-  exitIp: string | null;
-}) {
-  if (!verdict || !checkedAt) {
-    return <span className="text-xs text-neutral-500">chưa kiểm lần nào</span>;
-  }
-
-  const known = (PROXY_CHECK_LABEL as Record<string, string>)[verdict] !== undefined;
-  const key = verdict as ProxyCheckVerdict;
-
-  return (
-    <div className="space-y-0.5">
-      <StatusBadge
-        label={known ? PROXY_CHECK_LABEL[key] : verdict}
-        className={known ? PROXY_CHECK_CLASS[key] : PROXY_CHECK_CLASS.UNKNOWN}
-      />
-      <div className="text-xs text-neutral-500">
-        {formatDayMonthTime(checkedAt)}
-        {exitIp ? ` · ra ${exitIp}` : ""}
-      </div>
-    </div>
-  );
-}
 
 export default async function ProxiesPage() {
   const proxies = await prisma.proxy.findMany({
@@ -123,7 +82,7 @@ export default async function ProxiesPage() {
                   )}
                 </td>
                 <td className="py-2 pr-4">
-                  <LastCheckCell
+                  <ProxyLastCheckCell
                     verdict={proxy.lastCheckVerdict}
                     checkedAt={proxy.lastCheckedAt}
                     exitIp={proxy.lastExitIp}
