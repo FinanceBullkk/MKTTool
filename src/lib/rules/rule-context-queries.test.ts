@@ -11,7 +11,16 @@ import {
  * Phần chạm database nằm ở rule-context-queries.database.test.ts.
  */
 
-const AT = new Date("2026-08-10T09:00:00+07:00");
+/**
+ * Mốc thời gian dựng bằng `new Date(năm, tháng, ngày, giờ)` — tức theo **giờ máy đang chạy**,
+ * cố ý không dùng chuỗi ISO có sẵn offset (`...+07:00`).
+ *
+ * `countPostsSameDay` cắt ngày theo giờ máy, vì "hôm nay" của bạn MKT là ngày trên đồng hồ
+ * trước mặt họ chứ không phải ngày UTC. Ghi cứng `+07:00` vào test là ngầm bắt máy chạy test
+ * phải ở UTC+7: đúng trên máy ở Việt Nam, đỏ trên CI chạy UTC — mà cái đỏ đó không phải lỗi
+ * sản phẩm. Dựng theo giờ máy thì test kiểm đúng điều cần kiểm ở bất kỳ múi giờ nào.
+ */
+const AT = new Date(2026, 7, 10, 9, 0);
 const HOUR = 3_600_000;
 
 function job(overrides: Partial<OwnJob> = {}): OwnJob {
@@ -26,16 +35,16 @@ function job(overrides: Partial<OwnJob> = {}): OwnJob {
 describe("countPostsSameDay", () => {
   it("đếm bài trong cùng ngày theo giờ máy", () => {
     const jobs = [
-      job({ scheduledAt: new Date("2026-08-10T00:05:00+07:00") }),
-      job({ scheduledAt: new Date("2026-08-10T23:55:00+07:00") }),
+      job({ scheduledAt: new Date(2026, 7, 10, 0, 5) }),
+      job({ scheduledAt: new Date(2026, 7, 10, 23, 55) }),
     ];
     expect(countPostsSameDay(jobs, AT)).toBe(2);
   });
 
   it("không đếm bài của ngày khác", () => {
     const jobs = [
-      job({ scheduledAt: new Date("2026-08-09T23:59:00+07:00") }),
-      job({ scheduledAt: new Date("2026-08-11T00:01:00+07:00") }),
+      job({ scheduledAt: new Date(2026, 7, 9, 23, 59) }),
+      job({ scheduledAt: new Date(2026, 7, 11, 0, 1) }),
     ];
     expect(countPostsSameDay(jobs, AT)).toBe(0);
   });
@@ -45,8 +54,8 @@ describe("countPostsSameDay", () => {
    * và hạn mức ngày sẽ đếm nhầm sang ngày hôm trước.
    */
   it("nhận đúng nửa đêm đầu ngày, loại đúng nửa đêm ngày kế", () => {
-    const dayStart = new Date("2026-08-10T00:00:00+07:00");
-    const nextDayStart = new Date("2026-08-11T00:00:00+07:00");
+    const dayStart = new Date(2026, 7, 10, 0, 0);
+    const nextDayStart = new Date(2026, 7, 11, 0, 0);
 
     expect(countPostsSameDay([job({ scheduledAt: dayStart })], AT)).toBe(1);
     expect(countPostsSameDay([job({ scheduledAt: nextDayStart })], AT)).toBe(0);
