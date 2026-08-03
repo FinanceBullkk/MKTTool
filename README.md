@@ -33,12 +33,27 @@ Ràng buộc này do database ép, không lách được.
 npm install
 cp .env.example .env
 npm run vault:keygen        # dán VAULT_KEY vào .env
-npm run db:migrate
+npm run db:upgrade
 npm run dev                 # http://localhost:3000
 ```
 
 > **VAULT_KEY phải được sao lưu vào password manager.** Mất khóa là mất toàn bộ mật khẩu và
 > TOTP secret của mọi nick, không khôi phục được bằng bất kỳ cách nào.
+
+### Nhận bản mới
+
+```bash
+npm install
+npm run db:upgrade
+```
+
+`db:upgrade` xem bản mới có thay đổi cấu trúc database không. Không có thì nó nói vậy rồi dừng.
+Có thì nó **sao lưu trước**, áp xong mới báo — và nếu áp hỏng thì chỉ luôn tên file sao lưu để
+chép đè về. Chạy lại nhiều lần không sao: đã mới nhất thì nó không làm gì.
+
+> Đừng dùng `npm run db:migrate` cho việc này. Đó là lệnh của người phát triển: nó có thể hỏi
+> lại, có thể tạo migration mới, và trong vài tình huống còn đề nghị dựng lại database từ đầu —
+> tức xóa sạch kho danh tính.
 
 ## Lệnh
 
@@ -49,7 +64,8 @@ npm run dev                 # http://localhost:3000
 | `npm run lint` | Chạy ESLint |
 | `npm run typecheck` | Kiểm tra TypeScript |
 | `npm run build` | Build production |
-| `npm run db:migrate` | Áp migration |
+| `npm run db:upgrade` | **Nhận bản mới thì chạy lệnh này** — sao lưu rồi áp thay đổi cấu trúc |
+| `npm run db:migrate` | Tạo migration mới (chỉ dùng khi phát triển) |
 | `npm run db:backup` | Sao lưu database ra `data/backups/` |
 | `npm run proxies:import <file>` | Nhập hàng loạt proxy từ file `host:port:user:pass` của nhà cung cấp |
 | `npm run db:studio` | Mở Prisma Studio xem database |

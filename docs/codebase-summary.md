@@ -63,6 +63,7 @@ scripts/
 ├── generate-test-totp-secret.ts  Sinh TOTP secret dùng thử
 ├── rekey-vault-key.ts          Xoay VAULT_KEY, mã hóa lại toàn bộ credential
 ├── backup-database.ts          Sao lưu bằng VACUUM INTO (chạy được khi app đang mở)
+├── upgrade-database.ts         Nâng cấp sau khi nhận bản mới: sao lưu rồi `migrate deploy`
 ├── import-proxies-from-provider-list.ts  Nhập hàng loạt proxy từ file nhà cung cấp
 ├── run-health-check.ts         Dò shadowban + đọc karma mọi nick Reddit (Phase 03)
 ├── smoke-test-identity-vault.ts  Kiểm chứng Phase 01
@@ -265,7 +266,8 @@ bằng `isCommunityPlatform()`. Hai đường lệch nhau là luật chặn ở 
 | `npm test` | Chạy unit test (vitest) |
 | `npm run typecheck` | Kiểm tra TypeScript (`tsc --noEmit`) |
 | `npm run build` | Build production |
-| `npm run db:migrate` | Áp migration Prisma |
+| `npm run db:upgrade` | Nâng cấp database sau khi nhận bản mới — sao lưu rồi áp phần còn thiếu |
+| `npm run db:migrate` | Tạo migration mới (`prisma migrate dev`) — chỉ dùng khi phát triển |
 | `npm run db:studio` | Mở Prisma Studio xem/sửa database (nơi sửa ngưỡng `RuleConfig`) |
 | `npm run db:backup` | Sao lưu database ra `data/backups/` |
 | `npm run health` | Dò shadowban + đọc karma mọi nick Reddit (đặt lịch chạy hằng ngày) |
@@ -293,6 +295,16 @@ Chi tiết đầy đủ ở [README → Lệnh](../README.md#lệnh).
 4. **`prisma migrate dev` không phải lúc nào cũng sinh lại client.** Thêm model xong, migration
    áp thành công mà `tsc` vẫn báo `Property 'facebookPage' does not exist on type 'PrismaClient'`
    — chạy `npm run db:generate` là hết. Đừng đi sửa code theo lỗi đó.
+
+5. **Đừng hỏi "file .db có tồn tại không" để biết đây có phải lần cài đầu.** Chỉ cần mở kết nối
+   là SQLite tạo sẵn file rỗng, nên mọi phép kiểm sau đó đều thấy file tồn tại. `upgrade-database.ts`
+   từng vì vậy mà sao lưu một database trống trơn ở lần cài đầu — và bản sao lưu rỗng còn tệ hơn
+   không có, vì nó làm người ta tưởng mình đang có bản dự phòng. Câu hỏi đúng là **"sổ migration
+   đã có dòng nào chưa"**.
+
+6. **Biến môi trường thắng `.env`.** `prisma.config.ts` gọi `process.loadEnvFile()`, và cả hàm đó
+   lẫn cờ `--env-file` của Node đều KHÔNG ghi đè biến đã đặt sẵn. Nhờ vậy chạy thử lệnh database
+   trên file nháp chỉ cần đặt `DATABASE_URL` trước lệnh, không phải sửa `.env`.
 
 ---
 
