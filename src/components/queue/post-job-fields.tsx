@@ -22,6 +22,19 @@ export interface ComposerTarget {
   platform: string;
 }
 
+/** Giá trị cho <input type="datetime-local"> theo giờ máy. */
+export function toLocalInputValue(date: Date): string {
+  const pad = (value: number) => String(value).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+/** Giờ mặc định của form: đầu giờ kế tiếp. Chỉ tính được ở client vì phụ thuộc múi giờ máy. */
+export function nextHourInputValue(): string {
+  const nextHour = new Date();
+  nextHour.setHours(nextHour.getHours() + 1, 0, 0, 0);
+  return toLocalInputValue(nextHour);
+}
+
 export const FIELD_CLASS =
   "w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm " +
   "focus:border-neutral-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-900";
@@ -48,6 +61,7 @@ export function ContentSelect({
       <FieldLabel label="Content" />
       <select
         className={FIELD_CLASS}
+        id="field-content"
         name="contentItemId"
         value={value}
         onChange={(event) => onChange(event.target.value)}
@@ -79,6 +93,7 @@ export function AccountSelect({
       <FieldLabel label="Nick" />
       <select
         className={FIELD_CLASS}
+        id="field-account"
         name="accountId"
         value={value}
         onChange={(event) => onChange(event.target.value)}
@@ -111,6 +126,7 @@ export function TargetSelect({
       <FieldLabel label="Đích đăng" />
       <select
         className={FIELD_CLASS}
+        id="field-target"
         name="targetId"
         value={value}
         onChange={(event) => onChange(event.target.value)}
@@ -144,6 +160,7 @@ export function ScheduledAtField({
       <FieldLabel label="Giờ đăng" />
       <input
         className={FIELD_CLASS}
+        id="field-scheduled"
         type="datetime-local"
         name="scheduledAt"
         value={value}

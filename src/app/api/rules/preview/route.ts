@@ -6,13 +6,32 @@
  */
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { CONTENT_TYPES } from "@/lib/content/content-types";
 import { CROSS_ORIGIN_MESSAGE, isSameOrigin } from "@/lib/http/same-origin-guard";
 import { previewPostJobRules } from "@/lib/queue/post-job-rule-preview";
 
 export const runtime = "nodejs";
 
+/**
+ * Content của lần chấm thử: lấy từ kho, hoặc nháp đang gõ dở ở tab "Viết mới".
+ *
+ * Nhánh nháp KHÔNG ghi gì vào database — nó chỉ đi vào bộ luật rồi biến mất cùng response.
+ * Chỗ cất nháp thành ContentItem là createPostJob, lúc người dùng bấm xếp lịch.
+ */
+const contentSourceSchema = z.union([
+  z.object({ contentItemId: z.string().min(1) }),
+  z.object({
+    draft: z.object({
+      type: z.enum(CONTENT_TYPES),
+      title: z.string().min(1),
+      body: z.string().min(1),
+      links: z.array(z.string()).default([]),
+    }),
+  }),
+]);
+
 const requestSchema = z.object({
-  contentItemId: z.string().min(1),
+  content: contentSourceSchema,
   accountId: z.string().min(1),
   targetId: z.string().min(1),
   scheduledAt: z.coerce.date(),

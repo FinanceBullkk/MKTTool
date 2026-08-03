@@ -1,0 +1,82 @@
+"use client";
+
+/**
+ * Nút "Đã đăng" kèm ô dán link — dùng chung cho hàng đợi và thẻ nhắc việc ở trang Hôm nay.
+ *
+ * Tách ra khỏi job-row-actions.tsx vì đây là bước dễ quên nhất của cả quy trình: đăng xong mà
+ * không bấm thì bộ luật không thấy bài đó — luật chặn đụng độ thread không có gì để so, tỷ lệ
+ * promo đếm thiếu. Bắt người dùng đổi trang chỉ để bấm một nút là tự tạo chỗ để quên, nên nút
+ * này phải có mặt ngay nơi họ vừa đăng xong.
+ *
+ * Một component cho cả hai chỗ, không nhân bản: cùng `markJobPosted`, cùng cách báo lỗi.
+ */
+import { useState, useTransition } from "react";
+import type { ActionResult } from "@/lib/actions/action-result";
+import { SMALL_BUTTON_CLASS } from "@/components/ui/page-section";
+import { markJobPosted } from "@/lib/queue/post-job-status-actions";
+
+export function MarkPostedControl({ jobId }: { jobId: string }) {
+  const [pending, startTransition] = useTransition();
+  const [result, setResult] = useState<ActionResult | null>(null);
+  const [postedUrl, setPostedUrl] = useState("");
+  const [showUrlInput, setShowUrlInput] = useState(false);
+
+  function save() {
+    startTransition(async () => {
+      try {
+        const outcome = await markJobPosted(jobId, postedUrl);
+        setResult(outcome);
+        // Ghi xong thì thu ô nhập lại, để dòng job không còn mời bấm thêm lần nữa.
+        if (outcome.ok) setShowUrlInput(false);
+      } catch {
+        // Không có nhánh này thì lỗi phía server thành promise reject không ai bắt,
+        // và màn hình đứng im như thể chưa bấm gì.
+        setResult({ ok: false, message: "Thao tác hỏng. Xem log của dev server." });
+      }
+    });
+  }
+
+  return (
+    <div className="space-y-1">
+      <button
+        type="button"
+        className={SMALL_BUTTON_CLASS}
+        disabled={pending}
+        onClick={() => setShowUrlInput((visible) => !visible)}
+      >
+        Đã đăng
+      </button>
+
+      {showUrlInput ? (
+        <div className="flex flex-wrap items-center gap-1">
+          <input
+            className="w-56 rounded-md border border-neutral-300 px-2 py-1 text-xs dark:border-neutral-700 dark:bg-neutral-900"
+            placeholder="Dán link bài vừa đăng"
+            value={postedUrl}
+            onChange={(event) => setPostedUrl(event.target.value)}
+          />
+          <button
+            type="button"
+            className={SMALL_BUTTON_CLASS}
+            disabled={pending || postedUrl.trim() === ""}
+            onClick={save}
+          >
+            Lưu
+          </button>
+        </div>
+      ) : null}
+
+      {result ? (
+        <p
+          className={
+            result.ok
+              ? "text-xs text-emerald-700 dark:text-emerald-400"
+              : "text-xs text-red-700 dark:text-red-400"
+          }
+        >
+          {result.message}
+        </p>
+      ) : null}
+    </div>
+  );
+}

@@ -5,20 +5,18 @@
  * Phần dán và bấm đăng là của người — Reddit chưa có bộ tự đăng (Phase 05), còn Group thì
  * Meta gỡ quyền tự đăng từ 04/2024.
  *
- * Đăng xong nhớ bấm "Đã đăng" ở hàng đợi. Không bấm thì bộ luật không thấy bài này: luật
- * chặn đụng độ thread không có gì để so, và bộ dò shadowban không có bài nào để đối chiếu.
+ * Đăng xong bấm "Đã đăng" ngay tại thẻ này, không phải sang hàng đợi. Không bấm thì bộ luật
+ * không thấy bài này: luật chặn đụng độ thread không có gì để so, và bộ dò shadowban không có
+ * bài nào để đối chiếu — nên bước đó phải nằm đúng chỗ vừa đăng xong, không thêm một hop nào.
  *
  * Reddit hiện HAI nút copy vì form đăng của nó có hai ô rời (tiêu đề và nội dung); Facebook
  * Group chỉ có một ô nên chỉ cần một nút.
  */
 import { useState } from "react";
-import Link from "next/link";
+import { SMALL_BUTTON_CLASS as BUTTON_CLASS } from "@/components/ui/page-section";
 import { formatDayMonthTime } from "@/lib/format/vietnamese-date-format";
 import type { ManualPostReminder } from "@/lib/queue/manual-post-reminders";
-
-const BUTTON_CLASS =
-  "rounded-md border border-neutral-300 px-2 py-1 text-xs transition hover:bg-neutral-100 " +
-  "disabled:opacity-50 dark:border-neutral-700 dark:hover:bg-neutral-800";
+import { MarkPostedControl } from "./mark-posted-control";
 
 const PLATFORM_LABEL: Record<string, string> = {
   REDDIT: "Reddit",
@@ -102,7 +100,8 @@ function ReminderRow({ reminder }: { reminder: ManualPostReminder }) {
       </div>
       <p className="mt-0.5 text-xs text-neutral-500">{reminder.contentTitle}</p>
 
-      <div className="mt-2 flex flex-wrap gap-1">
+      {/* items-start: ô dán link mở ra thì rơi xuống dưới, mấy nút copy đứng nguyên chỗ cũ. */}
+      <div className="mt-2 flex flex-wrap items-start gap-1">
         <button type="button" className={BUTTON_CLASS} disabled={busy} onClick={launchProfile}>
           Mở profile
         </button>
@@ -116,9 +115,7 @@ function ReminderRow({ reminder }: { reminder: ManualPostReminder }) {
             {button.label}
           </button>
         ))}
-        <Link href="/queue?status=PENDING" className={BUTTON_CLASS}>
-          Đánh dấu đã đăng
-        </Link>
+        <MarkPostedControl jobId={reminder.jobId} />
       </div>
 
       {feedback ? (

@@ -24,8 +24,9 @@ export default async function NewPostJobPage() {
     }),
   ]);
 
+  // Kho content trống KHÔNG còn chặn: tab "Viết mới" gõ được bài ngay tại đây, và bài đó vẫn
+  // vào kho lúc lưu. Thiếu nick hoặc đích thì mới thật sự không xếp lịch được.
   const missing = [
-    contents.length === 0 ? { label: "content", href: "/content" } : null,
     accounts.length === 0 ? { label: "nick", href: "/accounts" } : null,
     targets.length === 0 ? { label: "đích đăng", href: "/targets" } : null,
   ].filter((item) => item !== null);
@@ -34,7 +35,7 @@ export default async function NewPostJobPage() {
     <>
       <PageHeading
         title="Xếp lịch đăng"
-        description="Bộ luật chạy ngay khi chọn đủ content, nick, đích và giờ — thấy đèn trước khi bấm, không phải sau."
+        description="Viết bài mới ngay tại đây hoặc lấy từ kho. Bộ luật chạy khi đủ content, nick, đích và giờ — thấy đèn trước khi bấm, không phải sau."
       />
 
       <Card>
@@ -52,7 +53,13 @@ export default async function NewPostJobPage() {
             .
           </EmptyState>
         ) : (
-          <PostJobComposer contents={contents} accounts={accounts} targets={targets} />
+          <PostJobComposer
+            contents={contents}
+            accounts={accounts}
+            targets={targets}
+            // Người viết bài trước thường là người viết bài này — đỡ gõ lại tên mỗi lần.
+            defaultAuthorName={contents[0]?.authorName}
+          />
         )}
       </Card>
 

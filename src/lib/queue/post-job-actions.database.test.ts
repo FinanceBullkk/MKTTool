@@ -1,0 +1,194 @@
+/**
+ * Tạo job từ tab "Viết mới", chạy trên SQLite thật (xem vitest.global-setup.ts).
+ *
+ * Điểm cần giữ bằng test chứ không bằng trí nhớ: nháp gõ ở trang xếp lịch PHẢI thành một
+ * ContentItem thật trong kho. Luật 7 so bài mới với các ContentItem trong 30 ngày gần nhất —
+ * job trỏ vào content không nằm trong kho thì mỗi bài viết thẳng lại xóa một mẩu trí nhớ của
+ * luật đó, và nó mù dần mà không có gì báo. Kiểu hỏng đó không đỏ ở đâu cả: màn hình vẫn xanh,
+ * chỉ là bộ luật ngày càng dễ tính.
+ *
+ * Đường "Chọn từ kho" đi kèm ở đây để chắc nhánh cũ không đổi hành vi khi thêm nhánh mới.
+ */
+import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
+
+// revalidatePath chỉ chạy được trong ngữ cảnh request của Next; ở đây ta kiểm phần database.
+vi.mock("next/cache", () => ({ revalidatePath: () => {} }));
+
+const { prisma } = await import("@/lib/db/prisma-client");
+const { createPostJob } = await import("./post-job-actions");
+
+const DAY = 86_400_000;
+const SCHEDULED_AT = new Date(Date.now() + 2 * 3_600_000);
+
+interface Seeded {
+  accountId: string;
+  targetId: string;
+  contentId: string;
+}
+
+async function clearAll() {
+  // Xóa theo thứ tự khóa ngoại: con trước, cha sau.
+  await prisma.healthCheck.deleteMany();
+  await prisma.interaction.deleteMany();
+  await prisma.postJob.deleteMany();
+  await prisma.contentItem.deleteMany();
+  await prisma.account.deleteMany();
+  await prisma.proxy.deleteMany();
+  await prisma.persona.deleteMany();
+  await prisma.platformTarget.deleteMany();
+  await prisma.auditLog.deleteMany();
+}
+
+/** Nick khỏe, hết cold-start, dư karma — để không luật nào ngoài luật đang xét lên tiếng. */
+async function seed(): Promise<Seeded> {
+  const persona = await prisma.persona.create({
+    data: { name: "nhap-persona", voice: "điềm đạm", contentAngle: "self-hosting" },
+  });
+  const proxy = await prisma.proxy.create({
+    data: {
+      label: "nhap-proxy",
+      host: "127.0.0.1",
+      port: 1080,
+      username: "u",
+      passwordEnc: "x",
+      country: "VN",
+    },
+  });
+  const account = await prisma.account.create({
+    data: {
+      platform: "REDDIT",
+      username: "nhap-nick",
+      passwordEnc: "x",
+      emailAddress: "nhap@example.test",
+      emailPasswordEnc: "x",
+      antidetectProfileId: "profile-nhap",
+      personaId: persona.id,
+      proxyId: proxy.id,
+      status: "ALIVE",
+      karma: 5000,
+      coldStartUntil: new Date(Date.now() - 60 * DAY),
+      platformCreatedAt: new Date(Date.now() - 700 * DAY),
+    },
+  });
+  await prisma.healthCheck.create({
+    data: {
+      accountId: account.id,
+      verdict: "HEALTHY",
+      karma: 5000,
+      visiblePosts: 0,
+      expectedPosts: 0,
+      detail: "Dữ liệu dựng sẵn của test.",
+    },
+  });
+  const target = await prisma.platformTarget.create({
+    data: { platform: "REDDIT", name: "r/nhap", url: "https://reddit.com/r/nhap" },
+  });
+  const content = await prisma.contentItem.create({
+    data: {
+      title: "Bài có sẵn trong kho",
+      body: "Ghi chép về chuyện dựng backup cho homelab, đủ dài để không bị coi là bài rỗng.",
+      type: "VALUE",
+      authorName: "team",
+    },
+  });
+
+  return { accountId: account.id, targetId: target.id, contentId: content.id };
+}
+
+/** Dựng FormData từ object — server action nhận FormData chứ không nhận object. */
+function form(fields: Record<string, string>): FormData {
+  const data = new FormData();
+  for (const [key, value] of Object.entries(fields)) data.set(key, value);
+  return data;
+}
+
+function draftForm(seeded: Seeded, overrides: Record<string, string> = {}): FormData {
+  return form({
+    contentMode: "draft",
+    title: "Bài gõ thẳng ở trang xếp lịch",
+    body: "Mình chạy restic đẩy sang một con NAS cũ, ổn định suốt hai năm, phần khó là chính sách giữ bản sao.",
+    type: "VALUE",
+    authorName: "hao",
+    linksText: "https://example.com/a\nhttps://example.com/b",
+    accountId: seeded.accountId,
+    targetId: seeded.targetId,
+    scheduledAt: SCHEDULED_AT.toISOString(),
+    ...overrides,
+  });
+}
+
+describe("createPostJob — nguồn content", () => {
+  let seeded: Seeded;
+
+  beforeEach(async () => {
+    await clearAll();
+    seeded = await seed();
+  });
+
+  afterAll(async () => {
+    await clearAll();
+  });
+
+  it("lưu nháp thành ContentItem rồi cho job trỏ vào nó", async () => {
+    const result = await createPostJob(null, draftForm(seeded));
+    expect(result.ok).toBe(true);
+
+    const saved = await prisma.contentItem.findFirst({ where: { authorName: "hao" } });
+    expect(saved).not.toBeNull();
+    expect(saved?.title).toBe("Bài gõ thẳng ở trang xếp lịch");
+    expect(saved?.type).toBe("VALUE");
+    // Ô link là textarea nhiều dòng, phải vào kho dạng JSON array như đường /content.
+    expect(JSON.parse(saved?.links ?? "[]")).toEqual([
+      "https://example.com/a",
+      "https://example.com/b",
+    ]);
+
+    const job = await prisma.postJob.findFirst({ where: { contentItemId: saved?.id } });
+    expect(job).not.toBeNull();
+    expect(job?.status).toBe("PENDING");
+    expect(job?.ruleVerdicts).not.toBeNull();
+  });
+
+  it("nháp thiếu ô bắt buộc thì không tạo gì cả", async () => {
+    const result = await createPostJob(null, draftForm(seeded, { title: "" }));
+
+    expect(result.ok).toBe(false);
+    expect(await prisma.postJob.count()).toBe(0);
+    // Quan trọng hơn cả thông báo lỗi: không được để lại một content mồ côi trong kho.
+    expect(await prisma.contentItem.count()).toBe(1);
+  });
+
+  it("đường 'chọn từ kho' vẫn tạo job và không đẻ thêm content", async () => {
+    const result = await createPostJob(
+      null,
+      form({
+        contentMode: "library",
+        contentItemId: seeded.contentId,
+        accountId: seeded.accountId,
+        targetId: seeded.targetId,
+        scheduledAt: SCHEDULED_AT.toISOString(),
+      }),
+    );
+
+    expect(result.ok).toBe(true);
+    expect(await prisma.contentItem.count()).toBe(1);
+
+    const job = await prisma.postJob.findFirst();
+    expect(job?.contentItemId).toBe(seeded.contentId);
+  });
+
+  it("form không khai contentMode thì vẫn hiểu là chọn từ kho", async () => {
+    const result = await createPostJob(
+      null,
+      form({
+        contentItemId: seeded.contentId,
+        accountId: seeded.accountId,
+        targetId: seeded.targetId,
+        scheduledAt: SCHEDULED_AT.toISOString(),
+      }),
+    );
+
+    expect(result.ok).toBe(true);
+    expect(await prisma.postJob.count()).toBe(1);
+  });
+});

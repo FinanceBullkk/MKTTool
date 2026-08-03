@@ -5,11 +5,17 @@
  * đổi nick/đích/giờ) và chính lúc tạo job. Cùng một hàm nên không bao giờ có chuyện
  * đèn xanh lúc xem trước mà lúc lưu lại bị chặn.
  */
-import { buildRuleContext } from "@/lib/rules/rule-context-builder";
+import { type ContentSource, buildRuleContext } from "@/lib/rules/rule-context-builder";
 import { type RuleEvaluation, evaluateRules } from "@/lib/rules/rules-engine";
 
 export interface PreviewInput {
-  contentItemId: string;
+  /**
+   * Content lấy từ kho, hoặc nháp đang gõ dở ở trang xếp lịch.
+   *
+   * Nháp chỉ để XEM THỬ verdict — lúc lưu, createPostJob cất nó thành ContentItem rồi mới tạo
+   * job. Không có đường nào để một job trỏ vào content không nằm trong kho.
+   */
+  content: ContentSource;
   accountId: string;
   targetId: string;
   scheduledAt: Date;
@@ -25,7 +31,7 @@ export async function previewPostJobRules(input: PreviewInput): Promise<PreviewR
   const built = await buildRuleContext({
     accountId: input.accountId,
     targetId: input.targetId,
-    content: { contentItemId: input.contentItemId },
+    content: input.content,
     scheduledAt: input.scheduledAt,
     excludeJobId: input.excludeJobId,
   });

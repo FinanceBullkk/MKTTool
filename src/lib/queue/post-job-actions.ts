@@ -6,18 +6,23 @@
  * Bộ luật chạy LẠI ở đây chứ không tin kết quả xem trước gửi từ trình duyệt —
  * dữ liệu có thể đã đổi giữa lúc xem và lúc bấm lưu, và không bao giờ tin dữ liệu từ client.
  *
+ * Content vào job theo hai đường: chọn từ kho, hoặc gõ mới ngay tại trang xếp lịch. Đường thứ
+ * hai vẫn kết thúc bằng một ContentItem thật trong kho — xem saveDraftAsContentItem.
+ *
  * Ghi đè luật thì bắt buộc có lý do và luôn để lại AuditLog.
  */
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { contentItemCreateSchema, firstError, formToObject } from "@/lib/accounts/vault-form-schemas";
 import type { ActionResult } from "@/lib/actions/action-result";
+import { parseLinksInput, stringifyLinks } from "@/lib/content/content-types";
 import { prisma } from "@/lib/db/prisma-client";
+import type { ContentSource } from "@/lib/rules/rule-context-builder";
 import { serializeEvaluation, summarizeEvaluation } from "@/lib/rules/rules-engine";
 import { canOverride } from "./post-job-override-policy";
 import { joinReasons, previewPostJobRules } from "./post-job-rule-preview";
 
-const postJobSchema = z.object({
-  contentItemId: z.string().min(1, "Chọn content"),
+const jobFieldsSchema = z.object({
   accountId: z.string().min(1, "Chọn nick"),
   targetId: z.string().min(1, "Chọn đích đăng"),
   scheduledAt: z.coerce.date(),
@@ -27,17 +32,77 @@ const postJobSchema = z.object({
   ),
 });
 
+const fromLibrarySchema = z.object({ contentItemId: z.string().min(1, "Chọn content") });
+
+/** Nháp dùng ĐÚNG bộ ô của kho content — vì lát nữa nó thành một bản ghi trong kho thật. */
+const draftSchema = contentItemCreateSchema;
+
+type DraftContent = z.infer<typeof draftSchema>;
+
+type ContentInput =
+  | { kind: "library"; contentItemId: string }
+  | { kind: "draft"; draft: DraftContent; links: string[] };
+
+/**
+ * `contentMode` thiếu thì coi như chọn từ kho — đó là hành vi cũ, và mọi form gửi lên trước
+ * khi có tab "Viết mới" đều thuộc dạng này.
+ */
+function parseContentInput(
+  raw: Record<string, unknown>,
+): { ok: true; input: ContentInput } | { ok: false; message: string } {
+  if (raw.contentMode === "draft") {
+    const parsed = draftSchema.safeParse(raw);
+    if (!parsed.success) return { ok: false, message: firstError(parsed.error) };
+    return {
+      ok: true,
+      input: { kind: "draft", draft: parsed.data, links: parseLinksInput(parsed.data.linksText) },
+    };
+  }
+
+  const parsed = fromLibrarySchema.safeParse(raw);
+  if (!parsed.success) return { ok: false, message: firstError(parsed.error) };
+  return { ok: true, input: { kind: "library", contentItemId: parsed.data.contentItemId } };
+}
+
+function toContentSource(input: ContentInput): ContentSource {
+  if (input.kind === "library") return { contentItemId: input.contentItemId };
+
+  const { type, title, body } = input.draft;
+  return { draft: { type, title, body, links: input.links } };
+}
+
+/**
+ * Cất nháp vào kho rồi trả id để job trỏ vào.
+ *
+ * Bắt buộc phải lưu: luật 7 so bài mới với các ContentItem trong 30 ngày gần nhất. Job trỏ vào
+ * một content ảo nghĩa là mỗi bài viết thẳng lại xóa một mẩu trí nhớ của luật đó, và nó mù dần
+ * mà không có gì báo.
+ *
+ * Lưu SAU khi chấm luật, không phải trước — lưu trước thì bài này nằm trong kho đúng lúc luật 7
+ * đi so, và nó tự thấy chính mình trùng 100% với chính mình.
+ */
+async function saveDraftAsContentItem(input: Extract<ContentInput, { kind: "draft" }>) {
+  const { title, body, type, authorName } = input.draft;
+  return prisma.contentItem.create({
+    data: { title, body, type, authorName, links: stringifyLinks(input.links) },
+    select: { id: true, title: true },
+  });
+}
+
 export async function createPostJob(
   _prev: ActionResult | null,
   formData: FormData,
 ): Promise<ActionResult> {
-  const parsed = postJobSchema.safeParse(Object.fromEntries(formData.entries()));
-  if (!parsed.success) {
-    return { ok: false, message: parsed.error.issues[0]?.message ?? "Dữ liệu không hợp lệ" };
-  }
+  const raw = formToObject(formData);
 
-  const { overrideReason, ...job } = parsed.data;
-  const preview = await previewPostJobRules(job);
+  const content = parseContentInput(raw);
+  if (!content.ok) return { ok: false, message: content.message };
+
+  const fields = jobFieldsSchema.safeParse(raw);
+  if (!fields.success) return { ok: false, message: firstError(fields.error) };
+
+  const { overrideReason, ...job } = fields.data;
+  const preview = await previewPostJobRules({ ...job, content: toContentSource(content.input) });
   if (!preview.ok) return { ok: false, message: preview.message };
 
   const { evaluation } = preview;
@@ -53,9 +118,20 @@ export async function createPostJob(
     };
   }
 
+  let contentItemId: string;
+  let savedDraftTitle: string | null = null;
+  if (content.input.kind === "draft") {
+    const saved = await saveDraftAsContentItem(content.input);
+    contentItemId = saved.id;
+    savedDraftTitle = saved.title;
+  } else {
+    contentItemId = content.input.contentItemId;
+  }
+
   const created = await prisma.postJob.create({
     data: {
       ...job,
+      contentItemId,
       status: "PENDING",
       ruleVerdicts: serializeEvaluation(evaluation),
       overrideReason: evaluation.level === "BLOCK" ? (overrideReason ?? null) : null,
@@ -73,11 +149,19 @@ export async function createPostJob(
   }
 
   revalidatePath("/queue");
+  // Trang Hôm nay nhắc bài đăng tay trong 24 tiếng tới — job vừa xếp có thể thuộc luôn nhóm đó.
+  revalidatePath("/");
+  if (savedDraftTitle) {
+    revalidatePath("/content");
+    revalidatePath("/queue/new");
+  }
+
+  const savedNote = savedDraftTitle ? ` Content "${savedDraftTitle}" đã vào kho.` : "";
   return {
     ok: true,
     message:
       evaluation.level === "BLOCK"
-        ? `Đã xếp lịch bằng cách GHI ĐÈ luật. ${summarizeEvaluation(evaluation)}`
-        : `Đã xếp lịch. ${summarizeEvaluation(evaluation)}`,
+        ? `Đã xếp lịch bằng cách GHI ĐÈ luật. ${summarizeEvaluation(evaluation)}${savedNote}`
+        : `Đã xếp lịch. ${summarizeEvaluation(evaluation)}${savedNote}`,
   };
 }

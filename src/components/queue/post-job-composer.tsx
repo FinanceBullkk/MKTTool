@@ -1,32 +1,40 @@
 "use client";
 
 /**
- * Tạo job đăng bài: chọn content → nick → đích → giờ, bộ luật chạy ngay sau mỗi lần đổi.
+ * Tạo job đăng bài: content → nick → đích → giờ, bộ luật chạy ngay sau mỗi lần đổi.
+ *
+ * Content lấy từ kho hoặc gõ thẳng tại đây (xem content-source-picker.tsx) — cả hai đường đều
+ * chạy qua đúng một bộ luật, nên đèn nói cùng một thứ dù đi đường nào.
  *
  * Thấy trước khi bấm mới là điểm mấu chốt. Bảng verdict hiện lý do bằng tiếng Việt, nút "Xếp lịch"
  * khóa khi đèn đỏ; muốn qua thì phải gõ lý do ghi đè — trừ luật đụng độ thread, không có đường vòng.
  */
 import { useActionState, useEffect, useState } from "react";
 import { RuleVerdictPanel } from "@/components/queue/rule-verdict-badge";
+import { parseLinksInput } from "@/lib/content/content-types";
+import { formatDayMonthTime } from "@/lib/format/vietnamese-date-format";
 import { isPlatformCompatible } from "@/lib/platforms/platform-family";
 import { createPostJob } from "@/lib/queue/post-job-actions";
+import { buildComposeSteps } from "./compose-pipeline-steps";
+import { PipelineStrip } from "./pipeline-strip";
+import {
+  type ContentMode,
+  ContentSourcePicker,
+  type DraftContent,
+  emptyDraft,
+  isDraftUsable,
+} from "./content-source-picker";
 import {
   AccountSelect,
   type ComposerAccount,
   type ComposerContent,
   type ComposerTarget,
-  ContentSelect,
   FIELD_CLASS,
+  nextHourInputValue,
   ScheduledAtField,
   TargetSelect,
 } from "./post-job-fields";
-import { useRulePreview } from "./use-rule-preview";
-
-/** Giá trị cho <input type="datetime-local"> theo giờ máy. */
-function toLocalInputValue(date: Date): string {
-  const pad = (value: number) => String(value).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
-}
+import { type PreviewContent, useRulePreview } from "./use-rule-preview";
 
 const MIN_OVERRIDE_REASON_LENGTH = 10;
 
@@ -34,13 +42,21 @@ export function PostJobComposer({
   contents,
   accounts,
   targets,
+  defaultAuthorName,
 }: {
   contents: ComposerContent[];
   accounts: ComposerAccount[];
   targets: ComposerTarget[];
+  defaultAuthorName?: string;
 }) {
   const [state, formAction, pending] = useActionState(createPostJob, null);
+  // Kho trống thì "Chọn từ kho" là ngõ cụt; còn khi kho có bài, giữ nguyên đường cũ làm mặc định
+  // để thói quen đang có không đổi dưới chân người dùng.
+  const [contentMode, setContentMode] = useState<ContentMode>(
+    contents.length === 0 ? "draft" : "library",
+  );
   const [contentItemId, setContentItemId] = useState("");
+  const [draft, setDraft] = useState<DraftContent>(() => emptyDraft(defaultAuthorName));
   const [accountId, setAccountId] = useState("");
   const [targetId, setTargetId] = useState("");
   const [scheduledAt, setScheduledAt] = useState("");
@@ -52,11 +68,29 @@ export function PostJobComposer({
   // (nó phụ thuộc múi giờ máy người dùng), nên không có cách nào suy ra lúc render mà vẫn
   // hydrate sạch. Đổi một lượt render thừa lúc mount để lấy giờ đúng là đánh đổi đáng.
   useEffect(() => {
-    const nextHour = new Date();
-    nextHour.setHours(nextHour.getHours() + 1, 0, 0, 0);
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setScheduledAt(toLocalInputValue(nextHour));
+    setScheduledAt(nextHourInputValue());
   }, []);
+
+  /**
+   * Lưu xong thì dọn form về trạng thái xếp bài tiếp theo.
+   *
+   * BẮT BUỘC, không phải cho gọn: React 19 tự reset form sau khi action chạy xong, nhưng nó chỉ
+   * giữ lại được ô text và datetime — mọi `<select>` bị xóa về mục đầu tiên trong khi state React
+   * vẫn ôm id cũ. Không dọn thì băng chuyền và đèn luật kể chuyện của lựa chọn đã biến mất khỏi
+   * màn hình, và bấm "Xếp lịch" lần nữa sẽ gửi lên id rỗng trong lúc mọi thứ vẫn hiện xanh.
+   */
+  useEffect(() => {
+    if (!state?.ok) return;
+    /* eslint-disable react-hooks/set-state-in-effect */
+    setContentItemId("");
+    setAccountId("");
+    setTargetId("");
+    setOverrideReason("");
+    setDraft(emptyDraft(defaultAuthorName));
+    setScheduledAt(nextHourInputValue());
+    /* eslint-enable react-hooks/set-state-in-effect */
+  }, [state, defaultAuthorName]);
 
   const selectedAccount = accounts.find((account) => account.id === accountId);
   const eligibleTargets = selectedAccount
@@ -69,8 +103,22 @@ export function PostJobComposer({
   const targetStillValid = !targetId || eligibleTargets.some((target) => target.id === targetId);
   const effectiveTargetId = targetStillValid ? targetId : "";
 
+  const contentReady = contentMode === "library" ? Boolean(contentItemId) : isDraftUsable(draft);
+  const previewContent: PreviewContent | null = !contentReady
+    ? null
+    : contentMode === "library"
+      ? { contentItemId }
+      : {
+          draft: {
+            type: draft.type,
+            title: draft.title,
+            body: draft.body,
+            links: parseLinksInput(draft.linksText),
+          },
+        };
+
   const preview = useRulePreview({
-    contentItemId,
+    content: previewContent,
     accountId,
     targetId: effectiveTargetId,
     scheduledAt,
@@ -79,9 +127,25 @@ export function PostJobComposer({
   const blocked = evaluation?.level === "BLOCK";
   const canOverride = blocked && evaluation.overridable;
 
+  // Nhãn chỉ hiện khi phần đó đã đủ để lưu — băng chuyền nói "xong" trong khi nút còn khóa là
+  // dạy người dùng tin nhầm chỗ.
+  const selectedContent = contents.find((content) => content.id === contentItemId);
+  const steps = buildComposeSteps({
+    contentMode,
+    contentLabel: !contentReady
+      ? null
+      : contentMode === "draft"
+        ? draft.title.trim()
+        : (selectedContent?.title ?? null),
+    accountLabel: selectedAccount?.username ?? null,
+    targetLabel: eligibleTargets.find((target) => target.id === effectiveTargetId)?.name ?? null,
+    scheduledLabel: scheduledAt ? formatDayMonthTime(new Date(scheduledAt)) : null,
+    preview,
+  });
+
   const submitDisabled =
     pending ||
-    !contentItemId ||
+    !contentReady ||
     !accountId ||
     !effectiveTargetId ||
     !scheduledAt ||
@@ -90,8 +154,19 @@ export function PostJobComposer({
 
   return (
     <form action={formAction} className="space-y-5">
+      <PipelineStrip steps={steps} />
+
+      <ContentSourcePicker
+        mode={contentMode}
+        onModeChange={setContentMode}
+        contents={contents}
+        contentItemId={contentItemId}
+        onContentItemIdChange={setContentItemId}
+        draft={draft}
+        onDraftChange={setDraft}
+      />
+
       <div className="grid gap-4 sm:grid-cols-2">
-        <ContentSelect contents={contents} value={contentItemId} onChange={setContentItemId} />
         <AccountSelect accounts={accounts} value={accountId} onChange={setAccountId} />
         <TargetSelect
           targets={eligibleTargets}
