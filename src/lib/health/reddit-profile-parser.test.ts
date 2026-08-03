@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { countPostsWithin, parseRedditProfile } from "./reddit-profile-parser";
+import { parseRedditProfile, postsWithin } from "./reddit-profile-parser";
 
 /** Rút gọn từ HTML thật của old.reddit.com — giữ đúng những thuộc tính bộ dò đọc tới. */
 function profileHtml(things: string, karma = '<span class="karma">1,234</span>'): string {
@@ -9,8 +9,15 @@ function profileHtml(things: string, karma = '<span class="karma">1,234</span>')
   `;
 }
 
-function thing(type: "link" | "comment", timestamp: number): string {
-  return `<div class=" thing id-t3_abc odd ${type} " data-type="${type}" data-timestamp="${timestamp}"></div>`;
+function thing(
+  type: "link" | "comment",
+  timestamp: number,
+  permalink = "/r/Trove/comments/1veg99o/tieu-de/",
+): string {
+  return (
+    `<div class=" thing id-t3_abc odd ${type} " data-type="${type}" ` +
+    `data-timestamp="${timestamp}" data-fullname="t3_1veg99o" data-permalink="${permalink}"></div>`
+  );
 }
 
 const NOW = new Date("2026-08-03T00:00:00Z");
@@ -59,7 +66,7 @@ describe("parseRedditProfile", () => {
 
     expect(parsed.kind).toBe("OK");
     if (parsed.kind !== "OK") return;
-    expect(parsed.postTimestamps).toHaveLength(2);
+    expect(parsed.posts).toHaveLength(2);
     expect(parsed.commentCount).toBe(1);
   });
 
@@ -87,21 +94,60 @@ describe("parseRedditProfile", () => {
 
     expect(parsed.kind).toBe("OK");
     if (parsed.kind !== "OK") return;
-    expect(parsed.postTimestamps).toEqual([]);
+    expect(parsed.posts).toEqual([]);
+  });
+
+  /**
+   * Khóa bài là thứ biến bộ dò từ ĐẾM thành ĐỐI CHIẾU. Nó phải sinh ra từ cùng
+   * `normalizeThreadUrl()` mà luật 8 và job trong kho đang dùng, nếu không hai bên không
+   * bao giờ ghép được với nhau.
+   */
+  it("đọc khóa bài từ data-permalink, cùng dạng khóa với job trong kho", () => {
+    const parsed = parseRedditProfile({
+      html: profileHtml(thing("link", NOW.getTime())),
+      status: 200,
+    });
+
+    expect(parsed.kind).toBe("OK");
+    if (parsed.kind !== "OK") return;
+    expect(parsed.posts[0]?.threadKey).toBe("reddit:1veg99o");
+  });
+
+  it("thiếu data-permalink thì lùi về data-fullname", () => {
+    const html = profileHtml(
+      `<div class=" thing " data-type="link" data-timestamp="${NOW.getTime()}" ` +
+        `data-fullname="t3_1veg99o"></div>`,
+    );
+    const parsed = parseRedditProfile({ html, status: 200 });
+
+    expect(parsed.kind).toBe("OK");
+    if (parsed.kind !== "OK") return;
+    expect(parsed.posts[0]?.threadKey).toBe("reddit:1veg99o");
+  });
+
+  it("không có thuộc tính nhận dạng nào thì vẫn đếm được bài, chỉ là không ghép được", () => {
+    // Đếm được mà không nhận dạng được thì vẫn hơn bỏ sót: bỏ qua bài này là thu nhỏ con số
+    // "người ngoài thấy mấy bài", tức làm một nick đang bị ẩn trông khỏe hơn thực tế.
+    const html = profileHtml(
+      `<div class=" thing " data-type="link" data-timestamp="${NOW.getTime()}"></div>`,
+    );
+    const parsed = parseRedditProfile({ html, status: 200 });
+
+    expect(parsed.kind).toBe("OK");
+    if (parsed.kind !== "OK") return;
+    expect(parsed.posts).toHaveLength(1);
+    expect(parsed.posts[0]?.threadKey).toBeNull();
   });
 });
 
-describe("countPostsWithin", () => {
-  it("chỉ đếm bài trong cửa sổ quan sát", () => {
-    const timestamps = [
-      NOW.getTime() - 1 * DAY,
-      NOW.getTime() - 6 * DAY,
-      NOW.getTime() - 30 * DAY, // ngoài cửa sổ 7 ngày
-    ];
-    expect(countPostsWithin(timestamps, 7, NOW)).toBe(2);
+describe("postsWithin", () => {
+  const at = (daysAgo: number) => ({ timestamp: NOW.getTime() - daysAgo * DAY, threadKey: null });
+
+  it("chỉ giữ bài trong cửa sổ quan sát", () => {
+    expect(postsWithin([at(1), at(6), at(30)], 7, NOW)).toHaveLength(2);
   });
 
-  it("không có bài nào thì trả 0", () => {
-    expect(countPostsWithin([], 7, NOW)).toBe(0);
+  it("không có bài nào thì trả mảng rỗng", () => {
+    expect(postsWithin([], 7, NOW)).toEqual([]);
   });
 });

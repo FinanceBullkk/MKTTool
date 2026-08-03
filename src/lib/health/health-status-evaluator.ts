@@ -38,6 +38,28 @@ export interface HealthEvaluationInput {
    * thì loại trừ được khả năng gõ sai; chưa thấy bao giờ thì không loại trừ được gì.
    */
   profileSeenBefore?: boolean;
+  /**
+   * Bài thấy được trên profile mà KHÔNG khớp job nào trong kho.
+   *
+   * Đây là chiều so sánh mà bộ dò từng mù hoàn toàn. Thiếu nó thì một bài đăng ngoài công cụ
+   * sẽ không bao giờ lộ ra, mà bài không được ghi làm bốn luật giữ nhịp đếm thiếu: hạn mức
+   * ngày, giãn cách cùng đích, tỷ lệ promo và chặn đụng độ thread đều dễ dãi hơn thực tế.
+   * Tức là lỗi sổ sách âm thầm biến bộ luật thành thứ tạo ra chính cái nó phải ngăn.
+   */
+  untrackedPostKeys?: readonly string[];
+  /**
+   * Job đã đánh dấu đăng nhưng KHÔNG tìm thấy bài tương ứng trên profile.
+   *
+   * Không tự thành một kết luận riêng — nó chỉ làm rõ thêm cho các nhánh "thấy ít hơn dự
+   * kiến" bằng cách chỉ đúng link nào không thấy, thay vì chỉ nói thiếu mấy bài.
+   */
+  missingPostKeys?: readonly string[];
+}
+
+/** Liệt kê vài khóa đầu, còn lại gộp thành "và N nữa" — câu cảnh báo phải đọc được. */
+function listKeys(keys: readonly string[], limit = 3): string {
+  const shown = keys.slice(0, limit).join(", ");
+  return keys.length > limit ? `${shown} và ${keys.length - limit} bài nữa` : shown;
 }
 
 export interface HealthEvaluation {
@@ -112,6 +134,41 @@ export function evaluateHealth(input: HealthEvaluationInput): HealthEvaluation {
     return conclude("ERROR", profile.reason);
   }
 
+  // Xét trước mọi nhánh đếm: không đọc được danh sách thì không so được gì, kể cả khi kho
+  // trống. "Kho trống" không phải lý do để nói nhẹ đi một lượt dò mù.
+  if (visiblePosts === null) {
+    return conclude(
+      "ERROR",
+      "Đọc được trang profile nhưng không đọc được danh sách bài, nên không đối chiếu được " +
+        `với ${expectedPosts} bài đã đăng. Mở tay old.reddit.com để đối chiếu.`,
+    );
+  }
+
+  // Chiều so sánh mà bộ dò từng mù hoàn toàn: NGOÀI ĐỜI CÓ MÀ KHO KHÔNG BIẾT.
+  //
+  // Xét TRƯỚC nhánh "chưa có gì để so", vì nick có 0 job trong kho mà 3 bài trên profile chính
+  // là ca lệch nặng nhất — mà nhánh dưới lại trả "chưa có gì để đối chiếu" đúng lúc đang có
+  // rất nhiều thứ để đối chiếu.
+  //
+  // Có khóa thì chỉ đích danh từng bài; không có khóa thì vẫn kết luận được bằng số lượng.
+  // Đừng bỏ nhánh đếm: nick nào bộ dò không đọc được `data-permalink` sẽ im lặng trở lại.
+  const untracked = input.untrackedPostKeys ?? [];
+  const untrackedByCount = visiblePosts - expectedPosts;
+
+  if (untracked.length > 0 || untrackedByCount > 0) {
+    const howMany = untracked.length > 0 ? untracked.length : untrackedByCount;
+    return conclude(
+      "UNTRACKED_POSTS",
+      `Người ngoài thấy ${visiblePosts} bài trong ${windowDays} ngày qua nhưng kho chỉ ghi ` +
+        `${expectedPosts} — ${howMany} bài không có job nào tương ứng` +
+        (untracked.length > 0 ? ` (${listKeys(untracked)})` : "") +
+        ". Bộ luật đếm theo job, nên mỗi bài không được ghi làm nó ĐẾM THIẾU: hạn mức ngày, " +
+        "giãn cách cùng đích, tỷ lệ promo và chặn đụng độ thread đều đang dễ dãi hơn thực tế. " +
+        "Vào /queue ghi lại. Kể cả bài đăng tay để nuôi nick hay bài của chủ cũ khi mua nick " +
+        "cổ cũng nên ghi — bộ luật chỉ biết những gì được ghi lại.",
+    );
+  }
+
   // Không có bài nào để so thì lần dò này chỉ chứng minh nick còn tồn tại với người ngoài —
   // KHÔNG chứng minh bài của nó hiện ra. Đây từng trả "HEALTHY" và đó là chỗ duy nhất trong
   // bộ dò dịch "thiếu dữ liệu" thành "tin tốt": ai đó đăng đều mà quên bấm "Đã đăng" sẽ thấy
@@ -127,14 +184,6 @@ export function evaluateHealth(input: HealthEvaluationInput): HealthEvaluation {
     );
   }
 
-  if (visiblePosts === null) {
-    return conclude(
-      "ERROR",
-      "Đọc được trang profile nhưng không đọc được danh sách bài, nên không đối chiếu được " +
-        `với ${expectedPosts} bài đã đăng. Mở tay old.reddit.com để đối chiếu.`,
-    );
-  }
-
   if (visiblePosts === 0) {
     return conclude(
       "SHADOWBANNED",
@@ -146,10 +195,13 @@ export function evaluateHealth(input: HealthEvaluationInput): HealthEvaluation {
     );
   }
 
+  const missing = input.missingPostKeys ?? [];
+
   if (visiblePosts < expectedPosts * VISIBLE_POST_WARN_RATIO) {
     return conclude(
       "WARN",
       `Chỉ thấy ${visiblePosts}/${expectedPosts} bài đã đăng trong ${windowDays} ngày qua. ` +
+        (missing.length > 0 ? `Không thấy: ${listKeys(missing)}. ` : "") +
         "Có thể do mod xóa bài, cũng có thể là bị ẩn từng bài. Theo dõi thêm vài ngày; " +
         "tỷ lệ tụt tiếp thì dừng đăng.",
     );

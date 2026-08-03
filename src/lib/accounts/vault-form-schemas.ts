@@ -93,7 +93,15 @@ export const proxyUpdateSchema = z.object({
  * nick lúc chưa có gì trỏ tới rồi nhập lại.
  */
 const accountShape = {
-  username: z.string().min(1, "Username không được để trống"),
+  /**
+   * `trim()` không phải để cho đẹp: username là KHÓA TRA CỨU của bộ dò shadowban
+   * (`old.reddit.com/user/<username>`), và một khoảng trắng thừa thành `%20` trong URL.
+   *
+   * Đo thật 04/08/2026: một nick lưu là `" IllBlueberry5395"`. Lần đó Reddit vẫn trả đúng
+   * trang, nhưng đó là may — cùng lớp lỗi với chuyện gõ sai username, mà lớp lỗi đó dẫn
+   * thẳng tới kết luận 404 → tự cách ly một nick đang khỏe.
+   */
+  username: z.string().trim().min(1, "Username không được để trống"),
   emailAddress: z.string().email("Email gốc không hợp lệ"),
   // Bắt buộc hay không tùy nền tảng — xem validatePlatformIdentityFields() ngay dưới.
   antidetectProfileId: optionalText,

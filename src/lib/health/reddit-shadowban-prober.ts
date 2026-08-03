@@ -8,7 +8,7 @@
 import { detectCheckpoint } from "./checkpoint-detector";
 import { type HealthEvaluation, evaluateHealth } from "./health-status-evaluator";
 import type { ObserverSession } from "./observer-browser-session";
-import { countPostsWithin, parseRedditProfile } from "./reddit-profile-parser";
+import { parseRedditProfile, postsWithin } from "./reddit-profile-parser";
 
 /**
  * Chỉ soi 7 ngày gần nhất. Trang đầu của profile là đủ cho ngần đó, nên không phải lật trang —
@@ -27,7 +27,10 @@ export interface ProbeResult {
 
 /** Bản `old` trả HTML đầy đủ ngay lượt đầu — xem giải thích ở reddit-profile-parser.ts. */
 export function redditProfileUrl(username: string): string {
-  return `https://old.reddit.com/user/${encodeURIComponent(username)}/`;
+  // Cắt khoảng trắng ngay tại đây nữa, dù schema đã cắt lúc lưu: bản ghi cũ nhập trước khi có
+  // ràng buộc đó vẫn còn trong kho, và một khoảng trắng thừa thành `%20` trong URL — đủ để
+  // Reddit trả 404 và bộ dò kết luận nick bị ẩn.
+  return `https://old.reddit.com/user/${encodeURIComponent(username.trim())}/`;
 }
 
 /**
@@ -49,9 +52,23 @@ export async function probeRedditAccount(
     now?: Date;
     /** Xem `HealthEvaluationInput.profileSeenBefore` — chỉ dùng cho nhánh 404. */
     profileSeenBefore?: boolean;
+    /**
+     * Khóa thread của những job đã đánh dấu đăng trong cửa sổ quan sát.
+     *
+     * Có nó thì bộ dò chuyển từ ĐẾM sang ĐỐI CHIẾU: biết được bài nào trên profile không có
+     * job tương ứng, và job nào khai đã đăng mà không thấy bài. Bỏ trống thì mọi thứ chạy y
+     * như cũ, chỉ so số lượng.
+     */
+    recordedPostKeys?: readonly string[];
   },
 ): Promise<ProbeResult> {
-  const { username, expectedPosts, now = new Date(), profileSeenBefore = false } = options;
+  const {
+    username,
+    expectedPosts,
+    now = new Date(),
+    profileSeenBefore = false,
+    recordedPostKeys = [],
+  } = options;
 
   let page: Awaited<ReturnType<ObserverSession["fetchPage"]>>;
   try {
@@ -77,10 +94,19 @@ export async function probeRedditAccount(
   const checkpoint = detectCheckpoint({ url: page.url, html: page.html });
   const profile = parseRedditProfile({ html: page.html, status: page.status });
 
-  const visiblePosts =
-    profile.kind === "OK"
-      ? countPostsWithin(profile.postTimestamps, OBSERVATION_WINDOW_DAYS, now)
-      : null;
+  const visibleInWindow =
+    profile.kind === "OK" ? postsWithin(profile.posts, OBSERVATION_WINDOW_DAYS, now) : null;
+  const visiblePosts = visibleInWindow?.length ?? null;
+
+  // Chỉ đối chiếu những bài ĐỌC ĐƯỢC khóa. Bài không có khóa vẫn được đếm vào `visiblePosts`
+  // nhưng không bị coi là "chưa ghi" — không nhận dạng được thì không kết tội được.
+  const recorded = new Set(recordedPostKeys);
+  const visibleKeys = new Set(
+    (visibleInWindow ?? []).map((post) => post.threadKey).filter((key): key is string => key !== null),
+  );
+
+  const untrackedPostKeys = [...visibleKeys].filter((key) => !recorded.has(key));
+  const missingPostKeys = [...recorded].filter((key) => !visibleKeys.has(key));
 
   const evaluation = evaluateHealth({
     checkpoint,
@@ -90,6 +116,10 @@ export async function probeRedditAccount(
     visiblePosts,
     windowDays: OBSERVATION_WINDOW_DAYS,
     profileSeenBefore,
+    untrackedPostKeys,
+    // Chỉ có nghĩa khi đã đọc được danh sách bài — không đọc được thì "không thấy" là
+    // vì bộ dò mù, không phải vì bài biến mất.
+    missingPostKeys: visibleInWindow ? missingPostKeys : [],
   });
 
   return {

@@ -16,6 +16,7 @@ import {
   type AccountToCheck,
   countExpectedPosts,
   hasEverSeenProfile,
+  loadRecordedPostKeys,
   recordHealthCheck,
 } from "./health-check-recorder";
 import type { HealthVerdict } from "./health-verdict";
@@ -161,15 +162,17 @@ async function probeAll(input: {
       let verdict = "ERROR";
 
       try {
-        const [expectedPosts, profileSeenBefore] = await Promise.all([
+        const [expectedPosts, profileSeenBefore, recordedPostKeys] = await Promise.all([
           countExpectedPosts(account.id, OBSERVATION_WINDOW_DAYS, now),
           hasEverSeenProfile(account.id),
+          loadRecordedPostKeys(account.id, OBSERVATION_WINDOW_DAYS, now),
         ]);
         const result = await probeRedditAccount(session, {
           username: account.username,
           expectedPosts,
           now,
           profileSeenBefore,
+          recordedPostKeys,
         });
         const recorded = await recordHealthCheck(account, result, now);
 

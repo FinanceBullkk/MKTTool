@@ -79,6 +79,40 @@ export function countDistinctPostedUrls(jobs: { postedUrl: string | null }[]): n
 }
 
 /**
+ * Khóa thread của những bài đã đánh dấu đăng trong cửa sổ quan sát.
+ *
+ * Đây là vế "kho biết gì" của phép đối chiếu; vế kia là danh sách bài đọc từ trang profile.
+ * Hai vế phải sinh khóa bằng CÙNG một hàm `normalizeThreadUrl()` thì mới ghép được.
+ *
+ * Job chưa dán link không có khóa nên không tham gia đối chiếu — nó vẫn được tính vào mẫu số
+ * (xem `countDistinctPostedUrls`), chỉ là không chỉ đích danh được.
+ */
+export async function loadRecordedPostKeys(
+  accountId: string,
+  windowDays: number,
+  now: Date = new Date(),
+): Promise<string[]> {
+  const jobs = await prisma.postJob.findMany({
+    where: {
+      accountId,
+      status: "POSTED",
+      postedAt: { gte: new Date(now.getTime() - windowDays * MS_PER_DAY) },
+      postedUrl: { not: null },
+    },
+    select: { postedUrl: true },
+  });
+
+  return [
+    ...new Set(
+      jobs
+        .map((job) => job.postedUrl?.trim())
+        .filter((url): url is string => Boolean(url))
+        .map(normalizeThreadUrl),
+    ),
+  ];
+}
+
+/**
  * Đã từng có lượt dò nào ĐỌC ĐƯỢC trang profile của nick này chưa.
  *
  * Dùng `visiblePosts` chứ không dùng `verdict`: cột đó chỉ khác `null` đúng khi bộ dò đọc
