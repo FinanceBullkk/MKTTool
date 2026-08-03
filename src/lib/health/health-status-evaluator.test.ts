@@ -19,10 +19,32 @@ describe("evaluateHealth", () => {
     expect(evaluateHealth(input()).verdict).toBe("HEALTHY");
   });
 
-  it("Reddit không biết nick này = shadowban toàn cục", () => {
+  it("Reddit không tìm thấy trang profile thì cách ly nick, dù chưa rõ nguyên nhân", () => {
+    // Vẫn CÁCH LY ở cả hai nhánh, có chủ ý: cách ly nhầm một nick khỏe thì ồn ào và sửa được
+    // bằng tay, còn để một nick đã bị ẩn đăng tiếp thì im lặng và tốn content mỗi ngày.
     const result = evaluateHealth(input({ profile: { kind: "MISSING" } }));
     expect(result.verdict).toBe("SHADOWBANNED");
     expect(result.shadowbanned).toBe(true);
+  });
+
+  it("chưa từng thấy profile thì câu chữ phải nêu khả năng username khai sai", () => {
+    // Lượt dò thật đầu tiên (04/08/2026) cách ly nhầm một nick khỏe vì username trong kho là
+    // nhãn tự đặt. Reddit trả CÙNG một trang cho bốn nguyên nhân — khẳng định "shadowban toàn
+    // cục" ở đây là nói chắc hơn thứ đo được.
+    const result = evaluateHealth(
+      input({ profile: { kind: "MISSING" }, profileSeenBefore: false }),
+    );
+
+    expect(result.detail).toContain("USERNAME");
+    expect(result.detail).not.toContain("shadowban toàn cục");
+  });
+
+  it("từng thấy profile rồi mà giờ mất thì mới nói chắc", () => {
+    // Có lượt dò cũ đọc được trang thì loại trừ được khả năng gõ sai username.
+    const result = evaluateHealth(input({ profile: { kind: "MISSING" }, profileSeenBefore: true }));
+
+    expect(result.detail).toContain("lần dò trước");
+    expect(result.detail).not.toContain("USERNAME");
   });
 
   it("đã đăng nhưng không thấy bài nào = bị ẩn từng bài", () => {

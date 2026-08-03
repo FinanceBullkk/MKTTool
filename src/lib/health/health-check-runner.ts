@@ -12,7 +12,12 @@
  */
 import { prisma } from "@/lib/db/prisma-client";
 import { acquireHealthCheckLock } from "./health-check-lock";
-import { type AccountToCheck, countExpectedPosts, recordHealthCheck } from "./health-check-recorder";
+import {
+  type AccountToCheck,
+  countExpectedPosts,
+  hasEverSeenProfile,
+  recordHealthCheck,
+} from "./health-check-recorder";
 import type { HealthVerdict } from "./health-verdict";
 import { type ObserverSession, openObserverSession } from "./observer-browser-session";
 import { OBSERVATION_WINDOW_DAYS, probeRedditAccount } from "./reddit-shadowban-prober";
@@ -156,11 +161,15 @@ async function probeAll(input: {
       let verdict = "ERROR";
 
       try {
-        const expectedPosts = await countExpectedPosts(account.id, OBSERVATION_WINDOW_DAYS, now);
+        const [expectedPosts, profileSeenBefore] = await Promise.all([
+          countExpectedPosts(account.id, OBSERVATION_WINDOW_DAYS, now),
+          hasEverSeenProfile(account.id),
+        ]);
         const result = await probeRedditAccount(session, {
           username: account.username,
           expectedPosts,
           now,
+          profileSeenBefore,
         });
         const recorded = await recordHealthCheck(account, result, now);
 

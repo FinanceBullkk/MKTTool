@@ -43,9 +43,15 @@ function shouldKeepScreenshot(evaluation: HealthEvaluation): boolean {
 
 export async function probeRedditAccount(
   session: ObserverSession,
-  options: { username: string; expectedPosts: number; now?: Date },
+  options: {
+    username: string;
+    expectedPosts: number;
+    now?: Date;
+    /** Xem `HealthEvaluationInput.profileSeenBefore` — chỉ dùng cho nhánh 404. */
+    profileSeenBefore?: boolean;
+  },
 ): Promise<ProbeResult> {
-  const { username, expectedPosts, now = new Date() } = options;
+  const { username, expectedPosts, now = new Date(), profileSeenBefore = false } = options;
 
   let page: Awaited<ReturnType<ObserverSession["fetchPage"]>>;
   try {
@@ -83,6 +89,7 @@ export async function probeRedditAccount(
     expectedPosts,
     visiblePosts,
     windowDays: OBSERVATION_WINDOW_DAYS,
+    profileSeenBefore,
   });
 
   return {

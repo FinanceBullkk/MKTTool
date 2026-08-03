@@ -7,6 +7,62 @@ Dự án chưa phát hành phiên bản (`0.1.0`, dùng nội bộ). Mốc chia 
 
 ---
 
+## 04/08/2026 — Đưa bộ dò shadowban vào chạy thật
+
+Đo trạng thái kho: **0 proxy quan sát viên, 0 lượt dò đã chạy**. Cả Phase 03 — parser
+`old.reddit.com`, khóa chống chạy chồng, biểu đồ karma, luật số 10 — chưa từng chạy một lần nào
+vì thiếu đúng một thứ, và không có màn hình nào nói ra điều đó.
+
+**Tính năng**
+
+- **Kiểm được proxy quan sát viên**, bằng đúng bộ kiểm của proxy thường. Ở bảng này kết quả
+  quan trọng hơn: proxy của nick chết là mất một nick, proxy quan sát viên chết là **mù cả đàn**
+  — mọi kết luận shadowban đều nhìn qua đúng một IP đó. Nếu nó rơi vào nhánh *Không đổi IP* thì
+  bộ dò đang nhìn Reddit bằng chính IP nhà: kết luận trông vẫn hợp lý mà thật ra vô nghĩa.
+- **Nút "Dò cả đàn" ngay trong app.** Trước đây `api/health/run` cố ý chỉ nhận một nick vì lượt
+  đầy đủ mất gần mười phút, dài hơn mọi giới hạn chờ của một request. Giờ nút sinh **đúng tiến
+  trình mà `npm run health` vẫn chạy** ở chế độ tách rời rồi trả lời ngay — không có bản sao thứ
+  hai của luồng dò, đóng tab hay nạp lại dev server đều không ảnh hưởng. Trạng thái lượt đang
+  chạy đọc từ chính file khóa vốn đã được thiết kế cho tình huống hai tiến trình.
+- **Dải cảnh báo nói đúng nguyên nhân.** Câu cũ — *"N nick chưa được dò gần đây"* — đúng về hiện
+  tượng nhưng sai về nguyên nhân: sự thật là *chưa từng chạy và không thể chạy*. Giờ tách ba
+  tình huống, mỗi cái một câu và **một việc phải làm tiếp**: chưa có proxy quan sát viên → về
+  `/proxies`; có rồi mà chưa dò → về `/health` bấm nút; đã dò nhưng lâu rồi → giữ câu cũ.
+
+**Vì sao đáng sửa câu chữ:** dải cảnh báo cũ sẽ hiện **vĩnh viễn**, không tự tắt được dù người
+dùng làm gì trên màn hình đó. Dải nào không bao giờ tắt thì trong một tuần sẽ được học cách phớt
+lờ — và tới lúc nó nói chuyện thật thì cũng không ai còn nhìn.
+
+**Dọn nội bộ:** tách phần **đo** khỏi phần **ghi** trong bộ kiểm proxy, vì giờ có hai bảng
+(`Proxy` và `ObserverProxy`) dùng chung một phép đo. Ô "lần kiểm gần nhất" cũng gom về một
+component dùng chung cho cả hai bảng.
+
+**Kiểm chứng:** `typecheck` + `lint` + `382 test`; chạy đúng dòng lệnh launcher sinh ra → báo
+đúng "chưa có proxy quan sát viên" và thoát mã 1; hồi quy kiểm một proxy thật sau khi tách hàm.
+Xem [plan](../plans/260804-0353-dua-bo-do-shadowban-vao-chay-that/plan.md).
+
+**Nghiệm thu bằng thực tế cùng ngày:** khai một proxy quan sát viên IPRoyal ISP dedicated (US) →
+kiểm → **Dò cả đàn**. Hai bản ghi `HealthCheck` đầu tiên của dự án. Không nick nào ra "Không dò
+được", tức IPRoyal đọc được `old.reddit.com` bình thường.
+
+**Hai lỗi lộ ra ngay ở lượt dò thật đầu tiên** — cả hai đều thuộc kiểu *đếm sai rồi kết luận
+chắc nịch*, và 390 test không bắt được cái nào vì chúng chỉ hiện ra khi gặp dữ liệu thật:
+
+- **404 bị khẳng định là "shadowban toàn cục"** trong khi Reddit trả về cùng một trang cho bốn
+  nguyên nhân — kể cả **username khai sai trong kho**. Nó đã tự cách ly nhầm một nick đang khỏe.
+  Sửa: câu chữ nói đúng thứ đo được, và dùng lịch sử dò làm bằng chứng — *đã từng đọc được*
+  profile này rồi mà giờ mất thì mới loại trừ được khả năng gõ sai và mới nói chắc.
+  Hành động **không đổi**: vẫn cách ly ở cả hai nhánh. Cách ly nhầm một nick khỏe thì ồn ào và
+  sửa được bằng tay; để một nick đã bị ẩn đăng tiếp thì im lặng và tốn content mỗi ngày.
+- **Mẫu số đếm số job thay vì số bài khác nhau.** Một nick có hai job `POSTED` dán trùng đúng
+  một link → bảng hiện "1/2" trong khi ngoài đời là 1/1. Vừa đúng sát ngưỡng cảnh báo (thấy dưới
+  một nửa); thêm một job trùng nữa là nick sạch bị báo **Nghi ngờ**. Sửa: đếm URL khác nhau sau
+  khi chuẩn hóa, dùng lại đúng `normalizeThreadUrl()` của luật 8 thay vì tự rút gọn kiểu riêng.
+
+Đo lại sau khi sửa: mẫu số của nick đó về **1**, đúng với thực tế.
+
+---
+
 ## 04/08/2026 — Công cụ tự phát hiện hỏng hóc
 
 **Tính năng**

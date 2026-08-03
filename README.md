@@ -54,6 +54,11 @@ npm run db:upgrade
 Có thì nó **sao lưu trước**, áp xong mới báo — và nếu áp hỏng thì chỉ luôn tên file sao lưu để
 chép đè về. Chạy lại nhiều lần không sao: đã mới nhất thì nó không làm gì.
 
+> ⚠️ **Có thay đổi cấu trúc thì phải khởi động lại `npm run dev`.** Dev server nạp bản mô tả
+> database một lần lúc khởi động và giữ nguyên trong bộ nhớ, nên nó vẫn tin là cột mới không tồn
+> tại — biểu hiện là lỗi đỏ `Unknown argument` ngay giữa màn hình dù code và database đều đúng.
+> Khởi động lại vẫn báo y hệt thì xóa thư mục `.next` rồi chạy lại.
+
 > Đừng dùng `npm run db:migrate` cho việc này. Đó là lệnh của người phát triển: nó có thể hỏi
 > lại, có thể tạo migration mới, và trong vài tình huống còn đề nghị dựng lại database từ đầu —
 > tức xóa sạch kho danh tính.
@@ -452,7 +457,7 @@ Kết quả vào bảng ở `/health` và trang chủ, kèm biểu đồ karma 3
 
 | Đo được gì | Kết luận |
 |---|---|
-| Reddit trả HTTP 404 cho trang profile | **Bị ẩn** — shadowban toàn cục |
+| Reddit trả HTTP 404 cho trang profile | **Bị ẩn** — nhưng xem cảnh báo ngay dưới bảng |
 | Profile hiện ra, nhưng 0/N bài đã đăng nhìn thấy được | **Bị ẩn** — kiểu ẩn từng bài |
 | Thấy dưới một nửa số bài đã đăng | **Nghi ngờ** — có thể chỉ là mod xóa bài |
 | Trang báo tài khoản bị treo | **Dính checkpoint** |
@@ -464,22 +469,49 @@ dò hỏng, **Chưa đối chiếu được** là bộ dò chạy ngon nhưng kh
 nghỉ thì đó là bình thường; nhưng nick đăng đều mà không ai bấm **"Đã đăng"** cũng rơi vào đúng ô
 này — và đó mới là lúc cần cảnh báo nhất. Cả hai đều làm luật 10 cảnh báo, không cho qua im lặng.
 
+> ⚠️ **404 có bốn nguyên nhân, và Reddit trả về cùng một trang cho cả bốn:** nick bị ẩn toàn
+> cục, **username khai sai trong kho**, nick đã bị xóa, nick chưa từng tồn tại. Kiểm chính tả
+> username trước khi tin kết luận — lượt dò thật đầu tiên (04/08/2026) đã cách ly nhầm một nick
+> khỏe đúng vì lý do đó.
+>
+> Bộ dò dùng lịch sử dò để thu hẹp: **đã từng đọc được** profile này rồi mà giờ mất thì loại trừ
+> được khả năng gõ sai, và lúc đó nó mới nói chắc. Chưa từng thấy lần nào thì câu chữ nói rõ là
+> chưa loại trừ được gì.
+>
+> Dù nguyên nhân nào thì nick **vẫn bị cách ly** — cách ly nhầm một nick khỏe thì ồn ào và sửa
+> được bằng tay, còn để một nick đã bị ẩn đăng tiếp thì im lặng và tốn content mỗi ngày.
+
 Nick bị kết luận **Bị ẩn** hoặc **Dính checkpoint** sẽ tự chuyển trạng thái và bộ luật chặn mọi
 job của nó. Chiều ngược lại thì không: một lần dò khỏe **không** tự gỡ cách ly, vì nó chỉ chứng
 minh lần dò đó không thấy vấn đề. Gỡ là quyết định của người, ở trang chi tiết nick.
 
 > ⚠️ **Proxy quan sát viên phải là IP riêng, không bao giờ đăng nhập nick nào.** Dò bằng chính
 > proxy của nick là tự nhìn mình trong gương rồi kết luận người ngoài cũng thấy vậy. Nhập ở
-> `/proxies`, khối "Proxy quan sát viên". Chưa có thì `npm run health` dừng ngay từ đầu — cố ý,
-> vì dò bằng IP nhà còn tệ hơn không dò.
+> `/proxies`, khối "Proxy quan sát viên". Chưa có thì bộ dò dừng ngay từ đầu — cố ý, vì dò bằng
+> IP nhà còn tệ hơn không dò, và trang **Hôm nay** sẽ nói thẳng là chưa chạy được vì thiếu nó.
 
 Chỉ nhận proxy **HTTP**: Chromium không xác thực được với SOCKS5, nó bỏ qua user/mật khẩu rồi
 đi tiếp — hoặc hỏng, hoặc tệ hơn là chạy bằng IP nhà mà không ai biết.
 
+Proxy quan sát viên **kiểm được bằng nút "Kiểm"** ngay trong khối đó, dùng chung bộ kiểm với
+proxy thường (xem [Proxy được kiểm trước khi mở](#proxy-được-kiểm-trước-khi-mở)). Nên bấm trước
+mỗi lượt dò quan trọng: proxy này chết thì mọi nick ra kết luận *Không dò được* — trung thực
+nhưng vô dụng, và người đọc sẽ đi tìm lỗi ở phía Reddit.
+
+### Ba cách chạy một lượt dò
+
+| Cách | Dùng khi |
+|---|---|
+| Nút **"Dò cả đàn"** ở `/health` | muốn chạy ngay mà không mở terminal. Chạy nền ở tiến trình riêng — đóng tab không ảnh hưởng, tải lại trang thì bảng đầy dần |
+| `npm run health` | đặt lịch chạy hằng ngày bằng Task Scheduler. **Một lần mỗi ngày là đủ** |
+| Nút **"Dò lại ngay"** ở từng dòng | soi lại đúng một nick đáng ngờ |
+
+Nút "Dò cả đàn" sinh **đúng tiến trình mà `npm run health` chạy**, không phải một bản sao của
+luồng dò — nên hai đường không thể lệch nhau.
+
 Lượt đầy đủ nghỉ **ngẫu nhiên 30-90 giây giữa các nick**, nên 8 nick mất gần mười phút. Đó là
 chủ ý: tám lượt xem profile bắn ra trong ba giây từ một IP là hành vi của máy, và chính bộ dò
-sẽ bị chặn trước tiên. **Một lần mỗi ngày là đủ** — đặt lịch bằng Task Scheduler. Nút "Dò lại
-ngay" trên bảng chỉ dò một nick, dùng khi đang nhìn một nick đáng ngờ.
+sẽ bị chặn trước tiên.
 
 **Hai lượt dò không bao giờ chạy chồng nhau.** Lượt đang chạy giữ một file khóa
 (`data/health-check.lock`); lượt thứ hai bị từ chối kèm câu nói rõ ai đang giữ và giữ bao lâu
