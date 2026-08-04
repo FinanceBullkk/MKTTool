@@ -18,6 +18,7 @@
     "db:backup": "tsx --env-file=.env scripts/backup-database.ts",
     "proxies:import": "tsx --env-file=.env scripts/import-proxies-from-provider-list.ts",
     "vault:keygen": "tsx scripts/generate-vault-key.ts",
+    "keys:server-keygen": "tsx scripts/generate-server-signing-key.ts",
     "vault:rekey": "tsx --env-file=.env scripts/rekey-vault-key.ts",
     "vault:smoke": "tsx scripts/smoke-test-identity-vault.ts",
     "rules:smoke": "tsx --env-file=.env scripts/smoke-test-content-rules.ts",

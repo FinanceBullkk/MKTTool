@@ -55,8 +55,8 @@ lock Postgres; giữ nguyên thông báo "ai đang giữ, giữ bao lâu rồi" 
 ## Implementation Steps
 
 1. Tạo dự án Railway, nối GitHub, thêm Postgres cùng dự án
-2. Khai biến môi trường: `DATABASE_URL`, `VAULT_KEY_SERVER`, `TEAM_TIMEZONE`, biến Google,
-   biến Facebook, khóa riêng ký vé.
+2. Khai biến môi trường: `DATABASE_URL`, `VAULT_KEY_SERVER`, `TICKET_SIGNING_KEY` (khóa riêng
+   ký vé), `TEAM_TIMEZONE`, biến Google, biến Facebook.
    **`VAULT_KEY_OPERATOR` KHÔNG được có mặt ở đây** — kiểm lại bằng mắt sau khi khai xong
 3. Viết `Dockerfile` cài Chromium + thư viện hệ thống cho Playwright
 4. Thử domain miễn phí của Railway làm redirect URI Facebook. Meta từ chối thì mua tên miền

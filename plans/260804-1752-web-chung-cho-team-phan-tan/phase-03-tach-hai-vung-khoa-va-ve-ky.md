@@ -108,7 +108,7 @@ bấm nút ─► máy chủ: kiểm phiên + kiểm chủ nick + ghi AuditLog
 
 - [x] `domain` trong registry + test đọc schema
 - [x] Nạp hai khóa, báo lỗi rõ khi cấu hình ngược
-- [ ] Cặp khóa Ed25519 + script sinh khóa
+- [x] Cặp khóa Ed25519 + script sinh khóa (`keys:server-keygen`, đối chiếu vector RFC 8032)
 - [ ] Model `RelayDevice` + màn hình đăng ký / thu hồi cho ADMIN
 - [ ] Module vé: **mã hóa cho cầu nối đích**, ký, xác minh, hết hạn, chống dùng lại
 - [ ] `revealCredential` / `requestOtpCode` → phát vé

@@ -62,9 +62,10 @@ prisma/
 ├── schema.prisma               Schema duy nhất, 13 model
 └── migrations/                 Lịch sử migration
 scripts/
-├── generate-vault-key.ts       Sinh VAULT_KEY
+├── generate-vault-key.ts       Sinh khóa kho (dùng cho cả hai vùng)
+├── generate-server-signing-key.ts  Sinh cặp khóa ký vé Ed25519 của máy chủ
 ├── generate-test-totp-secret.ts  Sinh TOTP secret dùng thử
-├── rekey-vault-key.ts          Xoay VAULT_KEY, mã hóa lại toàn bộ credential
+├── rekey-vault-key.ts          Xoay khóa MỘT vùng, mã hóa lại credential của vùng đó
 ├── backup-database.ts          Sao lưu bằng pg_dump (chạy được khi app đang mở)
 ├── upgrade-database.ts         Nâng cấp sau khi nhận bản mới: sao lưu rồi `migrate deploy`
 ├── import-proxies-from-provider-list.ts  Nhập hàng loạt proxy từ file nhà cung cấp
