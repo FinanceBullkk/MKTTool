@@ -72,8 +72,11 @@ một mẩu trí nhớ của luật ấy. Lưu **sau** khi chấm luật, để 
 
 | Ranh giới | Cách canh |
 |---|---|
-| **Mạng** | App chỉ nghe `127.0.0.1` (cả `dev` lẫn `start`). Không có đường vào từ LAN — nên **cũng không share được**: mỗi người một bản cài, một DB, một `VAULT_KEY` |
-| **Không có đăng nhập** | Cố ý. Ai ngồi được trước máy là dùng được toàn bộ. Hàng rào thật là khóa màn hình + mã hóa ổ đĩa của máy đó |
+| **Mạng** | Nghe mọi card mạng từ 05/08/2026 — cờ `-H 127.0.0.1` đã bỏ vì công cụ phải phục vụ cả team. Hàng rào chuyển hẳn sang tầng đăng nhập |
+| **Đăng nhập** | Google OAuth (Better Auth) + danh sách trắng `ALLOWED_EMAILS`. Kiểm ở **mọi request** chứ không chỉ lúc tạo tài khoản — gỡ email khỏi `.env` rồi khởi động lại là mất quyền ngay, kể cả đang mở sẵn tab |
+| **Trang** | `src/proxy.ts` (Next 16 đổi tên từ `middleware.ts`) chặn mọi trang trước khi nó kịp hỏi database; chưa đăng nhập thì chuyển hướng về `/login`. **Bắt buộc `runtime: "nodejs"`** — mặc định edge không nạp được Prisma và mọi trang thành 500. Kiểm phiên thật chứ không ngó cookie, để người vừa bị gỡ khỏi `ALLOWED_EMAILS` mất quyền ngay |
+| **Lối vào** | Mọi export trong file `"use server"` và mọi method trong `route.ts` phải bọc `guardedAction`/`guardedRoute`. Gác nằm ở **chữ ký**, không nằm trong thân hàm, nên không nhánh nào bỏ qua được; `guarded-entry-points.test.ts` kiểm bằng hình dạng mã nguồn và `NOT_YET_GUARDED` phải rỗng |
+| **Bí mật của nick** | `requireNickOwner`: chỉ chủ nick hoặc ADMIN giải mã được mật khẩu/OTP. Chặn ở **tầng dữ liệu**, không phải ẩn nút — server action gọi thẳng được nếu biết tên. Tầm nhìn thì **không chia**: luật 8 phải nêu đúng tên nick của đồng nghiệp mới dùng được |
 | **Route handler trong `api/`** | Đối chiếu `Origin`/`Host` (`same-origin-guard.ts`) — chặn trang khác trong cùng trình duyệt gọi sang |
 | **Credential** | Mã hóa AES-256-GCM trước khi ghi. 8 cột ở 5 bảng, khai trong `encrypted-field-registry.ts`; test đọc thẳng `schema.prisma` để bắt cột `*Enc` khai thiếu |
 | **Khóa mã hóa** | `VAULT_KEY` ở `.env`, **không** nằm trong database. Database bị chép đi mà không có khóa thì vô dụng — nên hai thứ này phải cất **hai nơi khác nhau** |

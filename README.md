@@ -540,24 +540,55 @@ bài Reddit — xem [Đăng bài](#đăng-bài).
   vọng lại nguyên tham số đã gửi
 - Khóa nằm ở biến môi trường, không nằm trong DB
 - Mật khẩu không bao giờ render ra màn hình — bấm copy là chép thẳng vào clipboard
-- Mọi lần lộ credential / mở profile đều ghi `AuditLog`
-- App chỉ nghe `127.0.0.1` — ép bằng cờ `-H` trong `package.json`, không phải mặc định
+- Mọi lần lộ credential / mở profile đều ghi `AuditLog` kèm **ai** đã làm
+- **Mọi server action và route handler đều đòi đăng nhập** — gác nằm ở chữ ký định nghĩa, và
+  có test quét bắt buộc (xem [Hàng rào giờ là đăng nhập](#hàng-rào-giờ-là-đăng-nhập))
+- **Mọi trang cũng đòi đăng nhập** — `src/proxy.ts` chặn trước khi trang kịp hỏi database
 - Route `POST` trong `api/` đối chiếu `Origin` với `Host` — Next tự làm việc này cho server
   action nhưng không làm cho route handler, mà route handler chính là chỗ có nút mở profile
 - `.env` và thư mục sao lưu `data/backups/` đã nằm trong `.gitignore` — bản dump chứa ciphertext
 
-### Không có đăng nhập — nên chỗ app lắng nghe là toàn bộ hàng rào
+### Hàng rào giờ là đăng nhập, không còn là chỗ app lắng nghe
 
-Công cụ không có màn hình đăng nhập: ai mở được trang là làm được mọi thứ, gồm copy mật khẩu
-nick và sinh mã OTP. Mã hóa AES không đỡ được tình huống đó — chính app giữ khóa và giải mã
-cho bất kỳ ai hỏi.
+Trước 05/08/2026 công cụ không có màn hình đăng nhập, nên hàng rào duy nhất là chỗ nó lắng
+nghe: `npm run dev` và `npm start` gắn cứng `-H 127.0.0.1` để chỉ mở được từ chính máy đó.
 
-Vì vậy `npm run dev` và `npm start` đều gắn cứng `-H 127.0.0.1`. Mặc định của Next.js là nghe
-mọi card mạng, tức là cả người ngồi cùng wifi cũng mở được `http://<ip-máy-bạn>:3000`.
+**Cờ đó đã bỏ**, vì hàng rào thật đã dựng xong: mọi lối vào đều đòi đăng nhập Google và đối
+chiếu `ALLOWED_EMAILS` ở **mỗi request**. Đó là điều kiện đã hẹn trước cho việc bỏ cờ — công cụ
+phải phục vụ được 5-6 người ở 5-6 nơi thì không thể chỉ nghe trên `localhost`.
 
-> ⚠️ **Đừng bỏ cờ `-H`, và đừng chạy `next dev` trực tiếp** để "cho nhanh". Cũng đừng đưa app
-> ra sau reverse proxy hay ngrok khi chưa có lớp xác thực — lúc đó kho danh tính thành trang web
-> công khai.
+Hàng rào đó có **hai nửa**, và thiếu nửa nào cũng vô nghĩa:
+
+| Nửa | Gác gì | Ở đâu |
+|---|---|---|
+| `guardedAction` / `guardedRoute` | đường **làm**: mọi server action, mọi route handler | chữ ký định nghĩa |
+| `src/proxy.ts` | đường **đọc**: mọi trang | chặn trước khi trang hỏi database |
+
+Nửa thứ hai dễ quên nhất và từng bị quên thật: trang trong `app/` là server component tự gọi
+thẳng Prisma rồi trả HTML, **không đi qua wrapper nào**. Gác đủ 35 lối vào mà không gác trang
+thì chưa đăng nhập vẫn mở được `/accounts` và `/proxies` để đọc username từng nick, email gốc,
+và host/port/username của từng proxy — không sửa được gì, nhưng đọc là đủ.
+
+`proxy.ts` **kiểm phiên thật** (hỏi database rồi đối chiếu `ALLOWED_EMAILS`) chứ không chỉ ngó
+xem có cookie hay không. Cách ngó cookie nhanh hơn và chạy được ở edge, nhưng nó không thấy
+được người vừa bị gỡ khỏi danh sách — cookie của họ vẫn còn nguyên và vẫn hợp lệ suốt 7 ngày.
+Đổi lại, nó bắt buộc phải chạy ở `runtime: "nodejs"`; để mặc định edge thì Prisma không nạp
+được và **mọi trang thành 500**, không phải chỉ một trang.
+
+Thứ giữ cho điều kiện đó không mục là một phép kiểm hình dạng mã nguồn
+([guarded-entry-points.test.ts](src/lib/auth/guarded-entry-points.test.ts)): trong file
+`"use server"` thì **mỗi hàm export là một endpoint POST riêng** mà người lạ gọi thẳng được nếu
+biết tên, nên test bắt mọi export phải có dạng `export const x = guardedAction(...)`. Gác nằm ở
+chữ ký chứ không nằm trong thân hàm — không nhánh `if` nào bỏ qua được, và thêm một action mới
+mà quên gác thì test đỏ ngay chứ không lặng lẽ mở toang một lối vào.
+
+> ⚠️ **Đừng thêm `await requireActor()` vào đầu thân hàm rồi coi là đã gác.** Dòng đó quên được
+> và lách được, và phép kiểm cố ý không chấp nhận nó.
+
+> ⚠️ Đưa app ra internet thì phải có HTTPS. Cookie phiên đặt cờ `Secure` khi
+> `NODE_ENV=production`, và cookie `Secure` không bao giờ được gửi qua `http://` — chạy
+> production sau một reverse proxy chỉ có HTTP là đăng nhập xong lại quay về màn hình đăng nhập,
+> lặp vô tận mà không có câu lỗi nào.
 
 ### Sao lưu — hai nửa, cất hai nơi
 
