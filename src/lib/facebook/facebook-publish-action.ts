@@ -9,11 +9,16 @@
  */
 import { revalidatePath } from "next/cache";
 import type { ActionResult } from "@/lib/actions/action-result";
+import { guardedAction } from "@/lib/auth/guarded-action";
 import { prisma } from "@/lib/db/prisma-client";
 import { markJobPosted } from "@/lib/queue/post-job-status-actions";
 import { FacebookPublishError, publishToPage, toPostContent } from "./facebook-page-publisher";
 
-export async function publishJobToPage(jobId: string, imageUrl?: string): Promise<ActionResult> {
+export const publishJobToPage = guardedAction(async function publishJobToPage(
+  actor,
+  jobId: string,
+  imageUrl?: string,
+): Promise<ActionResult> {
   const job = await prisma.postJob.findUnique({
     where: { id: jobId },
     include: { contentItem: true, target: true },
@@ -60,6 +65,7 @@ export async function publishJobToPage(jobId: string, imageUrl?: string): Promis
         accountId: job.accountId,
         action: "FACEBOOK_PAGE_PUBLISH_FAILED",
         detail: `job ${job.id} — ${message}`.slice(0, 500),
+        actorId: actor.userId,
       },
     });
 
@@ -72,6 +78,7 @@ export async function publishJobToPage(jobId: string, imageUrl?: string): Promis
       accountId: job.accountId,
       action: "FACEBOOK_PAGE_PUBLISHED",
       detail: `job ${job.id} → page ${page.name} (${result.postId})`.slice(0, 500),
+      actorId: actor.userId,
     },
   });
 
@@ -93,4 +100,4 @@ export async function publishJobToPage(jobId: string, imageUrl?: string): Promis
   }
 
   return { ok: true, message: `Đã đăng lên "${page.name}". Mở link ở cột trạng thái để kiểm tra.` };
-}
+});

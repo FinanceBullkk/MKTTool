@@ -13,6 +13,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import type { ActionResult } from "@/lib/actions/action-result";
+import { guardedAction } from "@/lib/auth/guarded-action";
 import { INTERACTION_KINDS } from "@/lib/content/content-types";
 import { prisma } from "@/lib/db/prisma-client";
 import { isCommunityPlatform } from "@/lib/platforms/platform-family";
@@ -32,7 +33,8 @@ const interactionSchema = z.object({
   ),
 });
 
-export async function recordInteraction(
+export const recordInteraction = guardedAction(async function recordInteraction(
+  _actor,
   _prev: ActionResult | null,
   formData: FormData,
 ): Promise<ActionResult> {
@@ -93,4 +95,4 @@ export async function recordInteraction(
         ? `Đã ghi nhận. Cảnh báo: ${verdict.reason}`
         : "Đã ghi nhận tương tác. Nick khác sẽ bị chặn nếu đụng vào thread này.",
   };
-}
+});

@@ -408,6 +408,71 @@ MultiZen không phơi endpoint CDP ra ngoài (Playwright không gắn vào đư�
 không phải lỗi**. Nó lái trình duyệt bằng chính tool MCP của nó (`navigate`, `click`, `type`,
 `extract`, `screenshot`), và Phase 05 sẽ đi đường đó. AdsPower thì có trả về endpoint CDP.
 
+## Đăng nhập
+
+Công cụ đăng nhập bằng **tài khoản Google**, và chỉ email nằm trong danh sách khai sẵn mới vào
+được. **Không có tự đăng ký** — Google chỉ chứng minh *"người này sở hữu email đó"*, chứ không
+chứng minh *"người này thuộc team"*.
+
+### Tạo Google OAuth client (làm một lần, ~5 phút)
+
+1. Vào [console.cloud.google.com](https://console.cloud.google.com/) → tạo project mới
+   (tên gì cũng được, ví dụ `MKTTool`).
+2. Menu trái → **APIs & Services** → **OAuth consent screen**:
+   - **User type: External** → Create
+   - Điền App name, User support email, Developer contact — ba ô đó là bắt buộc, phần còn lại bỏ qua
+   - **Scopes:** không thêm gì cả. Mặc định đã có `email` + `profile`, và đó là tất cả những gì
+     công cụ cần. Xin thêm quyền là tự chuốc App Review mà chẳng dùng tới.
+   - **Audience:** để ở chế độ **Testing** cũng chạy được, nhưng phải thêm từng email vào
+     *Test users*. Chọn **Publish app** thì khỏi phải thêm — app chỉ xin `email`/`profile` nên
+     Google **không bắt xét duyệt**.
+3. **APIs & Services** → **Credentials** → **Create Credentials** → **OAuth client ID**:
+   - **Application type: Web application**
+   - **Authorized JavaScript origins:** `http://localhost:3000`
+   - **Authorized redirect URIs:** `http://localhost:3000/api/auth/callback/google`
+4. Chép **Client ID** và **Client secret** vào `.env`.
+
+> ⚠️ **Redirect URI phải khớp từng ký tự**, kể cả dấu `/` cuối. Và phải là `localhost` chứ không
+> phải `127.0.0.1` — trình duyệt coi hai địa chỉ này là hai host khác nhau khi lưu cookie, nên
+> cookie phiên đặt ở một bên không tới được bên kia. Cùng cái bẫy với luồng Facebook bên dưới.
+
+Lên Railway thì thêm URI thứ hai `https://<tên-app>.up.railway.app/api/auth/callback/google`
+và đổi `BETTER_AUTH_URL`. Giữ cả hai để vẫn chạy được ở máy dev.
+
+### Bốn biến phải điền
+
+```bash
+ALLOWED_EMAILS="ban@gmail.com,dongnghiep@gmail.com"   # ai vào được
+ADMIN_EMAILS="ban@gmail.com"                          # ai là quản trị viên
+BETTER_AUTH_SECRET="<32 byte hex>"                    # khóa ký cookie phiên
+GOOGLE_CLIENT_ID="..."
+GOOGLE_CLIENT_SECRET="..."
+```
+
+Sinh `BETTER_AUTH_SECRET`:
+
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
+Thiếu bất kỳ biến nào ở trên thì **app dừng ngay kèm thông báo rõ**, không lặng lẽ chạy ở chế độ
+không có đăng nhập. Cùng nguyên tắc với `TEAM_TIMEZONE`.
+
+### Hai vai trò
+
+| Vai trò | Làm được gì |
+|---|---|
+| **ADMIN** | mọi thứ, kể cả phân công nick và lấy bí mật của mọi nick |
+| **OPERATOR** | mọi thứ, **trừ** lấy mật khẩu / OTP của nick không phải mình phụ trách |
+
+**Tầm nhìn thì không chia.** Ai cũng thấy nick, job, tương tác và lịch sử của người khác — cố ý:
+luật đụng độ thread phải nêu đúng tên nick của đồng nghiệp thì người đọc mới xử lý được. Thứ duy
+nhất bị chia là **bí mật của nick**, và chặn nằm ở tầng dữ liệu chứ không phải ẩn nút trên giao diện.
+
+> **Gỡ người khỏi team:** xóa email khỏi `ALLOWED_EMAILS` rồi khởi động lại. Có hiệu lực ngay,
+> kể cả người đó đang mở sẵn tab — danh sách được kiểm ở **mọi request**, không phải chỉ lúc
+> đăng nhập. Nick họ từng phụ trách **không bị xóa theo**, chỉ mất chủ.
+
 ## Facebook
 
 Fanpage đăng bằng **Graph API chính thức** — miễn phí, hợp lệ, không bao giờ bị khóa vì vi phạm
@@ -475,24 +540,55 @@ bài Reddit — xem [Đăng bài](#đăng-bài).
   vọng lại nguyên tham số đã gửi
 - Khóa nằm ở biến môi trường, không nằm trong DB
 - Mật khẩu không bao giờ render ra màn hình — bấm copy là chép thẳng vào clipboard
-- Mọi lần lộ credential / mở profile đều ghi `AuditLog`
-- App chỉ nghe `127.0.0.1` — ép bằng cờ `-H` trong `package.json`, không phải mặc định
+- Mọi lần lộ credential / mở profile đều ghi `AuditLog` kèm **ai** đã làm
+- **Mọi server action và route handler đều đòi đăng nhập** — gác nằm ở chữ ký định nghĩa, và
+  có test quét bắt buộc (xem [Hàng rào giờ là đăng nhập](#hàng-rào-giờ-là-đăng-nhập))
+- **Mọi trang cũng đòi đăng nhập** — `src/proxy.ts` chặn trước khi trang kịp hỏi database
 - Route `POST` trong `api/` đối chiếu `Origin` với `Host` — Next tự làm việc này cho server
   action nhưng không làm cho route handler, mà route handler chính là chỗ có nút mở profile
 - `.env` và thư mục sao lưu `data/backups/` đã nằm trong `.gitignore` — bản dump chứa ciphertext
 
-### Không có đăng nhập — nên chỗ app lắng nghe là toàn bộ hàng rào
+### Hàng rào giờ là đăng nhập, không còn là chỗ app lắng nghe
 
-Công cụ không có màn hình đăng nhập: ai mở được trang là làm được mọi thứ, gồm copy mật khẩu
-nick và sinh mã OTP. Mã hóa AES không đỡ được tình huống đó — chính app giữ khóa và giải mã
-cho bất kỳ ai hỏi.
+Trước 05/08/2026 công cụ không có màn hình đăng nhập, nên hàng rào duy nhất là chỗ nó lắng
+nghe: `npm run dev` và `npm start` gắn cứng `-H 127.0.0.1` để chỉ mở được từ chính máy đó.
 
-Vì vậy `npm run dev` và `npm start` đều gắn cứng `-H 127.0.0.1`. Mặc định của Next.js là nghe
-mọi card mạng, tức là cả người ngồi cùng wifi cũng mở được `http://<ip-máy-bạn>:3000`.
+**Cờ đó đã bỏ**, vì hàng rào thật đã dựng xong: mọi lối vào đều đòi đăng nhập Google và đối
+chiếu `ALLOWED_EMAILS` ở **mỗi request**. Đó là điều kiện đã hẹn trước cho việc bỏ cờ — công cụ
+phải phục vụ được 5-6 người ở 5-6 nơi thì không thể chỉ nghe trên `localhost`.
 
-> ⚠️ **Đừng bỏ cờ `-H`, và đừng chạy `next dev` trực tiếp** để "cho nhanh". Cũng đừng đưa app
-> ra sau reverse proxy hay ngrok khi chưa có lớp xác thực — lúc đó kho danh tính thành trang web
-> công khai.
+Hàng rào đó có **hai nửa**, và thiếu nửa nào cũng vô nghĩa:
+
+| Nửa | Gác gì | Ở đâu |
+|---|---|---|
+| `guardedAction` / `guardedRoute` | đường **làm**: mọi server action, mọi route handler | chữ ký định nghĩa |
+| `src/proxy.ts` | đường **đọc**: mọi trang | chặn trước khi trang hỏi database |
+
+Nửa thứ hai dễ quên nhất và từng bị quên thật: trang trong `app/` là server component tự gọi
+thẳng Prisma rồi trả HTML, **không đi qua wrapper nào**. Gác đủ 35 lối vào mà không gác trang
+thì chưa đăng nhập vẫn mở được `/accounts` và `/proxies` để đọc username từng nick, email gốc,
+và host/port/username của từng proxy — không sửa được gì, nhưng đọc là đủ.
+
+`proxy.ts` **kiểm phiên thật** (hỏi database rồi đối chiếu `ALLOWED_EMAILS`) chứ không chỉ ngó
+xem có cookie hay không. Cách ngó cookie nhanh hơn và chạy được ở edge, nhưng nó không thấy
+được người vừa bị gỡ khỏi danh sách — cookie của họ vẫn còn nguyên và vẫn hợp lệ suốt 7 ngày.
+Đổi lại, nó bắt buộc phải chạy ở `runtime: "nodejs"`; để mặc định edge thì Prisma không nạp
+được và **mọi trang thành 500**, không phải chỉ một trang.
+
+Thứ giữ cho điều kiện đó không mục là một phép kiểm hình dạng mã nguồn
+([guarded-entry-points.test.ts](src/lib/auth/guarded-entry-points.test.ts)): trong file
+`"use server"` thì **mỗi hàm export là một endpoint POST riêng** mà người lạ gọi thẳng được nếu
+biết tên, nên test bắt mọi export phải có dạng `export const x = guardedAction(...)`. Gác nằm ở
+chữ ký chứ không nằm trong thân hàm — không nhánh `if` nào bỏ qua được, và thêm một action mới
+mà quên gác thì test đỏ ngay chứ không lặng lẽ mở toang một lối vào.
+
+> ⚠️ **Đừng thêm `await requireActor()` vào đầu thân hàm rồi coi là đã gác.** Dòng đó quên được
+> và lách được, và phép kiểm cố ý không chấp nhận nó.
+
+> ⚠️ Đưa app ra internet thì phải có HTTPS. Cookie phiên đặt cờ `Secure` khi
+> `NODE_ENV=production`, và cookie `Secure` không bao giờ được gửi qua `http://` — chạy
+> production sau một reverse proxy chỉ có HTTP là đăng nhập xong lại quay về màn hình đăng nhập,
+> lặp vô tận mà không có câu lỗi nào.
 
 ### Sao lưu — hai nửa, cất hai nơi
 

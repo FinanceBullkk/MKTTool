@@ -15,6 +15,7 @@
  */
 import { revalidatePath } from "next/cache";
 import type { ActionResult } from "@/lib/actions/action-result";
+import { guardedAction } from "@/lib/auth/guarded-action";
 import { encryptCredential, encryptOptionalCredential } from "@/lib/crypto/credential-encryption";
 import { prisma } from "@/lib/db/prisma-client";
 import { describeUnexpectedDbError, isUniqueConstraintError } from "@/lib/db/prisma-error-helpers";
@@ -32,7 +33,8 @@ import {
   validatePlatformIdentityFields,
 } from "./vault-form-schemas";
 
-export async function updatePersona(
+export const updatePersona = guardedAction(async function updatePersona(
+  _actor,
   _prev: ActionResult | null,
   formData: FormData,
 ): Promise<ActionResult> {
@@ -53,9 +55,10 @@ export async function updatePersona(
   revalidatePath("/personas");
   revalidatePath(`/personas/${id}`);
   return { ok: true, message: `Đã lưu nhân vật "${data.name}".` };
-}
+});
 
-export async function updateProxy(
+export const updateProxy = guardedAction(async function updateProxy(
+  _actor,
   _prev: ActionResult | null,
   formData: FormData,
 ): Promise<ActionResult> {
@@ -86,9 +89,10 @@ export async function updateProxy(
       `Đã lưu proxy "${data.label}".` +
       (password ? " Mật khẩu mới sẽ được đẩy sang profile ở lần mở tiếp theo." : ""),
   };
-}
+});
 
-export async function updateAccount(
+export const updateAccount = guardedAction(async function updateAccount(
+  actor,
   _prev: ActionResult | null,
   formData: FormData,
 ): Promise<ActionResult> {
@@ -148,16 +152,22 @@ export async function updateAccount(
   const recheck = await recheckJobsMatching({ accountId: id });
 
   await prisma.auditLog.create({
-    data: { accountId: id, action: "ACCOUNT_UPDATED", detail: `karma ${data.karma}, ${data.status}` },
+    data: {
+      accountId: id,
+      action: "ACCOUNT_UPDATED",
+      detail: `karma ${data.karma}, ${data.status}`,
+      actorId: actor.userId,
+    },
   });
 
   revalidatePath("/accounts");
   revalidatePath(`/accounts/${id}`);
   revalidatePath("/queue");
   return { ok: true, message: `Đã lưu nick "${data.username}".${describeRecheck(recheck)}` };
-}
+});
 
-export async function updateTarget(
+export const updateTarget = guardedAction(async function updateTarget(
+  _actor,
   _prev: ActionResult | null,
   formData: FormData,
 ): Promise<ActionResult> {
@@ -186,4 +196,4 @@ export async function updateTarget(
   revalidatePath(`/targets/${id}`);
   revalidatePath("/queue");
   return { ok: true, message: `Đã lưu đích "${data.name}".${describeRecheck(recheck)}` };
-}
+});

@@ -14,13 +14,15 @@ import {
   formToObject,
 } from "@/lib/accounts/vault-form-schemas";
 import type { ActionResult } from "@/lib/actions/action-result";
+import { guardedAction } from "@/lib/auth/guarded-action";
 import { prisma } from "@/lib/db/prisma-client";
 import { describeUnexpectedDbError } from "@/lib/db/prisma-error-helpers";
 import { blockDeleteWhenReferenced } from "@/lib/db/reference-guard";
 import { describeRecheck, recheckJobsMatching } from "@/lib/queue/recheck-jobs-batch";
 import { parseLinksInput, stringifyLinks } from "./content-types";
 
-export async function createContentItem(
+export const createContentItem = guardedAction(async function createContentItem(
+  _actor,
   _prev: ActionResult | null,
   formData: FormData,
 ): Promise<ActionResult> {
@@ -39,7 +41,7 @@ export async function createContentItem(
     ok: true,
     message: `Đã lưu "${parsed.data.title}". Sang hàng đợi để xếp lịch đăng.`,
   };
-}
+});
 
 /**
  * Sửa content rồi chấm lại mọi job đang chờ dùng nó.
@@ -48,7 +50,8 @@ export async function createContentItem(
  * trên thân bài, còn tỷ lệ promo (luật 6) tính trên `type`. Sửa xong mà để verdict cũ nằm im
  * là hàng đợi hiện đèn xanh cho một bài đã khác hẳn bài từng được chấm.
  */
-export async function updateContentItem(
+export const updateContentItem = guardedAction(async function updateContentItem(
+  _actor,
   _prev: ActionResult | null,
   formData: FormData,
 ): Promise<ActionResult> {
@@ -72,9 +75,12 @@ export async function updateContentItem(
   revalidatePath(`/content/${id}`);
   revalidatePath("/queue");
   return { ok: true, message: `Đã lưu "${rest.title}".${describeRecheck(recheck)}` };
-}
+});
 
-export async function deleteContentItem(contentItemId: string): Promise<ActionResult> {
+export const deleteContentItem = guardedAction(async function deleteContentItem(
+  _actor,
+  contentItemId: string,
+): Promise<ActionResult> {
   const item = await prisma.contentItem.findUnique({
     where: { id: contentItemId },
     include: { _count: { select: { jobs: true } } },
@@ -97,4 +103,4 @@ export async function deleteContentItem(contentItemId: string): Promise<ActionRe
 
   revalidatePath("/content");
   return { ok: true, message: `Đã xóa "${item.title}".` };
-}
+});

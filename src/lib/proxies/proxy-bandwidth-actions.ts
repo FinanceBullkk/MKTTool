@@ -9,12 +9,16 @@
  */
 import { revalidatePath } from "next/cache";
 import type { ActionResult } from "@/lib/actions/action-result";
+import { guardedAction } from "@/lib/auth/guarded-action";
 import { decryptCredential } from "@/lib/crypto/credential-encryption";
 import { prisma } from "@/lib/db/prisma-client";
 import { measureProxyBandwidth } from "./proxy-bandwidth-probe";
 import { summarizeBandwidth } from "./proxy-bandwidth-report";
 
-export async function measureOneProxySpeed(proxyId: string): Promise<ActionResult> {
+export const measureOneProxySpeed = guardedAction(async function measureOneProxySpeed(
+  _actor,
+  proxyId: string,
+): Promise<ActionResult> {
   const proxy = await prisma.proxy.findUnique({ where: { id: proxyId } });
   if (!proxy) return { ok: false, message: "Không tìm thấy proxy." };
 
@@ -52,4 +56,4 @@ export async function measureOneProxySpeed(proxyId: string): Promise<ActionResul
 
   revalidatePath("/proxies");
   return { ok: summary.ok, message: `${proxy.label} — ${summary.message}` };
-}
+});

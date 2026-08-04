@@ -8,6 +8,7 @@
  */
 import { revalidatePath } from "next/cache";
 import type { ActionResult } from "@/lib/actions/action-result";
+import { guardedAction } from "@/lib/auth/guarded-action";
 import { prisma } from "@/lib/db/prisma-client";
 import { checkAllProxies, checkProxyLiveness, summarizeProxyChecks } from "./proxy-liveness-check";
 
@@ -17,7 +18,10 @@ function revalidateProxyViews() {
   revalidatePath("/");
 }
 
-export async function checkOneProxy(proxyId: string): Promise<ActionResult> {
+export const checkOneProxy = guardedAction(async function checkOneProxy(
+  _actor,
+  proxyId: string,
+): Promise<ActionResult> {
   const proxy = await prisma.proxy.findUnique({ where: { id: proxyId } });
   if (!proxy) return { ok: false, message: "Không tìm thấy proxy." };
 
@@ -27,12 +31,14 @@ export async function checkOneProxy(proxyId: string): Promise<ActionResult> {
   // ok=false cho mọi kết luận khác OK, kể cả "không kiểm được": thông báo màu xanh cho một
   // lượt kiểm không đo được gì chính là kiểu báo khỏe giả mà cả dự án đang tránh.
   return { ok: liveness.verdict === "OK", message: `${proxy.label} — ${liveness.message}` };
-}
+});
 
-export async function checkEveryProxy(): Promise<ActionResult> {
+export const checkEveryProxy = guardedAction(async function checkEveryProxy(
+  _actor,
+): Promise<ActionResult> {
   const results = await checkAllProxies();
   revalidateProxyViews();
 
   const allHealthy = results.every((result) => result.liveness.verdict === "OK");
   return { ok: results.length > 0 && allHealthy, message: summarizeProxyChecks(results) };
-}
+});

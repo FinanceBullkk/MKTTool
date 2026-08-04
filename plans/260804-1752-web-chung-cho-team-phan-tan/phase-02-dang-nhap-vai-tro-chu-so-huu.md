@@ -8,7 +8,7 @@
 
 ## Overview
 
-**Ưu tiên:** cao | **Trạng thái:** chưa làm | **Dự kiến:** 3-4 ngày
+**Ưu tiên:** cao | **Trạng thái:** ✅ xong 05/08/2026 | **Dự kiến:** 3-4 ngày | **Thực tế:** 1 ngày
 
 Từ "ai mở được trang là làm được mọi thứ" sang "đăng nhập bằng Google, có vai trò, nick có chủ".
 
@@ -83,18 +83,29 @@ Một helper duy nhất cho mỗi loại chặn. Không rải logic quyền kh�
 
 ## Todo List
 
-- [ ] Better Auth + Google + danh sách email cho phép
-- [ ] Schema `User`, `Account.ownerId`, `AuditLog.actorId`
-- [ ] `requireSession` / `requireAdmin` / `requireNickOwner`
-- [ ] Gác đủ 19 server action
-- [ ] Gác đủ 5 route handler
-- [ ] Bí mật nick chỉ chủ mới lấy được
-- [ ] `AuditLog` ghi actor ở mọi đường
-- [ ] Màn hình phân công nick (ADMIN)
-- [ ] Bộ lọc "nick của tôi" (chỉ hiển thị)
-- [ ] Test quét lối vào chưa gác
-- [ ] Xác nhận truy vấn bộ luật KHÔNG bị lọc theo chủ sở hữu
-- [ ] Bỏ cờ `-H` (làm cuối cùng)
+- [x] Better Auth + Google + danh sách email cho phép
+- [x] Schema `User`, `Account.ownerId`, `AuditLog.actorId`
+- [x] `requireActor` / `requireAdmin` / `requireNickOwner`
+- [x] Route `/api/auth/[...all]` + màn hình `/login` + thanh trạng thái phiên
+- [x] Gác đủ server action (30 hàm / 14 file)
+- [x] Gác đủ 5 route handler
+- [x] Bí mật nick chỉ chủ mới lấy được
+- [x] `AuditLog` ghi actor ở mọi đường
+- [x] Màn hình phân công nick (ADMIN)
+- [x] Test quét lối vào chưa gác — `NOT_YET_GUARDED` rỗng
+- [x] Xác nhận truy vấn bộ luật KHÔNG bị lọc theo chủ sở hữu (có test riêng, đã kiểm bằng
+      cách cố tình thêm bộ lọc rồi xem test đỏ)
+- [x] Gác **trang** bằng `src/proxy.ts` — không có trong kế hoạch gốc, xem ghi chú dưới
+- [x] Bỏ cờ `-H` (làm cuối cùng)
+- [x] Nghiệm thu tay: đăng nhập thật một lượt + thử email ngoài danh sách trắng
+- [ ] Bộ lọc "nick của tôi" (chỉ hiển thị) — **hoãn có chủ ý**, xem Next Steps
+
+**Việc phát sinh không có trong kế hoạch gốc:** kế hoạch đếm 24 lối vào là server action và
+route handler, tức đường **làm**. Nó bỏ sót đường **đọc**: trang trong `app/` là server component
+tự gọi thẳng Prisma rồi trả HTML, không đi qua wrapper nào. Gác đủ 35 lối vào mà quên trang, lại
+vừa bỏ cờ `-H`, là cả lớp mạng đọc được username nick, email gốc và host/port/username của proxy.
+Lỗ này chỉ lộ ở bước nghiệm thu tay (đăng xuất xong vẫn duyệt app bình thường) — không phép kiểm
+tĩnh nào trong phase này bắt được, vì test quét chỉ nhìn `"use server"` và `route.ts`.
 
 ## Success Criteria
 
@@ -120,5 +131,16 @@ Một helper duy nhất cho mỗi loại chặn. Không rải logic quyền kh�
   Lỗ này đóng ở [Phase 03](phase-03-tach-hai-vung-khoa-va-ve-ky.md), chưa bàn giao trước đó
 
 ## Next Steps
+
+Phase đóng 05/08/2026. Nghiệm thu tay đã chạy: đăng nhập Google thật một lượt, và email ngoài
+`ALLOWED_EMAILS` bị từ chối đúng như hẹn.
+
+**Một việc hoãn có chủ ý — không giữ phase lại:**
+
+**Bộ lọc "nick của tôi"** ở `/accounts` và `/queue` — chỉ lọc hiển thị, không đụng vào truy vấn
+của bộ luật. Hoãn vì nó là **tiện nghi, không phải hàng rào**: hàng rào thật (máy chủ từ chối đưa
+bí mật của nick người khác) đã đóng ở phase này rồi, và thứ tự đó không được đảo. Làm sớm cái lọc
+hiển thị mà chưa có chặn ở tầng dữ liệu là dạng an toàn giả nguy hiểm nhất — nhìn thì như đã phân
+quyền. Kéo về đợt nào cũng được; nó không chặn GĐ3, GĐ4 hay GĐ5.
 
 Xong → [Phase 03](phase-03-tach-hai-vung-khoa-va-ve-ky.md).

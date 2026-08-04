@@ -7,6 +7,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { dateTimeInput } from "@/lib/accounts/vault-form-schemas";
+import { guardedRoute } from "@/lib/auth/guarded-route";
 import { CONTENT_TYPES } from "@/lib/content/content-types";
 import { CROSS_ORIGIN_MESSAGE, isSameOrigin } from "@/lib/http/same-origin-guard";
 import { previewPostJobRules } from "@/lib/queue/post-job-rule-preview";
@@ -39,7 +40,7 @@ const requestSchema = z.object({
   excludeJobId: z.string().optional(),
 });
 
-export async function POST(request: Request) {
+export const POST = guardedRoute(async function POST(_actor, request: Request) {
   if (!isSameOrigin(request)) {
     return NextResponse.json({ ok: false, message: CROSS_ORIGIN_MESSAGE }, { status: 403 });
   }
@@ -58,4 +59,4 @@ export async function POST(request: Request) {
 
   const result = await previewPostJobRules(parsed.data);
   return NextResponse.json(result, { status: result.ok ? 200 : 404 });
-}
+});

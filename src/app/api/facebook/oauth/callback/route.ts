@@ -9,6 +9,7 @@
  */
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
+import { guardedRoute } from "@/lib/auth/guarded-route";
 import { FacebookConfigError } from "@/lib/facebook/facebook-app-config";
 import { toUserMessage } from "@/lib/facebook/facebook-graph-client";
 import {
@@ -28,7 +29,18 @@ function back(request: Request, params: Record<string, string>): NextResponse {
   return NextResponse.redirect(url);
 }
 
-export async function GET(request: Request) {
+/**
+ * Gác cả đường quay về, dù `state` đã chống CSRF.
+ *
+ * Hai lớp trả lời hai câu khác nhau: `state` hỏi *"lượt quay về này có khớp lượt đi không"*,
+ * còn gác đăng nhập hỏi *"người đang đứng đây là ai"*. Bỏ lớp sau thì người lạ tự mở luồng
+ * OAuth bằng nick Facebook của họ và nối Fanpage của họ vào kho của mình — `state` khớp hoàn
+ * hảo vì chính họ vừa đi lượt đi.
+ *
+ * Cookie phiên vẫn tới được đây: nó là `sameSite: "lax"`, và Facebook chuyển hướng về bằng
+ * một lượt điều hướng GET ở tab chính — đúng ca `lax` cho phép gửi kèm cookie.
+ */
+export const GET = guardedRoute(async function GET(_actor, request: Request) {
   const query = new URL(request.url).searchParams;
 
   // Người dùng bấm "Hủy" ở dialog Facebook.
@@ -80,4 +92,4 @@ export async function GET(request: Request) {
         : toUserMessage(error, "Lỗi không xác định khi lấy token Facebook.");
     return back(request, { error: message });
   }
-}
+});

@@ -1,6 +1,6 @@
 # Lộ trình phát triển
 
-**Cập nhật:** 04/08/2026
+**Cập nhật:** 05/08/2026
 
 Đây là **nguồn duy nhất về trạng thái** của dự án. Bản thiết kế chi tiết từng giai đoạn ở
 [plans/](../plans/260801-2030-multi-account-posting-console/plan.md); vì sao làm ở
@@ -11,7 +11,7 @@ Dự án đang chạy **hai luồng song song**:
 | Luồng | Là gì | Trạng thái |
 |---|---|---|
 | **A — Công cụ** | 5 giai đoạn gốc: kho danh tính → hàng đợi → sức khỏe → Facebook → tự đăng Reddit | GĐ1-4 xong, GĐ0 kẹt ở tiền + cold-start, GĐ5 chưa bắt đầu |
-| **B — Web chung** | Biến app một máy thành web chung cho 5-6 người ở 5-6 nơi | GĐ0-1 xong 04/08, còn 5 giai đoạn |
+| **B — Web chung** | Biến app một máy thành web chung cho 5-6 người ở 5-6 nơi | GĐ0-2 xong 05/08, còn 4 giai đoạn |
 
 Luồng B sinh ra sau khi chốt bàn giao cho team — xem
 [plan web chung](../plans/260804-1752-web-chung-cho-team-phan-tan/plan.md). Nó **không thay thế**
@@ -41,17 +41,29 @@ Chi tiết ở [plan.md](../plans/260804-1752-web-chung-cho-team-phan-tan/plan.m
 | # | Giai đoạn | Trạng thái | Ngày | Còn thiếu gì |
 |---|---|---|---|---|
 | 0 | Spike: trình duyệt gọi xuống cầu nối | ✅ Xong | 04/08 | – (chốt 3 ràng buộc bắt buộc cho GĐ2/3/4) |
-| 1 | [Postgres + múi giờ team](../plans/260804-1752-web-chung-cho-team-phan-tan/phase-01-postgres-va-mui-gio-team.md) | ✅ Xong | 04/08 | Nhập tay lại dữ liệu thật + nối lại Fanpage |
-| 2 | Đăng nhập, vai trò, chủ sở hữu nick | ⬜ Tiếp theo | – | Better Auth + đăng nhập Google + danh sách email cho phép |
-| 3 | Tách hai vùng khóa + vé ký | ⬜ Chưa bắt đầu | – | Chờ GĐ2 |
+| 1 | [Postgres + múi giờ team](../plans/260804-1752-web-chung-cho-team-phan-tan/phase-01-postgres-va-mui-gio-team.md) | ✅ Xong hẳn | 05/08 | – (chốt bắt đầu từ kho rỗng, không nhập lại dữ liệu thử) |
+| 2 | [Đăng nhập, vai trò, chủ sở hữu nick](../plans/260804-1752-web-chung-cho-team-phan-tan/phase-02-dang-nhap-vai-tro-chu-so-huu.md) | ✅ Xong | 05/08 | – (hoãn có chủ ý: bộ lọc "nick của tôi", chỉ là tiện nghi hiển thị) |
+| 3 | Tách hai vùng khóa + vé ký | 🟡 Tiếp theo | – | Bắt đầu sau khi GĐ2 merge về master |
 | 4 | Cầu nối trên máy operator | ⬜ Chưa bắt đầu | – | **Đường găng.** Chờ GĐ3 |
 | 5 | Lên Railway + cron + sao lưu | ⬜ Chưa bắt đầu | – | Làm song song được từ sau GĐ1 |
 | 6 | Bàn giao team | ⬜ Chưa bắt đầu | – | Chờ GĐ4 |
 
-**GĐ1 đã đổi nền dữ liệu sang Postgres** (04/08/2026): 482/482 test, 4 smoke test và
+**GĐ1 đã đổi nền dữ liệu sang Postgres và đóng hẳn** (05/08/2026): 482/482 test, 4 smoke test và
 `npm run db:backup` đều xanh trên Postgres. Ràng buộc 1 nick = 1 proxy vẫn do database ép.
-Cố ý **không viết script chuyển dữ liệu** — dữ liệu cũ quá nhỏ (3 nick, 10 proxy, 4 job),
-nhập tay rẻ hơn và ít rủi ro hơn chuyển ciphertext.
+Cố ý **không viết script chuyển dữ liệu**, và chốt 05/08/2026 là **không nhập lại gì cả**:
+chưa có nick thật nào, 3 nick cũ đều là nick thử. Kho bắt đầu từ rỗng.
+
+> Giữ lại `dev.db` cũ: 10 proxy Webshare trong đó là dữ liệu thật đã trả tiền và đã kiểm
+> 10/10 ngày 04/08. Mật khẩu proxy không nằm ở đâu khác.
+
+**GĐ2 đã đổi hàng rào và đóng** (05/08/2026): từ "app chỉ nghe ở `127.0.0.1`" sang "phải đăng
+nhập Google và có tên trong `ALLOWED_EMAILS`". Cờ `-H` đã bỏ — đúng thứ tự đã hẹn, chỉ sau khi
+danh sách lối vào chưa gác về rỗng. Nghiệm thu tay đã chạy thật, và chính nó bắt ra lỗ mà không
+phép kiểm tĩnh nào thấy: **trang** không đi qua wrapper gác nào cả, phải thêm `src/proxy.ts`.
+
+> Còn một lỗ **đã biết và cố ý chưa đóng**: một phiên đăng nhập bị trộm vẫn đọc được mật khẩu
+> nick, vì khóa vẫn nằm cùng một chỗ với máy chủ. Đó là việc của GĐ3, và là lý do **chưa bàn
+> giao cho ai** trước khi GĐ3 xong.
 
 ## Đường găng: cái gì đang chặn
 

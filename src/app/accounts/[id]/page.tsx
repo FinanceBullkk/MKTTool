@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DeleteEntityButton } from "@/components/ui/delete-entity-button";
-import { ActionForm } from "@/components/ui/form-controls";
+import { ActionForm, SelectField } from "@/components/ui/form-controls";
 import { Card, PageHeading, StatusBadge } from "@/components/ui/page-section";
 import { AccountFormFields } from "@/components/vault/account-form-fields";
+import { assignAccountOwner } from "@/lib/accounts/account-owner-actions";
 import {
   accountAgeInDays,
   coldStartDaysRemaining,
@@ -12,6 +13,7 @@ import {
 } from "@/lib/accounts/account-status";
 import { deleteAccount } from "@/lib/accounts/vault-delete-actions";
 import { updateAccount } from "@/lib/accounts/vault-update-actions";
+import { readActor } from "@/lib/auth/require-actor";
 import { prisma } from "@/lib/db/prisma-client";
 import { formatFullDate, formatFullDateTime } from "@/lib/format/vietnamese-date-format";
 import { AccountVaultActionsPanel } from "./account-vault-actions-panel";
@@ -31,16 +33,18 @@ export default async function AccountDetailPage({
 
   const account = await prisma.account.findUnique({
     where: { id },
-    include: { persona: true, proxy: true },
+    include: { persona: true, proxy: true, owner: { select: { email: true } } },
   });
 
   if (!account) notFound();
+
+  const viewer = await readActor();
 
   const presentation = getStatusPresentation(account.status);
   const coldDays = coldStartDaysRemaining(account.coldStartUntil);
   const age = accountAgeInDays(account.platformCreatedAt);
 
-  const [auditLogs, personas, selectableProxies] = await Promise.all([
+  const [auditLogs, personas, selectableProxies, teamMembers] = await Promise.all([
     prisma.auditLog.findMany({ where: { accountId: id }, orderBy: { at: "desc" }, take: 20 }),
     prisma.persona.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
     // Proxy còn trống CỘNG proxy đang gắn cho chính nick này — thiếu vế sau thì mở form sửa
@@ -50,6 +54,9 @@ export default async function AccountDetailPage({
       orderBy: { label: "asc" },
       select: { id: true, label: true, country: true },
     }),
+    // Chỉ người ĐÃ đăng nhập ít nhất một lần mới có hàng `User` để gán — xem chú thích ở
+    // thẻ "Phân công nick" bên dưới.
+    prisma.user.findMany({ orderBy: { email: "asc" }, select: { id: true, email: true } }),
   ]);
 
   const facts: [string, string][] = [
@@ -62,6 +69,12 @@ export default async function AccountDetailPage({
         ? `${account.proxy.label} — ${account.proxy.protocol}://${account.proxy.host}:${account.proxy.port} ` +
           `(${account.proxy.country})`
         : "— không gắn (đăng Fanpage bằng Graph API thì không cần)",
+    ],
+    [
+      "Người phụ trách",
+      account.owner
+        ? account.owner.email
+        : "— chưa phân công (chỉ quản trị viên lấy được mật khẩu và OTP)",
     ],
     ["Profile antidetect", account.antidetectProfileId ?? "— không có (không mở profile được)"],
     ["Email gốc", account.emailAddress],
@@ -122,6 +135,46 @@ export default async function AccountDetailPage({
           </p>
         ) : null}
       </Card>
+
+      {/* Chỉ quản trị viên thấy thẻ này. Ẩn thẻ chỉ là dọn màn hình cho gọn — chặn THẬT nằm ở
+          `adminAction` bọc ngoài server action, nên OPERATOR gọi thẳng endpoint vẫn bị từ chối. */}
+      {viewer?.role === "ADMIN" ? (
+        <Card title="Phân công nick">
+          <p className="mb-4 text-sm text-neutral-600 dark:text-neutral-400">
+            Người phụ trách là người <strong>duy nhất ngoài quản trị viên</strong> lấy được mật
+            khẩu và mã OTP của nick này. Ngoài chuyện đó thì không có gì bị chia: cả team vẫn
+            thấy nick, job và lịch sử của nhau, và bộ luật vẫn quét toàn bộ đàn nick — luật
+            chống đụng độ thread phải nêu đúng tên nick của đồng nghiệp thì mới dùng được.
+          </p>
+          <p className="mb-4 text-sm text-neutral-600 dark:text-neutral-400">
+            Để trống ô là <strong>gỡ chủ</strong>. Nick không có chủ thì chỉ quản trị viên mở
+            được bí mật của nó.
+          </p>
+
+          {teamMembers.length === 0 ? (
+            <p className="text-sm text-amber-700 dark:text-amber-400">
+              Chưa ai trong team đăng nhập lần nào nên chưa có người để giao. Danh sách này chỉ
+              gồm người đã đăng nhập ít nhất một lần — khai email vào{" "}
+              <code>ALLOWED_EMAILS</code> thôi thì chưa đủ, họ phải vào một lần để công cụ biết
+              họ là ai.
+            </p>
+          ) : (
+            <ActionForm action={assignAccountOwner} submitLabel="Lưu phân công">
+              <input type="hidden" name="accountId" value={account.id} />
+              <SelectField
+                label="Người phụ trách"
+                name="ownerId"
+                defaultValue={account.ownerId ?? ""}
+                options={teamMembers.map((member) => ({
+                  value: member.id,
+                  label: member.email,
+                }))}
+                hint="Chỉ hiện người đã đăng nhập ít nhất một lần."
+              />
+            </ActionForm>
+          )}
+        </Card>
+      ) : null}
 
       <Card title="Sửa nick">
         <p className="mb-4 text-sm text-neutral-600 dark:text-neutral-400">

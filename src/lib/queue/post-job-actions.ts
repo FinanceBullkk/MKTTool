@@ -20,6 +20,7 @@ import {
   formToObject,
 } from "@/lib/accounts/vault-form-schemas";
 import type { ActionResult } from "@/lib/actions/action-result";
+import { guardedAction } from "@/lib/auth/guarded-action";
 import { parseLinksInput, stringifyLinks } from "@/lib/content/content-types";
 import { prisma } from "@/lib/db/prisma-client";
 import type { ContentSource } from "@/lib/rules/rule-context-builder";
@@ -94,7 +95,8 @@ async function saveDraftAsContentItem(input: Extract<ContentInput, { kind: "draf
   });
 }
 
-export async function createPostJob(
+export const createPostJob = guardedAction(async function createPostJob(
+  actor,
   _prev: ActionResult | null,
   formData: FormData,
 ): Promise<ActionResult> {
@@ -149,6 +151,7 @@ export async function createPostJob(
         accountId: job.accountId,
         action: "RULE_OVERRIDDEN",
         detail: `job ${created.id} — ${joinReasons(evaluation)} — lý do: ${overrideReason}`.slice(0, 900),
+        actorId: actor.userId,
       },
     });
   }
@@ -169,4 +172,4 @@ export async function createPostJob(
         ? `Đã xếp lịch bằng cách GHI ĐÈ luật. ${summarizeEvaluation(evaluation)}${savedNote}`
         : `Đã xếp lịch. ${summarizeEvaluation(evaluation)}${savedNote}`,
   };
-}
+});

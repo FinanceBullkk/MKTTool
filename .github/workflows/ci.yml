@@ -9,10 +9,41 @@ jobs:
   check:
     runs-on: ubuntu-latest
 
+    # Bộ test cần một Postgres THẬT, không giả lập được.
+    #
+    # Lý do đầy đủ ở `vitest.global-setup.ts`, tóm tắt: tầng `rule-context-queries.ts` chỉ gồm
+    # truy vấn Prisma. Giả lập Prisma chỉ chứng minh được "mình gọi hàm đúng như mình nghĩ",
+    # không chứng minh được truy vấn LỌC ĐÚNG — mà lọc sai chính là kiểu hỏng nguy hiểm nhất
+    # ở đây: bộ luật im lặng cho qua thay vì báo lỗi.
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+          # Database phải TỒN TẠI SẴN — global setup dựng bảng bên trong nó, không tự tạo
+          # database. Tên bắt buộc kết thúc bằng `_test`: `assertIsTestDatabase()` từ chối chạy
+          # trên tên khác, vì mỗi lượt chạy đều `DROP SCHEMA public CASCADE`.
+          POSTGRES_DB: mkttool_test
+        ports:
+          - 5432:5432
+        # Không có health check thì các bước sau bắt đầu trước lúc Postgres nghe được, và nó
+        # đỏ theo kiểu "connection refused" ngẫu nhiên — dạng chập chờn dạy người đọc quen với
+        # việc bấm chạy lại.
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     env:
       # Giá trị giả, chỉ để build/test chạy được. KHÔNG có credential thật nào trong CI:
-      # database ở đây là file rỗng do migrate dựng ra, không phải kho danh tính.
-      DATABASE_URL: "file:./ci.db"
+      # database ở đây do chính workflow dựng lên trong runner, không phải kho danh tính.
+      #
+      # DATABASE_URL cố ý trỏ vào database `postgres` mặc định, KHÔNG dùng chung `mkttool_test`:
+      # bộ test xóa sạch schema lúc dọn dẹp, nên dùng chung thì bước `build` chạy sau lại nhìn
+      # vào một cái vỏ rỗng.
+      DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/postgres"
+      TEST_DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/mkttool_test"
       VAULT_KEY: "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff"
 
     steps:
@@ -27,6 +58,12 @@ jobs:
 
       # Prisma Client phải sinh trước typecheck — nếu không, mọi lời gọi prisma.* đều đỏ.
       - run: npm run db:generate
+
+      # Áp migration bằng chính lệnh sẽ chạy lúc phát hành (GĐ5), chứ không phải đường vòng.
+      # Global setup của test áp từng file SQL bằng tay để không phụ thuộc Prisma CLI — đường
+      # khác, nên nó không bắt được migration mà CLI từ chối. Bước này bắt.
+      # Kèm theo, nó cho `next build` một schema thật thay vì một database rỗng.
+      - run: npx prisma migrate deploy
 
       - run: npm run lint
       - run: npm run typecheck

@@ -7,6 +7,7 @@
  * nick đáng ngờ ngay lúc đang nhìn nó.
  */
 import { NextResponse } from "next/server";
+import { guardedRoute } from "@/lib/auth/guarded-route";
 import { HealthCheckBusyError } from "@/lib/health/health-check-lock";
 import {
   HealthCheckSetupError,
@@ -19,7 +20,7 @@ export const runtime = "nodejs";
 /** Mở trình duyệt + tải trang qua proxy có thể chạm ngưỡng mặc định của Next. */
 export const maxDuration = 120;
 
-export async function POST(request: Request) {
+export const POST = guardedRoute(async function POST(_actor, request: Request) {
   if (!isSameOrigin(request)) {
     return NextResponse.json({ ok: false, message: CROSS_ORIGIN_MESSAGE }, { status: 403 });
   }
@@ -86,4 +87,4 @@ export async function POST(request: Request) {
         : "Lỗi không xác định khi dò sức khỏe nick.";
     return NextResponse.json({ ok: false, message }, { status: 502 });
   }
-}
+});

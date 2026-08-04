@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { SessionBadge } from "@/components/auth/session-badge";
 import { PrimaryNav } from "@/components/layout/primary-nav";
 import "./globals.css";
 
@@ -18,7 +19,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <Link href="/" className="text-lg font-semibold">
               MKTTool
             </Link>
-            <PrimaryNav />
+            <div className="flex flex-wrap items-center gap-4">
+              <PrimaryNav />
+              <SessionBadge />
+            </div>
           </header>
           <main>{children}</main>
         </div>

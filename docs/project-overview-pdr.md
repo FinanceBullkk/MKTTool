@@ -28,8 +28,9 @@ công cụ nằm ở bộ luật, không nằm ở kỹ thuật giả vân tay.
 | MKT specialist | **1** | Vận hành toàn bộ: nhập nick, xếp lịch, đăng, theo dõi sức khỏe |
 | Người viết content | 3 | Viết bài ở pipeline riêng, đưa sang công cụ |
 
-Công cụ chạy trên **máy bàn của bạn MKT**, nghe localhost. Không phải sản phẩm nhiều người dùng,
-không có đăng nhập, không có phân quyền.
+Giai đoạn 1 công cụ chạy trên **máy bàn của bạn MKT**, nghe localhost, không đăng nhập. Từ
+05/08/2026 nó thành web chung cho team: đăng nhập Google, danh sách trắng email, hai vai trò
+(ADMIN / OPERATOR) và nick có người phụ trách.
 
 ## 3. Quy mô giai đoạn 1
 

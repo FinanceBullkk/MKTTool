@@ -9,6 +9,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import type { ActionResult } from "@/lib/actions/action-result";
+import { guardedAction } from "@/lib/auth/guarded-action";
 import { isOpenJobStatus } from "@/lib/content/content-types";
 import { prisma } from "@/lib/db/prisma-client";
 import { summarizeEvaluation } from "@/lib/rules/rules-engine";
@@ -22,7 +23,11 @@ const urlSchema = z.string().url("Link bài đăng không hợp lệ");
  * Đánh dấu đã đăng. Ghi luôn một Interaction cho chính bài đó: từ giờ nick khác đụng vào
  * thread này sẽ bị luật 8 chặn.
  */
-export async function markJobPosted(jobId: string, postedUrl: string): Promise<ActionResult> {
+export const markJobPosted = guardedAction(async function markJobPosted(
+  _actor,
+  jobId: string,
+  postedUrl: string,
+): Promise<ActionResult> {
   // Kiểm dạng URL nằm ở đây chứ không ở lõi: đây là chỗ nhận chuỗi người gõ. Bộ dò đưa vào
   // permalink do chính Reddit trả về nên không có gì để kiểm.
   const parsedUrl = urlSchema.safeParse(postedUrl.trim());
@@ -36,7 +41,7 @@ export async function markJobPosted(jobId: string, postedUrl: string): Promise<A
   revalidatePath("/queue");
   revalidatePath("/");
   return result;
-}
+});
 
 /**
  * Trả job đã chốt về chờ đăng — lối thoát cho lần bấm nhầm.
@@ -44,7 +49,10 @@ export async function markJobPosted(jobId: string, postedUrl: string): Promise<A
  * Ngược chiều với `markJobPosted` nên phải gỡ đúng những gì lượt đó đã ghi; phần nặng nằm ở
  * post-job-revert.ts, ở đây chỉ thêm việc làm mới hai trang có hiện job.
  */
-export async function revertJobToPending(jobId: string): Promise<ActionResult> {
+export const revertJobToPending = guardedAction(async function revertJobToPending(
+  _actor,
+  jobId: string,
+): Promise<ActionResult> {
   const result = await revertPostJobToPending(jobId);
   if (!result.ok) return result;
 
@@ -53,7 +61,7 @@ export async function revertJobToPending(jobId: string): Promise<ActionResult> {
   revalidatePath("/queue");
   revalidatePath("/");
   return result;
-}
+});
 
 /**
  * Kiểm ở tầng server chứ không chỉ ở nút bấm: server action là một endpoint HTTP công khai,
@@ -71,14 +79,17 @@ async function requireOpenJob(
   return { ok: true };
 }
 
-export async function markJobSkipped(jobId: string): Promise<ActionResult> {
+export const markJobSkipped = guardedAction(async function markJobSkipped(
+  _actor,
+  jobId: string,
+): Promise<ActionResult> {
   const open = await requireOpenJob(jobId);
   if (!open.ok) return open;
 
   await prisma.postJob.update({ where: { id: jobId }, data: { status: "SKIPPED" } });
   revalidatePath("/queue");
   return { ok: true, message: "Đã bỏ qua job. Nó không còn tính vào hạn mức và tỷ lệ promo nữa." };
-}
+});
 
 /**
  * Chạy lại bộ luật cho một job đang chờ.
@@ -87,7 +98,10 @@ export async function markJobSkipped(jobId: string): Promise<ActionResult> {
  * hoặc một job trùng nội dung vừa được thêm vào. Job hết an toàn thì chuyển sang BLOCKED
  * thay vì âm thầm để đó.
  */
-export async function recheckJob(jobId: string): Promise<ActionResult> {
+export const recheckJob = guardedAction(async function recheckJob(
+  _actor,
+  jobId: string,
+): Promise<ActionResult> {
   const job = await prisma.postJob.findUnique({ where: { id: jobId } });
   if (!job) return { ok: false, message: "Không tìm thấy job." };
   if (!isOpenJobStatus(job.status)) {
@@ -101,4 +115,4 @@ export async function recheckJob(jobId: string): Promise<ActionResult> {
 
   revalidatePath("/queue");
   return { ok: !outcome.blocked, message: summarizeEvaluation(outcome.evaluation) };
-}
+});

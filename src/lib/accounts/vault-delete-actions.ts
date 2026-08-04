@@ -11,11 +11,15 @@
  */
 import { revalidatePath } from "next/cache";
 import type { ActionResult } from "@/lib/actions/action-result";
+import { guardedAction } from "@/lib/auth/guarded-action";
 import { prisma } from "@/lib/db/prisma-client";
 import { describeUnexpectedDbError } from "@/lib/db/prisma-error-helpers";
 import { blockDeleteWhenReferenced } from "@/lib/db/reference-guard";
 
-export async function deletePersona(personaId: string): Promise<ActionResult> {
+export const deletePersona = guardedAction(async function deletePersona(
+  _actor,
+  personaId: string,
+): Promise<ActionResult> {
   const persona = await prisma.persona.findUnique({
     where: { id: personaId },
     include: { _count: { select: { accounts: true } } },
@@ -37,9 +41,12 @@ export async function deletePersona(personaId: string): Promise<ActionResult> {
 
   revalidatePath("/personas");
   return { ok: true, message: `Đã xóa nhân vật "${persona.name}".` };
-}
+});
 
-export async function deleteProxy(proxyId: string): Promise<ActionResult> {
+export const deleteProxy = guardedAction(async function deleteProxy(
+  _actor,
+  proxyId: string,
+): Promise<ActionResult> {
   const proxy = await prisma.proxy.findUnique({
     where: { id: proxyId },
     include: { account: { select: { username: true } } },
@@ -63,9 +70,12 @@ export async function deleteProxy(proxyId: string): Promise<ActionResult> {
 
   revalidatePath("/proxies");
   return { ok: true, message: `Đã xóa proxy "${proxy.label}".` };
-}
+});
 
-export async function deleteAccount(accountId: string): Promise<ActionResult> {
+export const deleteAccount = guardedAction(async function deleteAccount(
+  _actor,
+  accountId: string,
+): Promise<ActionResult> {
   const account = await prisma.account.findUnique({
     where: { id: accountId },
     include: {
@@ -105,9 +115,12 @@ export async function deleteAccount(accountId: string): Promise<ActionResult> {
       `Đã xóa nick "${account.username}".` +
       (account.proxy ? ` Proxy "${account.proxy.label}" giờ gắn được cho nick khác.` : ""),
   };
-}
+});
 
-export async function deleteTarget(targetId: string): Promise<ActionResult> {
+export const deleteTarget = guardedAction(async function deleteTarget(
+  _actor,
+  targetId: string,
+): Promise<ActionResult> {
   const target = await prisma.platformTarget.findUnique({
     where: { id: targetId },
     include: {
@@ -137,4 +150,4 @@ export async function deleteTarget(targetId: string): Promise<ActionResult> {
 
   revalidatePath("/targets");
   return { ok: true, message: `Đã xóa đích "${target.name}".` };
-}
+});
