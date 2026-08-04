@@ -15,6 +15,7 @@ import {
   decryptCredential,
   decryptOptionalCredential,
 } from "@/lib/crypto/credential-encryption";
+import { loadVaultKey } from "@/lib/crypto/encryption-key-loader";
 import { prisma } from "@/lib/db/prisma-client";
 import { generateTotpCode } from "@/lib/totp/totp-code-generator";
 
@@ -32,12 +33,12 @@ export interface OtpResult {
  *
  * Phải trả về ActionResult chứ KHÔNG được để lỗi ném ra khỏi server action: lỗi ném ra thì
  * phía trình duyệt chỉ thấy một promise reject chung chung, nút trông như hỏng mà không có
- * chữ nào giải thích — trong khi nguyên nhân gần như luôn là sai VAULT_KEY, thứ người dùng
+ * chữ nào giải thích — trong khi nguyên nhân gần như luôn là sai khóa, thứ người dùng
  * sửa được ngay nếu biết.
  */
 const DECRYPT_FAILED_MESSAGE =
-  "Không giải mã được dữ liệu của nick này. Gần như chắc chắn VAULT_KEY trong .env không phải " +
-  "khóa đã dùng để lưu — kiểm tra lại .env rồi khởi động lại app.";
+  "Không giải mã được dữ liệu của nick này. Gần như chắc chắn VAULT_KEY_OPERATOR trong .env " +
+  "không phải khóa đã dùng để lưu — kiểm tra lại .env rồi khởi động lại app.";
 
 /**
  * Giải mã một credential để copy. Luôn ghi AuditLog kèm người thực hiện.
@@ -63,7 +64,9 @@ export const revealCredential = guardedAction(async function revealCredential(
 
   let value: string;
   try {
-    value = decryptCredential(encrypted);
+    // Vùng operator — xem encrypted-field-registry.ts. Chỗ này biến mất khi luồng chuyển sang
+    // phát vé cho cầu nối (GĐ3 bước 5): lúc đó máy chủ không còn giữ khóa operator nữa.
+    value = decryptCredential(encrypted, loadVaultKey("operator"));
   } catch {
     return { ok: false, message: DECRYPT_FAILED_MESSAGE };
   }
@@ -87,7 +90,8 @@ export const requestOtpCode = guardedAction(async function requestOtpCode(
 
   let secret: string | null;
   try {
-    secret = decryptOptionalCredential(account.totpSecretEnc);
+    // Vùng operator — cùng ghi chú với revealCredential ở trên.
+    secret = decryptOptionalCredential(account.totpSecretEnc, loadVaultKey("operator"));
   } catch {
     return { ok: false, message: DECRYPT_FAILED_MESSAGE };
   }

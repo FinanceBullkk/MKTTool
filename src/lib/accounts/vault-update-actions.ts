@@ -17,6 +17,7 @@ import { revalidatePath } from "next/cache";
 import type { ActionResult } from "@/lib/actions/action-result";
 import { guardedAction } from "@/lib/auth/guarded-action";
 import { encryptCredential, encryptOptionalCredential } from "@/lib/crypto/credential-encryption";
+import { loadVaultKey } from "@/lib/crypto/encryption-key-loader";
 import { prisma } from "@/lib/db/prisma-client";
 import { describeUnexpectedDbError, isUniqueConstraintError } from "@/lib/db/prisma-error-helpers";
 import { describeRecheck, recheckJobsMatching } from "@/lib/queue/recheck-jobs-batch";
@@ -115,6 +116,8 @@ export const updateAccount = guardedAction(async function updateAccount(
     return { ok: false, message: "TOTP secret không hợp lệ (phải là chuỗi base32)." };
   }
 
+  const operatorKey = loadVaultKey("operator");
+
   try {
     await prisma.account.update({
       where: { id },
@@ -129,10 +132,19 @@ export const updateAccount = guardedAction(async function updateAccount(
         quarantineReason: isQuarantinedStatus(data.status)
           ? data.quarantineReason?.trim() || null
           : null,
-        ...(password ? { passwordEnc: encryptCredential(password) } : {}),
-        ...(emailPassword ? { emailPasswordEnc: encryptCredential(emailPassword) } : {}),
+        // Vùng operator — xem encrypted-field-registry.ts. Khóa phải truyền rõ, mặc định của
+        // encryptCredential là khóa vùng server.
+        ...(password ? { passwordEnc: encryptCredential(password, operatorKey) } : {}),
+        ...(emailPassword
+          ? { emailPasswordEnc: encryptCredential(emailPassword, operatorKey) }
+          : {}),
         ...(totpSecret
-          ? { totpSecretEnc: encryptOptionalCredential(normalizeTotpSecret(totpSecret)) }
+          ? {
+              totpSecretEnc: encryptOptionalCredential(
+                normalizeTotpSecret(totpSecret),
+                operatorKey,
+              ),
+            }
           : {}),
       },
     });

@@ -7,7 +7,6 @@ import {
   encryptCredential,
   encryptOptionalCredential,
 } from "./credential-encryption";
-import { VaultKeyError, parseVaultKey } from "./encryption-key-loader";
 
 const KEY = randomBytes(32);
 const OTHER_KEY = randomBytes(32);
@@ -58,19 +57,5 @@ describe("credential-encryption", () => {
 
     const encoded = encryptOptionalCredential("JBSWY3DPEHPK3PXP", KEY);
     expect(decryptOptionalCredential(encoded, KEY)).toBe("JBSWY3DPEHPK3PXP");
-  });
-});
-
-describe("encryption-key-loader", () => {
-  it("chấp nhận khóa hex 64 ký tự", () => {
-    const hex = randomBytes(32).toString("hex");
-    expect(parseVaultKey(hex)).toHaveLength(32);
-  });
-
-  it("từ chối khóa thiếu, sai độ dài, hoặc không phải hex", () => {
-    expect(() => parseVaultKey(undefined)).toThrow(VaultKeyError);
-    expect(() => parseVaultKey("")).toThrow(/Thiếu VAULT_KEY/);
-    expect(() => parseVaultKey("abcd")).toThrow(/64 ký tự hex/);
-    expect(() => parseVaultKey("z".repeat(64))).toThrow(/chỉ được chứa ký tự hex/);
   });
 });

@@ -88,6 +88,10 @@ code chỉ trỏ tới.
 - **Xóa bị chặn khi còn tham chiếu** (`reference-guard.ts`), kèm câu nói rõ vướng gì.
 - **Che bí mật trong mọi thông báo lỗi** — API bên ngoài hay vọng lại nguyên tham số đã gửi.
   Thêm cột `*Enc` mới thì khai vào `encrypted-field-registry.ts`, nếu không `vault:rekey` sẽ bỏ sót.
+  Cột mới phải mang dấu `// vault:server` hoặc `// vault:operator` trong `schema.prisma` và khai
+  đúng vùng đó ở registry — vùng khóa là quyết định phải nghĩ cho từng cột, test bắt nếu bỏ trống.
+  Lúc mã hóa: mặc định của `encryptCredential` là khóa vùng `server`, nên cột vùng `operator`
+  **phải** truyền `loadVaultKey("operator")` vào. Sai khóa thì dữ liệu ghi ra không ai mở lại được.
 
 ## 8. Trước khi commit
 

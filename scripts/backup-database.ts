@@ -31,11 +31,13 @@ async function main() {
   console.log(`✅ Đã sao lưu: ${path.relative(process.cwd(), filePath)} (${formatSize(size)})`);
   console.log(`   Thư mục ${BACKUP_DIR} đang giữ ${total} bản.`);
   console.log("");
-  console.log("Bản sao lưu này CHỨA credential đã mã hóa, và chỉ giải mã được bằng VAULT_KEY.");
+  console.log("Bản sao lưu này CHỨA credential đã mã hóa, và chỉ giải mã được bằng ĐÚNG hai khóa");
+  console.log("đang dùng: VAULT_KEY_SERVER và VAULT_KEY_OPERATOR.");
   console.log("→ Cất bản sao ở nơi KHÁC với file .env. Để chung hai thứ là đưa luôn cả ổ khóa");
   console.log("  lẫn chìa cho người nhặt được.");
-  console.log("→ Ngược lại, sao lưu mà không giữ VAULT_KEY thì lúc khôi phục cũng không đọc");
-  console.log("  được gì. Phải có đủ cả hai, cất riêng hai nơi.");
+  console.log("→ Ngược lại, sao lưu mà không giữ khóa thì lúc khôi phục cũng không đọc được gì.");
+  console.log("  Khóa operator nằm ở máy operator, không ở máy chủ — sao lưu máy chủ mà thiếu nó");
+  console.log("  thì mật khẩu nick trong bản sao là rác.");
   console.log("");
 }
 

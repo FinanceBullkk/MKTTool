@@ -1,12 +1,21 @@
 /**
- * Xoay VAULT_KEY: giải mã toàn bộ credential bằng khóa cũ, mã hóa lại bằng khóa mới.
+ * Xoay khóa kho danh tính: giải mã toàn bộ credential của MỘT VÙNG bằng khóa cũ, mã hóa lại
+ * bằng khóa mới.
  *
  * Chạy khi khóa bị lộ (lỡ commit, lỡ gửi qua chat, máy bị xâm nhập). Không có công cụ này
  * thì khóa lộ đồng nghĩa phải nhập tay lại toàn bộ kho danh tính.
  *
- *   npm run vault:keygen                            # sinh khóa mới
- *   npm run vault:rekey -- --new-key=<hex>          # THỬ: giải mã hết, không ghi gì
- *   npm run vault:rekey -- --new-key=<hex> --apply  # sao lưu rồi ghi đè
+ *   npm run vault:keygen                                            # sinh khóa mới
+ *   npm run vault:rekey -- --domain=server   --new-key=<hex>        # THỬ: giải mã hết, không ghi
+ *   npm run vault:rekey -- --domain=operator --new-key=<hex> --apply
+ *
+ * Từ GĐ3 kho có hai vùng khóa (xem encrypted-field-registry.ts) nên PHẢI nói rõ xoay vùng nào:
+ *   --domain=server    mật khẩu proxy + token Facebook, khóa ở VAULT_KEY_SERVER
+ *   --domain=operator  mật khẩu / email / TOTP của nick, khóa ở VAULT_KEY_OPERATOR
+ *
+ * Cũng chính lệnh này là đường TÁCH hai vùng lần đầu: đặt cả hai biến bằng khóa cũ cho app chạy
+ * lại được, rồi xoay riêng vùng operator sang khóa mới. Xoay xong thì khóa operator rời khỏi
+ * máy chủ, và chỉ máy operator giữ.
  *
  * Hai điều kiện an toàn được ép cứng:
  *  1. Giải mã THÀNH CÔNG toàn bộ trước khi ghi bất cứ thứ gì. Một bản ghi hỏng là dừng cả mẻ —
@@ -20,8 +29,11 @@ import {
   encryptCredential,
   encryptOptionalCredential,
 } from "../src/lib/crypto/credential-encryption";
-import { countEncryptedFields } from "../src/lib/crypto/encrypted-field-registry";
-import { parseVaultKey } from "../src/lib/crypto/encryption-key-loader";
+import {
+  type VaultDomain,
+  countEncryptedFields,
+} from "../src/lib/crypto/encrypted-field-registry";
+import { VAULT_KEY_ENV, parseVaultKey } from "../src/lib/crypto/encryption-key-loader";
 import { backupDatabase } from "../src/lib/db/database-backup";
 import { prisma } from "../src/lib/db/prisma-client";
 
@@ -35,13 +47,16 @@ function readArg(name: string): string | undefined {
   return process.argv.find((arg) => arg.startsWith(prefix))?.slice(prefix.length);
 }
 
+/** Vùng đang xoay — chỉ để dựng câu báo lỗi cho đúng tên biến môi trường. */
+let currentDomain: VaultDomain = "server";
+
 /** Giải mã kèm ngữ cảnh: hỏng thì phải biết ngay bản ghi nào, không mò trong hàng trăm dòng. */
 function decryptOrExplain(encoded: string, key: Buffer, where: string): string {
   try {
     return decryptCredential(encoded, key);
   } catch {
     throw new RekeyError(
-      `Không giải mã được ${where} bằng VAULT_KEY hiện tại. ` +
+      `Không giải mã được ${where} bằng ${VAULT_KEY_ENV[currentDomain]} hiện tại. ` +
         `Kiểm tra .env có đúng khóa đang dùng cho database này không — chưa ghi gì cả.`,
     );
   }
@@ -143,35 +158,70 @@ async function collectFacebookPages(oldKey: Buffer): Promise<WriteFactory[]> {
   });
 }
 
+/** Bảng phân công: vùng nào thì gom những bảng nào. Chia sai ở đây là xoay nhầm khóa cho cột. */
+const COLLECTORS: Record<VaultDomain, ((oldKey: Buffer) => Promise<WriteFactory[]>)[]> = {
+  server: [collectProxies, collectObserverProxies, collectFacebookConnections, collectFacebookPages],
+  operator: [collectAccounts],
+};
+
+function readDomainArg(): VaultDomain {
+  const raw = readArg("domain");
+
+  if (raw !== "server" && raw !== "operator") {
+    throw new RekeyError(
+      `Thiếu hoặc sai --domain (nhận được ${raw ? `"${raw}"` : "không có gì"}). ` +
+        "Kho có hai vùng khóa, phải nói rõ xoay vùng nào:\n" +
+        "  --domain=server    mật khẩu proxy + token Facebook\n" +
+        "  --domain=operator  mật khẩu / email / TOTP của nick",
+    );
+  }
+
+  return raw;
+}
+
 async function main() {
+  const domain = readDomainArg();
+  currentDomain = domain;
+  const envName = VAULT_KEY_ENV[domain];
   const newKeyHex = readArg("new-key");
   const apply = process.argv.includes("--apply");
 
   if (!newKeyHex) {
     throw new RekeyError(
       "Thiếu --new-key. Sinh khóa mới bằng `npm run vault:keygen` rồi chạy lại:\n" +
-        "  npm run vault:rekey -- --new-key=<hex>",
+        `  npm run vault:rekey -- --domain=${domain} --new-key=<hex>`,
     );
   }
 
-  const oldKey = parseVaultKey(process.env.VAULT_KEY);
-  const newKey = parseVaultKey(newKeyHex);
+  const oldKey = parseVaultKey(process.env[envName], envName);
+  const newKey = parseVaultKey(newKeyHex, "--new-key");
 
   if (oldKey.equals(newKey)) {
-    throw new RekeyError("Khóa mới trùng khóa đang dùng — không có gì để xoay.");
+    // Nguyên nhân thường gặp nhất không phải "gõ nhầm cùng một khóa" mà là sửa .env trước khi
+    // xoay. Nói thẳng ra, vì người vừa dính lỗi này đang cầm khóa mới trong tay và rất dễ kết
+    // luận là công cụ hỏng.
+    throw new RekeyError(
+      `Khóa mới trùng ${envName} đang dùng — không có gì để xoay.\n\n` +
+        `Đã lỡ sửa .env trước? Thứ tự đúng là ngược lại: ${envName} phải còn giữ khóa CŨ để ` +
+        `script mở được dữ liệu đang có.\n` +
+        `  1. Trả ${envName} trong .env về khóa CŨ\n` +
+        `  2. Chạy lại lệnh này với --new-key là khóa mới\n` +
+        `  3. Xong --apply rồi mới sửa .env thành khóa mới\n` +
+        `Chưa đọc, chưa ghi gì vào database cả.`,
+    );
   }
 
   // Giai đoạn 1: giải mã sạch toàn bộ. Chưa ghi một chữ nào.
   console.log("");
-  console.log(`Đang giải mã bằng khóa hiện tại (${countEncryptedFields()} cột cần xử lý)...`);
+  console.log(
+    `Đang giải mã vùng ${domain} bằng ${envName} hiện tại ` +
+      `(${countEncryptedFields(domain)} cột cần xử lý)...`,
+  );
 
-  const factories = [
-    ...(await collectProxies(oldKey)),
-    ...(await collectObserverProxies(oldKey)),
-    ...(await collectAccounts(oldKey)),
-    ...(await collectFacebookConnections(oldKey)),
-    ...(await collectFacebookPages(oldKey)),
-  ];
+  const factories: WriteFactory[] = [];
+  for (const collect of COLLECTORS[domain]) {
+    factories.push(...(await collect(oldKey)));
+  }
 
   console.log(`✅ Giải mã được toàn bộ ${factories.length} bản ghi.`);
 
@@ -179,7 +229,7 @@ async function main() {
     console.log("");
     console.log("Đây mới là lượt THỬ — chưa ghi gì vào database.");
     console.log("Chạy lại kèm --apply để xoay thật:");
-    console.log(`  npm run vault:rekey -- --new-key=${newKeyHex} --apply`);
+    console.log(`  npm run vault:rekey -- --domain=${domain} --new-key=${newKeyHex} --apply`);
     console.log("");
     return;
   }
@@ -193,12 +243,19 @@ async function main() {
   console.log(`✅ Đã mã hóa lại ${factories.length} bản ghi bằng khóa mới.`);
   console.log("");
   console.log("⚠️  CHƯA XONG. Việc còn lại phải làm tay ngay bây giờ:");
-  console.log("   1. Sửa VAULT_KEY trong .env thành khóa mới:");
-  console.log(`      VAULT_KEY="${newKeyHex}"`);
+  console.log(`   1. Sửa ${envName} trong .env thành khóa mới:`);
+  console.log(`      ${envName}="${newKeyHex}"`);
   console.log("   2. Khởi động lại app (khóa được cache trong tiến trình đang chạy).");
   console.log("   3. Cập nhật khóa mới vào password manager.");
   console.log("   4. Mở một nick bất kỳ, bấm copy mật khẩu — ra đúng thì mới xong.");
   console.log("");
+
+  if (domain === "operator") {
+    console.log("Vùng operator: khóa này KHÔNG được ở lại máy chủ sau khi cầu nối (Phase 04) chạy.");
+    console.log(`Lúc đó gỡ hẳn ${envName} khỏi môi trường máy chủ — đó mới là lúc chiếm được máy`);
+    console.log("chủ không mở nổi mật khẩu nick nào.");
+    console.log("");
+  }
   console.log("Bản sao lưu vừa tạo vẫn mã hóa bằng khóa CŨ. Giữ khóa cũ tới khi đã kiểm xong,");
   console.log("nếu không thì chính bản sao lưu đó cũng thành rác.");
   console.log("");

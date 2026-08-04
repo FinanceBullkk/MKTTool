@@ -53,7 +53,7 @@ export function buildProxyConfig(proxy: ProxyRecordForLaunch): AntidetectProxyCo
     // Không kèm chi tiết kỹ thuật vào thông báo cho người dùng cuối, nhưng phải nói rõ
     // hậu quả: không giải mã được thì không đẩy được proxy, nên không được mở profile.
     throw new ProxyConfigError(
-      `Không giải mã được mật khẩu proxy "${proxy.label}" (sai VAULT_KEY hoặc dữ liệu hỏng). ` +
+      `Không giải mã được mật khẩu proxy "${proxy.label}" (sai VAULT_KEY_SERVER hoặc dữ liệu hỏng). ` +
         `Chưa đẩy được proxy nên KHÔNG mở profile.`,
       { cause },
     );

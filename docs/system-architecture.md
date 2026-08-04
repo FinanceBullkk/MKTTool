@@ -26,7 +26,7 @@ thế nào**. Code nằm ở đâu thì tra [codebase-summary.md](codebase-summa
 │                   └──▶ Graph API (HTTPS)            │──▶ Facebook Fanpage
 │                                                     │
 │  data/  ảnh chụp · sao lưu · file khóa              │
-│  .env   VAULT_KEY (không nằm trong database)        │
+│  .env   VAULT_KEY_SERVER + _OPERATOR (ngoài database)│
 └─────────────────────────────────────────────────────┘
 ```
 
@@ -78,8 +78,8 @@ một mẩu trí nhớ của luật ấy. Lưu **sau** khi chấm luật, để 
 | **Lối vào** | Mọi export trong file `"use server"` và mọi method trong `route.ts` phải bọc `guardedAction`/`guardedRoute`. Gác nằm ở **chữ ký**, không nằm trong thân hàm, nên không nhánh nào bỏ qua được; `guarded-entry-points.test.ts` kiểm bằng hình dạng mã nguồn và `NOT_YET_GUARDED` phải rỗng |
 | **Bí mật của nick** | `requireNickOwner`: chỉ chủ nick hoặc ADMIN giải mã được mật khẩu/OTP. Chặn ở **tầng dữ liệu**, không phải ẩn nút — server action gọi thẳng được nếu biết tên. Tầm nhìn thì **không chia**: luật 8 phải nêu đúng tên nick của đồng nghiệp mới dùng được |
 | **Route handler trong `api/`** | Đối chiếu `Origin`/`Host` (`same-origin-guard.ts`) — chặn trang khác trong cùng trình duyệt gọi sang |
-| **Credential** | Mã hóa AES-256-GCM trước khi ghi. 8 cột ở 5 bảng, khai trong `encrypted-field-registry.ts`; test đọc thẳng `schema.prisma` để bắt cột `*Enc` khai thiếu |
-| **Khóa mã hóa** | `VAULT_KEY` ở `.env`, **không** nằm trong database. Database bị chép đi mà không có khóa thì vô dụng — nên hai thứ này phải cất **hai nơi khác nhau** |
+| **Credential** | Mã hóa AES-256-GCM trước khi ghi. 8 cột ở 5 bảng, khai trong `encrypted-field-registry.ts` kèm **vùng khóa** từng cột (`server` = máy chủ mở được, `operator` = 3 cột credential của `Account`). Test đọc thẳng `schema.prisma` để bắt cột `*Enc` khai thiếu **và** khai lệch vùng so với dấu `vault:*` trong schema. Mặc định của `encryptCredential` là khóa `server`; cột vùng operator phải truyền `loadVaultKey("operator")` rõ ràng |
+| **Khóa mã hóa** | Hai khóa ở `.env`, **không** nằm trong database: `VAULT_KEY_SERVER` (proxy + token FB) và `VAULT_KEY_OPERATOR` (bí mật nick). Database bị chép đi mà không có khóa thì vô dụng — nên phải cất **khác nơi**. Đích của GĐ3: khóa operator không ở trên máy chủ, chiếm được máy chủ vẫn không mở nổi mật khẩu nick |
 | **Bí mật lọt ra log** | Mật khẩu proxy chỉ tồn tại dạng trần trong `proxy-config-builder.ts` và lời gọi adapter; token Facebook đi qua `redactTokens()` trước mọi thông báo lỗi |
 | **Nhật ký** | `AuditLog` ghi mọi thao tác nhạy cảm: mở profile, xem credential, ghi đè luật, đăng Fanpage |
 
@@ -93,7 +93,7 @@ toàn bộ mục này phải làm lại.
 |---|---|---|---|
 | Nick, proxy, content, job, tương tác, nhật ký | Postgres `mkttool_dev` | `npm run db:backup` (`pg_dump`, chạy được khi app đang mở) | Mất toàn bộ lịch sử → bộ luật mù, cho qua bài lẽ ra phải chặn |
 | Mật khẩu, TOTP secret, token Facebook | cùng database, dạng ciphertext | như trên | – |
-| `VAULT_KEY` | `.env` | **Password manager, thủ công** | Mất khóa = mất vĩnh viễn mọi credential. Không có đường khôi phục |
+| `VAULT_KEY_SERVER` / `VAULT_KEY_OPERATOR` | `.env` | **Password manager, thủ công** | Mất khóa = mất vĩnh viễn credential của vùng đó. Không có đường khôi phục |
 | Ảnh chụp lúc dò | `data/screenshots/` | không | Chỉ mất bằng chứng hình ảnh; bản ghi kết luận vẫn còn |
 | Bản sao lưu | `data/backups/` | – | – |
 | File khóa lượt dò | `data/health-check.lock` | – | Trạng thái máy đang chạy, không phải dữ liệu dự án |

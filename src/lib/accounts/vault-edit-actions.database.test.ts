@@ -37,12 +37,22 @@ vi.mock("@/lib/auth/require-actor", async (importOriginal) => ({
   }),
 }));
 
-process.env.VAULT_KEY = "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff";
+// Hai khóa KHÁC NHAU, cố ý: nếu chỗ nào mã hóa cột vùng operator bằng khóa vùng server thì
+// bài test phải đỏ. Đặt trùng nhau là tự bịt mắt mình đúng thứ cần canh.
+process.env.VAULT_KEY_SERVER = "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff";
+process.env.VAULT_KEY_OPERATOR = "ffeeddccbbaa99887766554433221100ffeeddccbbaa99887766554433221100";
 
 const { prisma } = await import("@/lib/db/prisma-client");
 const { encryptCredential, decryptCredential } = await import(
   "@/lib/crypto/credential-encryption"
 );
+const { loadVaultKey } = await import("@/lib/crypto/encryption-key-loader");
+
+/** Cột credential của nick thuộc vùng operator — xem encrypted-field-registry.ts. */
+const encryptForOperator = (plaintext: string) =>
+  encryptCredential(plaintext, loadVaultKey("operator"));
+const decryptAsOperator = (encoded: string) =>
+  decryptCredential(encoded, loadVaultKey("operator"));
 const { deleteAccount, deletePersona, deleteProxy, deleteTarget } = await import(
   "./vault-delete-actions"
 );
@@ -93,10 +103,10 @@ async function seed(): Promise<Seeded> {
     data: {
       platform: "REDDIT",
       username: "anna",
-      passwordEnc: encryptCredential("mat-khau-nick-cu"),
+      passwordEnc: encryptForOperator("mat-khau-nick-cu"),
       emailAddress: "anna@example.test",
-      emailPasswordEnc: encryptCredential("mat-khau-email-cu"),
-      totpSecretEnc: encryptCredential("JBSWY3DPEHPK3PXP"),
+      emailPasswordEnc: encryptForOperator("mat-khau-email-cu"),
+      totpSecretEnc: encryptForOperator("JBSWY3DPEHPK3PXP"),
       antidetectProfileId: "profile-anna",
       personaId: persona.id,
       proxyId: proxy.id,
@@ -236,6 +246,24 @@ describe("ô bí mật để trống là giữ nguyên", () => {
     expect(after.emailPasswordEnc).toBe(before.emailPasswordEnc);
     expect(after.totpSecretEnc).toBe(before.totpSecretEnc);
   });
+
+  /**
+   * Phép thử vùng khóa: bí mật của nick phải nằm trong vùng operator.
+   *
+   * Không kiểm bằng mắt được — hai khóa đều mở ra chuỗi, chỉ khác là một trong hai ném lỗi.
+   * Nên phải ép: mở bằng khóa operator ra đúng mật khẩu, mở bằng khóa server thì HỎNG.
+   */
+  it("mật khẩu nick mã hóa bằng khóa vùng operator, khóa server không mở được", async () => {
+    const result = await updateAccount(
+      null,
+      accountForm(seeded, { password: "mat-khau-nick-moi" }),
+    );
+    expect(result.ok).toBe(true);
+
+    const after = await prisma.account.findUniqueOrThrow({ where: { id: seeded.accountId } });
+    expect(decryptAsOperator(after.passwordEnc)).toBe("mat-khau-nick-moi");
+    expect(() => decryptCredential(after.passwordEnc)).toThrow();
+  });
 });
 
 /**
@@ -298,9 +326,9 @@ describe("proxy + profile antidetect theo nền tảng", () => {
       data: {
         platform: "FACEBOOK",
         username: "trang-fb",
-        passwordEnc: encryptCredential("mk"),
+        passwordEnc: encryptForOperator("mk"),
         emailAddress: "fb@example.test",
-        emailPasswordEnc: encryptCredential("mk"),
+        emailPasswordEnc: encryptForOperator("mk"),
         personaId: seeded.personaId,
         antidetectProfileId: "profile-cu",
         proxyId: null,
@@ -324,9 +352,9 @@ describe("proxy + profile antidetect theo nền tảng", () => {
       data: {
         platform: "FACEBOOK",
         username: "trang-fb-2",
-        passwordEnc: encryptCredential("mk"),
+        passwordEnc: encryptForOperator("mk"),
         emailAddress: "fb2@example.test",
-        emailPasswordEnc: encryptCredential("mk"),
+        emailPasswordEnc: encryptForOperator("mk"),
         personaId: seeded.personaId,
         proxyId: proxy.id,
         status: "ALIVE",

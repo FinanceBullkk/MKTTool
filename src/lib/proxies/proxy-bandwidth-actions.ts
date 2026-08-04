@@ -26,11 +26,11 @@ export const measureOneProxySpeed = guardedAction(async function measureOneProxy
   try {
     password = decryptCredential(proxy.passwordEnc);
   } catch {
-    // Giải mã hỏng là chuyện của VAULT_KEY, không phải của proxy — không ghi gì vào database,
+    // Giải mã hỏng là chuyện của VAULT_KEY_SERVER, không phải của proxy — không ghi gì vào database,
     // vì ghi tức là khai rằng đã đo, mà thật ra chưa gửi đi byte nào.
     return {
       ok: false,
-      message: `${proxy.label} — không giải mã được mật khẩu proxy (VAULT_KEY đã đổi?). Chưa đo được.`,
+      message: `${proxy.label} — không giải mã được mật khẩu proxy (VAULT_KEY_SERVER đã đổi?). Chưa đo được.`,
     };
   }
 

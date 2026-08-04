@@ -7,6 +7,11 @@
  *
  * Định dạng chuỗi lưu trong DB:  v1.<iv_base64url>.<authTag_base64url>.<ciphertext_base64url>
  * Có tiền tố phiên bản để sau này đổi thuật toán vẫn đọc được dữ liệu cũ.
+ *
+ * KHÓA NÀO: mặc định là khóa vùng `server` — đúng cho mật khẩu proxy và token Facebook, tức
+ * phần lớn chỗ gọi. Cột thuộc vùng `operator` (mật khẩu / email / TOTP của nick) PHẢI truyền
+ * `loadVaultKey("operator")` vào rõ ràng; vùng của từng cột tra ở `encrypted-field-registry.ts`.
+ * Cầu nối ở Phase 04 truyền thẳng khóa của máy nó vào, không đi qua `loadVaultKey`.
  */
 import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
 import { loadVaultKey } from "./encryption-key-loader";
@@ -31,7 +36,7 @@ function toBase64Url(buffer: Buffer): string {
  * Mã hóa một chuỗi. Mỗi lần gọi sinh IV mới nên cùng một đầu vào
  * sẽ cho ra ciphertext khác nhau — đúng như mong muốn.
  */
-export function encryptCredential(plaintext: string, key: Buffer = loadVaultKey()): string {
+export function encryptCredential(plaintext: string, key: Buffer = loadVaultKey("server")): string {
   const iv = randomBytes(IV_BYTES);
   const cipher = createCipheriv(ALGORITHM, key, iv);
 
@@ -42,7 +47,7 @@ export function encryptCredential(plaintext: string, key: Buffer = loadVaultKey(
 }
 
 /** Giải mã. Ném CredentialDecryptionError nếu sai khóa hoặc dữ liệu bị sửa. */
-export function decryptCredential(encoded: string, key: Buffer = loadVaultKey()): string {
+export function decryptCredential(encoded: string, key: Buffer = loadVaultKey("server")): string {
   const parts = encoded.split(".");
 
   if (parts.length !== 4) {
@@ -77,7 +82,7 @@ export function decryptCredential(encoded: string, key: Buffer = loadVaultKey())
   } catch (cause) {
     // Không lộ chi tiết kỹ thuật ra ngoài — sai khóa và dữ liệu hỏng cho cùng một thông báo.
     throw new CredentialDecryptionError(
-      "Giải mã thất bại: sai VAULT_KEY hoặc dữ liệu đã bị sửa đổi.",
+      "Giải mã thất bại: sai khóa vùng hoặc dữ liệu đã bị sửa đổi.",
       { cause },
     );
   }

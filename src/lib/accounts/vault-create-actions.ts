@@ -12,6 +12,7 @@ import { revalidatePath } from "next/cache";
 import type { ActionResult } from "@/lib/actions/action-result";
 import { guardedAction } from "@/lib/auth/guarded-action";
 import { encryptCredential, encryptOptionalCredential } from "@/lib/crypto/credential-encryption";
+import { loadVaultKey } from "@/lib/crypto/encryption-key-loader";
 import { prisma } from "@/lib/db/prisma-client";
 import { describeUnexpectedDbError, isUniqueConstraintError } from "@/lib/db/prisma-error-helpers";
 import { isValidTotpSecret, normalizeTotpSecret } from "@/lib/totp/totp-code-generator";
@@ -84,6 +85,8 @@ export const createAccount = guardedAction(async function createAccount(
     return { ok: false, message: "TOTP secret không hợp lệ (phải là chuỗi base32)." };
   }
 
+  const operatorKey = loadVaultKey("operator");
+
   try {
     await prisma.account.create({
       data: {
@@ -92,9 +95,14 @@ export const createAccount = guardedAction(async function createAccount(
         // trùng nhau, nên nick Facebook thứ hai sẽ ăn lỗi trùng ràng buộc mà không hiểu vì sao.
         antidetectProfileId: rest.antidetectProfileId?.trim() || null,
         proxyId: rest.proxyId?.trim() || null,
-        passwordEnc: encryptCredential(password),
-        emailPasswordEnc: encryptCredential(emailPassword),
-        totpSecretEnc: encryptOptionalCredential(totpSecret ? normalizeTotpSecret(totpSecret) : null),
+        // Vùng operator — xem encrypted-field-registry.ts. Khóa phải truyền rõ, mặc định của
+        // encryptCredential là khóa vùng server.
+        passwordEnc: encryptCredential(password, operatorKey),
+        emailPasswordEnc: encryptCredential(emailPassword, operatorKey),
+        totpSecretEnc: encryptOptionalCredential(
+          totpSecret ? normalizeTotpSecret(totpSecret) : null,
+          operatorKey,
+        ),
       },
     });
   } catch (error) {

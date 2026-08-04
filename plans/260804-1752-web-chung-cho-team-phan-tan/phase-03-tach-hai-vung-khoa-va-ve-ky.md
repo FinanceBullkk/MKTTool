@@ -106,17 +106,28 @@ bấm nút ─► máy chủ: kiểm phiên + kiểm chủ nick + ghi AuditLog
 
 ## Todo List
 
-- [ ] `domain` trong registry + test đọc schema
-- [ ] Nạp hai khóa, báo lỗi rõ khi cấu hình ngược
+- [x] `domain` trong registry + test đọc schema
+- [x] Nạp hai khóa, báo lỗi rõ khi cấu hình ngược
 - [ ] Cặp khóa Ed25519 + script sinh khóa
 - [ ] Model `RelayDevice` + màn hình đăng ký / thu hồi cho ADMIN
 - [ ] Module vé: **mã hóa cho cầu nối đích**, ký, xác minh, hết hạn, chống dùng lại
 - [ ] `revealCredential` / `requestOtpCode` → phát vé
 - [ ] Vé mở profile kèm cấu hình proxy
 - [ ] Tạo/sửa nick: ciphertext vùng operator dựng ở phía máy người dùng
-- [ ] `vault:rekey` tách hai vùng
-- [ ] `vault:smoke` cập nhật
+- [x] `vault:rekey` tách hai vùng (`--domain=server|operator`, bắt buộc)
+- [x] `vault:smoke` cập nhật — thêm phép thử "khóa server KHÔNG mở được mật khẩu nick"
 - [ ] **Kiểm bằng grep: không còn chỗ nào trên máy chủ giải mã cột vùng operator**
+
+### Còn nợ từ bước 2
+
+- Chốt chặn *"máy chủ không được giữ `VAULT_KEY_OPERATOR`"* **chưa cài được**: tới khi bước 5 và 7
+  xong thì máy chủ vẫn thật sự cần khóa đó để tạo/sửa nick và hiện bí mật. Cài sớm là app dừng.
+  Thay vào đó bộ nạp khóa cảnh báo khi hai vùng dùng chung một khóa — trạng thái đúng lúc chuyển
+  đổi nhưng nhìn y hệt lúc đã tách xong, nên phải nói ra.
+- Bốn chỗ trên máy chủ còn chạm vùng operator, đúng bằng danh sách phải dọn ở bước 5 và 7:
+  `vault-create-actions.ts`, `vault-update-actions.ts`, và hai chỗ trong
+  `vault-credential-actions.ts`. Grep `loadVaultKey("operator")` trong `src/` là ra đủ —
+  Success Criteria cuối phase chính là grep này phải rỗng.
 
 ## Success Criteria
 

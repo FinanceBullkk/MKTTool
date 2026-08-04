@@ -4,9 +4,9 @@ import { encryptCredential } from "@/lib/crypto/credential-encryption";
 import { resetVaultKeyCache } from "@/lib/crypto/encryption-key-loader";
 import { ProxyConfigError, buildProxyConfig } from "./proxy-config-builder";
 
-/** Khóa dùng riêng cho test — buildProxyConfig đọc VAULT_KEY từ env như lúc chạy thật. */
+/** Khóa dùng riêng cho test — mật khẩu proxy thuộc vùng server, đọc từ env như lúc chạy thật. */
 beforeAll(() => {
-  process.env.VAULT_KEY = randomBytes(32).toString("hex");
+  process.env.VAULT_KEY_SERVER = randomBytes(32).toString("hex");
   resetVaultKeyCache();
 });
 

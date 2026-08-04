@@ -47,7 +47,8 @@ createdb -U postgres mkttool_test
 ```bash
 npm install
 cp .env.example .env
-npm run vault:keygen        # dán VAULT_KEY vào .env
+npm run vault:keygen        # chạy HAI lần: một khóa cho VAULT_KEY_SERVER,
+                            # một khóa cho VAULT_KEY_OPERATOR trong .env
                             # rồi điền DATABASE_URL + TEST_DATABASE_URL
 npm run db:upgrade
 npm run dev                 # http://localhost:3000
@@ -58,8 +59,17 @@ npm run dev                 # http://localhost:3000
 > quy ước đặt tên. Trỏ nhầm vào database vận hành là mất sạch kho danh tính, mất theo kiểu không
 > kịp hối hận — quy ước tên rẻ hơn nhiều so với hậu quả.
 
-> **VAULT_KEY phải được sao lưu vào password manager.** Mất khóa là mất toàn bộ mật khẩu và
-> TOTP secret của mọi nick, không khôi phục được bằng bất kỳ cách nào.
+> **Cả hai khóa phải được sao lưu vào password manager.** Mất khóa là mất vĩnh viễn phần dữ
+> liệu thuộc vùng đó, không khôi phục được bằng bất kỳ cách nào.
+>
+> Kho chia làm **hai vùng khóa**: `VAULT_KEY_SERVER` giữ mật khẩu proxy và token Facebook —
+> máy chủ cần chúng để làm việc; `VAULT_KEY_OPERATOR` giữ mật khẩu, email và TOTP của nick.
+> Đích đến là khóa operator **không nằm trên máy chủ**, để chiếm được máy chủ cũng không mở
+> nổi một mật khẩu nick nào. Vùng của từng cột khai ở
+> `src/lib/crypto/encrypted-field-registry.ts`.
+>
+> Đang nâng cấp từ bản một khóa? Đặt **cả hai** biến bằng đúng giá trị `VAULT_KEY` cũ, rồi tách
+> thật bằng `npm run vault:rekey -- --domain=operator --new-key=<hex>`.
 
 > **`TEAM_TIMEZONE` là biến bắt buộc.** Thiếu nó app dừng ngay kèm thông báo, không tự lùi về
 > giờ máy. `.env.example` đã điền sẵn `Asia/Ho_Chi_Minh` — xem [Múi giờ](#múi-giờ) bên dưới.
@@ -124,7 +134,7 @@ Có thì nó **sao lưu trước**, áp xong mới báo — và nếu áp hỏng
 | `npm run proxies:import <file>` | Nhập hàng loạt proxy từ file `host:port:user:pass` của nhà cung cấp |
 | `npm run db:studio` | Mở Prisma Studio xem database |
 | `npm run vault:keygen` | Sinh khóa mã hóa mới |
-| `npm run vault:rekey` | Xoay `VAULT_KEY` — mã hóa lại toàn bộ credential |
+| `npm run vault:rekey` | Xoay khóa một vùng (`--domain=server\|operator`) — mã hóa lại credential của vùng đó |
 | `npm run vault:smoke` | Kiểm chứng nghiệm thu Phase 01 trên DB thật |
 | `npm run vault:testotp` | Sinh TOTP secret dùng thử để kiểm chứng tính năng OTP |
 | `npm run rules:smoke` | Kiểm chứng nghiệm thu Phase 02 (bộ luật) trên DB thật |
@@ -614,27 +624,32 @@ psql -U postgres -d mkttool_restore -f data/backups/mkttool-<ngày>-<giờ>.sql
 
 Rồi trỏ `DATABASE_URL` sang database vừa khôi phục.
 
-> Bản sao lưu và `VAULT_KEY` là **hai nửa của một thứ**. Có bản sao mà mất khóa thì mở ra chỉ
-> thấy chuỗi vô nghĩa; có khóa mà mất bản sao thì chẳng còn gì để mở. Cất hai nơi khác nhau —
-> để chung là đưa cả ổ lẫn chìa cho người nhặt được.
+> Bản sao lưu và **hai khóa vùng** là các nửa của cùng một thứ. Có bản sao mà mất khóa thì mở
+> ra chỉ thấy chuỗi vô nghĩa; có khóa mà mất bản sao thì chẳng còn gì để mở. Cất mỗi thứ một
+> nơi — để chung là đưa cả ổ lẫn chìa cho người nhặt được. Khóa operator nằm ở máy operator,
+> nên khôi phục mật khẩu nick từ bản sao lưu của máy chủ **bắt buộc phải có khóa từ máy đó**.
 
 ### Khóa bị lộ thì xoay, không phải nhập lại từ đầu
 
 Lỡ commit `.env`, lỡ dán khóa vào chat, máy nghi bị xâm nhập:
 
 ```bash
-npm run vault:keygen                            # sinh khóa mới
-npm run vault:rekey -- --new-key=<hex>          # THỬ: giải mã hết, không ghi gì
-npm run vault:rekey -- --new-key=<hex> --apply  # tự sao lưu rồi ghi đè
+npm run vault:keygen                                              # sinh khóa mới
+npm run vault:rekey -- --domain=server --new-key=<hex>            # THỬ: giải mã hết, không ghi gì
+npm run vault:rekey -- --domain=server --new-key=<hex> --apply    # tự sao lưu rồi ghi đè
 ```
+
+`--domain` là **bắt buộc**: kho có hai vùng khóa, mỗi lượt xoay đúng một vùng. `server` là mật
+khẩu proxy + token Facebook; `operator` là mật khẩu / email / TOTP của nick. Lộ khóa nào thì
+xoay vùng đó — không phải xoay cả kho.
 
 Lượt `--apply` giải mã sạch toàn bộ **trước khi** ghi bất cứ thứ gì, tự sao lưu, rồi ghi trong
 một transaction. Một bản ghi hỏng là dừng cả mẻ — database xoay khóa được một nửa thì không
 khóa nào mở nổi nữa.
 
-Xong lệnh **chưa phải là xong**: phải tự sửa `VAULT_KEY` trong `.env`, khởi động lại app, rồi
-mở một nick bấm copy mật khẩu để kiểm. Giữ khóa cũ tới khi kiểm xong — bản sao lưu vừa tạo
-vẫn mã hóa bằng khóa cũ.
+Xong lệnh **chưa phải là xong**: phải tự sửa biến khóa của vùng đó trong `.env`, khởi động lại
+app, rồi mở một nick bấm copy mật khẩu để kiểm. Giữ khóa cũ tới khi kiểm xong — bản sao lưu vừa
+tạo vẫn mã hóa bằng khóa cũ.
 
 ### WebRTC — cần luật firewall, đừng bỏ
 

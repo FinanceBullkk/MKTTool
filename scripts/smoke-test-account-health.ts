@@ -17,6 +17,7 @@
  */
 import { chromium } from "playwright";
 import { encryptCredential } from "../src/lib/crypto/credential-encryption";
+import { loadVaultKey } from "../src/lib/crypto/encryption-key-loader";
 import { prisma } from "../src/lib/db/prisma-client";
 import { detectCheckpoint } from "../src/lib/health/checkpoint-detector";
 import { recordHealthCheck } from "../src/lib/health/health-check-recorder";
@@ -82,9 +83,10 @@ async function seedAccount(): Promise<{ id: string; username: string; status: st
     data: {
       platform: "REDDIT",
       username: `${PREFIX}nick`,
-      passwordEnc: encryptCredential("mat-khau-gia"),
+      // Vùng operator — xem encrypted-field-registry.ts.
+      passwordEnc: encryptCredential("mat-khau-gia", loadVaultKey("operator")),
       emailAddress: "smoke@example.com",
-      emailPasswordEnc: encryptCredential("mat-khau-gia"),
+      emailPasswordEnc: encryptCredential("mat-khau-gia", loadVaultKey("operator")),
       antidetectProfileId: `${PREFIX}profile`,
       personaId: persona.id,
       proxyId: proxy.id,
