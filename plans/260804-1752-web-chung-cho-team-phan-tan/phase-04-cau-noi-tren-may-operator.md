@@ -83,7 +83,12 @@ Import từ `src/lib/` qua đường dẫn tương đối. **Không dựng works
 9. `bun build --compile` → `.exe`. Trượt thì lùi Node SEA
 10. `setup.bat`: chép `.exe` vào thư mục cố định, tạo shortcut Startup + shortcut desktop
 11. Web phát hiện cầu nối chưa chạy và hướng dẫn bật lại
-12. Test: vé giả, vé quá hạn, vé dùng lại — cả ba phải bị từ chối
+12. **Phát hành + cảnh báo bản cũ (QĐ 11).** Cầu nối gửi kèm số phiên bản trong mọi phản hồi;
+    web hiện dải *"cầu nối bản cũ, tải bản mới ở đây"* trỏ tới đường tải nằm sau đăng nhập.
+    **Không có bộ tự cập nhật** — nó đục thủng đúng tính chất ngoại tuyến mà QĐ 5 dựng cả
+    thiết kế lên. Vé của GĐ3 mang số phiên bản tối thiểu: cầu nối quá cũ phải từ chối kèm câu
+    *"bản cầu nối quá cũ, tải lại"*, chứ không hỏng mơ hồ ở bước giải mã khi định dạng vé đổi
+13. Test: vé giả, vé quá hạn, vé dùng lại — cả ba phải bị từ chối
 
 ## Todo List
 
@@ -100,6 +105,8 @@ Import từ `src/lib/` qua đường dẫn tương đối. **Không dựng works
 - [ ] `bun build --compile` ra `.exe` chạy trên Windows sạch
 - [ ] `setup.bat` + shortcut Startup + shortcut desktop
 - [ ] Web báo rõ khi cầu nối chưa chạy
+- [ ] Phục vụ file `.exe` sau lớp đăng nhập; web cảnh báo khi cầu nối chạy bản cũ
+- [ ] Vé mang phiên bản tối thiểu; cầu nối quá cũ từ chối kèm câu nói rõ phải làm gì
 - [ ] Test chặn import `lib/db` / `next` vào `relay/`
 - [ ] Test từ chối vé giả / quá hạn / dùng lại
 

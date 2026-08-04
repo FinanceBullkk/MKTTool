@@ -30,7 +30,7 @@ bạn hoặc team bạn quản lý" là use case **không được chấp nhận
 dạng Reddit: MultiZen + đăng tay. Đây là lý do **mọi người đều cần MultiZen**, và là lý do kiến
 trúc dưới đây tồn tại.
 
-## Chín quyết định đã chốt
+## Mười một quyết định đã chốt
 
 | # | Quyết định | Chốt |
 |---|---|---|
@@ -43,6 +43,8 @@ trúc dưới đây tồn tại.
 | 7 | File video (TikTok) | **Kho file riêng** (R2). Chốt hướng nay, xây khi làm TikTok |
 | 8 | Cách bàn giao | **Làm hết rồi bàn giao một lần.** Không có giai đoạn quá độ |
 | 9 | Stack | **Dockerfile** (di động giữa các hãng) chạy trên Railway + Postgres Railway + Better Auth + Bun đóng gói cầu nối |
+| 10 | Quyền mạng nội bộ ở GĐ6 | **Không đặt policy Chrome.** Người cài bấm "Cho phép" hộ ngay trong buổi cài máy — [chi tiết](#qđ-10--không-đặt-policy-chrome-người-cài-bấm-cho-phép-hộ-ngay-trong-buổi-cài-máy) |
+| 11 | Phát hành cầu nối | **Không tự cập nhật** (đục thủng tính chất ngoại tuyến của QĐ 5). Tải từ web app sau đăng nhập, app tự báo bản cũ — [chi tiết](#qđ-11--cầu-nối-không-tự-cập-nhật-tải-từ-chính-web-app-và-app-tự-báo-khi-bản-cũ) |
 
 > **Nguyên tắc chọn:** khi có nhiều đường, lấy đường bền hơn kể cả khi tốn code hơn. Ba chỗ đã
 > sửa theo nguyên tắc này sau khi rà lại (04/08/2026): mã hóa nội dung vé cho cầu nối (QĐ 5),
@@ -83,13 +85,10 @@ quyền vẫn `granted` và lời gọi bắn **tự động** lúc trang nạp 
 | 2. **Tự đặt hạn giờ** cho mọi lời gọi | Bị chặn thì fetch **treo, không ném lỗi, console trắng trơn**. Không tự đặt hạn giờ là giao diện đứng im vĩnh viễn và không log lại được gì. **Không bao giờ gỡ** — người dùng bấm Chặn hoặc xóa quyền là quay lại cảnh này |
 | 3. Ô "cầu nối đang sống" cập nhật ngầm **được, sau khi máy đó đã cấp quyền** | Máy chưa cấp thì lời gọi nền treo im lặng, không hiện hộp nào. Phải có ô thứ ba *"chưa cấp quyền"*, đừng gộp vào *"mất kết nối"* |
 
-**GĐ6 có hai đường, chọn một:**
-- **Đặt policy `LocalNetworkAccessAllowedForUrls`** (Chrome 139+, Edge cũng có) —
-  `HKLM\SOFTWARE\Policies\Google\Chrome\...`, danh sách `REG_SZ` đánh số, kiểm ở `chrome://policy`.
-  Gỡ luôn ràng buộc 1, người dùng không gặp hộp nào. Đòi quyền admin.
-  ⚠️ Cùng loại rủi ro với luật firewall WebRTC: **lặng lẽ hết tác dụng** khi cài lại máy → phải ghi cách kiểm vào tài liệu vận hành.
-- **Dạy người dùng bấm Cho phép** — tài liệu bàn giao có ảnh hộp xin quyền + câu *"lần đầu bấm
-  Mở profile, Chrome sẽ hỏi — bấm Cho phép"*. Người low-tech gặp hộp lạ thì phản xạ đầu tiên là bấm Chặn.
+**GĐ6 đã chốt 05/08/2026 — xem [QĐ 10](#qđ-10--không-đặt-policy-chrome-người-cài-bấm-cho-phép-hộ-ngay-trong-buổi-cài-máy):**
+không đặt policy; người cài bấm "Cho phép" hộ trong buổi remote desktop vốn đã phải có.
+Phương án policy `LocalNetworkAccessAllowedForUrls` (Chrome 139+, `HKLM\SOFTWARE\Policies\Google\Chrome\...`,
+kiểm ở `chrome://policy`) giữ lại làm đường dự phòng cho đợt TikTok khi số máy nở ra.
 
 Đường lùi vẫn nguyên: tab nhỏ do cầu nối phục vụ là **cùng nguồn với cầu nối** nên không
 dính luật này. Chrome siết thêm thì chuyển thao tác sang tab nhỏ — mất mượt, không mất an toàn.
@@ -151,10 +150,58 @@ GĐ0 (spike) ─── chặn đường GĐ4, ảnh hưởng giao diện GĐ2/G�
 4. **Team bắt đầu dùng trong 1-2 tháng** → làm web chung trước, đúng thứ tự plan này. TikTok làm
    ngay sau, trên nền đã có Postgres + đăng nhập + cầu nối.
 
+## Hai câu từ spike GĐ0 — chốt 05/08/2026
+
+### QĐ 10 — Không đặt policy Chrome. Người cài bấm "Cho phép" hộ, ngay trong buổi cài máy
+
+Câu hỏi gốc đặt sai vế: nó giả định người dùng low-tech đối mặt hộp xin quyền **một mình**.
+Không phải — [GĐ6 bước 5](phase-06-ban-giao-team.md) vốn đã có người ngồi trên từng máy qua
+remote desktop để cài MultiZen, cài cầu nối và tạo luật firewall WebRTC. Cấp quyền là **thêm
+một cú bấm trong buổi đó**, và spike đã đo: cấp một lần thì quyền còn nguyên sau khi đóng mở
+lại Chrome, lời gọi sau đó bắn tự động lúc trang nạp.
+
+Vì sao không đặt policy dù nó nghe gọn hơn:
+
+| Lý do | Chi tiết |
+|---|---|
+| **Không tiết kiệm được dòng code nào** | Policy gỡ được ràng buộc 1 (lời gọi đầu phải nằm trong trình xử lý cú bấm) — nhưng vẫn phải viết code theo ràng buộc 1, vì không thể tin là policy luôn có mặt: máy mới, cài lại Windows, đợt TikTok nở thêm máy. Policy chỉ bỏ được một cú bấm của **kỹ thuật viên**, không bỏ được việc gì của lập trình viên |
+| **Thêm một cơ chế hỏng-lặng-lẽ cùng họ** | Rủi ro đang xếp hạng **cao** của cả plan là luật firewall WebRTC lặng lẽ hết tác dụng. Policy hỏng đúng kiểu đó (cài lại máy, đổi trình duyệt là mất) — nhân đôi diện tích "đã hỏng mà không ai biết" để đổi lấy một cú bấm |
+| **Policy gắn theo từng trình duyệt** | Chrome và Edge hai nhánh registry khác nhau. Người dùng mở app bằng trình duyệt kia là policy im lặng không áp. Đường cấp quyền thì tự nhiên đúng: trình duyệt nào chưa cấp thì hỏi |
+| **n = 1-2 máy** | Lợi thế của policy là quy mô. Ở hai máy nó không trả lại gì, chỉ đòi thêm quyền admin |
+
+**Ràng buộc 2 và 3 của spike vẫn giữ nguyên, không được gỡ** — chúng là thứ biến "quyền bị mất"
+thành trạng thái nhìn thấy được thay vì giao diện đứng im. Tài liệu bàn giao vẫn có ảnh hộp xin
+quyền, nhưng đóng vai **đường cấp lại** (người dùng lỡ bấm Chặn, xóa dữ liệu site), không phải
+đường cấp lần đầu.
+
+> Xem lại khi TikTok vào và số máy vận hành lên 5-6 mà không còn remote desktop từng máy. Lúc
+> đó policy + script cài mới đáng — và phải kèm cách kiểm ở `chrome://policy` ghi vào tài liệu
+> vận hành, đúng như luật firewall.
+
+### QĐ 11 — Cầu nối KHÔNG tự cập nhật. Tải từ chính web app, và app tự báo khi bản cũ
+
+**Tự cập nhật bị loại vì lý do kiến trúc, không phải vì lười.** Quyết định 5 dựng cả thiết kế
+trên tính chất *"cầu nối không có kết nối ra ngoài — chỉ nói chuyện với MultiZen trên cùng máy"*.
+Một bộ tự cập nhật **bắt buộc phải đục thủng đúng tính chất đó**. Mà cầu nối là nơi giữ khóa
+vùng operator: kênh cập nhật của nó chính là đường đưa khóa giải mã mật khẩu nick ra ngoài nếu
+bị chiếm. Không đánh đổi một cú bấm lấy chỗ đó.
+
+**Phát hành:** file `.exe` phục vụ từ chính app trên Railway, sau lớp đăng nhập của GĐ2.
+Không dựng hệ thống thứ hai, không có URL công khai, và quyền tải đã bị danh sách email chặn sẵn.
+87 MB × 1-2 máy × vài bản một năm là lượng tải không đáng bàn.
+
+**Việc thật không phải phát hành, mà là biết mình đang chạy bản cũ.** [GĐ4 bước 8](phase-04-cau-noi-tren-may-operator.md)
+đã có trang trạng thái hiện phiên bản — cho cầu nối gửi kèm phiên bản trong mọi phản hồi, và web
+app hiện dải *"cầu nối bản cũ, tải bản mới ở đây"*. Cùng nguyên tắc với phần còn lại của dự án:
+biến "đang chạy bản sai" từ im lặng thành nhìn thấy được.
+
+**Kèm theo, bắt buộc:** vé của GĐ3 mang số phiên bản tối thiểu. Cầu nối quá cũ phải từ chối kèm
+câu *"bản cầu nối quá cũ, tải lại"* — chứ không phải hỏng mơ hồ ở bước giải mã khi định dạng vé
+đổi.
+
+> Không mua chứng chỉ ký số (quyết định plan này) nghĩa là **mỗi bản mới lại gặp SmartScreen**.
+> Đó là thêm một lý do phát hành thưa và có chủ ý, thay vì cập nhật liên tục.
+
 ## Câu chưa trả lời
 
-Từ spike GĐ0 (04/08/2026):
-
-1. GĐ6 chọn **đặt policy** hay **dạy người dùng bấm Cho phép**? Hai đường ở mục "Kết quả GĐ0".
-   Chưa cần quyết ngay — quyết trước khi viết tài liệu bàn giao là kịp.
-2. `.exe` **87 MB** mỗi lần phát bản mới — tải về qua đường nào, có tự cập nhật không.
+*(trống — hai câu của spike GĐ0 đã chốt ở trên)*
