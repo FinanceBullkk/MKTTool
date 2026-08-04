@@ -172,10 +172,22 @@ model Account {
   purchasedAt       DateTime?
   purchaseNote      String? // nguồn mua, giá, quốc gia gốc
 
+  /// Người phụ trách nick này. Chỉ chủ (hoặc ADMIN) lấy được mật khẩu / OTP của nó.
+  ///
+  /// Nullable vì nick nhập trước khi có ai được phân công vẫn phải tồn tại được — và vì
+  /// xóa một người khỏi team KHÔNG được phép kéo theo nick của họ. Nick chưa có chủ thì
+  /// chỉ ADMIN lấy được bí mật, xem `requireNickOwner()`.
+  ///
+  /// Chỉ chặn đường lấy BÍ MẬT. Tầm nhìn thì không chia: mọi người vẫn thấy nick, job và
+  /// lịch sử của nhau, vì luật 8 phải nêu đúng tên nick của đồng nghiệp thì người đọc mới
+  /// xử lý được.
+  ownerId String?
+
   lastActionAt DateTime?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
+  owner        User?         @relation(fields: [ownerId], references: [id], onDelete: SetNull)
   persona      Persona       @relation(fields: [personaId], references: [id])
   proxy        Proxy?        @relation(fields: [proxyId], references: [id])
   jobs         PostJob[]
@@ -188,6 +200,7 @@ model Account {
 
   @@unique([platform, username])
   @@index([status])
+  @@index([ownerId])
 }
 
 /// Đích đăng bài: subreddit hoặc Facebook group/page.
@@ -355,6 +368,89 @@ model AuditLog {
   action    String
   detail    String?
 
+  /// Ai đã làm việc này. Nullable vì hàng ghi trước Phase 02 không có thông tin đó và
+  /// **không hồi tố được** — bịa một actor cho chúng còn tệ hơn để trống.
+  ///
+  /// KHÔNG có `onDelete: SetNull` qua quan hệ: nhật ký kiểm toán phải sống lâu hơn tài
+  /// khoản người dùng. Xóa một người mà xóa luôn dấu vết họ đã lộ credential nào thì
+  /// nhật ký mất đúng giá trị của nó. Vì vậy đây là cột thường, không phải khóa ngoại.
+  actorId String?
+
   @@index([at])
   @@index([accountId])
+  @@index([actorId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Better Auth — đăng nhập Google. Bốn model dưới đây do thư viện quy định hình dạng.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Người dùng công cụ. KHÔNG phải nick mạng xã hội — nick là model `Account` ở trên.
+model User {
+  id            String   @id
+  name          String
+  email         String   @unique
+  emailVerified Boolean  @default(false)
+  image         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  /// ADMIN | OPERATOR. Tính từ `ADMIN_EMAILS` ở phía máy chủ lúc tạo tài khoản, và
+  /// `input: false` trong cấu hình Better Auth chặn client tự khai vai trò cho mình.
+  ///
+  /// Đây là bản sao để tiện truy vấn, KHÔNG phải nguồn sự thật: nguồn sự thật là biến
+  /// môi trường. Sửa `ADMIN_EMAILS` xong thì cột này lệch cho tới lần đồng bộ kế tiếp,
+  /// nên mọi phép kiểm quyền đọc lại danh sách chứ không tin cột này một mình.
+  role String @default("OPERATOR")
+
+  sessions      Session[]
+  authAccounts  AuthAccount[]
+  ownedAccounts Account[]
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+/// Liên kết tới nhà cung cấp OAuth (Google). Better Auth gọi model này là `Account`;
+/// đổi tên ở đây vì `Account` đã là nick mạng xã hội từ Phase 01 — xem `account.modelName`
+/// trong `auth-server.ts`.
+model AuthAccount {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
 }

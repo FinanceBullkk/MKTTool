@@ -408,6 +408,71 @@ MultiZen không phơi endpoint CDP ra ngoài (Playwright không gắn vào đư�
 không phải lỗi**. Nó lái trình duyệt bằng chính tool MCP của nó (`navigate`, `click`, `type`,
 `extract`, `screenshot`), và Phase 05 sẽ đi đường đó. AdsPower thì có trả về endpoint CDP.
 
+## Đăng nhập
+
+Công cụ đăng nhập bằng **tài khoản Google**, và chỉ email nằm trong danh sách khai sẵn mới vào
+được. **Không có tự đăng ký** — Google chỉ chứng minh *"người này sở hữu email đó"*, chứ không
+chứng minh *"người này thuộc team"*.
+
+### Tạo Google OAuth client (làm một lần, ~5 phút)
+
+1. Vào [console.cloud.google.com](https://console.cloud.google.com/) → tạo project mới
+   (tên gì cũng được, ví dụ `MKTTool`).
+2. Menu trái → **APIs & Services** → **OAuth consent screen**:
+   - **User type: External** → Create
+   - Điền App name, User support email, Developer contact — ba ô đó là bắt buộc, phần còn lại bỏ qua
+   - **Scopes:** không thêm gì cả. Mặc định đã có `email` + `profile`, và đó là tất cả những gì
+     công cụ cần. Xin thêm quyền là tự chuốc App Review mà chẳng dùng tới.
+   - **Audience:** để ở chế độ **Testing** cũng chạy được, nhưng phải thêm từng email vào
+     *Test users*. Chọn **Publish app** thì khỏi phải thêm — app chỉ xin `email`/`profile` nên
+     Google **không bắt xét duyệt**.
+3. **APIs & Services** → **Credentials** → **Create Credentials** → **OAuth client ID**:
+   - **Application type: Web application**
+   - **Authorized JavaScript origins:** `http://localhost:3000`
+   - **Authorized redirect URIs:** `http://localhost:3000/api/auth/callback/google`
+4. Chép **Client ID** và **Client secret** vào `.env`.
+
+> ⚠️ **Redirect URI phải khớp từng ký tự**, kể cả dấu `/` cuối. Và phải là `localhost` chứ không
+> phải `127.0.0.1` — trình duyệt coi hai địa chỉ này là hai host khác nhau khi lưu cookie, nên
+> cookie phiên đặt ở một bên không tới được bên kia. Cùng cái bẫy với luồng Facebook bên dưới.
+
+Lên Railway thì thêm URI thứ hai `https://<tên-app>.up.railway.app/api/auth/callback/google`
+và đổi `BETTER_AUTH_URL`. Giữ cả hai để vẫn chạy được ở máy dev.
+
+### Bốn biến phải điền
+
+```bash
+ALLOWED_EMAILS="ban@gmail.com,dongnghiep@gmail.com"   # ai vào được
+ADMIN_EMAILS="ban@gmail.com"                          # ai là quản trị viên
+BETTER_AUTH_SECRET="<32 byte hex>"                    # khóa ký cookie phiên
+GOOGLE_CLIENT_ID="..."
+GOOGLE_CLIENT_SECRET="..."
+```
+
+Sinh `BETTER_AUTH_SECRET`:
+
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
+Thiếu bất kỳ biến nào ở trên thì **app dừng ngay kèm thông báo rõ**, không lặng lẽ chạy ở chế độ
+không có đăng nhập. Cùng nguyên tắc với `TEAM_TIMEZONE`.
+
+### Hai vai trò
+
+| Vai trò | Làm được gì |
+|---|---|
+| **ADMIN** | mọi thứ, kể cả phân công nick và lấy bí mật của mọi nick |
+| **OPERATOR** | mọi thứ, **trừ** lấy mật khẩu / OTP của nick không phải mình phụ trách |
+
+**Tầm nhìn thì không chia.** Ai cũng thấy nick, job, tương tác và lịch sử của người khác — cố ý:
+luật đụng độ thread phải nêu đúng tên nick của đồng nghiệp thì người đọc mới xử lý được. Thứ duy
+nhất bị chia là **bí mật của nick**, và chặn nằm ở tầng dữ liệu chứ không phải ẩn nút trên giao diện.
+
+> **Gỡ người khỏi team:** xóa email khỏi `ALLOWED_EMAILS` rồi khởi động lại. Có hiệu lực ngay,
+> kể cả người đó đang mở sẵn tab — danh sách được kiểm ở **mọi request**, không phải chỉ lúc
+> đăng nhập. Nick họ từng phụ trách **không bị xóa theo**, chỉ mất chủ.
+
 ## Facebook
 
 Fanpage đăng bằng **Graph API chính thức** — miễn phí, hợp lệ, không bao giờ bị khóa vì vi phạm
