@@ -5,6 +5,19 @@ const nextConfig: NextConfig = {
   serverExternalPackages: ["playwright", "@prisma/client"],
 
   /**
+   * Tắt việc Next tự sinh `AGENTS.md` và `CLAUDE.md` ở gốc kho.
+   *
+   * Next 16 sinh hai file đó mỗi lần chạy `next dev` để mô tả chính nó cho công cụ AI. Dự án
+   * này đã có bộ tài liệu riêng (`README.md` là cẩm nang vận hành, `docs/` là tài liệu dự án),
+   * nên hai file tự sinh chỉ thêm một nguồn sự thật thứ hai — nguồn không ai viết, không ai
+   * đọc, và tự ghi đè sau mỗi lần nâng cấp Next.
+   *
+   * Tắt ở nguồn chứ không cho vào `.gitignore`: bỏ qua trong git thì chúng vẫn mọc lại ở thư
+   * mục làm việc sau mỗi lần chạy dev, và vẫn lọt vào ngữ cảnh của công cụ AI đọc cả cây thư mục.
+   */
+  agentRules: false,
+
+  /**
    * Đưa TEAM_TIMEZONE sang cả bundle chạy ở trình duyệt.
    *
    * Ô chọn giờ ở trang xếp lịch là component client, mà nó phải hiện đúng múi giờ team —
