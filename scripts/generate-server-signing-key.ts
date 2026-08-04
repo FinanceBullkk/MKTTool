@@ -7,8 +7,9 @@
  *  - HẠT GIỐNG khóa riêng → dán vào TICKET_SIGNING_KEY trong .env của máy chủ, không đi đâu khác
  *  - KHÓA CÔNG KHAI       → chép sang cấu hình từng cầu nối, để nó biết vé nào là vé thật
  *
- * Khóa công khai suy ra từ hạt giống nên không cần cất giữ: mất thì chạy lại lệnh này với
- * cùng hạt giống là ra y nguyên.
+ * Khóa công khai suy ra từ hạt giống nên KHÔNG cần cất giữ: cần lại thì in ra bằng
+ * `npm run keys:server-pubkey`, đọc thẳng khóa riêng trong .env. Lệnh này sinh cặp MỚI mỗi
+ * lần chạy, nên đừng dùng nó để tra khóa công khai của khóa đang dùng.
  *
  * Đổi khóa ký thì MỌI cầu nối phải cập nhật khóa công khai, nếu không chúng từ chối sạch vé.
  * Khác hẳn khóa kho: mất khóa ký không mất dữ liệu, chỉ là phải đi chép lại một vòng.

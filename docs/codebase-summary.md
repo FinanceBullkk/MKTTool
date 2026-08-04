@@ -63,7 +63,8 @@ prisma/
 └── migrations/                 Lịch sử migration
 scripts/
 ├── generate-vault-key.ts       Sinh khóa kho (dùng cho cả hai vùng)
-├── generate-server-signing-key.ts  Sinh cặp khóa ký vé Ed25519 của máy chủ
+├── generate-server-signing-key.ts  Sinh cặp khóa ký vé Ed25519 MỚI cho máy chủ
+├── show-server-public-key.ts   In khóa công khai của khóa ký đang dùng
 ├── generate-test-totp-secret.ts  Sinh TOTP secret dùng thử
 ├── rekey-vault-key.ts          Xoay khóa MỘT vùng, mã hóa lại credential của vùng đó
 ├── backup-database.ts          Sao lưu bằng pg_dump (chạy được khi app đang mở)
