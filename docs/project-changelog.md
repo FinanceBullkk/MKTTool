@@ -62,6 +62,17 @@ Hàng rào chuyển từ **chỗ app lắng nghe** sang **đăng nhập**. Hai t
   kho mỗi lần chạy dev; dự án đã có `README.md` và `docs/` nên hai file đó chỉ là nguồn sự thật
   thứ hai, không ai viết và tự ghi đè sau mỗi lần nâng cấp Next. Tắt ở nguồn chứ không
   `.gitignore` — bỏ qua trong git thì chúng vẫn mọc lại trong thư mục làm việc.
+- **CI sống lại sau 10 lượt đỏ liên tiếp.** Nó đứt từ PR #2 — đúng PR chuyển nền dữ liệu sang
+  Postgres — vì workflow vẫn cấp `DATABASE_URL: file:./ci.db` trong khi bộ test đã đòi một
+  Postgres thật. Master cũng đỏ suốt từ đó. Sửa bằng service container `postgres:17` kèm health
+  check, **không** bằng cách bỏ qua các test chạm database: chúng là thứ duy nhất chứng minh
+  truy vấn *lọc đúng*, mà lọc sai là kiểu hỏng nguy hiểm nhất ở đây. Thêm `prisma migrate deploy`
+  — đúng lệnh sẽ chạy lúc phát hành ở GĐ5, và là đường khác với cách global setup áp SQL bằng
+  tay, nên nó bắt được migration mà Prisma CLI từ chối.
+- **Bài học đắt hơn cả bản vá:** vì `npm test` đứng trước và đỏ, bước `npm run build` **10 lượt
+  liền chưa hề chạy tới**. Nó vừa chạy lại là bắt ngay một lỗi thật đã đi lọt qua cả buổi nghiệm
+  thu tay (`runtime` thừa trong `proxy.ts`) — `next dev` không kiểm phần đó. Một CI đỏ triền miên
+  không phải phiền toái nhỏ: nó **giấu** những gì các bước sau lẽ ra đã bắt.
 
 Chưa đóng ở đợt này: một phiên bị trộm vẫn đọc được mật khẩu nick (hai vùng khóa tách ở GĐ3).
 
