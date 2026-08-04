@@ -213,6 +213,31 @@ trước từ tham số như Page, nên link nằm ngoài thân bài là link bi
 > được ghi lại: không bấm thì luật đụng độ thread không có gì để so, và bộ dò shadowban không có
 > bài nào để đối chiếu — nick sẽ rơi vào ô "Chưa đối chiếu được" dù vẫn đang đăng đều.
 
+Bấm nhầm thì sửa được: job **Đã đăng / Bỏ qua / Lỗi** có nút **"Trả về chờ đăng"**. Nó xóa cả link
+lẫn dấu vết đụng thread mà lượt "Đã đăng" đã ghi, rồi chấm lại luật — nên chỉ dùng khi bài **chưa
+thật sự lên**. Trả về một bài đã lên thật là tự mở đường đăng nó lần thứ hai.
+
+### Khỏi chép link: "Quét & gán link"
+
+Với job Reddit còn đang mở, dòng job có nút **"Quét & gán link"**. Đăng tay xong bấm nó: bộ dò mở
+trang profile công khai qua proxy quan sát viên (~30-60 giây), thấy bài vừa lên và **tự đánh dấu
+đã đăng kèm link** — không phải copy link dán lại.
+
+Nó chỉ tự ghi khi chắc. Ba cửa phải qua hết:
+
+| Cửa | Vì sao |
+|---|---|
+| Cùng sub với đích của job | Một nick đăng nhiều sub; ghép nhầm sub là gán link bài này cho job kia |
+| Đăng cách giờ dự kiến ≤ 24 tiếng | Lịch là giờ **dự kiến**, đăng trễ nửa ngày là bình thường |
+| Slug tiêu đề trong link khớp content | Cửa chặn đúng ca dán nhầm link giữa hai bài cùng sub |
+
+Còn lại đúng **một** ứng viên mới ghi. Hai bài cùng khớp một job, hoặc hai job cùng khớp một bài
+→ không gán bài nào, chỉ báo. Bài đăng ngoài công cụ (nuôi nick, bài của chủ cũ) không có job nào
+để ghép nên vẫn hiện ở cảnh báo **"Có bài chưa ghi"** — vào `/queue` ghi tay.
+
+Cửa sổ quan sát là **7 ngày** và chỉ đọc trang đầu profile, nên bài cũ hơn không tự gán được.
+Facebook không có bộ dò: Fanpage đã tự có link từ Graph API, Group thì phải bấm tay.
+
 ## Kiến trúc
 
 ```

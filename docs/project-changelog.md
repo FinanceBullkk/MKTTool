@@ -7,6 +7,62 @@ Dự án chưa phát hành phiên bản (`0.1.0`, dùng nội bộ). Mốc chia 
 
 ---
 
+## 04/08/2026 — Bộ dò tự gán link, hết phải chép tay
+
+Câu hỏi mở đầu: *"tool đã đồng bộ giữa những gì đã đăng trên Reddit và kho chưa?"* — trước đợt
+này thì **đối chiếu có, đồng bộ chưa**. Bộ dò chỉ ra được chỗ lệch ("Có bài chưa ghi") rồi bảo
+người dùng vào `/queue` ghi tay. Nhưng dữ liệu để ghi đã nằm sẵn trong đúng trang vừa đọc.
+
+**Tính năng**
+
+- **Parser giữ lại thứ nó vốn đang vứt đi.** Mỗi `.thing` của old.reddit mang `data-permalink`
+  — trong đó có cả **tên sub**, **id bài** và **slug tiêu đề** — cộng `data-timestamp` là giờ
+  đăng thật. Parser cũ rút xong khóa rồi bỏ hết phần còn lại. Đọc thêm chúng **không tốn thêm
+  request nào**, và đó là toàn bộ thứ cần để ghép một bài với một job.
+- **Tự gán link khi chắc, báo khi mơ hồ.** Ba cửa phải qua hết: cùng sub, giờ đăng cách giờ dự
+  kiến không quá 24 tiếng, và slug tiêu đề khớp content. Còn lại **đúng một** ứng viên mới ghi.
+  Hai bài cùng đòi một job, hoặc hai job cùng khớp một bài → không bài nào được gán.
+  Vì hai kiểu sai ở đây không cân nhau: bỏ sót thì bấm tay mất vài giây, còn gán nhầm là **tự
+  tay tạo lại đúng ca dán nhầm link** vừa phải sửa sáng nay — im lặng và làm bộ luật đếm sai.
+- **Ghi qua đúng đường của nút "Đã đăng"** (`post-job-mark-posted.ts`, vừa tách khỏi lớp
+  `"use server"` để tiến trình dò gọi được). Một bài đăng để lại đúng một bộ dấu vết dù ai ghi;
+  hai đường ghi là hai cơ hội để một đường quên tạo Interaction và luật 8 mù đúng chỗ đó.
+  Ai ghi thì đọc ở AuditLog `HEALTH_AUTO_LINKED_POST`.
+- **Gán trước, kết luận sau.** Bài vừa gán không còn là "bài chưa ghi" và nó nâng mẫu số lên
+  một job, nên bản ghi HealthCheck phải mang con số SAU khi gán — nếu không, bảng sẽ vĩnh viễn
+  báo lỗi về đúng những bài vừa được sửa xong.
+- **Nút "Quét & gán link" ngay ở dòng job** (Reddit, job còn mở). Đăng tay xong bấm một cái,
+  ~30-60 giây sau link tự vào kho. Dùng lại `/api/health/run` sẵn có, không thêm đường mạng nào.
+- **Cảnh báo link đã gán trỏ về bài khác content.** Bổ cho phép kiểm trùng link: cái đó cần
+  HAI job trùng MỘT link mới lên tiếng, nên dán nhầm link của một bài không có job nào thì nằm
+  im. Slug nằm sẵn trong link đã lưu → không cần mạng, không cần bộ dò chạy.
+- **Gỡ cách ly thì lý do cách ly đi theo.** Nick `IllBlueberry5395` bị lượt dò đầu tiên cách ly
+  nhầm; sửa trạng thái về ALIVE xong, lý do cũ nằm lại và trang chi tiết hiện đồng thời nhãn
+  **"Khỏe — hoạt động bình thường"** và hộp đỏ **"Dừng đăng bằng nick này ngay"**. Màn hình tự
+  cãi nhau tệ hơn màn hình thiếu thông tin: người đọc phải đoán tin dòng nào, và lần sau bỏ qua
+  cả hai — kể cả lần cảnh báo thật. Giờ đường sửa nick tự xóa lý do khi trạng thái không còn là
+  cách ly, và trang chi tiết chỉ hiện hộp đỏ khi nick THẬT SỰ đang bị cách ly.
+- **Đếm riêng bài lạ KHÔNG gán được vì HTML thiếu link/tên sub.** Nếu Reddit bỏ `data-permalink`
+  thì mọi bài lạ lặng lẽ rơi khỏi đường tự gán, và triệu chứng duy nhất người dùng thấy là "bấm
+  nút mà không có gì xảy ra". Giờ con số đó hiện thẳng trong câu trả lời của nút và trong log
+  lượt dò.
+
+**Về quyết định "cố ý không đối chiếu tiêu đề" ghi ở mục dưới:** vẫn giữ. Tiêu đề sửa được sau
+khi đăng nên slug lệch KHÔNG chứng minh được bài sai — vì vậy ở đây nó chỉ làm **cổng tin cậy
+trước khi tự ghi** và **cảnh báo để người mở link xem**, không bao giờ thành kết luận sức khỏe
+nick. Hai ngưỡng cũng cố ý lệch nhau: khớp ≥ 0.6 mới được ghi, nhưng phải lệch < 0.2 mới báo —
+khoảng giữa là vùng "đặt tiêu đề khác một chút", nơi im lặng đúng hơn là hỏi.
+
+**Không làm, có chủ ý:** bảng lưu "bài chờ xác nhận" để bấm gán một cú. Ca mơ hồ hiện vẫn là
+cảnh báo chữ như cũ. Thêm một model nữa chỉ để chứa thứ chưa biết có xảy ra thường không thì
+sớm quá — đo vài tuần rồi tính.
+
+**Kiểm chứng:** `typecheck` + `lint` + `436 test` (27 test mới). Chạy thử trên dữ liệu thật:
+cảnh báo slug không kêu nhầm bài nào (bài thật khớp 1.0), và bộ ghép **từ chối** gán link
+`1veg99o` cho job "Looking for a game similar to trove" — đúng cái bẫy nó sinh ra để tránh.
+
+---
+
 ## 04/08/2026 — Bộ dò chuyển từ ĐẾM sang ĐỐI CHIẾU
 
 Câu hỏi mở đầu: *"observer có kiểm chứng được không?"* — trước đợt này thì **không**. Parser chỉ
@@ -32,6 +88,14 @@ nào**. Mọi so sánh đều là số lượng với số lượng: lệch thì
   mạng, không cần proxy, không phụ thuộc Reddit đổi HTML — chỉ là một câu hỏi đặt cho chính kho.
   Cần nó vì phép gộp job theo link (đúng về mẫu số) đã **xóa mất manh mối** của lỗi này khỏi
   màn hình, nên manh mối phải được đọc ở chỗ khác.
+- **Trả job đã chốt về "Chờ đăng".** Cảnh báo trên chỉ ra được lỗi nhưng không sửa được nó: job
+  `POSTED` chỉ hiện dấu `—` ở cột thao tác, muốn gỡ phải mở Prisma Studio. Nút mới gỡ đúng những
+  gì lượt "Đã đăng" đã ghi — trạng thái, link, **và Interaction dùng cho luật 8**; bỏ sót vế cuối
+  là để lại một lần chạm thread chưa từng xảy ra, không màn hình nào đỏ vì nó. Hai job dán trùng
+  một link thì xóa **đúng một** dấu vết (`findFirst` + xóa theo id, không `deleteMany`) — nếu
+  không, gỡ job dán nhầm sẽ cuốn theo dấu vết của bài đăng thật. Gỡ xong chấm lại luật ngay, vì
+  chính job đó vừa thôi được đếm. Hỏi lại bằng hai lần bấm: trả về một bài đã lên thật là mời
+  chính mình đăng nó lần thứ hai.
 - **Cắt khoảng trắng trong username.** Kiểm dữ liệu thật thấy một nick lưu là `" IllBlueberry5395"`.
   Username là khóa tra cứu của bộ dò, và khoảng trắng thừa thành `%20` trong URL — cùng lớp lỗi
   với gõ sai username, mà lớp đó dẫn thẳng tới 404 → tự cách ly một nick đang khỏe.
@@ -44,8 +108,10 @@ sẽ im lặng trở lại nếu chỉ dựa vào khóa. Có khóa thì chỉ đ
 — nhưng tiêu đề sửa được sau khi đăng và người dùng có thể gõ khác lúc dán, nên mong manh. Đúng
 ca đó đã có cảnh báo trùng link bắt, rẻ hơn nhiều và không phụ thuộc Reddit.
 
-**Kiểm chứng:** `typecheck` + `lint` + `403 test`; đo trên dữ liệu thật — cảnh báo trùng link chỉ
-đúng vào cặp job có thật, `loadRecordedPostKeys` trả đúng `reddit:1veg99o`.
+**Kiểm chứng:** `typecheck` + `lint` + `408 test`; đo trên dữ liệu thật — cảnh báo trùng link chỉ
+đúng vào cặp job có thật, `loadRecordedPostKeys` trả đúng `reddit:1veg99o`. Job dán nhầm link đã
+được trả về chờ đăng bằng chính đường mới: kho còn đúng một dấu vết trên thread đó, và không còn
+cặp job nào dùng chung link.
 Xem [plan](../plans/260804-0353-dua-bo-do-shadowban-vao-chay-that/plan.md).
 
 ---

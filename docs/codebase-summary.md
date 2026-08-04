@@ -46,7 +46,8 @@ src/
     ├── facebook/               Graph API: OAuth, token, đăng Fanpage (chi tiết bên dưới)
     ├── format/                 Định dạng ngày tiếng Việt
     ├── health/                 Bộ dò shadowban: phiên trình duyệt sạch qua proxy quan sát viên,
-    │                           parser HTML Reddit, đánh giá kết luận, runner, khóa chống chạy chồng
+    │                           parser HTML Reddit, đánh giá kết luận, runner, khóa chống chạy chồng,
+    │                           và tự gán link cho job từ bài thấy được trên profile
     ├── http/                   Đối chiếu Origin/Host cho route handler trong api/
     ├── platforms/              Gộp họ nền tảng (REDDIT / FACEBOOK)
     ├── queue/                  Server actions: tạo job, đổi trạng thái, ghi tương tác, tóm tắt promo
@@ -130,7 +131,12 @@ biến mất. Khác biệt duy nhất giữa hai nền tảng là số ô nhập
                           → src/components/queue/manual-post-reminders.tsx
                             mở profile + copy sẵn nội dung; dán và bấm đăng là việc của người
                             (tự đăng Reddit → Phase 05)
-4. Đánh dấu đã đăng     → src/lib/queue/post-job-status-actions.ts  → status = POSTED
+4. Đánh dấu đã đăng     → src/lib/queue/post-job-mark-posted.ts    → status = POSTED + Interaction
+                          (lõi dùng chung cho cả 3 đường ghi: bấm tay, Graph API, bộ dò tự gán)
+                          ├── bấm tay      → src/lib/queue/post-job-status-actions.ts
+                          ├── bộ dò tự gán → src/lib/health/auto-link-discovered-posts.ts
+                          └── bấm nhầm     → src/lib/queue/post-job-revert.ts: gỡ status + link
+                                             + Interaction đã ghi, rồi chấm lại luật
 5. Ghi tương tác        → src/lib/queue/interaction-actions.ts     → Interaction
 ```
 
@@ -359,8 +365,10 @@ Phase 04 nghiệm thu xong bằng một bài đăng thật lên Fanpage nháp. B
 
 - Ngưỡng luật hiện lấy theo kinh nghiệm chung, chưa có số liệu thật từ đàn nick này —
   xem [domain-glossary](domain-glossary.md#câu-hỏi-chưa-có-lời-giải).
-- `npm run health` chưa chạy được với nick thật lần nào: bảng `ObserverProxy` đang rỗng. Cho tới
-  khi có proxy quan sát viên, luật 10 sẽ cảnh báo trên **mọi** job Reddit ("chưa dò lần nào").
+- Bộ dò đã chạy thật (proxy quan sát viên `observer-1` bật từ 03/08/2026), nhưng số lượt còn quá
+  ít để biết ngưỡng nào đúng: cửa sổ ghép 24 tiếng và ngưỡng slug 0.6 / 0.2 đều đang là phán
+  đoán, chưa phải số đo. Đo vài tuần xem ca "mơ hồ, không dám gán" có thường xuyên tới mức đáng
+  làm bảng chờ xác nhận không.
 
 > **`playwright` giờ đã được dùng thật**, không còn là dependency treo: `observer-browser-session.ts`
 > và `smoke-test-account-health.ts` import `chromium` để dò shadowban **trực tiếp, không qua
