@@ -52,17 +52,22 @@ export async function proxy(request: NextRequest) {
   return NextResponse.redirect(url);
 }
 
+/**
+ * ## Không khai `runtime` ở đây — và đó không phải chuyện thẩm mỹ
+ *
+ * Kiểm phiên thật (hỏi database) bắt buộc phải chạy trên Node runtime: ở edge không có module
+ * lõi của Node nên Prisma chết ngay lúc nạp với `Native module not found: node:util/types`, và
+ * vì nó chết ở tầng chặn nên **mọi trang** thành 500 chứ không phải một trang. Bản đầu viết
+ * ở `middleware.ts` — nơi mặc định LÀ edge — nên phải khai `runtime: "nodejs"` để sống.
+ *
+ * Đổi sang `proxy.ts` thì điều kiện đó được bảo đảm sẵn: **proxy của Next 16 luôn chạy Node**,
+ * và chính vì luôn luôn nên khai lại là lỗi — `Route segment config is not allowed in Proxy file`.
+ *
+ * Bẫy nằm ở chỗ **`next dev` không kiểm, chỉ `next build` mới kiểm**. Dòng thừa đó chạy tốt
+ * suốt buổi nghiệm thu tay rồi mới làm gãy build ở CI. Đây là lý do bước `build` phải nằm
+ * trong CI chứ không dựa vào việc dev có chạy được hay không.
+ */
 export const config = {
-  /**
-   * **Bắt buộc `nodejs`.** Mặc định của lớp này là edge runtime, nơi không có module lõi của
-   * Node — Prisma chết ngay lúc nạp với `Native module not found: node:util/types`, và vì nó
-   * chết ở tầng chặn nên **mọi trang** thành 500 chứ không phải chỉ một trang.
-   *
-   * Đây là cái giá của việc kiểm phiên thật (hỏi database) thay vì chỉ ngó cookie: phép kiểm
-   * theo cookie chạy được ở edge, nhưng nó không thấy được người vừa bị gỡ khỏi `ALLOWED_EMAILS`.
-   */
-  runtime: "nodejs",
-
   /**
    * Gác mọi đường, trừ bốn nhóm — và cả bốn đều phải nêu lý do:
    *

@@ -52,9 +52,10 @@ Hàng rào chuyển từ **chỗ app lắng nghe** sang **đăng nhập**. Hai t
   xong vẫn duyệt app bình thường. `guardedAction`/`guardedRoute` gác đường **làm**, nhưng trang
   trong `app/` là server component tự gọi thẳng Prisma rồi trả HTML — không đi qua wrapper nào.
   Gác đủ 35 lối vào mà quên trang, lại vừa bỏ cờ `-H`, thành ra cả lớp mạng đọc được username
-  nick, email gốc và host/port/username của proxy. Hai chi tiết phải đúng: tên file là
-  `proxy.ts` (Next 16 bỏ `middleware.ts`), và `runtime: "nodejs"` — để mặc định edge thì Prisma
-  không nạp được và **mọi trang thành 500**.
+  nick, email gốc và host/port/username của proxy. Tên file phải là `proxy.ts` — Next 16 bỏ
+  `middleware.ts`, và cùng với đổi tên là đổi mặc định: proxy **luôn** chạy Node runtime, nên
+  không phải khai `runtime: "nodejs"` nữa (khai lại là lỗi build). Đó là điều kiện sống của lớp
+  này: ở edge, Prisma không nạp được, và vì nó chết ở tầng chặn nên **mọi trang thành 500**.
 - **Bỏ `-H 127.0.0.1` khỏi `dev` và `start`** — bước cuối cùng, chỉ làm sau khi danh sách chưa
   gác về rỗng.
 - **Tắt `agentRules`** trong `next.config.ts`. Next 16 tự sinh `AGENTS.md` và `CLAUDE.md` ở gốc
