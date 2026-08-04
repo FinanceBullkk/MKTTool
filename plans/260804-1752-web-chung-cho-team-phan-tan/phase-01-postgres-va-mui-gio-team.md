@@ -9,8 +9,17 @@
 
 ## Overview
 
-**Ưu tiên:** cao | **Trạng thái:** ✅ **XONG 04/08/2026** — còn đúng một việc tay: nhập lại dữ
-liệu thật + nối lại Fanpage | **Dự kiến:** 2-3 ngày
+**Ưu tiên:** cao | **Trạng thái:** ✅ **XONG HẲN 05/08/2026** | **Dự kiến:** 2-3 ngày
+
+> **Chốt 05/08/2026 — bắt đầu từ kho rỗng, không nhập lại gì.** Chưa có nick thật nào: 3 nick
+> trong `dev.db` cũ đều là nick thử. Nhập lại dữ liệu thử vào kho mới rồi lát nữa xóa đi là
+> công vô ích, và tệ hơn là nó làm mọi con số trên trang tổng quan nói dối trong lúc chờ mua nick.
+>
+> Quyết định này **xóa nốt việc cuối cùng của GĐ1** — phase đóng hoàn toàn.
+>
+> ⚠️ Nhưng **đừng xóa `dev.db`**: 10 proxy Webshare trong đó là dữ liệu thật đã trả tiền, đã
+> kiểm 10/10 ra đúng IP và đúng quốc gia ngày 04/08. Giữ file cho tới khi nhập lại chúng vào
+> Postgres — mật khẩu proxy không nằm ở đâu khác. File đã được `.gitignore` phủ (`*.db`).
 
 > Làm nửa múi giờ **trước** nửa Postgres, ngược thứ tự các bước dưới đây. Lý do: đổi nền dữ
 > liệu làm `vitest.global-setup.ts` tạm thời hỏng, mà lại cần bộ test còn chạy được mới chứng
@@ -107,7 +116,7 @@ Múi giờ: mọi phép cắt ngày đi qua một hàm duy nhất đọc `TEAM_T
 - [x] `npm test` (482/482) + `lint` + `typecheck` xanh
 - [x] 4 smoke test xanh trên Postgres — vault 10/10, rules 6/6, facebook 11/11, health 17/17
 - [x] *(phát sinh)* README + 4 file `docs/` còn mô tả SQLite — đã sửa
-- [ ] **Nhập tay dữ liệu thật, nối lại Fanpage** ← việc duy nhất còn lại
+- [x] ~~Nhập tay dữ liệu thật, nối lại Fanpage~~ — **bỏ, chốt 05/08/2026: bắt đầu từ kho rỗng**
 
 ## Nghiệm thu (04/08/2026)
 

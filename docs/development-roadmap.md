@@ -41,17 +41,20 @@ Chi tiết ở [plan.md](../plans/260804-1752-web-chung-cho-team-phan-tan/plan.m
 | # | Giai đoạn | Trạng thái | Ngày | Còn thiếu gì |
 |---|---|---|---|---|
 | 0 | Spike: trình duyệt gọi xuống cầu nối | ✅ Xong | 04/08 | – (chốt 3 ràng buộc bắt buộc cho GĐ2/3/4) |
-| 1 | [Postgres + múi giờ team](../plans/260804-1752-web-chung-cho-team-phan-tan/phase-01-postgres-va-mui-gio-team.md) | ✅ Xong | 04/08 | Nhập tay lại dữ liệu thật + nối lại Fanpage |
-| 2 | Đăng nhập, vai trò, chủ sở hữu nick | ⬜ Tiếp theo | – | Better Auth + đăng nhập Google + danh sách email cho phép |
+| 1 | [Postgres + múi giờ team](../plans/260804-1752-web-chung-cho-team-phan-tan/phase-01-postgres-va-mui-gio-team.md) | ✅ Xong hẳn | 05/08 | – (chốt bắt đầu từ kho rỗng, không nhập lại dữ liệu thử) |
+| 2 | [Đăng nhập, vai trò, chủ sở hữu nick](../plans/260804-1752-web-chung-cho-team-phan-tan/phase-02-dang-nhap-vai-tro-chu-so-huu.md) | 🟡 Đang chạy | 05/08 | 18/42 lối vào chưa gác; route `/api/auth` + màn hình đăng nhập; phân công nick |
 | 3 | Tách hai vùng khóa + vé ký | ⬜ Chưa bắt đầu | – | Chờ GĐ2 |
 | 4 | Cầu nối trên máy operator | ⬜ Chưa bắt đầu | – | **Đường găng.** Chờ GĐ3 |
 | 5 | Lên Railway + cron + sao lưu | ⬜ Chưa bắt đầu | – | Làm song song được từ sau GĐ1 |
 | 6 | Bàn giao team | ⬜ Chưa bắt đầu | – | Chờ GĐ4 |
 
-**GĐ1 đã đổi nền dữ liệu sang Postgres** (04/08/2026): 482/482 test, 4 smoke test và
+**GĐ1 đã đổi nền dữ liệu sang Postgres và đóng hẳn** (05/08/2026): 482/482 test, 4 smoke test và
 `npm run db:backup` đều xanh trên Postgres. Ràng buộc 1 nick = 1 proxy vẫn do database ép.
-Cố ý **không viết script chuyển dữ liệu** — dữ liệu cũ quá nhỏ (3 nick, 10 proxy, 4 job),
-nhập tay rẻ hơn và ít rủi ro hơn chuyển ciphertext.
+Cố ý **không viết script chuyển dữ liệu**, và chốt 05/08/2026 là **không nhập lại gì cả**:
+chưa có nick thật nào, 3 nick cũ đều là nick thử. Kho bắt đầu từ rỗng.
+
+> Giữ lại `dev.db` cũ: 10 proxy Webshare trong đó là dữ liệu thật đã trả tiền và đã kiểm
+> 10/10 ngày 04/08. Mật khẩu proxy không nằm ở đâu khác.
 
 ## Đường găng: cái gì đang chặn
 
