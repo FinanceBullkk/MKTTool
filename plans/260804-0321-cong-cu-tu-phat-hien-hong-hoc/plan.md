@@ -3,6 +3,9 @@
 **Ngày:** 04/08/2026 · **Nhánh:** `feat/rut-gon-luong-dang-bai` · **Đợt:** 3 (sau *rút gọn luồng*
 và *băng chuyền*)
 
+**Trạng thái:** ✅ **Xong 04/08/2026** — GĐ1 (`8216ec9`) và GĐ2 (`fc5b0c1`) đã ship;
+GĐ3 chốt **không làm** (phương án A).
+
 ## Vì sao có đợt này
 
 Hai đợt trước rút ngắn **đường đi** của người dùng (4 trang → 2, nav 9 mục → 4). Đợt này sửa

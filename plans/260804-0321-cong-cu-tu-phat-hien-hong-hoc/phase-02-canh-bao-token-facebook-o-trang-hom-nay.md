@@ -1,6 +1,6 @@
 # Phase 02 — Cảnh báo token Facebook ở trang Hôm nay
 
-**Ưu tiên:** Cao · **Trạng thái:** ☐ Chưa làm · [← plan](plan.md)
+**Ưu tiên:** Cao · **Trạng thái:** ✅ Xong 04/08/2026 (`fc5b0c1`) · [← plan](plan.md)
 
 ## Vấn đề
 

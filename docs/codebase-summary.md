@@ -65,7 +65,7 @@ scripts/
 ├── generate-vault-key.ts       Sinh VAULT_KEY
 ├── generate-test-totp-secret.ts  Sinh TOTP secret dùng thử
 ├── rekey-vault-key.ts          Xoay VAULT_KEY, mã hóa lại toàn bộ credential
-├── backup-database.ts          Sao lưu bằng VACUUM INTO (chạy được khi app đang mở)
+├── backup-database.ts          Sao lưu bằng pg_dump (chạy được khi app đang mở)
 ├── upgrade-database.ts         Nâng cấp sau khi nhận bản mới: sao lưu rồi `migrate deploy`
 ├── import-proxies-from-provider-list.ts  Nhập hàng loạt proxy từ file nhà cung cấp
 ├── run-health-check.ts         Dò shadowban + đọc karma mọi nick Reddit (Phase 03)
@@ -304,11 +304,12 @@ Chi tiết đầy đủ ở [README → Lệnh](../README.md#lệnh).
    áp thành công mà `tsc` vẫn báo `Property 'facebookPage' does not exist on type 'PrismaClient'`
    — chạy `npm run db:generate` là hết. Đừng đi sửa code theo lỗi đó.
 
-5. **Đừng hỏi "file .db có tồn tại không" để biết đây có phải lần cài đầu.** Chỉ cần mở kết nối
-   là SQLite tạo sẵn file rỗng, nên mọi phép kiểm sau đó đều thấy file tồn tại. `upgrade-database.ts`
-   từng vì vậy mà sao lưu một database trống trơn ở lần cài đầu — và bản sao lưu rỗng còn tệ hơn
-   không có, vì nó làm người ta tưởng mình đang có bản dự phòng. Câu hỏi đúng là **"sổ migration
-   đã có dòng nào chưa"**.
+5. **Đừng hỏi "database có tồn tại không" để biết đây có phải lần cài đầu.** Với Postgres thì
+   database luôn tồn tại — người dùng phải `createdb` trước mới chạy nổi lệnh nào; hồi SQLite thì
+   ngược lại, chỉ cần mở kết nối là file rỗng tự sinh ra. Hai nền dữ liệu, cùng một kết luận:
+   `upgrade-database.ts` từng vì hỏi sai câu mà sao lưu một database trống trơn ở lần cài đầu —
+   và bản sao lưu rỗng còn tệ hơn không có, vì nó làm người ta tưởng mình đang có bản dự phòng.
+   Câu hỏi đúng là **"sổ migration đã có dòng nào chưa"**.
 
 6. **Biến môi trường thắng `.env`.** `prisma.config.ts` gọi `process.loadEnvFile()`, và cả hàm đó
    lẫn cờ `--env-file` của Node đều KHÔNG ghi đè biến đã đặt sẵn. Nhờ vậy chạy thử lệnh database
@@ -330,7 +331,7 @@ Ba chỗ giữ cho việc nới này không nới quá tay:
 
 | Chỗ | Việc |
 |---|---|
-| `@unique` trên cột nullable | SQLite cho nhiều NULL nhưng chỉ một giá trị thật, nên **1 nick = 1 proxy vẫn nguyên** cho Reddit |
+| `@unique` trên cột nullable | Postgres cho nhiều NULL nhưng chỉ một giá trị thật (giống hệt SQLite trước đây), nên **1 nick = 1 proxy vẫn nguyên** cho Reddit |
 | `validatePlatformIdentityFields()` ở `vault-form-schemas.ts` | Hàm thuần, nguồn sự thật DUY NHẤT cho luật "Reddit bắt buộc". Cả `createAccount` lẫn `updateAccount` gọi nó |
 | Route `api/accounts/[id]/launch` | Thiếu proxy hoặc profile thì từ chối mở kèm lý do, không mở profile trần bằng IP nhà |
 

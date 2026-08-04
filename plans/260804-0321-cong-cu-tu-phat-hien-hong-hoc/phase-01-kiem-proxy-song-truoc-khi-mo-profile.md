@@ -1,6 +1,6 @@
 # Phase 01 — Kiểm proxy sống trước khi mở profile
 
-**Ưu tiên:** Cao · **Trạng thái:** ☐ Chưa làm · [← plan](plan.md)
+**Ưu tiên:** Cao · **Trạng thái:** ✅ Xong 04/08/2026 (`8216ec9`) · [← plan](plan.md)
 
 ## Vấn đề
 

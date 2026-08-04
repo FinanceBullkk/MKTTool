@@ -1,6 +1,6 @@
 # Phase 02 — Nút "Dò cả đàn" ngay trong app
 
-**Trạng thái:** ☐ Chưa làm · [← plan](plan.md)
+**Trạng thái:** ✅ Xong 04/08/2026 (`62801e2`) · [← plan](plan.md)
 
 ## Vấn đề
 

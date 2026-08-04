@@ -1,6 +1,6 @@
 # Phase 01 — Kiểm proxy quan sát viên
 
-**Trạng thái:** ☐ Chưa làm · [← plan](plan.md)
+**Trạng thái:** ✅ Xong 04/08/2026 (`f34ebf2`) · [← plan](plan.md)
 
 ## Vấn đề
 

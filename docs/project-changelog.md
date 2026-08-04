@@ -7,6 +7,32 @@ Dự án chưa phát hành phiên bản (`0.1.0`, dùng nội bộ). Mốc chia 
 
 ---
 
+## 04/08/2026 — Nền dữ liệu chuyển sang Postgres
+
+Nửa sau của cùng một việc với mục dưới: một file SQLite trên một máy không phục vụ được 5-6
+người ở 5-6 nơi. **Không có script chuyển dữ liệu** — kho hiện tại quá nhỏ (3 nick, 10 proxy,
+4 job), nhập tay rẻ hơn và ít rủi ro hơn là chuyển ciphertext qua hai nền dữ liệu.
+
+- **Adapter đổi `PrismaBetterSqlite3` → `PrismaPg`.** 9 migration SQLite gộp thành một baseline
+  Postgres duy nhất.
+- **Ràng buộc 1 nick = 1 proxy không bị nới.** Postgres cũng cho nhiều NULL nhưng chỉ một giá
+  trị thật trên cột `@unique` nullable — đây là thứ phải kiểm trước khi đổi nền, vì nếu mất thì
+  mất im lặng: không có gì đỏ, chỉ là ràng buộc thôi không chặn nữa.
+- **Bộ test cần một Postgres THẬT**, và vì global setup `DROP SCHEMA` không hỏi lại nên có
+  `assertIsTestDatabase()`: chỉ chạy trên database tên kết thúc bằng `_test`. Cố ý không có
+  giá trị mặc định — một mặc định `localhost/mkttool_test` trên máy người khác sẽ âm thầm trỏ
+  vào chỗ họ không ngờ, và thứ nó xóa là kho danh tính.
+- **Vẫn áp từ file migration chứ không `db push`.** Giữ nguyên tính chất cũ: mỗi lượt test kiểm
+  luôn chuỗi migration có áp sạch từ đầu không.
+- **`db:backup` bỏ `VACUUM INTO`, dùng `pg_dump --format=plain`.** Giữ dạng chữ chứ không dạng
+  nén dù nén nhỏ hơn: phép kiểm "không có credential dạng trần" quét chuỗi trên file nén thì
+  luôn không thấy gì — một phép kiểm an toàn luôn xanh là kiểu hỏng tệ nhất của phép kiểm đó.
+  Khôi phục đổi từ "chép đè file" sang `psql -f`.
+
+> Bẫy gặp lúc nghiệm thu: `mkttool_dev` chưa từng được áp migration, nên lượt `db:backup` đầu
+> ra file **1 KB rỗng mà vẫn báo thành công**. Backup của database rỗng trông y hệt backup
+> thành công — nghiệm thu sao lưu phải soi nội dung file, không phải soi mã thoát.
+
 ## 04/08/2026 — Một múi giờ cho cả team
 
 Chuẩn bị cho web dùng chung: từ nay ranh giới ngày đọc `TEAM_TIMEZONE`, không đọc giờ của máy

@@ -2,6 +2,9 @@
 
 **Ngày:** 04/08/2026 · **Nhánh:** `feat/rut-gon-luong-dang-bai` · **Đợt:** 4
 
+**Trạng thái:** ✅ **Phần code xong 04/08/2026** — GĐ1 (`f34ebf2`), GĐ2 (`62801e2`), GĐ3
+(`afb7bb4`). Việc còn lại **không phải code**: mua một proxy quan sát viên rồi chạy lượt dò thật.
+
 ## Vì sao có đợt này
 
 Đo trạng thái kho ngày 04/08/2026:

@@ -51,10 +51,15 @@ Nhờ vậy phần lớn test không cần database, không cần mạng, không
 | Đuôi file | Nghĩa | Ghi chú |
 |---|---|---|
 | `*.test.ts` | Không chạm database | Chạy nhanh, chạy được ở mọi nơi |
-| `*.database.test.ts` | Chạm SQLite thật | Dùng chung một file DB tạm ở `.test-tmp/`, mỗi file `deleteMany()` trước |
+| `*.database.test.ts` | Chạm Postgres thật | Dùng chung database `TEST_DATABASE_URL`, mỗi file `deleteMany()` trước |
 
-`fileParallelism: false` — cố ý. Các file database dùng chung một DB tạm; chạy song song sẽ đỏ
+`fileParallelism: false` — cố ý. Các file database dùng chung một database; chạy song song sẽ đỏ
 ngẫu nhiên, và cái đắt nhất không phải vài giây mà là việc nó dạy người đọc quen "chạy lại là xanh".
+
+`TEST_DATABASE_URL` **bắt buộc** và phải trỏ vào database tên kết thúc bằng `_test` —
+`vitest.global-setup.ts` `DROP SCHEMA` không hỏi lại trước mỗi lượt chạy, nên `assertIsTestDatabase()`
+từ chối mọi tên khác. Cố ý không có giá trị mặc định: một mặc định kiểu `localhost/mkttool_test`
+trên máy người khác sẽ âm thầm trỏ vào chỗ họ không ngờ tới.
 
 **Không mock thứ đang cần kiểm chứng.** Bộ dò Reddit có `npm run health:smoke` đối chiếu HTML
 Reddit thật — chính nó bắt được 2 lỗi parser mà test mock đã cho qua.
@@ -96,7 +101,8 @@ npm run build
 Đúng bốn lệnh này chạy trong [CI](../.github/workflows/ci.yml) trên mọi push và pull request.
 Chạy trước ở máy thì không phải đợi CI báo đỏ.
 
-**Không bao giờ commit:** `.env`, `*.db`, file trong `data/`, khóa, token, mật khẩu.
+**Không bao giờ commit:** `.env`, file trong `data/` (nhất là `data/backups/` — bản `pg_dump`
+chứa toàn bộ ciphertext), khóa, token, mật khẩu.
 `.gitignore` đã chặn sẵn — đừng dùng `git add -f` để lách.
 
 ## 9. Commit message

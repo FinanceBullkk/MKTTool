@@ -27,18 +27,36 @@ Ràng buộc này do database ép, không lách được.
 ## Yêu cầu
 
 - Node.js 22+ (dự án đang chạy trên 24)
+- **PostgreSQL 17** — bản cài native, không cần Docker
 - Một antidetect browser: [MultiZen](https://getmultizen.com/) (miễn phí) hoặc AdsPower
 - Proxy tĩnh (static ISP), mỗi nick một IP
 
 ## Cài đặt
 
+Dựng hai database trước — một cho vận hành, một **riêng** cho bộ test:
+
+```bash
+createdb -U postgres mkttool_dev
+createdb -U postgres mkttool_test
+```
+
+> Thư mục `bin` của Postgres phải nằm trong PATH (mặc định trên Windows:
+> `C:\Program Files\PostgreSQL\17\bin`). Thiếu nó thì `npm run db:backup` không chạy được vì
+> không tìm thấy `pg_dump` — và công cụ sẽ nói đúng câu đó chứ không báo lỗi mơ hồ.
+
 ```bash
 npm install
 cp .env.example .env
 npm run vault:keygen        # dán VAULT_KEY vào .env
+                            # rồi điền DATABASE_URL + TEST_DATABASE_URL
 npm run db:upgrade
 npm run dev                 # http://localhost:3000
 ```
+
+> **`TEST_DATABASE_URL` phải trỏ vào một database riêng có tên kết thúc bằng `_test`.** Bộ test
+> `DROP SCHEMA` không hỏi lại trước mỗi lượt chạy, nên nó từ chối chạy trên database không đúng
+> quy ước đặt tên. Trỏ nhầm vào database vận hành là mất sạch kho danh tính, mất theo kiểu không
+> kịp hối hận — quy ước tên rẻ hơn nhiều so với hậu quả.
 
 > **VAULT_KEY phải được sao lưu vào password manager.** Mất khóa là mất toàn bộ mật khẩu và
 > TOTP secret của mọi nick, không khôi phục được bằng bất kỳ cách nào.
@@ -79,8 +97,8 @@ npm run db:upgrade
 ```
 
 `db:upgrade` xem bản mới có thay đổi cấu trúc database không. Không có thì nó nói vậy rồi dừng.
-Có thì nó **sao lưu trước**, áp xong mới báo — và nếu áp hỏng thì chỉ luôn tên file sao lưu để
-chép đè về. Chạy lại nhiều lần không sao: đã mới nhất thì nó không làm gì.
+Có thì nó **sao lưu trước**, áp xong mới báo — và nếu áp hỏng thì chỉ luôn tên file sao lưu kèm
+đúng lệnh `psql` để nạp lại. Chạy lại nhiều lần không sao: đã mới nhất thì nó không làm gì.
 
 > ⚠️ **Có thay đổi cấu trúc thì phải khởi động lại `npm run dev`.** Dev server nạp bản mô tả
 > database một lần lúc khởi động và giữ nguyên trong bộ nhớ, nên nó vẫn tin là cột mới không tồn
@@ -301,8 +319,11 @@ src/
 Mỗi luật là một hàm thuần `(ctx: RuleContext) => RuleVerdict`. Toàn bộ việc hỏi database nằm ở
 `rule-context-builder.ts`, nên thêm luật mới chỉ là thêm một file và một dòng trong `rules-engine.ts`.
 
-Stack: Next.js 16 + TypeScript + Prisma 7 + SQLite + MCP client tới MultiZen. Một process, chạy
-trên máy bạn MKT. Chưa cần VPS, Docker, Postgres hay Redis.
+Stack: Next.js 16 + TypeScript + Prisma 7 + PostgreSQL + MCP client tới MultiZen. Một process,
+chạy trên máy bạn MKT. Chưa cần VPS, Docker hay Redis.
+
+> Nền dữ liệu đổi từ SQLite sang Postgres ngày 04/08/2026 — bước đầu của việc biến công cụ
+> thành web chung cho team. Một file SQLite trên một máy không phục vụ được 5-6 người ở 5-6 nơi.
 
 `playwright` chỉ dùng cho bộ dò shadowban, chạy trực tiếp qua proxy quan sát viên chứ không qua
 antidetect browser — xem [Dò shadowban](#dò-shadowban). Lần đầu chạy phải cài trình duyệt:
@@ -458,7 +479,7 @@ bài Reddit — xem [Đăng bài](#đăng-bài).
 - App chỉ nghe `127.0.0.1` — ép bằng cờ `-H` trong `package.json`, không phải mặc định
 - Route `POST` trong `api/` đối chiếu `Origin` với `Host` — Next tự làm việc này cho server
   action nhưng không làm cho route handler, mà route handler chính là chỗ có nút mở profile
-- `.env` và `*.db` đã nằm trong `.gitignore`
+- `.env` và thư mục sao lưu `data/backups/` đã nằm trong `.gitignore` — bản dump chứa ciphertext
 
 ### Không có đăng nhập — nên chỗ app lắng nghe là toàn bộ hàng rào
 
@@ -476,14 +497,26 @@ mọi card mạng, tức là cả người ngồi cùng wifi cũng mở được
 ### Sao lưu — hai nửa, cất hai nơi
 
 ```bash
-npm run db:backup     # → data/backups/mkttool-<ngày>-<giờ>.db
+npm run db:backup     # → data/backups/mkttool-<ngày>-<giờ>.sql
 ```
 
-Chạy được khi app đang mở. Dùng `VACUUM INTO` chứ không copy file, vì SQLite chạy chế độ WAL:
-copy mỗi file `.db` là ra một bản sao thiếu dữ liệu mới nhất, và cái thiếu đó chỉ lộ ra đúng
-lúc cần khôi phục.
+Chạy được khi app đang mở: `pg_dump` chụp ảnh trong một transaction nên bản sao luôn nhất quán,
+không phải tắt server mới sao lưu được. Tên file có mốc thời gian nên **không bao giờ ghi đè
+bản cũ**.
 
-Khôi phục: chép file sao lưu đè lên `dev.db` (tắt app trước).
+Bản sao là SQL dạng chữ (`--format=plain`) chứ không phải dạng nén, dù dạng nén nhỏ hơn. Vì bản
+sao phải **đọc được bằng mắt** để kiểm "không có credential dạng trần" — quét chuỗi trên file nén
+thì luôn không thấy gì, tức là một phép kiểm an toàn luôn xanh, kiểu hỏng tệ nhất của một phép
+kiểm. `npm run vault:smoke` chạy đúng phép quét đó trên bản dump thật.
+
+Khôi phục vào một database rỗng mới (đừng nạp đè lên database đang có dữ liệu):
+
+```bash
+createdb -U postgres mkttool_restore
+psql -U postgres -d mkttool_restore -f data/backups/mkttool-<ngày>-<giờ>.sql
+```
+
+Rồi trỏ `DATABASE_URL` sang database vừa khôi phục.
 
 > Bản sao lưu và `VAULT_KEY` là **hai nửa của một thứ**. Có bản sao mà mất khóa thì mở ra chỉ
 > thấy chuỗi vô nghĩa; có khóa mà mất bản sao thì chẳng còn gì để mở. Cất hai nơi khác nhau —

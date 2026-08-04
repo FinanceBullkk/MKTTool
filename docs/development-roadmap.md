@@ -1,14 +1,25 @@
 # Lộ trình phát triển
 
-**Cập nhật:** 03/08/2026
+**Cập nhật:** 04/08/2026
 
 Đây là **nguồn duy nhất về trạng thái** của dự án. Bản thiết kế chi tiết từng giai đoạn ở
 [plans/](../plans/260801-2030-multi-account-posting-console/plan.md); vì sao làm ở
 [project-overview-pdr.md](project-overview-pdr.md).
 
+Dự án đang chạy **hai luồng song song**:
+
+| Luồng | Là gì | Trạng thái |
+|---|---|---|
+| **A — Công cụ** | 5 giai đoạn gốc: kho danh tính → hàng đợi → sức khỏe → Facebook → tự đăng Reddit | GĐ1-4 xong, GĐ0 kẹt ở tiền + cold-start, GĐ5 chưa bắt đầu |
+| **B — Web chung** | Biến app một máy thành web chung cho 5-6 người ở 5-6 nơi | GĐ0-1 xong 04/08, còn 5 giai đoạn |
+
+Luồng B sinh ra sau khi chốt bàn giao cho team — xem
+[plan web chung](../plans/260804-1752-web-chung-cho-team-phan-tan/plan.md). Nó **không thay thế**
+luồng A: tự đăng Reddit vẫn nằm ở luồng A và vẫn chờ nick thật.
+
 ---
 
-## Trạng thái các giai đoạn
+## Luồng A — Trạng thái các giai đoạn
 
 | # | Giai đoạn | Trạng thái | Ngày | Còn thiếu gì |
 |---|---|---|---|---|
@@ -22,6 +33,25 @@
 **Code đi trước phần mua sắm.** Bốn giai đoạn code đã xong trong khi Phase 00 còn chờ tiền và chờ
 đồng hồ. Đó là rủi ro đã biết, không phải nhầm lẫn: phần code không có đường rút ngắn 14 ngày
 cold-start, nên làm trước là đúng.
+
+## Luồng B — Web chung cho team phân tán
+
+Chi tiết ở [plan.md](../plans/260804-1752-web-chung-cho-team-phan-tan/plan.md). Tổng ~3-3.5 tuần.
+
+| # | Giai đoạn | Trạng thái | Ngày | Còn thiếu gì |
+|---|---|---|---|---|
+| 0 | Spike: trình duyệt gọi xuống cầu nối | ✅ Xong | 04/08 | – (chốt 3 ràng buộc bắt buộc cho GĐ2/3/4) |
+| 1 | [Postgres + múi giờ team](../plans/260804-1752-web-chung-cho-team-phan-tan/phase-01-postgres-va-mui-gio-team.md) | ✅ Xong | 04/08 | Nhập tay lại dữ liệu thật + nối lại Fanpage |
+| 2 | Đăng nhập, vai trò, chủ sở hữu nick | ⬜ Tiếp theo | – | Better Auth + đăng nhập Google + danh sách email cho phép |
+| 3 | Tách hai vùng khóa + vé ký | ⬜ Chưa bắt đầu | – | Chờ GĐ2 |
+| 4 | Cầu nối trên máy operator | ⬜ Chưa bắt đầu | – | **Đường găng.** Chờ GĐ3 |
+| 5 | Lên Railway + cron + sao lưu | ⬜ Chưa bắt đầu | – | Làm song song được từ sau GĐ1 |
+| 6 | Bàn giao team | ⬜ Chưa bắt đầu | – | Chờ GĐ4 |
+
+**GĐ1 đã đổi nền dữ liệu sang Postgres** (04/08/2026): 482/482 test, 4 smoke test và
+`npm run db:backup` đều xanh trên Postgres. Ràng buộc 1 nick = 1 proxy vẫn do database ép.
+Cố ý **không viết script chuyển dữ liệu** — dữ liệu cũ quá nhỏ (3 nick, 10 proxy, 4 job),
+nhập tay rẻ hơn và ít rủi ro hơn chuyển ciphertext.
 
 ## Đường găng: cái gì đang chặn
 

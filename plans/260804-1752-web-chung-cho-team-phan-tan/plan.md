@@ -96,15 +96,15 @@ dính luật này. Chrome siết thêm thì chuyển thao tác sang tab nhỏ �
 
 ## Các giai đoạn
 
-| # | Giai đoạn | Dự kiến | File |
-|---|---|---|---|
-| 0 | Spike: trình duyệt gọi xuống cầu nối | 0.5 ngày | [phase-00](phase-00-spike-trinh-duyet-goi-cau-noi.md) |
-| 1 | Postgres + múi giờ team | 2-3 ngày | [phase-01](phase-01-postgres-va-mui-gio-team.md) |
-| 2 | Đăng nhập, vai trò, chủ sở hữu nick | 3-4 ngày | [phase-02](phase-02-dang-nhap-vai-tro-chu-so-huu.md) |
-| 3 | Tách hai vùng khóa + vé ký | 3-4 ngày | [phase-03](phase-03-tach-hai-vung-khoa-va-ve-ky.md) |
-| 4 | Cầu nối | 4-6 ngày | [phase-04](phase-04-cau-noi-tren-may-operator.md) |
-| 5 | Lên Railway + cron + sao lưu | 2-3 ngày | [phase-05](phase-05-len-railway-cron-sao-luu.md) |
-| 6 | Bàn giao team | 2-3 ngày | [phase-06](phase-06-ban-giao-team.md) |
+| # | Giai đoạn | Trạng thái | Dự kiến | File |
+|---|---|---|---|---|
+| 0 | Spike: trình duyệt gọi xuống cầu nối | ✅ xong 04/08 | 0.5 ngày | [phase-00](phase-00-spike-trinh-duyet-goi-cau-noi.md) |
+| 1 | Postgres + múi giờ team | ✅ xong 04/08 | 2-3 ngày | [phase-01](phase-01-postgres-va-mui-gio-team.md) |
+| 2 | Đăng nhập, vai trò, chủ sở hữu nick | ⬜ tiếp theo | 3-4 ngày | [phase-02](phase-02-dang-nhap-vai-tro-chu-so-huu.md) |
+| 3 | Tách hai vùng khóa + vé ký | ⬜ | 3-4 ngày | [phase-03](phase-03-tach-hai-vung-khoa-va-ve-ky.md) |
+| 4 | Cầu nối | ⬜ | 4-6 ngày | [phase-04](phase-04-cau-noi-tren-may-operator.md) |
+| 5 | Lên Railway + cron + sao lưu | ⬜ làm song song được | 2-3 ngày | [phase-05](phase-05-len-railway-cron-sao-luu.md) |
+| 6 | Bàn giao team | ⬜ | 2-3 ngày | [phase-06](phase-06-ban-giao-team.md) |
 
 **Tổng: ~3-3.5 tuần** (đã tính thêm phần nâng cấp ở ba chỗ nói trên).
 Vẫn nằm trong mốc "team dùng sau 1-2 tháng".

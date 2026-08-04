@@ -9,8 +9,8 @@
 
 ## Overview
 
-**Ưu tiên:** cao | **Trạng thái:** 🟡 **nửa múi giờ XONG 04/08/2026**, nửa Postgres chưa làm |
-**Dự kiến:** 2-3 ngày
+**Ưu tiên:** cao | **Trạng thái:** ✅ **XONG 04/08/2026** — còn đúng một việc tay: nhập lại dữ
+liệu thật + nối lại Fanpage | **Dự kiến:** 2-3 ngày
 
 > Làm nửa múi giờ **trước** nửa Postgres, ngược thứ tự các bước dưới đây. Lý do: đổi nền dữ
 > liệu làm `vitest.global-setup.ts` tạm thời hỏng, mà lại cần bộ test còn chạy được mới chứng
@@ -92,20 +92,38 @@ Múi giờ: mọi phép cắt ngày đi qua một hàm duy nhất đọc `TEAM_T
 
 ## Todo List
 
-- [ ] PATH có `pg_dump`; tạo database `mkttool_dev` + `mkttool_test` (Postgres 17 đã chạy sẵn)
-- [ ] `provider` + adapter đổi sang Postgres
-- [ ] Baseline migration mới, migration SQLite cũ đã xóa
-- [ ] `vitest.global-setup.ts` chạy trên Postgres, vẫn áp từ file migration
-- [ ] `database-backup.ts` dùng `pg_dump`, không ghi đè bản cũ
-- [ ] `upgrade-database.ts` kiểm lại trên Postgres
+- [x] PATH có `pg_dump` (đã có sẵn từ trước); tạo database `mkttool_dev` + `mkttool_test`
+- [x] `provider` + adapter đổi sang Postgres (`PrismaPg`)
+- [x] Baseline migration mới, 9 migration SQLite cũ đã xóa
+- [x] `vitest.global-setup.ts` chạy trên Postgres, vẫn áp từ file migration
+- [x] *(phát sinh)* `assertIsTestDatabase()` — chỉ nhận database tên kết thúc bằng `_test`
+- [x] `database-backup.ts` dùng `pg_dump`, không ghi đè bản cũ
+- [x] `upgrade-database.ts` kiểm lại trên Postgres — áp baseline vào `mkttool_dev` chạy đúng
 - [x] `TEAM_TIMEZONE` + các hàm ngày tháng, thiếu biến thì dừng app — **xong 04/08/2026**
 - [x] Test chặn gọi `setHours` ngoài module ngày tháng — cấm cả họ hàm, quét toàn `src/`
 - [x] *(phát sinh)* Ô `datetime-local` cũng đọc theo giờ máy chủ — sửa bằng `parseDateTimeInput`
 - [x] *(phát sinh)* Đưa `TEAM_TIMEZONE` sang bundle trình duyệt qua `next.config.ts`
 - [x] *(phát sinh)* Hai test cũ dựng mốc theo giờ máy — đỏ khi chạy ở UTC, đã sửa
-- [ ] `npm test` + `lint` + `typecheck` xanh
-- [ ] 4 smoke test xanh trên Postgres
-- [ ] Nhập tay dữ liệu thật, nối lại Fanpage
+- [x] `npm test` (482/482) + `lint` + `typecheck` xanh
+- [x] 4 smoke test xanh trên Postgres — vault 10/10, rules 6/6, facebook 11/11, health 17/17
+- [x] *(phát sinh)* README + 4 file `docs/` còn mô tả SQLite — đã sửa
+- [ ] **Nhập tay dữ liệu thật, nối lại Fanpage** ← việc duy nhất còn lại
+
+## Nghiệm thu (04/08/2026)
+
+| Phép thử | Kết quả |
+|---|---|
+| `npm test` trên Postgres thật | 482/482, 48 file |
+| `npm run lint` / `npm run typecheck` | sạch |
+| 4 smoke test | xanh hết, gồm lượt `health:smoke` chạm Reddit thật |
+| `npm run db:backup` | dump 21 KB — 14 bảng, 11 unique index |
+| Ràng buộc 1 nick = 1 proxy | `Account_proxyId_key` có trong dump ✅ |
+| `pg_dump` không lộ credential trần | `vault:smoke` quét bản dump thật, đạt |
+
+Bẫy đã gặp: `mkttool_dev` chưa từng được áp migration nên lượt `db:backup` đầu ra file **1 KB
+rỗng mà vẫn báo thành công**. Backup của một database rỗng trông y hệt backup thành công — chỉ
+lộ ra khi đếm `CREATE TABLE` trong file. Nghiệm thu sao lưu phải soi nội dung, không phải soi
+mã thoát.
 
 ## Success Criteria
 

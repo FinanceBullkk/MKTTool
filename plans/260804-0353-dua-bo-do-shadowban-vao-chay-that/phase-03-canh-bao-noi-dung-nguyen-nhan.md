@@ -1,6 +1,6 @@
 # Phase 03 — Cảnh báo nói đúng nguyên nhân
 
-**Trạng thái:** ☐ Chưa làm · [← plan](plan.md)
+**Trạng thái:** ✅ Xong 04/08/2026 (`afb7bb4`) · [← plan](plan.md)
 
 ## Vấn đề
 
