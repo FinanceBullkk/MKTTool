@@ -40,6 +40,12 @@ Sau phase này, **chiếm được máy chủ không mở được một mật k
 4. **Nội dung vé mã hóa cho riêng cầu nối nhận** — trình duyệt chỉ là người đưa thư
 5. Mỗi cầu nối đăng ký khóa công khai với máy chủ; thu hồi được từng cái
 6. `vault:rekey` tách hai quy trình theo vùng
+7. **Vé mang phiên bản định dạng + phiên bản cầu nối tối thiểu** (QĐ 11) — trường này phải có
+   **ngay từ vé đầu tiên**, không thêm sau. Vì không có bộ tự cập nhật, cầu nối cũ sẽ còn chạy
+   ngoài kia rất lâu sau khi máy chủ đổi định dạng vé; thiếu trường này thì cầu nối cũ hỏng ở
+   bước giải mã kèm câu vô nghĩa, thay vì nói thẳng *"bản cầu nối quá cũ, tải lại"*.
+   Thêm một trường vào định dạng đã chốt thì chính nó là thay đổi phá vỡ tương thích — đúng thứ
+   nó sinh ra để tránh
 
 ## Architecture
 
@@ -50,10 +56,17 @@ Sau phase này, **chiếm được máy chủ không mở được một mật k
 
 ```
 bấm nút ─► máy chủ: kiểm phiên + kiểm chủ nick + ghi AuditLog
-                └─► phát VÉ {loại, ciphertext hoặc cấu hình proxy, hết hạn} + chữ ký
+                └─► phát VÉ {loại, ciphertext hoặc cấu hình proxy, hết hạn,
+                             phiên bản định dạng, cầu nối tối thiểu} + chữ ký
                       └─► trình duyệt mang xuống cầu nối
                             └─► cầu nối xác minh chữ ký → giải mã → dùng
 ```
+
+> **Lời gọi từ trình duyệt xuống cầu nối phải theo ba ràng buộc đã đo ở [GĐ0](plan.md#kết-quả-gđ0-đo-04082026--ba-ràng-buộc-bắt-buộc-cho-gđ234).**
+> Ngắn gọn: lời gọi đầu trên mỗi máy nằm trong trình xử lý cú bấm; **mọi** lời gọi tự đặt hạn
+> giờ (bị chặn thì fetch treo im, không ném lỗi); và trạng thái *"chưa cấp quyền"* phải tách khỏi
+> *"mất kết nối"*. QĐ 10 chốt không đặt policy Chrome, nên **không có đường thoát khỏi ba ràng
+> buộc này** — chúng là bắt buộc, không phải khuyến nghị.
 
 ## Related Code Files
 
