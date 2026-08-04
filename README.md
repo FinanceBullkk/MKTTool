@@ -264,7 +264,7 @@ src/
     ├── facebook/            Graph API: OAuth, token, đăng Fanpage
     ├── format/ platforms/   định dạng ngày, gộp họ nền tảng
     ├── health/              bộ dò shadowban: phiên trình duyệt sạch, parser, đánh giá, runner
-    ├── proxies/             kiểm proxy còn sống: hỏi IP ra qua proxy, kết luận, chặn mở profile
+    ├── proxies/             kiểm proxy còn sống (hỏi IP ra, chặn mở profile) + đo băng thông
     ├── queue/               server action cho job + tương tác, nhắc việc đăng tay
     ├── rules/               bộ luật an toàn — mỗi luật một file
     └── totp/                sinh mã OTP 2FA
@@ -331,6 +331,29 @@ Proxy **chưa kiểm lần nào** hiện đúng chữ "chưa kiểm lần nào",
 > ⚠️ Phép đo trên là của **công cụ**, không phải của trình duyệt: nó chứng minh proxy còn sống,
 > không chứng minh MultiZen đang thật sự dùng nó. Lần đầu mở một profile mới vẫn nên vào
 > `ipinfo.io` trong chính profile đó đối chiếu.
+
+### Đo băng thông proxy
+
+Mỗi dòng ở `/proxies` có nút **"Đo tốc độ (1 MB)"**: tải một file thử 1 MB qua đúng proxy đó rồi
+tính megabit/giây. Kết quả ghi lại thành một cột riêng, `< 1 Mbps` là **rất chậm**, `< 5 Mbps` là
+**chậm**.
+
+**Vì sao không có nút "đo cả kho":** mỗi lượt đo tiêu **1 MB quota trả tiền** của proxy. Nhân cả
+đàn là vài chục MB mỗi lần bấm, nên phép đo này chỉ chạy khi bấm tay từng cái — cái giá ghi thẳng
+trên nhãn nút. Kiểm proxy còn sống thì ngược lại, chỉ tốn vài KB, bấm thoải mái.
+
+**Ba điều phải nhớ khi đọc số đo:**
+
+- Đây là tốc độ **tải xuống**. Đăng bài kèm ảnh/video thì thứ quyết định là tốc độ tải lên, mà
+  hai chiều có thể lệch nhau rất xa trên proxy dân cư.
+- Số đo là `min(mạng nhà, proxy, máy chủ thử)` — đo lúc mạng nhà đang tải thứ khác thì proxy tốt
+  vẫn ra số xấu. **So tương đối** giữa các proxy đo cùng lúc thì đáng tin, so với ngưỡng tuyệt đối
+  thì không.
+- 128 KB đầu bị loại khỏi phép tính (TCP khởi động chậm), và proxy quá chậm thì cắt sau 8 giây —
+  lúc đó câu kết quả nói rõ là chưa tải hết ngân sách.
+
+Đo được nhưng ra lỗi thì hiện **"không đo được"**, không hiện thành số 0: proxy chưa đo được và
+proxy chậm là hai chuyện khác nhau, dẫn tới hai hành động khác nhau.
 
 MultiZen không phơi endpoint CDP ra ngoài (Playwright không gắn vào được) — đó là **bình thường,
 không phải lỗi**. Nó lái trình duyệt bằng chính tool MCP của nó (`navigate`, `click`, `type`,

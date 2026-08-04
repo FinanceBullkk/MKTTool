@@ -7,6 +7,38 @@ Dự án chưa phát hành phiên bản (`0.1.0`, dùng nội bộ). Mốc chia 
 
 ---
 
+## 04/08/2026 — Đo băng thông proxy
+
+Câu hỏi mở đầu: *"có check được bandwidth của proxy không?"* — được, nhưng phép đo này khác hẳn
+phép kiểm proxy còn sống ở chỗ **nó tiêu tiền**.
+
+- **Nút "Đo tốc độ (1 MB)" từng proxy** ở `/proxies`: tải file thử qua đúng proxy đó, tính
+  megabit/giây, ghi lại thành cột riêng. `< 1 Mbps` rất chậm, `< 5 Mbps` chậm.
+- **Cố ý không có bản "đo cả kho".** Mỗi lượt tiêu 1 MB quota trả tiền của proxy; nhân cả đàn là
+  vài chục MB mỗi lần bấm. Cái giá ghi thẳng lên nhãn nút, không giấu trong chú thích.
+- **Loại 128 KB đầu ra khỏi phép tính** — TCP khởi động chậm, mấy vòng RTT đầu cửa sổ còn nhỏ nên
+  đo cả phần đó thì proxy xa (RTT 200 ms) nào cũng ra chậm.
+- **Chọn nguồn file thử theo một điều kiện cứng**: phục vụ qua HTTP thường, không chuyển hướng
+  sang HTTPS. Bộ đo đi socket trần nên `301 → https://` chỉ tải về 162 byte trang chuyển hướng
+  rồi báo "0,3 Mbps" — sai mà trông vẫn như số đo thật. Đo thật hôm nay: `proof.ovh.net` 301
+  (loại), `thinkbroadband.com` đóng kết nối (loại), còn `speed.cloudflare.com` (chọn được đúng số
+  byte cần lấy) và `speedtest.tele2.net`.
+- **"Không đo được" không bao giờ hiện thành số 0.** Sai mật khẩu / proxy không ra được internet
+  thì quy về proxy; máy chủ thử trả 403/429 thì nói rõ *chưa phải lỗi proxy* — cùng nguyên tắc
+  với bộ dò shadowban.
+- **Cách mở đường (thẳng / proxy HTTP / SOCKS5) tách ra `proxy-http-transport.ts`**, dùng chung
+  với phép hỏi IP ra. Hai bản chép tay là hai cơ hội để cùng một proxy cho hai kết luận khác nhau
+  tùy đường vào.
+
+**Kiểm chứng thật:** 3 proxy Webshare, đo được 7,2–9,5 Mbps, độ trễ byte đầu 246–504 ms. Hai
+đường hỏng (sai mật khẩu → `407`, địa chỉ không tồn tại → hết giờ nối) đều ra "không tải được",
+không ra số nào. Kho hiện chỉ có proxy HTTP nên đường SOCKS5 chưa chạy qua proxy thật.
+
+**Giới hạn đã biết:** đo tải xuống, không đo tải lên — mà đăng bài kèm ảnh/video thì tải lên mới
+là thứ quyết định.
+
+---
+
 ## 04/08/2026 — Bộ dò tự gán link, hết phải chép tay
 
 Câu hỏi mở đầu: *"tool đã đồng bộ giữa những gì đã đăng trên Reddit và kho chưa?"* — trước đợt

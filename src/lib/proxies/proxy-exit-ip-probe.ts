@@ -11,9 +11,22 @@
  *
  * Hỏng một nhà cung cấp thì đổi sang nhà kế tiếp (`proxy-ip-lookup-providers.ts`) — nhưng hỏng
  * ở tầng PROXY thì dừng ngay, vì đổi nhà cung cấp không cứu được một proxy đã chết.
+ *
+ * Cách mở đường (thẳng / proxy HTTP / SOCKS5) nằm ở `proxy-http-transport.ts`, dùng chung với
+ * bộ đo băng thông.
  */
 import net from "node:net";
-import { Socks5Error, openSocks5Tunnel } from "./proxy-socks5-tunnel";
+import {
+  type HttpTransport,
+  ProxyProbeError,
+  buildRequestHead,
+  directTransport,
+  parseHttpStatus,
+  type ProxyEndpoint,
+  proxyFaultForStatus,
+  proxyTransport,
+  toProbeFailure,
+} from "./proxy-http-transport";
 import { IP_LOOKUP_PROVIDERS, type IpLookupProvider } from "./proxy-ip-lookup-providers";
 
 const LOOKUP_PORT = 80;
@@ -31,65 +44,7 @@ export type ProbeOutcome =
   | { kind: "unreachable"; detail: string }
   | { kind: "probe-failed"; detail: string };
 
-export interface ProbeProxyInput {
-  host: string;
-  port: number;
-  username: string;
-  password: string;
-  /** http | socks5 */
-  protocol: string;
-}
-
-class ProbeError extends Error {
-  constructor(
-    message: string,
-    readonly reason: "unreachable" | "probe-failed",
-  ) {
-    super(message);
-    this.name = "ProbeError";
-  }
-}
-
-function basicAuth(username: string, password: string): string {
-  return `Basic ${Buffer.from(`${username}:${password}`).toString("base64")}`;
-}
-
-/** Mở TCP tới một địa chỉ bất kỳ, kèm timeout và câu lỗi tiếng Việt. */
-function connectTcp(host: string, port: number, timeoutMs: number): Promise<net.Socket> {
-  return new Promise((resolve, reject) => {
-    const socket = net.connect({ host, port });
-    socket.setTimeout(timeoutMs);
-
-    const cleanup = () => {
-      socket.off("connect", onConnect);
-      socket.off("error", onError);
-      socket.off("timeout", onTimeout);
-    };
-    const onConnect = () => {
-      cleanup();
-      resolve(socket);
-    };
-    const onError = (error: Error) => {
-      cleanup();
-      socket.destroy();
-      reject(new ProbeError(`không nối được tới ${host}:${port} (${error.message})`, "unreachable"));
-    };
-    const onTimeout = () => {
-      cleanup();
-      socket.destroy();
-      reject(
-        new ProbeError(
-          `quá ${timeoutMs / 1000} giây không nối được tới ${host}:${port}`,
-          "unreachable",
-        ),
-      );
-    };
-
-    socket.once("connect", onConnect);
-    socket.once("error", onError);
-    socket.once("timeout", onTimeout);
-  });
-}
+export type ProbeProxyInput = ProxyEndpoint;
 
 /** Gom toàn bộ phản hồi tới lúc đóng kết nối — hợp lệ vì đã xin HTTP/1.0. */
 function readUntilClose(socket: net.Socket, timeoutMs: number): Promise<string> {
@@ -100,67 +55,53 @@ function readUntilClose(socket: net.Socket, timeoutMs: number): Promise<string> 
     socket.once("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
     socket.once("timeout", () => {
       socket.destroy();
-      reject(new ProbeError(`quá ${timeoutMs / 1000} giây không nhận đủ phản hồi`, "unreachable"));
+      reject(
+        new ProxyProbeError(`quá ${timeoutMs / 1000} giây không nhận đủ phản hồi`, "unreachable"),
+      );
     });
     socket.once("error", (error: Error) => {
-      reject(new ProbeError(`đứt kết nối khi đang đọc phản hồi (${error.message})`, "unreachable"));
+      reject(
+        new ProxyProbeError(`đứt kết nối khi đang đọc phản hồi (${error.message})`, "unreachable"),
+      );
     });
   });
 }
 
-/** Mã trạng thái do CHÍNH PROXY sinh ra — nghĩa là proxy hỏng, không phải dịch vụ tra cứu hỏng. */
-const PROXY_FAULT_STATUS: Record<number, string> = {
-  407: "proxy từ chối xác thực (sai user/mật khẩu?)",
-  502: "proxy không ra được internet",
-  503: "proxy đang quá tải hoặc ngừng phục vụ",
-};
-
 function splitHttpResponse(raw: string, provider: IpLookupProvider): string {
   const separator = raw.indexOf("\r\n\r\n");
-  if (separator === -1) throw new ProbeError("phản hồi không đúng định dạng HTTP", "probe-failed");
+  if (separator === -1)
+    throw new ProxyProbeError("phản hồi không đúng định dạng HTTP", "probe-failed");
 
-  const status = Number(raw.slice(0, separator).split(/\r?\n/)[0]?.split(" ")[1]);
+  const status = parseHttpStatus(raw.slice(0, separator));
   if (status !== 200) {
-    const proxyFault = PROXY_FAULT_STATUS[status];
-    if (proxyFault) throw new ProbeError(proxyFault, "unreachable");
+    const proxyFault = proxyFaultForStatus(status);
+    if (proxyFault) throw new ProxyProbeError(proxyFault, "unreachable");
     // 403/429 hay gặp: dịch vụ tra cứu chặn dải IP datacenter. Lỗi của NHÀ CUNG CẤP,
     // không phải của proxy — nên chỉ đổi nhà, tuyệt đối không kết luận proxy đã chết.
-    throw new ProbeError(`${provider.host} trả về HTTP ${status || "?"}`, "probe-failed");
+    throw new ProxyProbeError(`${provider.host} trả về HTTP ${status || "?"}`, "probe-failed");
   }
   return raw.slice(separator + 4);
 }
 
-/** Cách mở đường tới một dịch vụ tra cứu, khác nhau giữa đi thẳng / qua proxy HTTP / qua SOCKS5. */
-interface Transport {
-  open(provider: IpLookupProvider): Promise<net.Socket>;
-  requestTarget(provider: IpLookupProvider): string;
-  headers: string[];
-}
-
 async function askProvider(
-  transport: Transport,
+  transport: HttpTransport,
   provider: IpLookupProvider,
   timeoutMs: number,
 ): Promise<{ ip: string; country: string | null }> {
   let socket: net.Socket | null = null;
   try {
-    socket = await transport.open(provider);
-    const lines = [
-      `GET ${transport.requestTarget(provider)} HTTP/1.0`,
-      `Host: ${provider.host}`,
-      "Accept: application/json, text/plain, */*",
-      ...transport.headers,
-      "Connection: close",
-      "",
-      "",
-    ];
-    socket.write(lines.join("\r\n"));
+    socket = await transport.open(provider.host, LOOKUP_PORT);
+    socket.write(
+      buildRequestHead(transport, provider.host, provider.path, [
+        "Accept: application/json, text/plain, */*",
+      ]),
+    );
 
     const body = splitHttpResponse(await readUntilClose(socket, timeoutMs), provider);
     try {
       return provider.parse(body);
     } catch (error) {
-      throw new ProbeError(
+      throw new ProxyProbeError(
         error instanceof Error ? error.message : `${provider.host} trả về thứ không đọc được`,
         "probe-failed",
       );
@@ -170,29 +111,18 @@ async function askProvider(
   }
 }
 
-function toOutcome(error: unknown): { kind: "unreachable" | "probe-failed"; detail: string } {
-  if (error instanceof ProbeError) return { kind: error.reason, detail: error.message };
-  if (error instanceof Socks5Error) {
-    return {
-      kind: error.reason === "unreachable" ? "unreachable" : "probe-failed",
-      detail: error.message,
-    };
-  }
-  return {
-    kind: "probe-failed",
-    detail: error instanceof Error ? error.message : "lỗi không xác định",
-  };
-}
-
 /** Thử lần lượt từng dịch vụ tra cứu. Proxy hỏng thì dừng ngay — đổi nhà không cứu được. */
-async function probeWithTransport(transport: Transport, timeoutMs: number): Promise<ProbeOutcome> {
+async function probeWithTransport(
+  transport: HttpTransport,
+  timeoutMs: number,
+): Promise<ProbeOutcome> {
   const failures: string[] = [];
 
   for (const provider of IP_LOOKUP_PROVIDERS) {
     try {
       return { kind: "ok", ...(await askProvider(transport, provider, timeoutMs)) };
     } catch (error) {
-      const outcome = toOutcome(error);
+      const outcome = toProbeFailure(error);
       if (outcome.kind === "unreachable") return outcome;
       failures.push(outcome.detail);
     }
@@ -206,36 +136,7 @@ export function probeExitIpThroughProxy(
   proxy: ProbeProxyInput,
   timeoutMs: number = PROBE_TIMEOUT_MS,
 ): Promise<ProbeOutcome> {
-  if (proxy.protocol === "socks5") {
-    return probeWithTransport(
-      {
-        open: (provider) =>
-          openSocks5Tunnel({
-            proxyHost: proxy.host,
-            proxyPort: proxy.port,
-            username: proxy.username,
-            password: proxy.password,
-            destHost: provider.host,
-            destPort: LOOKUP_PORT,
-            timeoutMs,
-          }),
-        // Qua SOCKS5 thì socket đã nối thẳng tới đích — dùng đường dẫn thường như đi trực tiếp.
-        requestTarget: (provider) => provider.path,
-        headers: [],
-      },
-      timeoutMs,
-    );
-  }
-
-  return probeWithTransport(
-    {
-      open: () => connectTcp(proxy.host, proxy.port, timeoutMs),
-      // Proxy HTTP đòi URL tuyệt đối để biết chuyển tiếp đi đâu.
-      requestTarget: (provider) => `http://${provider.host}${provider.path}`,
-      headers: [`Proxy-Authorization: ${basicAuth(proxy.username, proxy.password)}`],
-    },
-    timeoutMs,
-  );
+  return probeWithTransport(proxyTransport(proxy, timeoutMs), timeoutMs);
 }
 
 /**
@@ -246,14 +147,7 @@ export function probeExitIpThroughProxy(
 export async function probeDirectExitIp(
   timeoutMs: number = PROBE_TIMEOUT_MS,
 ): Promise<ProbeOutcome> {
-  const outcome = await probeWithTransport(
-    {
-      open: (provider) => connectTcp(provider.host, LOOKUP_PORT, timeoutMs),
-      requestTarget: (provider) => provider.path,
-      headers: [],
-    },
-    timeoutMs,
-  );
+  const outcome = await probeWithTransport(directTransport(timeoutMs), timeoutMs);
 
   return outcome.kind === "unreachable" ? { kind: "probe-failed", detail: outcome.detail } : outcome;
 }

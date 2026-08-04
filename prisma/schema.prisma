@@ -61,6 +61,20 @@ model Proxy {
   /// và phải đọc được bằng mắt thì mới đối chiếu với nhà cung cấp proxy được.
   lastExitIp       String?
 
+  /// Kết quả lần ĐO BĂNG THÔNG gần nhất — xem src/lib/proxies/proxy-bandwidth-probe.ts.
+  ///
+  /// Cố ý KHÔNG nằm trong nút "kiểm tất cả proxy": mỗi lượt đo tải 1 MB qua proxy, tức tiêu
+  /// 1 MB quota trả tiền. Kiểm proxy còn sống chỉ tốn vài KB nên bấm thoải mái; đo băng thông
+  /// phải là một hành động có chủ đích, từng proxy một.
+  lastSpeedAt      DateTime?
+  /// Megabit/giây, tốc độ TẢI XUỐNG. Float vì proxy chậm cho ra số lẻ dưới 1.
+  /// `lastSpeedAt` khác null mà cột này null = đã thử đo nhưng KHÔNG đo được, lý do ở
+  /// `lastSpeedDetail`. Không đo được thì không được hiện như chậm.
+  /// Xếp hạng nhanh/chậm suy ra từ số này (`gradeBandwidth`), không lưu thành cột riêng để
+  /// không bao giờ có chuyện hạng và số đo nói hai điều khác nhau.
+  lastSpeedMbps    Float?
+  lastSpeedDetail  String?
+
   @@unique([host, port, username])
 }
 
