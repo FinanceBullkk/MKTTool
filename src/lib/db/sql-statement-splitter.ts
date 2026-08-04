@@ -1,15 +1,17 @@
 /**
  * Tách một file SQL thành từng câu lệnh rời.
  *
- * Cần vì driver SQLite chỉ nhận một câu lệnh mỗi lần gọi, trong khi file migration của Prisma
- * chứa cả chục câu. Dùng để áp migration vào database tạm của test (vitest.global-setup.ts).
+ * Cần vì `$executeRawUnsafe` chỉ nhận một câu lệnh mỗi lần gọi, trong khi file migration của
+ * Prisma chứa cả chục câu. Dùng để áp migration vào database test (vitest.global-setup.ts).
  *
  * Cắt thô theo dấu `;` thì hỏng ngay khi có một dấu chấm phẩy nằm trong chuỗi — ví dụ một cột
  * `DEFAULT 'a;b'`. Hàm này theo dõi trạng thái nháy đơn (chuỗi) và nháy kép (tên cột/bảng)
  * nên chỉ cắt ở dấu `;` thật sự kết thúc câu lệnh.
  *
- * Chưa xử lý chú thích khối kiểu C — Prisma không sinh ra loại đó. Nếu sau này có, câu lệnh
- * hỏng sẽ ném lỗi ngay lúc dựng database chứ không âm thầm bỏ qua.
+ * Chưa xử lý hai thứ, cả hai đều vì Prisma không sinh ra chúng cho schema này: chú thích khối
+ * kiểu C, và chuỗi trích dẫn bằng dấu đô la của Postgres (`$$ ... $$`, xuất hiện khi migration
+ * có hàm hoặc khối `DO`). Nếu sau này có, câu lệnh bị cắt sai sẽ ném lỗi ngay lúc dựng database
+ * chứ không âm thầm bỏ qua — đó là lý do chấp nhận được việc chưa xử lý.
  */
 export function splitSqlStatements(sql: string): string[] {
   const statements: string[] = [];

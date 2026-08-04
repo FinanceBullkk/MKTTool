@@ -1,5 +1,5 @@
 /**
- * Tự gán link, chạy trên SQLite thật (xem vitest.global-setup.ts).
+ * Tự gán link, chạy trên Postgres thật (xem vitest.global-setup.ts).
  *
  * Đây là đường DUY NHẤT trong công cụ mà máy tự ghi vào dữ liệu bộ luật dựa vào để đếm, nên
  * test ở đây canh hai thứ:

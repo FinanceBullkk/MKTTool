@@ -85,7 +85,7 @@ export function getInteractionKindLabel(kind: string): string {
   return INTERACTION_KIND_LABELS[kind as InteractionKind] ?? kind;
 }
 
-/** Links lưu dạng JSON array trong SQLite. Dữ liệu hỏng thì coi như không có link. */
+/** Links lưu dạng JSON array trong một cột chữ. Dữ liệu hỏng thì coi như không có link. */
 export function parseLinks(raw: string | null): string[] {
   if (!raw) return [];
   try {

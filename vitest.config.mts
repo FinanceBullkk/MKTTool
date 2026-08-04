@@ -1,19 +1,44 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { parseEnv } from "node:util";
 import { defineConfig } from "vitest/config";
 
 /**
- * Database tạm cho test chạm database.
+ * Lấy ĐÚNG MỘT biến ra khỏi .env, không đổ cả file vào `process.env`.
  *
- * Cố ý viết lại đường dẫn ở đây thay vì nhập hằng từ vitest.global-setup.ts: nhập file .ts
- * vào config làm Vite nạp nó bằng bộ nạp CommonJS và cảnh báo mỗi lượt chạy.
- * Lệch đường dẫn giữa hai file thì test đỏ ngay ở câu truy vấn đầu tiên (bảng không tồn tại),
- * không có kiểu xanh giả.
+ * `process.loadEnvFile()` ngắn hơn nhiều nhưng đã thử và hỏng thật: nó bơm mọi biến của máy
+ * dev vào test, và `FACEBOOK_LOGIN_CONFIG_ID` lập tức đẩy `buildAuthorizeUrl` sang nhánh
+ * "Login for Business" — một test đang xanh hóa đỏ chỉ vì máy chạy nó có cấu hình Facebook.
+ * Chiều ngược lại còn tệ hơn: một test có thể xanh giả nhờ biến chỉ tồn tại trên một máy.
  *
- * → Đổi ở đây thì đổi cả TEST_DB_FILE trong vitest.global-setup.ts.
+ * Bộ test phải ra cùng đáp án ở mọi máy. Đó là mục đích của cả phase này, và cách nạp .env
+ * cũng phải theo nguyên tắc đó.
  */
-const TEST_DATABASE_URL = `file:${fileURLToPath(
-  new URL("./.test-tmp/rules-test.db", import.meta.url),
-).replace(/\\/g, "/")}`;
+function readTestDatabaseUrl(): string {
+  // Biến đặt sẵn ngoài môi trường (CI) thắng .env — CI không có file .env.
+  if (process.env.TEST_DATABASE_URL) return process.env.TEST_DATABASE_URL;
+
+  try {
+    const parsed = parseEnv(readFileSync(path.join(process.cwd(), ".env"), "utf8"));
+    return typeof parsed.TEST_DATABASE_URL === "string" ? parsed.TEST_DATABASE_URL : "";
+  } catch {
+    // Chưa có .env — global setup báo lỗi kèm hướng dẫn cụ thể hơn bất cứ câu nào viết ở đây.
+    return "";
+  }
+}
+
+/**
+ * Database cho test chạm database: một Postgres THẬT, tách hẳn database vận hành.
+ *
+ * Cố ý KHÔNG có giá trị mặc định. Một mặc định kiểu `postgresql://postgres@localhost/mkttool_test`
+ * thì trên máy người khác nó âm thầm trỏ vào một chỗ họ không ngờ tới — mà global setup XÓA SẠCH
+ * schema trước mỗi lượt chạy. Thiếu biến thì dừng kèm hướng dẫn, xem `vitest.global-setup.ts`.
+ */
+const TEST_DATABASE_URL = readTestDatabaseUrl();
+
+// `vitest.global-setup.ts` chạy trong tiến trình này và đọc biến qua process.env.
+process.env.TEST_DATABASE_URL = TEST_DATABASE_URL;
 
 export default defineConfig({
   // Cùng alias "@/" với tsconfig.json để test import y hệt cách code chạy thật.
@@ -26,7 +51,7 @@ export default defineConfig({
     /**
      * Chạy lần lượt từng file, KHÔNG song song.
      *
-     * Các file `*.database.test.ts` dùng chung đúng một file SQLite tạm và mỗi file đều
+     * Các file `*.database.test.ts` dùng chung đúng một database Postgres và mỗi file đều
      * `deleteMany()` để bắt đầu từ bảng sạch. Chạy song song thì file này xóa mất dữ liệu
      * seed của file kia — test đỏ ngẫu nhiên, mỗi lượt một chỗ khác nhau, và cái đắt nhất
      * là nó dạy người đọc quen với việc "chạy lại là xanh".
@@ -34,7 +59,7 @@ export default defineConfig({
      * Cả bộ chỉ mất thêm vài giây, đổi lại loại hẳn một lớp test chập chờn.
      */
     fileParallelism: false,
-    // Dựng database tạm một lần cho cả lượt chạy, xóa khi xong.
+    // Dựng schema test một lần cho cả lượt chạy, dọn sạch khi xong.
     globalSetup: ["./vitest.global-setup.ts"],
     env: {
       // prisma-client.ts đọc DATABASE_URL ngay lúc import, không phải lúc gọi truy vấn —

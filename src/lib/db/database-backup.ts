@@ -1,19 +1,30 @@
 /**
- * Sao lưu database SQLite thành một file duy nhất, nhất quán.
+ * Sao lưu database Postgres thành một file SQL duy nhất bằng `pg_dump`.
  *
- * Dùng `VACUUM INTO` chứ không copy file: SQLite chạy chế độ WAL nên phần dữ liệu mới nhất
- * có thể còn nằm ở file `-wal` bên cạnh. Copy mỗi file `.db` là ra một bản sao thiếu, và
- * cái thiếu đó chỉ lộ ra vào lúc cần khôi phục.
+ * `pg_dump` chụp ảnh trong một transaction nên bản sao luôn nhất quán, và chạy được khi app
+ * đang mở — không phải tắt server mới sao lưu được (trước đây `VACUUM INTO` của SQLite cũng
+ * cho tính chất này, giữ nguyên yêu cầu đó khi đổi nền dữ liệu).
  *
- * `VACUUM INTO` cũng chạy được khi app đang mở — không phải tắt server mới sao lưu được.
+ * Cố ý xuất SQL dạng chữ (`--format=plain`) chứ không phải dạng nén `-Fc`, dù dạng nén nhỏ hơn
+ * và khôi phục linh hoạt hơn. Hai lý do, cả hai đều thắng dung lượng:
+ *
+ * 1. Bản sao phải **đọc được bằng mắt** để kiểm "không có credential dạng trần" — xem
+ *    `scripts/smoke-test-identity-vault.ts`. Quét chuỗi trên file nén thì luôn không thấy gì,
+ *    tức là một phép kiểm luôn xanh — kiểu hỏng tệ nhất của một phép kiểm an toàn.
+ * 2. Khôi phục bằng `psql -f file.sql` là một lệnh, không cần biết `pg_restore` tồn tại.
+ *    Dữ liệu ở đây rất nhỏ (chục nick, chục proxy) nên dung lượng không phải vấn đề.
  */
-import { mkdirSync } from "node:fs";
+import { spawn } from "node:child_process";
+import { existsSync, mkdirSync } from "node:fs";
 import path from "node:path";
 import { formatTimestampForFileName } from "../format/vietnamese-date-format";
-import { prisma } from "./prisma-client";
+import { postgresToolEnv } from "./postgres-connection-env";
 
 /** Thư mục chứa bản sao lưu. Đã nằm trong .gitignore — bản sao chứa credential đã mã hóa. */
 export const BACKUP_DIR = path.join("data", "backups");
+
+/** Đuôi file của bản sao lưu. Dùng chung để chỗ đếm bản sao không đếm nhầm file khác. */
+export const BACKUP_FILE_EXTENSION = ".sql";
 
 export interface BackupResult {
   /** Đường dẫn tuyệt đối tới file vừa tạo. */
@@ -21,20 +32,84 @@ export interface BackupResult {
 }
 
 /**
- * Tạo một bản sao lưu mới. Trả về đường dẫn file.
+ * Tạo một bản sao lưu mới trong `data/backups/`. Trả về đường dẫn file.
  *
- * Tên file có mốc thời gian nên không bao giờ ghi đè bản cũ — `VACUUM INTO` cũng từ chối
- * ghi vào file đã tồn tại, và đó là hành vi đúng: sao lưu không được phép âm thầm mất bản trước.
+ * Tên file có mốc thời gian nên không bao giờ ghi đè bản cũ.
  */
 export async function backupDatabase(now: Date = new Date()): Promise<BackupResult> {
   mkdirSync(BACKUP_DIR, { recursive: true });
 
-  const filePath = path.resolve(BACKUP_DIR, `mkttool-${formatTimestampForFileName(now)}.db`);
-
-  // SQLite không xử lý ký tự thoát kiểu backslash trong chuỗi, nhưng dấu nháy đơn thì phải
-  // nhân đôi. Dùng dấu gạch chéo xuôi cho cả Windows lẫn Linux.
-  const sqlPath = filePath.replace(/\\/g, "/").replace(/'/g, "''");
-  await prisma.$executeRawUnsafe(`VACUUM INTO '${sqlPath}'`);
+  const filePath = path.resolve(
+    BACKUP_DIR,
+    `mkttool-${formatTimestampForFileName(now)}${BACKUP_FILE_EXTENSION}`,
+  );
+  await dumpDatabaseTo(filePath);
 
   return { filePath };
+}
+
+/**
+ * Đổ toàn bộ database ra một file SQL cho trước.
+ *
+ * Tách riêng khỏi `backupDatabase` để smoke test dùng lại được với file tạm của nó — phép
+ * kiểm "kho không chứa credential dạng trần" phải soi đúng thứ mà bản sao lưu thật chứa,
+ * chứ không phải một đường xuất khác dựng riêng cho test.
+ *
+ * **Từ chối ghi đè file đã tồn tại.** Sao lưu không được phép âm thầm mất bản trước —
+ * `VACUUM INTO` của SQLite trước đây cũng từ chối, giữ nguyên hành vi đó.
+ */
+export async function dumpDatabaseTo(filePath: string): Promise<void> {
+  if (existsSync(filePath)) {
+    throw new Error(
+      `Đã có file ${filePath}. Sao lưu không ghi đè bản cũ — đổi tên hoặc chờ sang giây kế tiếp.`,
+    );
+  }
+
+  const databaseUrl = process.env.DATABASE_URL;
+  if (!databaseUrl) {
+    throw new Error("Thiếu DATABASE_URL. Sao chép .env.example thành .env rồi điền giá trị.");
+  }
+
+  await runPgDump(filePath, postgresToolEnv(databaseUrl));
+}
+
+/**
+ * `--no-owner --no-privileges`: bản sao khôi phục được vào máy khác với tên chủ sở hữu khác.
+ * Bản sao chỉ hữu ích khi máy cũ đã hỏng, mà lúc đó tên role trên máy mới gần như chắc chắn
+ * khác — giữ chủ sở hữu vào file là tự đặt một cái bẫy ngay lúc cần nó nhất.
+ */
+function runPgDump(filePath: string, toolEnv: Record<string, string>): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const child = spawn(
+      "pg_dump",
+      ["--file", filePath, "--format=plain", "--no-owner", "--no-privileges"],
+      { env: { ...process.env, ...toolEnv }, shell: false },
+    );
+
+    // Gom stderr để lỗi của Postgres đi thẳng vào thông báo, thay vì rơi vào hư không và
+    // để lại đúng một dòng "exit code 1".
+    let stderr = "";
+    child.stderr.on("data", (chunk: Buffer) => {
+      stderr += chunk.toString();
+    });
+
+    child.on("error", (cause: NodeJS.ErrnoException) => {
+      reject(
+        cause.code === "ENOENT"
+          ? new Error(
+              "Không tìm thấy lệnh pg_dump. Thêm thư mục bin của Postgres vào PATH " +
+                '(mặc định trên Windows: "C:\\Program Files\\PostgreSQL\\17\\bin") rồi mở lại terminal.',
+            )
+          : cause,
+      );
+    });
+
+    child.on("close", (code) => {
+      if (code === 0) {
+        resolve();
+        return;
+      }
+      reject(new Error(`pg_dump dừng với mã ${code}.${stderr ? `\n${stderr.trim()}` : ""}`));
+    });
+  });
 }

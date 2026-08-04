@@ -73,11 +73,11 @@ async function main() {
 
   // Đã áp migration nào trước đây thì sao lưu TRƯỚC khi áp tiếp.
   //
-  // Cố ý hỏi "đã từng áp gì chưa" chứ KHÔNG hỏi "file .db có tồn tại không": chỉ cần mở kết
-  // nối để đọc sổ là SQLite đã tạo sẵn file rỗng, nên tới lúc kiểm tra thì file luôn tồn tại
-  // và lần cài đầu cũng bị sao lưu một database trống trơn. Sổ rỗng mới đúng là "chưa có gì
-  // để mất" — và một bản sao lưu rỗng còn tệ hơn không có, vì nó làm người ta tưởng mình
-  // đang có bản dự phòng.
+  // Cố ý hỏi "đã từng áp gì chưa" chứ KHÔNG hỏi "database có tồn tại không": database luôn
+  // tồn tại (người dùng phải tạo nó trước khi chạy được lệnh này), nên hỏi kiểu đó thì lần
+  // cài đầu cũng bị sao lưu một database trống trơn. Sổ rỗng mới đúng là "chưa có gì để mất"
+  // — và một bản sao lưu rỗng còn tệ hơn không có, vì nó làm người ta tưởng mình đang có
+  // bản dự phòng.
   let backupPath: string | null = null;
   if (applied.size === 0) {
     console.log("Lần cài đầu — chưa có dữ liệu nào để sao lưu.");
@@ -91,8 +91,9 @@ async function main() {
   }
   console.log("");
 
-  // Ngắt kết nối trước khi giao cho Prisma CLI: hai tiến trình cùng giữ một file SQLite
-  // là nguồn của lỗi "database is locked" mà đọc thông báo không đoán ra nguyên nhân.
+  // Ngắt kết nối trước khi giao cho Prisma CLI. Postgres không khóa nhau như SQLite trước
+  // đây, nhưng `migrate deploy` có thể phải chờ khóa DDL, và một pool còn mở là một chỗ để
+  // nó chờ vô ích.
   await prisma.$disconnect();
 
   try {
@@ -102,7 +103,8 @@ async function main() {
     console.error("❌ Áp migration thất bại. Dữ liệu cũ VẪN CÒN NGUYÊN ở bản sao lưu.");
     if (backupPath) {
       console.error(`   Bản sao: ${path.relative(process.cwd(), backupPath)}`);
-      console.error("   Khôi phục: tắt app, chép đè file đó lên dev.db.");
+      console.error("   Khôi phục: tắt app, tạo database rỗng mới rồi nạp bản sao vào đó bằng");
+      console.error(`   psql -d <database_mới> -f ${path.relative(process.cwd(), backupPath)}`);
     }
     console.error("");
     throw error;

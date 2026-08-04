@@ -1,5 +1,5 @@
 /**
- * Trả job đã chốt về chờ đăng, chạy trên SQLite thật (xem vitest.global-setup.ts).
+ * Trả job đã chốt về chờ đăng, chạy trên Postgres thật (xem vitest.global-setup.ts).
  *
  * Điểm phải giữ bằng test chứ không bằng trí nhớ: gỡ trạng thái mà KHÔNG gỡ dấu vết là kiểu
  * hỏng im lặng. Job trông đã sạch ở hàng đợi, nhưng luật 8 vẫn nhớ một lần chạm thread chưa

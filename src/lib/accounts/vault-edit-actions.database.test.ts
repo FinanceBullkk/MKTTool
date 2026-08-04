@@ -1,5 +1,5 @@
 /**
- * Sửa và xóa trong kho danh tính, chạy trên SQLite thật (xem vitest.global-setup.ts).
+ * Sửa và xóa trong kho danh tính, chạy trên Postgres thật (xem vitest.global-setup.ts).
  *
  * Ba nhóm khẳng định, đều là chỗ hỏng thì hỏng âm thầm:
  *  1. Ô bí mật để trống phải GIỮ NGUYÊN giá trị cũ. Hỏng ở đây là mỗi lần sửa karma là một
