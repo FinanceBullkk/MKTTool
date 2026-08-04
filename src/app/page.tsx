@@ -13,6 +13,7 @@ import {
 import { prisma } from "@/lib/db/prisma-client";
 import { loadFacebookTokenWarnings } from "@/lib/facebook/facebook-token-warnings";
 import { loadDuplicatePostedUrls } from "@/lib/queue/duplicate-posted-url-check";
+import { loadSuspectPostedUrls } from "@/lib/queue/posted-url-title-check";
 import { loadDueManualPostReminders } from "@/lib/queue/manual-post-reminders";
 import { loadPostingLoopSummary } from "@/lib/queue/posting-loop-summary";
 import { loadAccountHealthRows } from "@/lib/health/health-dashboard-queries";
@@ -37,6 +38,7 @@ export default async function OverviewPage() {
     tokenWarnings,
     activeObserverProxyCount,
     duplicatePostedUrls,
+    suspectPostedUrls,
   ] = await Promise.all([
       prisma.account.findMany({
         select: { id: true, username: true, status: true, coldStartUntil: true },
@@ -59,6 +61,7 @@ export default async function OverviewPage() {
       loadFacebookTokenWarnings(),
       prisma.observerProxy.count({ where: { active: true } }),
       loadDuplicatePostedUrls(),
+      loadSuspectPostedUrls(),
     ]);
 
   // "Chưa dò" và "dò lâu rồi" đều là KHÔNG BIẾT — nhưng là hai kiểu không biết khác nhau, cần
@@ -148,6 +151,35 @@ export default async function OverviewPage() {
               trả job đó về Chờ đăng
             </Link>{" "}
             — để nguyên là luật 7 coi content đó đã dùng rồi và sẽ chặn khi bạn đăng nó thật.
+          </p>
+        </AlertBanner>
+      ) : null}
+
+      {/* Bổ cho cảnh báo trên: nó cần HAI job trùng link mới lên tiếng, còn cái này bắt được
+          cả khi link dán nhầm trỏ về một bài không có job nào — không có cặp nào để so. */}
+      {suspectPostedUrls.length > 0 ? (
+        <AlertBanner tone="amber">
+          <p className="font-medium">
+            {suspectPostedUrls.length} link đã gán trỏ về bài có tiêu đề khác hẳn content:
+          </p>
+          <ul className="mt-2 space-y-1">
+            {suspectPostedUrls.map((suspect) => (
+              <li key={suspect.jobId}>
+                <a href={suspect.postedUrl} target="_blank" rel="noreferrer" className="underline">
+                  {suspect.postedUrl}
+                </a>{" "}
+                <span className="text-neutral-600 dark:text-neutral-400">
+                  — job của {suspect.accountUsername}, content “{suspect.contentTitle}”
+                </span>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-2">
+            Sửa tiêu đề lúc đăng cũng ra thế này, nên mở link kiểm trước. Đúng là dán nhầm thì{" "}
+            <Link href="/queue?status=POSTED" className="underline">
+              trả job về Chờ đăng
+            </Link>
+            .
           </p>
         </AlertBanner>
       ) : null}
