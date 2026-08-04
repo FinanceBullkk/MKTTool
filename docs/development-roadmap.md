@@ -11,7 +11,7 @@ Dự án đang chạy **hai luồng song song**:
 | Luồng | Là gì | Trạng thái |
 |---|---|---|
 | **A — Công cụ** | 5 giai đoạn gốc: kho danh tính → hàng đợi → sức khỏe → Facebook → tự đăng Reddit | GĐ1-4 xong, GĐ0 kẹt ở tiền + cold-start, GĐ5 chưa bắt đầu |
-| **B — Web chung** | Biến app một máy thành web chung cho 5-6 người ở 5-6 nơi | GĐ0-2 xong 05/08, còn 4 giai đoạn |
+| **B — Web chung** | Biến app một máy thành web chung cho 5-6 người ở 5-6 nơi | GĐ0-2 xong 05/08, GĐ3 đang làm (4/11 việc), còn 3 giai đoạn |
 
 Luồng B sinh ra sau khi chốt bàn giao cho team — xem
 [plan web chung](../plans/260804-1752-web-chung-cho-team-phan-tan/plan.md). Nó **không thay thế**
@@ -43,7 +43,7 @@ Chi tiết ở [plan.md](../plans/260804-1752-web-chung-cho-team-phan-tan/plan.m
 | 0 | Spike: trình duyệt gọi xuống cầu nối | ✅ Xong | 04/08 | – (chốt 3 ràng buộc bắt buộc cho GĐ2/3/4) |
 | 1 | [Postgres + múi giờ team](../plans/260804-1752-web-chung-cho-team-phan-tan/phase-01-postgres-va-mui-gio-team.md) | ✅ Xong hẳn | 05/08 | – (chốt bắt đầu từ kho rỗng, không nhập lại dữ liệu thử) |
 | 2 | [Đăng nhập, vai trò, chủ sở hữu nick](../plans/260804-1752-web-chung-cho-team-phan-tan/phase-02-dang-nhap-vai-tro-chu-so-huu.md) | ✅ Xong | 05/08 | – (hoãn có chủ ý: bộ lọc "nick của tôi", chỉ là tiện nghi hiển thị) |
-| 3 | Tách hai vùng khóa + vé ký | 🟡 Tiếp theo | – | Bắt đầu sau khi GĐ2 merge về master |
+| 3 | [Tách hai vùng khóa + vé ký](../plans/260804-1752-web-chung-cho-team-phan-tan/phase-03-tach-hai-vung-khoa-va-ve-ky.md) | 🟡 Đang làm — 4/11 việc | Bắt đầu 05/08 | Cặp khóa ký của máy chủ, sổ đăng ký cầu nối, bộ phát vé, chuyển reveal/OTP sang vé |
 | 4 | Cầu nối trên máy operator | ⬜ Chưa bắt đầu | – | **Đường găng.** Chờ GĐ3 |
 | 5 | Lên Railway + cron + sao lưu | ⬜ Chưa bắt đầu | – | Làm song song được từ sau GĐ1 |
 | 6 | Bàn giao team | ⬜ Chưa bắt đầu | – | Chờ GĐ4 |
@@ -64,6 +64,17 @@ phép kiểm tĩnh nào thấy: **trang** không đi qua wrapper gác nào cả,
 > Còn một lỗ **đã biết và cố ý chưa đóng**: một phiên đăng nhập bị trộm vẫn đọc được mật khẩu
 > nick, vì khóa vẫn nằm cùng một chỗ với máy chủ. Đó là việc của GĐ3, và là lý do **chưa bàn
 > giao cho ai** trước khi GĐ3 xong.
+
+**GĐ3 đang chạy — 4/11 việc** (05/08/2026). Kho đã chia hai vùng khóa thật: `VAULT_KEY_SERVER`
+(mật khẩu proxy, token Facebook) và `VAULT_KEY_OPERATOR` (mật khẩu, email, TOTP của nick). Vùng
+của từng cột khai ngay trong `schema.prisma` bằng dấu `vault:server` / `vault:operator`, và test
+đọc thẳng schema nên khai thiếu hoặc khai lệch là đỏ. `vault:rekey` nay xoay theo từng vùng;
+`vault:smoke` đã xanh trên DB thật, gồm phép thử **khóa vùng server KHÔNG mở được mật khẩu nick**.
+
+> Lỗ ở trên **vẫn chưa đóng**: máy chủ hiện vẫn giữ `VAULT_KEY_OPERATOR` vì bốn chỗ còn cần nó
+> (tạo nick, sửa nick, xem mật khẩu, sinh OTP). Chỉ đóng được sau khi bốn chỗ đó chuyển sang phát
+> vé. Grep `loadVaultKey("operator")` trong `src/` là danh sách chính xác phải dọn, và phép thử
+> nghiệm thu cuối GĐ3 là **gỡ hẳn biến đó khỏi máy chủ mà app vẫn chạy đủ mọi chức năng**.
 
 ## Đường găng: cái gì đang chặn
 
