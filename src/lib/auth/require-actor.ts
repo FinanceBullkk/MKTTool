@@ -49,17 +49,25 @@ export class AuthorizationError extends Error {
   }
 }
 
+/** Kết quả kiểm phiên, chưa quy ra lỗi hay chuyển hướng. */
+export type ActorCheck =
+  | { ok: true; actor: Actor }
+  | { ok: false; needsLogin: boolean; message: string };
+
 /**
- * Lấy người đang gọi, hoặc ném lỗi.
+ * Phép kiểm phiên **thật**, nhận thẳng `Headers` của request.
  *
- * Đây là **chốt chặn thật** của cả hệ thống đăng nhập — không phải cái hook lúc tạo tài khoản
- * trong `auth-server.ts`. Mọi server action và route handler đều đi qua đây.
+ * Nhận tham số thay vì tự gọi `headers()` vì nó có hai chỗ gọi ở hai ngữ cảnh khác nhau:
+ * server action / route handler (có `next/headers`) và **middleware** (chỉ có `request.headers`,
+ * `next/headers` không dùng được ở đó). Tách ra thì hai đường dùng chung đúng một phép kiểm —
+ * quan trọng, vì middleware canh trang còn wrapper canh hành động, và hai bên mà lệch nhau thì
+ * một bên sẽ nới lỏng hơn bên kia mà không ai thấy.
  */
-export async function requireActor(): Promise<Actor> {
-  const session = await getAuth().api.getSession({ headers: await headers() });
+export async function checkActor(requestHeaders: Headers): Promise<ActorCheck> {
+  const session = await getAuth().api.getSession({ headers: requestHeaders });
 
   if (!session?.user?.email) {
-    throw new AuthorizationError("Chưa đăng nhập.", true);
+    return { ok: false, needsLogin: true, message: "Chưa đăng nhập." };
   }
 
   const { email, id } = session.user;
@@ -68,14 +76,47 @@ export async function requireActor(): Promise<Actor> {
   // thuộc team — xem chú thích đầu file.
   const list = readEmailAccessList();
   if (!isEmailAllowed(email, list)) {
-    throw new AuthorizationError(
-      `Tài khoản ${email} không còn quyền dùng công cụ này.`,
+    return {
+      ok: false,
       // Đăng nhập lại cũng vô ích, nên đừng đẩy về màn hình đăng nhập rồi để họ quay vòng.
-      false,
-    );
+      needsLogin: false,
+      message: `Tài khoản ${email} không còn quyền dùng công cụ này.`,
+    };
   }
 
-  return { userId: id, email, role: roleForEmail(email, list) };
+  return { ok: true, actor: { userId: id, email, role: roleForEmail(email, list) } };
+}
+
+/**
+ * Lấy người đang gọi, hoặc ném lỗi.
+ *
+ * Đây là **chốt chặn thật** của cả hệ thống đăng nhập — không phải cái hook lúc tạo tài khoản
+ * trong `auth-server.ts`. Mọi server action và route handler đều đi qua đây.
+ */
+export async function requireActor(): Promise<Actor> {
+  const check = await checkActor(await headers());
+  if (!check.ok) throw new AuthorizationError(check.message, check.needsLogin);
+  return check.actor;
+}
+
+/**
+ * Người đang gọi, hoặc `null` nếu chưa đăng nhập / không còn quyền.
+ *
+ * Chỉ dùng cho phần **hiển thị** — thanh trạng thái ở đầu trang cần biết đang là ai để hiện
+ * tên và nút đăng xuất, và ở đó "chưa đăng nhập" là một trạng thái bình thường phải vẽ ra,
+ * không phải lỗi.
+ *
+ * **Đừng dùng nó để gác lối vào.** Nó trả `null` thay vì ném lỗi, tức là quên kiểm thì lọt —
+ * đúng kiểu hỏng mà `requireActor` được viết ra để tránh. Gác thì dùng `guardedAction` /
+ * `guardedRoute`, và `guarded-entry-points.test.ts` chỉ chấp nhận hai cái đó.
+ */
+export async function readActor(): Promise<Actor | null> {
+  try {
+    return await requireActor();
+  } catch (error) {
+    if (error instanceof AuthorizationError) return null;
+    throw error;
+  }
 }
 
 /** Như `requireActor` nhưng bắt buộc vai trò ADMIN. */

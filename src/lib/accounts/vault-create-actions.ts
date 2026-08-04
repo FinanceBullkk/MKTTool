@@ -10,6 +10,7 @@
  */
 import { revalidatePath } from "next/cache";
 import type { ActionResult } from "@/lib/actions/action-result";
+import { guardedAction } from "@/lib/auth/guarded-action";
 import { encryptCredential, encryptOptionalCredential } from "@/lib/crypto/credential-encryption";
 import { prisma } from "@/lib/db/prisma-client";
 import { describeUnexpectedDbError, isUniqueConstraintError } from "@/lib/db/prisma-error-helpers";
@@ -24,7 +25,8 @@ import {
   targetCreateSchema,
 } from "./vault-form-schemas";
 
-export async function createPersona(
+export const createPersona = guardedAction(async function createPersona(
+  _actor,
   _prev: ActionResult | null,
   formData: FormData,
 ): Promise<ActionResult> {
@@ -42,9 +44,10 @@ export async function createPersona(
 
   revalidatePath("/personas");
   return { ok: true, message: `Đã tạo nhân vật "${parsed.data.name}".` };
-}
+});
 
-export async function createProxy(
+export const createProxy = guardedAction(async function createProxy(
+  _actor,
   _prev: ActionResult | null,
   formData: FormData,
 ): Promise<ActionResult> {
@@ -63,9 +66,10 @@ export async function createProxy(
 
   revalidatePath("/proxies");
   return { ok: true, message: `Đã thêm proxy "${parsed.data.label}".` };
-}
+});
 
-export async function createAccount(
+export const createAccount = guardedAction(async function createAccount(
+  _actor,
   _prev: ActionResult | null,
   formData: FormData,
 ): Promise<ActionResult> {
@@ -107,9 +111,10 @@ export async function createAccount(
 
   revalidatePath("/accounts");
   return { ok: true, message: `Đã thêm nick "${parsed.data.username}".` };
-}
+});
 
-export async function createTarget(
+export const createTarget = guardedAction(async function createTarget(
+  _actor,
   _prev: ActionResult | null,
   formData: FormData,
 ): Promise<ActionResult> {
@@ -130,4 +135,4 @@ export async function createTarget(
 
   revalidatePath("/targets");
   return { ok: true, message: `Đã thêm đích "${parsed.data.name}".` };
-}
+});

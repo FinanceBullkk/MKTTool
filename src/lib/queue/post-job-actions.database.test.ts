@@ -14,6 +14,21 @@ import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 // revalidatePath chỉ chạy được trong ngữ cảnh request của Next; ở đây ta kiểm phần database.
 vi.mock("next/cache", () => ({ revalidatePath: () => {} }));
 
+/**
+ * Phiên đăng nhập giả — `createPostJob` là server action đã gác, và gác thật đòi cookie phiên
+ * cùng credential Google mà tiến trình vitest không có.
+ *
+ * Thay nguồn danh tính chứ không nới lỏng `guardedAction`: lớp bọc vẫn chạy y như chạy thật.
+ */
+vi.mock("@/lib/auth/require-actor", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/auth/require-actor")>()),
+  requireActor: async () => ({
+    userId: "test-actor",
+    email: "test@mkttool.local",
+    role: "ADMIN" as const,
+  }),
+}));
+
 const { prisma } = await import("@/lib/db/prisma-client");
 const { createPostJob } = await import("./post-job-actions");
 

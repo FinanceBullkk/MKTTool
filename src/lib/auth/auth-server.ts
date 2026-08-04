@@ -23,6 +23,7 @@
  */
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
+import { APIError } from "better-auth/api";
 import { prisma } from "../db/prisma-client";
 import { isEmailAllowed, readEmailAccessList, roleForEmail } from "./allowed-emails";
 
@@ -120,9 +121,29 @@ function createAuth() {
             const list = readEmailAccessList();
 
             if (!isEmailAllowed(user.email, list)) {
-              throw new Error(
-                `Email ${user.email} không nằm trong danh sách được phép dùng công cụ này.`,
-              );
+              /**
+               * Ném `APIError`, và **thông điệp phải là một mã ngắn không có dấu cách**.
+               *
+               * Hai ràng buộc này đều do đường đi của Better Auth quy định, và cả hai đều đã
+               * sai một lần trước khi viết được dòng này:
+               *
+               * 1. `new Error` thường thì `handleOAuthUserInfo` nuốt mất và trả về đúng chuỗi
+               *    `"unable to create user"` — người dùng không biết mình vướng danh sách trắng.
+               *    Chỉ `APIError` mới giữ được thông điệp của mình (`link-account.mjs`:
+               *    `if (isAPIError(e)) return { error: e.message }`).
+               * 2. Nhưng thông điệp đó **không đi vào chỗ hiển thị**, nó đi vào chỗ **mã lỗi**:
+               *    `callback.mjs` làm `result.error.split(" ").join("_")` rồi gắn vào
+               *    `?error=`. Viết cả câu tiếng Việt vào đây thì người dùng nhận nguyên câu đó
+               *    với mọi dấu cách biến thành gạch dưới, cụt đuôi ở rìa màn hình.
+               *
+               * Nên chỗ này chỉ gửi **mã**, còn câu tiếng Việt nằm ở `sign-in-error-messages.ts`.
+               * Email đính sau dấu hai chấm và đi qua được vì bản thân email không có dấu cách —
+               * giữ nó lại để người gõ nhầm một chữ nhìn ra ngay mình vừa gõ gì.
+               */
+              throw APIError.from("FORBIDDEN", {
+                code: "EMAIL_NOT_ALLOWED",
+                message: `EMAIL_NOT_ALLOWED:${user.email}`,
+              });
             }
 
             return { data: { ...user, role: roleForEmail(user.email, list) } };

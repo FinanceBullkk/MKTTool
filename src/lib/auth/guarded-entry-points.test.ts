@@ -156,35 +156,29 @@ describe("mọi route handler đều được gác", () => {
   });
 });
 
-describe("hàng đợi chưa gác chỉ được rút ngắn, không được phình ra", () => {
-  const all = walkTypeScriptFiles(SRC_DIR);
-
-  it.each(NOT_YET_GUARDED)("%s vẫn còn tồn tại", (relativePath) => {
+describe("hàng đợi chưa gác", () => {
+  /**
+   * Trước đây chỗ này có hai phép kiểm cho TỪNG dòng trong hàng đợi ("file còn tồn tại không",
+   * "thật sự còn chưa gác không"). Cả hai chỉ có việc để làm khi hàng đợi còn dòng, và chúng
+   * đã làm xong việc đó: danh sách rút từ 18 về 0 ngày 05/08/2026.
+   *
+   * Thay bằng một phép kiểm mạnh hơn hẳn, vì điều kiện đã đổi. Chừng nào app còn gắn cờ
+   * `-H 127.0.0.1` thì một dòng trong hàng đợi chỉ là việc chưa làm xong — hàng rào mạng vẫn
+   * đứng đó. **Bỏ cờ đó rồi thì mỗi dòng là một endpoint công khai trên internet**, gọi được
+   * mà không cần đăng nhập. Không còn tồn tại thứ gọi là "tạm thời chưa gác".
+   *
+   * Nên phép kiểm bây giờ là: hàng đợi phải rỗng. Nó cũng bịt luôn đường thoát dễ nhất khi
+   * `guarded-entry-points.test.ts` báo đỏ vì một action mới chưa gác — khai tên vào
+   * `NOT_YET_GUARDED` không làm test xanh trở lại nữa.
+   */
+  it("rỗng — không còn lối vào nào chưa gác", () => {
     expect(
-      all.some((file) => file.relativePath === relativePath),
-      `${relativePath} có trong NOT_YET_GUARDED nhưng không còn trong mã nguồn.
-` +
-        `Đổi tên hay xóa file thì phải sửa danh sách — bỏ mặc thì danh sách nói dối về tiến độ.`,
-    ).toBe(true);
-  });
-
-  it.each(NOT_YET_GUARDED)("%s thật sự vẫn chưa gác", (relativePath) => {
-    const file = all.find((f) => f.relativePath === relativePath);
-    if (!file) return; // phép kiểm ở trên đã báo rồi, đừng báo trùng
-
-    const guards = relativePath.endsWith("/route.ts") ? ROUTE_GUARDS : ACTION_GUARDS;
-    const unguarded = findUnguardedExports(file.content, guards).filter(
-      (name) => !relativePath.endsWith("/route.ts") || HTTP_METHODS.includes(name),
-    );
-
-    expect(
-      unguarded.length,
-      `${relativePath} đã gác xong rồi — XÓA nó khỏi NOT_YET_GUARDED.
-
-` +
-        `Danh sách đó là hàng đợi việc có hạn chót (bỏ cờ -H ở bước cuối Phase 02), không phải
-` +
-        `danh sách miễn trừ. Để tên đã xong nằm lại là che mất tiến độ thật.`,
-    ).toBeGreaterThan(0);
+      NOT_YET_GUARDED as readonly string[],
+      `NOT_YET_GUARDED phải rỗng.\n\n` +
+        `Cờ -H 127.0.0.1 đã được bỏ khỏi package.json, nghĩa là app nghe trên mọi card mạng.\n` +
+        `Mỗi dòng ở đây là một server action hoặc route handler mà người lạ trong cùng mạng\n` +
+        `gọi thẳng được, không cần đăng nhập — gồm cả đường mở profile và đường lộ credential.\n\n` +
+        `Gác lối vào đó bằng guardedAction / guardedRoute thay vì khai tên vào danh sách.`,
+    ).toEqual([]);
   });
 });

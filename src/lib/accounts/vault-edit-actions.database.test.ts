@@ -13,6 +13,30 @@ import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 // revalidatePath chỉ chạy được trong ngữ cảnh request của Next; ở đây ta kiểm phần database.
 vi.mock("next/cache", () => ({ revalidatePath: () => {} }));
 
+/**
+ * Phiên đăng nhập giả.
+ *
+ * Test này kiểm phần database, nhưng đường vào là server action đã gác, và gác thật sẽ đi hỏi
+ * Better Auth — tức là đòi `GOOGLE_CLIENT_ID` cùng một cookie phiên mà tiến trình vitest không
+ * có. Không có mock thì mọi khẳng định ở dưới đều chết ở dòng đầu tiên.
+ *
+ * Thay **nguồn danh tính**, không nới lỏng `guardedAction`: lớp bọc vẫn chạy nguyên vẹn đúng
+ * như lúc chạy thật, chỉ có câu trả lời "ai đang gọi" là dựng sẵn. Nếu nới lỏng lớp bọc thì
+ * test sẽ đi qua một đoạn mã khác đoạn mã production đi qua — và cái nó chứng minh cũng thành
+ * chuyện khác.
+ *
+ * `ADMIN` để `requireNickOwner` (còn nguyên bản thật nhờ `importOriginal`) cho qua sớm: ở đây
+ * đang kiểm sửa/xóa, không kiểm phân quyền chủ nick.
+ */
+vi.mock("@/lib/auth/require-actor", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/auth/require-actor")>()),
+  requireActor: async () => ({
+    userId: "test-actor",
+    email: "test@mkttool.local",
+    role: "ADMIN" as const,
+  }),
+}));
+
 process.env.VAULT_KEY = "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff";
 
 const { prisma } = await import("@/lib/db/prisma-client");

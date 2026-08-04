@@ -8,6 +8,7 @@
 import { randomBytes } from "node:crypto";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
+import { guardedRoute } from "@/lib/auth/guarded-route";
 import { FacebookConfigError } from "@/lib/facebook/facebook-app-config";
 import { OAUTH_STATE_COOKIE, buildAuthorizeUrl } from "@/lib/facebook/facebook-oauth-flow";
 import { describeRedirectHostMismatch } from "@/lib/facebook/facebook-redirect-host-guard";
@@ -29,7 +30,7 @@ function back(request: Request, message: string): NextResponse {
   return NextResponse.redirect(url);
 }
 
-export async function GET(request: Request) {
+export const GET = guardedRoute(async function GET(_actor, request: Request) {
   try {
     // Dừng ngay nếu địa chỉ đang mở app khác địa chỉ Facebook sẽ trả về — nếu đi tiếp,
     // cookie `state` đặt ở đây sẽ không tới được callback. Xem facebook-redirect-host-guard.ts.
@@ -53,4 +54,4 @@ export async function GET(request: Request) {
       error instanceof FacebookConfigError ? error.message : "Không mở được luồng OAuth.";
     return back(request, message);
   }
-}
+});

@@ -30,7 +30,7 @@ export const ROUTE_GUARDS = ["guardedRoute", "adminRoute"] as const;
 export const UNGUARDED_ROUTES_BY_DESIGN = ["src/app/api/auth/[...all]/route.ts"] as const;
 
 /**
- * Lối vào CHƯA gác — danh sách đang rút dần, phải về **rỗng** trước khi kết thúc Phase 02.
+ * Lối vào CHƯA gác — **đã rỗng từ 05/08/2026**.
  *
  * Đây KHÔNG phải danh sách miễn trừ. Nó là hàng đợi việc, và nó có hạn chót cứng: bước cuối
  * cùng của Phase 02 là bỏ cờ `-H 127.0.0.1` khỏi `package.json`, tức gỡ hàng rào duy nhất
@@ -44,26 +44,12 @@ export const UNGUARDED_ROUTES_BY_DESIGN = ["src/app/api/auth/[...all]/route.ts"]
  * 2. **Dòng thừa cũng làm test đỏ.** Gác xong một file mà quên xóa tên khỏi đây thì test báo
  *    "đã gác rồi, xóa khỏi danh sách" — nên nó không thể âm thầm phình ra rồi ở lại mãi.
  *
- * Ghi ngày để thấy nó nằm đây bao lâu: lập 05/08/2026 với 18 file, sau khi
- * `vault-credential-actions.ts` (đường lộ credential, quan trọng nhất) đã gác xong.
+ * Lịch sử: lập 05/08/2026 với 18 file (sau khi `vault-credential-actions.ts`, đường lộ
+ * credential, đã gác xong), rút về rỗng cùng ngày — 30 server action và 5 route handler còn
+ * lại đều đã bọc. Đó là điều kiện đã hẹn trước để được bỏ cờ `-H`.
+ *
+ * **Giữ mảng này lại dù đang rỗng.** Xóa hẳn thì lần sau ai đó thêm một lối vào chưa gác sẽ
+ * không có chỗ nào để khai, và cách dễ nhất để làm test xanh trở lại là nới lỏng phép kiểm.
+ * Để rỗng thì con đường dễ nhất là gác cho đúng.
  */
-export const NOT_YET_GUARDED = [
-  "src/lib/accounts/vault-create-actions.ts",
-  "src/lib/accounts/vault-delete-actions.ts",
-  "src/lib/accounts/vault-update-actions.ts",
-  "src/lib/content/content-item-actions.ts",
-  "src/lib/facebook/facebook-page-actions.ts",
-  "src/lib/facebook/facebook-publish-action.ts",
-  "src/lib/health/health-check-run-actions.ts",
-  "src/lib/health/observer-proxy-actions.ts",
-  "src/lib/proxies/proxy-bandwidth-actions.ts",
-  "src/lib/proxies/proxy-check-actions.ts",
-  "src/lib/queue/interaction-actions.ts",
-  "src/lib/queue/post-job-actions.ts",
-  "src/lib/queue/post-job-status-actions.ts",
-  "src/app/api/accounts/[id]/launch/route.ts",
-  "src/app/api/facebook/oauth/callback/route.ts",
-  "src/app/api/facebook/oauth/start/route.ts",
-  "src/app/api/health/run/route.ts",
-  "src/app/api/rules/preview/route.ts",
-] as const;
+export const NOT_YET_GUARDED = [] as const;

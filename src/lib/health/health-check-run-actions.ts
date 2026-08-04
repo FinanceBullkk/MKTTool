@@ -9,11 +9,14 @@
  */
 import { revalidatePath } from "next/cache";
 import type { ActionResult } from "@/lib/actions/action-result";
+import { guardedAction } from "@/lib/auth/guarded-action";
 import { prisma } from "@/lib/db/prisma-client";
 import { launchHealthCheckProcess } from "./health-check-process-launcher";
 import { readHealthCheckLockStatus } from "./health-check-lock";
 
-export async function startHerdHealthCheck(): Promise<ActionResult> {
+export const startHerdHealthCheck = guardedAction(async function startHerdHealthCheck(
+  _actor,
+): Promise<ActionResult> {
   // Kiểm khóa trước để câu thông báo nói được điều có ích. Tầng dưới (`acquireHealthCheckLock`)
   // vẫn là chỗ chặn thật — nhưng nó chặn bên trong tiến trình con, nơi không ai đọc được.
   const running = readHealthCheckLockStatus();
@@ -53,9 +56,18 @@ export async function startHerdHealthCheck(): Promise<ActionResult> {
       `Đã khởi động lượt dò ở tiến trình ${pid}. Lượt đầy đủ mất gần mười phút vì phải nghỉ ` +
       `30-90 giây giữa các nick — tải lại trang này để xem bảng đầy dần. Đóng tab cũng không sao.`,
   };
-}
+});
 
-/** Trạng thái lượt đang chạy, cho trang Sức khỏe hiển thị. */
-export async function getHerdHealthCheckStatus() {
+/**
+ * Trạng thái lượt đang chạy.
+ *
+ * Hiện **không có chỗ nào gọi**: trang Sức khỏe là server component nên nó gọi thẳng
+ * `readHealthCheckLockStatus()` chứ không cần đi vòng qua server action. Vẫn gác vì trong file
+ * `"use server"` thì mọi export đều là một endpoint POST thật, dùng hay không dùng cũng vậy —
+ * "không ai gọi" là chuyện của mã nguồn mình, không phải của người biết địa chỉ.
+ */
+export const getHerdHealthCheckStatus = guardedAction(async function getHerdHealthCheckStatus(
+  _actor,
+) {
   return readHealthCheckLockStatus();
-}
+});

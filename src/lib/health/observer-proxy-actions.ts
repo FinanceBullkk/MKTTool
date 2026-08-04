@@ -11,6 +11,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import type { ActionResult } from "@/lib/actions/action-result";
 import { firstError, formToObject, optionalText } from "@/lib/accounts/vault-form-schemas";
+import { guardedAction } from "@/lib/auth/guarded-action";
 import { encryptCredential } from "@/lib/crypto/credential-encryption";
 import { prisma } from "@/lib/db/prisma-client";
 import { describeUnexpectedDbError, isUniqueConstraintError } from "@/lib/db/prisma-error-helpers";
@@ -28,7 +29,8 @@ const observerProxyCreateSchema = z.object({
   notes: optionalText,
 });
 
-export async function createObserverProxy(
+export const createObserverProxy = guardedAction(async function createObserverProxy(
+  _actor,
   _prev: ActionResult | null,
   formData: FormData,
 ): Promise<ActionResult> {
@@ -54,9 +56,13 @@ export async function createObserverProxy(
       `Đã thêm proxy quan sát viên "${parsed.data.label}". ` +
       `Tuyệt đối không dùng IP này để đăng nhập nick nào, kể cả một lần.`,
   };
-}
+});
 
-export async function setObserverProxyActive(id: string, active: boolean): Promise<ActionResult> {
+export const setObserverProxyActive = guardedAction(async function setObserverProxyActive(
+  _actor,
+  id: string,
+  active: boolean,
+): Promise<ActionResult> {
   try {
     const proxy = await prisma.observerProxy.update({ where: { id }, data: { active } });
     revalidatePath("/proxies");
@@ -67,7 +73,7 @@ export async function setObserverProxyActive(id: string, active: boolean): Promi
   } catch (error) {
     return { ok: false, message: describeUnexpectedDbError(error, "đổi trạng thái proxy") };
   }
-}
+});
 
 /**
  * Kiểm proxy quan sát viên còn sống không, bằng đúng bộ kiểm của proxy thường.
@@ -77,7 +83,10 @@ export async function setObserverProxyActive(id: string, active: boolean): Promi
  * vào nhánh "không đổi IP" thì tệ hơn nhiều: bộ dò đang nhìn Reddit bằng chính IP nhà, kết
  * luận trông vẫn hợp lý mà thật ra vô nghĩa.
  */
-export async function checkObserverProxy(id: string): Promise<ActionResult> {
+export const checkObserverProxy = guardedAction(async function checkObserverProxy(
+  _actor,
+  id: string,
+): Promise<ActionResult> {
   const proxy = await prisma.observerProxy.findUnique({ where: { id } });
   if (!proxy) return { ok: false, message: "Không tìm thấy proxy quan sát viên." };
 
@@ -86,9 +95,12 @@ export async function checkObserverProxy(id: string): Promise<ActionResult> {
   revalidatePath("/");
 
   return { ok: liveness.verdict === "OK", message: liveness.message };
-}
+});
 
-export async function deleteObserverProxy(id: string): Promise<ActionResult> {
+export const deleteObserverProxy = guardedAction(async function deleteObserverProxy(
+  _actor,
+  id: string,
+): Promise<ActionResult> {
   try {
     const proxy = await prisma.observerProxy.delete({ where: { id } });
     revalidatePath("/proxies");
@@ -96,4 +108,4 @@ export async function deleteObserverProxy(id: string): Promise<ActionResult> {
   } catch (error) {
     return { ok: false, message: describeUnexpectedDbError(error, "xóa proxy quan sát viên") };
   }
-}
+});
