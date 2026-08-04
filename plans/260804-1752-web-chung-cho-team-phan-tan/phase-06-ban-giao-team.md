@@ -55,6 +55,8 @@ Không có gì mới. Phase này là quy trình, không phải code.
    - cài MultiZen, lấy bearer token MCP
    - cài cầu nối bằng `setup.bat`, dán khóa operator + chữ ký công khai máy chủ
    - tạo luật firewall WebRTC, **đo lại** candidate `srflx` bằng 0
+   - **bấm "Cho phép" hộ ở hộp xin quyền mạng nội bộ** (QĐ 10) — bấm nút "Mở profile" một lần
+     ngay trong buổi cài, đừng để người dùng gặp hộp này lần đầu khi ngồi một mình
    - mở một profile, vào `ipinfo.io`, xác nhận IP khớp proxy
 6. Đào tạo nhóm Fanpage/content (~30 phút): đăng nhập, kho content, xếp lịch, đọc đèn luật
 7. Đào tạo nhóm Reddit/TikTok (~60 phút): thêm phần mở profile, copy mật khẩu, OTP, và
@@ -70,7 +72,8 @@ Không có gì mới. Phase này là quy trình, không phải code.
 - [ ] Nhập tay nhân vật / proxy / nick / đích, phân công chủ sở hữu
 - [ ] Nối lại Fanpage, kiểm token
 - [ ] Nhập proxy quan sát viên
-- [ ] Cài từng máy Reddit/TikTok (MultiZen + cầu nối + firewall + đo lại)
+- [ ] Cài từng máy Reddit/TikTok (MultiZen + cầu nối + firewall + đo lại + cấp quyền mạng nội bộ)
+- [ ] Tài liệu vận hành có ảnh hộp xin quyền — dùng làm **đường cấp lại**, không phải cấp lần đầu
 - [ ] Đào tạo nhóm Fanpage/content
 - [ ] Đào tạo nhóm Reddit/TikTok
 - [ ] `docs/huong-dan-van-hanh-cho-team.md`
