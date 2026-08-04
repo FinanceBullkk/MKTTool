@@ -552,7 +552,18 @@ trong MCP, file cấu hình, lẫn GUI).
 
 > ⚠️ Đường dẫn trong luật có **số phiên bản chromium**. Nâng cấp MultiZen là đường dẫn đổi và luật
 > **lặng lẽ hết tác dụng**. Sau mỗi lần nâng cấp: tạo lại luật rồi đo lại.
-> Luật cũng chỉ chạy khi firewall bật cho profile mạng đang dùng.
+>
+> ⚠️ **Đường hỏng thứ hai: profile firewall của mạng đang dùng bị tắt.** Luật vẫn hiện
+> `Enabled: True` nên nhìn qua tưởng còn sống, nhưng Windows không lọc gì trên profile đã tắt.
+> Kiểm bằng hai lệnh, phải khớp nhau:
+>
+> ```powershell
+> Get-NetConnectionProfile | Select-Object Name, NetworkCategory   # đang ở profile nào
+> Get-NetFirewallProfile   | Select-Object Name, Enabled           # profile đó có bật không
+> ```
+>
+> Bấm "Cho phép máy này được phát hiện" là mạng chuyển Public → Private. Profile Private mà
+> đang tắt thì lớp chặn biến mất ngay lúc đó, không có gì báo.
 > Câu lệnh + cách đo: [báo cáo Chặng C](plans/reports/chang-c-260802-1443-proxy-push-verification.md).
 
 ## Dò shadowban

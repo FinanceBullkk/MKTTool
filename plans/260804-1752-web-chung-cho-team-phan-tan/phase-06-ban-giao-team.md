@@ -20,6 +20,12 @@ dạy rõ sẽ không được làm**, và thứ không được làm sẽ làm 
   1. Không bấm **"Đã đăng"** → luật 8 không có gì để so, bộ dò không có bài để đối chiếu
   2. Tự nâng cấp MultiZen → luật firewall WebRTC hết tác dụng, IP nhà rò qua UDP
   3. Không kiểm IP sau khi mở profile → proxy chết vẫn ăn cấu hình bình thường
+- ⚠️ **Luật firewall WebRTC có đường hỏng thứ hai, không phải chỉ nâng cấp MultiZen: profile
+  firewall của mạng đang dùng bị TẮT.** Luật vẫn hiện ra `Enabled: True` nên nhìn qua tưởng còn
+  sống, nhưng Windows không lọc gì cả trên profile đã tắt. Đo trên máy dev 05/08/2026: profile
+  **Private đang tắt hẳn**, chỉ thoát vì mạng đang được xếp loại Public. Người dùng bấm "Cho phép
+  máy này được phát hiện" một lần là mạng chuyển sang Private và lớp chặn biến mất không báo.
+  → Bước cài phải kiểm **cả hai**: luật có tồn tại, VÀ profile đang dùng có bật.
 - Nick Reddit/TikTok cần MultiZen; người chỉ làm Fanpage thì **không cài gì cả** ngoài trình duyệt.
   Chia nhóm khi đào tạo, đừng bắt mọi người ngồi nghe hết.
 - **Chỉ 1-2 người vận hành Reddit** → chỉ 1-2 máy phải cài. Phần nặng nhất của phase này nhỏ hơn
@@ -54,7 +60,8 @@ Không có gì mới. Phase này là quy trình, không phải code.
 5. Với từng máy làm Reddit/TikTok, qua remote desktop:
    - cài MultiZen, lấy bearer token MCP
    - cài cầu nối bằng `setup.bat`, dán khóa operator + chữ ký công khai máy chủ
-   - tạo luật firewall WebRTC, **đo lại** candidate `srflx` bằng 0
+   - tạo luật firewall WebRTC, **kiểm profile mạng đang dùng có BẬT firewall không**
+     (`Get-NetFirewallProfile` + `Get-NetConnectionProfile`), rồi **đo lại** candidate `srflx` bằng 0
    - **bấm "Cho phép" hộ ở hộp xin quyền mạng nội bộ** (QĐ 10) — bấm nút "Mở profile" một lần
      ngay trong buổi cài, đừng để người dùng gặp hộp này lần đầu khi ngồi một mình
    - mở một profile, vào `ipinfo.io`, xác nhận IP khớp proxy
