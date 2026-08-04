@@ -4,11 +4,13 @@
  *
  * Chạy: npx tsx scripts/smoke-test-identity-vault.ts
  */
-import { readFileSync } from "node:fs";
+import { readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
-import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
+import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
 import { decryptCredential, encryptCredential } from "../src/lib/crypto/credential-encryption";
+import { dumpDatabaseTo } from "../src/lib/db/database-backup";
 import { generateTotpCode } from "../src/lib/totp/totp-code-generator";
 
 process.loadEnvFile(path.join(process.cwd(), ".env"));
@@ -16,11 +18,9 @@ process.loadEnvFile(path.join(process.cwd(), ".env"));
 const PREFIX = "smoke-test-";
 const PLAINTEXT_PASSWORD = "SmokeTest-Plaintext-Canary-9931";
 const TOTP_SECRET = "JBSWY3DPEHPK3PXP";
-// Prisma 7 + driver adapter giải "file:./dev.db" theo CWD, không theo thư mục prisma/.
-const DB_PATH = path.join(process.cwd(), "dev.db");
 
 const prisma = new PrismaClient({
-  adapter: new PrismaBetterSqlite3({ url: process.env.DATABASE_URL as string }),
+  adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL as string }),
 });
 
 let failures = 0;
@@ -80,10 +80,28 @@ async function run() {
     decryptCredential(stored.passwordEnc) === PLAINTEXT_PASSWORD,
   );
 
-  // 2. File DB không chứa plaintext — tiêu chí nghiệm thu chính của Phase 01
-  const dbBytes = readFileSync(DB_PATH);
-  check("file dev.db KHÔNG chứa mật khẩu dạng trần", !dbBytes.includes(Buffer.from(PLAINTEXT_PASSWORD)));
-  check("file dev.db KHÔNG chứa TOTP secret dạng trần", !dbBytes.includes(Buffer.from(TOTP_SECRET)));
+  // 2. Dữ liệu nằm trên đĩa không chứa plaintext — tiêu chí nghiệm thu chính của Phase 01.
+  //
+  // Postgres không phải một file đọc được như SQLite trước đây, nên soi qua `pg_dump`: đúng
+  // thứ mà `npm run db:backup` sinh ra, tức đúng thứ dễ rò rỉ nhất (bản sao lưu hay bị chép
+  // sang chỗ khác, gửi qua chat, để quên trên ổ ngoài). Kiểm được nó là kiểm được đường rò
+  // thật, không phải một đường xuất dựng riêng cho test.
+  const dumpPath = path.join(tmpdir(), `mkttool-vault-smoke-${process.pid}-${Date.now()}.sql`);
+  try {
+    await dumpDatabaseTo(dumpPath);
+    const dumpBytes = readFileSync(dumpPath);
+    check(
+      "bản pg_dump KHÔNG chứa mật khẩu dạng trần",
+      !dumpBytes.includes(Buffer.from(PLAINTEXT_PASSWORD)),
+    );
+    check(
+      "bản pg_dump KHÔNG chứa TOTP secret dạng trần",
+      !dumpBytes.includes(Buffer.from(TOTP_SECRET)),
+    );
+  } finally {
+    // Bản dump chứa ciphertext của toàn bộ kho — không để lại trong thư mục tạm dù test hỏng.
+    rmSync(dumpPath, { force: true });
+  }
 
   // 3. Sinh OTP từ secret đã lưu
   const otp = await generateTotpCode(decryptCredential(stored.totpSecretEnc as string));

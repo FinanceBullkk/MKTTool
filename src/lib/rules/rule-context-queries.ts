@@ -74,7 +74,9 @@ export function tallyPromoRatio(
 
 /**
  * Đối chứng để so trùng: bài của MỌI nick trong cùng họ nền tảng.
- * Lọc họ nền tảng bằng JS vì SQLite không có cách nào gộp FACEBOOK_PAGE với FACEBOOK_GROUP.
+ * Lọc họ nền tảng bằng JS chứ không bằng truy vấn: "họ nền tảng" (FACEBOOK_PAGE và
+ * FACEBOOK_GROUP tính là một) là quy ước của tầng luật, không phải quan hệ có trong dữ liệu.
+ * Đẩy nó xuống SQL là chép cùng một quy ước ra hai nơi.
  */
 export async function loadComparableContent(
   targetPlatform: string,

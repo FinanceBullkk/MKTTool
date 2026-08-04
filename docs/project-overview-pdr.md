@@ -65,7 +65,9 @@ Nếu sau này có ai đề xuất thêm một trong các mục trên, đây là
 3. **Reddit bắt buộc dùng browser.** API miễn phí cấm mục đích thương mại; API thương mại ~$12k/tháng.
 4. **Facebook Pages dùng Graph API chính thức.** Miễn phí, hợp lệ, không bao giờ bị khóa vì
    vi phạm chính sách tự động hóa.
-5. **SQLite + Prisma**, không Postgres/Redis. Một người dùng, một máy.
+5. ~~**SQLite + Prisma**, không Postgres/Redis. Một người dùng, một máy.~~
+   **Đổi 04/08/2026: Postgres + Prisma.** Quyết định gốc đúng với giả định "một người dùng,
+   một máy"; giả định đó hết hiệu lực khi chốt bàn giao cho 5-6 người ở 5-6 nơi. Vẫn không Redis.
 6. **Điều khiển trình duyệt của NICK qua MCP của MultiZen, không dùng Playwright.**
    Kiểm chứng 02/08/2026: MultiZen không phơi endpoint CDP ra ngoài mà phơi thẳng bộ tool
    (`navigate`, `click`, `type`, `extract`, `screenshot`). Đường này còn tốt hơn vì có sẵn
@@ -142,6 +144,6 @@ thực, không có cách nào đi tắt. Phần mềm xong sớm không giúp g�
   liệu để quyết siết hay nới.
 - Chưa chốt 2-3 subreddit mục tiêu và luật cụ thể của từng sub (việc của Phase 00 bước 1).
 - Chưa đo được "xếp 15 bài trong 15 phút" vì chưa có người dùng thật chạy quy trình đầy đủ.
-- Mục 2 ghi rõ công cụ phục vụ **1 người**. Nếu sau này nhiều người trong team cần dùng chung
-  một kho danh tính thì phải thêm đăng nhập + phân quyền và đổi SQLite sang DB dùng chung —
-  chưa có Phase nào nhận việc này.
+- ~~Mục 2 ghi rõ công cụ phục vụ **1 người**.~~ **Đã có chủ 04/08/2026:**
+  [plan web chung](../plans/260804-1752-web-chung-cho-team-phan-tan/plan.md) nhận đúng việc này.
+  Đổi sang DB dùng chung đã xong; đăng nhập + phân quyền + tách hai vùng khóa còn ở phía trước.

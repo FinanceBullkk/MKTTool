@@ -1,5 +1,5 @@
 /**
- * Sửa và xóa trong kho danh tính, chạy trên SQLite thật (xem vitest.global-setup.ts).
+ * Sửa và xóa trong kho danh tính, chạy trên Postgres thật (xem vitest.global-setup.ts).
  *
  * Ba nhóm khẳng định, đều là chỗ hỏng thì hỏng âm thầm:
  *  1. Ô bí mật để trống phải GIỮ NGUYÊN giá trị cũ. Hỏng ở đây là mỗi lần sửa karma là một
@@ -211,6 +211,52 @@ describe("ô bí mật để trống là giữ nguyên", () => {
     expect(after.passwordEnc).toBe(before.passwordEnc);
     expect(after.emailPasswordEnc).toBe(before.emailPasswordEnc);
     expect(after.totpSecretEnc).toBe(before.totpSecretEnc);
+  });
+});
+
+/**
+ * Đo thật 04/08/2026: lượt dò đầu tiên cách ly nhầm một nick khỏe rồi ghi lý do cách ly. Người
+ * dùng sửa trạng thái về ALIVE, nhưng lý do cũ nằm lại — trang chi tiết hiện đồng thời nhãn
+ * "Khỏe — hoạt động bình thường" VÀ hộp đỏ "Dừng đăng bằng nick này ngay".
+ *
+ * Màn hình tự cãi nhau tệ hơn màn hình thiếu thông tin: người đọc phải đoán tin dòng nào, và
+ * lần sau họ bỏ qua cả hai — kể cả lần cảnh báo thật.
+ */
+describe("gỡ cách ly thì lý do cách ly đi theo", () => {
+  it("đổi trạng thái về ALIVE thì xóa lý do cách ly", async () => {
+    await prisma.account.update({
+      where: { id: seeded.accountId },
+      data: { status: "SHADOWBANNED", quarantineReason: "Bộ dò báo nick vô hình với người ngoài." },
+    });
+
+    const result = await updateAccount(null, accountForm(seeded, { status: "ALIVE" }));
+
+    expect(result.ok).toBe(true);
+    const after = await prisma.account.findUniqueOrThrow({ where: { id: seeded.accountId } });
+    expect(after.status).toBe("ALIVE");
+    expect(after.quarantineReason).toBeNull();
+  });
+
+  it("gõ lý do vào ô mà trạng thái không phải cách ly thì cũng không lưu", async () => {
+    const result = await updateAccount(
+      null,
+      accountForm(seeded, { status: "COLD_START", quarantineReason: "gõ nhầm chỗ" }),
+    );
+
+    expect(result.ok).toBe(true);
+    const after = await prisma.account.findUniqueOrThrow({ where: { id: seeded.accountId } });
+    expect(after.quarantineReason).toBeNull();
+  });
+
+  it("nick đang bị cách ly thật thì lý do được giữ", async () => {
+    const result = await updateAccount(
+      null,
+      accountForm(seeded, { status: "CHECKPOINT", quarantineReason: "Dính captcha lúc mở profile." }),
+    );
+
+    expect(result.ok).toBe(true);
+    const after = await prisma.account.findUniqueOrThrow({ where: { id: seeded.accountId } });
+    expect(after.quarantineReason).toBe("Dính captcha lúc mở profile.");
   });
 });
 

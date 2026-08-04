@@ -64,6 +64,53 @@ function writeLock(lockPath: string, body: LockBody): void {
   }
 }
 
+export interface HealthCheckLockStatus {
+  running: boolean;
+  pid: number | null;
+  startedAt: Date | null;
+  /** Đã chạy bao lâu, tính bằng phút. `null` khi không có lượt nào đang chạy. */
+  minutesElapsed: number | null;
+}
+
+const NOT_RUNNING: HealthCheckLockStatus = {
+  running: false,
+  pid: null,
+  startedAt: null,
+  minutesElapsed: null,
+};
+
+/**
+ * ĐỌC khóa mà không giành nó — để giao diện biết có lượt nào đang chạy không.
+ *
+ * Trước đây file này chỉ có giành và thả, vì chỉ tiến trình `npm run health` cần tới. Nút
+ * "Dò cả đàn" trong app thì cần câu trả lời ngược lại: *ai đó đang chạy à?* — hỏi bằng cách
+ * giành thử rồi thả ra là sai, vì giữa hai bước đó lượt chạy theo lịch có thể bị chen mất khóa.
+ *
+ * Khóa quá `STALE_AFTER_MS` thì coi như KHÔNG chạy, dùng đúng ngưỡng của `acquire` —
+ * hai ngưỡng riêng cho cùng một khái niệm là hai thứ sớm muộn cũng lệch nhau.
+ */
+export function readHealthCheckLockStatus(
+  options: { lockPath?: string; now?: Date } = {},
+): HealthCheckLockStatus {
+  const { lockPath = LOCK_PATH, now = new Date() } = options;
+
+  const holder = readLock(lockPath);
+  if (!holder) return NOT_RUNNING;
+
+  const startedAtMs = Date.parse(holder.startedAt);
+  if (!Number.isFinite(startedAtMs)) return { ...NOT_RUNNING, pid: holder.pid };
+
+  const elapsedMs = now.getTime() - startedAtMs;
+  if (elapsedMs > STALE_AFTER_MS) return { ...NOT_RUNNING, pid: holder.pid };
+
+  return {
+    running: true,
+    pid: holder.pid,
+    startedAt: new Date(startedAtMs),
+    minutesElapsed: Math.max(0, Math.round(elapsedMs / 60_000)),
+  };
+}
+
 function describeHolder(holder: LockBody, now: Date): string {
   const minutes = Math.max(0, Math.round((now.getTime() - Date.parse(holder.startedAt)) / 60_000));
   return `tiến trình ${holder.pid}, bắt đầu ${minutes} phút trước`;

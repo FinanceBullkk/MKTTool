@@ -7,8 +7,11 @@
  */
 import { readdirSync, statSync } from "node:fs";
 import path from "node:path";
-import { BACKUP_DIR, backupDatabase } from "../src/lib/db/database-backup";
-import { prisma } from "../src/lib/db/prisma-client";
+import {
+  BACKUP_DIR,
+  BACKUP_FILE_EXTENSION,
+  backupDatabase,
+} from "../src/lib/db/database-backup";
 
 function formatSize(bytes: number): string {
   return bytes < 1024 * 1024
@@ -20,7 +23,9 @@ async function main() {
   const { filePath } = await backupDatabase();
   const size = statSync(filePath).size;
 
-  const total = readdirSync(BACKUP_DIR).filter((name) => name.endsWith(".db")).length;
+  const total = readdirSync(BACKUP_DIR).filter((name) =>
+    name.endsWith(BACKUP_FILE_EXTENSION),
+  ).length;
 
   console.log("");
   console.log(`✅ Đã sao lưu: ${path.relative(process.cwd(), filePath)} (${formatSize(size)})`);
@@ -34,11 +39,10 @@ async function main() {
   console.log("");
 }
 
-main()
-  .catch((error) => {
-    console.error("");
-    console.error("❌ Sao lưu thất bại:", error instanceof Error ? error.message : error);
-    console.error("");
-    process.exitCode = 1;
-  })
-  .finally(() => prisma.$disconnect());
+// Không mở kết nối Prisma ở đây: pg_dump tự nối lấy, nên script này không có gì để ngắt.
+main().catch((error) => {
+  console.error("");
+  console.error("❌ Sao lưu thất bại:", error instanceof Error ? error.message : error);
+  console.error("");
+  process.exitCode = 1;
+});

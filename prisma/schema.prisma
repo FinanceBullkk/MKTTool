@@ -12,7 +12,7 @@ generator client {
 
 // Prisma 7: `url` không còn khai báo ở đây nữa, chuyển sang prisma.config.ts.
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
 }
 
 /// Nhân vật: giọng điệu + mảng nội dung. Một nhân vật có thể có nick ở nhiều nền tảng.
@@ -48,6 +48,33 @@ model Proxy {
   createdAt   DateTime @default(now())
   account     Account?
 
+  /// Kết quả lần kiểm proxy còn sống gần nhất — xem src/lib/proxies/proxy-liveness-verdict.ts.
+  ///
+  /// Null nghĩa là CHƯA KIỂM LẦN NÀO, và chỗ nào hiển thị cũng phải nói đúng như vậy:
+  /// "chưa kiểm" không phải "còn sống". Cùng nguyên tắc với bộ dò shadowban — không đo được
+  /// thì không được báo khỏe.
+  lastCheckedAt    DateTime?
+  /// OK | DEAD | LEAKING | COUNTRY_MISMATCH | UNKNOWN
+  lastCheckVerdict String?
+  lastCheckDetail  String?
+  /// IP người ngoài nhìn thấy ở lần kiểm gần nhất. Không mã hóa: đây không phải bí mật,
+  /// và phải đọc được bằng mắt thì mới đối chiếu với nhà cung cấp proxy được.
+  lastExitIp       String?
+
+  /// Kết quả lần ĐO BĂNG THÔNG gần nhất — xem src/lib/proxies/proxy-bandwidth-probe.ts.
+  ///
+  /// Cố ý KHÔNG nằm trong nút "kiểm tất cả proxy": mỗi lượt đo tải 1 MB qua proxy, tức tiêu
+  /// 1 MB quota trả tiền. Kiểm proxy còn sống chỉ tốn vài KB nên bấm thoải mái; đo băng thông
+  /// phải là một hành động có chủ đích, từng proxy một.
+  lastSpeedAt      DateTime?
+  /// Megabit/giây, tốc độ TẢI XUỐNG. Float vì proxy chậm cho ra số lẻ dưới 1.
+  /// `lastSpeedAt` khác null mà cột này null = đã thử đo nhưng KHÔNG đo được, lý do ở
+  /// `lastSpeedDetail`. Không đo được thì không được hiện như chậm.
+  /// Xếp hạng nhanh/chậm suy ra từ số này (`gradeBandwidth`), không lưu thành cột riêng để
+  /// không bao giờ có chuyện hạng và số đo nói hai điều khác nhau.
+  lastSpeedMbps    Float?
+  lastSpeedDetail  String?
+
   @@unique([host, port, username])
 }
 
@@ -70,6 +97,15 @@ model ObserverProxy {
   active      Boolean  @default(true)
   notes       String?
   createdAt   DateTime @default(now())
+
+  /// Kết quả lần kiểm proxy còn sống gần nhất — bốn cột y hệt `Proxy`, xem giải thích ở đó.
+  ///
+  /// Ở bảng này chúng quan trọng hơn: proxy của nick chết là mất một nick, còn proxy quan sát
+  /// viên chết là MÙ CẢ ĐÀN — mọi kết luận shadowban đều nhìn qua đúng một IP này.
+  lastCheckedAt    DateTime?
+  lastCheckVerdict String?
+  lastCheckDetail  String?
+  lastExitIp       String?
 }
 
 /// Một lần dò sức khỏe nick từ góc nhìn người ngoài (Phase 03).
@@ -117,8 +153,9 @@ model Account {
   /// đi qua proxy. Ép hai trường này cho nick Facebook là bắt đốt một proxy thật và bịa một id
   /// profile chỉ để thỏa ràng buộc, rồi chính dữ liệu giả đó nằm lại trong kho.
   ///
-  /// `@unique` trên cột nullable vẫn chặn hai nick dùng chung một proxy (SQLite cho phép nhiều
-  /// NULL nhưng chỉ một giá trị thật), nên nguyên tắc 1 nick = 1 proxy KHÔNG bị nới cho Reddit.
+  /// `@unique` trên cột nullable vẫn chặn hai nick dùng chung một proxy (Postgres cho phép
+  /// nhiều NULL nhưng chỉ một giá trị thật — giống hệt SQLite trước đây, nên đổi nền dữ liệu
+  /// KHÔNG nới lỏng ràng buộc này), nên nguyên tắc 1 nick = 1 proxy vẫn nguyên cho Reddit.
   /// Chỗ ép "Reddit thì không được trống" nằm ở validatePlatformIdentityFields().
   antidetectProfileId String? @unique // id profile bên MultiZen/AdsPower
   personaId           String

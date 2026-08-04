@@ -68,7 +68,9 @@ export function AccountHealthTable({ rows }: { rows: AccountHealthRow[] }) {
             <td className="py-2 pr-4 text-xs">
               <LastCheckCell row={row} />
             </td>
-            <td className="py-2 pr-4">
+            {/* Căn phải ở đây chứ không trong nút: dòng job ở hàng đợi dùng lại đúng nút đó
+                nhưng nằm trong cụm thao tác căn trái. */}
+            <td className="py-2 pr-4 text-right">
               <HealthCheckNowButton accountId={row.id} />
             </td>
           </tr>

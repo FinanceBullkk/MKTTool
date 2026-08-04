@@ -1,5 +1,9 @@
 import Link from "next/link";
 import { ObserverProxySection } from "@/components/health/observer-proxy-section";
+import { CheckAllProxiesButton, CheckOneProxyButton } from "@/components/proxies/proxy-check-controls";
+import { ProxyLastCheckCell } from "@/components/proxies/proxy-last-check-cell";
+import { ProxySpeedCell } from "@/components/proxies/proxy-speed-cell";
+import { MeasureProxySpeedButton } from "@/components/proxies/proxy-speed-controls";
 import { ActionForm } from "@/components/ui/form-controls";
 import {
   Card,
@@ -30,6 +34,12 @@ export default async function ProxiesPage() {
       />
 
       <Card title={`Danh sách — ${proxies.length} IP, ${unassigned} chưa gắn nick`}>
+        {proxies.length > 0 ? (
+          <div className="mb-4">
+            <CheckAllProxiesButton count={proxies.length} />
+          </div>
+        ) : null}
+
         {proxies.length === 0 ? (
           <EmptyState>
             Chưa có proxy nào. Mua proxy TRƯỚC khi mua nick — đăng nhập nick cổ từ IP sai quốc gia
@@ -37,7 +47,17 @@ export default async function ProxiesPage() {
           </EmptyState>
         ) : (
           <DataTable
-            headers={["Nhãn", "Địa chỉ", "Giao thức", "Quốc gia", "Loại", "Nick đang gắn", ""]}
+            headers={[
+              "Nhãn",
+              "Địa chỉ",
+              "Giao thức",
+              "Quốc gia",
+              "Loại",
+              "Nick đang gắn",
+              "Lần kiểm gần nhất",
+              "Tốc độ",
+              "",
+            ]}
           >
             {proxies.map((proxy) => (
               <tr key={proxy.id}>
@@ -64,13 +84,31 @@ export default async function ProxiesPage() {
                     />
                   )}
                 </td>
+                <td className="py-2 pr-4">
+                  <ProxyLastCheckCell
+                    verdict={proxy.lastCheckVerdict}
+                    checkedAt={proxy.lastCheckedAt}
+                    exitIp={proxy.lastExitIp}
+                  />
+                </td>
+                <td className="py-2 pr-4">
+                  <ProxySpeedCell
+                    measuredAt={proxy.lastSpeedAt}
+                    mbps={proxy.lastSpeedMbps}
+                    detail={proxy.lastSpeedDetail}
+                  />
+                </td>
                 <td className="py-2 pr-4 text-right">
-                  <Link
-                    href={`/proxies/${proxy.id}`}
-                    className="text-xs text-neutral-500 hover:underline"
-                  >
-                    Sửa
-                  </Link>
+                  <div className="flex items-start justify-end gap-2">
+                    <CheckOneProxyButton proxyId={proxy.id} />
+                    <MeasureProxySpeedButton proxyId={proxy.id} />
+                    <Link
+                      href={`/proxies/${proxy.id}`}
+                      className="text-xs text-neutral-500 hover:underline"
+                    >
+                      Sửa
+                    </Link>
+                  </div>
                 </td>
               </tr>
             ))}

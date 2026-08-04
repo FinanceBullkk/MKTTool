@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db/prisma-client";
 import { loadDueManualPostReminders } from "./manual-post-reminders";
 
 /**
- * Phạm vi lọc của bộ nhắc việc, chạy trên SQLite thật (xem vitest.global-setup.ts).
+ * Phạm vi lọc của bộ nhắc việc, chạy trên Postgres thật (xem vitest.global-setup.ts).
  *
  * Đây là chỗ đã từng hỏng: truy vấn lọc cứng `platform: "FACEBOOK_GROUP"`, nên bài REDDIT —
  * nền tảng chính, ~80% công sức theo tài liệu sản phẩm — không bao giờ hiện ra nhắc việc.

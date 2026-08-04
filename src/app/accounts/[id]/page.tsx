@@ -8,16 +8,18 @@ import {
   accountAgeInDays,
   coldStartDaysRemaining,
   getStatusPresentation,
+  isQuarantinedStatus,
 } from "@/lib/accounts/account-status";
 import { deleteAccount } from "@/lib/accounts/vault-delete-actions";
 import { updateAccount } from "@/lib/accounts/vault-update-actions";
 import { prisma } from "@/lib/db/prisma-client";
+import { formatFullDate, formatFullDateTime } from "@/lib/format/vietnamese-date-format";
 import { AccountVaultActionsPanel } from "./account-vault-actions-panel";
 
 export const dynamic = "force-dynamic";
 
 function formatDate(value: Date | null): string {
-  return value ? value.toLocaleDateString("vi-VN") : "—";
+  return value ? formatFullDate(value) : "—";
 }
 
 export default async function AccountDetailPage({
@@ -68,7 +70,7 @@ export default async function AccountDetailPage({
     ["Ngày tạo trên nền tảng", formatDate(account.platformCreatedAt)],
     ["Ngày mua", formatDate(account.purchasedAt)],
     ["Cold-start tới", account.coldStartUntil ? formatDate(account.coldStartUntil) : "—"],
-    ["Hoạt động gần nhất", account.lastActionAt ? account.lastActionAt.toLocaleString("vi-VN") : "—"],
+    ["Hoạt động gần nhất", account.lastActionAt ? formatFullDateTime(account.lastActionAt) : "—"],
   ];
 
   return (
@@ -87,7 +89,9 @@ export default async function AccountDetailPage({
         <span className="text-sm text-neutral-600 dark:text-neutral-400">{presentation.hint}</span>
       </div>
 
-      {account.quarantineReason ? (
+      {/* Chỉ hiện khi nick THẬT SỰ đang bị cách ly. Bản ghi cũ có thể còn sót lý do từ lần
+          trước, và hộp đỏ "dừng đăng ngay" nằm dưới nhãn "Khỏe" là màn hình tự cãi nhau. */}
+      {account.quarantineReason && isQuarantinedStatus(account.status) ? (
         <div className="mb-6 rounded-md border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-300">
           <strong>Lý do cách ly:</strong> {account.quarantineReason}
         </div>
@@ -159,7 +163,7 @@ export default async function AccountDetailPage({
             {auditLogs.map((log) => (
               <li key={log.id} className="flex gap-3">
                 <span className="shrink-0 font-mono text-xs text-neutral-500">
-                  {log.at.toLocaleString("vi-VN")}
+                  {formatFullDateTime(log.at)}
                 </span>
                 <span>
                   {log.action}

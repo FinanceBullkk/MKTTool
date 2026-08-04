@@ -8,7 +8,7 @@ import {
 } from "./rule-context-queries";
 
 /**
- * Tầng truy vấn, chạy trên SQLite thật (xem vitest.global-setup.ts).
+ * Tầng truy vấn, chạy trên Postgres thật (xem vitest.global-setup.ts).
  *
  * Mỗi phép lọc dưới đây, nếu hỏng, làm một luật an toàn IM LẶNG cho qua chứ không báo lỗi —
  * kiểu hỏng đắt nhất trong hệ thống này. Vì vậy mỗi khẳng định đều đi theo cặp:

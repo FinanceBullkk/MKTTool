@@ -1,5 +1,5 @@
 /**
- * Tạo job từ tab "Viết mới", chạy trên SQLite thật (xem vitest.global-setup.ts).
+ * Tạo job từ tab "Viết mới", chạy trên Postgres thật (xem vitest.global-setup.ts).
  *
  * Điểm cần giữ bằng test chứ không bằng trí nhớ: nháp gõ ở trang xếp lịch PHẢI thành một
  * ContentItem thật trong kho. Luật 7 so bài mới với các ContentItem trong 30 ngày gần nhất —

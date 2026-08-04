@@ -18,6 +18,7 @@ export const HEALTH_VERDICTS = [
   "SHADOWBANNED",
   "ERROR",
   "WARN",
+  "UNTRACKED_POSTS",
   "NO_BASELINE",
   "HEALTHY",
 ] as const;
@@ -60,15 +61,21 @@ export const VERDICT_PRESENTATION: Record<HealthVerdict, VerdictPresentation> = 
     className: "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300",
     hint: "Thấy ít bài hơn số đã đăng. Theo dõi thêm vài ngày trước khi kết luận.",
   },
+  UNTRACKED_POSTS: {
+    label: "Có bài chưa ghi",
+    severity: 4,
+    className: "bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300",
+    hint: "Người ngoài thấy bài mà kho không có. Bộ luật đang đếm thiếu — vào /queue ghi lại.",
+  },
   NO_BASELINE: {
     label: "Chưa đối chiếu được",
-    severity: 4,
+    severity: 5,
     className: "bg-slate-200 text-slate-800 dark:bg-slate-800 dark:text-slate-300",
     hint: "Thấy nick, chưa thấy bài nào để so. Nhớ bấm “Đã đăng” sau mỗi lần đăng.",
   },
   HEALTHY: {
     label: "Khỏe",
-    severity: 5,
+    severity: 6,
     className: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300",
     hint: "Người ngoài nhìn thấy nick và bài của nó bình thường.",
   },
@@ -88,6 +95,9 @@ export function getVerdictPresentation(verdict: string): VerdictPresentation {
  * Chỉ hai kết luận xấu nhất mới đổi trạng thái nick. `WARN` cố ý KHÔNG đổi: thấy ít bài hơn
  * dự kiến có thể chỉ là bài bị mod xóa, và cách ly nhầm một nick khỏe cũng tốn như bỏ sót
  * một nick chết. `ERROR` càng không được đổi — bộ dò đang mù thì nó không biết gì để mà kết luận.
+ *
+ * `UNTRACKED_POSTS` cũng không đổi, và lý do khác hẳn: nick hoàn toàn khỏe, thứ hỏng là SỔ SÁCH
+ * của mình. Cách ly nick vì mình ghi thiếu là phạt nhầm đối tượng — việc phải làm nằm ở /queue.
  */
 export function statusForcedBy(verdict: HealthVerdict): AccountStatus | null {
   if (verdict === "CHECKPOINT") return "CHECKPOINT";

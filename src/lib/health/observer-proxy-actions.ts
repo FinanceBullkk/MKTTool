@@ -14,6 +14,7 @@ import { firstError, formToObject, optionalText } from "@/lib/accounts/vault-for
 import { encryptCredential } from "@/lib/crypto/credential-encryption";
 import { prisma } from "@/lib/db/prisma-client";
 import { describeUnexpectedDbError, isUniqueConstraintError } from "@/lib/db/prisma-error-helpers";
+import { checkObserverProxyLiveness } from "@/lib/proxies/proxy-liveness-check";
 
 const observerProxyCreateSchema = z.object({
   label: z.string().min(1, "Nhãn không được để trống"),
@@ -66,6 +67,25 @@ export async function setObserverProxyActive(id: string, active: boolean): Promi
   } catch (error) {
     return { ok: false, message: describeUnexpectedDbError(error, "đổi trạng thái proxy") };
   }
+}
+
+/**
+ * Kiểm proxy quan sát viên còn sống không, bằng đúng bộ kiểm của proxy thường.
+ *
+ * Đáng bấm trước mỗi lượt dò quan trọng: proxy này chết thì mọi nick ra kết luận "Không dò
+ * được" — trung thực nhưng vô dụng, và người đọc sẽ đi tìm lỗi ở phía Reddit. Còn nếu nó rơi
+ * vào nhánh "không đổi IP" thì tệ hơn nhiều: bộ dò đang nhìn Reddit bằng chính IP nhà, kết
+ * luận trông vẫn hợp lý mà thật ra vô nghĩa.
+ */
+export async function checkObserverProxy(id: string): Promise<ActionResult> {
+  const proxy = await prisma.observerProxy.findUnique({ where: { id } });
+  if (!proxy) return { ok: false, message: "Không tìm thấy proxy quan sát viên." };
+
+  const liveness = await checkObserverProxyLiveness(proxy);
+  revalidatePath("/proxies");
+  revalidatePath("/");
+
+  return { ok: liveness.verdict === "OK", message: liveness.message };
 }
 
 export async function deleteObserverProxy(id: string): Promise<ActionResult> {

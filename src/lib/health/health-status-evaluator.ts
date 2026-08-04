@@ -30,6 +30,36 @@ export interface HealthEvaluationInput {
   /** Số bài người ngoài thấy được trong cùng cửa sổ. `null` khi không đọc được danh sách. */
   visiblePosts: number | null;
   windowDays: number;
+  /**
+   * Đã từng có lượt dò nào ĐỌC ĐƯỢC trang profile của nick này chưa.
+   *
+   * Chỉ dùng cho nhánh 404, và nó là mảnh bằng chứng duy nhất phân biệt được "nick bị ẩn"
+   * với "username khai sai" — hai thứ Reddit trả về y hệt nhau. Từng thấy rồi mà giờ mất
+   * thì loại trừ được khả năng gõ sai; chưa thấy bao giờ thì không loại trừ được gì.
+   */
+  profileSeenBefore?: boolean;
+  /**
+   * Bài thấy được trên profile mà KHÔNG khớp job nào trong kho.
+   *
+   * Đây là chiều so sánh mà bộ dò từng mù hoàn toàn. Thiếu nó thì một bài đăng ngoài công cụ
+   * sẽ không bao giờ lộ ra, mà bài không được ghi làm bốn luật giữ nhịp đếm thiếu: hạn mức
+   * ngày, giãn cách cùng đích, tỷ lệ promo và chặn đụng độ thread đều dễ dãi hơn thực tế.
+   * Tức là lỗi sổ sách âm thầm biến bộ luật thành thứ tạo ra chính cái nó phải ngăn.
+   */
+  untrackedPostKeys?: readonly string[];
+  /**
+   * Job đã đánh dấu đăng nhưng KHÔNG tìm thấy bài tương ứng trên profile.
+   *
+   * Không tự thành một kết luận riêng — nó chỉ làm rõ thêm cho các nhánh "thấy ít hơn dự
+   * kiến" bằng cách chỉ đúng link nào không thấy, thay vì chỉ nói thiếu mấy bài.
+   */
+  missingPostKeys?: readonly string[];
+}
+
+/** Liệt kê vài khóa đầu, còn lại gộp thành "và N nữa" — câu cảnh báo phải đọc được. */
+function listKeys(keys: readonly string[], limit = 3): string {
+  const shown = keys.slice(0, limit).join(", ");
+  return keys.length > limit ? `${shown} và ${keys.length - limit} bài nữa` : shown;
 }
 
 export interface HealthEvaluation {
@@ -76,17 +106,67 @@ export function evaluateHealth(input: HealthEvaluationInput): HealthEvaluation {
     return conclude("ERROR", "Bộ dò không trả về kết quả đọc trang nào. Xem log của lần chạy.");
   }
 
+  // Reddit trả về ĐÚNG MỘT trang cho bốn tình huống khác nhau: nick bị ẩn toàn cục, username
+  // khai sai, nick đã bị xóa, nick chưa từng tồn tại. Bản đầu của nhánh này khẳng định luôn là
+  // "shadowban toàn cục" — và ngay lượt dò thật đầu tiên (04/08/2026) nó đã cách ly nhầm một
+  // nick khỏe chỉ vì username trong kho là nhãn tự đặt chứ không phải tên thật trên Reddit.
+  //
+  // Vẫn giữ kết luận SHADOWBANNED cho cả hai nhánh, có chủ ý: cách ly nhầm một nick khỏe thì
+  // ồn ào và sửa được bằng tay, còn để một nick đã bị ẩn tiếp tục đăng thì im lặng và tốn
+  // content mỗi ngày. Thứ sửa ở đây là ĐỘ CHẮC CHẮN của câu chữ, không phải hành động.
   if (profile.kind === "MISSING") {
     return conclude(
       "SHADOWBANNED",
-      "Reddit trả về \"nobody on Reddit goes by that name\" khi xem ở chế độ chưa đăng nhập — " +
-        "nick tồn tại với chính nó nhưng vô hình với người ngoài. Đây là shadowban toàn cục. " +
-        "Dừng đăng bằng nick này ngay; đăng tiếp chỉ tốn content.",
+      input.profileSeenBefore
+        ? "Reddit không còn tìm thấy trang profile này, dù lần dò trước vẫn đọc được nó. " +
+            "Nick vừa biến mất khỏi mắt người ngoài — shadowban toàn cục, hoặc nick đã bị xóa. " +
+            "Dừng đăng bằng nick này ngay; đăng tiếp chỉ tốn content."
+        : "Reddit không tìm thấy trang profile này khi xem ở chế độ chưa đăng nhập. Bốn nguyên " +
+            "nhân cho ra cùng một trang: nick bị ẩn toàn cục, username khai sai trong kho, nick " +
+            "đã bị xóa, hoặc nick chưa từng tồn tại. Chưa có lượt dò nào từng đọc được profile " +
+            "này nên chưa loại trừ được cái nào — KIỂM CHÍNH TẢ USERNAME trước đã. Nick vẫn bị " +
+            "cách ly cho tới khi xác minh, vì để một nick đã bị ẩn đăng tiếp thì tốn content " +
+            "mà không ai biết.",
     );
   }
 
   if (profile.kind === "UNPARSEABLE") {
     return conclude("ERROR", profile.reason);
+  }
+
+  // Xét trước mọi nhánh đếm: không đọc được danh sách thì không so được gì, kể cả khi kho
+  // trống. "Kho trống" không phải lý do để nói nhẹ đi một lượt dò mù.
+  if (visiblePosts === null) {
+    return conclude(
+      "ERROR",
+      "Đọc được trang profile nhưng không đọc được danh sách bài, nên không đối chiếu được " +
+        `với ${expectedPosts} bài đã đăng. Mở tay old.reddit.com để đối chiếu.`,
+    );
+  }
+
+  // Chiều so sánh mà bộ dò từng mù hoàn toàn: NGOÀI ĐỜI CÓ MÀ KHO KHÔNG BIẾT.
+  //
+  // Xét TRƯỚC nhánh "chưa có gì để so", vì nick có 0 job trong kho mà 3 bài trên profile chính
+  // là ca lệch nặng nhất — mà nhánh dưới lại trả "chưa có gì để đối chiếu" đúng lúc đang có
+  // rất nhiều thứ để đối chiếu.
+  //
+  // Có khóa thì chỉ đích danh từng bài; không có khóa thì vẫn kết luận được bằng số lượng.
+  // Đừng bỏ nhánh đếm: nick nào bộ dò không đọc được `data-permalink` sẽ im lặng trở lại.
+  const untracked = input.untrackedPostKeys ?? [];
+  const untrackedByCount = visiblePosts - expectedPosts;
+
+  if (untracked.length > 0 || untrackedByCount > 0) {
+    const howMany = untracked.length > 0 ? untracked.length : untrackedByCount;
+    return conclude(
+      "UNTRACKED_POSTS",
+      `Người ngoài thấy ${visiblePosts} bài trong ${windowDays} ngày qua nhưng kho chỉ ghi ` +
+        `${expectedPosts} — ${howMany} bài không có job nào tương ứng` +
+        (untracked.length > 0 ? ` (${listKeys(untracked)})` : "") +
+        ". Bộ luật đếm theo job, nên mỗi bài không được ghi làm nó ĐẾM THIẾU: hạn mức ngày, " +
+        "giãn cách cùng đích, tỷ lệ promo và chặn đụng độ thread đều đang dễ dãi hơn thực tế. " +
+        "Vào /queue ghi lại. Kể cả bài đăng tay để nuôi nick hay bài của chủ cũ khi mua nick " +
+        "cổ cũng nên ghi — bộ luật chỉ biết những gì được ghi lại.",
+    );
   }
 
   // Không có bài nào để so thì lần dò này chỉ chứng minh nick còn tồn tại với người ngoài —
@@ -104,14 +184,6 @@ export function evaluateHealth(input: HealthEvaluationInput): HealthEvaluation {
     );
   }
 
-  if (visiblePosts === null) {
-    return conclude(
-      "ERROR",
-      "Đọc được trang profile nhưng không đọc được danh sách bài, nên không đối chiếu được " +
-        `với ${expectedPosts} bài đã đăng. Mở tay old.reddit.com để đối chiếu.`,
-    );
-  }
-
   if (visiblePosts === 0) {
     return conclude(
       "SHADOWBANNED",
@@ -123,10 +195,13 @@ export function evaluateHealth(input: HealthEvaluationInput): HealthEvaluation {
     );
   }
 
+  const missing = input.missingPostKeys ?? [];
+
   if (visiblePosts < expectedPosts * VISIBLE_POST_WARN_RATIO) {
     return conclude(
       "WARN",
       `Chỉ thấy ${visiblePosts}/${expectedPosts} bài đã đăng trong ${windowDays} ngày qua. ` +
+        (missing.length > 0 ? `Không thấy: ${listKeys(missing)}. ` : "") +
         "Có thể do mod xóa bài, cũng có thể là bị ẩn từng bài. Theo dõi thêm vài ngày; " +
         "tỷ lệ tụt tiếp thì dừng đăng.",
     );

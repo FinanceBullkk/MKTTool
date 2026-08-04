@@ -27,21 +27,67 @@ Ràng buộc này do database ép, không lách được.
 ## Yêu cầu
 
 - Node.js 22+ (dự án đang chạy trên 24)
+- **PostgreSQL 17** — bản cài native, không cần Docker
 - Một antidetect browser: [MultiZen](https://getmultizen.com/) (miễn phí) hoặc AdsPower
 - Proxy tĩnh (static ISP), mỗi nick một IP
 
 ## Cài đặt
 
+Dựng hai database trước — một cho vận hành, một **riêng** cho bộ test:
+
+```bash
+createdb -U postgres mkttool_dev
+createdb -U postgres mkttool_test
+```
+
+> Thư mục `bin` của Postgres phải nằm trong PATH (mặc định trên Windows:
+> `C:\Program Files\PostgreSQL\17\bin`). Thiếu nó thì `npm run db:backup` không chạy được vì
+> không tìm thấy `pg_dump` — và công cụ sẽ nói đúng câu đó chứ không báo lỗi mơ hồ.
+
 ```bash
 npm install
 cp .env.example .env
 npm run vault:keygen        # dán VAULT_KEY vào .env
+                            # rồi điền DATABASE_URL + TEST_DATABASE_URL
 npm run db:upgrade
 npm run dev                 # http://localhost:3000
 ```
 
+> **`TEST_DATABASE_URL` phải trỏ vào một database riêng có tên kết thúc bằng `_test`.** Bộ test
+> `DROP SCHEMA` không hỏi lại trước mỗi lượt chạy, nên nó từ chối chạy trên database không đúng
+> quy ước đặt tên. Trỏ nhầm vào database vận hành là mất sạch kho danh tính, mất theo kiểu không
+> kịp hối hận — quy ước tên rẻ hơn nhiều so với hậu quả.
+
 > **VAULT_KEY phải được sao lưu vào password manager.** Mất khóa là mất toàn bộ mật khẩu và
 > TOTP secret của mọi nick, không khôi phục được bằng bất kỳ cách nào.
+
+> **`TEAM_TIMEZONE` là biến bắt buộc.** Thiếu nó app dừng ngay kèm thông báo, không tự lùi về
+> giờ máy. `.env.example` đã điền sẵn `Asia/Ho_Chi_Minh` — xem [Múi giờ](#múi-giờ) bên dưới.
+
+## Múi giờ
+
+**Một múi giờ cho cả team, không phải giờ của máy đang chạy.** `TEAM_TIMEZONE` quyết định
+"hôm nay" bắt đầu và kết thúc lúc nào, và mọi thứ dưới đây đọc nó:
+
+| Chỗ | Vì sao quan trọng |
+|---|---|
+| Luật hạn mức ngày (luật 4) | "2 bài một ngày" phải cùng nghĩa với mọi người |
+| Cold start (luật 2) | hết cold-start lúc nào |
+| Giãn cách hai bài cùng sub (luật 5) | mốc 24 tiếng |
+| Ô chọn giờ ở `/queue` | gõ 21:30 thì job rơi đúng 21:30 giờ team |
+| Mọi ngày giờ hiển thị | ai mở cũng thấy một con số |
+
+Vì sao phải cứng nhắc thế: `setHours(0,0,0,0)` cắt ngày theo giờ **của máy đang chạy**. Một
+người dùng thì không ai thấy gì. Hai người ngồi hai múi giờ là **cùng một job cho hai kết quả
+khác nhau** — luật hạn mức đếm sang ngày khác, cold-start hết sớm hoặc muộn vài tiếng — và
+không có gì báo rằng nó vừa lệch. Đó là lý do có một test quét mã nguồn cấm hẳn họ hàm
+`getHours` / `setHours` / `toLocaleDateString` trong `src/`
+([machine-clock-ban.test.ts](src/lib/format/machine-clock-ban.test.ts)): kiểu hỏng này không
+làm test nào đỏ, nên phải cấm thẳng.
+
+> ⚠️ **Đổi `TEAM_TIMEZONE` thì phải build lại**, không phải chỉ khởi động lại. Ô chọn giờ chạy
+> ở trình duyệt cũng đọc biến này, và giá trị được nhúng vào bundle lúc build (xem
+> `next.config.ts`).
 
 ### Nhận bản mới
 
@@ -51,8 +97,13 @@ npm run db:upgrade
 ```
 
 `db:upgrade` xem bản mới có thay đổi cấu trúc database không. Không có thì nó nói vậy rồi dừng.
-Có thì nó **sao lưu trước**, áp xong mới báo — và nếu áp hỏng thì chỉ luôn tên file sao lưu để
-chép đè về. Chạy lại nhiều lần không sao: đã mới nhất thì nó không làm gì.
+Có thì nó **sao lưu trước**, áp xong mới báo — và nếu áp hỏng thì chỉ luôn tên file sao lưu kèm
+đúng lệnh `psql` để nạp lại. Chạy lại nhiều lần không sao: đã mới nhất thì nó không làm gì.
+
+> ⚠️ **Có thay đổi cấu trúc thì phải khởi động lại `npm run dev`.** Dev server nạp bản mô tả
+> database một lần lúc khởi động và giữ nguyên trong bộ nhớ, nên nó vẫn tin là cột mới không tồn
+> tại — biểu hiện là lỗi đỏ `Unknown argument` ngay giữa màn hình dù code và database đều đúng.
+> Khởi động lại vẫn báo y hệt thì xóa thư mục `.next` rồi chạy lại.
 
 > Đừng dùng `npm run db:migrate` cho việc này. Đó là lệnh của người phát triển: nó có thể hỏi
 > lại, có thể tạo migration mới, và trong vài tình huống còn đề nghị dựng lại database từ đầu —
@@ -208,6 +259,31 @@ trước từ tham số như Page, nên link nằm ngoài thân bài là link bi
 > được ghi lại: không bấm thì luật đụng độ thread không có gì để so, và bộ dò shadowban không có
 > bài nào để đối chiếu — nick sẽ rơi vào ô "Chưa đối chiếu được" dù vẫn đang đăng đều.
 
+Bấm nhầm thì sửa được: job **Đã đăng / Bỏ qua / Lỗi** có nút **"Trả về chờ đăng"**. Nó xóa cả link
+lẫn dấu vết đụng thread mà lượt "Đã đăng" đã ghi, rồi chấm lại luật — nên chỉ dùng khi bài **chưa
+thật sự lên**. Trả về một bài đã lên thật là tự mở đường đăng nó lần thứ hai.
+
+### Khỏi chép link: "Quét & gán link"
+
+Với job Reddit còn đang mở, dòng job có nút **"Quét & gán link"**. Đăng tay xong bấm nó: bộ dò mở
+trang profile công khai qua proxy quan sát viên (~30-60 giây), thấy bài vừa lên và **tự đánh dấu
+đã đăng kèm link** — không phải copy link dán lại.
+
+Nó chỉ tự ghi khi chắc. Ba cửa phải qua hết:
+
+| Cửa | Vì sao |
+|---|---|
+| Cùng sub với đích của job | Một nick đăng nhiều sub; ghép nhầm sub là gán link bài này cho job kia |
+| Đăng cách giờ dự kiến ≤ 24 tiếng | Lịch là giờ **dự kiến**, đăng trễ nửa ngày là bình thường |
+| Slug tiêu đề trong link khớp content | Cửa chặn đúng ca dán nhầm link giữa hai bài cùng sub |
+
+Còn lại đúng **một** ứng viên mới ghi. Hai bài cùng khớp một job, hoặc hai job cùng khớp một bài
+→ không gán bài nào, chỉ báo. Bài đăng ngoài công cụ (nuôi nick, bài của chủ cũ) không có job nào
+để ghép nên vẫn hiện ở cảnh báo **"Có bài chưa ghi"** — vào `/queue` ghi tay.
+
+Cửa sổ quan sát là **7 ngày** và chỉ đọc trang đầu profile, nên bài cũ hơn không tự gán được.
+Facebook không có bộ dò: Fanpage đã tự có link từ Graph API, Group thì phải bấm tay.
+
 ## Kiến trúc
 
 ```
@@ -234,6 +310,7 @@ src/
     ├── facebook/            Graph API: OAuth, token, đăng Fanpage
     ├── format/ platforms/   định dạng ngày, gộp họ nền tảng
     ├── health/              bộ dò shadowban: phiên trình duyệt sạch, parser, đánh giá, runner
+    ├── proxies/             kiểm proxy còn sống (hỏi IP ra, chặn mở profile) + đo băng thông
     ├── queue/               server action cho job + tương tác, nhắc việc đăng tay
     ├── rules/               bộ luật an toàn — mỗi luật một file
     └── totp/                sinh mã OTP 2FA
@@ -242,8 +319,11 @@ src/
 Mỗi luật là một hàm thuần `(ctx: RuleContext) => RuleVerdict`. Toàn bộ việc hỏi database nằm ở
 `rule-context-builder.ts`, nên thêm luật mới chỉ là thêm một file và một dòng trong `rules-engine.ts`.
 
-Stack: Next.js 16 + TypeScript + Prisma 7 + SQLite + MCP client tới MultiZen. Một process, chạy
-trên máy bạn MKT. Chưa cần VPS, Docker, Postgres hay Redis.
+Stack: Next.js 16 + TypeScript + Prisma 7 + PostgreSQL + MCP client tới MultiZen. Một process,
+chạy trên máy bạn MKT. Chưa cần VPS, Docker hay Redis.
+
+> Nền dữ liệu đổi từ SQLite sang Postgres ngày 04/08/2026 — bước đầu của việc biến công cụ
+> thành web chung cho team. Một file SQLite trên một máy không phục vụ được 5-6 người ở 5-6 nơi.
 
 `playwright` chỉ dùng cho bộ dò shadowban, chạy trực tiếp qua proxy quan sát viên chứ không qua
 antidetect browser — xem [Dò shadowban](#dò-shadowban). Lần đầu chạy phải cài trình duyệt:
@@ -278,8 +358,51 @@ giao thức upstream chỉ là chặng sau đó.
 > đăng nhập lần đầu. Đừng đổi ngôn ngữ của profile đang nuôi: nick dùng `sv-SE` suốt 3 tháng rồi
 > đột ngột sang `en-GB` còn đáng ngờ hơn là cứ để lệch.
 
-> ⚠️ Đẩy thành công **không** có nghĩa proxy còn sống. Vẫn mở `ipinfo.io` kiểm IP sau mỗi lần
-> mở profile mới — proxy hết hạn hoặc bị chặn vẫn ăn cấu hình bình thường.
+### Proxy được kiểm trước khi mở
+
+Bấm "Mở profile" là công cụ **đi qua chính proxy đó hỏi xem người ngoài nhìn thấy IP nào**, rồi
+mới đẩy và mở. Năm kết luận:
+
+| Kết luận | Nghĩa là | Có mở profile không |
+|---|---|---|
+| **Sống** | proxy trả lời, IP ra khác IP nhà | ✅ mở |
+| **Chết** | không nối được, sai mật khẩu, hoặc proxy không ra được internet | ❌ **không mở** |
+| **Không đổi IP** | proxy trả lời bình thường nhưng IP ra **đúng bằng IP máy này** | ❌ **không mở** |
+| **Lệch nước** | proxy sống nhưng ra ở nước khác nước đã khai | ⚠️ mở, có nói rõ |
+| **Không kiểm được** | dịch vụ tra cứu hỏng hoặc mất mạng — *không phải* tin tốt | ⚠️ mở, có nói rõ |
+
+Kiểm cả kho bằng nút **"Kiểm tất cả"** ở `/proxies`; mỗi dòng cũng có nút **"Kiểm"** riêng và
+một cột ghi kết luận của lần kiểm gần nhất. Proxy hỏng nổi lên thành dải cảnh báo đỏ ở trang
+**Hôm nay** — không phải mở giao diện antidetect mới thấy.
+
+Proxy **chưa kiểm lần nào** hiện đúng chữ "chưa kiểm lần nào", không hiện như đang khỏe.
+
+> ⚠️ Phép đo trên là của **công cụ**, không phải của trình duyệt: nó chứng minh proxy còn sống,
+> không chứng minh MultiZen đang thật sự dùng nó. Lần đầu mở một profile mới vẫn nên vào
+> `ipinfo.io` trong chính profile đó đối chiếu.
+
+### Đo băng thông proxy
+
+Mỗi dòng ở `/proxies` có nút **"Đo tốc độ (1 MB)"**: tải một file thử 1 MB qua đúng proxy đó rồi
+tính megabit/giây. Kết quả ghi lại thành một cột riêng, `< 1 Mbps` là **rất chậm**, `< 5 Mbps` là
+**chậm**.
+
+**Vì sao không có nút "đo cả kho":** mỗi lượt đo tiêu **1 MB quota trả tiền** của proxy. Nhân cả
+đàn là vài chục MB mỗi lần bấm, nên phép đo này chỉ chạy khi bấm tay từng cái — cái giá ghi thẳng
+trên nhãn nút. Kiểm proxy còn sống thì ngược lại, chỉ tốn vài KB, bấm thoải mái.
+
+**Ba điều phải nhớ khi đọc số đo:**
+
+- Đây là tốc độ **tải xuống**. Đăng bài kèm ảnh/video thì thứ quyết định là tốc độ tải lên, mà
+  hai chiều có thể lệch nhau rất xa trên proxy dân cư.
+- Số đo là `min(mạng nhà, proxy, máy chủ thử)` — đo lúc mạng nhà đang tải thứ khác thì proxy tốt
+  vẫn ra số xấu. **So tương đối** giữa các proxy đo cùng lúc thì đáng tin, so với ngưỡng tuyệt đối
+  thì không.
+- 128 KB đầu bị loại khỏi phép tính (TCP khởi động chậm), và proxy quá chậm thì cắt sau 8 giây —
+  lúc đó câu kết quả nói rõ là chưa tải hết ngân sách.
+
+Đo được nhưng ra lỗi thì hiện **"không đo được"**, không hiện thành số 0: proxy chưa đo được và
+proxy chậm là hai chuyện khác nhau, dẫn tới hai hành động khác nhau.
 
 MultiZen không phơi endpoint CDP ra ngoài (Playwright không gắn vào được) — đó là **bình thường,
 không phải lỗi**. Nó lái trình duyệt bằng chính tool MCP của nó (`navigate`, `click`, `type`,
@@ -356,7 +479,7 @@ bài Reddit — xem [Đăng bài](#đăng-bài).
 - App chỉ nghe `127.0.0.1` — ép bằng cờ `-H` trong `package.json`, không phải mặc định
 - Route `POST` trong `api/` đối chiếu `Origin` với `Host` — Next tự làm việc này cho server
   action nhưng không làm cho route handler, mà route handler chính là chỗ có nút mở profile
-- `.env` và `*.db` đã nằm trong `.gitignore`
+- `.env` và thư mục sao lưu `data/backups/` đã nằm trong `.gitignore` — bản dump chứa ciphertext
 
 ### Không có đăng nhập — nên chỗ app lắng nghe là toàn bộ hàng rào
 
@@ -374,14 +497,26 @@ mọi card mạng, tức là cả người ngồi cùng wifi cũng mở được
 ### Sao lưu — hai nửa, cất hai nơi
 
 ```bash
-npm run db:backup     # → data/backups/mkttool-<ngày>-<giờ>.db
+npm run db:backup     # → data/backups/mkttool-<ngày>-<giờ>.sql
 ```
 
-Chạy được khi app đang mở. Dùng `VACUUM INTO` chứ không copy file, vì SQLite chạy chế độ WAL:
-copy mỗi file `.db` là ra một bản sao thiếu dữ liệu mới nhất, và cái thiếu đó chỉ lộ ra đúng
-lúc cần khôi phục.
+Chạy được khi app đang mở: `pg_dump` chụp ảnh trong một transaction nên bản sao luôn nhất quán,
+không phải tắt server mới sao lưu được. Tên file có mốc thời gian nên **không bao giờ ghi đè
+bản cũ**.
 
-Khôi phục: chép file sao lưu đè lên `dev.db` (tắt app trước).
+Bản sao là SQL dạng chữ (`--format=plain`) chứ không phải dạng nén, dù dạng nén nhỏ hơn. Vì bản
+sao phải **đọc được bằng mắt** để kiểm "không có credential dạng trần" — quét chuỗi trên file nén
+thì luôn không thấy gì, tức là một phép kiểm an toàn luôn xanh, kiểu hỏng tệ nhất của một phép
+kiểm. `npm run vault:smoke` chạy đúng phép quét đó trên bản dump thật.
+
+Khôi phục vào một database rỗng mới (đừng nạp đè lên database đang có dữ liệu):
+
+```bash
+createdb -U postgres mkttool_restore
+psql -U postgres -d mkttool_restore -f data/backups/mkttool-<ngày>-<giờ>.sql
+```
+
+Rồi trỏ `DATABASE_URL` sang database vừa khôi phục.
 
 > Bản sao lưu và `VAULT_KEY` là **hai nửa của một thứ**. Có bản sao mà mất khóa thì mở ra chỉ
 > thấy chuỗi vô nghĩa; có khóa mà mất bản sao thì chẳng còn gì để mở. Cất hai nơi khác nhau —
@@ -431,17 +566,41 @@ Kết quả vào bảng ở `/health` và trang chủ, kèm biểu đồ karma 3
 
 | Đo được gì | Kết luận |
 |---|---|
-| Reddit trả HTTP 404 cho trang profile | **Bị ẩn** — shadowban toàn cục |
+| Reddit trả HTTP 404 cho trang profile | **Bị ẩn** — nhưng xem cảnh báo ngay dưới bảng |
 | Profile hiện ra, nhưng 0/N bài đã đăng nhìn thấy được | **Bị ẩn** — kiểu ẩn từng bài |
 | Thấy dưới một nửa số bài đã đăng | **Nghi ngờ** — có thể chỉ là mod xóa bài |
 | Trang báo tài khoản bị treo | **Dính checkpoint** |
+| **Thấy nhiều bài hơn số đã ghi trong kho** | **Có bài chưa ghi** — bộ luật đang đếm thiếu |
 | Bộ dò bị captcha / Reddit đổi HTML | **Không dò được** — *không phải* tin tốt |
 | Profile bình thường, nhưng chưa bài nào đánh dấu đã đăng | **Chưa đối chiếu được** — cũng *không phải* tin tốt |
+
+**"Có bài chưa ghi" là kết luận về SỔ SÁCH, không phải về nick** — nên nó không cách ly nick.
+Nhưng đừng bỏ qua: bộ luật đếm theo job, nên mỗi bài không được ghi làm luật hạn mức ngày, giãn
+cách cùng đích, tỷ lệ promo và chặn đụng độ thread **đều dễ dãi hơn thực tế**. Bài bị ẩn thì mất
+reach; bài không được ghi thì bộ luật lặng lẽ cho qua những bài lẽ ra phải chặn — và đó mới là
+đường dẫn tới shadowban. Kể cả bài đăng tay để nuôi nick hay bài của chủ cũ khi mua nick cổ cũng
+nên ghi.
+
+Bộ dò đọc `data-permalink` của từng bài nên chỉ được **đích danh bài nào** chưa ghi, và job nào
+khai đã đăng mà không thấy bài. Khóa sinh bằng đúng `normalizeThreadUrl()` mà luật 8 dùng, nên
+hai bên ghép được với nhau.
 
 Hai kết luận cuối bảng đều có nghĩa "chưa biết", chỉ khác nguyên nhân: **Không dò được** là bộ
 dò hỏng, **Chưa đối chiếu được** là bộ dò chạy ngon nhưng không có gì để so. Nick mới hoặc đang
 nghỉ thì đó là bình thường; nhưng nick đăng đều mà không ai bấm **"Đã đăng"** cũng rơi vào đúng ô
 này — và đó mới là lúc cần cảnh báo nhất. Cả hai đều làm luật 10 cảnh báo, không cho qua im lặng.
+
+> ⚠️ **404 có bốn nguyên nhân, và Reddit trả về cùng một trang cho cả bốn:** nick bị ẩn toàn
+> cục, **username khai sai trong kho**, nick đã bị xóa, nick chưa từng tồn tại. Kiểm chính tả
+> username trước khi tin kết luận — lượt dò thật đầu tiên (04/08/2026) đã cách ly nhầm một nick
+> khỏe đúng vì lý do đó.
+>
+> Bộ dò dùng lịch sử dò để thu hẹp: **đã từng đọc được** profile này rồi mà giờ mất thì loại trừ
+> được khả năng gõ sai, và lúc đó nó mới nói chắc. Chưa từng thấy lần nào thì câu chữ nói rõ là
+> chưa loại trừ được gì.
+>
+> Dù nguyên nhân nào thì nick **vẫn bị cách ly** — cách ly nhầm một nick khỏe thì ồn ào và sửa
+> được bằng tay, còn để một nick đã bị ẩn đăng tiếp thì im lặng và tốn content mỗi ngày.
 
 Nick bị kết luận **Bị ẩn** hoặc **Dính checkpoint** sẽ tự chuyển trạng thái và bộ luật chặn mọi
 job của nó. Chiều ngược lại thì không: một lần dò khỏe **không** tự gỡ cách ly, vì nó chỉ chứng
@@ -449,16 +608,31 @@ minh lần dò đó không thấy vấn đề. Gỡ là quyết định của ng
 
 > ⚠️ **Proxy quan sát viên phải là IP riêng, không bao giờ đăng nhập nick nào.** Dò bằng chính
 > proxy của nick là tự nhìn mình trong gương rồi kết luận người ngoài cũng thấy vậy. Nhập ở
-> `/proxies`, khối "Proxy quan sát viên". Chưa có thì `npm run health` dừng ngay từ đầu — cố ý,
-> vì dò bằng IP nhà còn tệ hơn không dò.
+> `/proxies`, khối "Proxy quan sát viên". Chưa có thì bộ dò dừng ngay từ đầu — cố ý, vì dò bằng
+> IP nhà còn tệ hơn không dò, và trang **Hôm nay** sẽ nói thẳng là chưa chạy được vì thiếu nó.
 
 Chỉ nhận proxy **HTTP**: Chromium không xác thực được với SOCKS5, nó bỏ qua user/mật khẩu rồi
 đi tiếp — hoặc hỏng, hoặc tệ hơn là chạy bằng IP nhà mà không ai biết.
 
+Proxy quan sát viên **kiểm được bằng nút "Kiểm"** ngay trong khối đó, dùng chung bộ kiểm với
+proxy thường (xem [Proxy được kiểm trước khi mở](#proxy-được-kiểm-trước-khi-mở)). Nên bấm trước
+mỗi lượt dò quan trọng: proxy này chết thì mọi nick ra kết luận *Không dò được* — trung thực
+nhưng vô dụng, và người đọc sẽ đi tìm lỗi ở phía Reddit.
+
+### Ba cách chạy một lượt dò
+
+| Cách | Dùng khi |
+|---|---|
+| Nút **"Dò cả đàn"** ở `/health` | muốn chạy ngay mà không mở terminal. Chạy nền ở tiến trình riêng — đóng tab không ảnh hưởng, tải lại trang thì bảng đầy dần |
+| `npm run health` | đặt lịch chạy hằng ngày bằng Task Scheduler. **Một lần mỗi ngày là đủ** |
+| Nút **"Dò lại ngay"** ở từng dòng | soi lại đúng một nick đáng ngờ |
+
+Nút "Dò cả đàn" sinh **đúng tiến trình mà `npm run health` chạy**, không phải một bản sao của
+luồng dò — nên hai đường không thể lệch nhau.
+
 Lượt đầy đủ nghỉ **ngẫu nhiên 30-90 giây giữa các nick**, nên 8 nick mất gần mười phút. Đó là
 chủ ý: tám lượt xem profile bắn ra trong ba giây từ một IP là hành vi của máy, và chính bộ dò
-sẽ bị chặn trước tiên. **Một lần mỗi ngày là đủ** — đặt lịch bằng Task Scheduler. Nút "Dò lại
-ngay" trên bảng chỉ dò một nick, dùng khi đang nhìn một nick đáng ngờ.
+sẽ bị chặn trước tiên.
 
 **Hai lượt dò không bao giờ chạy chồng nhau.** Lượt đang chạy giữ một file khóa
 (`data/health-check.lock`); lượt thứ hai bị từ chối kèm câu nói rõ ai đang giữ và giữ bao lâu
@@ -485,6 +659,7 @@ chuyển xấu từ lúc nào.
 | Mở profile antidetect | 02/08/2026 | Chặng B |
 | Đẩy proxy vào profile, IP khớp | 02/08/2026 | [Chặng C](plans/reports/chang-c-260802-1443-proxy-push-verification.md) |
 | Dò shadowban đọc Reddit thật | 03/08/2026 | `npm run health:smoke` 17/17, bắt được 2 lỗi parser |
+| Kiểm proxy còn sống qua chính proxy đó | 04/08/2026 | 10/10 proxy Webshare ra đúng IP và đúng quốc gia; nhánh SOCKS5 và nhánh HTTP trên cùng một proxy cho cùng một IP |
 | **Đăng thật lên Fanpage qua Graph API** | **03/08/2026** | Bài lên tường Page nháp; job `POSTED` kèm URL thật, `Interaction` tự ghi, `AuditLog` ghi `FACEBOOK_PAGE_PUBLISHED` |
 
 Chưa kiểm chứng: đăng bằng nick Reddit thật (Phase 05 chưa làm), và `npm run health` với nick thật

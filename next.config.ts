@@ -4,6 +4,22 @@ const nextConfig: NextConfig = {
   // Playwright và Prisma phải chạy ở Node runtime, không bundle vào edge/client.
   serverExternalPackages: ["playwright", "@prisma/client"],
 
+  /**
+   * Đưa TEAM_TIMEZONE sang cả bundle chạy ở trình duyệt.
+   *
+   * Ô chọn giờ ở trang xếp lịch là component client, mà nó phải hiện đúng múi giờ team —
+   * nếu không thì người ngồi múi giờ khác thấy một giờ còn máy chủ ghi một giờ khác.
+   * Khai ở đây thay vì thêm một biến `NEXT_PUBLIC_` riêng để chỉ có MỘT nguồn sự thật:
+   * hai biến là sớm muộn cũng có ngày lệch nhau mà không ai biết.
+   *
+   * Giá trị được nhúng thẳng vào bundle LÚC BUILD. Đổi múi giờ team thì phải build lại,
+   * không phải chỉ khởi động lại. Thiếu biến lúc build thì trang sẽ ném lỗi có nội dung rõ
+   * ngay lần đầu chạm tới ngày giờ — cố ý, hơn là lặng lẽ lùi về giờ máy người dùng.
+   */
+  env: {
+    TEAM_TIMEZONE: process.env.TEAM_TIMEZONE ?? "",
+  },
+
   experimental: {
     /**
      * Chặn số worker lúc build.

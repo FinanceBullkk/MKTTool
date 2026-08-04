@@ -20,6 +20,7 @@ import { prisma } from "@/lib/db/prisma-client";
 import { describeUnexpectedDbError, isUniqueConstraintError } from "@/lib/db/prisma-error-helpers";
 import { describeRecheck, recheckJobsMatching } from "@/lib/queue/recheck-jobs-batch";
 import { isValidTotpSecret, normalizeTotpSecret } from "@/lib/totp/totp-code-generator";
+import { isQuarantinedStatus } from "./account-status";
 import {
   accountUpdateSchema,
   firstError,
@@ -119,6 +120,11 @@ export async function updateAccount(
         // thì gỡ proxy khỏi một nick Facebook sẽ im lặng không có tác dụng gì.
         antidetectProfileId: data.antidetectProfileId?.trim() || null,
         proxyId: data.proxyId?.trim() || null,
+        // Gỡ cách ly thì lý do cách ly phải đi theo. Để lại là dựng ra một màn hình tự mâu
+        // thuẫn: nhãn "Khỏe" nằm ngay trên hộp đỏ "dừng đăng ngay" — xem isQuarantinedStatus().
+        quarantineReason: isQuarantinedStatus(data.status)
+          ? data.quarantineReason?.trim() || null
+          : null,
         ...(password ? { passwordEnc: encryptCredential(password) } : {}),
         ...(emailPassword ? { emailPasswordEnc: encryptCredential(emailPassword) } : {}),
         ...(totpSecret

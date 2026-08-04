@@ -17,7 +17,7 @@ thế nào**. Code nằm ở đâu thì tra [codebase-summary.md](codebase-summa
 │  Trình duyệt ──▶ Next.js (127.0.0.1:3000)           │
 │                   │  server actions + route handler │
 │                   ▼                                 │
-│              SQLite dev.db ── credential đã mã hóa  │
+│              PostgreSQL ── credential đã mã hóa     │
 │                   │                                 │
 │                   ├──▶ MultiZen (MCP 127.0.0.1:7777)│──▶ profile ──▶ proxy tĩnh ──▶ Reddit
 │                   │                                 │
@@ -88,14 +88,14 @@ toàn bộ mục này phải làm lại.
 
 | Thứ | Ở đâu | Sao lưu thế nào | Mất thì sao |
 |---|---|---|---|
-| Nick, proxy, content, job, tương tác, nhật ký | `dev.db` (SQLite) | `npm run db:backup` (VACUUM INTO, chạy được khi app đang mở) | Mất toàn bộ lịch sử → bộ luật mù, cho qua bài lẽ ra phải chặn |
-| Mật khẩu, TOTP secret, token Facebook | cùng `dev.db`, dạng ciphertext | như trên | – |
+| Nick, proxy, content, job, tương tác, nhật ký | Postgres `mkttool_dev` | `npm run db:backup` (`pg_dump`, chạy được khi app đang mở) | Mất toàn bộ lịch sử → bộ luật mù, cho qua bài lẽ ra phải chặn |
+| Mật khẩu, TOTP secret, token Facebook | cùng database, dạng ciphertext | như trên | – |
 | `VAULT_KEY` | `.env` | **Password manager, thủ công** | Mất khóa = mất vĩnh viễn mọi credential. Không có đường khôi phục |
 | Ảnh chụp lúc dò | `data/screenshots/` | không | Chỉ mất bằng chứng hình ảnh; bản ghi kết luận vẫn còn |
 | Bản sao lưu | `data/backups/` | – | – |
 | File khóa lượt dò | `data/health-check.lock` | – | Trạng thái máy đang chạy, không phải dữ liệu dự án |
 
-Toàn bộ `data/`, `.env`, `*.db` đều nằm trong `.gitignore`. Repo **không bao giờ** chứa credential.
+Toàn bộ `data/` và `.env` đều nằm trong `.gitignore`. Repo **không bao giờ** chứa credential.
 
 ## 5. Phụ thuộc bên ngoài và cách chúng hỏng
 
@@ -136,7 +136,7 @@ phần dễ thay đổi nhất (file luật) giữ thứ hay đổi nhất (kinh
 | Đã chọn | Thay vì | Lý do |
 |---|---|---|
 | Máy bàn, một tiến trình | VPS + Docker + microservices | Antidetect browser là app desktop. 1 người dùng, 1 máy — mọi lớp hạ tầng thêm vào đều là chi phí không đổi lấy gì |
-| SQLite + Prisma | Postgres + Redis | Một người dùng, không truy cập đồng thời. Migrate sau nếu thật sự lên VPS |
+| Postgres + Prisma | SQLite một file | SQLite từng đúng khi chỉ có 1 người dùng 1 máy, và đã chạy như vậy tới 04/08/2026. Đổi khi chốt làm web chung cho team — một file trên một máy không phục vụ được 5-6 người ở 5-6 nơi |
 | Server actions của Next.js | REST/GraphQL API riêng | Không có client thứ hai. API tách ra chỉ để tự gọi mình là công vô ích |
 | Reddit qua trình duyệt | Reddit API | API free cấm mục đích thương mại; API thương mại ~$12k/tháng |
 | Facebook Pages qua Graph API | Tự động hóa trình duyệt | Miễn phí, hợp lệ, không bao giờ bị khóa vì vi phạm chính sách tự động hóa |
@@ -153,7 +153,7 @@ Không làm bây giờ. Ghi lại để lần sau khỏi tranh luận lại từ
 
 | Nếu | Phải đổi gì |
 |---|---|
-| Nhiều người dùng chung một bản | Thêm đăng nhập + phân quyền, chuyển SQLite → Postgres, chuyển `VAULT_KEY` sang KMS/vault thật. Toàn bộ §3 làm lại |
+| Nhiều người dùng chung một bản | **Đang làm** — xem [plan web chung](../plans/260804-1752-web-chung-cho-team-phan-tan/plan.md). Postgres đã xong (04/08/2026); còn đăng nhập + phân quyền và tách `VAULT_KEY` thành hai vùng khóa. Toàn bộ §3 làm lại |
 | Chạy 24/7 không ai ngồi máy | Cần hàng đợi việc thật (không phải bảng `PostJob`) + máy luôn bật. Nhưng xem lại mục "không làm" ở PDR trước đã |
 | Trên 20 nick | Antidetect browser trên máy bàn hết chỗ; cần VPS có GUI hoặc nhiều máy. Chi phí proxy tăng tuyến tính |
 | Thêm nền tảng mới | Thêm giá trị vào `platform-family.ts`; đích chưa có bộ đăng tự động sẽ tự rơi vào nhắc việc đăng tay — không im lặng biến mất |

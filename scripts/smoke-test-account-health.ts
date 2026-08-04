@@ -116,6 +116,7 @@ async function partA() {
     visiblePosts: 0,
     expectedPosts: 3,
     screenshot: null,
+    autoLinkedKeys: [], unlinkablePosts: 0,
   });
   check("bộ dò ép trạng thái nick sang SHADOWBANNED", recorded.statusChangedTo === "SHADOWBANNED");
 
@@ -136,14 +137,22 @@ async function partA() {
   // Dò khỏe sau đó KHÔNG được tự gỡ cách ly.
   const healthy = evaluateHealth({
     checkpoint: null,
-    profile: { kind: "OK", karma: 260, postTimestamps: [], commentCount: 0 },
+    profile: { kind: "OK", karma: 260, posts: [], commentCount: 0 },
     expectedPosts: 0,
     visiblePosts: 0,
     windowDays: OBSERVATION_WINDOW_DAYS,
   });
   const second = await recordHealthCheck(
     { ...account, status: after.status },
-    { evaluation: healthy, karma: 260, visiblePosts: 0, expectedPosts: 0, screenshot: null },
+    {
+      evaluation: healthy,
+      karma: 260,
+      visiblePosts: 0,
+      expectedPosts: 0,
+      screenshot: null,
+      autoLinkedKeys: [],
+      unlinkablePosts: 0,
+    },
   );
   check("một lần dò khỏe KHÔNG tự gỡ cách ly", second.statusChangedTo === null);
 
@@ -197,8 +206,8 @@ async function partB() {
       check("đọc được karma từ trang thật", liveProfile.karma !== null, `karma=${liveProfile.karma}`);
       check(
         "đọc được danh sách hoạt động",
-        liveProfile.postTimestamps.length + liveProfile.commentCount > 0,
-        `${liveProfile.postTimestamps.length} bài, ${liveProfile.commentCount} comment`,
+        liveProfile.posts.length + liveProfile.commentCount > 0,
+        `${liveProfile.posts.length} bài, ${liveProfile.commentCount} comment`,
       );
     }
     check("trang profile bình thường không bị coi là checkpoint", liveBlock === null);

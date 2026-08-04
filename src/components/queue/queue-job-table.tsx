@@ -13,6 +13,8 @@ import { RuleVerdictBadge } from "./rule-verdict-badge";
 
 export interface QueueJob {
   id: string;
+  /** Cần cho nút "Quét & gán link": bộ dò làm việc theo nick, không theo job. */
+  accountId: string;
   scheduledAt: Date;
   status: string;
   ruleVerdicts: string | null;
@@ -115,6 +117,7 @@ export function QueueJobTable({ jobs }: { jobs: QueueJob[] }) {
                   <td className="py-2 pr-4">
                     <JobRowActions
                       jobId={job.id}
+                      accountId={job.accountId}
                       status={job.status}
                       targetPlatform={job.target.platform}
                     />

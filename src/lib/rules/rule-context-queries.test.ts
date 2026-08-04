@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { instantFromWallClock, loadTeamTimezone } from "../format/team-timezone";
 import {
   type OwnJob,
   countPostsSameDay,
@@ -12,15 +13,25 @@ import {
  */
 
 /**
- * Mốc thời gian dựng bằng `new Date(năm, tháng, ngày, giờ)` — tức theo **giờ máy đang chạy**,
- * cố ý không dùng chuỗi ISO có sẵn offset (`...+07:00`).
+ * Mốc thời gian dựng theo **MÚI GIỜ TEAM**, không theo giờ máy chạy test.
  *
- * `countPostsSameDay` cắt ngày theo giờ máy, vì "hôm nay" của bạn MKT là ngày trên đồng hồ
- * trước mặt họ chứ không phải ngày UTC. Ghi cứng `+07:00` vào test là ngầm bắt máy chạy test
- * phải ở UTC+7: đúng trên máy ở Việt Nam, đỏ trên CI chạy UTC — mà cái đỏ đó không phải lỗi
- * sản phẩm. Dựng theo giờ máy thì test kiểm đúng điều cần kiểm ở bất kỳ múi giờ nào.
+ * Trước đây chỗ này dựng bằng `new Date(năm, tháng, ngày, giờ)` — tức theo giờ máy — và làm
+ * vậy là ĐÚNG khi `countPostsSameDay` còn cắt ngày theo giờ máy. Từ lúc ranh giới ngày đọc
+ * `TEAM_TIMEZONE`, lập luận đó lật ngược: dựng theo giờ máy nghĩa là mốc trôi đi khi máy đổi
+ * múi giờ, trong khi ranh giới ngày đứng yên — nên test xanh ở Việt Nam và đỏ trên CI chạy
+ * UTC, mà cái đỏ đó không phải lỗi sản phẩm.
+ *
+ * Dùng chính `loadTeamTimezone()` mà code thật dùng, không ghi cứng "Asia/Ho_Chi_Minh":
+ * hai bên khai riêng là sớm muộn cũng lệch nhau.
  */
-const AT = new Date(2026, 7, 10, 9, 0);
+function gioTeam(day: number, hour: number, minute = 0): Date {
+  return instantFromWallClock(
+    { year: 2026, month: 8, day, hour, minute, second: 0 },
+    loadTeamTimezone(),
+  );
+}
+
+const AT = gioTeam(10, 9);
 const HOUR = 3_600_000;
 
 function job(overrides: Partial<OwnJob> = {}): OwnJob {
@@ -33,29 +44,23 @@ function job(overrides: Partial<OwnJob> = {}): OwnJob {
 }
 
 describe("countPostsSameDay", () => {
-  it("đếm bài trong cùng ngày theo giờ máy", () => {
-    const jobs = [
-      job({ scheduledAt: new Date(2026, 7, 10, 0, 5) }),
-      job({ scheduledAt: new Date(2026, 7, 10, 23, 55) }),
-    ];
+  it("đếm bài trong cùng ngày theo múi giờ team", () => {
+    const jobs = [job({ scheduledAt: gioTeam(10, 0, 5) }), job({ scheduledAt: gioTeam(10, 23, 55) })];
     expect(countPostsSameDay(jobs, AT)).toBe(2);
   });
 
   it("không đếm bài của ngày khác", () => {
-    const jobs = [
-      job({ scheduledAt: new Date(2026, 7, 9, 23, 59) }),
-      job({ scheduledAt: new Date(2026, 7, 11, 0, 1) }),
-    ];
+    const jobs = [job({ scheduledAt: gioTeam(9, 23, 59) }), job({ scheduledAt: gioTeam(11, 0, 1) })];
     expect(countPostsSameDay(jobs, AT)).toBe(0);
   });
 
   /**
-   * Nửa đêm là mốc dễ lệch nhất: tính theo UTC thì "hôm nay" của bạn MKT bị cắt sai chỗ,
+   * Nửa đêm là mốc dễ lệch nhất: cắt theo UTC thì "hôm nay" của team bị cắt sai chỗ,
    * và hạn mức ngày sẽ đếm nhầm sang ngày hôm trước.
    */
   it("nhận đúng nửa đêm đầu ngày, loại đúng nửa đêm ngày kế", () => {
-    const dayStart = new Date(2026, 7, 10, 0, 0);
-    const nextDayStart = new Date(2026, 7, 11, 0, 0);
+    const dayStart = gioTeam(10, 0, 0);
+    const nextDayStart = gioTeam(11, 0, 0);
 
     expect(countPostsSameDay([job({ scheduledAt: dayStart })], AT)).toBe(1);
     expect(countPostsSameDay([job({ scheduledAt: nextDayStart })], AT)).toBe(0);

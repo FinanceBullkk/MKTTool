@@ -1,10 +1,12 @@
 /**
  * Mở profile antidetect của một nick.
  *
- * Ba lớp chặn trước khi mở:
+ * Bốn lớp chặn trước khi mở:
  *  1. Trạng thái nick phải cho phép (CHECKPOINT / SHADOWBANNED / DEAD thì không).
  *  2. Proxy phải còn gắn với nick — mở nhầm proxy là mất nick.
- *  3. Proxy phải ĐẨY ĐƯỢC sang trình duyệt. Đẩy hỏng thì dừng, không mở:
+ *  3. Proxy phải CÒN SỐNG và thật sự đổi IP. Ba lớp còn lại chỉ kiểm những thứ mình TỰ KHAI;
+ *     riêng lớp này đi hỏi người ngoài xem nick sắp lộ ra bằng IP nào.
+ *  4. Proxy phải ĐẨY ĐƯỢC sang trình duyệt. Đẩy hỏng thì dừng, không mở:
  *     profile không có proxy sẽ chạy thẳng bằng IP nhà, và không ai nhận ra cho tới khi mất nick.
  */
 import { NextResponse } from "next/server";
@@ -14,6 +16,7 @@ import { getAntidetectAdapter } from "@/lib/antidetect/antidetect-adapter-factor
 import { ProxyConfigError, buildProxyConfig } from "@/lib/antidetect/proxy-config-builder";
 import { prisma } from "@/lib/db/prisma-client";
 import { CROSS_ORIGIN_MESSAGE, isSameOrigin } from "@/lib/http/same-origin-guard";
+import { checkProxyLiveness } from "@/lib/proxies/proxy-liveness-check";
 
 export const runtime = "nodejs";
 
@@ -65,6 +68,28 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     );
   }
 
+  // Kiểm TRƯỚC khi đẩy: nhét một proxy đã chết vào profile rồi mới phát hiện là đã muộn —
+  // profile giữ nguyên cấu hình đó và lần mở sau có thể không đi qua đây nữa.
+  const liveness = await checkProxyLiveness(proxy);
+  if (liveness.blocksLaunch) {
+    await prisma.auditLog.create({
+      data: {
+        accountId: id,
+        action: "PROFILE_LAUNCH_BLOCKED_PROXY",
+        detail: `proxy ${proxy.label} — ${liveness.verdict}: ${liveness.message}`.slice(0, 500),
+      },
+    });
+    return NextResponse.json(
+      {
+        ok: false,
+        message:
+          `Không mở profile — proxy "${proxy.label}" không dùng được: ${liveness.message} ` +
+          `Sửa hoặc đổi proxy ở /proxies rồi thử lại.`,
+      },
+      { status: 409 },
+    );
+  }
+
   const adapter = getAntidetectAdapter();
 
   try {
@@ -90,9 +115,9 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       ok: true,
       message:
         `Đã đẩy proxy ${proxy.label} (${proxy.country}, ${proxyConfig.protocol}) ` +
-        `vào profile rồi mở qua ${adapter.providerName}. ` +
-        `Vẫn nên mở ipinfo.io kiểm tra IP khớp proxy trước khi thao tác — ` +
-        `đẩy thành công không bảo đảm proxy còn sống.`,
+        `vào profile rồi mở qua ${adapter.providerName}. ${liveness.message} ` +
+        `Lưu ý phép đo đó là của công cụ chứ không phải của trình duyệt — lần đầu mở một ` +
+        `profile mới vẫn nên vào ipinfo.io đối chiếu lại.`,
       // Chỉ dùng cho Phase 05; không hiển thị cho người dùng cuối.
       // MultiZen không trả về endpoint này — đó là bình thường, không phải lỗi.
       cdpEndpoint: launched.cdpEndpoint ?? null,

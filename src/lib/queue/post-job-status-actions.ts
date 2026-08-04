@@ -11,8 +11,9 @@ import { z } from "zod";
 import type { ActionResult } from "@/lib/actions/action-result";
 import { isOpenJobStatus } from "@/lib/content/content-types";
 import { prisma } from "@/lib/db/prisma-client";
-import { normalizeThreadUrl } from "@/lib/rules/rule-thread-collision";
 import { summarizeEvaluation } from "@/lib/rules/rules-engine";
+import { markPostJobPosted } from "./post-job-mark-posted";
+import { revertPostJobToPending } from "./post-job-revert";
 import { recheckOneJob } from "./recheck-jobs-batch";
 
 const urlSchema = z.string().url("Link bài đăng không hợp lệ");
@@ -22,47 +23,36 @@ const urlSchema = z.string().url("Link bài đăng không hợp lệ");
  * thread này sẽ bị luật 8 chặn.
  */
 export async function markJobPosted(jobId: string, postedUrl: string): Promise<ActionResult> {
+  // Kiểm dạng URL nằm ở đây chứ không ở lõi: đây là chỗ nhận chuỗi người gõ. Bộ dò đưa vào
+  // permalink do chính Reddit trả về nên không có gì để kiểm.
   const parsedUrl = urlSchema.safeParse(postedUrl.trim());
   if (!parsedUrl.success) return { ok: false, message: parsedUrl.error.issues[0].message };
 
-  const job = await prisma.postJob.findUnique({ where: { id: jobId } });
-  if (!job) return { ok: false, message: "Không tìm thấy job." };
-
-  // Bấm hai lần thì lần sau không được ghi thêm Interaction: một bài đăng là một dấu vết,
-  // nhân đôi dấu vết làm bẩn chính dữ liệu mà bộ luật dựa vào để đếm.
-  if (job.status === "POSTED") {
-    return { ok: false, message: "Job này đã được đánh dấu đã đăng rồi." };
-  }
-  if (!isOpenJobStatus(job.status)) {
-    return {
-      ok: false,
-      message: "Job này đã bỏ qua hoặc đã đánh dấu lỗi — không đánh dấu đã đăng được.",
-    };
-  }
-
-  await prisma.$transaction([
-    prisma.postJob.update({
-      where: { id: jobId },
-      data: { status: "POSTED", postedUrl: parsedUrl.data, postedAt: new Date(), errorMessage: null },
-    }),
-    prisma.interaction.create({
-      data: {
-        accountId: job.accountId,
-        targetId: job.targetId,
-        threadUrl: parsedUrl.data,
-        threadKey: normalizeThreadUrl(parsedUrl.data),
-        kind: "POST",
-        note: "tự ghi khi đánh dấu job đã đăng",
-      },
-    }),
-    prisma.account.update({ where: { id: job.accountId }, data: { lastActionAt: new Date() } }),
-  ]);
+  const result = await markPostJobPosted(jobId, parsedUrl.data);
+  if (!result.ok) return result;
 
   // Cả "/" nữa: thẻ nhắc việc đăng tay nằm ở trang Hôm nay và bấm "Đã đăng" được ngay tại đó,
   // job vừa xong phải biến khỏi danh sách nhắc chứ không nằm lại chờ bấm thêm lần nữa.
   revalidatePath("/queue");
   revalidatePath("/");
-  return { ok: true, message: "Đã ghi nhận bài đăng. Nick khác sẽ bị chặn nếu đụng vào thread này." };
+  return result;
+}
+
+/**
+ * Trả job đã chốt về chờ đăng — lối thoát cho lần bấm nhầm.
+ *
+ * Ngược chiều với `markJobPosted` nên phải gỡ đúng những gì lượt đó đã ghi; phần nặng nằm ở
+ * post-job-revert.ts, ở đây chỉ thêm việc làm mới hai trang có hiện job.
+ */
+export async function revertJobToPending(jobId: string): Promise<ActionResult> {
+  const result = await revertPostJobToPending(jobId);
+  if (!result.ok) return result;
+
+  // Cả "/": job vừa quay lại chờ đăng phải hiện lại ở thẻ nhắc việc, và cảnh báo trùng link
+  // ở trang Hôm nay phải biến mất ngay — đó chính là chỗ người dùng nhìn thấy lỗi này.
+  revalidatePath("/queue");
+  revalidatePath("/");
+  return result;
 }
 
 /**

@@ -8,20 +8,26 @@
  * được im lặng để đó rồi tới giờ cứ thế đăng.
  *
  * Phần "Đã đăng" nằm ở mark-posted-control.tsx vì trang Hôm nay cũng cần đúng nút đó.
+ * Job đã chốt thì đổi sang nút trả về chờ đăng (revert-to-pending-control.tsx) — trước đây chỗ
+ * đó chỉ có dấu "—", nên mọi lần bấm nhầm đều phải sửa bằng Prisma Studio.
  */
 import { useState, useTransition } from "react";
 import type { ActionResult } from "@/lib/actions/action-result";
 import { SMALL_BUTTON_CLASS } from "@/components/ui/page-section";
+import { HealthCheckNowButton } from "@/components/health/health-check-now-button";
 import { markJobSkipped, recheckJob } from "@/lib/queue/post-job-status-actions";
 import { FacebookPublishButton } from "./facebook-publish-button";
 import { MarkPostedControl } from "./mark-posted-control";
+import { RevertToPendingControl } from "./revert-to-pending-control";
 
 export function JobRowActions({
   jobId,
+  accountId,
   status,
   targetPlatform,
 }: {
   jobId: string;
+  accountId: string;
   status: string;
   targetPlatform: string;
 }) {
@@ -67,12 +73,21 @@ export function JobRowActions({
             </button>
           </>
         ) : (
-          <span className="text-xs text-neutral-400">—</span>
+          // Job đã chốt vẫn phải sửa được: bấm "Đã đăng" nhầm job, hoặc dán nhầm link của bài
+          // khác, là chuyện đã xảy ra thật — và cái sai đó nuôi thẳng vào bộ luật.
+          <RevertToPendingControl jobId={jobId} />
         )}
       </div>
 
       {targetPlatform === "FACEBOOK_PAGE" && status === "PENDING" ? (
         <FacebookPublishButton jobId={jobId} />
+      ) : null}
+
+      {/* Đăng tay xong thì đây là đường ngắn nhất để kho biết: bộ dò đọc profile công khai,
+          thấy bài vừa lên và tự gán link vào job này — không phải copy link dán lại.
+          Chỉ Reddit, và chỉ khi job còn mở: job đã chốt thì không còn gì để gán. */}
+      {targetPlatform === "REDDIT" && open ? (
+        <HealthCheckNowButton accountId={accountId} label="Quét & gán link" />
       ) : null}
 
       {result ? (

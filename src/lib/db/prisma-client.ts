@@ -7,7 +7,7 @@
  * Giữ singleton trên globalThis để hot-reload của Next dev không tạo hàng chục
  * kết nối mỗi lần sửa file.
  */
-import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
+import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
 
 function createPrismaClient(): PrismaClient {
@@ -16,7 +16,7 @@ function createPrismaClient(): PrismaClient {
     throw new Error("Thiếu DATABASE_URL. Sao chép .env.example thành .env rồi điền giá trị.");
   }
 
-  const adapter = new PrismaBetterSqlite3({ url });
+  const adapter = new PrismaPg({ connectionString: url });
   return new PrismaClient({
     adapter,
     log: process.env.NODE_ENV === "development" ? ["warn", "error"] : ["error"],

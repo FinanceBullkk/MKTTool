@@ -46,7 +46,8 @@ src/
     ├── facebook/               Graph API: OAuth, token, đăng Fanpage (chi tiết bên dưới)
     ├── format/                 Định dạng ngày tiếng Việt
     ├── health/                 Bộ dò shadowban: phiên trình duyệt sạch qua proxy quan sát viên,
-    │                           parser HTML Reddit, đánh giá kết luận, runner, khóa chống chạy chồng
+    │                           parser HTML Reddit, đánh giá kết luận, runner, khóa chống chạy chồng,
+    │                           và tự gán link cho job từ bài thấy được trên profile
     ├── http/                   Đối chiếu Origin/Host cho route handler trong api/
     ├── platforms/              Gộp họ nền tảng (REDDIT / FACEBOOK)
     ├── queue/                  Server actions: tạo job, đổi trạng thái, ghi tương tác, tóm tắt promo
@@ -64,7 +65,7 @@ scripts/
 ├── generate-vault-key.ts       Sinh VAULT_KEY
 ├── generate-test-totp-secret.ts  Sinh TOTP secret dùng thử
 ├── rekey-vault-key.ts          Xoay VAULT_KEY, mã hóa lại toàn bộ credential
-├── backup-database.ts          Sao lưu bằng VACUUM INTO (chạy được khi app đang mở)
+├── backup-database.ts          Sao lưu bằng pg_dump (chạy được khi app đang mở)
 ├── upgrade-database.ts         Nâng cấp sau khi nhận bản mới: sao lưu rồi `migrate deploy`
 ├── import-proxies-from-provider-list.ts  Nhập hàng loạt proxy từ file nhà cung cấp
 ├── run-health-check.ts         Dò shadowban + đọc karma mọi nick Reddit (Phase 03)
@@ -130,7 +131,12 @@ biến mất. Khác biệt duy nhất giữa hai nền tảng là số ô nhập
                           → src/components/queue/manual-post-reminders.tsx
                             mở profile + copy sẵn nội dung; dán và bấm đăng là việc của người
                             (tự đăng Reddit → Phase 05)
-4. Đánh dấu đã đăng     → src/lib/queue/post-job-status-actions.ts  → status = POSTED
+4. Đánh dấu đã đăng     → src/lib/queue/post-job-mark-posted.ts    → status = POSTED + Interaction
+                          (lõi dùng chung cho cả 3 đường ghi: bấm tay, Graph API, bộ dò tự gán)
+                          ├── bấm tay      → src/lib/queue/post-job-status-actions.ts
+                          ├── bộ dò tự gán → src/lib/health/auto-link-discovered-posts.ts
+                          └── bấm nhầm     → src/lib/queue/post-job-revert.ts: gỡ status + link
+                                             + Interaction đã ghi, rồi chấm lại luật
 5. Ghi tương tác        → src/lib/queue/interaction-actions.ts     → Interaction
 ```
 
@@ -298,11 +304,12 @@ Chi tiết đầy đủ ở [README → Lệnh](../README.md#lệnh).
    áp thành công mà `tsc` vẫn báo `Property 'facebookPage' does not exist on type 'PrismaClient'`
    — chạy `npm run db:generate` là hết. Đừng đi sửa code theo lỗi đó.
 
-5. **Đừng hỏi "file .db có tồn tại không" để biết đây có phải lần cài đầu.** Chỉ cần mở kết nối
-   là SQLite tạo sẵn file rỗng, nên mọi phép kiểm sau đó đều thấy file tồn tại. `upgrade-database.ts`
-   từng vì vậy mà sao lưu một database trống trơn ở lần cài đầu — và bản sao lưu rỗng còn tệ hơn
-   không có, vì nó làm người ta tưởng mình đang có bản dự phòng. Câu hỏi đúng là **"sổ migration
-   đã có dòng nào chưa"**.
+5. **Đừng hỏi "database có tồn tại không" để biết đây có phải lần cài đầu.** Với Postgres thì
+   database luôn tồn tại — người dùng phải `createdb` trước mới chạy nổi lệnh nào; hồi SQLite thì
+   ngược lại, chỉ cần mở kết nối là file rỗng tự sinh ra. Hai nền dữ liệu, cùng một kết luận:
+   `upgrade-database.ts` từng vì hỏi sai câu mà sao lưu một database trống trơn ở lần cài đầu —
+   và bản sao lưu rỗng còn tệ hơn không có, vì nó làm người ta tưởng mình đang có bản dự phòng.
+   Câu hỏi đúng là **"sổ migration đã có dòng nào chưa"**.
 
 6. **Biến môi trường thắng `.env`.** `prisma.config.ts` gọi `process.loadEnvFile()`, và cả hàm đó
    lẫn cờ `--env-file` của Node đều KHÔNG ghi đè biến đã đặt sẵn. Nhờ vậy chạy thử lệnh database
@@ -324,7 +331,7 @@ Ba chỗ giữ cho việc nới này không nới quá tay:
 
 | Chỗ | Việc |
 |---|---|
-| `@unique` trên cột nullable | SQLite cho nhiều NULL nhưng chỉ một giá trị thật, nên **1 nick = 1 proxy vẫn nguyên** cho Reddit |
+| `@unique` trên cột nullable | Postgres cho nhiều NULL nhưng chỉ một giá trị thật (giống hệt SQLite trước đây), nên **1 nick = 1 proxy vẫn nguyên** cho Reddit |
 | `validatePlatformIdentityFields()` ở `vault-form-schemas.ts` | Hàm thuần, nguồn sự thật DUY NHẤT cho luật "Reddit bắt buộc". Cả `createAccount` lẫn `updateAccount` gọi nó |
 | Route `api/accounts/[id]/launch` | Thiếu proxy hoặc profile thì từ chối mở kèm lý do, không mở profile trần bằng IP nhà |
 
@@ -359,8 +366,10 @@ Phase 04 nghiệm thu xong bằng một bài đăng thật lên Fanpage nháp. B
 
 - Ngưỡng luật hiện lấy theo kinh nghiệm chung, chưa có số liệu thật từ đàn nick này —
   xem [domain-glossary](domain-glossary.md#câu-hỏi-chưa-có-lời-giải).
-- `npm run health` chưa chạy được với nick thật lần nào: bảng `ObserverProxy` đang rỗng. Cho tới
-  khi có proxy quan sát viên, luật 10 sẽ cảnh báo trên **mọi** job Reddit ("chưa dò lần nào").
+- Bộ dò đã chạy thật (proxy quan sát viên `observer-1` bật từ 03/08/2026), nhưng số lượt còn quá
+  ít để biết ngưỡng nào đúng: cửa sổ ghép 24 tiếng và ngưỡng slug 0.6 / 0.2 đều đang là phán
+  đoán, chưa phải số đo. Đo vài tuần xem ca "mơ hồ, không dám gán" có thường xuyên tới mức đáng
+  làm bảng chờ xác nhận không.
 
 > **`playwright` giờ đã được dùng thật**, không còn là dependency treo: `observer-browser-session.ts`
 > và `smoke-test-account-health.ts` import `chromium` để dò shadowban **trực tiếp, không qua

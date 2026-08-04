@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { AccountHealthTable } from "@/components/health/account-health-table";
+import { HerdHealthCheckControls } from "@/components/health/herd-health-check-controls";
 import { KarmaTrendChart } from "@/components/health/karma-trend-chart";
 import { Card, DataTable, EmptyState, PageHeading, StatusBadge } from "@/components/ui/page-section";
 import { formatDayMonthTime } from "@/lib/format/vietnamese-date-format";
+import { readHealthCheckLockStatus } from "@/lib/health/health-check-lock";
 import {
   KARMA_TREND_DAYS,
   loadAccountHealthRows,
@@ -16,6 +18,7 @@ export const dynamic = "force-dynamic";
 export default async function HealthPage() {
   const rows = await loadAccountHealthRows();
   const recent = await loadRecentChecks(60);
+  const lockStatus = readHealthCheckLockStatus();
 
   // Biểu đồ karma cho từng nick — chỉ vẽ nick nào đã có số liệu.
   const trends = await Promise.all(
@@ -31,12 +34,21 @@ export default async function HealthPage() {
       />
 
       <Card title="Đàn nick">
+        <div className="mb-4">
+          <HerdHealthCheckControls
+            running={lockStatus.running}
+            minutesElapsed={lockStatus.minutesElapsed}
+            accountCount={rows.length}
+          />
+        </div>
+
         <AccountHealthTable rows={rows} />
+
         <p className="mt-4 text-xs text-neutral-500">
-          Nút &quot;Dò lại ngay&quot; chỉ dò một nick. Cả đàn thì chạy{" "}
-          <code>npm run health</code> — lượt đầy đủ nghỉ 30-90 giây giữa các nick nên mất gần
-          mười phút, và đó là chủ ý: tám lượt xem profile bắn ra trong ba giây từ một IP là hành
-          vi của máy, chính bộ dò sẽ bị chặn trước tiên. Đặt lịch chạy một lần mỗi ngày là đủ.
+          Nút &quot;Dò lại ngay&quot; ở từng dòng chỉ dò một nick, dùng khi đang soi một nick đáng
+          ngờ. Lượt đầy đủ vẫn nên đặt lịch chạy một lần mỗi ngày bằng{" "}
+          <code>npm run health</code> (Task Scheduler) — nút ở trên chạy đúng lệnh đó, chỉ khác là
+          không phải mở terminal.
         </p>
       </Card>
 

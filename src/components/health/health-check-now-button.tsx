@@ -5,11 +5,21 @@
  *
  * Chỉ một nick mỗi lần — lý do ở đầu `app/api/health/run/route.ts`. Mất vài giây vì phải mở
  * trình duyệt và tải trang qua proxy, nên nút phải nói rõ là đang chạy chứ không đứng im.
+ *
+ * Dùng ở hai chỗ với hai câu hỏi khác nhau, nên nhãn đổi được: ở bảng Sức khỏe người ta hỏi
+ * "nick này còn sống không", ở dòng job trong hàng đợi người ta vừa đăng xong và hỏi "bài của
+ * tôi vào kho chưa". Cùng một lượt dò trả lời cả hai — bộ dò tự gán link ngay trong lượt đó.
  */
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-export function HealthCheckNowButton({ accountId }: { accountId: string }) {
+export function HealthCheckNowButton({
+  accountId,
+  label = "Dò lại ngay",
+}: {
+  accountId: string;
+  label?: string;
+}) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState<{ tone: "ok" | "cho" | "loi"; text: string } | null>(null);
@@ -44,14 +54,14 @@ export function HealthCheckNowButton({ accountId }: { accountId: string }) {
   } as const;
 
   return (
-    <div className="space-y-1 text-right">
+    <div className="space-y-1">
       <button
         type="button"
         onClick={run}
         disabled={pending}
         className="rounded-md border border-neutral-300 px-2 py-1 text-xs transition hover:bg-neutral-100 disabled:opacity-50 dark:border-neutral-700 dark:hover:bg-neutral-800"
       >
-        {pending ? "Đang dò…" : "Dò lại ngay"}
+        {pending ? "Đang dò…" : label}
       </button>
       {message ? <p className={`text-xs ${TONE_CLASS[message.tone]}`}>{message.text}</p> : null}
     </div>

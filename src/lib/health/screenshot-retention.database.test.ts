@@ -6,7 +6,7 @@ import { prisma } from "@/lib/db/prisma-client";
 import { SCREENSHOT_RETENTION_DAYS, pruneOldScreenshots } from "./screenshot-retention";
 
 /**
- * Chạy trên SQLite thật (xem vitest.global-setup.ts) vì điều đáng kiểm nhất không phải là
+ * Chạy trên Postgres thật (xem vitest.global-setup.ts) vì điều đáng kiểm nhất không phải là
  * "có xóa file không" mà là "đĩa và database có còn khớp nhau sau khi xóa không".
  *
  * Ảnh giả để ở thư mục tạm của hệ điều hành, KHÔNG ở `.test-tmp/`: chỗ đó do global setup sở

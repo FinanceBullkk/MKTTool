@@ -68,6 +68,23 @@ export function isAccountStatus(value: string): value is AccountStatus {
   return (ACCOUNT_STATUSES as readonly string[]).includes(value);
 }
 
+/**
+ * Trạng thái mà `quarantineReason` còn có nghĩa.
+ *
+ * Nick ở COLD_START hay ALIVE thì KHÔNG bị cách ly, nên một lý do cách ly còn sót lại chỉ là
+ * rác của lần trước. Đo thật 04/08/2026: nick `IllBlueberry5395` bị lượt dò đầu tiên cách ly
+ * nhầm, người dùng sửa về ALIVE, nhưng lý do cũ nằm lại — trang chi tiết hiện đồng thời
+ * "Khỏe — hoạt động bình thường" và một hộp đỏ "Dừng đăng bằng nick này ngay".
+ *
+ * Màn hình tự mâu thuẫn còn tệ hơn màn hình thiếu thông tin: người đọc phải đoán xem nên tin
+ * dòng nào, và lần sau họ sẽ bỏ qua cả hai.
+ */
+const QUARANTINED_STATUSES: AccountStatus[] = ["CHECKPOINT", "SHADOWBANNED", "DEAD"];
+
+export function isQuarantinedStatus(status: string): boolean {
+  return (QUARANTINED_STATUSES as string[]).includes(status);
+}
+
 export function getStatusPresentation(status: string): StatusPresentation {
   return isAccountStatus(status) ? STATUS_PRESENTATION[status] : STATUS_PRESENTATION.DEAD;
 }
