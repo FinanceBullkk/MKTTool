@@ -5,6 +5,12 @@
 //
 // Mọi field kết thúc bằng `Enc` đều là chuỗi đã mã hóa AES-256-GCM (xem src/lib/crypto).
 // Không bao giờ lưu credential dạng trần.
+//
+// Mỗi field `Enc` phải mang dấu vùng khóa ngay trên cùng dòng — khai báo khóa nào mở được nó:
+//   vault:server   — máy chủ giữ khóa, tự giải mã được
+//   vault:operator — chỉ cầu nối trên máy người vận hành mở được, máy chủ KHÔNG giữ khóa
+// Thêm cột `Enc` mà quên dấu là encrypted-field-registry.test.ts đỏ ngay: chia vùng là quyết
+// định phải nghĩ cho từng cột, không được để rơi vào mặc định nào.
 
 generator client {
   provider = "prisma-client-js"
@@ -37,7 +43,7 @@ model Proxy {
   host        String
   port        Int
   username    String
-  passwordEnc String
+  passwordEnc String // vault:server — máy chủ cần để kiểm proxy sống và đo băng thông
   country     String
   type        String   @default("STATIC_ISP") // STATIC_ISP | MOBILE — cách mua, KHÔNG phải giao thức
   /// Giao thức mạng, đây mới là thứ trình duyệt cần: http | socks5.
@@ -66,14 +72,14 @@ model Proxy {
   /// Cố ý KHÔNG nằm trong nút "kiểm tất cả proxy": mỗi lượt đo tải 1 MB qua proxy, tức tiêu
   /// 1 MB quota trả tiền. Kiểm proxy còn sống chỉ tốn vài KB nên bấm thoải mái; đo băng thông
   /// phải là một hành động có chủ đích, từng proxy một.
-  lastSpeedAt      DateTime?
+  lastSpeedAt     DateTime?
   /// Megabit/giây, tốc độ TẢI XUỐNG. Float vì proxy chậm cho ra số lẻ dưới 1.
   /// `lastSpeedAt` khác null mà cột này null = đã thử đo nhưng KHÔNG đo được, lý do ở
   /// `lastSpeedDetail`. Không đo được thì không được hiện như chậm.
   /// Xếp hạng nhanh/chậm suy ra từ số này (`gradeBandwidth`), không lưu thành cột riêng để
   /// không bao giờ có chuyện hạng và số đo nói hai điều khác nhau.
-  lastSpeedMbps    Float?
-  lastSpeedDetail  String?
+  lastSpeedMbps   Float?
+  lastSpeedDetail String?
 
   @@unique([host, port, username])
 }
@@ -90,7 +96,7 @@ model ObserverProxy {
   host        String
   port        Int
   username    String
-  passwordEnc String
+  passwordEnc String // vault:server — cùng lý do với Proxy.passwordEnc
   country     String
   /// Giao thức mạng: http | socks5. Giống `Proxy.protocol` — xem giải thích ở đó.
   protocol    String   @default("http")
@@ -140,11 +146,12 @@ model Account {
   platform String // REDDIT | FACEBOOK
   username String
 
-  // credential — tất cả đều mã hóa
-  passwordEnc      String
+  // credential — tất cả đều mã hóa, và tất cả đều thuộc vùng operator: không luồng nghiệp vụ
+  // nào trên máy chủ cần tới chúng, nên máy chủ không giữ khóa mở được.
+  passwordEnc      String // vault:operator
   emailAddress     String // email gốc mua kèm nick
-  emailPasswordEnc String
-  totpSecretEnc    String?
+  emailPasswordEnc String // vault:operator
+  totpSecretEnc    String? // vault:operator
 
   /// Liên kết 1:1 — BẮT BUỘC với nick Reddit, bỏ trống được với nick Facebook.
   ///
@@ -318,7 +325,7 @@ model FacebookConnection {
   id             String    @id @default(cuid())
   fbUserId       String    @unique
   name           String
-  accessTokenEnc String // user token long-lived, đã mã hóa
+  accessTokenEnc String // vault:server — user token long-lived, máy chủ gọi Graph API bằng nó
   expiresAt      DateTime? // null = Facebook không trả về hạn
   /// Nick trong kho danh tính, nếu nick đó đã được nhập. Không bắt buộc để
   /// kết nối được Page trước cả khi mua nick.
@@ -337,12 +344,12 @@ model FacebookPage {
   id             String @id @default(cuid())
   pageId         String @unique // id Page trên Facebook
   name           String
-  accessTokenEnc String
+  accessTokenEnc String // vault:server — máy chủ đăng bài bằng token này
 
-  connectionId String
+  connectionId   String
   /// Đích đăng tương ứng — nối để hàng đợi Phase 02 biết job này đăng bằng API.
   /// @unique ép 1 đích : 1 Page, không cho hai Page cùng trỏ về một đích.
-  targetId     String? @unique
+  targetId       String? @unique
   /// Quản trị viên trong kho danh tính. Đặt 2 nick làm admin trên Facebook,
   /// mất 1 nick không mất Page — nhưng ở đây chỉ ghi nick chính.
   adminAccountId String?
