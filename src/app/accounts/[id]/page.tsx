@@ -8,6 +8,7 @@ import {
   accountAgeInDays,
   coldStartDaysRemaining,
   getStatusPresentation,
+  isQuarantinedStatus,
 } from "@/lib/accounts/account-status";
 import { deleteAccount } from "@/lib/accounts/vault-delete-actions";
 import { updateAccount } from "@/lib/accounts/vault-update-actions";
@@ -87,7 +88,9 @@ export default async function AccountDetailPage({
         <span className="text-sm text-neutral-600 dark:text-neutral-400">{presentation.hint}</span>
       </div>
 
-      {account.quarantineReason ? (
+      {/* Chỉ hiện khi nick THẬT SỰ đang bị cách ly. Bản ghi cũ có thể còn sót lý do từ lần
+          trước, và hộp đỏ "dừng đăng ngay" nằm dưới nhãn "Khỏe" là màn hình tự cãi nhau. */}
+      {account.quarantineReason && isQuarantinedStatus(account.status) ? (
         <div className="mb-6 rounded-md border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-300">
           <strong>Lý do cách ly:</strong> {account.quarantineReason}
         </div>
