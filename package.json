@@ -25,6 +25,7 @@
     "facebook:inspect": "tsx --env-file=.env scripts/inspect-facebook-post.ts",
     "health": "tsx --env-file=.env scripts/run-health-check.ts",
     "health:smoke": "tsx --env-file=.env scripts/smoke-test-account-health.ts",
+    "postinstall": "prisma generate",
     "auth:check": "tsx --env-file=.env scripts/check-auth-config.ts",
     "vault:testotp": "tsx scripts/generate-test-totp-secret.ts"
   },
