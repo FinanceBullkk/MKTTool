@@ -125,6 +125,40 @@ describe("parseRedditProfile", () => {
     expect(parsed.posts[0]?.threadKey).toBe("reddit:1veg99o");
   });
 
+  /**
+   * Link và tên sub đi cùng khóa bài vì chúng nằm trong ĐÚNG cái thẻ vòng lặp đã quét — không
+   * tốn thêm request nào. Thiếu chúng thì bộ dò biết "có bài chưa ghi" mà không tự gán được
+   * cho job nào: gán cần biết bài nằm ở sub nào và link đầy đủ để lưu vào kho.
+   */
+  it("đọc luôn link đầy đủ và tên sub của từng bài", () => {
+    const parsed = parseRedditProfile({
+      html: profileHtml(thing("link", NOW.getTime())),
+      status: 200,
+    });
+
+    expect(parsed.kind).toBe("OK");
+    if (parsed.kind !== "OK") return;
+    // Link phải là dạng www để người dùng bấm vào, dù bộ dò đang xem bản old.
+    expect(parsed.posts[0]?.permalinkUrl).toBe(
+      "https://www.reddit.com/r/Trove/comments/1veg99o/tieu-de/",
+    );
+    expect(parsed.posts[0]?.subreddit).toBe("Trove");
+  });
+
+  it("permalink cụt thì lùi về data-subreddit", () => {
+    const html = profileHtml(
+      `<div class=" thing " data-type="link" data-timestamp="${NOW.getTime()}" ` +
+        `data-fullname="t3_1veg99o" data-subreddit="selfhosted"></div>`,
+    );
+    const parsed = parseRedditProfile({ html, status: 200 });
+
+    expect(parsed.kind).toBe("OK");
+    if (parsed.kind !== "OK") return;
+    expect(parsed.posts[0]?.subreddit).toBe("selfhosted");
+    // Không có permalink thì KHÔNG bịa ra link: kho chỉ nhận link do Reddit trả về.
+    expect(parsed.posts[0]?.permalinkUrl).toBeNull();
+  });
+
   it("không có thuộc tính nhận dạng nào thì vẫn đếm được bài, chỉ là không ghép được", () => {
     // Đếm được mà không nhận dạng được thì vẫn hơn bỏ sót: bỏ qua bài này là thu nhỏ con số
     // "người ngoài thấy mấy bài", tức làm một nick đang bị ẩn trông khỏe hơn thực tế.
@@ -141,7 +175,12 @@ describe("parseRedditProfile", () => {
 });
 
 describe("postsWithin", () => {
-  const at = (daysAgo: number) => ({ timestamp: NOW.getTime() - daysAgo * DAY, threadKey: null });
+  const at = (daysAgo: number) => ({
+    timestamp: NOW.getTime() - daysAgo * DAY,
+    threadKey: null,
+    permalinkUrl: null,
+    subreddit: null,
+  });
 
   it("chỉ giữ bài trong cửa sổ quan sát", () => {
     expect(postsWithin([at(1), at(6), at(30)], 7, NOW)).toHaveLength(2);

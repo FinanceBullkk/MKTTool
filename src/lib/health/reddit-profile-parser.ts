@@ -35,10 +35,22 @@ export type RedditProfile =
  * thời gian, nên bộ dò biết "thiếu một bài" mà không chỉ được vào bài nào.
  *
  * `null` khi thẻ không mang thuộc tính nhận dạng nào — vẫn đếm được, chỉ là không ghép được.
+ *
+ * `permalinkUrl` và `subreddit` đọc từ đúng cái thẻ mở vòng lặp đã quét, nên chúng KHÔNG tốn
+ * thêm request nào — chỉ là dữ liệu trước đây bị vứt đi ngay sau khi rút xong khóa.
  */
 export interface VisiblePost {
   timestamp: number;
   threadKey: string | null;
+  /**
+   * Link đầy đủ của bài, dựng từ `data-permalink`. `null` khi thẻ không mang permalink.
+   *
+   * Đây là thứ được ghi thẳng vào `PostJob.postedUrl` khi bộ dò tự gán, nên nó phải là link
+   * do CHÍNH Reddit trả về — không phải link người dùng gõ lại.
+   */
+  permalinkUrl: string | null;
+  /** Tên sub, đọc từ permalink hoặc `data-subreddit`. Dùng để ghép bài với đúng đích. */
+  subreddit: string | null;
 }
 
 /**
@@ -111,6 +123,31 @@ function readThreadKey(tag: string): string | null {
 }
 
 /**
+ * Dựng link đầy đủ từ đường dẫn tương đối của `data-permalink`.
+ *
+ * Dùng `www.reddit.com` chứ không phải `old.reddit.com` mà bộ dò đang xem: link này đi vào kho
+ * và người dùng sẽ bấm vào nó. Hai dạng vẫn cho ra cùng khóa qua `normalizeThreadUrl()` nên
+ * không ảnh hưởng phép đối chiếu.
+ */
+export function redditPermalinkUrl(permalink: string): string {
+  const path = permalink.startsWith("/") ? permalink : `/${permalink}`;
+  return `https://www.reddit.com${path}`;
+}
+
+/**
+ * Tên sub của bài. Ưu tiên permalink (`/r/Trove/comments/...`) rồi mới tới `data-subreddit`.
+ *
+ * Cần nó để ghép một bài lạ với đúng đích trong kho: cùng một nick đăng ở nhiều sub, và ghép
+ * nhầm sub là gán link của bài này cho job của bài kia.
+ */
+function readSubreddit(tag: string, permalink: string | undefined): string | null {
+  const fromPermalink = permalink ? /^\/?r\/([^/]+)/i.exec(permalink)?.[1] : undefined;
+  if (fromPermalink) return fromPermalink;
+
+  return /\bdata-subreddit="([^"]+)"/i.exec(tag)?.[1] ?? null;
+}
+
+/**
  * Mỗi mục trong danh sách là một `<div class="... thing ...">` mang sẵn `data-type`
  * (`link` = bài, `comment` = comment) và `data-timestamp` tính bằng mili giây.
  *
@@ -133,7 +170,13 @@ function readListing(html: string): { posts: VisiblePost[]; commentCount: number
 
     const timestamp = Number(/\bdata-timestamp="(\d+)"/i.exec(tag)?.[1]);
     if (Number.isFinite(timestamp) && timestamp > 0) {
-      posts.push({ timestamp, threadKey: readThreadKey(tag) });
+      const permalink = /\bdata-permalink="([^"]+)"/i.exec(tag)?.[1];
+      posts.push({
+        timestamp,
+        threadKey: readThreadKey(tag),
+        permalinkUrl: permalink ? redditPermalinkUrl(permalink) : null,
+        subreddit: readSubreddit(tag, permalink),
+      });
     }
   }
 

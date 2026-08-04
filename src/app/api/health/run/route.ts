@@ -54,12 +54,24 @@ export async function POST(request: Request) {
     const [verdict] = Object.keys(result.byVerdict);
     const changed = result.statusChanges[0];
 
+    // Số bài tự gán đứng TRƯỚC kết luận sức khỏe trong câu trả lời: người vừa đăng xong bấm
+    // nút này để hỏi "bài của tôi vào kho chưa", không phải để hỏi karma bao nhiêu.
+    const linked = result.autoLinked > 0 ? `Đã tự gán link cho ${result.autoLinked} bài. ` : "";
+
+    // Bài lạ mà không gán được vì thiếu dữ liệu trong HTML là dấu hiệu Reddit đổi giao diện.
+    // Nuốt nó đi thì người dùng chỉ thấy "bấm nút không có gì xảy ra".
+    const blind =
+      result.unlinkable > 0
+        ? ` ${result.unlinkable} bài lạ không tự gán được vì HTML thiếu link/tên sub — báo cho dev.`
+        : "";
+
     return NextResponse.json({
       ok: true,
       verdict,
+      autoLinked: result.autoLinked,
       message: changed
-        ? `Kết quả: ${verdict}. Trạng thái nick đã đổi sang ${changed.to} — bộ luật sẽ chặn mọi job của nó.`
-        : `Kết quả: ${verdict}.`,
+        ? `${linked}Kết quả: ${verdict}. Trạng thái nick đã đổi sang ${changed.to} — bộ luật sẽ chặn mọi job của nó.${blind}`
+        : `${linked}Kết quả: ${verdict}.${blind}`,
     });
   } catch (error) {
     // Bận là chuyện bình thường, không phải hỏng — 409 để giao diện nói "chờ chút" thay vì

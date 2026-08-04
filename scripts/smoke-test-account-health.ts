@@ -116,6 +116,7 @@ async function partA() {
     visiblePosts: 0,
     expectedPosts: 3,
     screenshot: null,
+    autoLinkedKeys: [], unlinkablePosts: 0,
   });
   check("bộ dò ép trạng thái nick sang SHADOWBANNED", recorded.statusChangedTo === "SHADOWBANNED");
 
@@ -143,7 +144,15 @@ async function partA() {
   });
   const second = await recordHealthCheck(
     { ...account, status: after.status },
-    { evaluation: healthy, karma: 260, visiblePosts: 0, expectedPosts: 0, screenshot: null },
+    {
+      evaluation: healthy,
+      karma: 260,
+      visiblePosts: 0,
+      expectedPosts: 0,
+      screenshot: null,
+      autoLinkedKeys: [],
+      unlinkablePosts: 0,
+    },
   );
   check("một lần dò khỏe KHÔNG tự gỡ cách ly", second.statusChangedTo === null);
 

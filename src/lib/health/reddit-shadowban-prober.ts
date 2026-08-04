@@ -6,9 +6,10 @@
  * đọc HTML nằm ở `reddit-profile-parser.ts`, cả hai đều là hàm thuần và đã có test riêng.
  */
 import { detectCheckpoint } from "./checkpoint-detector";
+import type { DiscoveredPost } from "./discovered-post-matcher";
 import { type HealthEvaluation, evaluateHealth } from "./health-status-evaluator";
 import type { ObserverSession } from "./observer-browser-session";
-import { parseRedditProfile, postsWithin } from "./reddit-profile-parser";
+import { type VisiblePost, parseRedditProfile, postsWithin } from "./reddit-profile-parser";
 
 /**
  * Chỉ soi 7 ngày gần nhất. Trang đầu của profile là đủ cho ngần đó, nên không phải lật trang —
@@ -23,6 +24,16 @@ export interface ProbeResult {
   expectedPosts: number;
   /** Chỉ có khi kết luận đáng để nhìn lại bằng mắt. Kết luận khỏe thì không giữ ảnh. */
   screenshot: Buffer | null;
+  /** Khóa của những bài vừa được `resolveUntracked` gán vào kho ngay trong lượt dò này. */
+  autoLinkedKeys: string[];
+  /**
+   * Bài lạ nhận dạng được nhưng THIẾU link hoặc tên sub, nên không thể tự gán.
+   *
+   * Đếm riêng chứ không bỏ lặng: nếu Reddit bỏ `data-permalink` thì con số này nhảy lên và mọi
+   * bài lạ ngừng được gán, mà triệu chứng duy nhất người dùng thấy là "bấm nút không có gì xảy
+   * ra". Một bộ dò hỏng trong im lặng đúng là thứ cả file này sinh ra để tránh.
+   */
+  unlinkablePosts: number;
 }
 
 /** Bản `old` trả HTML đầy đủ ngay lượt đầu — xem giải thích ở reddit-profile-parser.ts. */
@@ -60,6 +71,15 @@ export async function probeRedditAccount(
      * như cũ, chỉ so số lượng.
      */
     recordedPostKeys?: readonly string[];
+    /**
+     * Cơ hội ghi những bài lạ vào kho TRƯỚC khi kết luận, trả về khóa của các bài đã ghi được.
+     *
+     * Tiêm vào chứ không gọi thẳng: file này cố ý không chạm database. Và phải chạy trước lúc
+     * kết luận chứ không phải sau — nếu không, bản ghi HealthCheck sẽ vĩnh viễn nói "có N bài
+     * chưa ghi" về đúng những bài vừa được ghi xong, và người đọc bảng sẽ đi tìm một lỗi đã
+     * được sửa.
+     */
+    resolveUntracked?: (posts: readonly DiscoveredPost[]) => Promise<readonly string[]>;
   },
 ): Promise<ProbeResult> {
   const {
@@ -68,6 +88,7 @@ export async function probeRedditAccount(
     now = new Date(),
     profileSeenBefore = false,
     recordedPostKeys = [],
+    resolveUntracked,
   } = options;
 
   let page: Awaited<ReturnType<ObserverSession["fetchPage"]>>;
@@ -88,6 +109,8 @@ export async function probeRedditAccount(
       visiblePosts: null,
       expectedPosts,
       screenshot: null,
+      autoLinkedKeys: [],
+      unlinkablePosts: 0,
     };
   }
 
@@ -108,15 +131,24 @@ export async function probeRedditAccount(
   const untrackedPostKeys = [...visibleKeys].filter((key) => !recorded.has(key));
   const missingPostKeys = [...recorded].filter((key) => !visibleKeys.has(key));
 
+  // Gán trước, kết luận sau. Bài vừa gán xong không còn là "bài chưa ghi", và nó nâng mẫu số
+  // lên đúng một job — nên mọi con số dưới đây phải là con số SAU khi gán.
+  const discoverable = toDiscoverable(visibleInWindow ?? [], new Set(untrackedPostKeys));
+  const autoLinkedKeys =
+    discoverable.length > 0 && resolveUntracked ? [...(await resolveUntracked(discoverable))] : [];
+
+  const linked = new Set(autoLinkedKeys);
+  const expectedAfterLinking = expectedPosts + linked.size;
+
   const evaluation = evaluateHealth({
     checkpoint,
     profile,
     navigationError: null,
-    expectedPosts,
+    expectedPosts: expectedAfterLinking,
     visiblePosts,
     windowDays: OBSERVATION_WINDOW_DAYS,
     profileSeenBefore,
-    untrackedPostKeys,
+    untrackedPostKeys: untrackedPostKeys.filter((key) => !linked.has(key)),
     // Chỉ có nghĩa khi đã đọc được danh sách bài — không đọc được thì "không thấy" là
     // vì bộ dò mù, không phải vì bài biến mất.
     missingPostKeys: visibleInWindow ? missingPostKeys : [],
@@ -126,7 +158,35 @@ export async function probeRedditAccount(
     evaluation,
     karma: profile.kind === "OK" ? profile.karma : null,
     visiblePosts,
-    expectedPosts,
+    expectedPosts: expectedAfterLinking,
     screenshot: shouldKeepScreenshot(evaluation) ? page.screenshot : null,
+    autoLinkedKeys,
+    unlinkablePosts: untrackedPostKeys.length - discoverable.length,
   };
+}
+
+/**
+ * Giữ lại những bài lạ có ĐỦ dữ liệu để gán: khóa, link, tên sub.
+ *
+ * Bài thiếu một trong ba vẫn được đếm vào `visiblePosts` và vẫn làm nên kết luận "Có bài chưa
+ * ghi" — chỉ là không tự gán được. Bịa nốt phần thiếu để gán cho đủ là đúng kiểu sai mà cả
+ * tính năng này sinh ra để dọn.
+ */
+function toDiscoverable(
+  posts: readonly VisiblePost[],
+  untrackedKeys: ReadonlySet<string>,
+): DiscoveredPost[] {
+  return posts.flatMap((post) => {
+    if (!post.threadKey || !untrackedKeys.has(post.threadKey)) return [];
+    if (!post.permalinkUrl || !post.subreddit) return [];
+
+    return [
+      {
+        threadKey: post.threadKey,
+        permalinkUrl: post.permalinkUrl,
+        subreddit: post.subreddit,
+        postedAt: new Date(post.timestamp),
+      },
+    ];
+  });
 }

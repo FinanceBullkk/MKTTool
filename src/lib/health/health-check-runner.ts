@@ -11,6 +11,7 @@
  *     ai biết ra sao.
  */
 import { prisma } from "@/lib/db/prisma-client";
+import { autoLinkDiscoveredPosts } from "./auto-link-discovered-posts";
 import { acquireHealthCheckLock } from "./health-check-lock";
 import {
   type AccountToCheck,
@@ -52,6 +53,10 @@ export interface HealthCheckRunResult {
   checked: number;
   byVerdict: Partial<Record<HealthVerdict | string, number>>;
   statusChanges: { username: string; to: string }[];
+  /** Số bài bộ dò tự gán vào job trong lượt này — thứ đáng nói nhất với người vừa đăng xong. */
+  autoLinked: number;
+  /** Bài lạ không tự gán được vì HTML thiếu link/tên sub — xem `ProbeResult.unlinkablePosts`. */
+  unlinkable: number;
   durationMs: number;
 }
 
@@ -120,7 +125,14 @@ export async function runHealthCheck(
 
     if (accounts.length === 0) {
       onProgress("Không có nick Reddit nào để dò.");
-      return { checked: 0, byVerdict: {}, statusChanges: [], durationMs: Date.now() - startedAt };
+      return {
+        checked: 0,
+        byVerdict: {},
+        statusChanges: [],
+        autoLinked: 0,
+        unlinkable: 0,
+        durationMs: Date.now() - startedAt,
+      };
     }
 
     onProgress(
@@ -156,6 +168,8 @@ async function probeAll(input: {
   const session = providedSession ?? (await openObserverSession(proxy));
   const byVerdict: Partial<Record<string, number>> = {};
   const statusChanges: { username: string; to: string }[] = [];
+  let autoLinked = 0;
+  let unlinkable = 0;
 
   try {
     for (const [index, account] of accounts.entries()) {
@@ -173,11 +187,32 @@ async function probeAll(input: {
           now,
           profileSeenBefore,
           recordedPostKeys,
+          // Bài lạ được gán vào kho NGAY TRONG lượt dò, trước lúc kết luận — xem lý do ở
+          // `resolveUntracked` trong reddit-shadowban-prober.ts.
+          resolveUntracked: async (posts) => {
+            const outcome = await autoLinkDiscoveredPosts(account.id, posts);
+            for (const line of outcome.lines) onProgress(`  ${account.username}: ${line}`);
+            for (const item of outcome.ambiguous) {
+              onProgress(`  ${account.username}: KHÔNG gán ${item.post.threadKey} — ${item.reason}`);
+            }
+            return outcome.linkedKeys;
+          },
         });
         const recorded = await recordHealthCheck(account, result, now);
 
         verdict = recorded.verdict;
         onProgress(`  ${account.username}: ${verdict} — ${result.evaluation.detail}`);
+        autoLinked += result.autoLinkedKeys.length;
+
+        // Nói ra chứ không nuốt: đây là dấu hiệu Reddit đổi markup, và nếu im lặng thì triệu
+        // chứng duy nhất là bộ dò ngừng gán được bài mà không ai biết vì sao.
+        if (result.unlinkablePosts > 0) {
+          unlinkable += result.unlinkablePosts;
+          onProgress(
+            `  ${account.username}: ${result.unlinkablePosts} bài lạ KHÔNG tự gán được vì thiếu ` +
+              `link hoặc tên sub trong HTML — nhiều khả năng Reddit đổi giao diện.`,
+          );
+        }
 
         if (recorded.statusChangedTo) {
           statusChanges.push({ username: account.username, to: recorded.statusChangedTo });
@@ -217,6 +252,8 @@ async function probeAll(input: {
     checked: accounts.length,
     byVerdict,
     statusChanges,
+    autoLinked,
+    unlinkable,
     durationMs: Date.now() - startedAt,
   };
 }
