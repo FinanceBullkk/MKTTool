@@ -40,6 +40,12 @@ export default defineConfig({
       // prisma-client.ts đọc DATABASE_URL ngay lúc import, không phải lúc gọi truy vấn —
       // nên phải đặt ở đây chứ không đặt trong beforeAll.
       DATABASE_URL: TEST_DATABASE_URL,
+      /**
+       * Múi giờ team cho test. Đặt CỐ ĐỊNH và cố ý KHÔNG lấy theo máy: mục đích của cả
+       * phase này là để kết quả không phụ thuộc máy nào chạy, nên bộ test cũng phải ra
+       * cùng một đáp án trên máy dev ở Việt Nam lẫn trên runner CI chạy giờ UTC.
+       */
+      TEAM_TIMEZONE: "Asia/Ho_Chi_Minh",
     },
   },
 });

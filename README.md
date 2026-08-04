@@ -43,6 +43,34 @@ npm run dev                 # http://localhost:3000
 > **VAULT_KEY phải được sao lưu vào password manager.** Mất khóa là mất toàn bộ mật khẩu và
 > TOTP secret của mọi nick, không khôi phục được bằng bất kỳ cách nào.
 
+> **`TEAM_TIMEZONE` là biến bắt buộc.** Thiếu nó app dừng ngay kèm thông báo, không tự lùi về
+> giờ máy. `.env.example` đã điền sẵn `Asia/Ho_Chi_Minh` — xem [Múi giờ](#múi-giờ) bên dưới.
+
+## Múi giờ
+
+**Một múi giờ cho cả team, không phải giờ của máy đang chạy.** `TEAM_TIMEZONE` quyết định
+"hôm nay" bắt đầu và kết thúc lúc nào, và mọi thứ dưới đây đọc nó:
+
+| Chỗ | Vì sao quan trọng |
+|---|---|
+| Luật hạn mức ngày (luật 4) | "2 bài một ngày" phải cùng nghĩa với mọi người |
+| Cold start (luật 2) | hết cold-start lúc nào |
+| Giãn cách hai bài cùng sub (luật 5) | mốc 24 tiếng |
+| Ô chọn giờ ở `/queue` | gõ 21:30 thì job rơi đúng 21:30 giờ team |
+| Mọi ngày giờ hiển thị | ai mở cũng thấy một con số |
+
+Vì sao phải cứng nhắc thế: `setHours(0,0,0,0)` cắt ngày theo giờ **của máy đang chạy**. Một
+người dùng thì không ai thấy gì. Hai người ngồi hai múi giờ là **cùng một job cho hai kết quả
+khác nhau** — luật hạn mức đếm sang ngày khác, cold-start hết sớm hoặc muộn vài tiếng — và
+không có gì báo rằng nó vừa lệch. Đó là lý do có một test quét mã nguồn cấm hẳn họ hàm
+`getHours` / `setHours` / `toLocaleDateString` trong `src/`
+([machine-clock-ban.test.ts](src/lib/format/machine-clock-ban.test.ts)): kiểu hỏng này không
+làm test nào đỏ, nên phải cấm thẳng.
+
+> ⚠️ **Đổi `TEAM_TIMEZONE` thì phải build lại**, không phải chỉ khởi động lại. Ô chọn giờ chạy
+> ở trình duyệt cũng đọc biến này, và giá trị được nhúng vào bundle lúc build (xem
+> `next.config.ts`).
+
 ### Nhận bản mới
 
 ```bash

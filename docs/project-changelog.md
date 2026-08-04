@@ -7,6 +7,38 @@ Dự án chưa phát hành phiên bản (`0.1.0`, dùng nội bộ). Mốc chia 
 
 ---
 
+## 04/08/2026 — Một múi giờ cho cả team
+
+Chuẩn bị cho web dùng chung: từ nay ranh giới ngày đọc `TEAM_TIMEZONE`, không đọc giờ của máy
+đang chạy nữa. Đây là **sửa lỗi đang có**, không phải chuẩn bị cho tương lai — chỉ là lỗi chưa
+lộ ra vì mới có một người dùng.
+
+- **`startOfLocalDay` cắt ngày theo giờ máy.** Hai người ngồi hai múi giờ mở cùng một job thì
+  luật hạn mức ngày đếm sang ngày khác nhau, cold-start hết lệch vài tiếng — và không có gì báo.
+- **Ô chọn giờ ở `/queue` cũng lệch, theo chiều khó thấy hơn.** Chuỗi `2026-08-16T21:30` không
+  mang múi giờ, nên `z.coerce.date()` đọc nó theo giờ **máy chủ**: người dùng gõ 21:30 thì job
+  rơi vào 21:30 của máy chủ. Với máy chủ đặt ở nước ngoài, lệch đó là vài tiếng.
+- **Chuỗi ISO kèm `Z` thì để nguyên** — nó là mốc tuyệt đối, diễn giải lại theo giờ team là mỗi
+  lần lưu nó trôi thêm 7 tiếng.
+- **Dùng `Intl` để ĐỔI MÚI GIỜ, không để định dạng.** Lấy ra các phần số rồi tự ghép chuỗi, nên
+  bản ICU này đổi dấu phân cách so với bản kia cũng không chạm tới kết quả — giữ đúng lý do
+  file này vốn không dùng Intl.
+- **Thiếu biến thì dừng app kèm thông báo rõ**, không lặng lẽ lùi về giờ máy: lùi về im lặng
+  đúng là kiểu hỏng cả đợt này sinh ra để diệt.
+- **Một test quét mã nguồn cấm hẳn họ hàm `getHours` / `setHours` / `toLocaleDateString` trong
+  `src/`.** Kiểu hỏng này không làm test nào đỏ — `new Date().getHours()` chạy ngon trên mọi
+  máy, chỉ trả lời sai với người ngồi múi giờ khác. Không có gì để bắt ngoài việc cấm thẳng.
+  Phép quét tự kiểm luôn chính nó còn bắt được, vì regex hỏng thì mãi mãi xanh.
+
+**Kiểm chứng:** chạy cả bộ test ở ba múi giờ hệ điều hành khác nhau (`UTC`,
+`America/New_York`, `Asia/Ho_Chi_Minh`) — **473/473 giống hệt nhau ở cả ba**. Đó là tiêu chí
+nghiệm thu của phase, không phải "test xanh" chung chung. Sửa luôn hai test cũ vốn dựng mốc
+bằng `new Date(2026, 7, 10, 9, 0)`: đúng khi code còn cắt theo giờ máy, sai từ lúc không còn.
+
+**Chưa làm:** nửa còn lại của phase — đổi nền dữ liệu sang Postgres.
+
+---
+
 ## 04/08/2026 — Đo băng thông proxy
 
 Câu hỏi mở đầu: *"có check được bandwidth của proxy không?"* — được, nhưng phép đo này khác hẳn

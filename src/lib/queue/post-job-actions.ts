@@ -13,7 +13,12 @@
  */
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { contentItemCreateSchema, firstError, formToObject } from "@/lib/accounts/vault-form-schemas";
+import {
+  contentItemCreateSchema,
+  dateTimeInput,
+  firstError,
+  formToObject,
+} from "@/lib/accounts/vault-form-schemas";
 import type { ActionResult } from "@/lib/actions/action-result";
 import { parseLinksInput, stringifyLinks } from "@/lib/content/content-types";
 import { prisma } from "@/lib/db/prisma-client";
@@ -25,7 +30,7 @@ import { joinReasons, previewPostJobRules } from "./post-job-rule-preview";
 const jobFieldsSchema = z.object({
   accountId: z.string().min(1, "Chọn nick"),
   targetId: z.string().min(1, "Chọn đích đăng"),
-  scheduledAt: z.coerce.date(),
+  scheduledAt: dateTimeInput,
   overrideReason: z.preprocess(
     (value) => (typeof value === "string" && value.trim() === "" ? undefined : value),
     z.string().min(10, "Lý do ghi đè phải nói rõ vì sao — ít nhất 10 ký tự").optional(),

@@ -8,7 +8,7 @@
  */
 import { z } from "zod";
 import { CONTENT_TYPES } from "@/lib/content/content-types";
-import { parseLocalDateInput } from "@/lib/format/vietnamese-date-format";
+import { parseDateTimeInput, parseLocalDateInput } from "@/lib/format/vietnamese-date-format";
 import { TARGET_PLATFORMS } from "@/lib/platforms/platform-family";
 import { ACCOUNT_STATUSES } from "./account-status";
 
@@ -19,16 +19,32 @@ export const optionalText = z.preprocess(
 );
 
 /**
- * Ngày từ `<input type="date">` — đọc theo GIỜ MÁY, không phải UTC.
+ * Ngày từ `<input type="date">` — đọc theo MÚI GIỜ TEAM, không phải UTC, cũng không phải
+ * giờ máy chủ.
  *
  * `z.coerce.date()` trên chuỗi `2026-08-16` cho nửa đêm UTC, tức 07:00 giờ Việt Nam:
  * cold-start hết muộn hơn nửa buổi so với ngày người dùng nhìn thấy, trong khi mọi phép
- * đếm ngày khác trong app đều tính theo giờ máy (xem startOfLocalDay).
+ * đếm ngày khác trong app đều cắt theo múi giờ team (xem startOfLocalDay).
  */
 export const optionalDate = z.preprocess((value) => {
   if (typeof value !== "string" || value.trim() === "") return undefined;
   return parseLocalDateInput(value);
 }, z.coerce.date().optional());
+
+/**
+ * Giờ từ `<input type="datetime-local">` — đọc theo MÚI GIỜ TEAM.
+ *
+ * Chuỗi `2026-08-16T21:30` KHÔNG mang múi giờ, nên `z.coerce.date()` đọc nó theo giờ của
+ * MÁY CHỦ: người dùng gõ 21:30 thì job rơi vào 21:30 của máy chủ, không phải 21:30 của họ.
+ * Với máy chủ đặt ở nước ngoài, lệch đó là vài tiếng và không có gì báo.
+ *
+ * Chuỗi CÓ mang múi giờ (ISO kèm `Z`) là mốc tuyệt đối, không cần diễn giải lại — nó không
+ * khớp mẫu nên rơi xuống `z.coerce.date()` xử lý, đúng như trước.
+ */
+export const dateTimeInput = z.preprocess((value) => {
+  if (typeof value !== "string") return value;
+  return parseDateTimeInput(value);
+}, z.coerce.date());
 
 export const requiredId = z.string().min(1, "Thiếu id bản ghi cần sửa");
 

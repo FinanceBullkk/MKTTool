@@ -13,12 +13,13 @@ import {
 import { deleteAccount } from "@/lib/accounts/vault-delete-actions";
 import { updateAccount } from "@/lib/accounts/vault-update-actions";
 import { prisma } from "@/lib/db/prisma-client";
+import { formatFullDate, formatFullDateTime } from "@/lib/format/vietnamese-date-format";
 import { AccountVaultActionsPanel } from "./account-vault-actions-panel";
 
 export const dynamic = "force-dynamic";
 
 function formatDate(value: Date | null): string {
-  return value ? value.toLocaleDateString("vi-VN") : "—";
+  return value ? formatFullDate(value) : "—";
 }
 
 export default async function AccountDetailPage({
@@ -69,7 +70,7 @@ export default async function AccountDetailPage({
     ["Ngày tạo trên nền tảng", formatDate(account.platformCreatedAt)],
     ["Ngày mua", formatDate(account.purchasedAt)],
     ["Cold-start tới", account.coldStartUntil ? formatDate(account.coldStartUntil) : "—"],
-    ["Hoạt động gần nhất", account.lastActionAt ? account.lastActionAt.toLocaleString("vi-VN") : "—"],
+    ["Hoạt động gần nhất", account.lastActionAt ? formatFullDateTime(account.lastActionAt) : "—"],
   ];
 
   return (
@@ -162,7 +163,7 @@ export default async function AccountDetailPage({
             {auditLogs.map((log) => (
               <li key={log.id} className="flex gap-3">
                 <span className="shrink-0 font-mono text-xs text-neutral-500">
-                  {log.at.toLocaleString("vi-VN")}
+                  {formatFullDateTime(log.at)}
                 </span>
                 <span>
                   {log.action}

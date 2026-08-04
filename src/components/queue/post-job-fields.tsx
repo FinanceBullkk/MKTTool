@@ -2,6 +2,7 @@
 
 /** Phần chọn lựa của form tạo job. Tách khỏi post-job-composer.tsx để mỗi file gọn một việc. */
 import { CONTENT_TYPE_LABELS, type ContentType } from "@/lib/content/content-types";
+import { startOfNextHour, toDateTimeInputValue } from "@/lib/format/vietnamese-date-format";
 
 export interface ComposerContent {
   id: string;
@@ -22,17 +23,20 @@ export interface ComposerTarget {
   platform: string;
 }
 
-/** Giá trị cho <input type="datetime-local"> theo giờ máy. */
+/**
+ * Giá trị cho `<input type="datetime-local">` theo MÚI GIỜ TEAM, không phải giờ máy người dùng.
+ *
+ * Ô này hiển thị và nhận giờ treo tường không kèm múi giờ, còn máy chủ đọc chuỗi đó theo múi
+ * giờ team (xem `dateTimeInput`). Hai phía phải nói cùng một múi giờ, nếu không thì người ngồi
+ * múi giờ khác thấy một giờ mà job được xếp vào một giờ khác.
+ */
 export function toLocalInputValue(date: Date): string {
-  const pad = (value: number) => String(value).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  return toDateTimeInputValue(date);
 }
 
-/** Giờ mặc định của form: đầu giờ kế tiếp. Chỉ tính được ở client vì phụ thuộc múi giờ máy. */
+/** Giờ mặc định của form: đầu giờ kế tiếp theo múi giờ team. */
 export function nextHourInputValue(): string {
-  const nextHour = new Date();
-  nextHour.setHours(nextHour.getHours() + 1, 0, 0, 0);
-  return toLocalInputValue(nextHour);
+  return toDateTimeInputValue(startOfNextHour(new Date()));
 }
 
 export const FIELD_CLASS =

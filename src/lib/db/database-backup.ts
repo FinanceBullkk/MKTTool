@@ -9,19 +9,11 @@
  */
 import { mkdirSync } from "node:fs";
 import path from "node:path";
+import { formatTimestampForFileName } from "../format/vietnamese-date-format";
 import { prisma } from "./prisma-client";
 
 /** Thư mục chứa bản sao lưu. Đã nằm trong .gitignore — bản sao chứa credential đã mã hóa. */
 export const BACKUP_DIR = path.join("data", "backups");
-
-/** `20260802-190530` — xếp theo tên là xếp theo thời gian. */
-function timestampForFileName(now: Date): string {
-  const pad = (value: number) => String(value).padStart(2, "0");
-  return (
-    `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}` +
-    `-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`
-  );
-}
 
 export interface BackupResult {
   /** Đường dẫn tuyệt đối tới file vừa tạo. */
@@ -37,7 +29,7 @@ export interface BackupResult {
 export async function backupDatabase(now: Date = new Date()): Promise<BackupResult> {
   mkdirSync(BACKUP_DIR, { recursive: true });
 
-  const filePath = path.resolve(BACKUP_DIR, `mkttool-${timestampForFileName(now)}.db`);
+  const filePath = path.resolve(BACKUP_DIR, `mkttool-${formatTimestampForFileName(now)}.db`);
 
   // SQLite không xử lý ký tự thoát kiểu backslash trong chuỗi, nhưng dấu nháy đơn thì phải
   // nhân đôi. Dùng dấu gạch chéo xuôi cho cả Windows lẫn Linux.

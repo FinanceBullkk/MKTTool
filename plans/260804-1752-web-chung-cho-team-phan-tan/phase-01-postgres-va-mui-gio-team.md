@@ -9,7 +9,15 @@
 
 ## Overview
 
-**Ưu tiên:** cao | **Trạng thái:** chưa làm | **Dự kiến:** 2-3 ngày
+**Ưu tiên:** cao | **Trạng thái:** 🟡 **nửa múi giờ XONG 04/08/2026**, nửa Postgres chưa làm |
+**Dự kiến:** 2-3 ngày
+
+> Làm nửa múi giờ **trước** nửa Postgres, ngược thứ tự các bước dưới đây. Lý do: đổi nền dữ
+> liệu làm `vitest.global-setup.ts` tạm thời hỏng, mà lại cần bộ test còn chạy được mới chứng
+> minh nổi phần múi giờ đúng. Làm ngược lại là tự bịt mắt mình.
+>
+> Nghiệm thu nửa múi giờ: cả bộ test chạy ở ba múi giờ hệ điều hành (`UTC`,
+> `America/New_York`, `Asia/Ho_Chi_Minh`) đều ra **473/473 giống hệt nhau**.
 
 Đổi nền dữ liệu từ SQLite một file sang Postgres dùng chung, và **chốt một múi giờ cho cả team**.
 
@@ -90,8 +98,11 @@ Múi giờ: mọi phép cắt ngày đi qua một hàm duy nhất đọc `TEAM_T
 - [ ] `vitest.global-setup.ts` chạy trên Postgres, vẫn áp từ file migration
 - [ ] `database-backup.ts` dùng `pg_dump`, không ghi đè bản cũ
 - [ ] `upgrade-database.ts` kiểm lại trên Postgres
-- [ ] `TEAM_TIMEZONE` + ba hàm ngày tháng, thiếu biến thì dừng app
-- [ ] Test chặn gọi `setHours` ngoài module ngày tháng
+- [x] `TEAM_TIMEZONE` + các hàm ngày tháng, thiếu biến thì dừng app — **xong 04/08/2026**
+- [x] Test chặn gọi `setHours` ngoài module ngày tháng — cấm cả họ hàm, quét toàn `src/`
+- [x] *(phát sinh)* Ô `datetime-local` cũng đọc theo giờ máy chủ — sửa bằng `parseDateTimeInput`
+- [x] *(phát sinh)* Đưa `TEAM_TIMEZONE` sang bundle trình duyệt qua `next.config.ts`
+- [x] *(phát sinh)* Hai test cũ dựng mốc theo giờ máy — đỏ khi chạy ở UTC, đã sửa
 - [ ] `npm test` + `lint` + `typecheck` xanh
 - [ ] 4 smoke test xanh trên Postgres
 - [ ] Nhập tay dữ liệu thật, nối lại Fanpage

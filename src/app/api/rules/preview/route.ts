@@ -6,6 +6,7 @@
  */
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { dateTimeInput } from "@/lib/accounts/vault-form-schemas";
 import { CONTENT_TYPES } from "@/lib/content/content-types";
 import { CROSS_ORIGIN_MESSAGE, isSameOrigin } from "@/lib/http/same-origin-guard";
 import { previewPostJobRules } from "@/lib/queue/post-job-rule-preview";
@@ -34,7 +35,7 @@ const requestSchema = z.object({
   content: contentSourceSchema,
   accountId: z.string().min(1),
   targetId: z.string().min(1),
-  scheduledAt: z.coerce.date(),
+  scheduledAt: dateTimeInput,
   excludeJobId: z.string().optional(),
 });
 
