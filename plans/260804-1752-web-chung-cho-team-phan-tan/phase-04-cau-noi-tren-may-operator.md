@@ -38,6 +38,12 @@ Nằm trên đường găng vì quyết định 8 chọn bàn giao một lần �
 4. Ba việc: mở profile, hiện mật khẩu, sinh OTP
 5. Mã hóa ciphertext vùng operator khi tạo/sửa nick
 6. Từ chối vé sai chữ ký, quá hạn, hoặc đã dùng
+7. **Ba ràng buộc trình duyệt của [GĐ0](plan.md#kết-quả-gđ0-đo-04082026--ba-ràng-buộc-bắt-buộc-cho-gđ234)
+   là bắt buộc, không có đường thoát** — QĐ 10 chốt không đặt policy Chrome:
+   lời gọi đầu trên mỗi máy nằm trong trình xử lý cú bấm · mọi lời gọi tự đặt hạn giờ ·
+   *"chưa cấp quyền"* là trạng thái riêng, không gộp vào *"mất kết nối"*
+8. **Gửi kèm phiên bản trong mọi phản hồi**, và từ chối vé đòi phiên bản cao hơn mình kèm câu
+   *"bản cầu nối quá cũ, tải lại"* (QĐ 11 — không có bộ tự cập nhật)
 
 ## Architecture
 
