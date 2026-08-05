@@ -107,6 +107,12 @@ chữ ký: cầu nối bản cũ phải nói được *"bản quá cũ, tải l�
 > phát vé, vé mở profile kèm cấu hình proxy, và form tạo/sửa nick dựng ciphertext ở phía máy người
 > dùng. Hôm nay module vé đã chạy và có test hai đầu, nhưng **chưa lối vào nào gọi nó**.
 
+Ngoài 11 việc gốc, hai chốt nữa đóng trong ngày. **Ghi đè bí mật nick nay phải là chủ nick** —
+đối xứng với `revealCredential`; trước đó một OPERATOR không đọc được mật khẩu nick của đồng
+nghiệp nhưng ghi đè được nó. Chỉ gác khi form thật sự mang bí mật lên, nên sửa karma / trạng thái
+/ proxy cho nhau vẫn là việc chung. Việc `status` bị kéo từ `SHADOWBANNED` về `HEALTHY` **không**
+giải bằng phân quyền (chủ nick cũng ép được) mà bằng dấu vết: nhật ký nay ghi cả chiều đổi.
+
 ## Đường găng: cái gì đang chặn
 
 | Chặn | Bản chất | Ai gỡ được |

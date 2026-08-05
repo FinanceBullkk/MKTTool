@@ -42,6 +42,8 @@ src/
     ├── accounts/               Server actions + quy tắc trạng thái nick
     ├── actions/                Kiểu ActionResult dùng chung cho mọi server action
     ├── antidetect/             Adapter MultiZen / AdsPower (đổi bằng 1 dòng .env)
+    ├── audit/                  Tên các loại thao tác ghi vào `AuditLog.action` — gom một chỗ vì
+    │                           gõ sai một chữ thì hàng vẫn ghi, chỉ câu truy vấn sau này là hụt
     ├── auth/                   Đăng nhập Google, danh sách email cho phép, gác lối vào, hai vai trò
     ├── content/                Hằng số loại content, trạng thái job, loại tương tác
     ├── crypto/                 AES-256-GCM cho credential — hai vùng khóa (server / operator),
