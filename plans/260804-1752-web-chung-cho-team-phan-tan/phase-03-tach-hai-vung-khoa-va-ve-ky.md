@@ -10,7 +10,7 @@
 
 ## Overview
 
-**Ưu tiên:** cao | **Trạng thái:** 🟡 đang làm — 5/11 việc (05/08/2026) | **Dự kiến:** 3-4 ngày
+**Ưu tiên:** cao | **Trạng thái:** 🟡 đang làm — 6/11 việc (05/08/2026) | **Dự kiến:** 3-4 ngày
 
 Chia kho mã hóa làm hai vùng, và dựng cơ chế **vé có chữ ký** để máy chủ ủy quyền cho cầu nối
 mà không cần biết nội dung.
@@ -118,6 +118,42 @@ bấm nút ─► máy chủ: kiểm phiên + kiểm chủ nick + ghi AuditLog
 - [x] `vault:rekey` tách hai vùng (`--domain=server|operator`, bắt buộc)
 - [x] `vault:smoke` cập nhật — thêm phép thử "khóa server KHÔNG mở được mật khẩu nick"
 - [ ] **Kiểm bằng grep: không còn chỗ nào trên máy chủ giải mã cột vùng operator**
+
+### Việc phát sinh từ audit 05/08/2026
+
+Nguồn: [audit GĐ3](../../plans/reports/audit-260805-1904-gd03-tach-hai-vung-khoa.md) và
+[audit đường credential + auth](../../plans/reports/audit-260805-1913-duong-credential-va-auth.md).
+Ba việc đã sửa xong ngay (cookie `state` thiếu `secure`, `http://` ghép cứng ở `oauth/start`,
+`vault:rekey` chặn xoay sang khóa vùng kia). Số còn lại **cố ý hoãn** vì chúng nằm đúng trong
+những file mà việc 5-7 sắp viết lại — sửa bây giờ là sửa hai lần.
+
+- [ ] **Gộp vào việc 7 — test canh vùng khóa cho đường TẠO nick.** Đường *sửa* đã có
+  ([vault-edit-actions.database.test.ts](../../src/lib/accounts/vault-edit-actions.database.test.ts):
+  đặt hai khóa khác nhau rồi đọc lại bằng khóa operator). Đường *tạo* thì không có test nào —
+  không file test nào import `vault-create-actions.ts`. Mã hôm nay đúng, nhưng việc 7 viết lại
+  đúng hàm đó, và kiểu hỏng này chỉ lộ ra vào ngày `vault:rekey --domain=operator`, tức đúng ngày
+  nghiệm thu cả phase. Tính chất phải giữ **trước và sau** việc 7: *dữ liệu nick tạo ra chỉ mở
+  được bằng khóa operator*.
+- [ ] **Gộp vào việc 7 — quyết định: `updateAccount` có gác theo chủ nick không.** Hiện `revealCredential`
+  gác (`requireNickOwner`), `updateAccount` thì không. Nên một OPERATOR ghi đè được mật khẩu /
+  email / TOTP nick của đồng nghiệp, và đổi được `status` từ `SHADOWBANNED` về `HEALTHY` — tức
+  vô hiệu hóa luật 1-3 cho nick đó. **Không leo thang được thành đọc bí mật** (đã kiểm: `ownerId`
+  chỉ ghi được từ `assignAccountOwner`, vốn là `adminAction`, và `accountUpdateSchema` không có
+  trường đó nên zod cắt). Chuyện toàn vẹn, không phải rò rỉ — nhưng chưa có ai dùng công cụ nên
+  chốt bây giờ là miễn phí, còn chốt sau GĐ6 thì phải đi hỏi 5-6 người đang làm việc.
+- [ ] **Gộp vào việc 11 — bỏ giá trị mặc định của `encryptCredential`.** Hiện quên tham số khóa =
+  ghi nhầm vùng, không lỗi, không test nào đỏ. Registry test chỉ đối chiếu schema ↔ registry,
+  không chạm chỗ gọi. 12 chỗ gọi ngoài test, mỗi chỗ thêm một tham số — và thêm xong thì "cột này
+  thuộc vùng nào" hiện ngay tại chỗ đọc mã. Làm ở việc 11 vì lúc đó bốn chỗ chạm vùng operator đã
+  dọn xong, số chỗ phải sửa còn ít nhất.
+- [ ] **Dải cảnh báo "hai vùng đang dùng chung một khóa".** Hiện chỉ là `console.warn` trong
+  `encryption-key-loader.ts` — trên Railway (GĐ5) đó là chỗ không ai đọc, in một lần lúc khởi
+  động rồi trôi. Mà trạng thái đó nghĩa là **cả GĐ3 chưa có tác dụng gì**. Dùng lại đúng cách
+  QĐ 11 giải bài toán "cầu nối bản cũ": dải cảnh báo cho ADMIN trên web.
+- [ ] **Gộp vào việc 6 — hạn nhịp cho đường phát vé.** `revealCredential` / `requestOtpCode` hiện
+  không có giới hạn nào: một phiên bị trộm rút sạch bí mật của mọi nick người đó làm chủ trong vài
+  giây, `AuditLog` ghi lại nhưng không ai đọc lúc đó. Việc 6 viết lại đúng hai hàm này, nên đó là
+  lúc rẻ nhất để đặt.
 
 ### Việc 4 — những chốt đã đóng
 
