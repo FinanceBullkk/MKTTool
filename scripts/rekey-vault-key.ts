@@ -196,6 +196,26 @@ async function main() {
   const oldKey = parseVaultKey(process.env[envName], envName);
   const newKey = parseVaultKey(newKeyHex, "--new-key");
 
+  // Chép nhầm khóa của vùng KIA. Hai biến nằm cạnh nhau trong .env, cùng 64 ký tự hex, và người
+  // chạy lệnh này đang mở đúng file đó để chép — nên đây không phải nhầm lẫn xa vời.
+  //
+  // Phải chặn ở đây vì hậu quả không lùi được: chạy xong thì hai vùng nhập lại làm một, đúng thứ
+  // vừa bỏ công tách ra, và dữ liệu đã mã hóa lại nên sửa .env không cứu được. Thứ duy nhất còn
+  // bắt được là dòng cảnh báo lúc app khởi động — quá muộn và quá dễ trôi.
+  const otherDomain: VaultDomain = domain === "server" ? "operator" : "server";
+  const otherEnvName = VAULT_KEY_ENV[otherDomain];
+  const otherRaw = process.env[otherEnvName]?.trim();
+
+  if (otherRaw && newKey.equals(parseVaultKey(otherRaw, otherEnvName))) {
+    throw new RekeyError(
+      `Khóa mới đang trùng ${otherEnvName} — đó là khóa của vùng ${otherDomain}, không phải khóa mới.\n\n` +
+        `Xoay như vậy là nhập hai vùng khóa làm một, tức bỏ đúng thứ việc chia vùng sinh ra để bảo vệ: ` +
+        `chiếm được máy chủ sẽ mở lại được mật khẩu nick.\n` +
+        `Sinh một khóa THẬT SỰ MỚI bằng \`npm run vault:keygen\` rồi chạy lại.\n` +
+        `Chưa đọc, chưa ghi gì vào database cả.`,
+    );
+  }
+
   if (oldKey.equals(newKey)) {
     // Nguyên nhân thường gặp nhất không phải "gõ nhầm cùng một khóa" mà là sửa .env trước khi
     // xoay. Nói thẳng ra, vì người vừa dính lỗi này đang cầm khóa mới trong tay và rất dễ kết
