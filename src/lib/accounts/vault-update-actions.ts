@@ -17,6 +17,7 @@ import { revalidatePath } from "next/cache";
 import type { ActionResult } from "@/lib/actions/action-result";
 import { AUDIT_ACTIONS } from "@/lib/audit/audit-log-actions";
 import { guardedAction } from "@/lib/auth/guarded-action";
+import { AuthorizationError, requireNickOwner } from "@/lib/auth/require-actor";
 import { encryptCredential, encryptOptionalCredential } from "@/lib/crypto/credential-encryption";
 import { loadVaultKey } from "@/lib/crypto/encryption-key-loader";
 import { prisma } from "@/lib/db/prisma-client";
@@ -104,9 +105,40 @@ export const updateAccount = guardedAction(async function updateAccount(
   const { id, password, emailPassword, totpSecret, ...data } = parsed.data;
 
   // `platform` không sửa được nên form không gửi lên — phải đọc từ DB thì mới chấm được luật
-  // "Reddit bắt buộc proxy + profile antidetect".
-  const existing = await prisma.account.findUnique({ where: { id }, select: { platform: true } });
+  // "Reddit bắt buộc proxy + profile antidetect". `status` đọc kèm để ghi được nhật ký "đổi từ
+  // gì sang gì": biết trạng thái mới mà không biết trạng thái cũ thì hàng nhật ký gần như vô dụng
+  // đúng vào lúc cần nó — lúc đi tìm ai đã kéo một nick từ SHADOWBANNED về HEALTHY.
+  const existing = await prisma.account.findUnique({
+    where: { id },
+    select: { platform: true, status: true },
+  });
   if (!existing) return { ok: false, message: "Không tìm thấy nick cần sửa." };
+
+  /**
+   * Ghi đè bí mật thì phải là chủ nick — **đối xứng với `revealCredential`**.
+   *
+   * Không gác thì trạng thái là *"tôi không đọc được mật khẩu nick của bạn, nhưng tôi ghi đè
+   * được nó"*. Bất đối xứng đó không giải thích nổi cho ai, và là loại lỗ người ta chỉ phát
+   * hiện sau khi đã bị.
+   *
+   * Chỉ gác khi form THẬT SỰ mang bí mật lên. Ô để trống nghĩa là giữ nguyên giá trị cũ, và
+   * sửa karma / trạng thái / proxy cho nick của đồng nghiệp là việc chung hằng ngày của team —
+   * gác cả những lần đó là làm chậm việc thật để đổi lấy một lớp bảo vệ không nhắm đúng đâu cả.
+   *
+   * Chuyện `status` bị kéo từ SHADOWBANNED về HEALTHY KHÔNG giải bằng phép kiểm này: chủ nick
+   * cũng ép được, và ép trên nick của chính mình thì luật 1-3 vẫn bị vô hiệu y hệt. Thứ giúp
+   * được ở đó là dấu vết, xem `AuditLog` cuối hàm.
+   */
+  if (password || emailPassword || totpSecret) {
+    try {
+      await requireNickOwner(actor, id);
+    } catch (error) {
+      // Trả về ActionResult chứ không để ném: form này đi qua `ActionForm`/`useActionState`, và
+      // một promise reject ở đó chỉ làm nút chết lặng. Người bị từ chối cần đọc được vì sao.
+      if (error instanceof AuthorizationError) return { ok: false, message: error.message };
+      throw error;
+    }
+  }
 
   const identityError = validatePlatformIdentityFields(existing.platform, data);
   if (identityError) return { ok: false, message: identityError };
@@ -168,7 +200,13 @@ export const updateAccount = guardedAction(async function updateAccount(
     data: {
       accountId: id,
       action: AUDIT_ACTIONS.ACCOUNT_UPDATED,
-      detail: `karma ${data.karma}, ${data.status}`,
+      // Trạng thái đổi thì ghi cả chiều đổi. Đây là đường thứ hai ép được trạng thái nick —
+      // đường kia là bộ dò sức khỏe, và nó đã ghi `HEALTH_STATUS_FORCED` kèm chiều đổi từ lâu.
+      // Hai đường tới cùng một hậu quả thì nhật ký của chúng phải đọc được như nhau.
+      detail:
+        existing.status === data.status
+          ? `karma ${data.karma}, ${data.status}`
+          : `karma ${data.karma}, trạng thái ${existing.status} → ${data.status}`,
       actorId: actor.userId,
     },
   });

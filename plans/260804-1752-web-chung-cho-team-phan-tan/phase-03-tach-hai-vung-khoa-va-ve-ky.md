@@ -151,22 +151,51 @@ Ba mục nhỏ trong sổ đăng ký cũng đã đóng cùng ngày:
   đúng hàm đó, và kiểu hỏng này chỉ lộ ra vào ngày `vault:rekey --domain=operator`, tức đúng ngày
   nghiệm thu cả phase. Tính chất phải giữ **trước và sau** việc 7: *dữ liệu nick tạo ra chỉ mở
   được bằng khóa operator*.
-- [ ] **Gộp vào việc 7 — quyết định: `updateAccount` có gác theo chủ nick không.** Hiện `revealCredential`
-  gác (`requireNickOwner`), `updateAccount` thì không. Nên một OPERATOR ghi đè được mật khẩu /
-  email / TOTP nick của đồng nghiệp, và đổi được `status` từ `SHADOWBANNED` về `HEALTHY` — tức
-  vô hiệu hóa luật 1-3 cho nick đó. **Không leo thang được thành đọc bí mật** (đã kiểm: `ownerId`
-  chỉ ghi được từ `assignAccountOwner`, vốn là `adminAction`, và `accountUpdateSchema` không có
-  trường đó nên zod cắt). Chuyện toàn vẹn, không phải rò rỉ — nhưng chưa có ai dùng công cụ nên
-  chốt bây giờ là miễn phí, còn chốt sau GĐ6 thì phải đi hỏi 5-6 người đang làm việc.
+- [x] **ĐÃ CHỐT VÀ LÀM 05/08 — `updateAccount` gác phần bí mật, KHÔNG gác phần vận hành.**
+  Câu hỏi của audit gộp hai chuyện cần hai lời giải khác nhau.
+
+  *Ghi đè mật khẩu nick người khác* → gác bằng `requireNickOwner`, và lý do quyết định là
+  **tính đối xứng**: `revealCredential` đã gác rồi, nên không gác chỗ này tức là *"tôi không đọc
+  được mật khẩu nick của bạn, nhưng tôi ghi đè được nó"* — không giải thích nổi cho ai. Chỉ gác
+  khi form **thật sự mang bí mật lên**; ô để trống nghĩa là giữ nguyên, và sửa karma / trạng thái
+  / proxy cho nick của đồng nghiệp là việc chung hằng ngày của team 5-6 người. Siết cả những lần
+  đó thì phép kiểm sẽ bị gỡ chứ không được sửa.
+
+  *Kéo `status` từ `SHADOWBANNED` về `HEALTHY`* → **không giải bằng phân quyền.** Chủ nick cũng
+  ép được, và ép trên nick của chính mình thì luật 1-3 vẫn bị vô hiệu y hệt — phép kiểm chủ sở
+  hữu không nhắm đúng chỗ. Thứ thật sự thiếu là **dấu vết**: `ACCOUNT_UPDATED` chỉ ghi trạng thái
+  mới. Nay ghi cả chiều đổi (`SHADOWBANNED → ALIVE`), khớp với `HEALTH_STATUS_FORCED` mà đường
+  còn lại đã ghi từ lâu — hai đường tới cùng một hậu quả thì nhật ký phải đọc được như nhau.
+
+  **Làm ngay thay vì đợi việc 7**: việc 7 đổi *cách credential đi vào* (ciphertext dựng ở máy
+  người dùng), không đổi *ai được gọi* — dòng gác nằm ở tầng khác nên không phải làm hai lần.
+  Ngược lại, sau việc 7 máy chủ **không đọc được** thứ gửi lên, nên ghi đè lúc đó còn khó lần ra
+  hơn. Test canh cả hai phía ranh giới ở
+  [vault-update-owner-guard.database.test.ts](../../src/lib/accounts/vault-update-owner-guard.database.test.ts).
+
 - [ ] **Gộp vào việc 11 — bỏ giá trị mặc định của `encryptCredential`.** Hiện quên tham số khóa =
   ghi nhầm vùng, không lỗi, không test nào đỏ. Registry test chỉ đối chiếu schema ↔ registry,
   không chạm chỗ gọi. 12 chỗ gọi ngoài test, mỗi chỗ thêm một tham số — và thêm xong thì "cột này
   thuộc vùng nào" hiện ngay tại chỗ đọc mã. Làm ở việc 11 vì lúc đó bốn chỗ chạm vùng operator đã
   dọn xong, số chỗ phải sửa còn ít nhất.
-- [ ] **Dải cảnh báo "hai vùng đang dùng chung một khóa".** Hiện chỉ là `console.warn` trong
+- [ ] **Khay cảnh báo vận hành — một vùng, nhiều mục, lọc theo vai trò.** Cảnh báo đầu tiên phải
+  đưa vào: *"hai vùng đang dùng chung một khóa"*, hiện chỉ là `console.warn` trong
   `encryption-key-loader.ts` — trên Railway (GĐ5) đó là chỗ không ai đọc, in một lần lúc khởi
-  động rồi trôi. Mà trạng thái đó nghĩa là **cả GĐ3 chưa có tác dụng gì**. Dùng lại đúng cách
-  QĐ 11 giải bài toán "cầu nối bản cũ": dải cảnh báo cho ADMIN trên web.
+  động rồi trôi. Mà trạng thái đó nghĩa là **cả GĐ3 chưa có tác dụng gì**.
+
+  **Chốt 05/08: không gộp làm một dải với cảnh báo "cầu nối bản cũ" của QĐ 11, cũng không để
+  hai dải rời nhau.** Hai cảnh báo khác nhau ở đúng chỗ quan trọng nhất — *ai sửa được*:
+
+  | | Phạm vi | Ai sửa được | Sửa bằng gì |
+  |---|---|---|---|
+  | Hai vùng chung khóa | Toàn hệ | Chỉ ADMIN | Đổi `.env` + khởi động lại |
+  | Cầu nối bản cũ | Một máy | Người ngồi máy đó | Tải lại `.exe` |
+
+  Gộp một câu thì người đọc phải tự đoán phần nào dành cho mình — với cảnh báo, "tự đoán" nghĩa
+  là bỏ qua. Để rời hai chỗ thì cái thứ hai bị bỏ qua theo cách khác. Đường thứ ba giải cả hai:
+  **một vùng cố định dưới header**, mỗi vấn đề **một dòng riêng với hành động riêng**, lọc theo
+  người xem. Cảnh báo thứ ba (GĐ5 sắp thêm) khi đó chỉ là thêm một mục, không phải quyết lại
+  chỗ đặt.
 - [ ] **Gộp vào việc 6 — hạn nhịp cho đường phát vé.** `revealCredential` / `requestOtpCode` hiện
   không có giới hạn nào: một phiên bị trộm rút sạch bí mật của mọi nick người đó làm chủ trong vài
   giây, `AuditLog` ghi lại nhưng không ai đọc lúc đó. Việc 6 viết lại đúng hai hàm này, nên đó là
