@@ -23,9 +23,11 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { firstError, formToObject } from "@/lib/accounts/vault-form-schemas";
 import type { ActionResult } from "@/lib/actions/action-result";
+import { AUDIT_ACTIONS } from "@/lib/audit/audit-log-actions";
 import { isEmailAllowed, readEmailAccessList } from "@/lib/auth/allowed-emails";
 import { adminAction } from "@/lib/auth/guarded-action";
 import { prisma } from "@/lib/db/prisma-client";
+import { isUniqueConstraintError } from "@/lib/db/prisma-error-helpers";
 import { formatFullDateTime } from "@/lib/format/vietnamese-date-format";
 import {
   RelayDeviceKeyError,
@@ -46,6 +48,37 @@ const registrationSchema = z.object({
 
 /** Đường dẫn màn hình sổ đăng ký — khai một chỗ để hai action không lệch nhau. */
 const RELAY_DEVICES_PATH = "/relay-devices";
+
+/**
+ * Câu giải thích khi khóa đã có người khai, hoặc `null` nếu sổ chưa có khóa này.
+ *
+ * Tách ra vì gọi ở **hai chỗ**: lượt kiểm trước khi ghi, và lượt bắt P2002 khi hai người ghi
+ * cùng lúc. Hai chỗ đó phải nói cùng một câu — người dùng không việc gì phải nhận hai lời giải
+ * thích khác nhau cho cùng một tình huống chỉ vì họ chậm hơn người kia vài mili giây.
+ */
+async function describeDuplicateKey(publicKey: string): Promise<string | null> {
+  const existing = await prisma.relayDevice.findUnique({
+    where: { publicKey },
+    select: { name: true, revokedAt: true, user: { select: { email: true } } },
+  });
+
+  if (!existing) return null;
+
+  // Khóa đã thu hồi mà cho đăng ký lại thì lần thu hồi trước thành vô nghĩa: khóa của một
+  // chiếc máy đã mất coi như đã lộ, và cái máy nhặt được nó vẫn giải mã được vé mới.
+  if (existing.revokedAt) {
+    return (
+      `Khóa này đã bị thu hồi (máy "${existing.name}" của ${existing.user.email}) và không ` +
+      `dùng lại được. Sinh cặp khóa MỚI trên máy đó rồi đăng ký khóa mới.`
+    );
+  }
+
+  return (
+    `Khóa này đã có trong sổ — máy "${existing.name}" của ${existing.user.email}. ` +
+    `Mỗi máy sinh một cặp khóa riêng; hai máy dùng chung khóa thì thu hồi một cái không ` +
+    `chặn được cái kia.`
+  );
+}
 
 /**
  * Ghi một chiếc máy vào sổ.
@@ -94,40 +127,33 @@ export const registerRelayDevice = adminAction(async function registerRelayDevic
     };
   }
 
-  const existing = await prisma.relayDevice.findUnique({
-    where: { publicKey: normalizedKey },
-    select: { name: true, revokedAt: true, user: { select: { email: true } } },
-  });
+  const duplicate = await describeDuplicateKey(normalizedKey);
+  if (duplicate) return { ok: false, message: duplicate };
 
-  if (existing) {
-    // Khóa đã thu hồi mà cho đăng ký lại thì lần thu hồi trước thành vô nghĩa: khóa của một
-    // chiếc máy đã mất coi như đã lộ, và cái máy nhặt được nó vẫn giải mã được vé mới.
-    if (existing.revokedAt) {
-      return {
-        ok: false,
-        message:
-          `Khóa này đã bị thu hồi (máy "${existing.name}" của ${existing.user.email}) và không ` +
-          `dùng lại được. Sinh cặp khóa MỚI trên máy đó rồi đăng ký khóa mới.`,
-      };
-    }
+  let device: { id: string };
+  try {
+    device = await prisma.relayDevice.create({
+      data: { name, userId, publicKey: normalizedKey },
+      select: { id: true },
+    });
+  } catch (error) {
+    // Giữa lượt `findUnique` ở trên và lượt `create` này có một khe: hai admin dán cùng một khóa
+    // cùng lúc thì cả hai đều thấy sổ trống rồi cùng ghi. `@unique` chặn đúng người thứ hai —
+    // nhưng nếu để P2002 ném ra khỏi server action thì trình duyệt chỉ thấy promise reject, nút
+    // trông như hỏng mà không có chữ nào. Hỏi lại sổ để trả về đúng câu đã soạn cho tình huống đó.
+    if (!isUniqueConstraintError(error)) throw error;
 
     return {
       ok: false,
       message:
-        `Khóa này đã có trong sổ — máy "${existing.name}" của ${existing.user.email}. ` +
-        `Mỗi máy sinh một cặp khóa riêng; hai máy dùng chung khóa thì thu hồi một cái không ` +
-        `chặn được cái kia.`,
+        (await describeDuplicateKey(normalizedKey)) ??
+        "Khóa này vừa được người khác ghi vào sổ. Tải lại trang để xem.",
     };
   }
 
-  const device = await prisma.relayDevice.create({
-    data: { name, userId, publicKey: normalizedKey },
-    select: { id: true },
-  });
-
   await prisma.auditLog.create({
     data: {
-      action: "RELAY_DEVICE_REGISTERED",
+      action: AUDIT_ACTIONS.RELAY_DEVICE_REGISTERED,
       detail: `${actor.email} đăng ký máy "${name}" cho ${owner.email} (${device.id})`,
       actorId: actor.userId,
     },
@@ -174,7 +200,7 @@ export const revokeRelayDevice = adminAction(async function revokeRelayDevice(
 
   await prisma.auditLog.create({
     data: {
-      action: "RELAY_DEVICE_REVOKED",
+      action: AUDIT_ACTIONS.RELAY_DEVICE_REVOKED,
       detail: `${actor.email} thu hồi máy "${device.name}" của ${device.user.email} (${deviceId})`,
       actorId: actor.userId,
     },

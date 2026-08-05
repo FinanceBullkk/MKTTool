@@ -21,6 +21,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import type { ActionResult } from "@/lib/actions/action-result";
+import { AUDIT_ACTIONS } from "@/lib/audit/audit-log-actions";
 import { isEmailAllowed, readEmailAccessList } from "@/lib/auth/allowed-emails";
 import { adminAction } from "@/lib/auth/guarded-action";
 import { prisma } from "@/lib/db/prisma-client";
@@ -67,7 +68,7 @@ export const assignAccountOwner = adminAction(async function assignAccountOwner(
     await prisma.auditLog.create({
       data: {
         accountId,
-        action: "ACCOUNT_OWNER_CLEARED",
+        action: AUDIT_ACTIONS.ACCOUNT_OWNER_CLEARED,
         detail: `${actor.email} gỡ chủ của nick`,
         actorId: actor.userId,
       },
@@ -102,7 +103,7 @@ export const assignAccountOwner = adminAction(async function assignAccountOwner(
   await prisma.auditLog.create({
     data: {
       accountId,
-      action: "ACCOUNT_OWNER_ASSIGNED",
+      action: AUDIT_ACTIONS.ACCOUNT_OWNER_ASSIGNED,
       detail: `${actor.email} giao nick cho ${owner.email}`,
       actorId: actor.userId,
     },

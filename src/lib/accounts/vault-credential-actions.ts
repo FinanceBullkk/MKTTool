@@ -9,6 +9,7 @@
  * đúng một file.
  */
 import type { ActionResult } from "@/lib/actions/action-result";
+import { AUDIT_ACTIONS } from "@/lib/audit/audit-log-actions";
 import { guardedAction } from "@/lib/auth/guarded-action";
 import { requireNickOwner } from "@/lib/auth/require-actor";
 import {
@@ -72,7 +73,7 @@ export const revealCredential = guardedAction(async function revealCredential(
   }
 
   await prisma.auditLog.create({
-    data: { accountId, action: "CREDENTIAL_REVEALED", detail: field, actorId: actor.userId },
+    data: { accountId, action: AUDIT_ACTIONS.CREDENTIAL_REVEALED, detail: field, actorId: actor.userId },
   });
 
   return { value };
@@ -108,7 +109,7 @@ export const requestOtpCode = guardedAction(async function requestOtpCode(
   }
 
   await prisma.auditLog.create({
-    data: { accountId, action: "OTP_GENERATED", actorId: actor.userId },
+    data: { accountId, action: AUDIT_ACTIONS.OTP_GENERATED, actorId: actor.userId },
   });
   return code;
 });

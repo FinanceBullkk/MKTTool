@@ -9,6 +9,7 @@
  */
 import { revalidatePath } from "next/cache";
 import type { ActionResult } from "@/lib/actions/action-result";
+import { AUDIT_ACTIONS } from "@/lib/audit/audit-log-actions";
 import { guardedAction } from "@/lib/auth/guarded-action";
 import { prisma } from "@/lib/db/prisma-client";
 import { markJobPosted } from "@/lib/queue/post-job-status-actions";
@@ -63,7 +64,7 @@ export const publishJobToPage = guardedAction(async function publishJobToPage(
     await prisma.auditLog.create({
       data: {
         accountId: job.accountId,
-        action: "FACEBOOK_PAGE_PUBLISH_FAILED",
+        action: AUDIT_ACTIONS.FACEBOOK_PAGE_PUBLISH_FAILED,
         detail: `job ${job.id} — ${message}`.slice(0, 500),
         actorId: actor.userId,
       },
@@ -76,7 +77,7 @@ export const publishJobToPage = guardedAction(async function publishJobToPage(
   await prisma.auditLog.create({
     data: {
       accountId: job.accountId,
-      action: "FACEBOOK_PAGE_PUBLISHED",
+      action: AUDIT_ACTIONS.FACEBOOK_PAGE_PUBLISHED,
       detail: `job ${job.id} → page ${page.name} (${result.postId})`.slice(0, 500),
       actorId: actor.userId,
     },

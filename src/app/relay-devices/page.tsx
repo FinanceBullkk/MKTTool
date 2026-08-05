@@ -1,6 +1,7 @@
 import { RelayDeviceRevokeButton } from "@/components/relay/relay-device-revoke-button";
 import { ActionForm, Field, SelectField } from "@/components/ui/form-controls";
 import { Card, DataTable, EmptyState, PageHeading, StatusBadge } from "@/components/ui/page-section";
+import { isEmailAllowed, readEmailAccessList } from "@/lib/auth/allowed-emails";
 import { readActor } from "@/lib/auth/require-actor";
 import { prisma } from "@/lib/db/prisma-client";
 import { formatFullDateTime } from "@/lib/format/vietnamese-date-format";
@@ -36,6 +37,19 @@ export default async function RelayDevicesPage() {
 
   const active = devices.filter((device) => !device.revokedAt).length;
 
+  /**
+   * Chủ máy còn đăng nhập được không.
+   *
+   * Đăng ký có kiểm `ALLOWED_EMAILS`, nhưng đó là kiểm **một lần, lúc ghi vào sổ**. Gỡ một người
+   * khỏi danh sách sau đó thì máy của họ vẫn nằm nguyên với badge "đang dùng" — sổ nói sai.
+   *
+   * Không khai thác được: đường phát vé kiểm người đang gọi ở mỗi request, nên chiếc máy đó
+   * không xin được vé nào. Nhưng sổ này tồn tại để trả lời *"máy của tôi ổn chưa"*, và một cuốn
+   * sổ trả lời sai câu hỏi duy nhất nó sinh ra để trả lời thì tệ hơn là không có sổ.
+   */
+  const accessList = readEmailAccessList();
+  const canStillSignIn = (email: string) => isEmailAllowed(email, accessList);
+
   return (
     <>
       <PageHeading
@@ -56,7 +70,17 @@ export default async function RelayDevicesPage() {
             {devices.map((device) => (
               <tr key={device.id} className={device.revokedAt ? "text-neutral-400" : undefined}>
                 <td className="py-2 pr-4 font-medium">{device.name}</td>
-                <td className="py-2 pr-4">{device.user.email}</td>
+                <td className="py-2 pr-4">
+                  {device.user.email}
+                  {!device.revokedAt && !canStillSignIn(device.user.email) ? (
+                    <span
+                      className="mt-1 block text-xs text-amber-700 dark:text-amber-500"
+                      title="Email này không còn trong ALLOWED_EMAILS"
+                    >
+                      không còn quyền đăng nhập — máy này không xin được vé
+                    </span>
+                  ) : null}
+                </td>
                 {/* Cắt ngắn cho vừa bảng, nhưng giữ nguyên bản đầy đủ trong `title` để còn đối
                     chiếu với khóa mà máy đó in ra khi nghi ngờ dán nhầm. */}
                 <td

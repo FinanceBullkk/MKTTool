@@ -191,6 +191,44 @@ describe("registerRelayDevice", () => {
     expect(await prisma.relayDevice.count()).toBe(0);
   });
 
+  /**
+   * Khe TOCTOU giữa lượt hỏi sổ và lượt ghi: hai admin dán cùng một khóa cùng lúc thì cả hai
+   * đều thấy sổ trống. `@unique` chặn người thứ hai, nhưng nếu để P2002 ném ra khỏi server
+   * action thì trình duyệt chỉ thấy promise reject — nút trông như hỏng mà không có chữ nào.
+   *
+   * Ghi sẵn một hàng rồi gọi action thì KHÔNG chạm được nhánh đó: lượt kiểm ở đầu hàm bắt được
+   * trước, và bài test sẽ xanh nhờ một đoạn mã khác đoạn cần kiểm. Phải làm lượt kiểm đầu tiên
+   * trả `null` đúng một lần — đó chính là thứ người kia gây ra khi họ ghi xong sau lượt đó.
+   */
+  it("hai người ghi cùng lúc: người sau nhận câu giải thích, không phải lỗi trần", async () => {
+    const { publicKeyHex } = generateRelayDeviceKeyPair();
+    await prisma.relayDevice.create({
+      data: { name: "Máy của người nhanh tay", userId: OPERATOR_ID, publicKey: publicKeyHex },
+    });
+
+    // Chỉ lần gọi ĐẦU trả null; lượt hỏi lại trong nhánh bắt lỗi dùng bản thật.
+    const spy = vi.spyOn(prisma.relayDevice, "findUnique").mockResolvedValueOnce(null);
+
+    try {
+      const result = await register({
+        name: "Máy của ta",
+        userId: OPERATOR_ID,
+        publicKey: publicKeyHex,
+      });
+
+      expect(result.ok).toBe(false);
+      expect(result.message).toContain("đã có trong sổ");
+      expect(await prisma.relayDevice.count()).toBe(1);
+
+      // Hỏi sổ ĐÚNG HAI LẦN: lượt kiểm ở đầu hàm, rồi lượt hỏi lại trong nhánh bắt P2002. Một
+      // lần nghĩa là câu trả lời đến từ lượt kiểm thường và nhánh cần kiểm chưa hề chạy — bài
+      // test sẽ xanh trong khi thứ nó mang tên vẫn hỏng.
+      expect(spy).toHaveBeenCalledTimes(2);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
   it("từ chối người dùng không tồn tại", async () => {
     const { publicKeyHex } = generateRelayDeviceKeyPair();
 

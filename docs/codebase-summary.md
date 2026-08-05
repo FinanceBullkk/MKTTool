@@ -67,7 +67,7 @@ Thư mục khác ở gốc repo:
 
 ```
 prisma/
-├── schema.prisma               Schema duy nhất, 18 model (thêm 4 model đăng nhập + `RelayDevice`)
+├── schema.prisma               Schema duy nhất, 19 model
 └── migrations/                 Lịch sử migration
 scripts/
 ├── generate-vault-key.ts       Sinh khóa kho (dùng cho cả hai vùng)

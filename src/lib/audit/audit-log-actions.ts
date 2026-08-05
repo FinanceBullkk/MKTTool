@@ -1,0 +1,51 @@
+/**
+ * Tên các loại thao tác ghi vào `AuditLog.action`.
+ *
+ * ## Vì sao gom về một chỗ
+ *
+ * `action` là cột chuỗi tự do, nên gõ sai một chữ **không hỏng gì cả** — hàng vẫn ghi, request
+ * vẫn xanh, không test nào đỏ. Thứ duy nhất mất là câu truy vấn đi tìm nó sau này: đếm số lần
+ * lộ credential mà một hàng ghi `CREDENTIAL_REVEAL` thay vì `CREDENTIAL_REVEALED` thì hàng đó
+ * biến mất khỏi mọi báo cáo, im lặng, mãi mãi.
+ *
+ * Kiểu hỏng đó chỉ lộ ra vào đúng ngày cần nhật ký nhất — ngày đi dựng lại xem một chiếc máy
+ * đã mất từng lấy được gì. Gom về đây thì gõ sai là TypeScript đỏ ngay lúc gõ.
+ *
+ * ## Giá trị là hằng số vĩnh viễn
+ *
+ * Đây là dữ liệu **đã nằm trong database**. Đổi giá trị một dòng ở đây không đổi các hàng ghi
+ * trước đó, nên hàng cũ và hàng mới sẽ đếm thành hai loại khác nhau. Muốn đổi tên hiển thị thì
+ * đổi ở chỗ hiển thị, đừng đổi ở đây. Thêm dòng mới thì thoải mái.
+ */
+export const AUDIT_ACTIONS = {
+  // Kho danh tính
+  ACCOUNT_UPDATED: "ACCOUNT_UPDATED",
+  ACCOUNT_OWNER_ASSIGNED: "ACCOUNT_OWNER_ASSIGNED",
+  ACCOUNT_OWNER_CLEARED: "ACCOUNT_OWNER_CLEARED",
+
+  // Bí mật rời kho — nhóm quan trọng nhất của cả bảng
+  CREDENTIAL_REVEALED: "CREDENTIAL_REVEALED",
+  OTP_GENERATED: "OTP_GENERATED",
+
+  // Mở profile antidetect
+  PROFILE_LAUNCHED: "PROFILE_LAUNCHED",
+  PROFILE_LAUNCH_FAILED: "PROFILE_LAUNCH_FAILED",
+  PROFILE_LAUNCH_BLOCKED_PROXY: "PROFILE_LAUNCH_BLOCKED_PROXY",
+
+  // Sổ đăng ký máy chạy cầu nối
+  RELAY_DEVICE_REGISTERED: "RELAY_DEVICE_REGISTERED",
+  RELAY_DEVICE_REVOKED: "RELAY_DEVICE_REVOKED",
+
+  // Hàng đợi và bộ luật
+  RULE_OVERRIDDEN: "RULE_OVERRIDDEN",
+
+  // Facebook
+  FACEBOOK_PAGE_PUBLISHED: "FACEBOOK_PAGE_PUBLISHED",
+  FACEBOOK_PAGE_PUBLISH_FAILED: "FACEBOOK_PAGE_PUBLISH_FAILED",
+
+  // Bộ dò sức khỏe
+  HEALTH_STATUS_FORCED: "HEALTH_STATUS_FORCED",
+  HEALTH_AUTO_LINKED_POST: "HEALTH_AUTO_LINKED_POST",
+} as const;
+
+export type AuditAction = (typeof AUDIT_ACTIONS)[keyof typeof AUDIT_ACTIONS];

@@ -127,6 +127,22 @@ Ba việc đã sửa xong ngay (cookie `state` thiếu `secure`, `http://` ghép
 `vault:rekey` chặn xoay sang khóa vùng kia). Số còn lại **cố ý hoãn** vì chúng nằm đúng trong
 những file mà việc 5-7 sắp viết lại — sửa bây giờ là sửa hai lần.
 
+Ba mục nhỏ trong sổ đăng ký cũng đã đóng cùng ngày:
+
+- **Khe TOCTOU ở `registerRelayDevice`.** Hai admin dán cùng khóa cùng lúc thì `@unique` chặn
+  người sau bằng P2002 ném thẳng ra khỏi server action — nút hỏng, không chữ nào. Nay bắt P2002
+  rồi hỏi lại sổ để trả về **đúng câu** mà lượt kiểm thường vẫn trả. Test dựng lại khe bằng cách
+  cho lượt hỏi đầu trả `null` một lần, và khẳng định sổ bị hỏi **đúng hai lần** — không có
+  khẳng định đó thì bài test xanh nhờ lượt kiểm thường, trong khi nhánh nó mang tên chưa hề chạy.
+- **Chủ máy bị gỡ khỏi `ALLOWED_EMAILS` sau khi đăng ký.** Sổ vẫn hiện "đang dùng" trong khi máy
+  đó không xin nổi một vé nào. Không khai thác được, nhưng sổ này tồn tại để trả lời *"máy của
+  tôi ổn chưa"* — trả lời sai đúng câu hỏi đó thì tệ hơn không có sổ. Nay có dòng cảnh báo cạnh
+  email.
+- **`AuditLog.action` gom về [audit-log-actions.ts](../../src/lib/audit/audit-log-actions.ts).**
+  15 chuỗi literal rải 9 file; gõ sai một chữ thì hàng vẫn ghi, request vẫn xanh, không test nào
+  đỏ — chỉ có câu truy vấn đi tìm nó sau này là hụt mất hàng, im lặng. Nợ cũ, và đợt sổ đăng ký
+  vừa thêm hai chuỗi nữa nên trả luôn.
+
 - [ ] **Gộp vào việc 7 — test canh vùng khóa cho đường TẠO nick.** Đường *sửa* đã có
   ([vault-edit-actions.database.test.ts](../../src/lib/accounts/vault-edit-actions.database.test.ts):
   đặt hai khóa khác nhau rồi đọc lại bằng khóa operator). Đường *tạo* thì không có test nào —

@@ -15,6 +15,7 @@
  */
 import { revalidatePath } from "next/cache";
 import type { ActionResult } from "@/lib/actions/action-result";
+import { AUDIT_ACTIONS } from "@/lib/audit/audit-log-actions";
 import { guardedAction } from "@/lib/auth/guarded-action";
 import { encryptCredential, encryptOptionalCredential } from "@/lib/crypto/credential-encryption";
 import { loadVaultKey } from "@/lib/crypto/encryption-key-loader";
@@ -166,7 +167,7 @@ export const updateAccount = guardedAction(async function updateAccount(
   await prisma.auditLog.create({
     data: {
       accountId: id,
-      action: "ACCOUNT_UPDATED",
+      action: AUDIT_ACTIONS.ACCOUNT_UPDATED,
       detail: `karma ${data.karma}, ${data.status}`,
       actorId: actor.userId,
     },

@@ -14,6 +14,7 @@ import { getStatusPresentation } from "@/lib/accounts/account-status";
 import { AntidetectError } from "@/lib/antidetect/antidetect-browser-adapter";
 import { getAntidetectAdapter } from "@/lib/antidetect/antidetect-adapter-factory";
 import { ProxyConfigError, buildProxyConfig } from "@/lib/antidetect/proxy-config-builder";
+import { AUDIT_ACTIONS } from "@/lib/audit/audit-log-actions";
 import { guardedRoute } from "@/lib/auth/guarded-route";
 import { prisma } from "@/lib/db/prisma-client";
 import { CROSS_ORIGIN_MESSAGE, isSameOrigin } from "@/lib/http/same-origin-guard";
@@ -80,7 +81,7 @@ export const POST = guardedRoute(async function POST(
     await prisma.auditLog.create({
       data: {
         accountId: id,
-        action: "PROFILE_LAUNCH_BLOCKED_PROXY",
+        action: AUDIT_ACTIONS.PROFILE_LAUNCH_BLOCKED_PROXY,
         detail: `proxy ${proxy.label} — ${liveness.verdict}: ${liveness.message}`.slice(0, 500),
         actorId: actor.userId,
       },
@@ -111,7 +112,7 @@ export const POST = guardedRoute(async function POST(
       prisma.auditLog.create({
         data: {
           accountId: id,
-          action: "PROFILE_LAUNCHED",
+          action: AUDIT_ACTIONS.PROFILE_LAUNCHED,
           detail: `${adapter.providerName} / proxy ${proxy.label} (${proxyConfig.protocol})`,
           actorId: actor.userId,
         },
@@ -138,7 +139,7 @@ export const POST = guardedRoute(async function POST(
     await prisma.auditLog.create({
       data: {
         accountId: id,
-        action: "PROFILE_LAUNCH_FAILED",
+        action: AUDIT_ACTIONS.PROFILE_LAUNCH_FAILED,
         detail: message.slice(0, 500),
         actorId: actor.userId,
       },
