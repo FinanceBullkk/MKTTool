@@ -25,7 +25,7 @@ import { existsSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { randomBytes } from "node:crypto";
 import { decryptCredential, encryptCredential } from "../src/lib/crypto/credential-encryption";
-import { RELAY_PATHS } from "../src/lib/relay/relay-endpoints";
+import { RELAY_PATHS, RELAY_VERSION } from "../src/lib/relay/relay-endpoints";
 import {
   publicKeyToHex,
   resetServerSigningKeysCache,
@@ -33,7 +33,6 @@ import {
 } from "../src/lib/tickets/server-signing-key";
 import { issueTicket } from "../src/lib/tickets/ticket-issuer";
 import { TICKET_KINDS, TICKET_LIFETIME_MS } from "../src/lib/tickets/ticket-types";
-import { RELAY_VERSION } from "../relay/src/relay-version";
 import {
   EXECUTABLE_FILE,
   makeTempHome,

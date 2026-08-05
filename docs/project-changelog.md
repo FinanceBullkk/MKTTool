@@ -7,6 +7,57 @@ Dự án chưa phát hành phiên bản (`0.1.0`, dùng nội bộ). Mốc chia 
 
 ---
 
+## 06/08/2026 — GĐ4: cầu nối thành một chương trình chạy trên máy operator
+
+GĐ3 để lại một trạng thái đã hẹn trước: máy chủ không còn mở được mật khẩu nick nào, và **cũng
+chưa ai mở được** — ba việc (lấy mật khẩu/OTP, mở profile, tạo/sửa nick có bí mật mới) chờ một
+chương trình chưa tồn tại. Hôm nay chương trình đó có mặt, và tải về được.
+
+- **`relay/` — một chương trình riêng, không phải một phần của web app.** Nghe `127.0.0.1:47821`,
+  CORS đúng một nguồn, mọi phản hồi mang số phiên bản. Nó **không có đường vào database**: tất cả
+  những gì nó biết là thứ tấm vé mang xuống. Có test hình dạng mã nguồn chặn `relay/` import
+  `prisma`, `next`, React, alias `@/` và cả lớp phân quyền — kiểu hỏng đó không làm test nào đỏ,
+  chỉ làm `.exe` phồng lên và mọc một client database trên đúng chiếc máy mà cả kiến trúc dựng ra
+  để không có nó.
+- **Ba lối vào chạy thật.** Mật khẩu và OTP hiện ở tab do chính cầu nối phục vụ (chỗ **duy nhất**
+  trong cả hệ mở được mật khẩu nick), vé nằm ở fragment nên không lên máy chủ nào; trang xóa vé
+  khỏi thanh địa chỉ ngay khi mở và tự đóng sau 60 giây kèm nút *"Giữ mở"*. Mở profile đi qua
+  MultiZen trên máy đó, giữ nguyên quy tắc đẩy proxy hỏng thì không mở. Form tạo/sửa nick bọc bí
+  mật bằng khóa vùng operator **trước khi** gửi lên — đường này cố ý không cần vé: thứ đi vào là
+  bí mật người dùng vừa tự gõ, bắt xin phép máy chủ để mã hóa chuỗi của chính mình chỉ thêm một
+  vòng gọi mà không thêm lớp bảo vệ nào.
+- **`.exe` 87.4 MB dựng bằng Node SEA, không phải bun** — đảo với kế hoạch. Phần khó của cầu nối
+  là mật mã lạ (X25519 sealed box, Ed25519), và bộ test chứng minh nó đúng *trên Node 24*; SEA thì
+  `.exe` chính là `node.exe` đã chạy bộ test đó. `npm run relay:verify` đo trên **chính file
+  `.exe`**, 16/16: tiến trình test phát vé thật, `.exe` mở ra, so mật khẩu với chuỗi đã gửi. Phép
+  kiểm rẻ hơn ("gọi `/health` thấy 200") vẫn xanh khi mật mã hỏng sau lúc gói, và triệu chứng đầu
+  tiên sẽ là một operator đứng trước câu *"không mở được ruột vé"* vào ngày bàn giao.
+- **Tải ở `/relay-download`, sau lớp đăng nhập.** Gói `.zip` 32.6 MB gồm `.exe` + bộ cài — đưa
+  mỗi `.exe` là đưa một bộ cài chắc chắn hỏng vì `setup.bat` tìm hai file kia cạnh chính nó. Route
+  stream chứ không đọc cả file vào bộ nhớ: 87 MB mỗi lượt tải đồng thời trên gói Railway nhỏ là
+  tiến trình chết vì hết bộ nhớ, và triệu chứng sẽ là "web tự khởi động lại". Chạy `setup.bat` lần
+  hai là **nâng cấp**: tắt bản cũ, chép bản mới, giữ nguyên `relay-config.json` — ghi đè file đó là
+  xóa khóa vùng operator của máy, thứ không lấy lại được ở đâu.
+- **Mã máy hiện ở `/relay-devices`, và dải "cầu nối bản cũ" ở chỗ có nút bấm.** Luồng cài đi hai
+  chiều — khóa công khai đi lên, mã máy đi xuống — và chiều xuống trước nay không có đường nào.
+  Dải cảnh báo kêu **cả khi cầu nối bị từ chối vé**: máy cũ tới mức vé bị chặn chính là máy cần
+  nhắc nhất. Không có bộ tự cập nhật (QĐ 11), nên dải này là đường duy nhất nhắc được trước khi
+  một tấm vé hỏng.
+- **Ba lỗi Windows chỉ lộ ra khi chạy thật**, cả ba đã vá và ghi lại tại chỗ: `noopener` trong
+  chuỗi features làm `window.open()` trả `null` — đúng giá trị của "popup bị chặn" — nên **mọi**
+  cú bấm mật khẩu đều rơi vào nhánh báo chặn popup (qua được typecheck, lint và 770 test);
+  cmd.exe dò file `.bat` theo vị trí **byte** nên tiếng Việt có dấu làm nó chạy nhầm nửa dòng
+  lệnh; `WScript.Shell` ép mọi chuỗi về bảng mã ANSI nên shortcut tên tiếng Việt không lưu nổi.
+- **Bỏ `relay/dist` khỏi ESLint.** ESLint không đọc `.gitignore`, nên từ lúc có thư mục build thì
+  `npm run lint` chết ngay ở bước dựng cấu hình — cả lệnh hỏng chỉ vì có người vừa build.
+
+**Kiểm chứng:** `typecheck` + `lint` + **783 test xanh**, `npm run relay:verify` 16/16 trên `.exe`,
+bộ cài chạy trọn vòng từ `.zip` giải nén ra (kể cả đường nâng cấp).
+
+> ⚠️ **Chưa nghiệm thu trên máy Windows thứ hai.** Đó là tiêu chí chính của GĐ4 và nó cần một
+> chiếc máy chưa cài Node. Thứ đã chứng minh: `.exe` tự chứa runtime. Thứ chưa: chuyện đó lặp lại
+> ở một máy sạch.
+
 ## 06/08/2026 — GĐ3 đóng: máy chủ không còn mở được một mật khẩu nick nào
 
 Bốn việc cuối của GĐ3. Trước hôm nay, bộ phát vé đã chạy và có test hai đầu nhưng **chưa lối vào

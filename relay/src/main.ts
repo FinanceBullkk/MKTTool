@@ -14,7 +14,7 @@
  * hoặc **cổng bị chiếm**. Cả hai đều là thứ không có trạng thái nào để hiện ra, vì chưa có chỗ
  * nào để hiện.
  */
-import { RELAY_ORIGIN, RELAY_PATHS } from "../../src/lib/relay/relay-endpoints";
+import { RELAY_ORIGIN, RELAY_PATHS, RELAY_VERSION } from "../../src/lib/relay/relay-endpoints";
 import { handleEncryptForVault } from "./handle-encrypt-for-vault";
 import { handleSecretReveal } from "./handle-secret";
 import { handleTicketRequest } from "./handle-ticket";
@@ -27,7 +27,6 @@ import type { RelayIdentity } from "../../src/lib/tickets/ticket-verifier";
 import { buildRelayIdentity } from "./relay-identity";
 import { renderStatusPage } from "./relay-status-page";
 import { SECRET_REVEAL_PATH, renderSecretPage } from "./secret-page";
-import { RELAY_VERSION } from "./relay-version";
 
 async function main(): Promise<void> {
   const home = resolveRelayHome();

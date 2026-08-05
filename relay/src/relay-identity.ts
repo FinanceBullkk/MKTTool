@@ -17,7 +17,7 @@ import { publicKeyFromHex } from "../../src/lib/tickets/server-signing-key";
 import { TicketReplayGuard } from "../../src/lib/tickets/ticket-replay-guard";
 import type { RelayIdentity } from "../../src/lib/tickets/ticket-verifier";
 import type { RelayConfig } from "./relay-config";
-import { RELAY_VERSION } from "./relay-version";
+import { RELAY_VERSION } from "../../src/lib/relay/relay-endpoints";
 
 /**
  * Dựng danh tính từ cấu hình đã kiểm và khóa riêng đã đọc.

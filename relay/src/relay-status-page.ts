@@ -16,7 +16,7 @@
  */
 import { CONFIG_FILE, DEVICE_KEY_FILE } from "./relay-home";
 import { CONFIG_TEMPLATE, type ConfigProblem } from "./relay-config";
-import { RELAY_VERSION } from "./relay-version";
+import { RELAY_VERSION } from "../../src/lib/relay/relay-endpoints";
 
 export interface StatusPageInput {
   /** Khóa công khai của máy này, hex. */

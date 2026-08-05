@@ -28,7 +28,12 @@
  */
 import { useState } from "react";
 import type { ActionResult } from "@/lib/actions/action-result";
-import { describeRelayFailure, encryptForVault } from "@/lib/relay/relay-browser-client";
+import { RelayOutdatedNotice } from "@/components/relay/relay-outdated-notice";
+import {
+  describeRelayFailure,
+  encryptForVault,
+  outdatedRelayVersion,
+} from "@/lib/relay/relay-browser-client";
 import type { EncryptForVaultReply } from "@/lib/relay/relay-endpoints";
 
 /**
@@ -54,6 +59,8 @@ export function AccountVaultForm({
 }) {
   const [state, setState] = useState<ActionResult | null>(null);
   const [pending, setPending] = useState(false);
+  // Chỉ bật lên, không tắt — xem `noteRelayVersion` ở panel thao tác kho.
+  const [outdatedVersion, setOutdatedVersion] = useState<number | null>(null);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -82,6 +89,9 @@ export function AccountVaultForm({
     setState(null);
     try {
       const outcome = await sealed;
+      const oldRelay = outdatedRelayVersion(outcome);
+      if (oldRelay !== null) setOutdatedVersion(oldRelay);
+
       if (outcome.status !== "ok") {
         setState({ ok: false, message: describeRelayFailure(outcome) });
         return;
@@ -117,6 +127,8 @@ export function AccountVaultForm({
     // đường của nó, dữ liệu phải nằm trong thân request chứ không nằm trong URL — thanh địa chỉ
     // và lịch sử duyệt web là hai nơi không bao giờ được có mật khẩu.
     <form method="post" onSubmit={handleSubmit} className="space-y-4">
+      {outdatedVersion !== null ? <RelayOutdatedNotice relayVersion={outdatedVersion} /> : null}
+
       <div className="grid gap-4 sm:grid-cols-2">{children}</div>
 
       {state ? (

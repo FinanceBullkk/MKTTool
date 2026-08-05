@@ -34,8 +34,10 @@ import {
   requestCredentialTicket,
   requestOtpTicket,
 } from "@/lib/accounts/vault-credential-actions";
+import { RelayOutdatedNotice } from "@/components/relay/relay-outdated-notice";
 import {
   describeRelayFailure,
+  outdatedRelayVersion,
   pingRelay,
   sendTicketToRelay,
   type RelayOutcome,
@@ -116,6 +118,20 @@ export function AccountVaultActionsPanel({
   // Một máy thì không hỏi; nhiều máy thì máy mới nhất là mặc định hợp lý nhất — người vừa cài
   // thêm một máy thường đang ngồi ở chính nó.
   const [deviceId, setDeviceId] = useState(relayDevices[0]?.id ?? "");
+  const [outdatedVersion, setOutdatedVersion] = useState<number | null>(null);
+
+  /**
+   * Ghi lại phiên bản cầu nối mỗi lần nó trả lời được.
+   *
+   * Gọi ở **mọi** lối ra, kể cả lối bị từ chối: một chiếc máy chạy bản quá cũ tới mức vé bị chặn
+   * chính là chiếc máy cần thấy dải cảnh báo nhất. Chỉ **bật lên**, không tắt: cầu nối tắt giữa
+   * chừng thì lượt gọi sau không có số phiên bản nào, mà "không hỏi được" không phải bằng chứng
+   * là máy đã cập nhật.
+   */
+  function noteRelayVersion(outcome: RelayOutcome<unknown>) {
+    const old = outdatedRelayVersion(outcome);
+    if (old !== null) setOutdatedVersion(old);
+  }
 
   /**
    * Ping chạy song song, dùng để **đổi câu báo** sau khi tab đã mở — không chặn đường mở tab.
@@ -136,6 +152,7 @@ export function AccountVaultActionsPanel({
    */
   function replaceMessageIfRelayIsDown(ping: Promise<RelayOutcome<unknown>>, opened: Feedback) {
     void ping.then((health) => {
+      noteRelayVersion(health);
       if (health.status !== "unreachable") return;
       setFeedback((current) =>
         current === opened ? { kind: "error", text: RELAY_DOWN_AFTER_OPEN } : current,
@@ -216,6 +233,8 @@ export function AccountVaultActionsPanel({
       }
 
       const sent = await sendTicketToRelay(body.ticket);
+      noteRelayVersion(sent);
+
       if (sent.status === "ok") {
         setFeedback({ kind: "ok", text: `${sent.data.message} ${body.message}` });
         return;
@@ -231,6 +250,8 @@ export function AccountVaultActionsPanel({
 
   return (
     <div className="space-y-4">
+      {outdatedVersion !== null ? <RelayOutdatedNotice relayVersion={outdatedVersion} /> : null}
+
       {relayDevices.length === 0 ? (
         <p className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-300">
           Máy bạn đang ngồi chưa có trong sổ cầu nối, nên chưa lấy được mật khẩu, mã OTP hay mở

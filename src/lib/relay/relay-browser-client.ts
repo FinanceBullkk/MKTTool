@@ -44,17 +44,25 @@
 import {
   RELAY_PATHS,
   RELAY_TIMEOUT_MS,
+  RELAY_VERSION,
   type RelayHealth,
   type RelayReply,
   relayUrl,
 } from "./relay-endpoints";
 
-/** Kết quả một lời gọi xuống cầu nối. Bốn nhánh, và mỗi nhánh dẫn tới một hành động khác. */
+/**
+ * Kết quả một lời gọi xuống cầu nối. Bốn nhánh, và mỗi nhánh dẫn tới một hành động khác.
+ *
+ * Hai nhánh đầu mang thêm `relayVersion` — **kể cả nhánh bị từ chối**, và đó mới là nhánh quan
+ * trọng: một chiếc máy chạy bản quá cũ bị từ chối vé (`RELAY_TOO_OLD`) chính là chiếc máy cần
+ * thấy dải *"tải bản mới"* nhất. Bỏ số phiên bản đi ở nhánh đó là chỉ nhắc được những người
+ * chưa cần nhắc.
+ */
 export type RelayOutcome<T> =
   /** Cầu nối trả lời và nói việc đã xong. */
-  | { status: "ok"; data: T }
+  | { status: "ok"; data: T; relayVersion?: number }
   /** Cầu nối trả lời nhưng từ chối — vé hỏng, MultiZen không mở được, bản quá cũ… */
-  | { status: "rejected"; message: string }
+  | { status: "rejected"; message: string; relayVersion?: number }
   /** Không ai nghe ở `127.0.0.1` — gần như chắc chắn cầu nối chưa chạy. */
   | { status: "unreachable"; message: string }
   /** Request treo tới hết hạn giờ — gần như chắc chắn chưa cấp quyền mạng nội bộ. */
@@ -107,10 +115,37 @@ async function callRelay<T extends RelayReply>(
   }
 
   if (!response.ok || !body.ok) {
-    return { status: "rejected", message: body.message || `Cầu nối từ chối (HTTP ${response.status}).` };
+    return {
+      status: "rejected",
+      message: body.message || `Cầu nối từ chối (HTTP ${response.status}).`,
+      relayVersion: body.relayVersion,
+    };
   }
 
-  return { status: "ok", data: body };
+  return { status: "ok", data: body, relayVersion: body.relayVersion };
+}
+
+/**
+ * Số bản cầu nối đang chạy — **chỉ khi nó cũ hơn** bản máy chủ đang phát hành. `null` là mọi
+ * trường hợp còn lại.
+ *
+ * Trả thẳng con số thay vì `true`/`false` vì chỗ gọi cần chính con số đó để hiện ra, và vì
+ * `relayVersion` chỉ tồn tại ở hai nhánh của `RelayOutcome`: gộp cả phép thu hẹp kiểu lẫn phép
+ * so vào một chỗ thì chỗ gọi không phải tự nhớ nhánh nào có trường nào.
+ *
+ * `null` bao gồm cả nghĩa **chưa biết** — cầu nối không trả lời được thì không có số nào để so,
+ * và đoán bừa ở đó là hiện dải "bản cũ" cho một chiếc máy chỉ đang tắt. Trạng thái đó đã có câu
+ * riêng.
+ *
+ * Không có bộ tự cập nhật (QĐ 11): một chương trình giữ khóa của cả kho mà tự tải mã mới về chạy
+ * là đúng thứ mọi lớp bảo vệ ở đây dựng ra để chặn. Đổi lại, dải này là **đường duy nhất** báo
+ * cho người ta biết cần cập nhật trước khi một tấm vé hỏng.
+ */
+export function outdatedRelayVersion(outcome: RelayOutcome<unknown>): number | null {
+  if (outcome.status !== "ok" && outcome.status !== "rejected") return null;
+  if (outcome.relayVersion === undefined) return null;
+
+  return outcome.relayVersion < RELAY_VERSION ? outcome.relayVersion : null;
 }
 
 /**

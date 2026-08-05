@@ -1,7 +1,7 @@
 import type { AddressInfo } from "node:net";
 import { afterEach, describe, expect, it } from "vitest";
 import { createRelayServer } from "./relay-http-server";
-import { RELAY_VERSION } from "./relay-version";
+import { RELAY_VERSION } from "../../src/lib/relay/relay-endpoints";
 
 const WEB_ORIGIN = "https://mkttool.example.com";
 

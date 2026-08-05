@@ -24,8 +24,7 @@
  * không nói được điều đó thì người dùng đi tìm nhầm chỗ.
  */
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
-import { RELAY_PORT } from "../../src/lib/relay/relay-endpoints";
-import { RELAY_VERSION } from "./relay-version";
+import { RELAY_PORT, RELAY_VERSION } from "../../src/lib/relay/relay-endpoints";
 
 /** Chỉ nghe trên vòng lặp nội bộ. Hằng số, không phải tham số — xem chú thích đầu file. */
 const LOOPBACK_HOST = "127.0.0.1";

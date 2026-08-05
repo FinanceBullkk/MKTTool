@@ -28,6 +28,7 @@ const STORE_ITEMS = [
   { href: "/content", label: "Content" },
   { href: "/facebook", label: "Facebook" },
   { href: "/relay-devices", label: "Máy cầu nối" },
+  { href: "/relay-download", label: "Tải cầu nối" },
 ];
 
 const ITEM_CLASS =

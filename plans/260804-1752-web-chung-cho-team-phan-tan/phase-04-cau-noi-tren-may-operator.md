@@ -276,7 +276,34 @@ Import từ `src/lib/` qua đường dẫn tương đối. **Không dựng works
       `about:blank` (cùng nguồn nên gán được), vẫn giữ handle để điều hướng. Có phép canh nguồn
       [secret-popup-features.test.ts](../../src/lib/relay/secret-popup-features.test.ts) vì
       thêm lại `noopener` là phản xạ đúng ở mọi chỗ khác của web.
-- [ ] Phục vụ file `.exe` sau lớp đăng nhập; web cảnh báo khi cầu nối chạy bản cũ
+- [x] **XONG 06/08 — trang tải sau lớp đăng nhập + dải cảnh báo bản cũ.**
+      [/relay-download](../../src/app/relay-download/page.tsx),
+      [route tải](../../src/app/api/relay/download/route.ts),
+      [relay-release-file](../../src/lib/relay/relay-release-file.ts),
+      [relay-outdated-notice](../../src/components/relay/relay-outdated-notice.tsx).
+      **Tải về là `.zip` ba file, không phải `.exe` trần** — `setup.bat` tìm hai file kia cạnh
+      chính nó, nên đưa mỗi `.exe` là đưa một bộ cài chắc chắn hỏng, kèm câu báo lỗi mà người
+      đọc không làm gì được. 87.4 MB nén còn 32.6 MB. Tên trên đĩa cố định
+      (`MKTTool-Relay.zip`) còn tên lúc tải mang số bản (`MKTTool-Relay-v1.zip`): đường dẫn cố
+      định thì route và bộ build không phải hẹn nhau theo phiên bản, còn thư mục Downloads thì
+      cần phân biệt được các bản nằm cạnh nhau.
+      **Stream chứ không đọc cả file vào bộ nhớ** — 87 MB mỗi lượt tải cùng lúc trên gói Railway
+      nhỏ là tiến trình chết vì hết bộ nhớ, và triệu chứng sẽ là "web tự khởi động lại".
+      **Trạng thái "chưa có gói" là bình thường, không phải lỗi**: `.exe` dựng trên Windows còn
+      ảnh Docker dựng trên Linux, nên trang nói thẳng máy chủ đã tìm ở đâu, kèm biến
+      `RELAY_RELEASE_DIR` để trỏ sang volume. Cả team tải được, không riêng ADMIN — bắt operator
+      đi xin file qua chat là dựng lại đúng thói quen mà trang này sinh ra để dẹp.
+      **Dải cảnh báo kêu cả ở nhánh bị từ chối**, và đó mới là nhánh quan trọng: máy cũ tới mức
+      vé bị chặn (`RELAY_TOO_OLD`) chính là máy cần nhắc nhất. Chỉ bật, không tắt — "không hỏi
+      được" không phải bằng chứng đã cập nhật. Im khi cầu nối chạy bản **mới hơn** máy chủ (xảy
+      ra thật lúc một máy cài bản vừa build còn máy chủ chưa deploy).
+- [x] **XONG 06/08 — `RELAY_VERSION` chuyển về file hợp đồng dùng chung.**
+      Số này có **hai người đọc**: cầu nối tự khai mình bản mấy, và web app so con số nhận được
+      với bản đang phát hành. Để hai bản sao ở hai nơi thì có ngày một bên tăng còn bên kia
+      quên, và kiểu hỏng đó là **cảnh báo im lặng** — cả team chạy bản cũ mà không dải nào kêu.
+      `relay/src/relay-version.ts` bị xóa; nay nằm trong
+      [relay-endpoints](../../src/lib/relay/relay-endpoints.ts), file mà cầu nối vốn đã lấy
+      `RELAY_ORIGIN` và `RELAY_PATHS` từ đó.
 - [x] **XONG 06/08 (thực ra từ GĐ3) — vé mang phiên bản tối thiểu, cầu nối quá cũ từ chối.**
       Máy chủ khai `minRelayVersion` vào từng vé
       ([ticket-issuer](../../src/lib/tickets/ticket-issuer.ts)), cầu nối so với `RELAY_VERSION`
@@ -300,11 +327,21 @@ Import từ `src/lib/` qua đường dẫn tương đối. **Không dựng works
 
 ## Success Criteria
 
-- `.exe` chạy trên **một máy Windows khác, không cài Node**, mở được profile với proxy đúng
-- Tắt cầu nối → web nói rõ "cầu nối chưa chạy", **không phải nút bấm không phản hồi**
-- Mật khẩu hiện ra ở tab của cầu nối; **kiểm bằng devtools: trang hosted không hề chạm tới nó**
-- Ba loại vé hỏng đều bị từ chối
-- `npm test` xanh, gồm cả test chặn import
+Trạng thái 06/08: **18/19 việc xong, mọi thứ kiểm được bằng máy đều đã xanh.** Còn lại là phần
+chỉ nghiệm thu được bằng tay, và nó cần một chiếc máy thứ hai.
+
+- ⬜ `.exe` chạy trên **một máy Windows khác, không cài Node**, mở được profile với proxy đúng —
+  **chưa kiểm được**, cần máy thứ hai. Thứ đã chứng minh ở đây: `.exe` tự chứa runtime (nó không
+  đọc `node_modules` nào), bộ cài chạy trọn từ `.zip` giải nén ra, và cầu nối bật lên trả lời
+  đúng. Thứ chưa chứng minh: chuyện đó lặp lại trên một máy chưa từng có Node.
+- ✅ Tắt cầu nối → web nói rõ "cầu nối chưa chạy", **không phải nút bấm không phản hồi** — cả ba
+  lối vào, gồm cả ba nút bí mật vốn chỉ đoán mò.
+- ⬜ Mật khẩu hiện ra ở tab của cầu nối; **kiểm bằng devtools** — phần *"trang hosted không chạm
+  tới mật khẩu"* thì `npm run relay:verify` chứng minh bằng đường đi (bí mật chỉ ra ở
+  `/secret/reveal` của cầu nối), nhưng phần nhìn bằng mắt trong devtools vẫn phải làm tay.
+- ✅ Ba loại vé hỏng đều bị từ chối — **đo trên chính `.exe`**, không phải trên mã nguồn:
+  vé giả, vé quá hạn, vé dùng lại, cộng vé sai loại đi nhầm đường.
+- ✅ `npm test` xanh (783), gồm cả test chặn import; `npm run relay:verify` 16/16.
 
 ## Risk Assessment
 

@@ -11,7 +11,7 @@ Dự án đang chạy **hai luồng song song**:
 | Luồng | Là gì | Trạng thái |
 |---|---|---|
 | **A — Công cụ** | 5 giai đoạn gốc: kho danh tính → hàng đợi → sức khỏe → Facebook → tự đăng Reddit | GĐ1-4 xong, GĐ0 kẹt ở tiền + cold-start, GĐ5 chưa bắt đầu |
-| **B — Web chung** | Biến app một máy thành web chung cho 5-6 người ở 5-6 nơi | GĐ0-3 xong 06/08, **GĐ4 (cầu nối) là đường găng kế tiếp**, GĐ5 đã khởi động (Dockerfile) |
+| **B — Web chung** | Biến app một máy thành web chung cho 5-6 người ở 5-6 nơi | GĐ0-3 xong, **GĐ4 code xong 06/08** (chờ nghiệm thu trên máy Windows thứ hai), GĐ5 đã khởi động (Dockerfile) |
 
 Luồng B sinh ra sau khi chốt bàn giao cho team — xem
 [plan web chung](../plans/260804-1752-web-chung-cho-team-phan-tan/plan.md). Nó **không thay thế**
@@ -44,7 +44,7 @@ Chi tiết ở [plan.md](../plans/260804-1752-web-chung-cho-team-phan-tan/plan.m
 | 1 | [Postgres + múi giờ team](../plans/260804-1752-web-chung-cho-team-phan-tan/phase-01-postgres-va-mui-gio-team.md) | ✅ Xong hẳn | 05/08 | – (chốt bắt đầu từ kho rỗng, không nhập lại dữ liệu thử) |
 | 2 | [Đăng nhập, vai trò, chủ sở hữu nick](../plans/260804-1752-web-chung-cho-team-phan-tan/phase-02-dang-nhap-vai-tro-chu-so-huu.md) | ✅ Xong | 05/08 | – (hoãn có chủ ý: bộ lọc "nick của tôi", chỉ là tiện nghi hiển thị) |
 | 3 | [Tách hai vùng khóa + vé ký](../plans/260804-1752-web-chung-cho-team-phan-tan/phase-03-tach-hai-vung-khoa-va-ve-ky.md) | ✅ Xong — 11/11 việc + khay cảnh báo | 06/08 | – (nghiệm thu bằng mắt phần "mật khẩu hiện ở tab cầu nối" phải chờ GĐ4) |
-| 4 | [Cầu nối trên máy operator](../plans/260804-1752-web-chung-cho-team-phan-tan/phase-04-cau-noi-tren-may-operator.md) | 🟡 Đang làm — 18/19 việc | Bắt đầu 06/08 | **Đường găng.** `.exe` 87.4 MB đã dựng (Node SEA, không phải bun) và **nghiệm thu 16/16 trên chính file đó**, kèm bộ cài `setup.bat` + shortcut Startup/desktop, chạy lại được để nâng cấp. Còn đúng **một việc**: đường tải `.exe` sau lớp đăng nhập + dải cảnh báo "cầu nối bản cũ". Chưa thử trên máy Windows thứ hai |
+| 4 | [Cầu nối trên máy operator](../plans/260804-1752-web-chung-cho-team-phan-tan/phase-04-cau-noi-tren-may-operator.md) | 🟢 Code xong — 19/19 việc | 06/08 | Cả 19 việc code đã xong: `.exe` 87.4 MB (Node SEA, không phải bun) **nghiệm thu 16/16 trên chính file đó**, gói `.zip` 32.6 MB tải sau lớp đăng nhập ở `/relay-download`, bộ cài chạy lại được để nâng cấp, dải cảnh báo bản cũ. **Chưa đóng hẳn**: hai tiêu chí nghiệm thu bằng tay còn lại cần **một máy Windows thứ hai không cài Node** |
 | 5 | Lên Railway + cron + sao lưu | 🟡 Đã bắt đầu | 05/08 | `Dockerfile` xong và ảnh đã chạy thật trong container; còn cron, sao lưu, và đẩy lên Railway |
 | 6 | Bàn giao team | ⬜ Chưa bắt đầu | – | Chờ GĐ4 |
 

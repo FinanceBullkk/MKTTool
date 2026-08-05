@@ -13,7 +13,7 @@
  * SEA thì `.exe` **chính là `node.exe`** đã chạy bộ test, cộng thêm mã nguồn nhét vào trong. Cùng
  * một máy ảo JavaScript, cùng một thư viện mật mã.
  *
- * ## Bốn bước, và bước nào hỏng thì hỏng ra sao
+ * ## Năm bước, và bước nào hỏng thì hỏng ra sao
  *
  * 1. **esbuild gom cả cây import thành một file CJS.** SEA chỉ nhận đúng một file, không đi theo
  *    `import` lúc chạy. Bước này cũng là chỗ `relay/` kéo nhầm `prisma` hay `next` sẽ lộ ra —
@@ -22,6 +22,7 @@
  * 3. **Chép `node.exe` ra làm phôi.** Không sửa `node.exe` gốc — sửa vào đó là hỏng bản Node của
  *    cả máy.
  * 4. **postject nhét blob vào phôi.**
+ * 5. **Nén `.exe` + bộ cài thành một `.zip`** — thứ người dùng thật sự tải về.
  *
  * ## Chỉ build được trên Windows
  *
@@ -33,7 +34,7 @@ import { execFileSync } from "node:child_process";
 import { copyFileSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
-import { RELAY_VERSION } from "../relay/src/relay-version";
+import { RELAY_VERSION } from "../src/lib/relay/relay-endpoints";
 
 /**
  * Gọi esbuild và postject qua **file JS của chúng**, chạy bằng chính `node` đang chạy script này.
@@ -53,13 +54,23 @@ const SEA_CONFIG_FILE = path.join(DIST_DIR, "sea-config.json");
 const EXECUTABLE_FILE = path.join(DIST_DIR, "MKTTool-Relay.exe");
 
 /**
+ * Gói tải về là **`.zip` ba file**, không phải `.exe` trần.
+ *
+ * `setup.bat` tìm `.exe` và `install-relay.ps1` **cạnh chính nó**. Đưa người ta tải mỗi `.exe`
+ * là đưa một bộ cài chắc chắn hỏng: họ có chương trình nhưng không có thứ cài nó, và triệu
+ * chứng đầu tiên là "không thấy MKTTool-Relay.exe cạnh file setup.bat này" — câu đúng nhưng
+ * người đọc chẳng làm gì được vì họ đâu có file kia.
+ */
+const ARCHIVE_FILE = path.join(DIST_DIR, "MKTTool-Relay.zip");
+
+/**
  * Chuỗi mà postject tìm trong phôi để biết chỗ nhét blob. Node công bố đúng chuỗi này và nó
  * không đổi theo phiên bản — gõ sai một ký tự thì postject báo "không tìm thấy fuse".
  */
 const SEA_FUSE = "NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2";
 
 function step(index: number, what: string): void {
-  console.log(`\n[${index}/4] ${what}`);
+  console.log(`\n[${index}/5] ${what}`);
 }
 
 /** Dung lượng cho người đọc. Con số này là phép kiểm nhanh nhất xem có gì lọt vào bundle không. */
@@ -161,7 +172,20 @@ if (installerBytes[0] !== 0xef || installerBytes[1] !== 0xbb || installerBytes[2
   process.exit(1);
 }
 
-console.log(`\n✅ ${path.relative(process.cwd(), EXECUTABLE_FILE)} — ${sizeOf(EXECUTABLE_FILE)}`);
+step(5, "Nén ba file thành gói tải về");
+// `Compress-Archive` có sẵn từ PowerShell 5 — không thêm phụ thuộc npm nào cho một việc mà
+// Windows đã làm được. `powershell.exe` là `.exe` thật nên gọi thẳng, không vướng bẫy `.cmd`.
+run("powershell", [
+  "-NoProfile",
+  "-Command",
+  `Compress-Archive -Path '${EXECUTABLE_FILE}','${path.join(DIST_DIR, "setup.bat")}','${path.join(
+    DIST_DIR,
+    "install-relay.ps1",
+  )}' -DestinationPath '${ARCHIVE_FILE}' -Force`,
+]);
+
+console.log(`\n✅ ${path.relative(process.cwd(), ARCHIVE_FILE)} — ${sizeOf(ARCHIVE_FILE)}`);
+console.log(`   (${path.relative(process.cwd(), EXECUTABLE_FILE)} — ${sizeOf(EXECUTABLE_FILE)})`);
 console.log(`
 Nghiệm thu ngay: npm run relay:verify
 
