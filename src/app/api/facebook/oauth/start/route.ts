@@ -16,6 +16,22 @@ import { describeRedirectHostMismatch } from "@/lib/facebook/facebook-redirect-h
 export const runtime = "nodejs";
 
 /**
+ * Giao thức mà người dùng thật sự đang dùng để mở app.
+ *
+ * Không đọc được từ `request.url`: sau lớp proxy của Railway (GĐ5), request tới app bằng HTTP
+ * nội bộ dù người dùng gõ HTTPS. `x-forwarded-proto` là chỗ lớp proxy ghi lại giao thức gốc.
+ *
+ * Không có header đó thì đoán theo môi trường, và đoán về phía **an toàn hơn**: production mặc
+ * định `https`. Ghép cứng `http://` như bản trước nghĩa là mọi lượt báo lỗi của luồng này đẩy
+ * người dùng sang kênh không mã hóa — kèm theo cookie `state` bên dưới.
+ */
+function requestProtocol(request: Request): string {
+  const forwarded = request.headers.get("x-forwarded-proto");
+  if (forwarded) return forwarded.split(",")[0].trim();
+  return process.env.NODE_ENV === "production" ? "https" : "http";
+}
+
+/**
  * Quay về /facebook kèm lời báo lỗi.
  *
  * Dựng địa chỉ từ header `Host` chứ không từ `request.url`: Next chuẩn hóa `request.url` về
@@ -24,7 +40,7 @@ export const runtime = "nodejs";
  */
 function back(request: Request, message: string): NextResponse {
   const host = request.headers.get("host");
-  const base = host ? `http://${host}` : request.url;
+  const base = host ? `${requestProtocol(request)}://${host}` : request.url;
   const url = new URL("/facebook", base);
   url.searchParams.set("error", message);
   return NextResponse.redirect(url);
@@ -44,6 +60,16 @@ export const GET = guardedRoute(async function GET(_actor, request: Request) {
     cookieStore.set(OAUTH_STATE_COOKIE, state, {
       httpOnly: true,
       sameSite: "lax", // "strict" thì cookie không được gửi kèm lúc Facebook chuyển hướng về
+      /**
+       * Cùng quy tắc với cookie phiên của Better Auth (`advanced.defaultCookieAttributes`).
+       * Cookie này đặt bằng tay nên không thừa hưởng gì từ đó — và nó là token chống CSRF của
+       * đường nối Fanpage, tức đúng loại không được đi qua kênh không mã hóa.
+       *
+       * Theo `NODE_ENV` chứ không theo giao thức thật của request: `x-forwarded-proto` do lớp
+       * proxy ghi và giả được, mà giả một lần thành `https` trên máy dev là cookie không bao giờ
+       * quay lại được nữa — luồng hỏng ở bước "state không khớp", không nhìn ra lý do.
+       */
+      secure: process.env.NODE_ENV === "production",
       path: "/",
       maxAge: 600,
     });
