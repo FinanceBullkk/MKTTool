@@ -307,6 +307,8 @@ src/
 │   ├── queue/               hàng đợi + trang xếp lịch có chấm luật realtime
 │   ├── facebook/            kết nối Fanpage, trạng thái token
 │   ├── health/              bảng sức khỏe, lịch sử dò, biểu đồ karma
+│   ├── login/               màn hình đăng nhập Google
+│   ├── relay-devices/       sổ đăng ký máy chạy cầu nối (ADMIN đăng ký / thu hồi)
 │   ├── personas/ proxies/ targets/  danh sách + trang chi tiết để sửa/xóa
 │   └── api/
 │       ├── accounts/[id]/launch/   mở profile antidetect
@@ -316,16 +318,21 @@ src/
 ├── components/              khối UI dùng chung (ui/, vault/, queue/, content/, facebook/, health/)
 └── lib/
     ├── accounts/            server actions (thêm/sửa/xóa) + schema form + trạng thái nick
+    ├── actions/             kiểu ActionResult dùng chung cho mọi server action
     ├── antidetect/          adapter MultiZen / AdsPower (đổi bằng 1 dòng .env)
+    ├── audit/               tên các loại thao tác ghi vào AuditLog.action
+    ├── auth/                đăng nhập Google, danh sách email cho phép, gác lối vào, hai vai trò
     ├── content/             từ vựng content + server action kho content
-    ├── crypto/              AES-256-GCM cho credential
+    ├── crypto/              AES-256-GCM cho credential — hai vùng khóa (server / operator)
     ├── db/                  Prisma client
     ├── facebook/            Graph API: OAuth, token, đăng Fanpage
     ├── format/ platforms/   định dạng ngày, gộp họ nền tảng
     ├── health/              bộ dò shadowban: phiên trình duyệt sạch, parser, đánh giá, runner
+    ├── http/                đối chiếu Origin/Host cho route handler
     ├── proxies/             kiểm proxy còn sống (hỏi IP ra, chặn mở profile) + đo băng thông
     ├── queue/               server action cho job + tương tác, nhắc việc đăng tay
     ├── rules/               bộ luật an toàn — mỗi luật một file
+    ├── tickets/             vé ủy quyền: khóa ký của máy chủ, sổ đăng ký máy, phát/xác minh vé
     └── totp/                sinh mã OTP 2FA
 ```
 
@@ -333,7 +340,11 @@ Mỗi luật là một hàm thuần `(ctx: RuleContext) => RuleVerdict`. Toàn b
 `rule-context-builder.ts`, nên thêm luật mới chỉ là thêm một file và một dòng trong `rules-engine.ts`.
 
 Stack: Next.js 16 + TypeScript + Prisma 7 + PostgreSQL + MCP client tới MultiZen. Một process,
-chạy trên máy bạn MKT. Chưa cần VPS, Docker hay Redis.
+không Redis, không microservice.
+
+> **Chỗ chạy đang chuyển.** Tới 04/08/2026 nó chạy trên đúng một máy bàn. Nay đã có `Dockerfile`
+> ở gốc repo cho bước lên Railway (GĐ5), và bản trên máy vẫn chạy bình thường bằng `npm run dev`
+> — Docker chỉ cần khi đưa lên máy chủ thật, không cần để phát triển.
 
 > Nền dữ liệu đổi từ SQLite sang Postgres ngày 04/08/2026 — bước đầu của việc biến công cụ
 > thành web chung cho team. Một file SQLite trên một máy không phục vụ được 5-6 người ở 5-6 nơi.
