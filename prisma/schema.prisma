@@ -413,6 +413,7 @@ model User {
   sessions      Session[]
   authAccounts  AuthAccount[]
   ownedAccounts Account[]
+  relayDevices  RelayDevice[]
 }
 
 model Session {
@@ -460,4 +461,72 @@ model Verification {
   updatedAt  DateTime @updatedAt
 
   @@index([identifier])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Sổ đăng ký máy chạy cầu nối (Phase 03) — xem
+// plans/260804-1752-web-chung-cho-team-phan-tan/phase-03-tach-hai-vung-khoa-va-ve-ky.md
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Một máy đã được ADMIN cho phép nhận vé.
+///
+/// ## Vì sao máy chủ cần biết từng cái máy
+///
+/// Nội dung vé được **mã hóa cho riêng máy nhận**, nên máy chủ phải có khóa công khai của
+/// đúng cái máy đó trước khi phát vé. Trình duyệt chỉ là người đưa thư: nó cầm vé đi qua
+/// nhưng không mở được — kể cả mật khẩu proxy nằm trong đó.
+///
+/// Lợi thứ hai, và là lý do có cột `revokedAt`: **mất laptop thì thu hồi đúng cái máy đó là
+/// xong**, không phải xoay khóa vùng operator trên toàn bộ máy của team.
+///
+/// ## Ranh giới của việc thu hồi — đọc kỹ trước khi tin vào nó
+///
+/// Thu hồi chặn **vé mới**. Nó KHÔNG làm mất hiệu lực ciphertext mà máy đó đã lấy về trước
+/// đó — thứ ấy nằm trên ổ cứng của chiếc laptop đã mất và không ai với tới được nữa. Mất máy
+/// thì vẫn phải xoay `VAULT_KEY_OPERATOR`; thu hồi chỉ là cái chặn có hiệu lực ngay lập tức
+/// trong lúc chờ xoay khóa.
+model RelayDevice {
+  id String @id @default(cuid())
+
+  /// Tên máy do người đăng ký đặt — "Laptop Dell của Hà". Chỉ để người đọc nhận ra máy nào
+  /// là máy nào lúc cần thu hồi gấp, không mang ý nghĩa kỹ thuật nào.
+  ///
+  /// KHÔNG `@unique` theo (người, tên): đăng ký lại sau khi cài lại máy là chuyện bình thường
+  /// và người ta sẽ đặt đúng cái tên cũ. Chặn chỗ đó là ép họ đặt tên "Laptop Dell 2".
+  name String
+
+  /// Chủ máy. Bắt buộc — một cái máy luôn thuộc về một người cụ thể, và tới Phase 05 việc
+  /// phát vé sẽ đối chiếu người đang bấm với chủ máy nhận.
+  userId String
+
+  /// Khóa công khai X25519 của máy, 64 ký tự hex thường.
+  ///
+  /// X25519 chứ không phải Ed25519: cặp khóa của máy chủ dùng để **ký** (Ed25519), còn cặp
+  /// khóa này dùng để **mã hóa gửi tới** — hai việc khác nhau, hai họ khóa khác nhau.
+  ///
+  /// `@unique` là ràng buộc an toàn chứ không phải dọn dẹp: cùng một khóa nằm ở hai hàng thì
+  /// thu hồi một hàng vẫn còn hàng kia sống, và người thu hồi tưởng đã chặn xong. Chuẩn hóa
+  /// về chữ thường trước khi ghi, vì "AB…" và "ab…" là cùng một khóa nhưng Postgres coi là hai.
+  publicKey String @unique
+
+  /// Ngày đăng ký.
+  createdAt DateTime @default(now())
+
+  /// Mốc thu hồi. `null` = còn dùng được.
+  ///
+  /// Mốc thời gian chứ không phải cờ boolean: cùng trả lời được câu "còn dùng không", nhưng
+  /// thêm câu "thu hồi từ lúc nào" — thứ luôn cần tới vào đúng ngày phải dựng lại xem một
+  /// chiếc máy đã mất còn lấy được gì trước khi bị chặn.
+  ///
+  /// Thu hồi là MỘT CHIỀU và không có đường hoàn tác: khóa của một chiếc máy đã mất thì coi
+  /// như đã lộ, cho bật lại là xóa sạch ý nghĩa của lần thu hồi. Máy tìm lại được thì sinh
+  /// cặp khóa mới rồi đăng ký lại như một máy mới.
+  revokedAt DateTime?
+
+  /// `Cascade`: xóa một người thì đăng ký máy của họ mất theo. Hỏng về hướng đóng — người
+  /// không còn thì máy của họ cũng không nhận vé nữa. (Khác `AuditLog`, vốn phải sống lâu
+  /// hơn tài khoản: sổ này là danh sách quyền, không phải dấu vết.)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }

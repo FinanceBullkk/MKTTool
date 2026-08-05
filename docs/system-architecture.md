@@ -156,7 +156,7 @@ Không làm bây giờ. Ghi lại để lần sau khỏi tranh luận lại từ
 
 | Nếu | Phải đổi gì |
 |---|---|
-| Nhiều người dùng chung một bản | **Đang làm** — xem [plan web chung](../plans/260804-1752-web-chung-cho-team-phan-tan/plan.md). Postgres đã xong (04/08/2026); còn đăng nhập + phân quyền và tách `VAULT_KEY` thành hai vùng khóa. Toàn bộ §3 làm lại |
+| Nhiều người dùng chung một bản | **Đang làm** — xem [plan web chung](../plans/260804-1752-web-chung-cho-team-phan-tan/plan.md). Postgres, đăng nhập Google + phân quyền, và tách `VAULT_KEY` thành `VAULT_KEY_SERVER` / `VAULT_KEY_OPERATOR` đã xong (05/08/2026). Còn: cầu nối trên máy operator nhận **vé ký** thay vì mật khẩu, rồi gỡ hẳn khóa vùng operator khỏi máy chủ. Toàn bộ §3 làm lại |
 | Chạy 24/7 không ai ngồi máy | Cần hàng đợi việc thật (không phải bảng `PostJob`) + máy luôn bật. Nhưng xem lại mục "không làm" ở PDR trước đã |
 | Trên 20 nick | Antidetect browser trên máy bàn hết chỗ; cần VPS có GUI hoặc nhiều máy. Chi phí proxy tăng tuyến tính |
 | Thêm nền tảng mới | Thêm giá trị vào `platform-family.ts`; đích chưa có bộ đăng tự động sẽ tự rơi vào nhắc việc đăng tay — không im lặng biến mất |

@@ -10,7 +10,7 @@
 
 ## Overview
 
-**Ưu tiên:** cao | **Trạng thái:** chưa làm | **Dự kiến:** 3-4 ngày
+**Ưu tiên:** cao | **Trạng thái:** 🟡 đang làm — 5/11 việc (05/08/2026) | **Dự kiến:** 3-4 ngày
 
 Chia kho mã hóa làm hai vùng, và dựng cơ chế **vé có chữ ký** để máy chủ ủy quyền cho cầu nối
 mà không cần biết nội dung.
@@ -109,7 +109,8 @@ bấm nút ─► máy chủ: kiểm phiên + kiểm chủ nick + ghi AuditLog
 - [x] `domain` trong registry + test đọc schema
 - [x] Nạp hai khóa, báo lỗi rõ khi cấu hình ngược
 - [x] Cặp khóa Ed25519 + script sinh khóa (`keys:server-keygen`, đối chiếu vector RFC 8032)
-- [ ] Model `RelayDevice` + màn hình đăng ký / thu hồi cho ADMIN
+- [x] Model `RelayDevice` + màn hình đăng ký / thu hồi cho ADMIN (`/relay-devices`)
+  (chốt đã đóng: xem [dưới](#việc-4--những-chốt-đã-đóng))
 - [ ] Module vé: **mã hóa cho cầu nối đích**, ký, xác minh, hết hạn, chống dùng lại
 - [ ] `revealCredential` / `requestOtpCode` → phát vé
 - [ ] Vé mở profile kèm cấu hình proxy
@@ -117,6 +118,34 @@ bấm nút ─► máy chủ: kiểm phiên + kiểm chủ nick + ghi AuditLog
 - [x] `vault:rekey` tách hai vùng (`--domain=server|operator`, bắt buộc)
 - [x] `vault:smoke` cập nhật — thêm phép thử "khóa server KHÔNG mở được mật khẩu nick"
 - [ ] **Kiểm bằng grep: không còn chỗ nào trên máy chủ giải mã cột vùng operator**
+
+### Việc 4 — những chốt đã đóng
+
+Xong 05/08/2026. Gồm: model + migration, [relay-device-key.ts](../../src/lib/tickets/relay-device-key.ts)
+(chuẩn hóa hex, dựng `KeyObject`, chặn khóa bậc thấp) + test đối chiếu vector RFC 7748,
+[relay-device-actions.ts](../../src/lib/tickets/relay-device-actions.ts) + test trên DB thật,
+màn hình [/relay-devices](../../src/app/relay-devices/page.tsx), và `npm run keys:relay-keygen`.
+
+Bốn chốt đã đóng lại trong lúc làm, không có trong bản kế hoạch gốc:
+
+- **Khóa máy là X25519, không phải Ed25519.** Hai cặp khóa làm hai việc ngược chiều: máy chủ
+  **ký** (Ed25519), máy **nhận đồ mã hóa gửi tới** (X25519). Dùng chung một cặp cho cả hai việc
+  là thứ mọi tài liệu mật mã dặn đừng làm, và ở đây chẳng đổi lại được gì vì cầu nối tự sinh
+  khóa của nó.
+- **Đúng độ dài hex chưa đủ để nhận một khóa.** Có một nhóm điểm bậc thấp cho ra bí mật chung
+  toàn số 0 với *mọi* khóa đối diện — tức ai cũng mở được vé. Màn hình đăng ký thử trao khóa một
+  lần với cặp tạm để chặn cả nhóm, thay vì chép bảng điểm xấu vào mã rồi mong nó đủ.
+- **Thu hồi là một chiều, và hàng ở lại trong sổ.** `revokedAt` là mốc thời gian chứ không phải
+  cờ boolean, và không có đường bật lại. Khóa của một chiếc máy đã mất coi như đã lộ; cho đăng
+  ký lại đúng khóa đó là xóa sạch ý nghĩa của lần thu hồi. Giữ hàng lại thì `@unique` còn chặn
+  được việc đăng ký lại, và câu *"bị chặn từ lúc nào"* còn chỗ trả lời — xóa hàng là mất cả hai.
+- **Cả team đọc được sổ, chỉ ADMIN ghi.** Khóa công khai lộ cũng không mất gì, nên giấu danh
+  sách chẳng bảo vệ được gì mà lại lấy mất câu trả lời cho *"máy tôi vào sổ chưa?"*. Đúng nguyên
+  tắc đã theo từ GĐ2: chia **quyền làm**, không chia **tầm nhìn**.
+
+Ranh giới phải nói ra mỗi lần nhắc tới thu hồi — và câu thông báo sau khi bấm nút có nói:
+thu hồi chặn **vé mới**, nhưng **không** với tới ciphertext chiếc máy đó đã lấy về từ trước.
+Mất máy thì vẫn phải xoay `VAULT_KEY_OPERATOR`. Có test canh đúng câu nhắc đó.
 
 ### Còn nợ từ bước 2
 

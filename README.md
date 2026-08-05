@@ -136,6 +136,7 @@ Có thì nó **sao lưu trước**, áp xong mới báo — và nếu áp hỏng
 | `npm run vault:keygen` | Sinh khóa mã hóa mới (dùng cho cả hai vùng khóa) |
 | `npm run keys:server-keygen` | Sinh cặp khóa ký vé **mới** cho máy chủ — in khóa riêng để dán vào `.env` và khóa công khai để chép sang từng cầu nối |
 | `npm run keys:server-pubkey` | In khóa công khai của khóa ký **đang dùng** — cần mỗi lần cài cầu nối lên máy mới |
+| `npm run keys:relay-keygen` | Sinh cặp khóa X25519 cho **một máy** chạy cầu nối. Chạy trên chính máy đó: khóa riêng ở lại, khóa công khai gửi cho quản trị viên ghi vào sổ tại `/relay-devices` |
 | `npm run vault:rekey` | Xoay khóa một vùng (`--domain=server\|operator`) — mã hóa lại credential của vùng đó |
 | `npm run vault:smoke` | Kiểm chứng nghiệm thu Phase 01 trên DB thật |
 | `npm run vault:testotp` | Sinh TOTP secret dùng thử để kiểm chứng tính năng OTP |

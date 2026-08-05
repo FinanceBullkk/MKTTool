@@ -1,6 +1,6 @@
 # Bản đồ mã nguồn
 
-**Cập nhật:** 03/08/2026
+**Cập nhật:** 05/08/2026
 
 Tài liệu dành cho người mới và AI agent định vị nhanh trong codebase — **code nằm ở đâu**.
 Hệ thống chạy ở đâu và phụ thuộc gì thì xem [system-architecture.md](system-architecture.md);
@@ -24,6 +24,7 @@ src/
 │   ├── queue/                  Hàng đợi + trang xếp lịch (chấm luật realtime)
 │   ├── facebook/               Kết nối Fanpage, trạng thái token, giải thích về Group
 │   ├── health/                 Bảng sức khỏe nick, lịch sử dò, biểu đồ karma 30 ngày
+│   ├── relay-devices/          Sổ đăng ký máy chạy cầu nối — cả team đọc, ADMIN đăng ký/thu hồi
 │   └── api/
 │       ├── accounts/[id]/launch/   API mở profile antidetect browser
 │       ├── facebook/oauth/         start (sinh state + redirect) và callback (đổi token)
@@ -35,13 +36,16 @@ src/
 │   │                           nhắc việc đăng tay (Reddit + Group)
 │   ├── facebook/               Bảng Page: gán nick quản trị, kiểm token, ngắt kết nối
 │   ├── health/                 Bảng sức khỏe, nút dò lại, biểu đồ karma, quản lý proxy quan sát viên
+│   ├── relay/                  Nút thu hồi máy cầu nối (hỏi lại trước khi gạch tên)
 │   └── content/                Form nhập content
 └── lib/
     ├── accounts/               Server actions + quy tắc trạng thái nick
     ├── actions/                Kiểu ActionResult dùng chung cho mọi server action
     ├── antidetect/             Adapter MultiZen / AdsPower (đổi bằng 1 dòng .env)
+    ├── auth/                   Đăng nhập Google, danh sách email cho phép, gác lối vào, hai vai trò
     ├── content/                Hằng số loại content, trạng thái job, loại tương tác
-    ├── crypto/                 AES-256-GCM cho credential (mã hóa/giải mã + key loader)
+    ├── crypto/                 AES-256-GCM cho credential — hai vùng khóa (server / operator),
+    │                           registry khai vùng cho từng cột, key loader
     ├── db/                     Prisma client singleton, sao lưu, chặn xóa khi còn tham chiếu
     ├── facebook/               Graph API: OAuth, token, đăng Fanpage (chi tiết bên dưới)
     ├── format/                 Định dạng ngày tiếng Việt
@@ -50,8 +54,12 @@ src/
     │                           và tự gán link cho job từ bài thấy được trên profile
     ├── http/                   Đối chiếu Origin/Host cho route handler trong api/
     ├── platforms/              Gộp họ nền tảng (REDDIT / FACEBOOK)
+    ├── proxies/                Kiểm proxy sống, báo cáo băng thông
     ├── queue/                  Server actions: tạo job, đổi trạng thái, ghi tương tác, tóm tắt promo
     ├── rules/                  Bộ luật an toàn — mỗi luật một file (chi tiết bên dưới)
+    ├── tickets/                Đang xây (GĐ3) — khóa ký vé Ed25519 của máy chủ, khóa X25519 của
+    │                           máy chạy cầu nối, server action đăng ký/thu hồi máy.
+    │                           Bộ dựng/ký/mã hóa vé chưa có
     └── totp/                   Sinh mã OTP 2FA
 ```
 
@@ -59,12 +67,13 @@ Thư mục khác ở gốc repo:
 
 ```
 prisma/
-├── schema.prisma               Schema duy nhất, 13 model
+├── schema.prisma               Schema duy nhất, 18 model (thêm 4 model đăng nhập + `RelayDevice`)
 └── migrations/                 Lịch sử migration
 scripts/
 ├── generate-vault-key.ts       Sinh khóa kho (dùng cho cả hai vùng)
 ├── generate-server-signing-key.ts  Sinh cặp khóa ký vé Ed25519 MỚI cho máy chủ
 ├── show-server-public-key.ts   In khóa công khai của khóa ký đang dùng
+├── generate-relay-device-key.ts  Sinh cặp khóa X25519 cho MỘT máy cầu nối — chạy trên chính máy đó
 ├── generate-test-totp-secret.ts  Sinh TOTP secret dùng thử
 ├── rekey-vault-key.ts          Xoay khóa MỘT vùng, mã hóa lại credential của vùng đó
 ├── backup-database.ts          Sao lưu bằng pg_dump (chạy được khi app đang mở)

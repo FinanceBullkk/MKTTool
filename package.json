@@ -20,6 +20,7 @@
     "vault:keygen": "tsx scripts/generate-vault-key.ts",
     "keys:server-keygen": "tsx scripts/generate-server-signing-key.ts",
     "keys:server-pubkey": "tsx scripts/show-server-public-key.ts",
+    "keys:relay-keygen": "tsx scripts/generate-relay-device-key.ts",
     "vault:rekey": "tsx --env-file=.env scripts/rekey-vault-key.ts",
     "vault:smoke": "tsx scripts/smoke-test-identity-vault.ts",
     "rules:smoke": "tsx --env-file=.env scripts/smoke-test-content-rules.ts",
