@@ -11,7 +11,7 @@ const running: { close: () => void }[] = [];
 async function startServer(allowedOrigin: string | null = WEB_ORIGIN): Promise<string> {
   const server = createRelayServer({
     allowedOrigin,
-    statusPage: () => "<!doctype html><title>trang trạng thái</title>",
+    htmlPages: { "/": () => "<!doctype html><title>trang trạng thái</title>" },
     routes: {
       "/health": () => ({ ok: true, message: "sẵn sàng" }),
       "/echo": (_request, body) => ({ ok: true, message: body }),
@@ -112,6 +112,16 @@ describe("máy chủ HTTP của cầu nối", () => {
 
     expect(response.headers.get("content-type")).toContain("text/html");
     expect(await response.text()).toContain("trang trạng thái");
+  });
+
+  it("trang HTML không được nhúng vào khung của ai, và không nằm lại trong bộ đệm", async () => {
+    // Trang `/secret` có mật khẩu trên màn hình và một nút đưa nó vào clipboard.
+    const base = await startServer();
+    const response = await fetch(base);
+
+    expect(response.headers.get("x-frame-options")).toBe("DENY");
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(response.headers.get("content-security-policy")).toContain("default-src 'none'");
   });
 
   it("không lưu đệm bất cứ phản hồi nào — vé và bí mật đi qua đây", async () => {

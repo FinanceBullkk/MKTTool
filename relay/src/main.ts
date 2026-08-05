@@ -15,6 +15,7 @@
  * nào để hiện.
  */
 import { RELAY_ORIGIN, RELAY_PATHS } from "../../src/lib/relay/relay-endpoints";
+import { handleSecretReveal } from "./handle-secret";
 import { handleTicketRequest } from "./handle-ticket";
 import { RelayAntidetect } from "./relay-antidetect";
 import { loadRelayConfig, type ConfigProblem } from "./relay-config";
@@ -23,6 +24,7 @@ import { createRelayServer, listenOnLoopback } from "./relay-http-server";
 import { resolveRelayHome } from "./relay-home";
 import { buildRelayIdentity } from "./relay-identity";
 import { renderStatusPage } from "./relay-status-page";
+import { SECRET_REVEAL_PATH, renderSecretPage } from "./secret-page";
 import { RELAY_VERSION } from "./relay-version";
 
 async function main(): Promise<void> {
@@ -43,17 +45,25 @@ async function main(): Promise<void> {
     `Cầu nối trên máy này chưa cấu hình xong (${problems.length} mục còn thiếu). ` +
     `Mở ${RELAY_ORIGIN} trên máy đó để xem thiếu gì.`;
 
+  // Khóa vùng operator dựng một lần lúc khởi động. Nó ở lại trong bộ nhớ tiến trình suốt đời
+  // cầu nối — đúng như khóa của máy chủ, và vì cùng lý do: đọc lại file ở mỗi lời gọi chỉ thêm
+  // một đường hỏng, không thêm lớp bảo vệ nào.
+  const vaultKeyOperator = config ? Buffer.from(config.vaultKeyOperator, "hex") : null;
+
   const server = createRelayServer({
     allowedOrigin,
-    statusPage: () =>
-      renderStatusPage({
-        publicKeyHex: keypair.publicKeyHex,
-        home,
-        problems,
-        // Trang trạng thái dựng đồng bộ nên nó đọc kết quả đã nhớ của lần hỏi gần nhất; lần
-        // hỏi thật do `/health` bắn. Chưa hỏi lần nào thì nói thẳng "chưa kiểm".
-        antidetectReady: antidetect.lastProbe(),
-      }),
+    htmlPages: {
+      "/": () =>
+        renderStatusPage({
+          publicKeyHex: keypair.publicKeyHex,
+          home,
+          problems,
+          // Trang trạng thái dựng đồng bộ nên nó đọc kết quả đã nhớ của lần hỏi gần nhất; lần
+          // hỏi thật do `/health` bắn. Chưa hỏi lần nào thì nói thẳng "chưa kiểm".
+          antidetectReady: antidetect.lastProbe(),
+        }),
+      [RELAY_PATHS.secret]: renderSecretPage,
+    },
     routes: {
       [RELAY_PATHS.health]: async () => ({
         ok: problems.length === 0,
@@ -63,6 +73,8 @@ async function main(): Promise<void> {
       }),
       [RELAY_PATHS.ticket]: (_request, body) =>
         handleTicketRequest(body, { identity, antidetect, notConfiguredMessage }),
+      [SECRET_REVEAL_PATH]: (_request, body) =>
+        handleSecretReveal(body, { identity, vaultKeyOperator, notConfiguredMessage }),
     },
   });
 

@@ -51,10 +51,16 @@ export interface RelayServerOptions {
    * trạng thái vẫn mở được bằng cách gõ thẳng địa chỉ, và đó đúng là chỗ nói vì sao đang hỏng.
    */
   allowedOrigin: string | null;
-  /** Bảng đường: đường dẫn → hàm xử lý. */
+  /** Bảng đường JSON: đường dẫn → hàm xử lý. */
   routes: Partial<Record<string, RelayRoute>>;
-  /** Trang HTML trả cho `GET /` — trang trạng thái. */
-  statusPage: () => string;
+  /**
+   * Trang HTML người xem bằng mắt: đường dẫn → hàm dựng chuỗi.
+   *
+   * Tách khỏi `routes` vì hai loại này khác nhau ở mọi thứ đi kèm — kiểu nội dung, mã lỗi, và
+   * việc có gắn `relayVersion` vào hay không. Nhét chung một bảng thì mỗi hàm xử lý phải tự
+   * khai mình thuộc loại nào, và quên khai là trả HTML dưới nhãn JSON.
+   */
+  htmlPages: Partial<Record<string, () => string>>;
 }
 
 /** Thân request, chặn ở 1 MB: mọi thứ cầu nối nhận đều là vé hoặc vài chuỗi bí mật. */
@@ -144,9 +150,20 @@ async function handleRequest(
   }
 
   // Trang trạng thái và trang bí mật là HTML người xem bằng mắt, không phải API.
-  if (request.method === "GET" && path === "/") {
-    response.writeHead(200, { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" });
-    response.end(options.statusPage());
+  const page = options.htmlPages[path];
+  if (request.method === "GET" && page) {
+    response.writeHead(200, {
+      "content-type": "text/html; charset=utf-8",
+      // `no-store` ở đây không phải nghi thức: trang `/secret` mà nằm lại trong bộ nhớ đệm
+      // đĩa là một bản sao của màn hình có mật khẩu trên đó.
+      "cache-control": "no-store",
+      // Trang này không được nhúng vào khung của ai. Cầu nối không có phiên đăng nhập để
+      // clickjack, nhưng nó có một nút "Chép" đưa mật khẩu vào clipboard.
+      "x-frame-options": "DENY",
+      "content-security-policy":
+        "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'",
+    });
+    response.end(page());
     return;
   }
 

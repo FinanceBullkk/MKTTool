@@ -13,7 +13,7 @@
 
 ## Overview
 
-**Ưu tiên:** cao — **nằm trên đường găng** | **Trạng thái:** 🟡 đang làm — 8/18 việc (06/08/2026) |
+**Ưu tiên:** cao — **nằm trên đường găng** | **Trạng thái:** 🟡 đang làm — 10/18 việc (06/08/2026) |
 **Dự kiến:** 4-6 ngày
 
 Một file `.exe` chạy nền trên máy người vận hành. Việc của nó: nhận vé từ trình duyệt, xác minh
@@ -168,8 +168,23 @@ Import từ `src/lib/` qua đường dẫn tương đối. **Không dựng works
       **Token MultiZen là tùy chọn**: chỉ một trong ba việc cần nó, máy chỉ dùng để lấy mật khẩu
       vẫn phải chạy đủ. Kết quả kiểm MultiZen nhớ 30 giây vì `/health` bị gọi ở **mọi** cú bấm
       (ràng buộc 1 của spike GĐ0).
-- [ ] Trang hiện mật khẩu + nút copy + tự đóng
-- [ ] Sinh OTP kèm số giây còn lại
+- [x] **XONG 06/08 — trang hiện mật khẩu + nút chép + tự đóng.**
+      [secret-page](../../relay/src/secret-page.ts) (HTML+JS viết tay, không thư viện) và
+      [handle-secret](../../relay/src/handle-secret.ts) — **chỗ duy nhất trong cả hệ mở được mật
+      khẩu nick**.
+      Phát sinh một đường mới: **`POST /secret/reveal`**. Fragment không được gửi lên máy chủ
+      nào *kể cả máy chủ này*, nên trang phải đọc vé bằng JavaScript rồi POST ngược lại — cùng
+      nguồn, nên không phải một đường mới ra ngoài. Cố ý **không** khai vào `relay-endpoints.ts`:
+      file đó là hợp đồng với **web app**, và khai đường này vào đó là mời web app gọi thẳng,
+      đúng thứ QĐ 3 chặn.
+      Trang xóa vé khỏi thanh địa chỉ ngay khi mở (`replaceState`); tự đóng sau 60 giây kèm đồng
+      hồ đếm ngược và nút *"Giữ mở"* — tab đóng đột ngột lúc đang chép dở khó chịu hơn cả không
+      tự đóng. Header: `no-store`, `X-Frame-Options: DENY`, CSP `default-src 'none'`.
+- [x] **XONG 06/08 — sinh OTP kèm số giây còn lại.** Dùng lại `totp-code-generator`. Trang đếm
+      ngược tới lúc mã hết hạn rồi làm mờ mã và bảo lấy mã mới — hiện một mã đã chết mà không
+      nói gì là để người ta dán vào rồi tự hỏi vì sao sai. Kèm lưới cuối cho TOTP secret hỏng
+      trong kho: máy chủ mất phép kiểm base32 từ GĐ3 nên câu *"sửa lại TOTP secret trên web
+      app"* phải tới được từ đây.
 - [ ] Mã hóa ciphertext vùng operator lúc tạo/sửa nick, **kèm phép kiểm TOTP base32** mà máy chủ
       đã mất ở GĐ3
 - [ ] Trang trạng thái
