@@ -85,6 +85,37 @@ describe("đường thành công", () => {
     expect(ticket).not.toContain("password");
   });
 
+  /**
+   * Success Criteria của phase-03, đúng câu chữ: *"mở devtools lúc bấm Mở profile — nội dung vé
+   * phải là chuỗi mã hóa, không đọc được mật khẩu proxy"*.
+   *
+   * Bản nháp đầu của plan để hở chỗ này với lý do "người đó vào /proxies cũng xem được". Đúng,
+   * nhưng đó là lý lẽ của phương án rẻ: `/proxies` đòi đăng nhập, còn một chuỗi nằm sẵn trong
+   * DOM thì bất cứ script hay extension nào chạy trên tab đó cũng nhặt được.
+   */
+  it("vé mở profile: mật khẩu proxy không đọc được ở bao ngoài", () => {
+    const launch = {
+      kind: TICKET_KINDS.LAUNCH_PROFILE,
+      accountId: "acc-1",
+      antidetectProfileId: "profile-anna",
+      proxyLabel: "webshare-01",
+      proxy: {
+        protocol: "http",
+        host: "1.2.3.4",
+        port: 8080,
+        username: "user-proxy",
+        password: "mat-khau-proxy-that",
+      },
+    } as const;
+
+    const ticket = issueTicket(launch, { deviceId: DEVICE_ID, publicKey: device.publicKeyHex }, NOW);
+
+    expect(ticket).not.toContain("mat-khau-proxy-that");
+    expect(ticket).not.toContain("1.2.3.4");
+    // Nhưng cầu nối vẫn nhận đủ cấu hình để đẩy sang adapter, không phải hỏi lại máy chủ.
+    expect(verifyTicket(ticket, relay, NOW).payload).toEqual(launch);
+  });
+
   it("mỗi vé một khóa dùng một lần khác nhau", () => {
     const first = JSON.parse(Buffer.from(issue().split(".")[0], "base64url").toString("utf8"));
     const second = JSON.parse(Buffer.from(issue().split(".")[0], "base64url").toString("utf8"));

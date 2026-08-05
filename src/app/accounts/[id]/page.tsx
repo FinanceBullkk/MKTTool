@@ -4,6 +4,7 @@ import { DeleteEntityButton } from "@/components/ui/delete-entity-button";
 import { ActionForm, SelectField } from "@/components/ui/form-controls";
 import { Card, PageHeading, StatusBadge } from "@/components/ui/page-section";
 import { AccountFormFields } from "@/components/vault/account-form-fields";
+import { AccountVaultForm } from "@/components/vault/account-vault-form";
 import { assignAccountOwner } from "@/lib/accounts/account-owner-actions";
 import {
   accountAgeInDays,
@@ -16,6 +17,7 @@ import { updateAccount } from "@/lib/accounts/vault-update-actions";
 import { readActor } from "@/lib/auth/require-actor";
 import { prisma } from "@/lib/db/prisma-client";
 import { formatFullDate, formatFullDateTime } from "@/lib/format/vietnamese-date-format";
+import { listActiveRelayDevices } from "@/lib/tickets/ticket-recipient-lookup";
 import { AccountVaultActionsPanel } from "./account-vault-actions-panel";
 
 export const dynamic = "force-dynamic";
@@ -44,7 +46,7 @@ export default async function AccountDetailPage({
   const coldDays = coldStartDaysRemaining(account.coldStartUntil);
   const age = accountAgeInDays(account.platformCreatedAt);
 
-  const [auditLogs, personas, selectableProxies, teamMembers] = await Promise.all([
+  const [auditLogs, personas, selectableProxies, teamMembers, relayDevices] = await Promise.all([
     prisma.auditLog.findMany({ where: { accountId: id }, orderBy: { at: "desc" }, take: 20 }),
     prisma.persona.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
     // Proxy còn trống CỘNG proxy đang gắn cho chính nick này — thiếu vế sau thì mở form sửa
@@ -57,6 +59,9 @@ export default async function AccountDetailPage({
     // Chỉ người ĐÃ đăng nhập ít nhất một lần mới có hàng `User` để gán — xem chú thích ở
     // thẻ "Phân công nick" bên dưới.
     prisma.user.findMany({ orderBy: { email: "asc" }, select: { id: true, email: true } }),
+    // Máy chạy cầu nối của NGƯỜI ĐANG XEM, không phải của chủ nick: vé bay về chiếc máy người
+    // bấm nút đang ngồi. Chưa đăng nhập thì không có máy nào, và panel nói rõ thiếu gì.
+    viewer ? listActiveRelayDevices(viewer.userId) : Promise.resolve([]),
   ]);
 
   const facts: [string, string][] = [
@@ -116,6 +121,7 @@ export default async function AccountDetailPage({
           hasTotp={account.totpSecretEnc !== null}
           canLaunch={presentation.canLaunch}
           launchBlockedReason={presentation.hint}
+          relayDevices={relayDevices.map((device) => ({ id: device.id, name: device.name }))}
         />
       </Card>
 
@@ -182,7 +188,7 @@ export default async function AccountDetailPage({
           đang chờ của nick này được chấm lại ngay, job hết an toàn chuyển sang BỊ CHẶN.
           Nền tảng không đổi được sau khi tạo.
         </p>
-        <ActionForm action={updateAccount} submitLabel="Lưu">
+        <AccountVaultForm action={updateAccount} submitLabel="Lưu">
           <input type="hidden" name="id" value={account.id} />
           <AccountFormFields
             personas={personas.map((persona) => ({ id: persona.id, label: persona.name }))}
@@ -192,7 +198,7 @@ export default async function AccountDetailPage({
             }))}
             defaults={account}
           />
-        </ActionForm>
+        </AccountVaultForm>
       </Card>
 
       <Card title="Xóa nick">

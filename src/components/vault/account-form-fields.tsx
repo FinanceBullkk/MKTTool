@@ -5,11 +5,16 @@
  * sửa thì để trống là giữ nguyên. Chúng không bao giờ được đổ ngược ra màn hình — xem
  * account-vault-actions-panel.tsx — nên form sửa không có cách nào hiện giá trị cũ.
  *
+ * Ba ô đó là `VaultSecretField` chứ không phải `Field`: giá trị của chúng phải được cầu nối bọc
+ * trước khi rời máy này, nên chúng bị khóa cho tới khi JavaScript sẵn sàng làm việc đó. Cả form
+ * cũng phải là `AccountVaultForm`, không phải `ActionForm`.
+ *
  * `platform` cố định sau khi tạo, cùng lý do với đích đăng: đổi nó là làm hỏng mọi job cũ.
  */
 import { Field, SelectField } from "@/components/ui/form-controls";
 import { ACCOUNT_STATUSES, getStatusPresentation } from "@/lib/accounts/account-status";
 import { localDayKey } from "@/lib/format/vietnamese-date-format";
+import { VaultSecretField } from "./vault-secret-field";
 
 /**
  * Hai ô này bắt buộc với Reddit, bỏ trống được với Facebook — nhưng form không biết nền tảng
@@ -76,7 +81,7 @@ export function AccountFormFields({
         />
       )}
       <Field label="Username" name="username" required defaultValue={defaults?.username} />
-      <Field
+      <VaultSecretField
         label="Mật khẩu nick"
         name="password"
         type="password"
@@ -91,19 +96,19 @@ export function AccountFormFields({
         defaultValue={defaults?.emailAddress}
         hint="Không có email gốc thì đừng mua nick — người bán lấy lại được"
       />
-      <Field
+      <VaultSecretField
         label="Mật khẩu email"
         name="emailPassword"
         type="password"
         required={!editing}
         hint={editing ? "Để trống là giữ nguyên" : undefined}
       />
-      <Field
+      <VaultSecretField
         label="TOTP secret"
         name="totpSecret"
         hint={
           editing
-            ? "Để trống là giữ nguyên. Gõ secret mới để thay."
+            ? "Để trống là giữ nguyên. Gõ secret mới để thay. Cầu nối kiểm base32 trước khi bọc."
             : "Chuỗi base32 khi bật 2FA. Để trống nếu chưa bật."
         }
       />

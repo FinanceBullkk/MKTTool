@@ -15,6 +15,7 @@ export function Field({
   defaultValue,
   placeholder,
   hint,
+  disabled,
 }: {
   label: string;
   name: string;
@@ -23,6 +24,8 @@ export function Field({
   defaultValue?: string | number;
   placeholder?: string;
   hint?: string;
+  /** Ô bị khóa **không được gửi lên** cùng form — xem `VaultSecretField`. */
+  disabled?: boolean;
 }) {
   return (
     <label className="block">
@@ -37,6 +40,7 @@ export function Field({
         required={required}
         defaultValue={defaultValue}
         placeholder={placeholder}
+        disabled={disabled}
       />
       {hint ? <span className="mt-1 block text-xs text-neutral-500">{hint}</span> : null}
     </label>

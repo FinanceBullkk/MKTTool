@@ -60,7 +60,7 @@ async function run() {
           host: `203.0.113.${n}`, // dải TEST-NET-3, không đụng IP thật
           port: 8080,
           username: `${PREFIX}user`,
-          passwordEnc: encryptCredential("proxy-pass"),
+          passwordEnc: encryptCredential("proxy-pass", serverKey),
           country: "US",
         },
       }),

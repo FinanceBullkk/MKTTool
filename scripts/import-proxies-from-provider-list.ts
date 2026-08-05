@@ -15,6 +15,7 @@ import path from "node:path";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
 import { encryptCredential } from "../src/lib/crypto/credential-encryption";
+import { loadVaultKey } from "../src/lib/crypto/encryption-key-loader";
 
 const prisma = new PrismaClient({
   adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL as string }),
@@ -104,7 +105,7 @@ async function main() {
         host: proxy.host,
         port: proxy.port,
         username: proxy.username,
-        passwordEnc: encryptCredential(proxy.password),
+        passwordEnc: encryptCredential(proxy.password, loadVaultKey("server")),
         country: options.country,
         type: options.type,
         protocol: options.protocol,

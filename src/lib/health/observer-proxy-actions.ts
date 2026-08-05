@@ -13,6 +13,7 @@ import type { ActionResult } from "@/lib/actions/action-result";
 import { firstError, formToObject, optionalText } from "@/lib/accounts/vault-form-schemas";
 import { guardedAction } from "@/lib/auth/guarded-action";
 import { encryptCredential } from "@/lib/crypto/credential-encryption";
+import { loadVaultKey } from "@/lib/crypto/encryption-key-loader";
 import { prisma } from "@/lib/db/prisma-client";
 import { describeUnexpectedDbError, isUniqueConstraintError } from "@/lib/db/prisma-error-helpers";
 import { checkObserverProxyLiveness } from "@/lib/proxies/proxy-liveness-check";
@@ -40,7 +41,7 @@ export const createObserverProxy = guardedAction(async function createObserverPr
   const { password, ...rest } = parsed.data;
   try {
     await prisma.observerProxy.create({
-      data: { ...rest, passwordEnc: encryptCredential(password) },
+      data: { ...rest, passwordEnc: encryptCredential(password, loadVaultKey("server")) },
     });
   } catch (error) {
     if (!isUniqueConstraintError(error)) {

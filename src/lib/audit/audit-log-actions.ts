@@ -28,6 +28,11 @@ export const AUDIT_ACTIONS = {
   OTP_GENERATED: "OTP_GENERATED",
 
   // Mở profile antidetect
+  //
+  // Từ GĐ3, máy chủ chỉ phát vé chứ không tự mở profile nữa (xem route launch), nên nó ghi
+  // `PROFILE_LAUNCH_TICKET_ISSUED` — thứ nó biết chắc. Hai dòng dưới do bản cũ ghi và **vẫn nằm
+  // trong database**: giữ lại để câu truy vấn lịch sử còn đọc được chúng.
+  PROFILE_LAUNCH_TICKET_ISSUED: "PROFILE_LAUNCH_TICKET_ISSUED",
   PROFILE_LAUNCHED: "PROFILE_LAUNCHED",
   PROFILE_LAUNCH_FAILED: "PROFILE_LAUNCH_FAILED",
   PROFILE_LAUNCH_BLOCKED_PROXY: "PROFILE_LAUNCH_BLOCKED_PROXY",

@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { ActionForm } from "@/components/ui/form-controls";
 import {
   Card,
   DataTable,
@@ -8,6 +7,7 @@ import {
   StatusBadge,
 } from "@/components/ui/page-section";
 import { AccountFormFields } from "@/components/vault/account-form-fields";
+import { AccountVaultForm } from "@/components/vault/account-vault-form";
 import { createAccount } from "@/lib/accounts/vault-create-actions";
 import {
   accountAgeInDays,
@@ -102,7 +102,7 @@ export default async function AccountsPage() {
             ) : null}
           </EmptyState>
         ) : (
-          <ActionForm action={createAccount} submitLabel="Thêm nick">
+          <AccountVaultForm action={createAccount} submitLabel="Thêm nick">
             <AccountFormFields
               personas={personas.map((persona) => ({ id: persona.id, label: persona.name }))}
               proxies={freeProxies.map((proxy) => ({
@@ -110,7 +110,7 @@ export default async function AccountsPage() {
                 label: `${proxy.label} — ${proxy.country}`,
               }))}
             />
-          </ActionForm>
+          </AccountVaultForm>
         )}
       </Card>
     </>

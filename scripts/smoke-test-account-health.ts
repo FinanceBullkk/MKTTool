@@ -74,7 +74,7 @@ async function seedAccount(): Promise<{ id: string; username: string; status: st
       host: `10.255.${Math.floor(unique / 256) % 256}.${unique % 256}`,
       port: 40_000 + (unique % 20_000),
       username: `${PREFIX}user`,
-      passwordEnc: encryptCredential("mat-khau-gia"),
+      passwordEnc: encryptCredential("mat-khau-gia", loadVaultKey("server")),
       country: "GB",
     },
   });

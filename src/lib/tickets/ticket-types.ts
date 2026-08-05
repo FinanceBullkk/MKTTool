@@ -82,12 +82,23 @@ export type TicketPayload =
       kind: typeof TICKET_KINDS.LAUNCH_PROFILE;
       accountId: string;
       antidetectProfileId: string;
+      /** Nhãn proxy, để cầu nối nói được "đã đẩy proxy nào" mà không phải hỏi máy chủ. */
+      proxyLabel: string;
       /**
        * Cấu hình proxy **đã dựng sẵn** ở máy chủ — mật khẩu proxy thuộc vùng server nên máy chủ
        * mở được. Nằm trong ruột vì nó vẫn là bí mật: để hở ở bao ngoài là dán mật khẩu proxy
        * vào devtools của bất cứ ai mở tab đó.
+       *
+       * Hình dạng khớp đúng `AntidetectProxyConfig` để cầu nối chuyển thẳng vào adapter, không
+       * qua bước ánh xạ nào — mỗi bước ánh xạ giữa hai chương trình viết rời là một chỗ lệch được.
        */
-      proxy: { server: string; username?: string; password?: string };
+      proxy: {
+        protocol: "http" | "socks5";
+        host: string;
+        port: number;
+        username?: string;
+        password?: string;
+      };
     };
 
 /**

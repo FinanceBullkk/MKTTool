@@ -94,7 +94,7 @@ async function seed(): Promise<Seeded> {
       host: "127.0.0.1",
       port: 1080,
       username: "user01",
-      passwordEnc: encryptCredential("mat-khau-cu"),
+      passwordEnc: encryptCredential("mat-khau-cu", loadVaultKey("server")),
       country: "GB",
       protocol: "http",
     },
@@ -211,7 +211,7 @@ describe("ô bí mật để trống là giữ nguyên", () => {
     expect(after.label).toBe("proxy-doi-ten");
     expect(after.protocol).toBe("socks5");
     expect(after.passwordEnc).toBe(before.passwordEnc);
-    expect(decryptCredential(after.passwordEnc)).toBe("mat-khau-cu");
+    expect(decryptCredential(after.passwordEnc, loadVaultKey("server"))).toBe("mat-khau-cu");
   });
 
   it("gõ mật khẩu mới thì thay thật", async () => {
@@ -231,7 +231,7 @@ describe("ô bí mật để trống là giữ nguyên", () => {
     );
 
     const after = await prisma.proxy.findUniqueOrThrow({ where: { id: seeded.proxyId } });
-    expect(decryptCredential(after.passwordEnc)).toBe("mat-khau-moi");
+    expect(decryptCredential(after.passwordEnc, loadVaultKey("server"))).toBe("mat-khau-moi");
   });
 
   it("sửa nick không gõ ô bí mật nào thì cả ba giữ nguyên", async () => {
@@ -252,17 +252,38 @@ describe("ô bí mật để trống là giữ nguyên", () => {
    *
    * Không kiểm bằng mắt được — hai khóa đều mở ra chuỗi, chỉ khác là một trong hai ném lỗi.
    * Nên phải ép: mở bằng khóa operator ra đúng mật khẩu, mở bằng khóa server thì HỎNG.
+   *
+   * Từ GĐ3, form gửi lên **ciphertext do cầu nối bọc** — `encryptForOperator` ở đây đóng vai
+   * cầu nối. Bài test vì vậy còn chứng minh thêm một điều: máy chủ ghi thẳng thứ nó nhận, không
+   * mã hóa lại bằng khóa nào của nó.
    */
   it("mật khẩu nick mã hóa bằng khóa vùng operator, khóa server không mở được", async () => {
-    const result = await updateAccount(
-      null,
-      accountForm(seeded, { password: "mat-khau-nick-moi" }),
-    );
+    const boc = encryptForOperator("mat-khau-nick-moi");
+
+    const result = await updateAccount(null, accountForm(seeded, { passwordEnc: boc }));
     expect(result.ok).toBe(true);
 
     const after = await prisma.account.findUniqueOrThrow({ where: { id: seeded.accountId } });
+    expect(after.passwordEnc).toBe(boc);
     expect(decryptAsOperator(after.passwordEnc)).toBe("mat-khau-nick-moi");
-    expect(() => decryptCredential(after.passwordEnc)).toThrow();
+    expect(() => decryptCredential(after.passwordEnc, loadVaultKey("server"))).toThrow();
+  });
+
+  /**
+   * Máy chủ không đọc nổi thứ nó nhận, nên phép kiểm duy nhất nó làm được là hình dạng — và nó
+   * phải làm. Không có nó thì một form hỏng ghi mật khẩu trần vào database mà không gì báo.
+   */
+  it("từ chối mật khẩu dạng trần lọt vào đường sửa", async () => {
+    const before = await prisma.account.findUniqueOrThrow({ where: { id: seeded.accountId } });
+
+    const result = await updateAccount(
+      null,
+      accountForm(seeded, { passwordEnc: "mat-khau-tran" }),
+    );
+
+    expect(result.ok).toBe(false);
+    const after = await prisma.account.findUniqueOrThrow({ where: { id: seeded.accountId } });
+    expect(after.passwordEnc).toBe(before.passwordEnc);
   });
 });
 
@@ -344,7 +365,7 @@ describe("proxy + profile antidetect theo nền tảng", () => {
         host: "127.0.0.2",
         port: 1080,
         username: "u",
-        passwordEnc: encryptCredential("p"),
+        passwordEnc: encryptCredential("p", loadVaultKey("server")),
         country: "US",
       },
     });

@@ -25,6 +25,17 @@
  * trông như hỏng mà không có chữ nào giải thích. Người dùng bị từ chối quyền cần biết **vì sao**
  * và **làm gì tiếp** — nhất là câu "nick này do người khác phụ trách", vốn không phải lỗi mà là
  * thông tin.
+ *
+ * ## Vì sao bọc cả THÂN HÀM chứ không chỉ lượt kiểm phiên
+ *
+ * Bản đầu chỉ bắt lỗi của `requireActor()` ở ngay trên. Nhưng phép kiểm quyền thứ hai —
+ * `requireNickOwner()` — bắt buộc phải gọi **trong** thân hàm vì nó cần `accountId`, thứ chỉ có
+ * sau khi đọc tham số. Lỗi của nó ném xuyên qua wrapper, nên câu *"nick này do người khác phụ
+ * trách"* không tới được người bấm nút: chặn vẫn đúng, chỉ có lời giải thích là mất — đúng thứ
+ * đoạn trên viết ra để tránh.
+ *
+ * Bắt ở đây thay vì bắt tay tại từng chỗ gọi vì cùng lý lẽ với cả file này: một dòng `catch` mà
+ * mỗi action phải nhớ viết là một dòng có ngày bị quên, và quên thì lặng lẽ.
  */
 import type { ActionResult } from "../actions/action-result";
 import { type Actor, AuthorizationError, requireActor, requireAdmin } from "./require-actor";
@@ -59,14 +70,11 @@ export function guardedAction<TArgs extends unknown[], TResult>(
   handler: (actor: Actor, ...args: TArgs) => Promise<TResult>,
 ): (...args: TArgs) => Promise<TResult | ActionResult> {
   return async (...args: TArgs) => {
-    let actor: Actor;
     try {
-      actor = await requireActor();
+      return await handler(await requireActor(), ...args);
     } catch (error) {
       return toActionResult(error);
     }
-
-    return handler(actor, ...args);
   };
 }
 
@@ -81,13 +89,10 @@ export function adminAction<TArgs extends unknown[], TResult>(
   handler: (actor: Actor, ...args: TArgs) => Promise<TResult>,
 ): (...args: TArgs) => Promise<TResult | ActionResult> {
   return async (...args: TArgs) => {
-    let actor: Actor;
     try {
-      actor = await requireAdmin();
+      return await handler(await requireAdmin(), ...args);
     } catch (error) {
       return toActionResult(error);
     }
-
-    return handler(actor, ...args);
   };
 }

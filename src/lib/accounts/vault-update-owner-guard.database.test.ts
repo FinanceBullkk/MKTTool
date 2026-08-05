@@ -102,11 +102,14 @@ afterAll(async () => {
 
 describe("nick của người khác", () => {
   /**
-   * Đối xứng với `revealCredential`. Không có phép kiểm này thì trạng thái là "tôi không đọc
+   * Đối xứng với `requestCredentialTicket`. Không có phép kiểm này thì trạng thái là "tôi không đọc
    * được mật khẩu nick của bạn, nhưng tôi ghi đè được nó".
    */
   it("từ chối ghi đè mật khẩu, và GIỮ NGUYÊN giá trị cũ", async () => {
-    const result = await updateAccount(null, updateForm({ password: "mat-khau-moi" }));
+    const result = await updateAccount(
+      null,
+      updateForm({ passwordEnc: encryptForOperator("mat-khau-moi") }),
+    );
 
     expect(result.ok).toBe(false);
     expect(result.message).toContain("người khác phụ trách");
@@ -116,8 +119,14 @@ describe("nick của người khác", () => {
   });
 
   it("từ chối ghi đè mật khẩu email và TOTP secret", async () => {
-    const email = await updateAccount(null, updateForm({ emailPassword: "moi" }));
-    const totp = await updateAccount(null, updateForm({ totpSecret: "JBSWY3DPEHPK3PXP" }));
+    const email = await updateAccount(
+      null,
+      updateForm({ emailPasswordEnc: encryptForOperator("moi") }),
+    );
+    const totp = await updateAccount(
+      null,
+      updateForm({ totpSecretEnc: encryptForOperator("JBSWY3DPEHPK3PXP") }),
+    );
 
     expect(email.ok).toBe(false);
     expect(totp.ok).toBe(false);
@@ -141,7 +150,7 @@ describe("nick của người khác", () => {
 
   /** Ô bí mật để trống nghĩa là "giữ nguyên" — không phải một lần ghi đè, nên không bị gác. */
   it("ô bí mật để trống thì không kích hoạt phép gác", async () => {
-    const result = await updateAccount(null, updateForm({ password: "", emailPassword: "" }));
+    const result = await updateAccount(null, updateForm({ passwordEnc: "", emailPasswordEnc: "" }));
 
     expect(result.ok).toBe(true);
   });
@@ -153,7 +162,10 @@ describe("nick của chính mình", () => {
   });
 
   it("ghi đè được mật khẩu", async () => {
-    const result = await updateAccount(null, updateForm({ password: "mat-khau-moi" }));
+    const result = await updateAccount(
+      null,
+      updateForm({ passwordEnc: encryptForOperator("mat-khau-moi") }),
+    );
 
     expect(result.ok).toBe(true);
     const after = await prisma.account.findUniqueOrThrow({ where: { id: accountId } });
@@ -168,7 +180,10 @@ describe("nick chưa có chủ", () => {
 
   /** Mặc định đóng: nick không có chủ thì chỉ ADMIN chạm được bí mật — xem `requireNickOwner`. */
   it("OPERATOR không ghi đè được bí mật", async () => {
-    const result = await updateAccount(null, updateForm({ password: "mat-khau-moi" }));
+    const result = await updateAccount(
+      null,
+      updateForm({ passwordEnc: encryptForOperator("mat-khau-moi") }),
+    );
 
     expect(result.ok).toBe(false);
     expect(result.message).toContain("chưa được phân công");

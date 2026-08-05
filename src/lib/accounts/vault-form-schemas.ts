@@ -8,6 +8,7 @@
  */
 import { z } from "zod";
 import { CONTENT_TYPES } from "@/lib/content/content-types";
+import { isEncryptedCredentialShape } from "@/lib/crypto/credential-encryption";
 import { parseDateTimeInput, parseLocalDateInput } from "@/lib/format/vietnamese-date-format";
 import { TARGET_PLATFORMS } from "@/lib/platforms/platform-family";
 import { ACCOUNT_STATUSES } from "./account-status";
@@ -47,6 +48,35 @@ export const dateTimeInput = z.preprocess((value) => {
 }, z.coerce.date());
 
 export const requiredId = z.string().min(1, "Thiếu id bản ghi cần sửa");
+
+/**
+ * Ô bí mật của nick — form gửi lên **ciphertext**, không gửi mật khẩu.
+ *
+ * Từ GĐ3, ba cột bí mật của nick thuộc vùng khóa operator và máy chủ không giữ khóa đó nữa. Nên
+ * việc mã hóa chuyển về cầu nối trên máy người dùng (xem `account-vault-form.tsx`), và thứ đi
+ * qua dây là chuỗi đã bọc.
+ *
+ * Phép kiểm này **không** giải mã được — nó không có khóa. Nó chỉ trả lời *"đây có phải mật khẩu
+ * dạng trần không"*, và đó chính là kiểu hỏng phải chặn: form bị sửa hỏng một ngày nào đó thì bí
+ * mật đi thẳng vào database chưa mã hóa, im lặng, cho tới ngày ai đó mở bản sao lưu ra đọc. Chặn
+ * ở đây thì hỏng ồn ào ngay lần lưu đầu tiên.
+ */
+function encryptedCredential(label: string) {
+  return z.string().refine(isEncryptedCredentialShape, {
+    message:
+      `Ô "${label}" gửi lên không phải chuỗi đã mã hóa. Bí mật nick phải được cầu nối trên máy ` +
+      `bạn mã hóa trước khi gửi đi — máy chủ không có khóa để tự làm việc đó. Tải lại trang; ` +
+      `nếu vẫn vậy thì cầu nối chưa chạy.`,
+  });
+}
+
+/** Như trên, nhưng ô để trống là hợp lệ (tạo nick chưa bật 2FA, hoặc sửa mà giữ nguyên). */
+function optionalEncryptedCredential(label: string) {
+  return z.preprocess(
+    (value) => (typeof value === "string" && value.trim() === "" ? undefined : value),
+    encryptedCredential(label).optional(),
+  );
+}
 
 export function formToObject(formData: FormData): Record<string, unknown> {
   return Object.fromEntries(formData.entries());
@@ -172,9 +202,9 @@ function withPlatformIdentityCheck<T extends z.ZodTypeAny>(schema: T, platform: 
 const accountCreateBase = z.object({
   ...accountShape,
   platform: z.enum(["REDDIT", "FACEBOOK"]),
-  password: z.string().min(1, "Mật khẩu không được để trống"),
-  emailPassword: z.string().min(1, "Mật khẩu email không được để trống"),
-  totpSecret: optionalText,
+  passwordEnc: encryptedCredential("Mật khẩu nick"),
+  emailPasswordEnc: encryptedCredential("Mật khẩu email"),
+  totpSecretEnc: optionalEncryptedCredential("TOTP secret"),
 });
 
 export const accountCreateSchema = accountCreateBase.superRefine((value, ctx) => {
@@ -191,9 +221,9 @@ export const accountCreateSchema = accountCreateBase.superRefine((value, ctx) =>
 export const accountUpdateSchema = z.object({
   ...accountShape,
   id: requiredId,
-  password: optionalText,
-  emailPassword: optionalText,
-  totpSecret: optionalText,
+  passwordEnc: optionalEncryptedCredential("Mật khẩu nick"),
+  emailPasswordEnc: optionalEncryptedCredential("Mật khẩu email"),
+  totpSecretEnc: optionalEncryptedCredential("TOTP secret"),
 });
 
 export function accountUpdateSchemaFor(platform: string) {
