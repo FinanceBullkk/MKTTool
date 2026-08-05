@@ -70,7 +70,6 @@ function fakeAntidetect(adapter: AntidetectAdapter | null): RelayAntidetect {
       return adapter;
     },
     isReady: async () => adapter !== null,
-    lastProbe: () => adapter !== null,
     forgetProbe: () => {},
   } as unknown as RelayAntidetect;
 }

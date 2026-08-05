@@ -60,7 +60,7 @@ export interface RelayServerOptions {
    * việc có gắn `relayVersion` vào hay không. Nhét chung một bảng thì mỗi hàm xử lý phải tự
    * khai mình thuộc loại nào, và quên khai là trả HTML dưới nhãn JSON.
    */
-  htmlPages: Partial<Record<string, () => string>>;
+  htmlPages: Partial<Record<string, () => string | Promise<string>>>;
 }
 
 /** Thân request, chặn ở 1 MB: mọi thứ cầu nối nhận đều là vé hoặc vài chuỗi bí mật. */
@@ -163,7 +163,9 @@ async function handleRequest(
       "content-security-policy":
         "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'",
     });
-    response.end(page());
+    // Dựng trang được phép `await`: trang trạng thái hỏi MultiZen ngay lúc vẽ, để câu nó in ra
+    // là hiện trạng chứ không phải thứ nhớ từ lần nào đó trước.
+    response.end(await page());
     return;
   }
 

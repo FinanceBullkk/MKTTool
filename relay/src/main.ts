@@ -15,6 +15,7 @@
  * nào để hiện.
  */
 import { RELAY_ORIGIN, RELAY_PATHS } from "../../src/lib/relay/relay-endpoints";
+import { handleEncryptForVault } from "./handle-encrypt-for-vault";
 import { handleSecretReveal } from "./handle-secret";
 import { handleTicketRequest } from "./handle-ticket";
 import { RelayAntidetect } from "./relay-antidetect";
@@ -22,6 +23,7 @@ import { loadRelayConfig, type ConfigProblem } from "./relay-config";
 import { loadOrCreateDeviceKeypair } from "./relay-device-keypair";
 import { createRelayServer, listenOnLoopback } from "./relay-http-server";
 import { resolveRelayHome } from "./relay-home";
+import type { RelayIdentity } from "../../src/lib/tickets/ticket-verifier";
 import { buildRelayIdentity } from "./relay-identity";
 import { renderStatusPage } from "./relay-status-page";
 import { SECRET_REVEAL_PATH, renderSecretPage } from "./secret-page";
@@ -38,7 +40,25 @@ async function main(): Promise<void> {
 
   // Danh tính chỉ dựng được khi cấu hình đủ. `null` không làm cầu nối tắt — nó làm mọi đường
   // làm việc thật trả về đúng câu "chưa cấu hình xong", xem `relay-config.ts`.
-  const identity = config ? buildRelayIdentity(config, keypair.privateKey) : null;
+  //
+  // Bọc try/catch vì đây là thao tác duy nhất nằm giữa "cấu hình đã soi xong" và "máy chủ bắt
+  // đầu nghe": lỗi ném trần ở đúng chỗ này làm cầu nối TẮT, mà nó chạy nền nên tắt nghĩa là
+  // không có gì để nhìn — người dùng chỉ thấy "không thấy cầu nối trên máy này".
+  //
+  // Đo 06/08: OpenSSL nhận **mọi** 32 byte làm khóa công khai Ed25519, không kiểm điểm có nằm
+  // trên đường cong không. Nên với hex đúng hình dạng, nhánh catch này hôm nay không chạy.
+  // Hệ quả thật của việc dán nhầm khóa máy chủ là **mọi vé đều BAD_SIGNATURE** — cầu nối không
+  // có cách nào phát hiện sớm hơn, vì muốn biết khóa đúng hay sai thì phải có một chữ ký để đối
+  // chiếu, mà chữ ký đầu tiên chỉ tới cùng tấm vé đầu tiên.
+  let identity: RelayIdentity | null = null;
+  if (config) {
+    try {
+      identity = buildRelayIdentity(config, keypair.privateKey);
+    } catch (error) {
+      problems.push({ field: "serverPublicKey", message: (error as Error).message });
+    }
+  }
+
   const antidetect = new RelayAntidetect(config);
 
   const notConfiguredMessage =
@@ -53,14 +73,23 @@ async function main(): Promise<void> {
   const server = createRelayServer({
     allowedOrigin,
     htmlPages: {
-      "/": () =>
+      "/": async () =>
         renderStatusPage({
           publicKeyHex: keypair.publicKeyHex,
           home,
           problems,
-          // Trang trạng thái dựng đồng bộ nên nó đọc kết quả đã nhớ của lần hỏi gần nhất; lần
-          // hỏi thật do `/health` bắn. Chưa hỏi lần nào thì nói thẳng "chưa kiểm".
-          antidetectReady: antidetect.lastProbe(),
+          config: config
+            ? {
+                deviceId: config.deviceId,
+                webOrigin: config.webOrigin,
+                hasMultizenToken: Boolean(config.multizenToken),
+              }
+            : null,
+          // Hỏi MultiZen NGAY lúc vẽ trang. Người cài mở trang này chính là để biết MultiZen
+          // có nối được không — in ra một kết quả nhớ từ lần nào đó trước là trả lời câu hỏi
+          // của họ bằng tin cũ. Chưa điền token thì không hỏi được: `null`, và trang nói đúng
+          // là "chưa điền token" chứ không phải "không nối được".
+          antidetectReady: config?.multizenToken ? await antidetect.isReady() : null,
         }),
       [RELAY_PATHS.secret]: renderSecretPage,
     },
@@ -75,6 +104,8 @@ async function main(): Promise<void> {
         handleTicketRequest(body, { identity, antidetect, notConfiguredMessage }),
       [SECRET_REVEAL_PATH]: (_request, body) =>
         handleSecretReveal(body, { identity, vaultKeyOperator, notConfiguredMessage }),
+      [RELAY_PATHS.encryptForVault]: (_request, body) =>
+        handleEncryptForVault(body, { vaultKeyOperator, notConfiguredMessage }),
     },
   });
 

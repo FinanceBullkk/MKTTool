@@ -87,17 +87,6 @@ export class RelayAntidetect {
     return ready;
   }
 
-  /**
-   * Kết quả lần hỏi gần nhất, `null` nếu chưa hỏi lần nào.
-   *
-   * Cho trang trạng thái — nó dựng HTML đồng bộ nên không đợi được một vòng MCP. `null` ở đó
-   * hiện thành *"chưa kiểm"*, chứ không hiện thành *"không nối được"*: hai câu đó dẫn người
-   * đọc đi hai hướng khác hẳn nhau, và đoán bừa là đẩy họ đi sai hướng.
-   */
-  lastProbe(): boolean | null {
-    return this.probe?.ready ?? null;
-  }
-
   /** Quên kết quả đã nhớ — gọi sau một lần mở profile hỏng, để lần hỏi sau nói đúng hiện trạng. */
   forgetProbe(): void {
     this.probe = null;

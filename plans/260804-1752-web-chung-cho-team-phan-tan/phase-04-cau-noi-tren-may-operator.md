@@ -13,7 +13,7 @@
 
 ## Overview
 
-**Ưu tiên:** cao — **nằm trên đường găng** | **Trạng thái:** 🟡 đang làm — 10/18 việc (06/08/2026) |
+**Ưu tiên:** cao — **nằm trên đường găng** | **Trạng thái:** 🟡 đang làm — 12/18 việc (06/08/2026) |
 **Dự kiến:** 4-6 ngày
 
 Một file `.exe` chạy nền trên máy người vận hành. Việc của nó: nhận vé từ trình duyệt, xác minh
@@ -59,6 +59,10 @@ khi viết dòng nào của `http-server.ts`.
 | `/secret#<vé>` | **mở tab**, vé ở fragment | trang hiện mật khẩu / OTP, có nút chép, tự đóng |
 | `POST /encrypt-for-vault` | fetch ngầm, body `{ password?, emailPassword?, totpSecret? }` | `{ ok, message, relayVersion, passwordEnc?, emailPasswordEnc?, totpSecretEnc? }` |
 
+> **Thêm 06/08 khi làm việc 6:** cầu nối phục vụ thêm **`POST /secret/reveal`** — trang `/secret`
+> đọc vé ở fragment rồi POST về đó. Cùng nguồn, và **cố ý không khai vào `relay-endpoints.ts`**:
+> file đó là hợp đồng với web app, khai vào là mời web app gọi thẳng (QĐ 3 chặn đúng chỗ này).
+>
 > **Thêm 06/08 khi làm việc 5:** phản hồi từ chối một tấm vé mang kèm `rejectionCode`
 > (`EXPIRED`, `ALREADY_USED`, `BAD_SIGNATURE`, `WRONG_DEVICE`, `RELAY_TOO_OLD`…). Web app hiện
 > chưa đọc trường này — nó là **dấu vết để tìm lỗi**, vì mọi mã đều đã có sẵn câu tiếng Việt
@@ -185,9 +189,23 @@ Import từ `src/lib/` qua đường dẫn tương đối. **Không dựng works
       nói gì là để người ta dán vào rồi tự hỏi vì sao sai. Kèm lưới cuối cho TOTP secret hỏng
       trong kho: máy chủ mất phép kiểm base32 từ GĐ3 nên câu *"sửa lại TOTP secret trên web
       app"* phải tới được từ đây.
-- [ ] Mã hóa ciphertext vùng operator lúc tạo/sửa nick, **kèm phép kiểm TOTP base32** mà máy chủ
-      đã mất ở GĐ3
-- [ ] Trang trạng thái
+- [x] **XONG 06/08 — mã hóa ciphertext vùng operator lúc tạo/sửa nick, kèm phép kiểm TOTP base32.**
+      [handle-encrypt-for-vault](../../relay/src/handle-encrypt-for-vault.ts).
+      **Đường này cố ý không cần vé:** vé trả lời *"máy chủ có cho phép việc này không"*, cần khi
+      thứ đi ra là bí mật của kho. Ở đây chiều ngược lại — thứ đi vào là bí mật người dùng vừa tự
+      gõ, thứ đi ra là ciphertext không ai đọc nổi. Bắt phải có vé là bắt máy chủ ký giấy phép
+      cho người ta mã hóa chuỗi của chính họ: không thêm lớp bảo vệ nào, chỉ thêm một vòng gọi.
+      TOTP secret hỏng thì **không bọc luôn cả hai ô kia** — trả nửa vời là ghi mật khẩu mới vào
+      kho mà TOTP thì không, trong khi người dùng đọc "đã lưu". Secret được **chuẩn hóa trước khi
+      bọc**, vì chuỗi đã mã hóa thì sau này không sửa lại được mà không nhập lại từ đầu.
+- [x] **XONG 06/08 — trang trạng thái.** Thêm mục *"Cấu hình đang dùng"*: mã máy và nguồn web —
+      hai giá trị sai thì hỏng theo kiểu khó đoán nhất (*"vé phát cho máy khác"* và lỗi CORS
+      không câu nào chỉ vào đây). **Không in khóa vùng operator và token**, chỉ nói có hay chưa:
+      trang này là thứ người ta mở ra giữa buổi chia sẻ màn hình với người đang giúp mình sửa lỗi.
+      Kiểu dữ liệu vào của trang **không có chỗ** cho hai bí mật đó, thay vì nhận cả `RelayConfig`
+      rồi tự nhớ đừng in ra.
+      Trang **hỏi MultiZen ngay lúc vẽ** — bản đầu in ra kết quả nhớ từ lần `/health` nào đó
+      trước, kèm câu "bấm tải lại trang để cầu nối hỏi" trong khi tải lại trang không hề hỏi.
 - [ ] `bun build --compile` ra `.exe` chạy trên Windows sạch
 - [ ] `setup.bat` + shortcut Startup + shortcut desktop
 - [ ] Web báo rõ khi cầu nối chưa chạy

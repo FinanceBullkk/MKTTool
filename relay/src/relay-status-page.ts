@@ -25,7 +25,19 @@ export interface StatusPageInput {
   home: string;
   /** Rỗng nghĩa là cấu hình đã đủ. */
   problems: ConfigProblem[];
-  /** Cầu nối nối được MultiZen trên cùng máy không. `null` = chưa kiểm lần nào. */
+  /**
+   * Phần cấu hình **được phép hiện lên màn hình**, hoặc `null` khi chưa đủ.
+   *
+   * Khai một hình dạng riêng thay vì nhận thẳng `RelayConfig`: kiểu này **không có chỗ** cho
+   * khóa vùng operator hay token. Đưa nguyên `RelayConfig` vào rồi tự nhớ đừng in ra là dựa
+   * vào trí nhớ của người sửa file này sáu tháng sau.
+   */
+  config: {
+    deviceId: string;
+    webOrigin: string;
+    hasMultizenToken: boolean;
+  } | null;
+  /** Cầu nối nối được MultiZen trên cùng máy không. `null` = chưa điền token nên không hỏi được. */
   antidetectReady: boolean | null;
 }
 
@@ -40,7 +52,10 @@ function escapeHtml(text: string): string {
 
 function describeAntidetect(ready: boolean | null): { tone: string; text: string } {
   if (ready === null) {
-    return { tone: "warn", text: "chưa kiểm — bấm tải lại trang để cầu nối hỏi MultiZen" };
+    return {
+      tone: "warn",
+      text: 'chưa hỏi được — máy này chưa điền "multizenToken", nên chưa mở được profile',
+    };
   }
   return ready
     ? { tone: "ok", text: "nối được MultiZen trên máy này" }
@@ -94,8 +109,32 @@ export function renderStatusPage(input: StatusPageInput): string {
 <code>${escapeHtml(DEVICE_KEY_FILE)}</code> và không bao giờ rời máy này.</p>
 <code class="key">${escapeHtml(input.publicKeyHex)}</code>
 
-${configured ? "" : renderProblems(input.problems)}
+${configured ? renderActiveConfig(input.config) : renderProblems(input.problems)}
 </body></html>`;
+}
+
+/**
+ * Cấu hình đang thật sự dùng — hai giá trị mà sai thì hỏng theo kiểu khó đoán nhất.
+ *
+ * **Mã máy** sai → mọi vé báo *"vé này phát cho máy khác"*. **Nguồn web** sai → mọi lời gọi
+ * chết theo kiểu CORS, không câu lỗi nào chỉ vào đây. Cả hai đọc bằng mắt là ra ngay, nên in
+ * chúng lên đây rẻ hơn nhiều so với việc dò.
+ *
+ * **Không in khóa vùng operator và token MultiZen.** Chúng là bí mật thật, và trang này là thứ
+ * người ta mở ra trong lúc chia sẻ màn hình với người đang giúp mình sửa lỗi. Chỉ nói *có hay
+ * không* — đủ để trả lời câu "đã điền chưa", không đủ để mất gì.
+ */
+function renderActiveConfig(config: StatusPageInput["config"]): string {
+  if (!config) return "";
+
+  return `<h2>Cấu hình đang dùng</h2>
+<ul>
+  <li>Mã máy: <code>${escapeHtml(config.deviceId)}</code> — sai mã thì mọi vé báo "phát cho máy khác"</li>
+  <li>Nhận lời gọi từ: <code>${escapeHtml(config.webOrigin)}</code> — chỉ đúng một nguồn này</li>
+  <li>Token MultiZen: ${config.hasMultizenToken ? "đã điền" : "<strong>chưa điền</strong> — máy này chưa mở được profile"}</li>
+</ul>
+<p class="muted">Khóa vùng operator và token không in ra đây. Còn khóa công khai của máy chủ thì
+đúng hay sai chỉ biết được khi có tấm vé đầu tiên: sai khóa thì vé nào cũng báo chữ ký không hợp lệ.</p>`;
 }
 
 function renderProblems(problems: ConfigProblem[]): string {
