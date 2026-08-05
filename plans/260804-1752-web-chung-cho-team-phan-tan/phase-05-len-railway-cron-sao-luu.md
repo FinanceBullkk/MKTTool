@@ -76,7 +76,9 @@ không nói được gì
 
 - [ ] Dự án Railway + Postgres + nối GitHub
 - [ ] Khai biến môi trường; **xác nhận không có `VAULT_KEY_OPERATOR`**
-- [ ] `Dockerfile` — Chromium + thư viện hệ thống cho Playwright
+- [x] `Dockerfile` + `.dockerignore` (05/08/2026) — **viết xong, CHƯA build thử lần nào.**
+  Dựng trên ảnh `mcr.microsoft.com/playwright:v1.62.1-noble` (Chromium + thư viện hệ thống có
+  sẵn, bản ghim theo `package.json`). Ba chốt đã đóng trong lúc viết — xem [dưới](#dockerfile--ba-chốt-đã-đóng)
 - [ ] Thử domain Railway với Facebook; mua tên miền nếu bị từ chối
 - [ ] Redirect URI + cả team vào vai trò Tester
 - [ ] Cron dò shadowban hằng ngày theo `TEAM_TIMEZONE`
@@ -84,6 +86,28 @@ không nói được gì
   còn nợ phép thử **hai tiến trình thật chạy song song**, làm ở bước 9 khi đã có Railway
 - [ ] Sao lưu tự động + script tải bản sao về máy
 - [ ] Chạy thử một lượt dò thật, kết quả lên `/health`
+
+### Dockerfile — ba chốt đã đóng
+
+**1. `playwright`, `tsx` và `prisma` chuyển từ `devDependencies` sang `dependencies`.** Đây là
+sửa một khai báo **sai từ trước**, không phải nhượng bộ cho Docker: `health-check-process-launcher.ts`
+sinh tiến trình dò bằng `tsx scripts/run-health-check.ts` **lúc chạy**, và tiến trình đó gọi
+`chromium.launch()`. Bất kỳ ai cài bằng `npm ci --omit=dev` — cách cài production tiêu chuẩn, và
+là mặc định của một số hãng — đều nhận một app mà nút "Dò cả đàn" sinh ra tiến trình chết ngay
+dòng đầu, kèm `stdio: "ignore"` nuốt sạch câu lỗi. QĐ 9 đòi ảnh chạy được ở nhiều hãng, nên không
+thể dựa vào việc hãng nào cũng cài cả devDependencies.
+
+**2. Ảnh KHÔNG dùng `output: "standalone"`.** Cùng lý do: `standalone` chỉ gói những gì Next truy
+vết được từ đồ thị import của nó, mà tiến trình dò không nằm trong đồ thị đó — nó được sinh ra
+bằng `spawn`. Ảnh phải mang theo `src/`, `scripts/` và `tsx`. Ảnh to hơn, và đó là cái giá đã
+biết của quyết định "lượt dò chạy ở tiến trình riêng".
+
+**3. `TEAM_TIMEZONE` là ARG lúc BUILD, không phải biến lúc chạy.** `next.config.ts` nhúng nó
+thẳng vào bundle vì ô chọn giờ là component client. Hệ quả phải ghi vào tài liệu vận hành: **đổi
+múi giờ team thì phải build lại**, khởi động lại không đủ.
+
+> Kèm theo: ảnh cài `postgresql-client` cho `pg_dump` — `db:backup` và bước tự sao lưu của
+> `vault:rekey` đều gọi nó. Thiếu thì xoay khóa dừng ngay ở bước sao lưu.
 
 ## Success Criteria
 

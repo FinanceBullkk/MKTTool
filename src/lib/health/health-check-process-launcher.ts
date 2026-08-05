@@ -8,7 +8,15 @@
  * Vì sao gọi lại đúng script của `npm run health` thay vì gọi `runHealthCheck()`:
  *  - không có bản sao thứ hai của luồng dò để mà lệch nhau;
  *  - tiến trình tách rời sống sót qua việc người dùng đóng tab hoặc dev server nạp lại;
- *  - `health-check-lock.ts` vốn đã dùng khóa dạng FILE đúng vì tình huống hai tiến trình này.
+ *  - `health-check-lock.ts` vốn đã chặn được đúng tình huống hai tiến trình này.
+ *
+ * ## Hệ quả cho môi trường chạy thật (GĐ5)
+ *
+ * Dòng `spawn` dưới đây làm `tsx` và toàn bộ `scripts/` + `src/` thành **thứ cần có lúc CHẠY**,
+ * không phải chỉ lúc build. Ảnh Docker nào cắt chúng đi thì nút "Dò cả đàn" sinh ra một tiến
+ * trình chết ngay ở dòng đầu — mà `stdio: "ignore"` nuốt sạch câu lỗi, nên người dùng chỉ thấy
+ * "đã khởi động" rồi không có gì xảy ra. Đó là lý do `tsx` nằm ở `dependencies` chứ không phải
+ * `devDependencies`.
  */
 import { spawn } from "node:child_process";
 import path from "node:path";
