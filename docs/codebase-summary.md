@@ -57,9 +57,10 @@ src/
     ├── proxies/                Kiểm proxy sống, báo cáo băng thông
     ├── queue/                  Server actions: tạo job, đổi trạng thái, ghi tương tác, tóm tắt promo
     ├── rules/                  Bộ luật an toàn — mỗi luật một file (chi tiết bên dưới)
-    ├── tickets/                Đang xây (GĐ3) — khóa ký vé Ed25519 của máy chủ, khóa X25519 của
-    │                           máy chạy cầu nối, server action đăng ký/thu hồi máy.
-    │                           Bộ dựng/ký/mã hóa vé chưa có
+    ├── tickets/                Vé ủy quyền (GĐ3) — khóa ký Ed25519 của máy chủ, khóa X25519 của
+    │                           từng máy cầu nối, sổ đăng ký máy, và bộ phát/xác minh vé:
+    │                           bọc cho riêng máy nhận → ký → hết hạn 30s → chống dùng lại.
+    │                           `ticket-types.ts` là hợp đồng dùng chung với cầu nối GĐ4
     └── totp/                   Sinh mã OTP 2FA
 ```
 

@@ -10,7 +10,7 @@
 
 ## Overview
 
-**Ưu tiên:** cao | **Trạng thái:** 🟡 đang làm — 6/11 việc (05/08/2026) | **Dự kiến:** 3-4 ngày
+**Ưu tiên:** cao | **Trạng thái:** 🟡 đang làm — 7/11 việc (05/08/2026) | **Dự kiến:** 3-4 ngày
 
 Chia kho mã hóa làm hai vùng, và dựng cơ chế **vé có chữ ký** để máy chủ ủy quyền cho cầu nối
 mà không cần biết nội dung.
@@ -111,7 +111,8 @@ bấm nút ─► máy chủ: kiểm phiên + kiểm chủ nick + ghi AuditLog
 - [x] Cặp khóa Ed25519 + script sinh khóa (`keys:server-keygen`, đối chiếu vector RFC 8032)
 - [x] Model `RelayDevice` + màn hình đăng ký / thu hồi cho ADMIN (`/relay-devices`)
   (chốt đã đóng: xem [dưới](#việc-4--những-chốt-đã-đóng))
-- [ ] Module vé: **mã hóa cho cầu nối đích**, ký, xác minh, hết hạn, chống dùng lại
+- [x] Module vé: **mã hóa cho cầu nối đích**, ký, xác minh, hết hạn, chống dùng lại
+  (chốt đã đóng: xem [dưới](#việc-5--module-vé))
 - [ ] `revealCredential` / `requestOtpCode` → phát vé
 - [ ] Vé mở profile kèm cấu hình proxy
 - [ ] Tạo/sửa nick: ciphertext vùng operator dựng ở phía máy người dùng
@@ -170,6 +171,37 @@ Ba mục nhỏ trong sổ đăng ký cũng đã đóng cùng ngày:
   không có giới hạn nào: một phiên bị trộm rút sạch bí mật của mọi nick người đó làm chủ trong vài
   giây, `AuditLog` ghi lại nhưng không ai đọc lúc đó. Việc 6 viết lại đúng hai hàm này, nên đó là
   lúc rẻ nhất để đặt.
+
+### Việc 5 — module vé
+
+Xong 05/08/2026. Sáu file trong `src/lib/tickets/`: [ticket-types](../../src/lib/tickets/ticket-types.ts)
+(hợp đồng dùng chung với GĐ4), [sealed-box](../../src/lib/tickets/ticket-sealed-box.ts),
+[issuer](../../src/lib/tickets/ticket-issuer.ts), [verifier](../../src/lib/tickets/ticket-verifier.ts),
+[replay-guard](../../src/lib/tickets/ticket-replay-guard.ts), và test vòng đời hai đầu.
+
+Bốn chốt đóng trong lúc làm:
+
+- **Bọc trước, ký sau.** Chữ ký phủ lên cả bao ngoài lẫn ruột đã bọc, nên cầu nối xác minh được
+  **trước khi** giải mã bất cứ thứ gì — nó không bao giờ phải bóc một gói chưa có bảo chứng.
+  Ngược lại (ký rồi bọc) thì chữ ký nằm trong lớp mã hóa, và cách duy nhất để biết vé có thật
+  không là cứ giải mã đã.
+- **Ký lên CHUỖI, không ký lên object.** Chữ ký phủ đúng chuỗi base64url truyền đi, và cầu nối
+  xác minh trên đúng chuỗi nó nhận — không bên nào tuần tự hóa lại. Cầu nối GĐ4 là chương trình
+  viết độc lập; `JSON.stringify` hai bên có thể xếp khóa khác thứ tự. Ký lên object là hẹn trước
+  một ngày mọi vé bị từ chối mà không ai tìm ra vì sao.
+- **Cặp khóa dùng một lần cho mỗi tấm vé**, không phải cặp cố định của máy chủ. Cặp cố định thì
+  mọi vé gửi tới cùng một máy dùng chung một khóa AES — lộ một lần là lộ cả lịch sử. Máy chủ
+  không cần chứng minh mình là ai ở lớp này; chữ ký Ed25519 đã làm việc đó. Bí mật chung đi qua
+  HKDF chứ không dùng thẳng: đầu ra X25519 là tọa độ một điểm, không phải khóa phân bố đều.
+- **Chống dùng lại nằm ở cầu nối** — hệ quả của QĐ 5, không phải lựa chọn. Cầu nối không nối
+  mạng nên không hỏi máy chủ được *"vé này tiêu chưa"*; máy chủ cũng không biết vì nó phát vé rồi
+  thôi. Sổ jti giữ trong bộ nhớ: vé sống 30 giây, khởi động lại thì vé cũ cũng đã hết hạn.
+
+Thứ tự các phép kiểm trong `verifyTicket` là một phần của thiết kế, không phải chuyện thẩm mỹ:
+chữ ký trước tiên (trước đó không trường nào đáng tin, kể cả `exp`), rồi **hai phép kiểm phiên
+bản** — để câu trả lời cho cầu nối cũ luôn là *"bản quá cũ, tải lại"* chứ không phải một lỗi giải
+mã mơ hồ — rồi mới tới hạn, đúng máy, chưa tiêu, và cuối cùng mới giải mã. Vé bị chặn vì quá hạn
+**không** bị ghi vào sổ đã tiêu; có test canh cả thứ tự đó.
 
 ### Việc 4 — những chốt đã đóng
 
