@@ -145,11 +145,17 @@ Import từ `src/lib/` qua đường dẫn tương đối. **Không dựng works
       duy nhất sẽ là *"không thấy cầu nối trên máy này"*, câu chỉ sai hướng hoàn toàn. Cầu nối
       vẫn nghe, trang trạng thái nói thiếu gì, và mọi đường làm việc thật từ chối thẳng.
       Gom **hết** vấn đề trong một lượt thay vì dừng ở cái đầu tiên.
-- [ ] **Hiện mã máy (`RelayDevice.id`) trên trang `/relay-devices`** — phát sinh khi làm việc 3.
-      Cầu nối phải biết mã máy của chính nó để đối chiếu `TicketEnvelope.deviceId`, mà mã đó chỉ
-      tồn tại **sau** khi ADMIN ghi máy vào sổ, và cầu nối không hỏi lại được (QĐ 5 — không nối
-      mạng). Nên luồng cài là hai chiều: khóa công khai đi lên, **mã máy đi xuống**. Trang hiện
-      nay không hiện mã máy ở đâu cả.
+- [x] **XONG 06/08 — hiện mã máy (`RelayDevice.id`) trên trang `/relay-devices`.**
+      [relay-device-id-cell](../../src/components/relay/relay-device-id-cell.tsx) + cột mới ở
+      [page](../../src/app/relay-devices/page.tsx). Cầu nối phải biết mã máy của chính nó để đối
+      chiếu `TicketEnvelope.deviceId`, mà mã đó chỉ tồn tại **sau** khi ADMIN ghi máy vào sổ, và
+      cầu nối không hỏi lại được (QĐ 5 — không nối mạng). Nên luồng cài là hai chiều: khóa công
+      khai đi lên, **mã máy đi xuống**.
+      Hiện **đủ chuỗi**, khác với khóa công khai bên cạnh: khóa công khai chỉ để đối chiếu bằng
+      mắt nên cắt ngắn được, còn mã máy là để chép đi dán — một chuỗi cụt dán vào cấu hình hỏng
+      mãi tận lượt bấm nút đầu tiên, dưới câu *"vé này phát cho máy khác"*, câu không hề chỉ về
+      phía chuỗi bị cụt. Kèm nút chép, và nhánh dự phòng khi `navigator.clipboard` vắng mặt
+      (mở web app qua http trong LAN là rơi vào đó).
 - [x] **XONG 06/08 — giải mã vé bằng khóa riêng của máy.**
       [relay-identity](../../relay/src/relay-identity.ts) là chỗ **duy nhất** biến hai chuỗi hex
       trong cấu hình thành hai `KeyObject`; dựng khóa rải rác là mở đường cho hai chỗ hiểu cùng
@@ -208,9 +214,35 @@ Import từ `src/lib/` qua đường dẫn tương đối. **Không dựng works
       trước, kèm câu "bấm tải lại trang để cầu nối hỏi" trong khi tải lại trang không hề hỏi.
 - [ ] `bun build --compile` ra `.exe` chạy trên Windows sạch
 - [ ] `setup.bat` + shortcut Startup + shortcut desktop
-- [ ] Web báo rõ khi cầu nối chưa chạy
+- [x] **XONG 06/08 — web báo rõ khi cầu nối chưa chạy.**
+      Nút *Mở profile* đã nói đủ từ trước qua `describeRelayFailure`. Ba nút bí mật thì không:
+      chúng mở tab rồi đoán — *"không thấy gì hiện ra nghĩa là cầu nối chưa chạy"*, câu đẩy việc
+      chẩn đoán sang cho người dùng và sai luôn khi cửa sổ trắng vì lý do khác.
+      Nay [panel](../../src/app/accounts/[id]/account-vault-actions-panel.tsx) bắn `pingRelay()`
+      **sau khi tab đã mở** và chỉ đổi câu ở nhánh `unreachable`. Hai chỗ cố ý ngược nhau:
+      `launchProfile()` ping ở **dòng đầu, còn kích hoạt người dùng** vì nó *cần* quyền mạng nội
+      bộ; `openSecretTab()` ping **sau `await`, mất kích hoạt** nên hộp xin quyền không hiện —
+      tab bí mật cùng nguồn với cầu nối nên không cần quyền đó, mà một hộp xin quyền bật lên
+      giữa lúc bấm "Mật khẩu nick" chỉ nhận được một câu trả lời là *"không biết, chặn đi"*, và
+      cú chặn ấy nằm lại làm hỏng nút *Mở profile* về sau. Cùng lý do, `no-permission` bị bỏ
+      qua: nó không nói gì về tab kia.
+      **Vá một lỗi im lặng phát hiện lúc làm việc này:** chuỗi features có `noopener`, mà
+      `noopener` làm `window.open()` trả `null` — đúng giá trị của "popup bị chặn". Tức **mọi**
+      cú bấm mật khẩu/OTP đều rơi vào nhánh báo chặn popup và không ai lấy được bí mật. Xanh
+      qua typecheck, lint và cả 770 test vì phần này chỉ nghiệm thu được khi cầu nối chạy thật.
+      Nay cắt opener bằng `disownPopup()` — gán `win.opener = null` lúc cửa sổ còn ở
+      `about:blank` (cùng nguồn nên gán được), vẫn giữ handle để điều hướng. Có phép canh nguồn
+      [secret-popup-features.test.ts](../../src/lib/relay/secret-popup-features.test.ts) vì
+      thêm lại `noopener` là phản xạ đúng ở mọi chỗ khác của web.
 - [ ] Phục vụ file `.exe` sau lớp đăng nhập; web cảnh báo khi cầu nối chạy bản cũ
-- [ ] Vé mang phiên bản tối thiểu; cầu nối quá cũ từ chối kèm câu nói rõ phải làm gì
+- [x] **XONG 06/08 (thực ra từ GĐ3) — vé mang phiên bản tối thiểu, cầu nối quá cũ từ chối.**
+      Máy chủ khai `minRelayVersion` vào từng vé
+      ([ticket-issuer](../../src/lib/tickets/ticket-issuer.ts)), cầu nối so với `RELAY_VERSION`
+      của chính nó và ném `RELAY_TOO_OLD` kèm câu bảo tải lại
+      ([ticket-verifier](../../src/lib/tickets/ticket-verifier.ts)), có test ở
+      [ticket-lifecycle.test.ts](../../src/lib/tickets/ticket-lifecycle.test.ts). Ô này bị bỏ
+      quên chưa tick chứ không phải chưa làm. Phần **web hiện dải "cầu nối bản cũ, tải bản mới"**
+      vẫn còn thiếu — nằm ở việc phục vụ `.exe` ngay trên.
 - [x] **XONG 06/08 — test chặn import `lib/db` / `next` vào `relay/`.**
       [relay-import-boundary.test.ts](../../src/lib/relay/relay-import-boundary.test.ts). Chặn
       thêm React, alias `@/`, và `lib/auth/` — cầu nối **không tự quyết ai được đọc gì**, kéo lớp

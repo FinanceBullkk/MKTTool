@@ -1,3 +1,4 @@
+import { RelayDeviceIdCell } from "@/components/relay/relay-device-id-cell";
 import { RelayDeviceRevokeButton } from "@/components/relay/relay-device-revoke-button";
 import { ActionForm, Field, SelectField } from "@/components/ui/form-controls";
 import { Card, DataTable, EmptyState, PageHeading, StatusBadge } from "@/components/ui/page-section";
@@ -65,7 +66,7 @@ export default async function RelayDevicesPage() {
           </EmptyState>
         ) : (
           <DataTable
-            headers={["Máy", "Người dùng", "Khóa công khai", "Đăng ký", "Trạng thái", ""]}
+            headers={["Máy", "Người dùng", "Mã máy", "Khóa công khai", "Đăng ký", "Trạng thái", ""]}
           >
             {devices.map((device) => (
               <tr key={device.id} className={device.revokedAt ? "text-neutral-400" : undefined}>
@@ -80,6 +81,9 @@ export default async function RelayDevicesPage() {
                       không còn quyền đăng nhập — máy này không xin được vé
                     </span>
                   ) : null}
+                </td>
+                <td className="py-2 pr-4">
+                  <RelayDeviceIdCell deviceId={device.id} />
                 </td>
                 {/* Cắt ngắn cho vừa bảng, nhưng giữ nguyên bản đầy đủ trong `title` để còn đối
                     chiếu với khóa mà máy đó in ra khi nghi ngờ dán nhầm. */}
@@ -115,6 +119,19 @@ export default async function RelayDevicesPage() {
             ))}
           </DataTable>
         )}
+        <p className="mt-4 text-xs text-neutral-500">
+          <strong className="text-neutral-700 dark:text-neutral-300">Mã máy</strong> là thứ chép
+          xuống máy đang cài: mở{" "}
+          <code className="rounded bg-neutral-100 px-1 py-0.5 font-mono dark:bg-neutral-800">
+            relay-config.json
+          </code>{" "}
+          của cầu nối và dán vào ô{" "}
+          <code className="rounded bg-neutral-100 px-1 py-0.5 font-mono dark:bg-neutral-800">
+            deviceId
+          </code>
+          . Cầu nối không tự hỏi được mã của chính nó, nên đây là đường duy nhất — dán thiếu hoặc
+          dán nhầm hàng thì mọi nút đều báo &quot;vé này phát cho máy khác&quot;.
+        </p>
       </Card>
 
       {isAdmin ? (

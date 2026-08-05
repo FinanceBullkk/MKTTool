@@ -23,13 +23,23 @@
  * Ở `launchProfile()`: `pingRelay()` là **dòng đầu tiên và không được await**. Xem chú thích đầu
  * `relay-browser-client.ts` — sai chỗ này thì trên chiếc máy chưa cấp quyền, hộp xin quyền không
  * bao giờ hiện ra và nút im lặng mãi mãi.
+ *
+ * `openSecretTab()` cũng ping, nhưng **cố ý đặt sau `await`** để hộp xin quyền *không* hiện ra.
+ * Hai chỗ ngược nhau vì hai việc cần hai thứ khác nhau: mở profile **cần** quyền đó, còn lấy mật
+ * khẩu thì không — ping ở đây chỉ để phân biệt "cầu nối chưa chạy" với "đang chạy". Xem chú thích
+ * ngay tại chỗ gọi.
  */
 import { useState } from "react";
 import {
   requestCredentialTicket,
   requestOtpTicket,
 } from "@/lib/accounts/vault-credential-actions";
-import { describeRelayFailure, pingRelay, sendTicketToRelay } from "@/lib/relay/relay-browser-client";
+import {
+  describeRelayFailure,
+  pingRelay,
+  sendTicketToRelay,
+  type RelayOutcome,
+} from "@/lib/relay/relay-browser-client";
 import { relaySecretUrl } from "@/lib/relay/relay-endpoints";
 
 type Feedback = { kind: "ok" | "error"; text: string } | null;
@@ -38,12 +48,49 @@ const BUTTON_CLASS =
   "rounded-md border border-neutral-300 px-3 py-1.5 text-sm transition " +
   "hover:bg-neutral-100 disabled:opacity-50 dark:border-neutral-700 dark:hover:bg-neutral-800";
 
-/** Cửa sổ nhỏ vừa đủ cho một mật khẩu và một nút chép. */
-const SECRET_WINDOW_FEATURES = "width=460,height=360,noopener";
+/**
+ * Cửa sổ nhỏ vừa đủ cho một mật khẩu và một nút chép.
+ *
+ * **Không có `noopener` trong chuỗi này, và đó là chuyện bắt buộc:** theo đặc tả HTML, `noopener`
+ * nằm trong phần features làm `window.open()` trả về `null` — cùng giá trị với lúc bị bộ chặn
+ * popup chặn. Bản đầu có nó, nên nhánh "chặn popup" ăn **mọi** cú bấm và không ai lấy được mật
+ * khẩu; không lộ ra sớm vì phần này chỉ nghiệm thu được khi cầu nối đã chạy thật.
+ *
+ * Chỗ dựa thay thế là `disownPopup()` bên dưới.
+ */
+const SECRET_WINDOW_FEATURES = "width=460,height=360";
 
 const POPUP_BLOCKED_MESSAGE =
   "Trình duyệt chặn cửa sổ bật lên, nên không mở được tab của cầu nối. Cho phép popup cho trang " +
   "này rồi bấm lại — bí mật chỉ hiện ở tab do cầu nối phục vụ, không hiện trên trang này.";
+
+/**
+ * Cắt đường `window.opener` từ cửa sổ vừa mở về trang này.
+ *
+ * Làm được là nhờ cửa sổ mới còn đang ở `about:blank` — lúc này nó **cùng nguồn** với trang này
+ * nên gán được. Sau khi nó chuyển sang `127.0.0.1` thì cùng phép gán đó bị chặn vì khác nguồn.
+ * Thứ tự "mở → cắt → mới điều hướng" là điều kiện để nó chạy, không phải sở thích sắp xếp.
+ *
+ * Cắt xong vẫn giữ nguyên handle để điều hướng — đó chính là thứ `noopener` lấy mất.
+ */
+function disownPopup(win: Window) {
+  try {
+    win.opener = null;
+  } catch {
+    // Không cắt được thì vẫn mở tiếp: trang sắp nạp vào đó là trang của chính cầu nối, và cái
+    // nó với tới qua `opener` cũng chỉ là những việc mà một trang khác nguồn được phép làm.
+  }
+}
+
+/**
+ * Câu thay thế khi ping biết chắc cầu nối chưa chạy.
+ *
+ * Nói luôn cả chuyện phải bấm lại: vé sống 30 giây, nên bật cầu nối rồi bấm F5 ở cửa sổ kia là
+ * đi vào câu "vé đã quá hạn" — đúng kỹ thuật nhưng dẫn người ta đi sai một vòng.
+ */
+const RELAY_DOWN_AFTER_OPEN =
+  "Cầu nối chưa chạy trên máy này, nên cửa sổ vừa mở chỉ báo lỗi kết nối. Mở ứng dụng cầu nối " +
+  "rồi bấm lại nút vừa bấm — vé cũ hết hạn sau 30 giây nên tải lại cửa sổ kia không cứu được.";
 
 export interface RelayDeviceOption {
   id: string;
@@ -71,6 +118,32 @@ export function AccountVaultActionsPanel({
   const [deviceId, setDeviceId] = useState(relayDevices[0]?.id ?? "");
 
   /**
+   * Ping chạy song song, dùng để **đổi câu báo** sau khi tab đã mở — không chặn đường mở tab.
+   *
+   * ## Vì sao chỉ nghe nhánh `unreachable`
+   *
+   * Tab bí mật cùng nguồn với cầu nối nên **không dính luật Local Network Access**, trong khi
+   * `pingRelay()` bắn từ chính trang này thì có. Nghĩa là `no-permission` (ping treo tới hết
+   * hạn giờ) hoàn toàn có thể đi kèm một tab chạy ngon lành — báo hỏng ở đó là dựng một câu sai
+   * ngay trên màn hình của người vừa lấy được mật khẩu. `unreachable` thì ngược lại: không ai
+   * nghe ở cổng đó, nên tab kia chắc chắn cũng không nạp được gì.
+   *
+   * ## Vì sao so bằng `===`
+   *
+   * Ping có thể về sau khi người dùng đã bấm nút khác. So đúng object câu báo mình vừa đặt là
+   * cách chắc chắn không đè lên câu của lượt bấm sau — một phép so nội dung sẽ đè nhầm ngay lần
+   * ai đó bấm hai lần cùng một nút.
+   */
+  function replaceMessageIfRelayIsDown(ping: Promise<RelayOutcome<unknown>>, opened: Feedback) {
+    void ping.then((health) => {
+      if (health.status !== "unreachable") return;
+      setFeedback((current) =>
+        current === opened ? { kind: "error", text: RELAY_DOWN_AFTER_OPEN } : current,
+      );
+    });
+  }
+
+  /**
    * Mở tab của cầu nối kèm vé.
    *
    * Cửa sổ được mở **trước** khi xin vé, lúc cú bấm còn nguyên giá trị: mở sau một vòng `await`
@@ -82,6 +155,7 @@ export function AccountVaultActionsPanel({
       setFeedback({ kind: "error", text: POPUP_BLOCKED_MESSAGE });
       return;
     }
+    disownPopup(win);
 
     setBusy(true);
     setFeedback(null);
@@ -97,12 +171,23 @@ export function AccountVaultActionsPanel({
       }
 
       win.location.href = relaySecretUrl(result.ticket);
-      setFeedback({
+
+      const opened: Feedback = {
         kind: "ok",
         text:
           `Đã gửi vé ${label} sang máy "${result.deviceName}". Cửa sổ vừa mở là của cầu nối trên ` +
-          `máy bạn — không thấy gì hiện ra nghĩa là cầu nối chưa chạy.`,
-      });
+          `máy bạn — trang này không đọc được thứ hiện trong đó.`,
+      };
+      setFeedback(opened);
+
+      // ⚠️ Bắn ở ĐÂY, tức sau `await` — ngược hẳn `launchProfile()`, và cố ý. Kích hoạt người
+      // dùng đã mất ở vòng await trên, nên lời gọi này **không làm hiện hộp xin quyền mạng nội
+      // bộ**. Đúng thứ cần: đường lấy mật khẩu không cần quyền đó (tab kia cùng nguồn với cầu
+      // nối), mà một hộp xin quyền hiện lên giữa lúc người ta bấm "Mật khẩu nick" thì lý do duy
+      // nhất để họ hiểu là "không biết, chặn đi" — và cú chặn ấy nằm lại, làm hỏng nút "Mở
+      // profile" về sau. Không có quyền thì ping treo tới hết hạn giờ rồi ra `no-permission`,
+      // nhánh mà `replaceMessageIfRelayIsDown` đã bỏ qua sẵn.
+      replaceMessageIfRelayIsDown(pingRelay(), opened);
     } catch {
       win.close();
       setFeedback({
