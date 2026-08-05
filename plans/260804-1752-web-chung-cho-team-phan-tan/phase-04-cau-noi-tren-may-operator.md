@@ -13,7 +13,7 @@
 
 ## Overview
 
-**Ưu tiên:** cao — **nằm trên đường găng** | **Trạng thái:** 🟡 đang làm — 4/18 việc (06/08/2026) |
+**Ưu tiên:** cao — **nằm trên đường găng** | **Trạng thái:** 🟡 đang làm — 8/18 việc (06/08/2026) |
 **Dự kiến:** 4-6 ngày
 
 Một file `.exe` chạy nền trên máy người vận hành. Việc của nó: nhận vé từ trình duyệt, xác minh
@@ -58,6 +58,11 @@ khi viết dòng nào của `http-server.ts`.
 | `POST /ticket` | fetch ngầm, body `{ ticket }` | `{ ok, message, relayVersion }` — vé mở profile |
 | `/secret#<vé>` | **mở tab**, vé ở fragment | trang hiện mật khẩu / OTP, có nút chép, tự đóng |
 | `POST /encrypt-for-vault` | fetch ngầm, body `{ password?, emailPassword?, totpSecret? }` | `{ ok, message, relayVersion, passwordEnc?, emailPasswordEnc?, totpSecretEnc? }` |
+
+> **Thêm 06/08 khi làm việc 5:** phản hồi từ chối một tấm vé mang kèm `rejectionCode`
+> (`EXPIRED`, `ALREADY_USED`, `BAD_SIGNATURE`, `WRONG_DEVICE`, `RELAY_TOO_OLD`…). Web app hiện
+> chưa đọc trường này — nó là **dấu vết để tìm lỗi**, vì mọi mã đều đã có sẵn câu tiếng Việt
+> riêng trong `message`. Đừng để giao diện đi so chuỗi tiếng Việt để phân biệt hai loại hỏng.
 
 Cổng cố định **47821**, và phải bind `127.0.0.1` chứ không phải `localhost` (trên Windows
 `localhost` ra `::1` trước; máy chủ chỉ bind IPv4 sẽ từ chối nối, và kiểu hỏng đó phụ thuộc cấu
@@ -141,9 +146,28 @@ Import từ `src/lib/` qua đường dẫn tương đối. **Không dựng works
       tồn tại **sau** khi ADMIN ghi máy vào sổ, và cầu nối không hỏi lại được (QĐ 5 — không nối
       mạng). Nên luồng cài là hai chiều: khóa công khai đi lên, **mã máy đi xuống**. Trang hiện
       nay không hiện mã máy ở đâu cả.
-- [ ] Giải mã vé bằng khóa riêng của máy
-- [ ] Xác minh vé: chữ ký / hết hạn / chống dùng lại
-- [ ] Mở profile qua adapter, giữ quy tắc đẩy hỏng thì không mở
+- [x] **XONG 06/08 — giải mã vé bằng khóa riêng của máy.**
+      [relay-identity](../../relay/src/relay-identity.ts) là chỗ **duy nhất** biến hai chuỗi hex
+      trong cấu hình thành hai `KeyObject`; dựng khóa rải rác là mở đường cho hai chỗ hiểu cùng
+      một chuỗi theo hai kiểu, mà kiểu hỏng đó hiện ra dưới dạng *"chữ ký sai"*. Sổ chống dùng
+      lại buộc vào danh tính để chắc chắn cả tiến trình chỉ có **một** sổ.
+- [x] **XONG 06/08 — xác minh vé: chữ ký / hết hạn / chống dùng lại.**
+      [handle-ticket](../../relay/src/handle-ticket.ts) dùng lại nguyên `verifyTicket` của GĐ3.
+      Thêm [ticket-payload-schema](../../relay/src/ticket-payload-schema.ts): chữ ký chứng minh
+      *máy chủ phát tấm vé này*, **không** chứng minh hai bên hiểu cùng một hình dạng — mà một
+      bản `.exe` từ tháng trước sẽ gặp ruột vé của tháng này (QĐ 11). `verifyTicket` trả
+      `unknown` chính là để bắt buộc bước soi này.
+      **`POST /ticket` chỉ nhận vé mở profile** — nhận vé bí mật ở đây là mở một đường trả mật
+      khẩu qua fetch, đúng thứ QĐ 3 chặn. Có test canh.
+- [x] **XONG 06/08 — mở profile qua adapter, giữ quy tắc đẩy hỏng thì không mở.**
+      [launch-profile](../../relay/src/launch-profile.ts) +
+      [relay-antidetect](../../relay/src/relay-antidetect.ts). Cầu nối dựng adapter riêng chứ
+      không dùng `antidetect-adapter-factory`: factory đọc `process.env`, còn cầu nối cấu hình
+      bằng `relay-config.json` — kéo factory sang là kéo theo giả định "có biến môi trường", và
+      nó sẽ im lặng dùng mặc định thay vì nói ra là chưa cấu hình.
+      **Token MultiZen là tùy chọn**: chỉ một trong ba việc cần nó, máy chỉ dùng để lấy mật khẩu
+      vẫn phải chạy đủ. Kết quả kiểm MultiZen nhớ 30 giây vì `/health` bị gọi ở **mọi** cú bấm
+      (ràng buộc 1 của spike GĐ0).
 - [ ] Trang hiện mật khẩu + nút copy + tự đóng
 - [ ] Sinh OTP kèm số giây còn lại
 - [ ] Mã hóa ciphertext vùng operator lúc tạo/sửa nick, **kèm phép kiểm TOTP base32** mà máy chủ
@@ -160,7 +184,12 @@ Import từ `src/lib/` qua đường dẫn tương đối. **Không dựng works
       phân quyền vào là dựng lại quyết định đó ở chỗ thứ hai. Test nằm ở `src/` chứ không ở
       `relay/`: một phép canh biên giới mà tự nằm trong vùng nó canh thì mất cùng lúc với thứ nó
       canh.
-- [ ] Test từ chối vé giả / quá hạn / dùng lại
+- [x] **XONG 06/08 — test từ chối vé giả / quá hạn / dùng lại.**
+      [handle-ticket.test.ts](../../relay/src/handle-ticket.test.ts) đo **hai đầu thật**: máy chủ
+      phát bằng `issueTicket`, cầu nối nhận bằng `handleTicketRequest`. Không giả lập bộ phát vé
+      — giá trị duy nhất của bài test này là chứng minh hai chương trình viết rời hiểu nhau, mà
+      một bản giả lập thì luôn hiểu chính nó. Gồm cả ca "không lộ mật khẩu proxy ra câu trả lời
+      kể cả khi hỏng".
 
 ## Success Criteria
 

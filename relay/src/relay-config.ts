@@ -31,6 +31,13 @@ export interface RelayConfig {
   vaultKeyOperator: string;
   /** Nguồn web được phép gọi xuống — CORS khai đúng một nguồn, không bao giờ `*`. */
   webOrigin: string;
+  /**
+   * Token MCP của MultiZen trên chính máy này. **Tùy chọn** — xem `relay-antidetect.ts`:
+   * chỉ việc mở profile cần nó, còn lấy mật khẩu và OTP thì không.
+   */
+  multizenToken?: string;
+  /** Địa chỉ MCP của MultiZen. Bỏ trống là dùng `127.0.0.1:7777`, thứ MultiZen công bố. */
+  multizenUrl?: string;
 }
 
 /** Một ô cấu hình chưa đúng, kèm câu nói rõ phải làm gì. */
@@ -61,6 +68,7 @@ export const CONFIG_TEMPLATE = {
   serverPublicKey: "<64 ký tự hex — chạy `npm run keys:server-pubkey` trên máy chủ>",
   vaultKeyOperator: "<64 ký tự hex — khóa vùng operator của team>",
   webOrigin: "https://<địa chỉ web app>",
+  multizenToken: "<chỉ cần nếu máy này mở profile: MultiZen → MCP → Connect an agent>",
 };
 
 function hexProblem(
@@ -147,8 +155,21 @@ export function reviewRelayConfig(parsed: unknown): ConfigLoad {
       serverPublicKey: String(raw.serverPublicKey).trim().toLowerCase(),
       vaultKeyOperator: String(raw.vaultKeyOperator).trim().toLowerCase(),
       webOrigin: normalizeOrigin(webOrigin),
+      ...optionalString(raw.multizenToken, "multizenToken"),
+      ...optionalString(raw.multizenUrl, "multizenUrl"),
     },
   };
+}
+
+/**
+ * Ô tùy chọn: có thì lấy, không có thì **không đặt trường** thay vì đặt chuỗi rỗng.
+ *
+ * Chuỗi rỗng đi tiếp sẽ được các lớp dưới coi là "đã cấu hình" — token rỗng gửi lên MultiZen ra
+ * lỗi 401, và câu người dùng nhận được sẽ nói về token sai thay vì token chưa điền.
+ */
+function optionalString(value: unknown, field: string): Record<string, string> {
+  if (typeof value !== "string" || value.trim() === "") return {};
+  return { [field]: value.trim() };
 }
 
 /**

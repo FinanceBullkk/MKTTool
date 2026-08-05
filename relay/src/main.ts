@@ -14,11 +14,14 @@
  * hoặc **cổng bị chiếm**. Cả hai đều là thứ không có trạng thái nào để hiện ra, vì chưa có chỗ
  * nào để hiện.
  */
-import { RELAY_ORIGIN } from "../../src/lib/relay/relay-endpoints";
+import { RELAY_ORIGIN, RELAY_PATHS } from "../../src/lib/relay/relay-endpoints";
+import { handleTicketRequest } from "./handle-ticket";
+import { RelayAntidetect } from "./relay-antidetect";
 import { loadRelayConfig, type ConfigProblem } from "./relay-config";
 import { loadOrCreateDeviceKeypair } from "./relay-device-keypair";
 import { createRelayServer, listenOnLoopback } from "./relay-http-server";
 import { resolveRelayHome } from "./relay-home";
+import { buildRelayIdentity } from "./relay-identity";
 import { renderStatusPage } from "./relay-status-page";
 import { RELAY_VERSION } from "./relay-version";
 
@@ -28,7 +31,17 @@ async function main(): Promise<void> {
   const configLoad = loadRelayConfig(home);
 
   const problems: ConfigProblem[] = configLoad.ok ? [] : configLoad.problems;
-  const allowedOrigin = configLoad.ok ? configLoad.config.webOrigin : null;
+  const config = configLoad.ok ? configLoad.config : null;
+  const allowedOrigin = config?.webOrigin ?? null;
+
+  // Danh tính chỉ dựng được khi cấu hình đủ. `null` không làm cầu nối tắt — nó làm mọi đường
+  // làm việc thật trả về đúng câu "chưa cấu hình xong", xem `relay-config.ts`.
+  const identity = config ? buildRelayIdentity(config, keypair.privateKey) : null;
+  const antidetect = new RelayAntidetect(config);
+
+  const notConfiguredMessage =
+    `Cầu nối trên máy này chưa cấu hình xong (${problems.length} mục còn thiếu). ` +
+    `Mở ${RELAY_ORIGIN} trên máy đó để xem thiếu gì.`;
 
   const server = createRelayServer({
     allowedOrigin,
@@ -37,20 +50,19 @@ async function main(): Promise<void> {
         publicKeyHex: keypair.publicKeyHex,
         home,
         problems,
-        // Phép kiểm MultiZen vào ở bước sau của phase này; tới lúc đó trang nói thẳng
-        // "chưa kiểm" thay vì khai bừa một câu trả lời nó chưa có.
-        antidetectReady: null,
+        // Trang trạng thái dựng đồng bộ nên nó đọc kết quả đã nhớ của lần hỏi gần nhất; lần
+        // hỏi thật do `/health` bắn. Chưa hỏi lần nào thì nói thẳng "chưa kiểm".
+        antidetectReady: antidetect.lastProbe(),
       }),
     routes: {
-      "/health": () => ({
+      [RELAY_PATHS.health]: async () => ({
         ok: problems.length === 0,
-        message:
-          problems.length === 0
-            ? "Cầu nối sẵn sàng."
-            : `Cầu nối đang chạy nhưng chưa cấu hình xong (${problems.length} mục). Mở ${RELAY_ORIGIN} để xem thiếu gì.`,
+        message: problems.length === 0 ? "Cầu nối sẵn sàng." : notConfiguredMessage,
         publicKey: keypair.publicKeyHex,
-        antidetectReady: false,
+        antidetectReady: await antidetect.isReady(),
       }),
+      [RELAY_PATHS.ticket]: (_request, body) =>
+        handleTicketRequest(body, { identity, antidetect, notConfiguredMessage }),
     },
   });
 
