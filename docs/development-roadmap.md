@@ -11,7 +11,7 @@ Dự án đang chạy **hai luồng song song**:
 | Luồng | Là gì | Trạng thái |
 |---|---|---|
 | **A — Công cụ** | 5 giai đoạn gốc: kho danh tính → hàng đợi → sức khỏe → Facebook → tự đăng Reddit | GĐ1-4 xong, GĐ0 kẹt ở tiền + cold-start, GĐ5 chưa bắt đầu |
-| **B — Web chung** | Biến app một máy thành web chung cho 5-6 người ở 5-6 nơi | GĐ0-2 xong 05/08, GĐ3 đang làm (7/11 việc), còn 3 giai đoạn |
+| **B — Web chung** | Biến app một máy thành web chung cho 5-6 người ở 5-6 nơi | GĐ0-2 xong 05/08, GĐ3 đang làm (7/11 việc), GĐ5 đã khởi động (Dockerfile) |
 
 Luồng B sinh ra sau khi chốt bàn giao cho team — xem
 [plan web chung](../plans/260804-1752-web-chung-cho-team-phan-tan/plan.md). Nó **không thay thế**
@@ -45,7 +45,7 @@ Chi tiết ở [plan.md](../plans/260804-1752-web-chung-cho-team-phan-tan/plan.m
 | 2 | [Đăng nhập, vai trò, chủ sở hữu nick](../plans/260804-1752-web-chung-cho-team-phan-tan/phase-02-dang-nhap-vai-tro-chu-so-huu.md) | ✅ Xong | 05/08 | – (hoãn có chủ ý: bộ lọc "nick của tôi", chỉ là tiện nghi hiển thị) |
 | 3 | [Tách hai vùng khóa + vé ký](../plans/260804-1752-web-chung-cho-team-phan-tan/phase-03-tach-hai-vung-khoa-va-ve-ky.md) | 🟡 Đang làm — 7/11 việc | Bắt đầu 05/08 | Bộ dựng/ký/mã hóa vé, chuyển reveal/OTP sang vé, gỡ khóa vùng operator khỏi máy chủ |
 | 4 | Cầu nối trên máy operator | ⬜ Chưa bắt đầu | – | **Đường găng.** Chờ GĐ3 |
-| 5 | Lên Railway + cron + sao lưu | ⬜ Chưa bắt đầu | – | Làm song song được từ sau GĐ1 |
+| 5 | Lên Railway + cron + sao lưu | 🟡 Đã bắt đầu | 05/08 | `Dockerfile` xong và ảnh đã chạy thật trong container; còn cron, sao lưu, và đẩy lên Railway |
 | 6 | Bàn giao team | ⬜ Chưa bắt đầu | – | Chờ GĐ4 |
 
 **GĐ1 đã đổi nền dữ liệu sang Postgres và đóng hẳn** (05/08/2026): 482/482 test, 4 smoke test và

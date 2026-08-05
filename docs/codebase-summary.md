@@ -82,6 +82,8 @@ scripts/
 ├── backup-database.ts          Sao lưu bằng pg_dump (chạy được khi app đang mở)
 ├── upgrade-database.ts         Nâng cấp sau khi nhận bản mới: sao lưu rồi `migrate deploy`
 ├── import-proxies-from-provider-list.ts  Nhập hàng loạt proxy từ file nhà cung cấp
+├── import-proxies-from-sqlite-backup.ts  Nhập proxy từ `dev.db` bản SQLite cũ (mặc định chỉ
+│                                xem trước, phải `--apply` mới ghi)
 ├── run-health-check.ts         Dò shadowban + đọc karma mọi nick Reddit (Phase 03)
 ├── smoke-test-identity-vault.ts  Kiểm chứng Phase 01
 ├── smoke-test-content-rules.ts   Kiểm chứng Phase 02
@@ -89,6 +91,9 @@ scripts/
 └── smoke-test-facebook-pages.ts  Kiểm chứng Phase 04 (không cần Meta App)
 plans/                          Kế hoạch triển khai (chỉ đọc, không sửa)
 docs/                           Tài liệu dự án
+Dockerfile                      Ảnh cho môi trường chạy thật (GĐ5) — dựng trên ảnh Playwright
+                                chính chủ, mang theo src/ + scripts/ + tsx vì lượt dò chạy ở
+                                tiến trình riêng, không nằm trong đồ thị import của Next
 ```
 
 ---
