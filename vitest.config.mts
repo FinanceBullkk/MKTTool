@@ -62,8 +62,15 @@ export default defineConfig({
     // Dựng schema test một lần cho cả lượt chạy, dọn sạch khi xong.
     globalSetup: ["./vitest.global-setup.ts"],
     env: {
-      // prisma-client.ts đọc DATABASE_URL ngay lúc import, không phải lúc gọi truy vấn —
-      // nên phải đặt ở đây chứ không đặt trong beforeAll.
+      /**
+       * Đặt ở đây chứ không trong `beforeAll`: `env` của vitest có mặt từ trước khi file test
+       * được nạp, còn `beforeAll` chạy sau — mà chỉ cần một module nào đó chạm vào `prisma` ở
+       * thân module là đã muộn.
+       *
+       * (Từ 05/08/2026 `prisma-client.ts` dựng client TRỄ nên nó không còn đọc biến này lúc
+       * import nữa. Vẫn giữ ở đây: các test chạm database cần biến có mặt lúc truy vấn, và
+       * `env` là chỗ chắc chắn sớm hơn mọi thứ khác.)
+       */
       DATABASE_URL: TEST_DATABASE_URL,
       /**
        * Múi giờ team cho test. Đặt CỐ ĐỊNH và cố ý KHÔNG lấy theo máy: mục đích của cả

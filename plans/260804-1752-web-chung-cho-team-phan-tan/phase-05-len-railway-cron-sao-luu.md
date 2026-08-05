@@ -76,9 +76,10 @@ không nói được gì
 
 - [ ] Dự án Railway + Postgres + nối GitHub
 - [ ] Khai biến môi trường; **xác nhận không có `VAULT_KEY_OPERATOR`**
-- [x] `Dockerfile` + `.dockerignore` (05/08/2026) — **viết xong, CHƯA build thử lần nào.**
-  Dựng trên ảnh `mcr.microsoft.com/playwright:v1.62.1-noble` (Chromium + thư viện hệ thống có
-  sẵn, bản ghim theo `package.json`). Ba chốt đã đóng trong lúc viết — xem [dưới](#dockerfile--ba-chốt-đã-đóng)
+- [x] `Dockerfile` + `.dockerignore` (05/08/2026) — **đã build thật và nghiệm thu trong container.**
+  Ảnh **4.86 GB**, chạy bằng `pwuser` (không phải root). Dựng trên
+  `mcr.microsoft.com/playwright:v1.62.1-noble`. Ba chốt lúc viết ở [dưới](#dockerfile--ba-chốt-đã-đóng);
+  ba lỗi mà chính lượt build bắt được ở [đây](#build-thật-bắt-được-ba-lỗi-mà-test-không-thấy)
 - [ ] Thử domain Railway với Facebook; mua tên miền nếu bị từ chối
 - [ ] Redirect URI + cả team vào vai trò Tester
 - [ ] Cron dò shadowban hằng ngày theo `TEAM_TIMEZONE`
@@ -108,6 +109,43 @@ múi giờ team thì phải build lại**, khởi động lại không đủ.
 
 > Kèm theo: ảnh cài `postgresql-client` cho `pg_dump` — `db:backup` và bước tự sao lưu của
 > `vault:rekey` đều gọi nó. Thiếu thì xoay khóa dừng ngay ở bước sao lưu.
+
+### Build thật bắt được ba lỗi mà test không thấy
+
+Cả ba đều **không** hiện ra trong 605 test, `typecheck` hay `lint` — vì cả ba đều chạy trong môi
+trường *có* `.env` và trên máy Windows của dev. Chúng chỉ lộ ra ở nơi đắt nhất để phát hiện: lần
+deploy đầu tiên.
+
+**1. App không build được nếu thiếu `DATABASE_URL`.** `prisma-client.ts` dựng client ngay ở thân
+module, nên chỉ cần **import** là đã đòi biến. `next build` phải nạp mọi route để đọc cấu hình
+đoạn, mà `layout.tsx` → `SessionBadge` → `require-actor` → file đó, nên build dừng ở
+`/_not-found`. Máy dev không thấy vì `next build` tự nạp `.env`; ảnh Docker cố ý **không** có
+file đó. Đã sửa: dựng trễ bằng `Proxy` — không phải sửa hơn trăm chỗ gọi — kèm test canh. Tiện
+thể gỡ luôn một tác dụng phụ âm thầm: trước đây import module này mở sẵn connection pool, kể cả
+trong test không hỏi database câu nào.
+
+**2. `RUN chown -R pwuser /app` một mình nó nặng 998 MB.** `chown` đụng metadata mọi file nên
+Docker coi cả cây là đã đổi và chép lại nguyên `/app` thành tầng thứ hai — ảnh mang hai bản của
+cùng một thứ. Thay bằng `COPY --chown` và đổi user trước khi chép. Ảnh **6.6 GB → 4.86 GB**.
+
+**3. `pg_dump` của Ubuntu Noble là bản 16, server là 17.** `pg_dump` **từ chối** dump từ server
+có major cao hơn nó — nên bản mặc định trông như cài xong nhưng hỏng đúng ngày cần sao lưu. Đã
+chuyển sang kho PGDG lấy `postgresql-client-17`.
+> **Quy tắc khi nâng cấp:** `pg_dump` phải có major ≥ major của server. Nâng Postgres lên 18 mà
+> quên sửa `ARG PG_CLIENT_MAJOR` thì **mọi bản sao lưu im lặng ngừng chạy** — cùng họ rủi ro với
+> luật firewall WebRTC ở GĐ6.
+
+**Một giả thiết đã kiểm ra là SAI, ghi lại để khỏi ai đi lại:** `npm ci` trong ảnh **không** tải
+trình duyệt lần hai. Ảnh nền đặt sẵn `PLAYWRIGHT_BROWSERS_PATH=/ms-playwright` nên bước cài của
+gói `playwright` thấy đủ rồi thì bỏ qua.
+
+**Còn 595 MB firefox + webkit trong ảnh nền, dự án không dùng bao giờ.** Bỏ được, nhưng phải rời
+ảnh Playwright chính chủ sang tự cài thư viện hệ thống — **đề nghị để nguyên**: đổi 12% dung
+lượng lấy một cơ chế hỏng vào ngày nâng cấp là lỗ, đúng nguyên tắc chọn của plan.
+
+**Nghiệm thu đã chạy thật trong container** (không phải chỉ kiểm file có tồn tại): chạy bằng
+`pwuser`, `tsx` v4.23.1, `prisma` CLI, `pg_dump` 17.10, `scripts/` và `src/` đủ, và **Chromium mở
+được thật** — `chromium.launch()` rồi dựng một trang.
 
 ## Success Criteria
 

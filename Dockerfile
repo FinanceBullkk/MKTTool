@@ -73,23 +73,57 @@ ENV NODE_ENV=production
 
 # `pg_dump` cho `npm run db:backup` và cho bước tự sao lưu của `vault:rekey`. Thiếu nó
 # thì xoay khóa dừng ngay ở bước sao lưu — đúng hướng an toàn, nhưng đúng lúc phiền nhất.
+#
+# ## Vì sao lấy từ kho PGDG chứ không dùng `postgresql-client` của Ubuntu
+#
+# Ubuntu Noble cho bản **16**, còn dự án chạy Postgres **17** (CI dùng `postgres:17`, máy dev
+# 17.10). Mà `pg_dump` **từ chối dump từ server có major cao hơn chính nó** — không phải cảnh
+# báo, là từ chối thẳng:
+#
+#     pg_dump: error: server version: 17.x; pg_dump version: 16.x
+#
+# Nên bản Ubuntu mặc định trông như đã cài xong nhưng hỏng ở đúng ngày cần tới. Đã đo trong ảnh
+# build ngày 05/08/2026, không phải suy đoán.
+#
+# QUY TẮC KHI NÂNG CẤP: `pg_dump` phải có major **≥** major của server. Nâng Postgres lên 18 thì
+# phải sửa dòng `postgresql-client-17` dưới đây trước, nếu không mọi bản sao lưu im lặng ngừng
+# chạy — cùng họ rủi ro với luật firewall WebRTC ở GĐ6: hỏng mà không ai thấy.
+ARG PG_CLIENT_MAJOR=17
 RUN apt-get update \
-  && apt-get install --no-install-recommends -y postgresql-client \
+  && apt-get install --no-install-recommends -y curl ca-certificates \
+  && install -d /usr/share/postgresql-common/pgdg \
+  && curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+       -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
+  && echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt noble-pgdg main" \
+       > /etc/apt/sources.list.d/pgdg.list \
+  && apt-get update \
+  && apt-get install --no-install-recommends -y "postgresql-client-${PG_CLIENT_MAJOR}" \
   && rm -rf /var/lib/apt/lists/*
+
+# Playwright trong ảnh này chạy bằng user `pwuser` có sẵn — không chạy root.
+#
+# Đổi user NGAY ĐÂY, trước mọi lệnh chép, và mọi `COPY` đều mang `--chown`. Bản trước dọn quyền
+# bằng một dòng `RUN chown -R pwuser:pwuser /app` ở cuối, và dòng đó **một mình nó nặng 998 MB**:
+# `chown` đụng vào metadata của mọi file, nên Docker coi cả cây thư mục là đã đổi và chép lại
+# nguyên `/app` thành một tầng mới. Ảnh mang hai bản của cùng một thứ.
+RUN chown pwuser:pwuser /app
+USER pwuser
 
 # Chỉ `dependencies`, không lấy devDependencies. Cắt được tailwind/eslint/vitest/typescript
 # — thứ chỉ cần lúc build. Còn `tsx`, `playwright`, `prisma` nằm ở `dependencies` vì chúng
 # thật sự cần lúc chạy: xem khối chú thích đầu file.
-COPY package.json package-lock.json ./
-COPY prisma ./prisma
-RUN npm ci --omit=dev
+#
+# `npm ci` ở đây KHÔNG tải lại trình duyệt: ảnh nền đặt sẵn `PLAYWRIGHT_BROWSERS_PATH=/ms-playwright`
+# và đã có Chromium ở đó, nên bước cài của gói `playwright` thấy đủ rồi thì bỏ qua. Đã đo.
+COPY --chown=pwuser:pwuser package.json package-lock.json ./
+COPY --chown=pwuser:pwuser prisma ./prisma
+RUN npm ci --omit=dev && npm cache clean --force
 
 # `.next` là bản đã build. `src` và `scripts` là mã nguồn tiến trình dò chạy bằng tsx.
-COPY --from=builder /app/.next ./.next
-COPY --from=builder /app/next.config.ts ./next.config.ts
-COPY --from=builder /app/tsconfig.json ./tsconfig.json
-COPY src ./src
-COPY scripts ./scripts
+COPY --from=builder --chown=pwuser:pwuser /app/.next ./.next
+COPY --chown=pwuser:pwuser next.config.ts tsconfig.json ./
+COPY --chown=pwuser:pwuser src ./src
+COPY --chown=pwuser:pwuser scripts ./scripts
 
 # Thư mục dữ liệu vận hành: ảnh chụp màn hình của bộ dò và bản sao lưu.
 #
@@ -97,10 +131,6 @@ COPY scripts ./scripts
 # bằng chứng của lượt dò cũ (kết luận vẫn nằm trong database), nhưng BẢN SAO LƯU mất thì
 # mất thật: `db:backup` phải tải bản sao về máy, đừng để nó ở đây.
 RUN mkdir -p data/screenshots data/backups
-
-# Playwright trong ảnh này chạy bằng user `pwuser` có sẵn — không chạy root.
-RUN chown -R pwuser:pwuser /app
-USER pwuser
 
 EXPOSE 3000
 ENV PORT=3000
