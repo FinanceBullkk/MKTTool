@@ -14,10 +14,19 @@ import { startHerdHealthCheck } from "@/lib/health/health-check-run-actions";
 
 export function HerdHealthCheckControls({
   running,
+  host,
   minutesElapsed,
   accountCount,
 }: {
   running: boolean;
+  /**
+   * Máy đang giữ khóa.
+   *
+   * Từ lúc khóa nằm trong database thay vì trong file, "đang chạy" có thể là cron trên máy chủ,
+   * là người khác vừa bấm nút, hoặc là chính terminal của mình. Ba tình huống đó dẫn tới ba
+   * việc phải làm khác nhau — nên câu trả lời thiếu tên máy là câu trả lời chưa xong.
+   */
+  host: string | null;
   minutesElapsed: number | null;
   accountCount: number;
 }) {
@@ -38,7 +47,8 @@ export function HerdHealthCheckControls({
 
         {running ? (
           <span className="text-xs text-amber-700 dark:text-amber-400">
-            Đang chạy — bắt đầu {minutesElapsed} phút trước. Tải lại trang để xem bảng đầy dần.
+            Đang chạy trên máy {host} — bắt đầu {minutesElapsed} phút trước. Tải lại trang để xem
+            bảng đầy dần.
           </span>
         ) : null}
       </div>

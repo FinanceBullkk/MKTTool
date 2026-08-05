@@ -1,7 +1,5 @@
-import { mkdtempSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
-import path from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeEach, describe, expect, it } from "vitest";
+import { prisma } from "@/lib/db/prisma-client";
 import { HealthCheckBusyError, acquireHealthCheckLock } from "./health-check-lock";
 import { runHealthCheck } from "./health-check-runner";
 
@@ -11,27 +9,27 @@ import { runHealthCheck } from "./health-check-runner";
  *
  * Nếu khóa được giành muộn — sau khi đã mở Chromium chẳng hạn — thì hai lượt vẫn kịp bắn request
  * chồng nhau đúng vào lúc nguy hiểm, và một test chỉ nhìn "có ném lỗi không" sẽ vẫn xanh.
+ *
+ * Từ lúc khóa chuyển từ file sang một hàng trong database, file này dọn bảng khóa thay vì dọn
+ * thư mục tạm. Nó vốn đã cần Postgres thật: nhánh "chưa có proxy quan sát viên" là một truy vấn
+ * thật, và chính nó là thứ chứng minh khóa được giành TRƯỚC truy vấn đó.
  */
 
-let dir: string;
-let lockPath: string;
-
-beforeEach(() => {
-  dir = mkdtempSync(path.join(tmpdir(), "mkttool-runner-"));
-  lockPath = path.join(dir, "health-check.lock");
+beforeEach(async () => {
+  await prisma.healthCheckLock.deleteMany();
 });
 
-afterEach(() => {
-  rmSync(dir, { recursive: true, force: true });
+afterAll(async () => {
+  await prisma.healthCheckLock.deleteMany();
 });
 
 describe("runHealthCheck — khóa chống chạy chồng", () => {
   it("từ chối khi đã có lượt khác giữ khóa", async () => {
-    const held = acquireHealthCheckLock({ lockPath });
+    const held = await acquireHealthCheckLock();
     try {
-      await expect(runHealthCheck({ lockPath })).rejects.toThrow(HealthCheckBusyError);
+      await expect(runHealthCheck()).rejects.toThrow(HealthCheckBusyError);
     } finally {
-      held.release();
+      await held.release();
     }
   });
 
@@ -41,28 +39,29 @@ describe("runHealthCheck — khóa chống chạy chồng", () => {
    * viên" — dù trong database quả thật chưa có proxy nào.
    */
   it("giành khóa trước khi chạm database hay mở trình duyệt", async () => {
-    const held = acquireHealthCheckLock({ lockPath });
+    const held = await acquireHealthCheckLock();
     try {
-      await expect(runHealthCheck({ lockPath })).rejects.toThrow(/lượt dò chạy dở/);
+      await expect(runHealthCheck()).rejects.toThrow(/lượt dò chạy dở/);
     } finally {
-      held.release();
+      await held.release();
     }
   });
 
   it("thả khóa xong thì lượt sau giành được", async () => {
-    const held = acquireHealthCheckLock({ lockPath });
-    held.release();
+    const held = await acquireHealthCheckLock();
+    await held.release();
 
     // Không còn ai giữ khóa, nên lỗi phải là lỗi TIẾP THEO trên đường đi (thiếu proxy quan sát
     // viên), chứng minh khóa đã được thả sạch chứ không kẹt lại.
-    await expect(runHealthCheck({ lockPath })).rejects.toThrow(/proxy quan sát viên/);
+    await expect(runHealthCheck()).rejects.toThrow(/proxy quan sát viên/);
   });
 
   /** Lượt chạy hỏng giữa chừng KHÔNG được để lại khóa — nếu không bộ dò tự khóa mình 30 phút. */
   it("thả khóa cả khi lượt chạy ném lỗi", async () => {
-    await expect(runHealthCheck({ lockPath })).rejects.toThrow();
+    await expect(runHealthCheck()).rejects.toThrow();
+
     // Giành lại được ngay = khóa đã được thả trong finally.
-    const after = acquireHealthCheckLock({ lockPath });
-    after.release();
+    const after = await acquireHealthCheckLock();
+    await after.release();
   });
 });

@@ -19,14 +19,14 @@ export const startHerdHealthCheck = guardedAction(async function startHerdHealth
 ): Promise<ActionResult> {
   // Kiểm khóa trước để câu thông báo nói được điều có ích. Tầng dưới (`acquireHealthCheckLock`)
   // vẫn là chỗ chặn thật — nhưng nó chặn bên trong tiến trình con, nơi không ai đọc được.
-  const running = readHealthCheckLockStatus();
+  const running = await readHealthCheckLockStatus();
   if (running.running) {
     return {
       ok: false,
       message:
-        `Đang có một lượt dò chạy dở (tiến trình ${running.pid}, bắt đầu ${running.minutesElapsed} ` +
-        `phút trước). Chờ nó xong rồi bấm lại — hai lượt chồng nhau làm proxy quan sát viên bắn ` +
-        `request dồn dập và bị Reddit chặn.`,
+        `Đang có một lượt dò chạy dở (máy ${running.host}, tiến trình ${running.pid}, bắt đầu ` +
+        `${running.minutesElapsed} phút trước). Chờ nó xong rồi bấm lại — hai lượt chồng nhau ` +
+        `làm proxy quan sát viên bắn request dồn dập và bị Reddit chặn.`,
     };
   }
 

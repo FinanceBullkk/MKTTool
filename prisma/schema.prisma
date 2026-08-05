@@ -141,6 +141,51 @@ model HealthCheck {
   @@index([checkedAt])
 }
 
+/// Khóa chặn hai lượt dò sức khỏe chạy chồng nhau.
+///
+/// ## Vì sao khóa phải rời khỏi file
+///
+/// Bản trước là một file trong `data/`, và nó chỉ đúng khi có **đúng một máy** chạy bộ dò —
+/// tức đúng nhờ quy ước, không phải nhờ thiết kế. Từ GĐ5 có ít nhất hai nơi cùng chạy: cron
+/// trên Railway và nút "Dò cả đàn" trong app. Hai nơi đó không nhìn thấy file của nhau, nên
+/// khóa file im lặng mất tác dụng đúng vào lúc nó bắt đầu cần thiết.
+///
+/// ## Vì sao là một HÀNG chứ không phải advisory lock của Postgres
+///
+/// Kế hoạch gốc chốt advisory lock. Đổi vì hai lẽ:
+///
+/// 1. **Advisory lock không mang theo dữ liệu.** Giao diện hỏi "ai đang giữ, giữ bao lâu rồi",
+///    nên vẫn phải có một hàng ở đâu đó — tức là hai cơ chế cho một khái niệm, và chúng sớm
+///    muộn cũng lệch nhau.
+/// 2. **Advisory lock hỏng MỞ.** Nó gắn theo session; Prisma dùng connection pool, và giữ một
+///    connection riêng suốt mười phút trên Railway thì lớp proxy cắt lúc nào không biết.
+///    Connection chết là Postgres **tự nhả khóa** và lượt thứ hai chen vào được — đúng thứ khóa
+///    sinh ra để chặn, mà lại hỏng lặng lẽ. Hàng này hỏng theo chiều ngược: tiến trình chết thì
+///    hàng ở lại và ai đó phải chờ tối đa `STALE_AFTER_MS`. Chờ thì phiền, chồng nhau thì mất
+///    proxy quan sát viên.
+model HealthCheckLock {
+  /// Luôn là hằng `HEALTH_CHECK_LOCK_KEY`. Bảng có tối đa MỘT hàng, và `@id` là thứ ép điều đó
+  /// ở tầng database — cùng vai trò với cờ `wx` của bản khóa file: tạo được hay đụng phải hàng
+  /// đã có, quyết trong một thao tác, không có khe hở giữa "kiểm" và "ghi".
+  key String @id
+
+  /// Chuỗi ngẫu nhiên của riêng lượt đang giữ.
+  ///
+  /// `release()` chỉ xóa hàng khi token khớp. Không có nó thì một lượt chạy quá hạn, bị lượt
+  /// khác giành khóa, rồi mới kết thúc — sẽ xóa mất khóa của lượt đang chạy thật.
+  token String
+
+  /// Máy và tiến trình đang giữ, để dựng câu "ai đang giữ".
+  ///
+  /// Có `host` vì từ GĐ5 khóa này bắc qua nhiều máy: "tiến trình 4821" một mình không nói được
+  /// gì khi người đọc không biết nó ở máy nào.
+  host String
+  pid  Int
+
+  /// Mốc bắt đầu. Quá `STALE_AFTER_MS` thì coi là khóa mồ côi và giành được.
+  startedAt DateTime
+}
+
 model Account {
   id       String @id @default(cuid())
   platform String // REDDIT | FACEBOOK

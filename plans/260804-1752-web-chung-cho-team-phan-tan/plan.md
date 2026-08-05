@@ -48,7 +48,16 @@ trúc dưới đây tồn tại.
 
 > **Nguyên tắc chọn:** khi có nhiều đường, lấy đường bền hơn kể cả khi tốn code hơn. Ba chỗ đã
 > sửa theo nguyên tắc này sau khi rà lại (04/08/2026): mã hóa nội dung vé cho cầu nối (QĐ 5),
-> advisory lock Postgres thay khóa file (GĐ5), và Dockerfile thay cấu hình riêng của Railway (QĐ 9).
+> khóa chống chạy chồng chuyển vào database thay khóa file (GĐ5), và Dockerfile thay cấu hình
+> riêng của Railway (QĐ 9).
+>
+> Chỗ thứ hai đã làm 05/08/2026, và **đi khác bản chốt ban đầu**: chốt cũ ghi "advisory lock
+> Postgres", làm thật thì hóa ra advisory lock **hỏng mở** — nó gắn theo session, mà giữ một
+> connection riêng suốt mười phút trên Railway thì lớp proxy cắt lúc nào không biết, và
+> connection chết là Postgres tự nhả khóa cho lượt thứ hai chen vào. Nó cũng không mang được dữ
+> liệu "ai đang giữ", nên vẫn phải kèm một hàng — hai cơ chế cho một khái niệm. Thay bằng
+> **một hàng trong bảng `HealthCheckLock`**: hỏng đóng, và trạng thái là thứ đọc được bằng một
+> truy vấn thường.
 
 ## Kiến trúc
 

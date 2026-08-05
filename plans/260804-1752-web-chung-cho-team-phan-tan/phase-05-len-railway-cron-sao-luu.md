@@ -20,9 +20,12 @@ chạy đều kể cả khi mọi người tắt máy.
 
 - Bộ dò chạy trên Railway **tốt hơn** chạy trên máy cá nhân: máy luôn bật, lịch chạy một chỗ,
   không phụ thuộc ai nhớ bật máy.
-- Khóa file `data/health-check.lock` hiện tại chỉ đúng khi **một máy duy nhất** chạy bộ dò — tức
-  đúng nhờ quy ước, không đúng nhờ thiết kế. Đổi sang **advisory lock của Postgres**: đúng bất kể
-  có bao nhiêu nơi chạy, và không còn phụ thuộc vào việc ai đó nhớ đừng chạy tay.
+- ~~Khóa file `data/health-check.lock` chỉ đúng khi **một máy duy nhất** chạy bộ dò~~ — **đã làm
+  05/08/2026**, và đi khác chốt ban đầu: **một hàng trong bảng `HealthCheckLock`**, không phải
+  advisory lock. Xem [ghi chú trong plan.md](plan.md#mười-một-quyết-định-đã-chốt) và chú thích
+  model trong `schema.prisma`. Lý do ngắn: advisory lock hỏng **mở** (connection bị cắt là
+  Postgres tự nhả khóa, lượt thứ hai chen vào được), và nó không mang được dữ liệu "ai đang giữ"
+  nên vẫn phải kèm một hàng — hai cơ chế cho một khái niệm.
 - Lượt dò đầy đủ nghỉ ngẫu nhiên 30-90 giây giữa các nick → 8 nick mất gần 10 phút. Cron phải
   chịu được tác vụ dài, không phải hàm serverless hết giờ giữa chừng.
 - Playwright cần trình duyệt cài sẵn trong ảnh chạy — không tự có.
@@ -47,8 +50,10 @@ GitHub ──push──► Railway build ──► dịch vụ web (Next.js)
 ## Related Code Files
 
 **Tạo:** `Dockerfile` — môi trường chạy kèm thư viện hệ thống cho Playwright
-**Sửa:** [health-check-lock.ts](../../src/lib/health/health-check-lock.ts) — khóa file → advisory
-lock Postgres; giữ nguyên thông báo "ai đang giữ, giữ bao lâu rồi" và cơ chế tự nhả khóa mồ côi
+~~**Sửa:** [health-check-lock.ts](../../src/lib/health/health-check-lock.ts)~~ — **xong 05/08/2026.**
+Khóa file → hàng trong bảng `HealthCheckLock`. Giữ nguyên ngưỡng mồ côi 30 phút; thông báo "ai
+đang giữ" nay có thêm **tên máy** — từ lúc khóa bắc qua nhiều nơi, "tiến trình 4821" một mình
+không nói được gì
 **Sửa:** `.env.example` — thêm biến của môi trường chạy thật
 **Sửa:** `docs/deployment-guide.md`
 
@@ -62,7 +67,8 @@ lock Postgres; giữ nguyên thông báo "ai đang giữ, giữ bao lâu rồi" 
 4. Thử domain miễn phí của Railway làm redirect URI Facebook. Meta từ chối thì mua tên miền
 5. Khai lại redirect URI trong Meta app; thêm cả team vào vai trò Tester
 6. Cron chạy `npm run health` mỗi ngày, giờ tính theo `TEAM_TIMEZONE`
-7. Đổi khóa file sang advisory lock Postgres; test hai lượt chạy song song từ hai tiến trình
+7. ~~Đổi khóa file sang advisory lock Postgres~~ **xong** — còn phép thử hai lượt chạy song song
+   từ hai tiến trình thật (test tự động đã phủ phần logic; phép thử này kiểm cả đường mạng)
 8. Bật sao lưu tự động của Railway; viết script `pg_dump` tải bản sao về máy
 9. Chạy thử một lượt dò thật, xem log, xem kết quả vào `/health`
 
@@ -74,7 +80,8 @@ lock Postgres; giữ nguyên thông báo "ai đang giữ, giữ bao lâu rồi" 
 - [ ] Thử domain Railway với Facebook; mua tên miền nếu bị từ chối
 - [ ] Redirect URI + cả team vào vai trò Tester
 - [ ] Cron dò shadowban hằng ngày theo `TEAM_TIMEZONE`
-- [ ] Advisory lock Postgres thay khóa file; test hai tiến trình chạy song song
+- [x] ~~Advisory lock Postgres~~ **bảng `HealthCheckLock`** thay khóa file (05/08/2026) —
+  còn nợ phép thử **hai tiến trình thật chạy song song**, làm ở bước 9 khi đã có Railway
 - [ ] Sao lưu tự động + script tải bản sao về máy
 - [ ] Chạy thử một lượt dò thật, kết quả lên `/health`
 

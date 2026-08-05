@@ -92,7 +92,7 @@ docs/                           Tài liệu dự án
 
 ## Mô hình dữ liệu
 
-18 model trong `prisma/schema.prisma`. Các ràng buộc `@unique` là chỗ nguyên tắc 1:1 được ép.
+19 model trong `prisma/schema.prisma`. Các ràng buộc `@unique` là chỗ nguyên tắc 1:1 được ép.
 
 | Model | Ý nghĩa | Ràng buộc đáng chú ý |
 |---|---|---|
@@ -111,6 +111,7 @@ docs/                           Tài liệu dự án
 | `FacebookPage` | Một Fanpage đã kết nối | `pageId @unique`; `targetId @unique` ép 1 đích : 1 Page |
 | `User` | **Người dùng công cụ** — không phải nick mạng xã hội (nick là `Account` ở trên) | Hàng này chỉ chứng minh họ TỪNG đăng nhập được. Quyền vào và vai trò tính lại từ `ALLOWED_EMAILS`/`ADMIN_EMAILS` ở **mỗi request**, không đọc cột `role` |
 | `Session`, `AuthAccount`, `Verification` | Do Better Auth quy định hình dạng | `AuthAccount` đổi tên từ mặc định `Account` của thư viện — tên đó đã thuộc về nick từ Phase 01 |
+| `HealthCheckLock` | Khóa chặn hai lượt dò sức khỏe chạy chồng nhau | Tối đa MỘT hàng — `key @id` là thứ ép điều đó, cùng vai trò với cờ `wx` của bản khóa file cũ. `token` để `release()` chỉ xóa khóa của chính mình. Quá 30 phút thì coi là mồ côi và giành được |
 | `RelayDevice` | Một máy chạy cầu nối đã được ADMIN cho vào sổ | `publicKey @unique` (X25519, hex chữ thường) — cùng một khóa nằm hai hàng thì thu hồi một hàng vẫn còn hàng kia sống. `revokedAt` là mốc thời gian chứ không phải cờ, và thu hồi là **một chiều** |
 
 Quan hệ chính: `Account` → `Persona` (n:1), `Account` → `Proxy` (1:1), `PostJob` → `Account` + `PlatformTarget` + `ContentItem`, `Interaction` → `Account` + `PlatformTarget`, `FacebookPage` → `FacebookConnection` (n:1) + `PlatformTarget` (1:1).
