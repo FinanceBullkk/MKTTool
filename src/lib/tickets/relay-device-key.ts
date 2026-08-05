@@ -20,7 +20,13 @@
  * File này chỉ biết phần **công khai**. Khóa riêng của máy sinh ra trên chính máy đó và không
  * bao giờ rời nó — đó là toàn bộ lý do trang web không đọc được nội dung vé nó đang chuyển tay.
  */
-import { type KeyObject, createPublicKey, diffieHellman, generateKeyPairSync } from "node:crypto";
+import {
+  type KeyObject,
+  createPrivateKey,
+  createPublicKey,
+  diffieHellman,
+  generateKeyPairSync,
+} from "node:crypto";
 
 /** Khóa công khai X25519 luôn là 32 byte. */
 export const RELAY_PUBLIC_KEY_BYTES = 32;
@@ -77,6 +83,18 @@ export function normalizeRelayPublicKey(raw: string): string {
 export const SPKI_X25519_PREFIX = Buffer.from("302a300506032b656e032100", "hex");
 
 /**
+ * Vỏ DER cố định của khóa **riêng** X25519 dạng PKCS#8 — 16 byte đầu, rồi 32 byte khóa.
+ *
+ * Ở đây phải ghép byte thật, không đi đường JWK như khóa công khai: JWK cho khóa riêng OKP đòi
+ * **cả** `d` lẫn `x`, mà `x` là khóa công khai — suy ra từ `d` cần một phép nhân vô hướng trên
+ * đường cong, thứ Node không phơi ra. Ghép DER thì OpenSSL tự lo phần đó, và `createPublicKey`
+ * suy ngược ra khóa công khai được.
+ *
+ * Chuỗi này bất biến vì X25519 không có tham số nào để thay đổi: cùng OID, cùng độ dài.
+ */
+const PKCS8_X25519_PREFIX = Buffer.from("302e020100300506032b656e04220420", "hex");
+
+/**
  * Dựng `KeyObject` từ hex đã chuẩn hóa, để đem đi mã hóa nội dung vé.
  *
  * Đi đường JWK chứ không ghép DER bằng tay: cùng ra một khóa, nhưng ghép byte thì lúc sai chỉ
@@ -98,6 +116,40 @@ export function relayPublicKeyToKeyObject(hexKey: string): KeyObject {
     throw new RelayDeviceKeyError(
       `Chuỗi này đúng độ dài nhưng không phải khóa X25519 hợp lệ. ` +
         `Kiểm lại xem có chép nhầm khóa loại khác không. (${(cause as Error).message})`,
+    );
+  }
+}
+
+/**
+ * Dựng khóa **riêng** X25519 từ hex. Chạy trên **cầu nối**, không bao giờ chạy trên máy chủ.
+ *
+ * Đối xứng với `relayPublicKeyToKeyObject` và ở cùng file với nó có chủ ý: hai hàm phải khớp
+ * nhau về cách hiểu chuỗi hex, và để hai nửa của một giao kèo ở hai file là cách chúng lệch
+ * nhau mà không ai thấy.
+ *
+ * Câu lỗi ở đây nói về **file cấu hình của cầu nối**, không nói về sổ đăng ký: khóa riêng chỉ
+ * tới từ đúng một chỗ, là file mà chính cầu nối đã ghi lúc cài.
+ */
+export function relayPrivateKeyToKeyObject(hexKey: string): KeyObject {
+  const hex = hexKey.replace(/\s+/g, "").toLowerCase();
+
+  if (hex.length !== RELAY_PUBLIC_KEY_HEX_LENGTH || !/^[0-9a-f]+$/.test(hex)) {
+    throw new RelayDeviceKeyError(
+      `Khóa riêng của máy phải là ${RELAY_PUBLIC_KEY_HEX_LENGTH} ký tự hex. ` +
+        `File khóa của cầu nối hỏng — xóa nó đi để cầu nối sinh cặp mới, rồi đăng ký lại máy.`,
+    );
+  }
+
+  try {
+    return createPrivateKey({
+      key: Buffer.concat([PKCS8_X25519_PREFIX, Buffer.from(hex, "hex")]),
+      format: "der",
+      type: "pkcs8",
+    });
+  } catch (cause) {
+    throw new RelayDeviceKeyError(
+      `Chuỗi này đúng độ dài nhưng không phải khóa riêng X25519 hợp lệ. ` +
+        `(${(cause as Error).message})`,
     );
   }
 }

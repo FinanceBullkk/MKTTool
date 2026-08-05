@@ -31,7 +31,8 @@
     "health:smoke": "tsx --env-file=.env scripts/smoke-test-account-health.ts",
     "postinstall": "prisma generate",
     "auth:check": "tsx --env-file=.env scripts/check-auth-config.ts",
-    "vault:testotp": "tsx scripts/generate-test-totp-secret.ts"
+    "vault:testotp": "tsx scripts/generate-test-totp-secret.ts",
+    "relay:dev": "tsx relay/src/main.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.9.1",

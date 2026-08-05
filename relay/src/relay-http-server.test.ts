@@ -1,0 +1,121 @@
+import type { AddressInfo } from "node:net";
+import { afterEach, describe, expect, it } from "vitest";
+import { createRelayServer } from "./relay-http-server";
+import { RELAY_VERSION } from "./relay-version";
+
+const WEB_ORIGIN = "https://mkttool.example.com";
+
+/** Máy chủ thật trên cổng ngẫu nhiên — kiểm header thì phải đi qua HTTP thật. */
+const running: { close: () => void }[] = [];
+
+async function startServer(allowedOrigin: string | null = WEB_ORIGIN): Promise<string> {
+  const server = createRelayServer({
+    allowedOrigin,
+    statusPage: () => "<!doctype html><title>trang trạng thái</title>",
+    routes: {
+      "/health": () => ({ ok: true, message: "sẵn sàng" }),
+      "/echo": (_request, body) => ({ ok: true, message: body }),
+      "/no": () => ({ ok: false, message: "từ chối" }),
+      "/boom": () => {
+        throw new Error("hỏng bên trong");
+      },
+    },
+  });
+
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  running.push({ close: () => server.close() });
+
+  return `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+}
+
+afterEach(() => {
+  while (running.length > 0) running.pop()!.close();
+});
+
+describe("máy chủ HTTP của cầu nối", () => {
+  it("mọi phản hồi JSON đều mang relayVersion — QĐ 11", async () => {
+    const base = await startServer();
+
+    for (const path of ["/health", "/no", "/khong-co-duong-nay"]) {
+      const body = await (await fetch(`${base}${path}`)).json();
+      expect(body.relayVersion, path).toBe(RELAY_VERSION);
+    }
+  });
+
+  it("trả header CORS cho đúng nguồn đã khai", async () => {
+    const base = await startServer();
+    const response = await fetch(`${base}/health`, { headers: { origin: WEB_ORIGIN } });
+
+    expect(response.headers.get("access-control-allow-origin")).toBe(WEB_ORIGIN);
+  });
+
+  it("KHÔNG trả header CORS cho nguồn lạ", async () => {
+    // `*` là đường ngắn và sai: nó cho mọi trang người dùng đang mở gọi xuống cầu nối.
+    const base = await startServer();
+    const response = await fetch(`${base}/health`, { headers: { origin: "https://ke-la.example" } });
+
+    expect(response.headers.get("access-control-allow-origin")).toBeNull();
+  });
+
+  it("chưa cấu hình xong thì không nguồn nào được CORS", async () => {
+    const base = await startServer(null);
+    const response = await fetch(`${base}/health`, { headers: { origin: WEB_ORIGIN } });
+
+    expect(response.headers.get("access-control-allow-origin")).toBeNull();
+  });
+
+  it("trả lời preflight bằng 204 kèm đủ header", async () => {
+    const base = await startServer();
+    const response = await fetch(`${base}/health`, {
+      method: "OPTIONS",
+      headers: { origin: WEB_ORIGIN, "access-control-request-method": "POST" },
+    });
+
+    expect(response.status).toBe(204);
+    expect(response.headers.get("access-control-allow-methods")).toContain("POST");
+  });
+
+  it("đường không có thì trả 404 kèm câu đoán đúng nguyên nhân", async () => {
+    const base = await startServer();
+    const response = await fetch(`${base}/khong-co`);
+
+    expect(response.status).toBe(404);
+    expect((await response.json()).message).toContain("lệch phiên bản");
+  });
+
+  it("đọc được thân POST", async () => {
+    const base = await startServer();
+    const response = await fetch(`${base}/echo`, { method: "POST", body: "xin chào" });
+
+    expect((await response.json()).message).toBe("xin chào");
+  });
+
+  it("ok:false ra HTTP 400, để phía web phân biệt được với lỗi mạng", async () => {
+    const base = await startServer();
+    expect((await fetch(`${base}/no`)).status).toBe(400);
+  });
+
+  it("lỗi ném ra từ trong đường xử lý thành 500 có câu chữ, không phải stack trace", async () => {
+    const base = await startServer();
+    const response = await fetch(`${base}/boom`);
+    const body = await response.json();
+
+    expect(response.status).toBe(500);
+    expect(body.ok).toBe(false);
+    expect(body.message).toContain("hỏng bên trong");
+    expect(JSON.stringify(body)).not.toContain("at ");
+  });
+
+  it("GET / trả trang trạng thái dạng HTML", async () => {
+    const base = await startServer();
+    const response = await fetch(base);
+
+    expect(response.headers.get("content-type")).toContain("text/html");
+    expect(await response.text()).toContain("trang trạng thái");
+  });
+
+  it("không lưu đệm bất cứ phản hồi nào — vé và bí mật đi qua đây", async () => {
+    const base = await startServer();
+    expect((await fetch(`${base}/health`)).headers.get("cache-control")).toBe("no-store");
+  });
+});

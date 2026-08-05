@@ -27,7 +27,10 @@
  * khóa vào đúng mục đích: cùng một cặp khóa dùng cho việc khác sẽ nấu ra khóa khác.
  */
 import { diffieHellman, generateKeyPairSync, hkdfSync } from "node:crypto";
-import { decryptCredential, encryptCredential } from "@/lib/crypto/credential-encryption";
+// Đường dẫn tương đối, KHÔNG dùng alias `@/`: file này chạy cả trên máy chủ lẫn trong `.exe`
+// cầu nối, mà cầu nối build bằng esbuild với tsconfig riêng — alias là thứ chỉ có một trong
+// hai bên biết. Cả `src/lib/tickets/`, `src/lib/crypto/` và `src/lib/relay/` giữ luật này.
+import { decryptCredential, encryptCredential } from "../crypto/credential-encryption";
 import {
   RelayDeviceKeyError,
   relayPublicKeyToHex,

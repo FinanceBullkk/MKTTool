@@ -13,7 +13,8 @@
 
 ## Overview
 
-**Ưu tiên:** cao — **nằm trên đường găng** | **Trạng thái:** chưa làm | **Dự kiến:** 4-6 ngày
+**Ưu tiên:** cao — **nằm trên đường găng** | **Trạng thái:** 🟡 đang làm — 4/18 việc (06/08/2026) |
+**Dự kiến:** 4-6 ngày
 
 Một file `.exe` chạy nền trên máy người vận hành. Việc của nó: nhận vé từ trình duyệt, xác minh
 chữ ký máy chủ, giải mã bằng khóa operator, rồi hoặc mở profile MultiZen, hoặc hiện mật khẩu/OTP.
@@ -120,9 +121,26 @@ Import từ `src/lib/` qua đường dẫn tương đối. **Không dựng works
 
 ## Todo List
 
-- [ ] Khung `relay/` + HTTP nghe `127.0.0.1`
-- [ ] Sinh cặp khóa của máy lúc cài, hiện khóa công khai để đăng ký
-- [ ] Nạp khóa + chữ ký công khai, thiếu thì báo rõ
+- [x] **XONG 06/08 — khung `relay/` + HTTP nghe `127.0.0.1`.**
+      [relay-http-server](../../relay/src/relay-http-server.ts) (CORS đúng một nguồn, mọi phản
+      hồi mang `relayVersion`, cổng bị chiếm thì báo rõ), [main](../../relay/src/main.ts),
+      [relay-home](../../relay/src/relay-home.ts). Chạy thật: `npm run relay:dev`.
+- [x] **XONG 06/08 — sinh cặp khóa của máy lúc cài, hiện khóa công khai để đăng ký.**
+      [relay-device-keypair](../../relay/src/relay-device-keypair.ts) +
+      [trang trạng thái](../../relay/src/relay-status-page.ts). File khóa hỏng thì **ném lỗi**,
+      không âm thầm sinh cặp mới — sinh mới ở đó là biến một máy đã đăng ký thành máy lạ.
+      Kèm `relayPrivateKeyToKeyObject` ở phía dùng chung, có test đối chiếu **vector RFC 7748**.
+- [x] **XONG 06/08 — nạp khóa + chữ ký công khai, thiếu thì báo rõ.**
+      [relay-config](../../relay/src/relay-config.ts). Thiếu cấu hình **không** làm cầu nối tắt:
+      nó chạy nền và tự bật cùng máy, nên đổ lúc khởi động là không có gì để nhìn — triệu chứng
+      duy nhất sẽ là *"không thấy cầu nối trên máy này"*, câu chỉ sai hướng hoàn toàn. Cầu nối
+      vẫn nghe, trang trạng thái nói thiếu gì, và mọi đường làm việc thật từ chối thẳng.
+      Gom **hết** vấn đề trong một lượt thay vì dừng ở cái đầu tiên.
+- [ ] **Hiện mã máy (`RelayDevice.id`) trên trang `/relay-devices`** — phát sinh khi làm việc 3.
+      Cầu nối phải biết mã máy của chính nó để đối chiếu `TicketEnvelope.deviceId`, mà mã đó chỉ
+      tồn tại **sau** khi ADMIN ghi máy vào sổ, và cầu nối không hỏi lại được (QĐ 5 — không nối
+      mạng). Nên luồng cài là hai chiều: khóa công khai đi lên, **mã máy đi xuống**. Trang hiện
+      nay không hiện mã máy ở đâu cả.
 - [ ] Giải mã vé bằng khóa riêng của máy
 - [ ] Xác minh vé: chữ ký / hết hạn / chống dùng lại
 - [ ] Mở profile qua adapter, giữ quy tắc đẩy hỏng thì không mở
@@ -136,7 +154,12 @@ Import từ `src/lib/` qua đường dẫn tương đối. **Không dựng works
 - [ ] Web báo rõ khi cầu nối chưa chạy
 - [ ] Phục vụ file `.exe` sau lớp đăng nhập; web cảnh báo khi cầu nối chạy bản cũ
 - [ ] Vé mang phiên bản tối thiểu; cầu nối quá cũ từ chối kèm câu nói rõ phải làm gì
-- [ ] Test chặn import `lib/db` / `next` vào `relay/`
+- [x] **XONG 06/08 — test chặn import `lib/db` / `next` vào `relay/`.**
+      [relay-import-boundary.test.ts](../../src/lib/relay/relay-import-boundary.test.ts). Chặn
+      thêm React, alias `@/`, và `lib/auth/` — cầu nối **không tự quyết ai được đọc gì**, kéo lớp
+      phân quyền vào là dựng lại quyết định đó ở chỗ thứ hai. Test nằm ở `src/` chứ không ở
+      `relay/`: một phép canh biên giới mà tự nằm trong vùng nó canh thì mất cùng lúc với thứ nó
+      canh.
 - [ ] Test từ chối vé giả / quá hạn / dùng lại
 
 ## Success Criteria
