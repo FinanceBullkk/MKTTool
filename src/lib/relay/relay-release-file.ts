@@ -16,7 +16,8 @@
  * Biến `RELAY_RELEASE_DIR` để trỏ sang chỗ khác (ví dụ một volume gắn vào container, nơi quản
  * trị viên tải `.exe` lên sau mỗi lần phát hành).
  */
-import { statSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { createReadStream, statSync } from "node:fs";
 import path from "node:path";
 import { RELAY_VERSION } from "./relay-endpoints";
 
@@ -89,6 +90,49 @@ export function readRelayRelease(): RelayRelease {
   } catch {
     return { available: false, expectedPath: filePath };
   }
+}
+
+/**
+ * Bộ nhớ đệm mã băm, đúng **một ô**.
+ *
+ * Máy chủ chỉ phát hành một gói tại một thời điểm, nên giữ lịch sử là phình bộ nhớ theo số lần
+ * phát hành để đổi lấy một lượt băm mà không ai đợi. Khóa gồm cả cỡ file lẫn mốc sửa: thay gói
+ * mới vào đúng đường dẫn cũ — chính là cách nâng cấp — thì khóa đổi và ô cũ bị đè.
+ */
+let cachedChecksum: { key: string; digest: string } | null = null;
+
+/**
+ * Mã băm SHA-256 của gói tải, dạng hex thường. `null` khi chưa có gói.
+ *
+ * ## Nó chứng minh được gì, và KHÔNG chứng minh được gì
+ *
+ * **Được:** file tải về nguyên vẹn. 32 MB qua một đường mạng chập chờn đứt giữa chừng là chuyện
+ * có thật, và một file `.zip` cụt thường vẫn giải nén ra được vài file — tức hỏng theo kiểu khó
+ * nhận ra nhất. Cũng trả lời được câu *"đồng nghiệp gửi tôi một file qua chat, có đúng bản của
+ * team không"*.
+ *
+ * **Không được:** đây **không phải chữ ký số**. Mã băm nằm cùng máy chủ với file, nên ai chiếm
+ * được máy chủ thì đổi được cả hai. Chống được tai nạn và nhầm lẫn, không chống được kẻ đã vào
+ * tới trong. Muốn có tính chất kia thì phải mua chứng chỉ ký mã — xem ghi chú ở trang tải.
+ *
+ * Băm theo dòng chứ không đọc cả file vào bộ nhớ, và bất đồng bộ: một lượt băm 32 MB đồng bộ là
+ * khóa vòng lặp sự kiện của cả tiến trình web trong vài trăm mili giây.
+ */
+export async function relayArchiveChecksum(): Promise<string | null> {
+  const release = readRelayRelease();
+  if (!release.available) return null;
+
+  const key = `${release.path}:${release.sizeBytes}:${release.builtAt.getTime()}`;
+  if (cachedChecksum?.key === key) return cachedChecksum.digest;
+
+  const hash = createHash("sha256");
+  for await (const chunk of createReadStream(release.path)) {
+    hash.update(chunk as Buffer);
+  }
+
+  const digest = hash.digest("hex");
+  cachedChecksum = { key, digest };
+  return digest;
 }
 
 /** Dung lượng cho người đọc. */

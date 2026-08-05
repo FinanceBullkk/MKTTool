@@ -35,6 +35,7 @@ import { copyFileSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync 
 import { createRequire } from "node:module";
 import path from "node:path";
 import { RELAY_VERSION } from "../src/lib/relay/relay-endpoints";
+import { relayArchiveChecksum } from "../src/lib/relay/relay-release-file";
 
 /**
  * Gọi esbuild và postject qua **file JS của chúng**, chạy bằng chính `node` đang chạy script này.
@@ -184,12 +185,27 @@ run("powershell", [
   )}' -DestinationPath '${ARCHIVE_FILE}' -Force`,
 ]);
 
-console.log(`\n✅ ${path.relative(process.cwd(), ARCHIVE_FILE)} — ${sizeOf(ARCHIVE_FILE)}`);
-console.log(`   (${path.relative(process.cwd(), EXECUTABLE_FILE)} — ${sizeOf(EXECUTABLE_FILE)})`);
-console.log(`
+/**
+ * Phần kết nằm trong một hàm async vì **`tsx` biên dịch script này sang CJS** (package.json
+ * không khai `"type": "module"`), mà CJS thì không có `await` ở cấp cao nhất.
+ */
+async function printSummary(): Promise<void> {
+  console.log(`\n✅ ${path.relative(process.cwd(), ARCHIVE_FILE)} — ${sizeOf(ARCHIVE_FILE)}`);
+  console.log(`   (${path.relative(process.cwd(), EXECUTABLE_FILE)} — ${sizeOf(EXECUTABLE_FILE)})`);
+
+  // Dùng lại đúng hàm mà trang tải dùng, không băm lại bằng một lệnh khác: hai đường tính ra hai
+  // con số là kiểu hỏng tệ nhất ở đây — người cài đối chiếu thấy lệch rồi kết luận file hỏng.
+  console.log(`   SHA-256: ${await relayArchiveChecksum()}`);
+  console.log(`
 Nghiệm thu ngay: npm run relay:verify
 
 File này KHÔNG có chữ ký số. Windows SmartScreen sẽ hỏi lại ở lần chạy đầu trên mỗi máy —
 đó là hành vi đúng của Windows với một file lạ tải từ mạng về, không phải dấu hiệu hỏng.
 Người cài bấm "More info" → "Run anyway", hoặc chạy qua setup.bat.
+
+Mã băm ở trên là thứ thay cho chữ ký: nó bắt được file tải dở dang hoặc file không phải bản
+này, nhưng KHÔNG chứng minh được nguồn gốc — nó nằm cùng máy chủ với file.
 `);
+}
+
+void printSummary();

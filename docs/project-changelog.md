@@ -38,6 +38,10 @@ chương trình chưa tồn tại. Hôm nay chương trình đó có mặt, và 
   tiến trình chết vì hết bộ nhớ, và triệu chứng sẽ là "web tự khởi động lại". Chạy `setup.bat` lần
   hai là **nâng cấp**: tắt bản cũ, chép bản mới, giữ nguyên `relay-config.json` — ghi đè file đó là
   xóa khóa vùng operator của máy, thứ không lấy lại được ở đâu.
+- **Mã băm SHA-256 thay cho chữ ký số.** Chứng chỉ ký mã tốn vài trăm USD/năm, đòi pháp nhân và
+  token phần cứng, để đổi lấy việc bỏ một màn hình SmartScreen mà mỗi người chỉ gặp một lần. Mã
+  băm miễn phí và trả lời được câu *"file tôi đang cầm có đúng bản của team không"* — trang nói
+  rõ luôn phần nó **không** làm được: mã nằm cùng máy chủ với file nên không chứng minh nguồn gốc.
 - **Mã máy hiện ở `/relay-devices`, và dải "cầu nối bản cũ" ở chỗ có nút bấm.** Luồng cài đi hai
   chiều — khóa công khai đi lên, mã máy đi xuống — và chiều xuống trước nay không có đường nào.
   Dải cảnh báo kêu **cả khi cầu nối bị từ chối vé**: máy cũ tới mức vé bị chặn chính là máy cần
@@ -51,7 +55,7 @@ chương trình chưa tồn tại. Hôm nay chương trình đó có mặt, và 
 - **Bỏ `relay/dist` khỏi ESLint.** ESLint không đọc `.gitignore`, nên từ lúc có thư mục build thì
   `npm run lint` chết ngay ở bước dựng cấu hình — cả lệnh hỏng chỉ vì có người vừa build.
 
-**Kiểm chứng:** `typecheck` + `lint` + **783 test xanh**, `npm run relay:verify` 16/16 trên `.exe`,
+**Kiểm chứng:** `typecheck` + `lint` + **787 test xanh**, `npm run relay:verify` 16/16 trên `.exe`,
 bộ cài chạy trọn vòng từ `.zip` giải nén ra (kể cả đường nâng cấp).
 
 > ⚠️ **Chưa nghiệm thu trên máy Windows thứ hai.** Đó là tiêu chí chính của GĐ4 và nó cần một

@@ -13,8 +13,8 @@
 
 ## Overview
 
-**Ưu tiên:** cao — **nằm trên đường găng** | **Trạng thái:** 🟡 đang làm — 12/18 việc (06/08/2026) |
-**Dự kiến:** 4-6 ngày
+**Ưu tiên:** cao — **nằm trên đường găng** | **Trạng thái:** 🟢 code xong — 19/19 việc (06/08/2026),
+chờ nghiệm thu tay trên một máy Windows thứ hai | **Dự kiến:** 4-6 ngày, thực tế 1 ngày
 
 Một file `.exe` chạy nền trên máy người vận hành. Việc của nó: nhận vé từ trình duyệt, xác minh
 chữ ký máy chủ, giải mã bằng khóa operator, rồi hoặc mở profile MultiZen, hoặc hiện mật khẩu/OTP.
@@ -293,6 +293,15 @@ Import từ `src/lib/` qua đường dẫn tương đối. **Không dựng works
       ảnh Docker dựng trên Linux, nên trang nói thẳng máy chủ đã tìm ở đâu, kèm biến
       `RELAY_RELEASE_DIR` để trỏ sang volume. Cả team tải được, không riêng ADMIN — bắt operator
       đi xin file qua chat là dựng lại đúng thói quen mà trang này sinh ra để dẹp.
+      **Mã băm SHA-256 thay cho chữ ký số.** Chứng chỉ ký mã tốn vài trăm USD mỗi năm, đòi pháp
+      nhân và token phần cứng, để đổi lấy việc bỏ đúng một màn hình SmartScreen mà mỗi người chỉ
+      gặp một lần — không đáng cho 5-6 người cài một lần. Mã băm thì miễn phí và trả lời được câu
+      *"file tôi đang cầm có đúng bản của team không"*. Nói rõ ngay tại chỗ cả phần **không** làm
+      được: nó nằm cùng máy chủ với file nên không chứng minh nguồn gốc, chỉ bắt được tải dở dang
+      và nhầm file. Băm theo dòng, bất đồng bộ, đệm một ô khóa theo `đường dẫn + cỡ + mốc sửa` —
+      khóa thiếu mốc sửa là sau mỗi lần phát hành trang hiện số của bản cũ, và người cài đối chiếu
+      thấy lệch rồi kết luận file hỏng trong khi file hoàn toàn đúng. Bộ build in ra **cùng con số
+      bằng cùng một hàm**, đã đối chiếu khớp với `Get-FileHash` của Windows.
       **Dải cảnh báo kêu cả ở nhánh bị từ chối**, và đó mới là nhánh quan trọng: máy cũ tới mức
       vé bị chặn (`RELAY_TOO_OLD`) chính là máy cần nhắc nhất. Chỉ bật, không tắt — "không hỏi
       được" không phải bằng chứng đã cập nhật. Im khi cầu nối chạy bản **mới hơn** máy chủ (xảy
@@ -341,7 +350,7 @@ chỉ nghiệm thu được bằng tay, và nó cần một chiếc máy thứ h
   `/secret/reveal` của cầu nối), nhưng phần nhìn bằng mắt trong devtools vẫn phải làm tay.
 - ✅ Ba loại vé hỏng đều bị từ chối — **đo trên chính `.exe`**, không phải trên mã nguồn:
   vé giả, vé quá hạn, vé dùng lại, cộng vé sai loại đi nhầm đường.
-- ✅ `npm test` xanh (783), gồm cả test chặn import; `npm run relay:verify` 16/16.
+- ✅ `npm test` xanh (787), gồm cả test chặn import; `npm run relay:verify` 16/16.
 
 ## Risk Assessment
 

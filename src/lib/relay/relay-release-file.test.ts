@@ -6,7 +6,7 @@
  * ngoại lệ ném ra từ `statSync`: trang tải cần in được chỗ đã tìm để người sửa biết đặt file vào
  * đâu, mà một exception thì chỉ còn cách hiện "lỗi máy chủ".
  */
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, rmSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -14,6 +14,7 @@ import { RELAY_VERSION } from "./relay-endpoints";
 import {
   RELAY_ARCHIVE_NAME,
   readRelayRelease,
+  relayArchiveChecksum,
   relayDownloadFileName,
 } from "./relay-release-file";
 
@@ -68,5 +69,52 @@ describe("readRelayRelease", () => {
     // theo phiên bản, còn thư mục Downloads thì cần phân biệt được các bản nằm cạnh nhau.
     expect(relayDownloadFileName()).toBe(`MKTTool-Relay-v${RELAY_VERSION}.zip`);
     expect(RELAY_ARCHIVE_NAME).not.toContain(String(RELAY_VERSION));
+  });
+});
+
+describe("relayArchiveChecksum", () => {
+  /** SHA-256 của chuỗi "hello" — hằng số công khai, không tính lại bằng chính thư viện đang đo. */
+  const HELLO_SHA256 = "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824";
+
+  it("băm đúng chuẩn SHA-256", async () => {
+    const dir = makeReleaseDir();
+    writeFileSync(path.join(dir, RELAY_ARCHIVE_NAME), "hello");
+
+    // So với hằng số ngoài đời, không so với `createHash` gọi lại lần nữa: một phép so như thế
+    // vẫn xanh kể cả khi cả hai bên cùng dùng sai thuật toán.
+    expect(await relayArchiveChecksum()).toBe(HELLO_SHA256);
+  });
+
+  it("chưa có gói thì không có mã băm", async () => {
+    makeReleaseDir();
+    expect(await relayArchiveChecksum()).toBeNull();
+  });
+
+  it("thay gói mới vào đúng đường dẫn cũ thì mã băm phải đổi theo", async () => {
+    // Đây là đường **nâng cấp**: cùng tên file, nội dung khác. Ô đệm mà chỉ khóa theo đường dẫn
+    // sẽ trả số của bản cũ, và người cài đối chiếu thấy lệch rồi kết luận file tải hỏng — trong
+    // khi file hoàn toàn đúng và thứ sai là con số trên trang.
+    const dir = makeReleaseDir();
+    const file = path.join(dir, RELAY_ARCHIVE_NAME);
+
+    writeFileSync(file, "hello");
+    const before = await relayArchiveChecksum();
+
+    // Cùng độ dài để phép kiểm không đi qua được chỉ nhờ cỡ file đổi; đẩy mốc sửa lên một phút
+    // vì hai lượt ghi liên tiếp có thể rơi vào cùng một mốc thời gian của hệ thống tệp.
+    writeFileSync(file, "world");
+    const later = new Date(Date.now() + 60_000);
+    utimesSync(file, later, later);
+
+    expect(await relayArchiveChecksum()).not.toBe(before);
+  });
+
+  it("gọi lại trên cùng một file trả về cùng một chuỗi", async () => {
+    const dir = makeReleaseDir();
+    writeFileSync(path.join(dir, RELAY_ARCHIVE_NAME), "hello");
+
+    // Lượt sau đi qua ô đệm. Trang tải vẽ lại ở mỗi lượt xem, nên nếu ô đệm trả sai thì mỗi
+    // người xem một con số khác nhau — thứ còn tệ hơn là không hiện gì.
+    expect(await relayArchiveChecksum()).toBe(await relayArchiveChecksum());
   });
 });

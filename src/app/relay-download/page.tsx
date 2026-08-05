@@ -5,6 +5,7 @@ import { RELAY_VERSION } from "@/lib/relay/relay-endpoints";
 import {
   formatFileSize,
   readRelayRelease,
+  relayArchiveChecksum,
   relayDownloadFileName,
 } from "@/lib/relay/relay-release-file";
 
@@ -34,6 +35,7 @@ const BUTTON_CLASS =
  */
 export default async function RelayDownloadPage() {
   const release = readRelayRelease();
+  const checksum = await relayArchiveChecksum();
 
   return (
     <>
@@ -63,6 +65,26 @@ export default async function RelayDownloadPage() {
               cùng một thư mục</strong> rồi mới chạy — bộ cài tìm hai file kia cạnh chính nó, nên
               chạy thẳng từ trong file nén thường là hỏng.
             </p>
+
+            {checksum ? (
+              <div className="space-y-1 border-t border-neutral-200 pt-4 dark:border-neutral-800">
+                <p className="text-xs font-medium text-neutral-600 dark:text-neutral-400">
+                  SHA-256 của gói
+                </p>
+                {/* `select-all` + `break-all`: chuỗi 64 ký tự này để chép đi so, không để đọc. */}
+                <code className="block select-all break-all rounded bg-neutral-100 px-2 py-1 font-mono text-xs dark:bg-neutral-800">
+                  {checksum}
+                </code>
+                <p className="pt-1 text-xs text-neutral-500">
+                  Tải xong, mở PowerShell ở thư mục chứa file rồi chạy{" "}
+                  <code className="font-mono">
+                    Get-FileHash {relayDownloadFileName()} -Algorithm SHA256
+                  </code>{" "}
+                  — hai chuỗi phải khớp. Lệch nghĩa là file tải dở dang hoặc không phải bản này;
+                  tải lại, đừng chạy.
+                </p>
+              </div>
+            ) : null}
           </div>
         ) : (
           <EmptyState>
@@ -111,7 +133,10 @@ export default async function RelayDownloadPage() {
               Windows hỏi lại ở lần chạy đầu.
             </strong>{" "}
             File này không mua chữ ký số, nên SmartScreen cảnh báo — đúng hành vi của Windows với
-            một chương trình lạ tải từ mạng. Bấm <em>More info</em> → <em>Run anyway</em>.
+            một chương trình lạ tải từ mạng. Bấm <em>More info</em> → <em>Run anyway</em>. Chứng
+            chỉ ký mã là thứ mất tiền hằng năm để đổi lấy việc bỏ đúng một màn hình mà mỗi người
+            chỉ gặp một lần, nên đổi lại là mã SHA-256 ở trên: nó không dẹp được cảnh báo, nhưng
+            trả lời được câu &quot;file tôi đang cầm có đúng bản của team không&quot;.
           </li>
           <li>
             <strong className="text-neutral-900 dark:text-neutral-100">
