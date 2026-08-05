@@ -10,7 +10,7 @@
 
 ## Overview
 
-**Ưu tiên:** cao | **Trạng thái:** 🟡 đang làm — 7/11 việc (05/08/2026) | **Dự kiến:** 3-4 ngày
+**Ưu tiên:** cao | **Trạng thái:** ✅ xong 11/11 việc (06/08/2026) | **Dự kiến:** 3-4 ngày
 
 Chia kho mã hóa làm hai vùng, và dựng cơ chế **vé có chữ ký** để máy chủ ủy quyền cho cầu nối
 mà không cần biết nội dung.
@@ -113,12 +113,18 @@ bấm nút ─► máy chủ: kiểm phiên + kiểm chủ nick + ghi AuditLog
   (chốt đã đóng: xem [dưới](#việc-4--những-chốt-đã-đóng))
 - [x] Module vé: **mã hóa cho cầu nối đích**, ký, xác minh, hết hạn, chống dùng lại
   (chốt đã đóng: xem [dưới](#việc-5--module-vé))
-- [ ] `revealCredential` / `requestOtpCode` → phát vé
-- [ ] Vé mở profile kèm cấu hình proxy
-- [ ] Tạo/sửa nick: ciphertext vùng operator dựng ở phía máy người dùng
+- [x] `revealCredential` / `requestOtpCode` → phát vé (nay là `requestCredentialTicket` /
+  `requestOtpTicket` — tên cũ nói dối về việc hàm làm)
+  (chốt đã đóng: xem [dưới](#việc-6-7-8--ba-lối-vào-nối-vào-vé))
+- [x] Vé mở profile kèm cấu hình proxy
+- [x] Tạo/sửa nick: ciphertext vùng operator dựng ở phía máy người dùng
 - [x] `vault:rekey` tách hai vùng (`--domain=server|operator`, bắt buộc)
 - [x] `vault:smoke` cập nhật — thêm phép thử "khóa server KHÔNG mở được mật khẩu nick"
-- [ ] **Kiểm bằng grep: không còn chỗ nào trên máy chủ giải mã cột vùng operator**
+- [x] **Kiểm bằng grep: không còn chỗ nào trên máy chủ giải mã cột vùng operator** — và lượt grep
+  đó đã thành một **bài test thường trực**
+  ([operator-domain-boundary.test.ts](../../src/lib/crypto/operator-domain-boundary.test.ts)):
+  grep chứng minh được hôm nay và chỉ hôm nay, còn thứ phải giữ là một điều kiện sống lâu hơn
+  ngày nghiệm thu
 
 ### Việc phát sinh từ audit 05/08/2026
 
@@ -144,7 +150,8 @@ Ba mục nhỏ trong sổ đăng ký cũng đã đóng cùng ngày:
   đỏ — chỉ có câu truy vấn đi tìm nó sau này là hụt mất hàng, im lặng. Nợ cũ, và đợt sổ đăng ký
   vừa thêm hai chuỗi nữa nên trả luôn.
 
-- [ ] **Gộp vào việc 7 — test canh vùng khóa cho đường TẠO nick.** Đường *sửa* đã có
+- [x] **XONG 06/08 — test canh vùng khóa cho đường TẠO nick**
+  ([vault-create-account.database.test.ts](../../src/lib/accounts/vault-create-account.database.test.ts)). Đường *sửa* đã có
   ([vault-edit-actions.database.test.ts](../../src/lib/accounts/vault-edit-actions.database.test.ts):
   đặt hai khóa khác nhau rồi đọc lại bằng khóa operator). Đường *tạo* thì không có test nào —
   không file test nào import `vault-create-actions.ts`. Mã hôm nay đúng, nhưng việc 7 viết lại
@@ -173,7 +180,7 @@ Ba mục nhỏ trong sổ đăng ký cũng đã đóng cùng ngày:
   hơn. Test canh cả hai phía ranh giới ở
   [vault-update-owner-guard.database.test.ts](../../src/lib/accounts/vault-update-owner-guard.database.test.ts).
 
-- [ ] **Gộp vào việc 11 — bỏ giá trị mặc định của `encryptCredential`.** Hiện quên tham số khóa =
+- [x] **XONG 06/08 — bỏ giá trị mặc định của `encryptCredential`.** Hiện quên tham số khóa =
   ghi nhầm vùng, không lỗi, không test nào đỏ. Registry test chỉ đối chiếu schema ↔ registry,
   không chạm chỗ gọi. 12 chỗ gọi ngoài test, mỗi chỗ thêm một tham số — và thêm xong thì "cột này
   thuộc vùng nào" hiện ngay tại chỗ đọc mã. Làm ở việc 11 vì lúc đó bốn chỗ chạm vùng operator đã
@@ -196,7 +203,10 @@ Ba mục nhỏ trong sổ đăng ký cũng đã đóng cùng ngày:
   **một vùng cố định dưới header**, mỗi vấn đề **một dòng riêng với hành động riêng**, lọc theo
   người xem. Cảnh báo thứ ba (GĐ5 sắp thêm) khi đó chỉ là thêm một mục, không phải quyết lại
   chỗ đặt.
-- [ ] **Gộp vào việc 6 — câu từ chối quyền phải tới được người dùng.** `revealCredential` /
+- [x] **XONG 06/08 — câu từ chối quyền phải tới được người dùng.** Sửa ở `guardedAction` chứ
+  không ở từng chỗ gọi: wrapper nay bọc cả **thân hàm**, nên `AuthorizationError` mà
+  `requireNickOwner` ném ra thành `ActionResult` ở mọi lối vào cùng một lúc — kể cả những lối
+  vào viết sau này. Chi tiết gốc: `revealCredential` /
   `requestOtpCode` để `AuthorizationError` ném trần ra khỏi server action, còn
   `account-vault-actions-panel.tsx` bắt bằng `catch {}` rồi hiện một câu chung. Nên OPERATOR bấm
   nhầm nick của đồng nghiệp **không đọc được** câu *"nick này do người khác phụ trách"* — đúng
@@ -204,7 +214,10 @@ Ba mục nhỏ trong sổ đăng ký cũng đã đóng cùng ngày:
   (trả `ActionResult`, xem commit `2427c4b`). Chặn vẫn đúng, chỉ có lời giải thích là mất.
   **Hoãn tới việc 6 vì việc đó viết lại cả hai đầu** — hàm chuyển sang phát vé, và panel cũng
   phải đổi để nhận vé rồi chuyển xuống cầu nối. Chưa ai dùng app nên chưa ai chịu câu khó hiểu đó.
-- [ ] **Gộp vào việc 6 — hạn nhịp cho đường phát vé.** `revealCredential` / `requestOtpCode` hiện
+- [x] **XONG 06/08 — hạn nhịp cho đường phát vé**
+  ([ticket-rate-limit.ts](../../src/lib/tickets/ticket-rate-limit.ts)): 10 vé bí mật mỗi phút
+  cho mỗi người, giữ trong bộ nhớ. Không áp cho vé mở profile — ruột nó là cấu hình proxy, thứ
+  chính người đó vào `/proxies` là xem được. Chi tiết gốc: `revealCredential` / `requestOtpCode` hiện
   không có giới hạn nào: một phiên bị trộm rút sạch bí mật của mọi nick người đó làm chủ trong vài
   giây, `AuditLog` ghi lại nhưng không ai đọc lúc đó. Việc 6 viết lại đúng hai hàm này, nên đó là
   lúc rẻ nhất để đặt.
@@ -268,27 +281,77 @@ Ranh giới phải nói ra mỗi lần nhắc tới thu hồi — và câu thôn
 thu hồi chặn **vé mới**, nhưng **không** với tới ciphertext chiếc máy đó đã lấy về từ trước.
 Mất máy thì vẫn phải xoay `VAULT_KEY_OPERATOR`. Có test canh đúng câu nhắc đó.
 
-### Còn nợ từ bước 2
+### Việc 6, 7, 8 — ba lối vào nối vào vé
 
-- Chốt chặn *"máy chủ không được giữ `VAULT_KEY_OPERATOR`"* **chưa cài được**: tới khi bước 5 và 7
-  xong thì máy chủ vẫn thật sự cần khóa đó để tạo/sửa nick và hiện bí mật. Cài sớm là app dừng.
-  Thay vào đó bộ nạp khóa cảnh báo khi hai vùng dùng chung một khóa — trạng thái đúng lúc chuyển
-  đổi nhưng nhìn y hệt lúc đã tách xong, nên phải nói ra.
-- Bốn chỗ trên máy chủ còn chạm vùng operator, đúng bằng danh sách phải dọn ở bước 5 và 7:
-  `vault-create-actions.ts`, `vault-update-actions.ts`, và hai chỗ trong
-  `vault-credential-actions.ts`. Grep `loadVaultKey("operator")` trong `src/` là ra đủ —
-  Success Criteria cuối phase chính là grep này phải rỗng.
+Xong 06/08/2026. Bốn chỗ chạm vùng operator trên máy chủ nay là **không chỗ nào**, và bài test
+quét canh nó vĩnh viễn.
+
+**Máy chủ chọn máy nhận, trình duyệt không khai.** Đường ngược lại (trình duyệt hỏi cầu nối
+*"anh là ai"* rồi báo khóa lên) nghe tự nhiên hơn, nhưng nó bắt **mọi** lời gọi phải đi qua
+`127.0.0.1` trước — kể cả đường lấy bí mật, vốn theo QĐ 3 không cần chạm mạng nội bộ chút nào.
+Máy chủ đã có sẵn câu trả lời trong sổ đăng ký. Người có **hai** máy đang dùng thì phải tự chọn,
+vì đoán bừa là phát một tấm vé chắc chắn hỏng; chọn nhầm thì cầu nối nói *"vé này không phải của
+máy bạn"* — đúng việc mà `TicketEnvelope.deviceId` sinh ra để làm.
+
+**Bí mật đi qua tab, mở profile gọi ngầm** (QĐ 3, cài đúng như đã chốt). Tab của cầu nối **cùng
+nguồn với cầu nối** nên không dính luật Local Network Access: lấy được mật khẩu kể cả trên chiếc
+máy chưa bao giờ bấm "Cho phép". Vé nằm ở **fragment** của URL chứ không ở query — fragment không
+được gửi lên máy chủ nào, không vào `Referer`, không nằm trong dòng log nào.
+
+**Ràng buộc 1 của GĐ0 cài ở hai chỗ, và cả hai đều phải đọc được bằng mắt.** Nút mở profile bắn
+`pingRelay()` ở **dòng đầu trình xử lý cú bấm, không await** — vì xin vé là một vòng `await`, và
+kích hoạt người dùng mất sau đó. Form nick thì chính `encryptForVault()` là lời gọi đầu tiên.
+Cả hai chỗ đều có chú thích cảnh báo tại dòng đó; đây là loại ràng buộc mà người sửa sau không
+có cách nào tự suy ra.
+
+**Ô nhập bí mật bị khóa cho tới khi JavaScript sẵn sàng**
+([vault-secret-field.tsx](../../src/components/vault/vault-secret-field.tsx)). Không có nó thì
+người gõ nhanh rồi Enter trước lúc hydrate xong sẽ để trình duyệt gửi form theo cách mặc định —
+mật khẩu dạng trần bay thẳng lên máy chủ, im lặng. Ô `disabled` không nằm trong `FormData`, nên
+đường đó bị bịt ở gốc thay vì dựa vào việc người dùng gõ chậm hơn trình duyệt.
+
+**Máy chủ mất một phép kiểm và phải nói ra:** nó không đọc nổi TOTP secret nữa nên không kiểm
+được base32. Phép kiểm đó **chuyển sang cầu nối** (GĐ4 bước 7) — nơi có khóa và cũng là nơi
+chuẩn hóa chuỗi trước khi bọc. Thứ máy chủ còn kiểm được là **hình dạng ciphertext**, và nó
+kiểm: một form hỏng gửi mật khẩu trần lên sẽ bị từ chối ngay thay vì ghi vào database rồi chỉ
+lộ ra vào ngày ai đó mở bản sao lưu.
+
+**Nhật ký ghi thứ máy chủ tự biết.** `CREDENTIAL_REVEALED` ghi lúc **phát vé** kèm tên máy nhận,
+không đợi người dùng nhìn thấy mật khẩu — mốc sau chỉ biết được nếu tin lời trình duyệt khai.
+Route mở profile ghi `PROFILE_LAUNCH_TICKET_ISSUED` chứ không còn ghi `PROFILE_LAUNCHED`: máy
+chủ không biết profile có mở được không, và ghi thứ nghe kể là làm hỏng chính cuốn nhật ký.
+
+> ⚠️ **Hệ quả phải nói thẳng: từ 06/08 tới khi GĐ4 xong, ba việc không làm được trên máy chưa có
+> cầu nối** — lấy mật khẩu/OTP, mở profile, và tạo/sửa nick *có nhập bí mật mới*. Đó là trạng
+> thái đã hẹn trước của QĐ 8 (làm hết rồi bàn giao một lần), không phải hồi quy ngoài ý muốn:
+> chưa ai ngoài tác giả dùng công cụ. Mọi việc khác — kể cả sửa karma, trạng thái, proxy của
+> nick — vẫn chạy bình thường vì ba ô bí mật để trống thì form không gọi cầu nối.
+
+### Còn nợ từ bước 2 — đã trả
+
+- ~~Chốt chặn *"máy chủ không được giữ `VAULT_KEY_OPERATOR`"* chưa cài được~~ → **cài được rồi.**
+  Có test dựng đúng cảnh đó: gỡ biến khỏi môi trường, phát vé và tạo nick vẫn chạy
+  ([vault-credential-tickets](../../src/lib/accounts/vault-credential-tickets.database.test.ts),
+  [vault-create-account](../../src/lib/accounts/vault-create-account.database.test.ts)).
+  Cảnh báo "hai vùng dùng chung một khóa" vẫn giữ — nó nói về cấu hình, không nói về mã.
+- ~~Bốn chỗ trên máy chủ còn chạm vùng operator~~ → **không còn chỗ nào**, và
+  [operator-domain-boundary.test.ts](../../src/lib/crypto/operator-domain-boundary.test.ts)
+  giữ cho nó ở nguyên trạng thái đó.
 
 ## Success Criteria
 
-- Grep toàn `src/` (trừ `relay/`): không có lời gọi giải mã nào chạm
-  `Account.passwordEnc` / `emailPasswordEnc` / `totpSecretEnc`
-- Xóa `VAULT_KEY_OPERATOR` khỏi môi trường máy chủ → **app vẫn chạy đủ mọi chức năng**, chỉ mật
-  khẩu và OTP là không lấy được. Đây là phép thử chính của phase.
-- Vé quá 30 giây → cầu nối từ chối. Vé dùng lại lần hai → từ chối.
-- **Mở devtools lúc bấm "Mở profile": nội dung vé phải là chuỗi mã hóa**, không đọc được mật khẩu proxy
-- Thu hồi một `RelayDevice` → máy đó không nhận được vé mới nữa
-- `vault:smoke` xanh trên DB thật
+| Điều kiện | Trạng thái |
+|---|---|
+| Grep toàn `src/`: không lời gọi giải mã nào chạm `Account.passwordEnc` / `emailPasswordEnc` / `totpSecretEnc` | ✅ và đã thành test thường trực |
+| Xóa `VAULT_KEY_OPERATOR` khỏi môi trường máy chủ → app vẫn chạy đủ chức năng. **Phép thử chính của phase** | ✅ có test dựng đúng cảnh đó ở cả đường phát vé lẫn đường tạo nick |
+| Vé quá 30 giây → từ chối. Vé dùng lại lần hai → từ chối | ✅ `ticket-lifecycle.test.ts` |
+| Mở devtools lúc bấm "Mở profile": nội dung vé là chuỗi mã hóa, không đọc được mật khẩu proxy | ✅ có test; **chưa đo bằng mắt trên trình duyệt thật** — cần cầu nối GĐ4 |
+| Thu hồi một `RelayDevice` → máy đó không nhận được vé mới | ✅ `vault-credential-tickets.database.test.ts` |
+| `vault:smoke` xanh trên DB thật | ✅ 12/12, chạy 06/08/2026 |
+
+Còn một điều kiện **chỉ nghiệm thu được sau GĐ4**: mật khẩu hiện ra ở tab của cầu nối và trang
+hosted không hề chạm tới nó. Hôm nay chứng minh được nửa phía máy chủ (vé là chuỗi mã hóa); nửa
+kia cần một cầu nối biết mở tab.
 
 ## Risk Assessment
 

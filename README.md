@@ -153,7 +153,8 @@ proxy, không cần tài khoản nào, và kiểm tra được phần lớn ch�
 
 | Chặng | Cần gì | Kiểm chứng điều gì |
 |---|---|---|
-| **A** | không gì cả | `npm run vault:smoke` + `npm run rules:smoke` + `npm run facebook:smoke` + `npm run health:smoke` + nhập dữ liệu giả qua UI: mã hóa, ràng buộc 1:1, copy mật khẩu, OTP (dùng `npm run vault:testotp` đối chiếu với Google Authenticator), bộ luật an toàn, và đường đi Facebook trong máy |
+| **A** | không gì cả | `npm run vault:smoke` + `npm run rules:smoke` + `npm run facebook:smoke` + `npm run health:smoke` + nhập dữ liệu giả qua UI: ràng buộc 1:1, bộ luật an toàn, và đường đi Facebook trong máy |
+| **A+** | cầu nối (GĐ4, **chưa có**) | Mã hóa, lấy mật khẩu, OTP (dùng `npm run vault:testotp` đối chiếu với Google Authenticator). Ba việc này rời khỏi chặng A từ 06/08/2026 vì khóa mở bí mật nick không còn ở máy chủ — xem [Cầu nối](#cầu-nối) |
 | **B** | MultiZen (miễn phí) | Profile trống, không đăng nhập gì. Bấm "Mở profile" → công cụ có mở được profile không. ✅ **Đạt 02/08/2026** — đây từng là câu hỏi chặn đường của Phase 00 |
 | **C** | 1 proxy bất kỳ | Nhập proxy vào `/proxies`, gắn cho nick, bấm "Mở profile" → vào `ipinfo.io` → IP phải khớp proxy. Không cần chạm vào cài đặt MultiZen. ✅ **Đạt 02/08/2026** — [báo cáo](plans/reports/chang-c-260802-1443-proxy-push-verification.md) |
 | **D** | nick thật + proxy đúng loại | Chỉ làm sau khi A/B/C xong. Xem quy trình cold-start ở [Phase 00](plans/260801-2030-multi-account-posting-console/phase-00-preparation-and-feasibility-check.md) |
@@ -332,6 +333,7 @@ src/
     ├── http/                đối chiếu Origin/Host cho route handler
     ├── proxies/             kiểm proxy còn sống (hỏi IP ra, chặn mở profile) + đo băng thông
     ├── queue/               server action cho job + tương tác, nhắc việc đăng tay
+    ├── relay/               hợp đồng HTTP với cầu nối + bộ gọi xuống 127.0.0.1 từ trình duyệt
     ├── rules/               bộ luật an toàn — mỗi luật một file
     ├── tickets/             vé ủy quyền: khóa ký của máy chủ, sổ đăng ký máy, phát/xác minh vé
     └── totp/                sinh mã OTP 2FA
@@ -366,6 +368,11 @@ MultiZen đòi **bearer token**: lấy trong app ở `MCP → Connect an agent`,
 Bấm "Mở profile" là MKTTool **ghi proxy của nick vào profile trước, rồi mới mở** — không phải
 nhập tay hai nơi nữa. Đẩy hỏng thì **không mở profile**, vì profile thiếu proxy sẽ chạy thẳng
 bằng IP nhà mà không ai nhận ra.
+
+> ⚠️ **Từ 06/08/2026 việc đó do cầu nối trên máy bạn làm, không phải máy chủ** — xem
+> [Cầu nối](#cầu-nối). Máy chủ kiểm proxy còn sống rồi phát một tấm vé đã mã hóa; cầu nối mở vé
+> ra, đẩy proxy và mở trình duyệt. **Cầu nối là phần của GĐ4 và chưa có**, nên tới lúc đó nút
+> "Mở profile" báo *"không thấy cầu nối trên máy này"*.
 
 Trường **Giao thức** (`http` / `socks5`) ở `/proxies` phải khớp cổng nhà cung cấp cấp — nhiều nơi
 dùng cổng khác nhau cho hai giao thức (Webshare thì cùng cổng phục vụ cả hai).
@@ -492,11 +499,58 @@ không có đăng nhập. Cùng nguyên tắc với `TEAM_TIMEZONE`.
 
 **Tầm nhìn thì không chia.** Ai cũng thấy nick, job, tương tác và lịch sử của người khác — cố ý:
 luật đụng độ thread phải nêu đúng tên nick của đồng nghiệp thì người đọc mới xử lý được. Thứ duy
-nhất bị chia là **bí mật của nick**, và chặn nằm ở tầng dữ liệu chứ không phải ẩn nút trên giao diện.
+nhất bị chia là **bí mật của nick**, và chặn nằm ở tầng dữ liệu chứ không phải ẩn nút trên giao diện:
+máy chủ từ chối **phát vé** cho nick không phải của bạn, kèm câu nói rõ nick đó do ai phụ trách.
 
 > **Gỡ người khỏi team:** xóa email khỏi `ALLOWED_EMAILS` rồi khởi động lại. Có hiệu lực ngay,
 > kể cả người đó đang mở sẵn tab — danh sách được kiểm ở **mọi request**, không phải chỉ lúc
 > đăng nhập. Nick họ từng phụ trách **không bị xóa theo**, chỉ mất chủ.
+
+## Cầu nối
+
+**Máy chủ không mở được một mật khẩu nick nào.** Từ 06/08/2026 kho chia hai vùng khóa thật, và
+vùng giữ bí mật nick chỉ mở được ở **máy của người vận hành** — bằng một chương trình nhỏ chạy
+nền tên là *cầu nối*. Chiếm được máy chủ, hay đọc được biến môi trường của nó, cũng không lấy
+được mật khẩu nào.
+
+| Việc | Ai làm |
+|---|---|
+| Kiểm phiên đăng nhập, kiểm chủ nick, ghi nhật ký | máy chủ |
+| Lấy ciphertext trong database, bọc cho đúng máy nhận, ký tên | máy chủ |
+| **Mở ciphertext ra, hiện mật khẩu, đẩy proxy, mở trình duyệt** | **cầu nối** |
+
+Ở giữa là **tấm vé**: một chuỗi đã mã hóa cho riêng chiếc máy đang ngồi, sống 30 giây, tiêu được
+đúng một lần. Trình duyệt chỉ là người đưa thư — mở devtools lúc bấm nút thì đó là tất cả những
+gì thấy được.
+
+Bí mật (mật khẩu, OTP) hiện ở **một cửa sổ nhỏ do chính cầu nối phục vụ**, không hiện trên trang
+web. Mở profile thì gọi ngầm, không mở tab nào.
+
+> ⚠️ **Cầu nối là phần của GĐ4 và CHƯA CÓ.** Tới khi nó xong, ba việc dưới đây không làm được:
+> lấy mật khẩu/OTP, mở profile, và tạo/sửa nick **có nhập bí mật mới**. Mọi việc khác vẫn chạy
+> bình thường — kể cả sửa karma, trạng thái, proxy của nick, vì ba ô bí mật để trống nghĩa là
+> giữ nguyên và form không cần gọi tới cầu nối.
+
+### Đăng ký máy trước khi dùng
+
+Mỗi máy sinh **cặp khóa riêng của nó** lúc cài (`npm run keys:relay-keygen`), rồi ADMIN ghi khóa
+công khai vào sổ ở `/relay-devices`. Máy chủ mã hóa nội dung vé bằng khóa của đúng máy nhận, nên:
+
+- Máy chưa vào sổ **không xin được vé nào** — nút bấm nói thẳng phải đăng ký ở đâu.
+- Mất laptop thì **thu hồi** máy đó là xong trong vài giây, không phải xoay khóa của cả team.
+- Nhưng thu hồi **không** với tới ciphertext chiếc máy đó đã lấy về trước đó. Máy thật sự mất thì
+  vẫn phải xoay `VAULT_KEY_OPERATOR`.
+
+Người có **hai máy** trong sổ phải chọn máy đang ngồi trước khi bấm — vé mã hóa cho đúng một máy,
+và đoán bừa là phát một tấm vé chắc chắn hỏng. Một máy thì không hỏi.
+
+### Vì sao có hạn nhịp 10 vé một phút
+
+Nó không chặn người ngoài — hai lớp gác đã làm việc đó. Nó chặn **một phiên bị trộm**: không có
+hạn thì "rút sạch bí mật của mọi nick" là chuyện của vài giây, và `AuditLog` chỉ ghi lại để đọc
+sau khi mọi thứ đã xong. Có hạn thì nó thành chuyện của nhiều phút — đủ để một người nhận ra tab
+của mình đang tự bấm nút. Vé mở profile không bị đếm: ruột nó là cấu hình proxy, thứ vào
+`/proxies` là xem được.
 
 ## Facebook
 
@@ -563,9 +617,13 @@ bài Reddit — xem [Đăng bài](#đăng-bài).
 - `FACEBOOK_APP_SECRET` chỉ nằm ở server, không có component client nào import tới nó
 - Thông báo lỗi Graph API đi qua bộ che token trước khi hiện ra hoặc ghi `AuditLog` — Graph hay
   vọng lại nguyên tham số đã gửi
-- Khóa nằm ở biến môi trường, không nằm trong DB
-- Mật khẩu không bao giờ render ra màn hình — bấm copy là chép thẳng vào clipboard
-- Mọi lần lộ credential / mở profile đều ghi `AuditLog` kèm **ai** đã làm
+- Khóa nằm ở biến môi trường, không nằm trong DB — và **khóa mở bí mật nick không nằm trên máy
+  chủ**, xem [Cầu nối](#cầu-nối)
+- Mật khẩu không bao giờ đi qua trang web: nó hiện ở cửa sổ nhỏ do cầu nối trên máy bạn phục vụ,
+  còn trang web chỉ cầm một tấm vé đã mã hóa
+- Bí mật nick được **mã hóa ngay trên máy người nhập**, trước khi form gửi đi — máy chủ nhận
+  ciphertext và chỉ kiểm được hình dạng của nó
+- Mọi lần lộ credential / mở profile đều ghi `AuditLog` kèm **ai** đã làm và **máy nào** nhận vé
 - **Mọi server action và route handler đều đòi đăng nhập** — gác nằm ở chữ ký định nghĩa, và
   có test quét bắt buộc (xem [Hàng rào giờ là đăng nhập](#hàng-rào-giờ-là-đăng-nhập))
 - **Mọi trang cũng đòi đăng nhập** — `src/proxy.ts` chặn trước khi trang kịp hỏi database
@@ -787,6 +845,8 @@ chuyển xấu từ lúc nào.
 
 ## Việc chưa làm
 
+- **Cầu nối trên máy operator → GĐ4.** Chưa có nó thì không lấy được mật khẩu/OTP, không mở được
+  profile, và không tạo/sửa được nick có nhập bí mật mới — xem [Cầu nối](#cầu-nối)
 - Tự động đăng Reddit → Phase 05
 
 ## Đã kiểm chứng bằng thực tế

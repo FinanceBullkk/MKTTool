@@ -70,16 +70,17 @@ phép kiểm tĩnh nào thấy: **trang** không đi qua wrapper gác nào cả,
 > nick, vì khóa vẫn nằm cùng một chỗ với máy chủ. Đó là việc của GĐ3, và là lý do **chưa bàn
 > giao cho ai** trước khi GĐ3 xong.
 
-**GĐ3 đang chạy — 7/11 việc** (05/08/2026). Kho đã chia hai vùng khóa thật: `VAULT_KEY_SERVER`
+**GĐ3 đã xong — 11/11 việc** (06/08/2026). Kho đã chia hai vùng khóa thật: `VAULT_KEY_SERVER`
 (mật khẩu proxy, token Facebook) và `VAULT_KEY_OPERATOR` (mật khẩu, email, TOTP của nick). Vùng
 của từng cột khai ngay trong `schema.prisma` bằng dấu `vault:server` / `vault:operator`, và test
 đọc thẳng schema nên khai thiếu hoặc khai lệch là đỏ. `vault:rekey` nay xoay theo từng vùng;
 `vault:smoke` đã xanh trên DB thật, gồm phép thử **khóa vùng server KHÔNG mở được mật khẩu nick**.
 
-> Lỗ ở trên **vẫn chưa đóng**: máy chủ hiện vẫn giữ `VAULT_KEY_OPERATOR` vì bốn chỗ còn cần nó
-> (tạo nick, sửa nick, xem mật khẩu, sinh OTP). Chỉ đóng được sau khi bốn chỗ đó chuyển sang phát
-> vé. Grep `loadVaultKey("operator")` trong `src/` là danh sách chính xác phải dọn, và phép thử
-> nghiệm thu cuối GĐ3 là **gỡ hẳn biến đó khỏi máy chủ mà app vẫn chạy đủ mọi chức năng**.
+> **Lỗ ở trên đã đóng 06/08.** Bốn chỗ từng cần khóa vùng operator trên máy chủ nay là không chỗ
+> nào, và phép thử nghiệm thu — *gỡ hẳn `VAULT_KEY_OPERATOR` khỏi máy chủ mà app vẫn chạy* — đã
+> thành hai bài test chạy mỗi lượt `npm test`. Lượt grep nghiệm thu cũng thành một bài test
+> thường trực: grep chứng minh được hôm nay, còn thứ phải giữ là một điều kiện sống lâu hơn ngày
+> nghiệm thu.
 
 Từ đó tới nay thêm **cặp khóa ký vé Ed25519 của máy chủ**. Máy chủ không còn tự đưa mật khẩu cho
 ai được nữa; thứ nó còn làm được là bảo chứng *"vé này do máy chủ phát sau khi đã kiểm phiên và
@@ -108,12 +109,23 @@ giây và tiêu được đúng một lần; sổ chống dùng lại nằm ở 
 Vé mang **hai số phiên bản** ngay từ tấm đầu tiên (QĐ 11), và `verifyTicket` kiểm chúng ngay sau
 chữ ký: cầu nối bản cũ phải nói được *"bản quá cũ, tải lại"* thay vì chết mơ hồ ở bước giải mã.
 
-> Còn ba việc mới nối được vé vào nút bấm thật: chuyển `revealCredential` / `requestOtpCode` sang
-> phát vé, vé mở profile kèm cấu hình proxy, và form tạo/sửa nick dựng ciphertext ở phía máy người
-> dùng. Hôm nay module vé đã chạy và có test hai đầu, nhưng **chưa lối vào nào gọi nó**.
+**Ba lối vào đã nối vào vé** (06/08/2026), và đó là lúc GĐ3 thật sự có tác dụng. Hai server
+action lấy bí mật nay **phát vé** thay vì giải mã (đổi tên thành `requestCredentialTicket` /
+`requestOtpTicket` — tên cũ nói dối về việc hàm làm); route mở profile dựng cấu hình proxy rồi bỏ
+vào vé; form tạo/sửa nick nhờ cầu nối bọc ba ô bí mật **trước khi** gửi lên, nên máy chủ nhận
+ciphertext chứ không nhận mật khẩu. Kèm hai chốt nhỏ: `guardedAction` nay bọc cả thân hàm nên câu
+*"nick này do người khác phụ trách"* tới được người bấm nút thay vì thành một promise reject câm,
+và đường phát vé có **hạn nhịp 10 vé mỗi phút** để một phiên bị trộm không rút sạch kho trong vài
+giây.
+
+> ⚠️ **Từ 06/08 tới khi GĐ4 xong, ba việc cần cầu nối mới làm được**: lấy mật khẩu/OTP, mở
+> profile, và tạo/sửa nick *có nhập bí mật mới*. Đây là trạng thái đã hẹn trước của QĐ 8 — làm
+> hết rồi bàn giao một lần, không có giai đoạn quá độ — và chưa ai ngoài tác giả dùng công cụ.
+> Sửa karma, trạng thái hay proxy của nick thì **không** cần cầu nối: ba ô bí mật để trống nghĩa
+> là giữ nguyên, và form không gọi xuống `127.0.0.1` khi không có gì để bọc.
 
 Ngoài 11 việc gốc, hai chốt nữa đóng trong ngày. **Ghi đè bí mật nick nay phải là chủ nick** —
-đối xứng với `revealCredential`; trước đó một OPERATOR không đọc được mật khẩu nick của đồng
+đối xứng với đường lấy bí mật; trước đó một OPERATOR không đọc được mật khẩu nick của đồng
 nghiệp nhưng ghi đè được nó. Chỉ gác khi form thật sự mang bí mật lên, nên sửa karma / trạng thái
 / proxy cho nhau vẫn là việc chung. Việc `status` bị kéo từ `SHADOWBANNED` về `HEALTHY` **không**
 giải bằng phân quyền (chủ nick cũng ép được) mà bằng dấu vết: nhật ký nay ghi cả chiều đổi.
