@@ -17,6 +17,7 @@
     "db:studio": "prisma studio",
     "db:backup": "tsx --env-file=.env scripts/backup-database.ts",
     "proxies:import": "tsx --env-file=.env scripts/import-proxies-from-provider-list.ts",
+    "proxies:import-sqlite": "tsx --env-file=.env scripts/import-proxies-from-sqlite-backup.ts",
     "vault:keygen": "tsx scripts/generate-vault-key.ts",
     "keys:server-keygen": "tsx scripts/generate-server-signing-key.ts",
     "keys:server-pubkey": "tsx scripts/show-server-public-key.ts",

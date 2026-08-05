@@ -50,11 +50,16 @@ Chi tiết ở [plan.md](../plans/260804-1752-web-chung-cho-team-phan-tan/plan.m
 
 **GĐ1 đã đổi nền dữ liệu sang Postgres và đóng hẳn** (05/08/2026): 482/482 test, 4 smoke test và
 `npm run db:backup` đều xanh trên Postgres. Ràng buộc 1 nick = 1 proxy vẫn do database ép.
-Cố ý **không viết script chuyển dữ liệu**, và chốt 05/08/2026 là **không nhập lại gì cả**:
-chưa có nick thật nào, 3 nick cũ đều là nick thử. Kho bắt đầu từ rỗng.
+Cố ý **không nhập lại nick**: chưa có nick thật nào, 3 nick cũ đều là nick thử — nhập lại chỉ
+mang rác sang kho mới.
 
-> Giữ lại `dev.db` cũ: 10 proxy Webshare trong đó là dữ liệu thật đã trả tiền và đã kiểm
-> 10/10 ngày 04/08. Mật khẩu proxy không nằm ở đâu khác.
+> **Proxy thì đã nhập** (05/08/2026, tối). 10 IP Webshare trong `dev.db` là dữ liệu thật đã trả
+> tiền và đã kiểm 10/10 ngày 04/08, và **mật khẩu của chúng không nằm ở đâu khác ngoài file đó** —
+> tức một ổ cứng hỏng là mất tiền thật. Nay đã sang Postgres bằng
+> `npm run proxies:import-sqlite`, đối chiếu **10/10 mật khẩu giải mã ra đúng nguyên văn**.
+>
+> Vẫn **giữ nguyên `dev.db`** cho tới khi có người mở thử một proxy trong app và thấy nó chạy
+> thật. Đối chiếu ciphertext chứng minh dữ liệu sang đúng, không chứng minh proxy còn sống.
 
 **GĐ2 đã đổi hàng rào và đóng** (05/08/2026): từ "app chỉ nghe ở `127.0.0.1`" sang "phải đăng
 nhập Google và có tên trong `ALLOWED_EMAILS`". Cờ `-H` đã bỏ — đúng thứ tự đã hẹn, chỉ sau khi

@@ -132,6 +132,7 @@ Có thì nó **sao lưu trước**, áp xong mới báo — và nếu áp hỏng
 | `npm run db:migrate` | Tạo migration mới (chỉ dùng khi phát triển) |
 | `npm run db:backup` | Sao lưu database ra `data/backups/` |
 | `npm run proxies:import <file>` | Nhập hàng loạt proxy từ file `host:port:user:pass` của nhà cung cấp |
+| `npm run proxies:import-sqlite` | Nhập proxy từ `dev.db` của bản SQLite cũ sang Postgres. **Mặc định chỉ xem trước**, thêm `-- --apply` mới ghi. Khóa cũ khác khóa hiện tại thì khai qua `VAULT_KEY_LEGACY` |
 | `npm run db:studio` | Mở Prisma Studio xem database |
 | `npm run vault:keygen` | Sinh khóa mã hóa mới (dùng cho cả hai vùng khóa) |
 | `npm run keys:server-keygen` | Sinh cặp khóa ký vé **mới** cho máy chủ — in khóa riêng để dán vào `.env` và khóa công khai để chép sang từng cầu nối |
