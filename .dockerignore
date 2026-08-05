@@ -1,0 +1,49 @@
+# Thứ KHÔNG được đi vào ảnh Docker.
+#
+# Khác .gitignore ở một chỗ quan trọng: .gitignore chặn thứ lọt vào kho, file này chặn thứ
+# lọt vào ảnh sẽ chạy trên máy chủ của người khác. `.env` bị cả hai chặn, nhưng vì hai lý do
+# khác nhau — và bỏ sót ở đây nghĩa là khóa kho danh tính nằm sẵn trong một layer ảnh, đọc
+# được bằng `docker history` kể cả khi tầng sau đã xóa file đi.
+
+# deps & build — dựng lại trong ảnh, chép vào chỉ tổ mang theo bản của Windows
+node_modules
+.next
+out
+
+# env & khóa — TUYỆT ĐỐI KHÔNG vào ảnh. Biến môi trường khai ở bảng điều khiển của hãng.
+.env
+.env.*
+!.env.example
+*.key
+
+# database cục bộ và bản sao lưu — chứa credential đã mã hóa
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+prisma/*.db*
+data/backups
+data/screenshots
+data/logs
+.test-tmp
+
+# git & tài liệu — không có tác dụng gì lúc chạy, chỉ làm ảnh to và cache hỏng mỗi lần sửa
+.git
+.github
+.gitignore
+docs
+plans
+README.md
+
+# công cụ của riêng máy dev
+.claude
+.vscode
+.idea
+Dockerfile
+.dockerignore
+
+# test — không chạy trong ảnh sản phẩm
+vitest.config.mts
+vitest.global-setup.ts
+**/*.test.ts
+**/*.test.tsx

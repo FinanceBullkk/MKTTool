@@ -5,6 +5,7 @@
  * Page token cho phép đăng bài dưới tên thương hiệu, mất nó nặng ngang mất mật khẩu.
  */
 import { encryptCredential, decryptCredential } from "@/lib/crypto/credential-encryption";
+import { loadVaultKey } from "@/lib/crypto/encryption-key-loader";
 import { prisma } from "@/lib/db/prisma-client";
 import { FacebookGraphError, graphGet } from "./facebook-graph-client";
 import type { FacebookIdentity, LongLivedToken, ManagedPage } from "./facebook-oauth-flow";
@@ -53,7 +54,7 @@ export async function saveConnectionWithPages(
   token: LongLivedToken,
   pages: ManagedPage[],
 ): Promise<SaveConnectionResult> {
-  const tokenEnc = encryptCredential(token.accessToken);
+  const tokenEnc = encryptCredential(token.accessToken, loadVaultKey("server"));
 
   const connection = await prisma.facebookConnection.upsert({
     where: { fbUserId: identity.id },
@@ -78,7 +79,7 @@ export async function saveConnectionWithPages(
       create: {
         pageId: page.id,
         name: page.name,
-        accessTokenEnc: encryptCredential(page.accessToken),
+        accessTokenEnc: encryptCredential(page.accessToken, loadVaultKey("server")),
         connectionId: connection.id,
         targetId,
         tokenValid: true,
@@ -86,7 +87,7 @@ export async function saveConnectionWithPages(
       },
       update: {
         name: page.name,
-        accessTokenEnc: encryptCredential(page.accessToken),
+        accessTokenEnc: encryptCredential(page.accessToken, loadVaultKey("server")),
         connectionId: connection.id,
         // Kết nối lại là để chữa token hỏng — dọn luôn cờ hỏng cũ.
         tokenValid: true,
@@ -102,7 +103,7 @@ export async function saveConnectionWithPages(
 }
 
 export function decryptPageToken(accessTokenEnc: string): string {
-  return decryptCredential(accessTokenEnc);
+  return decryptCredential(accessTokenEnc, loadVaultKey("server"));
 }
 
 /** Ghi lại việc Facebook từ chối token, để UI hiện đúng nguyên nhân thay vì im lặng. */

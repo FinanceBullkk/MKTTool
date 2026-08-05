@@ -6,6 +6,7 @@
  * bắt nó truy vấn lần nữa chỉ để kiểm là thêm một lượt đọc cho mỗi lần mở profile.
  */
 import { decryptCredential } from "@/lib/crypto/credential-encryption";
+import { loadVaultKey } from "@/lib/crypto/encryption-key-loader";
 import { prisma } from "@/lib/db/prisma-client";
 import {
   type ProbeOutcome,
@@ -53,13 +54,13 @@ async function directExitIp(): Promise<ProbeOutcome> {
 export async function measureProxyLiveness(proxy: ProxyRecordForCheck): Promise<ProxyLiveness> {
   let password: string;
   try {
-    password = decryptCredential(proxy.passwordEnc);
+    password = decryptCredential(proxy.passwordEnc, loadVaultKey("server"));
   } catch {
-    // Giải mã hỏng là chuyện của VAULT_KEY, không phải của proxy — không được kết luận "chết".
+    // Giải mã hỏng là chuyện của VAULT_KEY_SERVER, không phải của proxy — không được kết luận "chết".
     return {
       verdict: "UNKNOWN",
       message:
-        "Không giải mã được mật khẩu proxy (VAULT_KEY đã đổi?). Chưa kiểm được proxy còn sống không.",
+        "Không giải mã được mật khẩu proxy (VAULT_KEY_SERVER đã đổi?). Chưa kiểm được proxy còn sống không.",
       exitIp: null,
       blocksLaunch: false,
     };

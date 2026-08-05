@@ -18,7 +18,7 @@ export const dynamic = "force-dynamic";
 export default async function HealthPage() {
   const rows = await loadAccountHealthRows();
   const recent = await loadRecentChecks(60);
-  const lockStatus = readHealthCheckLockStatus();
+  const lockStatus = await readHealthCheckLockStatus();
 
   // Biểu đồ karma cho từng nick — chỉ vẽ nick nào đã có số liệu.
   const trends = await Promise.all(
@@ -37,6 +37,7 @@ export default async function HealthPage() {
         <div className="mb-4">
           <HerdHealthCheckControls
             running={lockStatus.running}
+            host={lockStatus.host}
             minutesElapsed={lockStatus.minutesElapsed}
             accountCount={rows.length}
           />

@@ -6,22 +6,35 @@
  * từ cùng một IP dồn lại trong khoảng ngắn, đúng khuôn mẫu mà giãn cách sinh ra để tránh.
  * Bộ dò tự làm mình bị chặn, rồi trả ERROR cho mọi nick trong khi nhìn vẫn như đang chạy đều.
  *
- * Vì sao là FILE chứ không phải biến trong bộ nhớ: `npm run health` chạy ở tiến trình RIÊNG,
- * không phải trong web app. Khóa trong bộ nhớ chỉ chặn được hai lời gọi API cùng lúc, hoàn
- * toàn không thấy lượt chạy theo lịch — mà đó mới là cặp dễ đụng nhau nhất (lịch chạy 3 giờ
- * sáng trong khi người dùng bấm nút).
+ * ## Vì sao là một HÀNG trong database, không phải file
+ *
+ * Bản trước là file `data/health-check.lock`, và nó chặn đúng **hai tiến trình trên cùng một
+ * máy** — `npm run health` chạy ở tiến trình riêng chứ không trong web app, nên khóa trong bộ
+ * nhớ không thấy lượt chạy theo lịch.
+ *
+ * Từ GĐ5 điều kiện đó không còn đúng: cron chạy trên Railway, nút "Dò cả đàn" chạy trong web
+ * app, và một dev vẫn có thể gõ `npm run health` ở máy mình trỏ vào cùng database. Ba nơi,
+ * ba hệ thống tệp khác nhau, không nơi nào thấy file của nơi kia — khóa file im lặng mất tác
+ * dụng đúng vào lúc nó bắt đầu cần thiết. Database là thứ duy nhất cả ba đều nhìn thấy.
+ *
+ * Chi tiết vì sao chọn một hàng thay vì advisory lock của Postgres: xem chú thích của model
+ * `HealthCheckLock` trong `prisma/schema.prisma`. Tóm tắt: advisory lock không mang được dữ
+ * liệu "ai đang giữ", và nó hỏng MỞ khi connection bị cắt giữa chừng.
  */
-import { closeSync, mkdirSync, openSync, readFileSync, unlinkSync, writeSync } from "node:fs";
-import path from "node:path";
+import { randomUUID } from "node:crypto";
+import { hostname } from "node:os";
+import { prisma } from "../db/prisma-client";
+import { isUniqueConstraintError } from "../db/prisma-error-helpers";
 
-export const LOCK_PATH = path.join("data", "health-check.lock");
+/** Khóa của hàng duy nhất trong bảng. */
+export const HEALTH_CHECK_LOCK_KEY = "health-check";
 
 /**
  * Quá ngần này thì coi như khóa mồ côi và giành lấy.
  *
  * Một lượt 8 nick nghỉ tối đa 90 giây mỗi lần mất chưa tới 15 phút, nên 30 phút là dư. Cần
- * ngưỡng này vì tiến trình bị tắt ngang (Ctrl+C, mất điện) sẽ để lại khóa không ai dọn — và
- * một bộ dò tự khóa mình vĩnh viễn thì cũng mù y như bị Reddit chặn.
+ * ngưỡng này vì tiến trình bị tắt ngang (Ctrl+C, mất điện, Railway thay container) sẽ để lại
+ * hàng không ai dọn — và một bộ dò tự khóa mình vĩnh viễn thì cũng mù y như bị Reddit chặn.
  */
 export const STALE_AFTER_MS = 30 * 60_000;
 
@@ -32,40 +45,14 @@ export class HealthCheckBusyError extends Error {
   }
 }
 
-interface LockBody {
-  pid: number;
-  startedAt: string;
-}
-
 export interface HeldLock {
-  release(): void;
-}
-
-function readLock(lockPath: string): LockBody | null {
-  try {
-    const parsed = JSON.parse(readFileSync(lockPath, "utf8")) as Partial<LockBody>;
-    if (typeof parsed?.pid !== "number" || typeof parsed?.startedAt !== "string") return null;
-    return { pid: parsed.pid, startedAt: parsed.startedAt };
-  } catch {
-    // Không đọc được hoặc nội dung hỏng — coi như khóa rác, để bên gọi giành lấy.
-    return null;
-  }
-}
-
-function writeLock(lockPath: string, body: LockBody): void {
-  // Cờ "wx" là mấu chốt: tạo file và NÉM LỖI nếu đã tồn tại, trong một thao tác duy nhất của
-  // hệ điều hành. Kiểu "kiểm tra tồn tại rồi mới ghi" có khe hở giữa hai bước, và khe đó đúng
-  // bằng lúc hai tiến trình cùng nghĩ mình là người đầu tiên.
-  const handle = openSync(lockPath, "wx");
-  try {
-    writeSync(handle, JSON.stringify(body));
-  } finally {
-    closeSync(handle);
-  }
+  release(): Promise<void>;
 }
 
 export interface HealthCheckLockStatus {
   running: boolean;
+  /** Máy đang giữ khóa. `null` khi không có lượt nào đang chạy. */
+  host: string | null;
   pid: number | null;
   startedAt: Date | null;
   /** Đã chạy bao lâu, tính bằng phút. `null` khi không có lượt nào đang chạy. */
@@ -74,102 +61,153 @@ export interface HealthCheckLockStatus {
 
 const NOT_RUNNING: HealthCheckLockStatus = {
   running: false,
+  host: null,
   pid: null,
   startedAt: null,
   minutesElapsed: null,
 };
 
+interface LockRow {
+  token: string;
+  host: string;
+  pid: number;
+  startedAt: Date;
+}
+
+function readLock(): Promise<LockRow | null> {
+  return prisma.healthCheckLock.findUnique({
+    where: { key: HEALTH_CHECK_LOCK_KEY },
+    select: { token: true, host: true, pid: true, startedAt: true },
+  });
+}
+
+function minutesSince(startedAt: Date, now: Date): number {
+  return Math.max(0, Math.round((now.getTime() - startedAt.getTime()) / 60_000));
+}
+
+function isStale(row: LockRow, now: Date): boolean {
+  return now.getTime() - row.startedAt.getTime() > STALE_AFTER_MS;
+}
+
 /**
  * ĐỌC khóa mà không giành nó — để giao diện biết có lượt nào đang chạy không.
  *
- * Trước đây file này chỉ có giành và thả, vì chỉ tiến trình `npm run health` cần tới. Nút
- * "Dò cả đàn" trong app thì cần câu trả lời ngược lại: *ai đó đang chạy à?* — hỏi bằng cách
- * giành thử rồi thả ra là sai, vì giữa hai bước đó lượt chạy theo lịch có thể bị chen mất khóa.
+ * Hỏi bằng cách giành thử rồi thả ra là sai: giữa hai bước đó lượt chạy theo lịch có thể bị
+ * chen mất khóa.
  *
- * Khóa quá `STALE_AFTER_MS` thì coi như KHÔNG chạy, dùng đúng ngưỡng của `acquire` —
- * hai ngưỡng riêng cho cùng một khái niệm là hai thứ sớm muộn cũng lệch nhau.
+ * Khóa quá `STALE_AFTER_MS` thì coi như KHÔNG chạy, dùng đúng ngưỡng của `acquire` — hai ngưỡng
+ * riêng cho cùng một khái niệm là hai thứ sớm muộn cũng lệch nhau.
  */
-export function readHealthCheckLockStatus(
-  options: { lockPath?: string; now?: Date } = {},
-): HealthCheckLockStatus {
-  const { lockPath = LOCK_PATH, now = new Date() } = options;
+export async function readHealthCheckLockStatus(
+  options: { now?: Date } = {},
+): Promise<HealthCheckLockStatus> {
+  const { now = new Date() } = options;
 
-  const holder = readLock(lockPath);
+  const holder = await readLock();
   if (!holder) return NOT_RUNNING;
 
-  const startedAtMs = Date.parse(holder.startedAt);
-  if (!Number.isFinite(startedAtMs)) return { ...NOT_RUNNING, pid: holder.pid };
-
-  const elapsedMs = now.getTime() - startedAtMs;
-  if (elapsedMs > STALE_AFTER_MS) return { ...NOT_RUNNING, pid: holder.pid };
+  // Giữ lại `host`/`pid` của hàng mồ côi: người đọc muốn biết máy nào bỏ lại nó.
+  if (isStale(holder, now)) {
+    return { ...NOT_RUNNING, host: holder.host, pid: holder.pid };
+  }
 
   return {
     running: true,
+    host: holder.host,
     pid: holder.pid,
-    startedAt: new Date(startedAtMs),
-    minutesElapsed: Math.max(0, Math.round(elapsedMs / 60_000)),
+    startedAt: holder.startedAt,
+    minutesElapsed: minutesSince(holder.startedAt, now),
   };
 }
 
-function describeHolder(holder: LockBody, now: Date): string {
-  const minutes = Math.max(0, Math.round((now.getTime() - Date.parse(holder.startedAt)) / 60_000));
-  return `tiến trình ${holder.pid}, bắt đầu ${minutes} phút trước`;
+/** Câu mô tả người đang giữ khóa, dùng trong thông báo bận. */
+export function describeLockHolder(holder: LockRow, now: Date): string {
+  return `máy ${holder.host}, tiến trình ${holder.pid}, bắt đầu ${minutesSince(holder.startedAt, now)} phút trước`;
 }
+
+const BUSY_HINT =
+  "Hai lượt chạy chồng nhau làm proxy quan sát viên bắn request dồn dập và bị Reddit chặn.";
 
 /**
  * Giành khóa, hoặc ném `HealthCheckBusyError` nếu lượt khác đang chạy.
  *
  * Trả về đối tượng có `release()` — LUÔN gọi nó trong khối `finally`.
  */
-export function acquireHealthCheckLock(
-  options: { lockPath?: string; now?: Date } = {},
-): HeldLock {
-  const { lockPath = LOCK_PATH, now = new Date() } = options;
-  const body: LockBody = { pid: process.pid, startedAt: now.toISOString() };
-  const token = JSON.stringify(body);
-
-  mkdirSync(path.dirname(lockPath), { recursive: true });
+export async function acquireHealthCheckLock(
+  options: { now?: Date } = {},
+): Promise<HeldLock> {
+  const { now = new Date() } = options;
+  const token = randomUUID();
+  const mine = {
+    key: HEALTH_CHECK_LOCK_KEY,
+    token,
+    host: hostname(),
+    pid: process.pid,
+    startedAt: now,
+  };
 
   try {
-    writeLock(lockPath, body);
-  } catch {
-    const holder = readLock(lockPath);
-    const startedAt = holder ? Date.parse(holder.startedAt) : Number.NaN;
-    const isStale = !holder || !Number.isFinite(startedAt) || now.getTime() - startedAt > STALE_AFTER_MS;
+    await prisma.healthCheckLock.create({ data: mine });
+  } catch (error) {
+    // Bất kỳ lỗi nào khác trùng khóa chính đều là lỗi thật (mất kết nối, schema lệch) — ném
+    // tiếp. Nuốt hết ở đây là biến "database hỏng" thành "đang bận", và người đi sửa sẽ ngồi
+    // chờ một lượt chạy không tồn tại.
+    if (!isUniqueConstraintError(error)) throw error;
 
-    if (!isStale) {
+    const holder = await readLock();
+
+    // Hàng vừa biến mất giữa hai lời gọi: chủ cũ thả khóa đúng lúc này. Thử lại một lần.
+    if (!holder) return retryAfterClearing(mine);
+
+    if (!isStale(holder, now)) {
       throw new HealthCheckBusyError(
-        `Đang có một lượt dò chạy dở (${describeHolder(holder, now)}). Chờ nó xong rồi thử lại. ` +
-          `Hai lượt chạy chồng nhau làm proxy quan sát viên bắn request dồn dập và bị Reddit chặn.`,
+        `Đang có một lượt dò chạy dở (${describeLockHolder(holder, now)}). ` +
+          `Chờ nó xong rồi thử lại. ${BUSY_HINT}`,
       );
     }
 
-    // Khóa mồ côi: chủ cũ chết mà không dọn. Xóa rồi giành lại — nếu giữa hai bước có tiến
-    // trình khác chen vào giành được, lần ghi này ném lỗi và ta báo bận, đúng như mong muốn.
-    try {
-      unlinkSync(lockPath);
-    } catch {
-      // Người khác vừa xóa trước. Không sao, bước ghi dưới đây quyết định ai thắng.
-    }
+    // Khóa mồ côi: chủ cũ chết mà không dọn. Xóa ĐÚNG hàng mồ côi đó — đối chiếu `token`, nên
+    // nếu một tiến trình khác vừa giành được trong khe này thì token đã khác và lệnh xóa không
+    // chạm gì cả. Lượt tạo bên dưới sẽ đụng khóa chính và ta báo bận, đúng như mong muốn.
+    await prisma.healthCheckLock.deleteMany({
+      where: { key: HEALTH_CHECK_LOCK_KEY, token: holder.token },
+    });
 
-    try {
-      writeLock(lockPath, body);
-    } catch {
-      throw new HealthCheckBusyError(
-        "Một lượt dò khác vừa giành khóa trước. Thử lại sau ít phút.",
-      );
-    }
+    return retryAfterClearing(mine);
   }
 
+  return heldLock(token);
+}
+
+/** Lượt tạo thứ hai, sau khi đã dọn hàng mồ côi hoặc thấy nó tự biến mất. */
+async function retryAfterClearing(mine: {
+  key: string;
+  token: string;
+  host: string;
+  pid: number;
+  startedAt: Date;
+}): Promise<HeldLock> {
+  try {
+    await prisma.healthCheckLock.create({ data: mine });
+  } catch (error) {
+    if (!isUniqueConstraintError(error)) throw error;
+    throw new HealthCheckBusyError(
+      `Một lượt dò khác vừa giành khóa trước. Thử lại sau ít phút. ${BUSY_HINT}`,
+    );
+  }
+
+  return heldLock(mine.token);
+}
+
+function heldLock(token: string): HeldLock {
   return {
-    release() {
-      // Chỉ xóa khóa của CHÍNH MÌNH. Nếu khóa đã bị người khác giành sau một lượt dọn mồ côi,
-      // xóa bừa là kéo theo lượt chạy của họ mất khóa giữa chừng.
-      try {
-        if (readFileSync(lockPath, "utf8") === token) unlinkSync(lockPath);
-      } catch {
-        // Khóa đã biến mất hoặc không đọc được — không còn gì để dọn.
-      }
+    async release() {
+      // Xóa theo `token`, tức chỉ xóa khóa của CHÍNH MÌNH, và quyết trong một lệnh. Bản khóa
+      // file phải đọc rồi so rồi mới xóa — ba bước, và giữa chúng có khe cho người khác chen
+      // vào giành khóa rồi bị ta xóa mất.
+      await prisma.healthCheckLock.deleteMany({
+        where: { key: HEALTH_CHECK_LOCK_KEY, token },
+      });
     },
   };
 }

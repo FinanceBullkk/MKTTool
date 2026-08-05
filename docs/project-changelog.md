@@ -7,6 +7,208 @@ Dự án chưa phát hành phiên bản (`0.1.0`, dùng nội bộ). Mốc chia 
 
 ---
 
+## 06/08/2026 — GĐ3 đóng: máy chủ không còn mở được một mật khẩu nick nào
+
+Bốn việc cuối của GĐ3. Trước hôm nay, bộ phát vé đã chạy và có test hai đầu nhưng **chưa lối vào
+nào gọi nó** — tức là toàn bộ việc chia hai vùng khóa chưa có tác dụng gì. Hôm nay ba lối vào
+được nối vào, và lỗ mở từ GĐ2 (*"một phiên bị trộm vẫn đọc được mật khẩu nick"*) đóng lại.
+
+- **Hai server action lấy bí mật nay phát vé, không giải mã.** `revealCredential` /
+  `requestOtpCode` thành `requestCredentialTicket` / `requestOtpTicket` — đổi tên vì tên cũ nói
+  dối về việc hàm làm. Máy chủ lấy **nguyên văn ciphertext trong database**, bọc lại cho đúng
+  chiếc máy đang ngồi, ký tên, rồi đưa trình duyệt mang đi. Nó không đọc được thứ nó vừa phát.
+  - **Bí mật đi qua tab của cầu nối, không qua trang web** (QĐ 3). Tab đó cùng nguồn với cầu nối
+    nên không dính luật Local Network Access — lấy được mật khẩu kể cả trên máy chưa bấm "Cho
+    phép". Vé nằm ở **fragment** của URL: fragment không được gửi lên máy chủ nào, không vào
+    `Referer`, không nằm trong dòng log nào.
+  - **`AuditLog` ghi lúc phát vé**, kèm tên máy nhận. Đó là mốc máy chủ tự biết; mốc "người dùng
+    đã nhìn thấy mật khẩu" thì nó chỉ biết nếu tin lời trình duyệt khai.
+  - **Hạn nhịp 10 vé bí mật mỗi phút cho mỗi người.** Không chặn người ngoài — hai lớp gác đã
+    làm việc đó. Nó chặn **một phiên bị trộm**: không có hạn thì "rút sạch kho" là chuyện của vài
+    giây, có hạn thì thành chuyện của nhiều phút, và nhiều phút là đủ để một người nhận ra tab
+    của mình đang tự bấm nút.
+- **Nút mở profile phát vé kèm cấu hình proxy dựng sẵn.** Máy chủ vẫn kiểm proxy còn sống trước
+  (mật khẩu proxy thuộc vùng khóa của nó), rồi bỏ cấu hình đã dựng vào **ruột vé đã mã hóa** —
+  mở devtools ra chỉ thấy chuỗi mã hóa, không thấy mật khẩu proxy. Việc đẩy proxy và mở trình
+  duyệt chuyển sang cầu nối, vì MultiZen chỉ nghe `127.0.0.1` và từ GĐ5 thì `127.0.0.1` của máy
+  chủ là một máy khác hẳn.
+  - Nhật ký đổi từ `PROFILE_LAUNCHED` sang `PROFILE_LAUNCH_TICKET_ISSUED`: máy chủ không biết
+    profile có mở được không, và ghi thứ nghe kể là làm hỏng chính cuốn nhật ký.
+- **Form tạo/sửa nick mã hóa ba ô bí mật ở máy người dùng.** Mật khẩu đi từ ô nhập xuống
+  `127.0.0.1` rồi dừng ở đó; thứ gửi lên máy chủ là ciphertext. Máy chủ mất phép kiểm "TOTP
+  secret có phải base32 không" (nó không đọc nổi nữa) — phép kiểm đó chuyển sang cầu nối. Thứ
+  máy chủ **còn** kiểm được là hình dạng ciphertext, và nó kiểm: một form hỏng gửi mật khẩu trần
+  lên bị từ chối ngay, thay vì ghi vào database rồi chỉ lộ ra vào ngày ai đó mở bản sao lưu.
+  - Ba ô bí mật **bị khóa cho tới khi JavaScript sẵn sàng**. Không có nó thì người gõ nhanh rồi
+    Enter trước lúc trang hydrate xong sẽ để trình duyệt gửi form theo cách mặc định — mật khẩu
+    dạng trần bay thẳng lên máy chủ, im lặng.
+- **Câu từ chối quyền nay tới được người dùng.** `guardedAction` bọc cả **thân hàm**, nên
+  `AuthorizationError` mà `requireNickOwner` ném ra thành `ActionResult` ở mọi lối vào cùng lúc.
+  Trước đó OPERATOR bấm nhầm nick của đồng nghiệp chỉ thấy một nút chết lặng: chặn vẫn đúng, chỉ
+  có lời giải thích là mất.
+- **`encryptCredential` / `decryptCredential` bỏ khóa mặc định.** Quên tham số khóa ở một cột
+  vùng operator thì trước đây **không có gì hỏng** — chuỗi vẫn mã hóa, hàng vẫn ghi, không test
+  nào đỏ — và chỉ lộ ra vào ngày chạy `vault:rekey --domain=operator`, lúc cột ghi nhầm đã thành
+  rác. Nay khai rõ ở cả 20 chỗ gọi, và vùng khóa của một cột hiện ngay tại chỗ đọc mã.
+- **Lượt grep nghiệm thu thành một bài test thường trực.** Kế hoạch ghi việc cuối là *"kiểm bằng
+  grep"*; grep chứng minh được hôm nay và chỉ hôm nay. Ngày mai ai đó thêm một tính năng "xuất
+  danh sách nick kèm mật khẩu" là ranh giới mất, mọi test khác vẫn xanh. Cùng lối với phép cấm
+  giờ máy và phép kiểm gác lối vào: kiểu hỏng nào không làm test nào đỏ thì phải có một phép kiểm
+  hình dạng mã nguồn nhắm thẳng vào nó.
+
+> ⚠️ **Tới khi GĐ4 xong, ba việc cần cầu nối mới làm được**: lấy mật khẩu/OTP, mở profile, và
+> tạo/sửa nick *có nhập bí mật mới*. Đây là trạng thái đã hẹn trước của QĐ 8 (làm hết rồi bàn
+> giao một lần), không phải hồi quy ngoài ý muốn — chưa ai ngoài tác giả dùng công cụ. Sửa karma,
+> trạng thái hay proxy của nick vẫn chạy bình thường: ba ô bí mật để trống nghĩa là giữ nguyên,
+> và form không gọi xuống `127.0.0.1` khi không có gì để bọc.
+
+## 05/08/2026 (tối) — Chỗ chạy thật: Dockerfile, khóa vào database, ba lỗi chỉ Docker mới thấy
+
+Việc của GĐ5, chạy song song với GĐ3. Ba thay đổi dưới đây có chung một chủ đề: **thứ đúng khi
+app chạy trên đúng một máy thì sai khi nó chạy ở nhiều nơi.**
+
+- **Khóa chống hai lượt dò sức khỏe chạy chồng chuyển từ file vào database.** File
+  `data/health-check.lock` chặn được đúng hai tiến trình trên **cùng một máy**. Từ GĐ5 điều kiện
+  đó không còn: cron trên Railway, nút "Dò cả đàn" trong web app, và dev gõ `npm run health` ở máy
+  mình — ba nơi, ba hệ thống tệp, không nơi nào thấy file của nơi kia. Khóa im lặng mất tác dụng
+  đúng lúc bắt đầu cần tới nó.
+  - **Đi khác chốt ban đầu của plan** (advisory lock Postgres), vì advisory lock **hỏng mở**: nó
+    gắn theo session, Prisma dùng connection pool, và giữ một connection riêng suốt mười phút trên
+    Railway thì lớp proxy cắt lúc nào không biết. Connection chết là Postgres tự nhả khóa cho lượt
+    thứ hai chen vào — đúng thứ khóa sinh ra để chặn, mà lại hỏng lặng lẽ. Một hàng trong bảng thì
+    hỏng ngược lại: tiến trình chết thì hàng ở lại và ai đó chờ tối đa 30 phút.
+  - Advisory lock cũng **không mang được dữ liệu**, mà giao diện cần biết "ai đang giữ, giữ bao lâu
+    rồi" — nên vẫn phải có một hàng ở đâu đó. Hai cơ chế cho một khái niệm thì sớm muộn cũng lệch.
+  - `release()` xóa theo token nên chỉ xóa khóa của chính mình, và quyết trong một lệnh. Bản khóa
+    file phải đọc rồi so rồi mới xóa — ba bước, có khe cho người khác giành khóa rồi bị ta xóa mất.
+  - Thông báo "đang chạy" nay kèm **tên máy**: khóa bắc qua nhiều nơi rồi thì "tiến trình 4821" một
+    mình không nói được gì. Cron máy chủ, người khác bấm nút, hay chính terminal của mình là ba
+    việc phải xử lý khác nhau.
+- **`Dockerfile` thay cho cấu hình riêng của Railway** (QĐ 9) — cùng file này chạy được ở Render,
+  Fly hay một VPS. Khóa vào một hãng là thứ chỉ phát hiện ra vào đúng ngày muốn rời hãng đó.
+  - Kèm **một lỗi có thật, không liên quan gì tới Docker**: `playwright`, `tsx` và `prisma` chuyển
+    từ `devDependencies` sang `dependencies`. Chúng cần lúc **chạy**, không phải chỉ lúc build —
+    lượt dò sinh tiến trình bằng `tsx scripts/run-health-check.ts`, và tiến trình đó gọi
+    `chromium.launch()`. Ai cài bằng `npm ci --omit=dev`, tức cách cài production tiêu chuẩn, đều
+    nhận một app mà nút "Dò cả đàn" sinh ra tiến trình chết ngay dòng đầu — và `stdio: "ignore"`
+    nuốt sạch câu lỗi, nên nhìn như *"đã bấm rồi mà không có gì xảy ra"*.
+  - Dựng trên ảnh Playwright chính chủ, ghim theo `package.json`. Tự cài trên ảnh trần thì lệ thuộc
+    một danh sách gói apt đổi theo từng bản Debian — hỏng vào ngày nâng cấp, không hỏng lúc viết.
+  - **Không** dùng `output: "standalone"`: nó chỉ gói những gì Next truy vết được từ đồ thị import,
+    mà tiến trình dò sinh bằng `spawn` nên không nằm trong đồ thị đó. Ảnh phải mang theo `src/`,
+    `scripts/` và `tsx`. Ảnh to hơn là cái giá đã biết của quyết định "lượt dò chạy ở tiến trình riêng".
+  - `TEAM_TIMEZONE` là `ARG` lúc build chứ không phải biến lúc chạy, vì `next.config.ts` nhúng nó
+    thẳng vào bundle cho ô chọn giờ phía client. **Đổi múi giờ team thì phải build lại.**
+- **Prisma client dựng trễ — và ba lỗi mà 601 test, `typecheck` lẫn `lint` đều không thấy**, vì cả
+  ba đều chạy trong môi trường **có `.env`, trên Windows**. Lần build ảnh đầu tiên làm lộ hết.
+  1. **App không build được nếu thiếu `DATABASE_URL`.** `prisma-client.ts` dựng client ngay ở thân
+     module, nên chỉ cần *import* là đã đòi biến. `next build` phải nạp mọi route để đọc cấu hình
+     đoạn, mà `layout.tsx` → `SessionBadge` → `require-actor` → file đó, nên build dừng ở
+     `/_not-found`. Máy dev không thấy vì `next build` tự nạp `.env`; ảnh Docker **cố ý không có**
+     file đó — khóa kho danh tính không đi vào ảnh. Sửa theo đúng lối `getAuth()` đã đặt sẵn cho
+     Better Auth, dùng `Proxy` nên không phải sửa hơn trăm chỗ gọi và không sinh ra hai cách lấy
+     client cùng tồn tại. Gỡ kèm một tác dụng phụ âm thầm: trước đây chỉ nạp module là mở sẵn một
+     connection pool, kể cả trong test không hỏi database câu nào.
+  2. **`RUN chown -R pwuser /app` một mình nó nặng 998 MB.** `chown` đụng metadata mọi file nên
+     Docker coi cả cây là đã đổi và chép lại nguyên `/app` thành một tầng nữa. Thay bằng
+     `COPY --chown` và đổi user trước khi chép: **6.6 GB → 4.86 GB**.
+  3. **`pg_dump` của Ubuntu Noble là bản 16, mà server là 17.** `pg_dump` **từ chối** dump từ server
+     có major cao hơn nó — bản mặc định trông như cài xong nhưng hỏng đúng ngày cần sao lưu, và
+     nặng hơn thế: `vault:rekey` tự sao lưu trước khi ghi, nó sẽ dừng ngay ở bước đó. Chuyển sang
+     kho PGDG lấy `postgresql-client-17`. *Nâng Postgres lên 18 thì phải sửa `ARG PG_CLIENT_MAJOR`
+     trước, nếu không mọi bản sao lưu im lặng ngừng chạy.*
+
+> **Ảnh đã nghiệm thu chạy thật trong container**, không chỉ kiểm file có tồn tại: chạy bằng
+> `pwuser`, có `tsx`, Prisma CLI, `pg_dump` 17.10, `scripts/` và `src/` đủ, và Chromium mở được thật.
+
+---
+
+## 05/08/2026 — Kho tách làm hai vùng khóa, và máy chủ có chữ ký
+
+GĐ3 đang chạy (7/11 việc). Đích của cả giai đoạn: **chiếm được máy chủ không mở được một mật
+khẩu nick nào**. Đợt này đặt xong phần nền, chưa tới đích — máy chủ vẫn còn giữ khóa vùng
+operator, xem ghi chú cuối mục.
+
+- **`VAULT_KEY` tách thành `VAULT_KEY_SERVER` và `VAULT_KEY_OPERATOR`** — **đổi vỡ tương thích,
+  phải sửa `.env` trước khi chạy.** Vùng server giữ mật khẩu proxy và token Facebook (máy chủ cần
+  chúng để kiểm proxy sống và gọi Graph API); vùng operator giữ mật khẩu, email, TOTP của nick.
+  `loadVaultKey` bắt buộc nói rõ vùng và **không đọc lùi** về `VAULT_KEY` cũ: im lặng chạy tiếp
+  bằng khóa cũ là kiểu hỏng chỉ lộ ra đúng lúc cần mở mật khẩu. Đang nâng cấp từ bản một khóa thì
+  đặt cả hai biến bằng giá trị cũ, và bộ nạp khóa **cảnh báo khi hai vùng còn trùng nhau** —
+  trạng thái đúng lúc chuyển đổi nhưng nhìn y hệt lúc đã tách xong, nên phải nói ra.
+- **Vùng của từng cột khai ngay cạnh cột trong `schema.prisma`** (`vault:server` / `vault:operator`),
+  và test đọc thẳng schema nên khai lệch hoặc **khai thiếu** đều đỏ. Đặt dấu cạnh cột chứ không
+  chỉ trong registry vì người thêm cột mới nhìn thấy nó lúc đang gõ.
+- **`vault:rekey` nay bắt buộc `--domain=server|operator`** và xoay đúng một vùng. Chính lệnh này
+  là đường tách hai vùng lần đầu. Nguyên tắc cũ giữ nguyên: giải mã sạch toàn bộ trước khi ghi.
+- **`vault:smoke` thêm phép thử "khóa vùng server KHÔNG mở được mật khẩu nick"**, và **báo FAIL
+  khi hai khóa còn trùng** thay vì báo PASS cho thứ chưa kiểm được. Đã xanh trên DB thật.
+- **Cặp khóa ký vé Ed25519 của máy chủ** (`TICKET_SIGNING_KEY`). Chỉ một biến — hạt giống khóa
+  riêng; khóa công khai suy ra từ nó chứ không khai riêng, vì hai biến rời nhau là mở đường cho
+  một cặp lệch, mà cặp lệch thì mọi vé bị từ chối và không nhìn vào đâu để biết vì sao. Test đối
+  chiếu **vector chuẩn RFC 8032 mục 7.1**, không phải ký-rồi-tự-kiểm: tự kiểm chỉ chứng minh
+  module nhất quán với chính nó, còn cầu nối ở GĐ4 sẽ được viết độc lập.
+- **`npm run keys:server-pubkey`** in lại khóa công khai của khóa đang dùng. `keys:server-keygen`
+  sinh cặp *mới* mỗi lần chạy, nên trước đó không có đường nào tra khóa công khai hiện hành —
+  trong khi mỗi lần cài cầu nối lên một máy mới lại cần đúng thứ đó.
+- **Sổ đăng ký máy chạy cầu nối** — model `RelayDevice` + màn hình `/relay-devices`. Mỗi máy khai
+  một khóa công khai **X25519** (không phải Ed25519: máy chủ *ký*, máy *nhận đồ mã hóa gửi tới* —
+  hai việc ngược chiều, hai họ khóa). Máy chủ bọc nội dung vé bằng khóa của đúng máy nhận, nên
+  trình duyệt chỉ là người đưa thư. ADMIN đăng ký / thu hồi; cả team đọc được sổ, đúng nguyên tắc
+  đã theo từ đợt trước: chia **quyền làm**, không chia **tầm nhìn**.
+  - Đúng 64 ký tự hex **chưa đủ** để nhận một khóa: có một nhóm điểm bậc thấp cho ra bí mật chung
+    toàn số 0 với *mọi* khóa đối diện — tức ai nhặt được vé cũng mở ra được. Màn hình đăng ký thử
+    trao khóa một lần với cặp tạm để chặn cả nhóm, thay vì chép bảng điểm xấu vào mã rồi mong nó
+    đủ. Test đối chiếu **vector chuẩn RFC 7748 mục 6.1**, cùng lý lẽ với vector RFC 8032 ở trên.
+  - Khóa chuẩn hóa về hex chữ thường trước khi ghi. Không chuẩn hóa thì cùng một chiếc máy dán
+    lại bằng chữ hoa sẽ lọt qua `@unique` thành hàng thứ hai, và người thu hồi hàng thứ nhất tưởng
+    đã chặn xong.
+  - **Thu hồi là một chiều và giữ nguyên hàng trong sổ.** Khóa của máy đã mất coi như đã lộ; cho
+    đăng ký lại đúng khóa đó là xóa sạch ý nghĩa của lần thu hồi. Giữ hàng lại thì `@unique` còn
+    chặn được, và câu *"bị chặn từ lúc nào"* còn chỗ trả lời.
+  - **Ranh giới phải nhớ:** thu hồi chặn **vé mới**, không với tới ciphertext chiếc máy đó đã lấy
+    về từ trước. Mất máy thì vẫn phải xoay `VAULT_KEY_OPERATOR` — câu thông báo sau khi bấm nút
+    nói thẳng điều đó, và có test canh.
+- **`npm run keys:relay-keygen`** sinh cặp khóa X25519 cho một máy. Chạy **trên chính máy đó**:
+  khóa riêng ở lại, chỉ khóa công khai đi ra. Tới GĐ4 cầu nối tự sinh khóa lúc cài và lệnh này
+  thành đường dự phòng.
+- **Bộ phát và xác minh vé** (`src/lib/tickets/`). Máy chủ bọc ruột vé cho riêng máy nhận — cặp
+  khóa **dùng một lần cho mỗi tấm vé**, X25519 → HKDF → AES-256-GCM — rồi ký Ed25519 phủ lên cả
+  bao ngoài lẫn ruột đã bọc. Vé sống 30 giây, tiêu được đúng một lần.
+  - **Bọc trước, ký sau**, nên cầu nối xác minh chữ ký *trước khi* giải mã bất cứ thứ gì. Làm
+    ngược lại thì chữ ký nằm trong lớp mã hóa, và cách duy nhất để biết vé có thật hay không là
+    cứ giải mã đã.
+  - **Ký lên chuỗi, không ký lên object.** Cầu nối GĐ4 là chương trình viết độc lập, và
+    `JSON.stringify` của hai chương trình có thể xếp khóa khác thứ tự. Cả hai đầu ký/xác minh
+    trên đúng chuỗi base64url truyền đi, không bên nào tuần tự hóa lại — cùng lý do JWS làm vậy.
+  - **Cặp khóa dùng một lần**, không phải cặp cố định của máy chủ: cặp cố định thì mọi vé gửi
+    tới cùng một máy dùng chung một khóa AES, lộ một lần là lộ cả lịch sử. Bí mật chung đi qua
+    HKDF chứ không dùng thẳng — đầu ra X25519 là tọa độ một điểm, không phải khóa phân bố đều.
+  - **Chống dùng lại nằm ở cầu nối**, là hệ quả của QĐ 5 chứ không phải lựa chọn: cầu nối không
+    nối mạng nên không hỏi máy chủ được, và máy chủ cũng không biết vì nó phát vé rồi thôi.
+  - Thứ tự kiểm là một phần của thiết kế: chữ ký → **hai số phiên bản** → hạn → đúng máy → chưa
+    tiêu → mới giải mã. Đặt phiên bản ngay sau chữ ký để cầu nối cũ luôn nhận được *"bản quá cũ,
+    tải lại"* (QĐ 11) thay vì một lỗi giải mã mơ hồ.
+  - **Chưa lối vào nào gọi module này** — nối vào nút bấm là ba việc còn lại của GĐ3.
+- **Ghi đè bí mật nick nay phải là chủ nick** — đối xứng với `revealCredential`, vốn đã gác từ
+  GĐ2. Không gác thì trạng thái là *"tôi không đọc được mật khẩu nick của bạn, nhưng tôi ghi đè
+  được nó"*. Chỉ gác khi form **thật sự mang bí mật lên**: sửa karma / trạng thái / proxy cho nick
+  của đồng nghiệp vẫn mở, vì đó là việc chung hằng ngày và một phép kiểm cản việc thật thì sẽ bị
+  gỡ chứ không được sửa.
+  - Chuyện `status` bị kéo từ `SHADOWBANNED` về `HEALTHY` **cố ý không giải bằng phân quyền**:
+    chủ nick cũng ép được, nên phép kiểm chủ sở hữu không nhắm đúng chỗ. Thay vào đó
+    `ACCOUNT_UPDATED` nay ghi cả chiều đổi, khớp với `HEALTH_STATUS_FORCED` mà đường còn lại đã
+    ghi từ lâu — hai đường tới cùng một hậu quả thì nhật ký phải đọc được như nhau.
+- **`AuditLog.action` gom về `lib/audit/audit-log-actions.ts`.** 15 chuỗi literal rải 9 file; gõ
+  sai một chữ thì hàng vẫn ghi và không test nào đỏ, chỉ có câu truy vấn đi tìm nó sau này là
+  hụt mất hàng — im lặng, và đúng vào ngày cần nhật ký nhất.
+
+> **Chưa đóng ở đợt này:** máy chủ vẫn giữ `VAULT_KEY_OPERATOR`, vì bốn chỗ còn cần nó — tạo nick,
+> sửa nick, xem mật khẩu, sinh OTP. Chỉ gỡ được sau khi bốn chỗ đó chuyển sang phát vé. Nghiệm thu
+> cuối GĐ3 là gỡ hẳn biến đó khỏi máy chủ mà app vẫn chạy đủ mọi chức năng.
+
+---
+
 ## 05/08/2026 — Đăng nhập Google, phân quyền, và bỏ cờ `-H`
 
 Hàng rào chuyển từ **chỗ app lắng nghe** sang **đăng nhập**. Hai thứ này phải đổi trong cùng một

@@ -9,6 +9,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import type { Prisma } from "@prisma/client";
 import { STATUS_PRESENTATION, getStatusPresentation } from "@/lib/accounts/account-status";
+import { AUDIT_ACTIONS } from "@/lib/audit/audit-log-actions";
 import { prisma } from "@/lib/db/prisma-client";
 import { MS_PER_DAY } from "@/lib/format/vietnamese-date-format";
 import { normalizeThreadUrl } from "@/lib/rules/rule-thread-collision";
@@ -205,7 +206,7 @@ export async function recordHealthCheck(
       prisma.auditLog.create({
         data: {
           accountId: account.id,
-          action: "HEALTH_STATUS_FORCED",
+          action: AUDIT_ACTIONS.HEALTH_STATUS_FORCED,
           detail: `Bộ dò đổi trạng thái sang ${statusChangedTo}: ${evaluation.detail}`.slice(0, 500),
         },
       }),

@@ -11,10 +11,13 @@
 import { revalidatePath } from "next/cache";
 import type { ActionResult } from "@/lib/actions/action-result";
 import { guardedAction } from "@/lib/auth/guarded-action";
-import { encryptCredential, encryptOptionalCredential } from "@/lib/crypto/credential-encryption";
+import { encryptCredential } from "@/lib/crypto/credential-encryption";
+import { loadVaultKey } from "@/lib/crypto/encryption-key-loader";
 import { prisma } from "@/lib/db/prisma-client";
-import { describeUnexpectedDbError, isUniqueConstraintError } from "@/lib/db/prisma-error-helpers";
-import { isValidTotpSecret, normalizeTotpSecret } from "@/lib/totp/totp-code-generator";
+import {
+  describeUnexpectedDbError,
+  isUniqueConstraintError,
+} from "@/lib/db/prisma-error-helpers";
 import {
   accountCreateSchema,
   firstError,
@@ -37,9 +40,15 @@ export const createPersona = guardedAction(async function createPersona(
     await prisma.persona.create({ data: parsed.data });
   } catch (error) {
     if (!isUniqueConstraintError(error)) {
-      return { ok: false, message: describeUnexpectedDbError(error, "tạo nhân vật") };
+      return {
+        ok: false,
+        message: describeUnexpectedDbError(error, "tạo nhân vật"),
+      };
     }
-    return { ok: false, message: `Tên nhân vật "${parsed.data.name}" đã tồn tại.` };
+    return {
+      ok: false,
+      message: `Tên nhân vật "${parsed.data.name}" đã tồn tại.`,
+    };
   }
 
   revalidatePath("/personas");
@@ -56,18 +65,41 @@ export const createProxy = guardedAction(async function createProxy(
 
   const { password, ...rest } = parsed.data;
   try {
-    await prisma.proxy.create({ data: { ...rest, passwordEnc: encryptCredential(password) } });
+    await prisma.proxy.create({
+      data: {
+        ...rest,
+        passwordEnc: encryptCredential(password, loadVaultKey("server")),
+      },
+    });
   } catch (error) {
     if (!isUniqueConstraintError(error)) {
-      return { ok: false, message: describeUnexpectedDbError(error, "thêm proxy") };
+      return {
+        ok: false,
+        message: describeUnexpectedDbError(error, "thêm proxy"),
+      };
     }
-    return { ok: false, message: "Proxy trùng nhãn hoặc trùng host/port/username đã có." };
+    return {
+      ok: false,
+      message: "Proxy trùng nhãn hoặc trùng host/port/username đã có.",
+    };
   }
 
   revalidatePath("/proxies");
   return { ok: true, message: `Đã thêm proxy "${parsed.data.label}".` };
 });
 
+/**
+ * Thêm nick.
+ *
+ * **Ba cột bí mật đi vào đây đã ở dạng ciphertext** — cầu nối trên máy người dùng bọc chúng
+ * trước khi form gửi lên (xem `account-vault-form.tsx`). Máy chủ không mã hóa, vì nó không giữ
+ * `VAULT_KEY_OPERATOR` nữa; nó chỉ kiểm hình dạng rồi ghi thẳng.
+ *
+ * Hệ quả phải nói ra: **phép kiểm "TOTP secret có dùng được không" chuyển sang cầu nối**. Máy
+ * chủ không đọc nổi chuỗi đó nên không kiểm được, và đoán mò thì tệ hơn không kiểm. Cầu nối
+ * chuẩn hóa (bỏ khoảng trắng, viết hoa) rồi kiểm trước khi bọc — xem
+ * `relay-endpoints.ts` và GĐ4 bước 7.
+ */
 export const createAccount = guardedAction(async function createAccount(
   _actor,
   _prev: ActionResult | null,
@@ -76,13 +108,7 @@ export const createAccount = guardedAction(async function createAccount(
   const parsed = accountCreateSchema.safeParse(formToObject(formData));
   if (!parsed.success) return { ok: false, message: firstError(parsed.error) };
 
-  const { password, emailPassword, totpSecret, ...rest } = parsed.data;
-
-  // Kiểm tra secret dùng được TRƯỚC khi lưu — phát hiện sai ngay lúc nhập,
-  // không phải lúc đang cần đăng nhập gấp.
-  if (totpSecret && !(await isValidTotpSecret(totpSecret))) {
-    return { ok: false, message: "TOTP secret không hợp lệ (phải là chuỗi base32)." };
-  }
+  const { totpSecretEnc, ...rest } = parsed.data;
 
   try {
     await prisma.account.create({
@@ -92,14 +118,15 @@ export const createAccount = guardedAction(async function createAccount(
         // trùng nhau, nên nick Facebook thứ hai sẽ ăn lỗi trùng ràng buộc mà không hiểu vì sao.
         antidetectProfileId: rest.antidetectProfileId?.trim() || null,
         proxyId: rest.proxyId?.trim() || null,
-        passwordEnc: encryptCredential(password),
-        emailPasswordEnc: encryptCredential(emailPassword),
-        totpSecretEnc: encryptOptionalCredential(totpSecret ? normalizeTotpSecret(totpSecret) : null),
+        totpSecretEnc: totpSecretEnc ?? null,
       },
     });
   } catch (error) {
     if (!isUniqueConstraintError(error)) {
-      return { ok: false, message: describeUnexpectedDbError(error, "thêm nick") };
+      return {
+        ok: false,
+        message: describeUnexpectedDbError(error, "thêm nick"),
+      };
     }
     return {
       ok: false,
@@ -128,9 +155,15 @@ export const createTarget = guardedAction(async function createTarget(
     await prisma.platformTarget.create({ data: parsed.data });
   } catch (error) {
     if (!isUniqueConstraintError(error)) {
-      return { ok: false, message: describeUnexpectedDbError(error, "thêm đích đăng") };
+      return {
+        ok: false,
+        message: describeUnexpectedDbError(error, "thêm đích đăng"),
+      };
     }
-    return { ok: false, message: `Đích "${parsed.data.name}" đã tồn tại trên nền tảng này.` };
+    return {
+      ok: false,
+      message: `Đích "${parsed.data.name}" đã tồn tại trên nền tảng này.`,
+    };
   }
 
   revalidatePath("/targets");

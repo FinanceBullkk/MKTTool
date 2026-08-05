@@ -11,6 +11,7 @@ import { revalidatePath } from "next/cache";
 import type { ActionResult } from "@/lib/actions/action-result";
 import { guardedAction } from "@/lib/auth/guarded-action";
 import { decryptCredential } from "@/lib/crypto/credential-encryption";
+import { loadVaultKey } from "@/lib/crypto/encryption-key-loader";
 import { prisma } from "@/lib/db/prisma-client";
 import { measureProxyBandwidth } from "./proxy-bandwidth-probe";
 import { summarizeBandwidth } from "./proxy-bandwidth-report";
@@ -24,13 +25,13 @@ export const measureOneProxySpeed = guardedAction(async function measureOneProxy
 
   let password: string;
   try {
-    password = decryptCredential(proxy.passwordEnc);
+    password = decryptCredential(proxy.passwordEnc, loadVaultKey("server"));
   } catch {
-    // Giải mã hỏng là chuyện của VAULT_KEY, không phải của proxy — không ghi gì vào database,
+    // Giải mã hỏng là chuyện của VAULT_KEY_SERVER, không phải của proxy — không ghi gì vào database,
     // vì ghi tức là khai rằng đã đo, mà thật ra chưa gửi đi byte nào.
     return {
       ok: false,
-      message: `${proxy.label} — không giải mã được mật khẩu proxy (VAULT_KEY đã đổi?). Chưa đo được.`,
+      message: `${proxy.label} — không giải mã được mật khẩu proxy (VAULT_KEY_SERVER đã đổi?). Chưa đo được.`,
     };
   }
 

@@ -11,7 +11,7 @@ Dự án đang chạy **hai luồng song song**:
 | Luồng | Là gì | Trạng thái |
 |---|---|---|
 | **A — Công cụ** | 5 giai đoạn gốc: kho danh tính → hàng đợi → sức khỏe → Facebook → tự đăng Reddit | GĐ1-4 xong, GĐ0 kẹt ở tiền + cold-start, GĐ5 chưa bắt đầu |
-| **B — Web chung** | Biến app một máy thành web chung cho 5-6 người ở 5-6 nơi | GĐ0-2 xong 05/08, còn 4 giai đoạn |
+| **B — Web chung** | Biến app một máy thành web chung cho 5-6 người ở 5-6 nơi | GĐ0-2 xong 05/08, GĐ3 đang làm (7/11 việc), GĐ5 đã khởi động (Dockerfile) |
 
 Luồng B sinh ra sau khi chốt bàn giao cho team — xem
 [plan web chung](../plans/260804-1752-web-chung-cho-team-phan-tan/plan.md). Nó **không thay thế**
@@ -43,18 +43,23 @@ Chi tiết ở [plan.md](../plans/260804-1752-web-chung-cho-team-phan-tan/plan.m
 | 0 | Spike: trình duyệt gọi xuống cầu nối | ✅ Xong | 04/08 | – (chốt 3 ràng buộc bắt buộc cho GĐ2/3/4) |
 | 1 | [Postgres + múi giờ team](../plans/260804-1752-web-chung-cho-team-phan-tan/phase-01-postgres-va-mui-gio-team.md) | ✅ Xong hẳn | 05/08 | – (chốt bắt đầu từ kho rỗng, không nhập lại dữ liệu thử) |
 | 2 | [Đăng nhập, vai trò, chủ sở hữu nick](../plans/260804-1752-web-chung-cho-team-phan-tan/phase-02-dang-nhap-vai-tro-chu-so-huu.md) | ✅ Xong | 05/08 | – (hoãn có chủ ý: bộ lọc "nick của tôi", chỉ là tiện nghi hiển thị) |
-| 3 | Tách hai vùng khóa + vé ký | 🟡 Tiếp theo | – | Bắt đầu sau khi GĐ2 merge về master |
+| 3 | [Tách hai vùng khóa + vé ký](../plans/260804-1752-web-chung-cho-team-phan-tan/phase-03-tach-hai-vung-khoa-va-ve-ky.md) | 🟡 Đang làm — 7/11 việc | Bắt đầu 05/08 | Bộ dựng/ký/mã hóa vé, chuyển reveal/OTP sang vé, gỡ khóa vùng operator khỏi máy chủ |
 | 4 | Cầu nối trên máy operator | ⬜ Chưa bắt đầu | – | **Đường găng.** Chờ GĐ3 |
-| 5 | Lên Railway + cron + sao lưu | ⬜ Chưa bắt đầu | – | Làm song song được từ sau GĐ1 |
+| 5 | Lên Railway + cron + sao lưu | 🟡 Đã bắt đầu | 05/08 | `Dockerfile` xong và ảnh đã chạy thật trong container; còn cron, sao lưu, và đẩy lên Railway |
 | 6 | Bàn giao team | ⬜ Chưa bắt đầu | – | Chờ GĐ4 |
 
 **GĐ1 đã đổi nền dữ liệu sang Postgres và đóng hẳn** (05/08/2026): 482/482 test, 4 smoke test và
 `npm run db:backup` đều xanh trên Postgres. Ràng buộc 1 nick = 1 proxy vẫn do database ép.
-Cố ý **không viết script chuyển dữ liệu**, và chốt 05/08/2026 là **không nhập lại gì cả**:
-chưa có nick thật nào, 3 nick cũ đều là nick thử. Kho bắt đầu từ rỗng.
+Cố ý **không nhập lại nick**: chưa có nick thật nào, 3 nick cũ đều là nick thử — nhập lại chỉ
+mang rác sang kho mới.
 
-> Giữ lại `dev.db` cũ: 10 proxy Webshare trong đó là dữ liệu thật đã trả tiền và đã kiểm
-> 10/10 ngày 04/08. Mật khẩu proxy không nằm ở đâu khác.
+> **Proxy thì đã nhập** (05/08/2026, tối). 10 IP Webshare trong `dev.db` là dữ liệu thật đã trả
+> tiền và đã kiểm 10/10 ngày 04/08, và **mật khẩu của chúng không nằm ở đâu khác ngoài file đó** —
+> tức một ổ cứng hỏng là mất tiền thật. Nay đã sang Postgres bằng
+> `npm run proxies:import-sqlite`, đối chiếu **10/10 mật khẩu giải mã ra đúng nguyên văn**.
+>
+> Vẫn **giữ nguyên `dev.db`** cho tới khi có người mở thử một proxy trong app và thấy nó chạy
+> thật. Đối chiếu ciphertext chứng minh dữ liệu sang đúng, không chứng minh proxy còn sống.
 
 **GĐ2 đã đổi hàng rào và đóng** (05/08/2026): từ "app chỉ nghe ở `127.0.0.1`" sang "phải đăng
 nhập Google và có tên trong `ALLOWED_EMAILS`". Cờ `-H` đã bỏ — đúng thứ tự đã hẹn, chỉ sau khi
@@ -64,6 +69,66 @@ phép kiểm tĩnh nào thấy: **trang** không đi qua wrapper gác nào cả,
 > Còn một lỗ **đã biết và cố ý chưa đóng**: một phiên đăng nhập bị trộm vẫn đọc được mật khẩu
 > nick, vì khóa vẫn nằm cùng một chỗ với máy chủ. Đó là việc của GĐ3, và là lý do **chưa bàn
 > giao cho ai** trước khi GĐ3 xong.
+
+**GĐ3 đã xong — 11/11 việc** (06/08/2026). Kho đã chia hai vùng khóa thật: `VAULT_KEY_SERVER`
+(mật khẩu proxy, token Facebook) và `VAULT_KEY_OPERATOR` (mật khẩu, email, TOTP của nick). Vùng
+của từng cột khai ngay trong `schema.prisma` bằng dấu `vault:server` / `vault:operator`, và test
+đọc thẳng schema nên khai thiếu hoặc khai lệch là đỏ. `vault:rekey` nay xoay theo từng vùng;
+`vault:smoke` đã xanh trên DB thật, gồm phép thử **khóa vùng server KHÔNG mở được mật khẩu nick**.
+
+> **Lỗ ở trên đã đóng 06/08.** Bốn chỗ từng cần khóa vùng operator trên máy chủ nay là không chỗ
+> nào, và phép thử nghiệm thu — *gỡ hẳn `VAULT_KEY_OPERATOR` khỏi máy chủ mà app vẫn chạy* — đã
+> thành hai bài test chạy mỗi lượt `npm test`. Lượt grep nghiệm thu cũng thành một bài test
+> thường trực: grep chứng minh được hôm nay, còn thứ phải giữ là một điều kiện sống lâu hơn ngày
+> nghiệm thu.
+
+Từ đó tới nay thêm **cặp khóa ký vé Ed25519 của máy chủ**. Máy chủ không còn tự đưa mật khẩu cho
+ai được nữa; thứ nó còn làm được là bảo chứng *"vé này do máy chủ phát sau khi đã kiểm phiên và
+kiểm chủ nick"* — chữ ký là lời bảo chứng đó. Chỉ một biến môi trường (`TICKET_SIGNING_KEY`, hạt
+giống khóa riêng), khóa công khai suy ra từ nó chứ không khai riêng, nên không có đường sinh ra
+một cặp lệch. Hai lệnh: `keys:server-keygen` sinh cặp mới, `keys:server-pubkey` in lại khóa công
+khai đang dùng — thứ cần tới mỗi lần cài cầu nối lên một máy mới.
+
+Và **sổ đăng ký máy chạy cầu nối** (`/relay-devices`). Mỗi máy khai một khóa công khai X25519;
+máy chủ bọc nội dung vé bằng khóa của đúng máy nhận, nên trình duyệt chuyển vé qua tay mà không
+đọc được gì bên trong — kể cả mật khẩu proxy. ADMIN đăng ký và thu hồi, cả team đọc được sổ
+(khóa công khai lộ cũng không mất gì, còn giấu đi thì không ai tự trả lời được *"máy tôi vào sổ
+chưa?"*). Thu hồi là một chiều: khóa của máy đã mất coi như đã lộ.
+
+> **Thu hồi không phải là xong.** Nó chặn **vé mới**, nhưng không với tới ciphertext chiếc máy đó
+> đã lấy về từ trước — thứ đang nằm trên ổ cứng của chính chiếc laptop đã mất. Mất máy thì thu hồi
+> xong vẫn phải xoay `VAULT_KEY_OPERATOR`. Câu thông báo sau khi bấm nút nói đúng ranh giới này,
+> và có test canh nó.
+
+Và **bộ phát/xác minh vé** — mảnh cuối của phần nền. Máy chủ bọc ruột vé cho riêng máy nhận (cặp
+khóa dùng một lần cho mỗi tấm vé, X25519 → HKDF → AES-256-GCM), rồi ký Ed25519 phủ lên cả bao
+ngoài lẫn ruột đã bọc. Cầu nối xác minh chữ ký **trước khi** giải mã bất cứ thứ gì. Vé sống 30
+giây và tiêu được đúng một lần; sổ chống dùng lại nằm ở cầu nối, vì theo QĐ 5 nó không nối mạng
+để hỏi máy chủ, và máy chủ cũng không biết — nó phát vé rồi thôi.
+
+Vé mang **hai số phiên bản** ngay từ tấm đầu tiên (QĐ 11), và `verifyTicket` kiểm chúng ngay sau
+chữ ký: cầu nối bản cũ phải nói được *"bản quá cũ, tải lại"* thay vì chết mơ hồ ở bước giải mã.
+
+**Ba lối vào đã nối vào vé** (06/08/2026), và đó là lúc GĐ3 thật sự có tác dụng. Hai server
+action lấy bí mật nay **phát vé** thay vì giải mã (đổi tên thành `requestCredentialTicket` /
+`requestOtpTicket` — tên cũ nói dối về việc hàm làm); route mở profile dựng cấu hình proxy rồi bỏ
+vào vé; form tạo/sửa nick nhờ cầu nối bọc ba ô bí mật **trước khi** gửi lên, nên máy chủ nhận
+ciphertext chứ không nhận mật khẩu. Kèm hai chốt nhỏ: `guardedAction` nay bọc cả thân hàm nên câu
+*"nick này do người khác phụ trách"* tới được người bấm nút thay vì thành một promise reject câm,
+và đường phát vé có **hạn nhịp 10 vé mỗi phút** để một phiên bị trộm không rút sạch kho trong vài
+giây.
+
+> ⚠️ **Từ 06/08 tới khi GĐ4 xong, ba việc cần cầu nối mới làm được**: lấy mật khẩu/OTP, mở
+> profile, và tạo/sửa nick *có nhập bí mật mới*. Đây là trạng thái đã hẹn trước của QĐ 8 — làm
+> hết rồi bàn giao một lần, không có giai đoạn quá độ — và chưa ai ngoài tác giả dùng công cụ.
+> Sửa karma, trạng thái hay proxy của nick thì **không** cần cầu nối: ba ô bí mật để trống nghĩa
+> là giữ nguyên, và form không gọi xuống `127.0.0.1` khi không có gì để bọc.
+
+Ngoài 11 việc gốc, hai chốt nữa đóng trong ngày. **Ghi đè bí mật nick nay phải là chủ nick** —
+đối xứng với đường lấy bí mật; trước đó một OPERATOR không đọc được mật khẩu nick của đồng
+nghiệp nhưng ghi đè được nó. Chỉ gác khi form thật sự mang bí mật lên, nên sửa karma / trạng thái
+/ proxy cho nhau vẫn là việc chung. Việc `status` bị kéo từ `SHADOWBANNED` về `HEALTHY` **không**
+giải bằng phân quyền (chủ nick cũng ép được) mà bằng dấu vết: nhật ký nay ghi cả chiều đổi.
 
 ## Đường găng: cái gì đang chặn
 

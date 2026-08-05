@@ -1,12 +1,12 @@
 import { randomBytes } from "node:crypto";
 import { beforeAll, describe, expect, it } from "vitest";
 import { encryptCredential } from "@/lib/crypto/credential-encryption";
-import { resetVaultKeyCache } from "@/lib/crypto/encryption-key-loader";
+import { loadVaultKey, resetVaultKeyCache } from "@/lib/crypto/encryption-key-loader";
 import { ProxyConfigError, buildProxyConfig } from "./proxy-config-builder";
 
-/** Khóa dùng riêng cho test — buildProxyConfig đọc VAULT_KEY từ env như lúc chạy thật. */
+/** Khóa dùng riêng cho test — mật khẩu proxy thuộc vùng server, đọc từ env như lúc chạy thật. */
 beforeAll(() => {
-  process.env.VAULT_KEY = randomBytes(32).toString("hex");
+  process.env.VAULT_KEY_SERVER = randomBytes(32).toString("hex");
   resetVaultKeyCache();
 });
 
@@ -16,7 +16,7 @@ function makeProxy(overrides: Partial<Parameters<typeof buildProxyConfig>[0]> = 
     host: "1.2.3.4",
     port: 8080,
     username: "user01",
-    passwordEnc: encryptCredential("mat-khau-proxy"),
+    passwordEnc: encryptCredential("mat-khau-proxy", loadVaultKey("server")),
     protocol: "http",
     ...overrides,
   };

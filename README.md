@@ -47,7 +47,8 @@ createdb -U postgres mkttool_test
 ```bash
 npm install
 cp .env.example .env
-npm run vault:keygen        # dán VAULT_KEY vào .env
+npm run vault:keygen        # chạy HAI lần: một khóa cho VAULT_KEY_SERVER,
+                            # một khóa cho VAULT_KEY_OPERATOR trong .env
                             # rồi điền DATABASE_URL + TEST_DATABASE_URL
 npm run db:upgrade
 npm run dev                 # http://localhost:3000
@@ -58,8 +59,17 @@ npm run dev                 # http://localhost:3000
 > quy ước đặt tên. Trỏ nhầm vào database vận hành là mất sạch kho danh tính, mất theo kiểu không
 > kịp hối hận — quy ước tên rẻ hơn nhiều so với hậu quả.
 
-> **VAULT_KEY phải được sao lưu vào password manager.** Mất khóa là mất toàn bộ mật khẩu và
-> TOTP secret của mọi nick, không khôi phục được bằng bất kỳ cách nào.
+> **Cả hai khóa phải được sao lưu vào password manager.** Mất khóa là mất vĩnh viễn phần dữ
+> liệu thuộc vùng đó, không khôi phục được bằng bất kỳ cách nào.
+>
+> Kho chia làm **hai vùng khóa**: `VAULT_KEY_SERVER` giữ mật khẩu proxy và token Facebook —
+> máy chủ cần chúng để làm việc; `VAULT_KEY_OPERATOR` giữ mật khẩu, email và TOTP của nick.
+> Đích đến là khóa operator **không nằm trên máy chủ**, để chiếm được máy chủ cũng không mở
+> nổi một mật khẩu nick nào. Vùng của từng cột khai ở
+> `src/lib/crypto/encrypted-field-registry.ts`.
+>
+> Đang nâng cấp từ bản một khóa? Đặt **cả hai** biến bằng đúng giá trị `VAULT_KEY` cũ, rồi tách
+> thật bằng `npm run vault:rekey -- --domain=operator --new-key=<hex>`.
 
 > **`TEAM_TIMEZONE` là biến bắt buộc.** Thiếu nó app dừng ngay kèm thông báo, không tự lùi về
 > giờ máy. `.env.example` đã điền sẵn `Asia/Ho_Chi_Minh` — xem [Múi giờ](#múi-giờ) bên dưới.
@@ -122,9 +132,13 @@ Có thì nó **sao lưu trước**, áp xong mới báo — và nếu áp hỏng
 | `npm run db:migrate` | Tạo migration mới (chỉ dùng khi phát triển) |
 | `npm run db:backup` | Sao lưu database ra `data/backups/` |
 | `npm run proxies:import <file>` | Nhập hàng loạt proxy từ file `host:port:user:pass` của nhà cung cấp |
+| `npm run proxies:import-sqlite` | Nhập proxy từ `dev.db` của bản SQLite cũ sang Postgres. **Mặc định chỉ xem trước**, thêm `-- --apply` mới ghi. Khóa cũ khác khóa hiện tại thì khai qua `VAULT_KEY_LEGACY` |
 | `npm run db:studio` | Mở Prisma Studio xem database |
-| `npm run vault:keygen` | Sinh khóa mã hóa mới |
-| `npm run vault:rekey` | Xoay `VAULT_KEY` — mã hóa lại toàn bộ credential |
+| `npm run vault:keygen` | Sinh khóa mã hóa mới (dùng cho cả hai vùng khóa) |
+| `npm run keys:server-keygen` | Sinh cặp khóa ký vé **mới** cho máy chủ — in khóa riêng để dán vào `.env` và khóa công khai để chép sang từng cầu nối |
+| `npm run keys:server-pubkey` | In khóa công khai của khóa ký **đang dùng** — cần mỗi lần cài cầu nối lên máy mới |
+| `npm run keys:relay-keygen` | Sinh cặp khóa X25519 cho **một máy** chạy cầu nối. Chạy trên chính máy đó: khóa riêng ở lại, khóa công khai gửi cho quản trị viên ghi vào sổ tại `/relay-devices` |
+| `npm run vault:rekey` | Xoay khóa một vùng (`--domain=server\|operator`) — mã hóa lại credential của vùng đó |
 | `npm run vault:smoke` | Kiểm chứng nghiệm thu Phase 01 trên DB thật |
 | `npm run vault:testotp` | Sinh TOTP secret dùng thử để kiểm chứng tính năng OTP |
 | `npm run rules:smoke` | Kiểm chứng nghiệm thu Phase 02 (bộ luật) trên DB thật |
@@ -139,7 +153,8 @@ proxy, không cần tài khoản nào, và kiểm tra được phần lớn ch�
 
 | Chặng | Cần gì | Kiểm chứng điều gì |
 |---|---|---|
-| **A** | không gì cả | `npm run vault:smoke` + `npm run rules:smoke` + `npm run facebook:smoke` + `npm run health:smoke` + nhập dữ liệu giả qua UI: mã hóa, ràng buộc 1:1, copy mật khẩu, OTP (dùng `npm run vault:testotp` đối chiếu với Google Authenticator), bộ luật an toàn, và đường đi Facebook trong máy |
+| **A** | không gì cả | `npm run vault:smoke` + `npm run rules:smoke` + `npm run facebook:smoke` + `npm run health:smoke` + nhập dữ liệu giả qua UI: ràng buộc 1:1, bộ luật an toàn, và đường đi Facebook trong máy |
+| **A+** | cầu nối (GĐ4, **chưa có**) | Mã hóa, lấy mật khẩu, OTP (dùng `npm run vault:testotp` đối chiếu với Google Authenticator). Ba việc này rời khỏi chặng A từ 06/08/2026 vì khóa mở bí mật nick không còn ở máy chủ — xem [Cầu nối](#cầu-nối) |
 | **B** | MultiZen (miễn phí) | Profile trống, không đăng nhập gì. Bấm "Mở profile" → công cụ có mở được profile không. ✅ **Đạt 02/08/2026** — đây từng là câu hỏi chặn đường của Phase 00 |
 | **C** | 1 proxy bất kỳ | Nhập proxy vào `/proxies`, gắn cho nick, bấm "Mở profile" → vào `ipinfo.io` → IP phải khớp proxy. Không cần chạm vào cài đặt MultiZen. ✅ **Đạt 02/08/2026** — [báo cáo](plans/reports/chang-c-260802-1443-proxy-push-verification.md) |
 | **D** | nick thật + proxy đúng loại | Chỉ làm sau khi A/B/C xong. Xem quy trình cold-start ở [Phase 00](plans/260801-2030-multi-account-posting-console/phase-00-preparation-and-feasibility-check.md) |
@@ -294,6 +309,8 @@ src/
 │   ├── queue/               hàng đợi + trang xếp lịch có chấm luật realtime
 │   ├── facebook/            kết nối Fanpage, trạng thái token
 │   ├── health/              bảng sức khỏe, lịch sử dò, biểu đồ karma
+│   ├── login/               màn hình đăng nhập Google
+│   ├── relay-devices/       sổ đăng ký máy chạy cầu nối (ADMIN đăng ký / thu hồi)
 │   ├── personas/ proxies/ targets/  danh sách + trang chi tiết để sửa/xóa
 │   └── api/
 │       ├── accounts/[id]/launch/   mở profile antidetect
@@ -303,16 +320,22 @@ src/
 ├── components/              khối UI dùng chung (ui/, vault/, queue/, content/, facebook/, health/)
 └── lib/
     ├── accounts/            server actions (thêm/sửa/xóa) + schema form + trạng thái nick
+    ├── actions/             kiểu ActionResult dùng chung cho mọi server action
     ├── antidetect/          adapter MultiZen / AdsPower (đổi bằng 1 dòng .env)
+    ├── audit/               tên các loại thao tác ghi vào AuditLog.action
+    ├── auth/                đăng nhập Google, danh sách email cho phép, gác lối vào, hai vai trò
     ├── content/             từ vựng content + server action kho content
-    ├── crypto/              AES-256-GCM cho credential
+    ├── crypto/              AES-256-GCM cho credential — hai vùng khóa (server / operator)
     ├── db/                  Prisma client
     ├── facebook/            Graph API: OAuth, token, đăng Fanpage
     ├── format/ platforms/   định dạng ngày, gộp họ nền tảng
     ├── health/              bộ dò shadowban: phiên trình duyệt sạch, parser, đánh giá, runner
+    ├── http/                đối chiếu Origin/Host cho route handler
     ├── proxies/             kiểm proxy còn sống (hỏi IP ra, chặn mở profile) + đo băng thông
     ├── queue/               server action cho job + tương tác, nhắc việc đăng tay
+    ├── relay/               hợp đồng HTTP với cầu nối + bộ gọi xuống 127.0.0.1 từ trình duyệt
     ├── rules/               bộ luật an toàn — mỗi luật một file
+    ├── tickets/             vé ủy quyền: khóa ký của máy chủ, sổ đăng ký máy, phát/xác minh vé
     └── totp/                sinh mã OTP 2FA
 ```
 
@@ -320,7 +343,11 @@ Mỗi luật là một hàm thuần `(ctx: RuleContext) => RuleVerdict`. Toàn b
 `rule-context-builder.ts`, nên thêm luật mới chỉ là thêm một file và một dòng trong `rules-engine.ts`.
 
 Stack: Next.js 16 + TypeScript + Prisma 7 + PostgreSQL + MCP client tới MultiZen. Một process,
-chạy trên máy bạn MKT. Chưa cần VPS, Docker hay Redis.
+không Redis, không microservice.
+
+> **Chỗ chạy đang chuyển.** Tới 04/08/2026 nó chạy trên đúng một máy bàn. Nay đã có `Dockerfile`
+> ở gốc repo cho bước lên Railway (GĐ5), và bản trên máy vẫn chạy bình thường bằng `npm run dev`
+> — Docker chỉ cần khi đưa lên máy chủ thật, không cần để phát triển.
 
 > Nền dữ liệu đổi từ SQLite sang Postgres ngày 04/08/2026 — bước đầu của việc biến công cụ
 > thành web chung cho team. Một file SQLite trên một máy không phục vụ được 5-6 người ở 5-6 nơi.
@@ -341,6 +368,11 @@ MultiZen đòi **bearer token**: lấy trong app ở `MCP → Connect an agent`,
 Bấm "Mở profile" là MKTTool **ghi proxy của nick vào profile trước, rồi mới mở** — không phải
 nhập tay hai nơi nữa. Đẩy hỏng thì **không mở profile**, vì profile thiếu proxy sẽ chạy thẳng
 bằng IP nhà mà không ai nhận ra.
+
+> ⚠️ **Từ 06/08/2026 việc đó do cầu nối trên máy bạn làm, không phải máy chủ** — xem
+> [Cầu nối](#cầu-nối). Máy chủ kiểm proxy còn sống rồi phát một tấm vé đã mã hóa; cầu nối mở vé
+> ra, đẩy proxy và mở trình duyệt. **Cầu nối là phần của GĐ4 và chưa có**, nên tới lúc đó nút
+> "Mở profile" báo *"không thấy cầu nối trên máy này"*.
 
 Trường **Giao thức** (`http` / `socks5`) ở `/proxies` phải khớp cổng nhà cung cấp cấp — nhiều nơi
 dùng cổng khác nhau cho hai giao thức (Webshare thì cùng cổng phục vụ cả hai).
@@ -467,11 +499,58 @@ không có đăng nhập. Cùng nguyên tắc với `TEAM_TIMEZONE`.
 
 **Tầm nhìn thì không chia.** Ai cũng thấy nick, job, tương tác và lịch sử của người khác — cố ý:
 luật đụng độ thread phải nêu đúng tên nick của đồng nghiệp thì người đọc mới xử lý được. Thứ duy
-nhất bị chia là **bí mật của nick**, và chặn nằm ở tầng dữ liệu chứ không phải ẩn nút trên giao diện.
+nhất bị chia là **bí mật của nick**, và chặn nằm ở tầng dữ liệu chứ không phải ẩn nút trên giao diện:
+máy chủ từ chối **phát vé** cho nick không phải của bạn, kèm câu nói rõ nick đó do ai phụ trách.
 
 > **Gỡ người khỏi team:** xóa email khỏi `ALLOWED_EMAILS` rồi khởi động lại. Có hiệu lực ngay,
 > kể cả người đó đang mở sẵn tab — danh sách được kiểm ở **mọi request**, không phải chỉ lúc
 > đăng nhập. Nick họ từng phụ trách **không bị xóa theo**, chỉ mất chủ.
+
+## Cầu nối
+
+**Máy chủ không mở được một mật khẩu nick nào.** Từ 06/08/2026 kho chia hai vùng khóa thật, và
+vùng giữ bí mật nick chỉ mở được ở **máy của người vận hành** — bằng một chương trình nhỏ chạy
+nền tên là *cầu nối*. Chiếm được máy chủ, hay đọc được biến môi trường của nó, cũng không lấy
+được mật khẩu nào.
+
+| Việc | Ai làm |
+|---|---|
+| Kiểm phiên đăng nhập, kiểm chủ nick, ghi nhật ký | máy chủ |
+| Lấy ciphertext trong database, bọc cho đúng máy nhận, ký tên | máy chủ |
+| **Mở ciphertext ra, hiện mật khẩu, đẩy proxy, mở trình duyệt** | **cầu nối** |
+
+Ở giữa là **tấm vé**: một chuỗi đã mã hóa cho riêng chiếc máy đang ngồi, sống 30 giây, tiêu được
+đúng một lần. Trình duyệt chỉ là người đưa thư — mở devtools lúc bấm nút thì đó là tất cả những
+gì thấy được.
+
+Bí mật (mật khẩu, OTP) hiện ở **một cửa sổ nhỏ do chính cầu nối phục vụ**, không hiện trên trang
+web. Mở profile thì gọi ngầm, không mở tab nào.
+
+> ⚠️ **Cầu nối là phần của GĐ4 và CHƯA CÓ.** Tới khi nó xong, ba việc dưới đây không làm được:
+> lấy mật khẩu/OTP, mở profile, và tạo/sửa nick **có nhập bí mật mới**. Mọi việc khác vẫn chạy
+> bình thường — kể cả sửa karma, trạng thái, proxy của nick, vì ba ô bí mật để trống nghĩa là
+> giữ nguyên và form không cần gọi tới cầu nối.
+
+### Đăng ký máy trước khi dùng
+
+Mỗi máy sinh **cặp khóa riêng của nó** lúc cài (`npm run keys:relay-keygen`), rồi ADMIN ghi khóa
+công khai vào sổ ở `/relay-devices`. Máy chủ mã hóa nội dung vé bằng khóa của đúng máy nhận, nên:
+
+- Máy chưa vào sổ **không xin được vé nào** — nút bấm nói thẳng phải đăng ký ở đâu.
+- Mất laptop thì **thu hồi** máy đó là xong trong vài giây, không phải xoay khóa của cả team.
+- Nhưng thu hồi **không** với tới ciphertext chiếc máy đó đã lấy về trước đó. Máy thật sự mất thì
+  vẫn phải xoay `VAULT_KEY_OPERATOR`.
+
+Người có **hai máy** trong sổ phải chọn máy đang ngồi trước khi bấm — vé mã hóa cho đúng một máy,
+và đoán bừa là phát một tấm vé chắc chắn hỏng. Một máy thì không hỏi.
+
+### Vì sao có hạn nhịp 10 vé một phút
+
+Nó không chặn người ngoài — hai lớp gác đã làm việc đó. Nó chặn **một phiên bị trộm**: không có
+hạn thì "rút sạch bí mật của mọi nick" là chuyện của vài giây, và `AuditLog` chỉ ghi lại để đọc
+sau khi mọi thứ đã xong. Có hạn thì nó thành chuyện của nhiều phút — đủ để một người nhận ra tab
+của mình đang tự bấm nút. Vé mở profile không bị đếm: ruột nó là cấu hình proxy, thứ vào
+`/proxies` là xem được.
 
 ## Facebook
 
@@ -538,9 +617,13 @@ bài Reddit — xem [Đăng bài](#đăng-bài).
 - `FACEBOOK_APP_SECRET` chỉ nằm ở server, không có component client nào import tới nó
 - Thông báo lỗi Graph API đi qua bộ che token trước khi hiện ra hoặc ghi `AuditLog` — Graph hay
   vọng lại nguyên tham số đã gửi
-- Khóa nằm ở biến môi trường, không nằm trong DB
-- Mật khẩu không bao giờ render ra màn hình — bấm copy là chép thẳng vào clipboard
-- Mọi lần lộ credential / mở profile đều ghi `AuditLog` kèm **ai** đã làm
+- Khóa nằm ở biến môi trường, không nằm trong DB — và **khóa mở bí mật nick không nằm trên máy
+  chủ**, xem [Cầu nối](#cầu-nối)
+- Mật khẩu không bao giờ đi qua trang web: nó hiện ở cửa sổ nhỏ do cầu nối trên máy bạn phục vụ,
+  còn trang web chỉ cầm một tấm vé đã mã hóa
+- Bí mật nick được **mã hóa ngay trên máy người nhập**, trước khi form gửi đi — máy chủ nhận
+  ciphertext và chỉ kiểm được hình dạng của nó
+- Mọi lần lộ credential / mở profile đều ghi `AuditLog` kèm **ai** đã làm và **máy nào** nhận vé
 - **Mọi server action và route handler đều đòi đăng nhập** — gác nằm ở chữ ký định nghĩa, và
   có test quét bắt buộc (xem [Hàng rào giờ là đăng nhập](#hàng-rào-giờ-là-đăng-nhập))
 - **Mọi trang cũng đòi đăng nhập** — `src/proxy.ts` chặn trước khi trang kịp hỏi database
@@ -614,27 +697,32 @@ psql -U postgres -d mkttool_restore -f data/backups/mkttool-<ngày>-<giờ>.sql
 
 Rồi trỏ `DATABASE_URL` sang database vừa khôi phục.
 
-> Bản sao lưu và `VAULT_KEY` là **hai nửa của một thứ**. Có bản sao mà mất khóa thì mở ra chỉ
-> thấy chuỗi vô nghĩa; có khóa mà mất bản sao thì chẳng còn gì để mở. Cất hai nơi khác nhau —
-> để chung là đưa cả ổ lẫn chìa cho người nhặt được.
+> Bản sao lưu và **hai khóa vùng** là các nửa của cùng một thứ. Có bản sao mà mất khóa thì mở
+> ra chỉ thấy chuỗi vô nghĩa; có khóa mà mất bản sao thì chẳng còn gì để mở. Cất mỗi thứ một
+> nơi — để chung là đưa cả ổ lẫn chìa cho người nhặt được. Khóa operator nằm ở máy operator,
+> nên khôi phục mật khẩu nick từ bản sao lưu của máy chủ **bắt buộc phải có khóa từ máy đó**.
 
 ### Khóa bị lộ thì xoay, không phải nhập lại từ đầu
 
 Lỡ commit `.env`, lỡ dán khóa vào chat, máy nghi bị xâm nhập:
 
 ```bash
-npm run vault:keygen                            # sinh khóa mới
-npm run vault:rekey -- --new-key=<hex>          # THỬ: giải mã hết, không ghi gì
-npm run vault:rekey -- --new-key=<hex> --apply  # tự sao lưu rồi ghi đè
+npm run vault:keygen                                              # sinh khóa mới
+npm run vault:rekey -- --domain=server --new-key=<hex>            # THỬ: giải mã hết, không ghi gì
+npm run vault:rekey -- --domain=server --new-key=<hex> --apply    # tự sao lưu rồi ghi đè
 ```
+
+`--domain` là **bắt buộc**: kho có hai vùng khóa, mỗi lượt xoay đúng một vùng. `server` là mật
+khẩu proxy + token Facebook; `operator` là mật khẩu / email / TOTP của nick. Lộ khóa nào thì
+xoay vùng đó — không phải xoay cả kho.
 
 Lượt `--apply` giải mã sạch toàn bộ **trước khi** ghi bất cứ thứ gì, tự sao lưu, rồi ghi trong
 một transaction. Một bản ghi hỏng là dừng cả mẻ — database xoay khóa được một nửa thì không
 khóa nào mở nổi nữa.
 
-Xong lệnh **chưa phải là xong**: phải tự sửa `VAULT_KEY` trong `.env`, khởi động lại app, rồi
-mở một nick bấm copy mật khẩu để kiểm. Giữ khóa cũ tới khi kiểm xong — bản sao lưu vừa tạo
-vẫn mã hóa bằng khóa cũ.
+Xong lệnh **chưa phải là xong**: phải tự sửa biến khóa của vùng đó trong `.env`, khởi động lại
+app, rồi mở một nick bấm copy mật khẩu để kiểm. Giữ khóa cũ tới khi kiểm xong — bản sao lưu vừa
+tạo vẫn mã hóa bằng khóa cũ.
 
 ### WebRTC — cần luật firewall, đừng bỏ
 
@@ -757,6 +845,8 @@ chuyển xấu từ lúc nào.
 
 ## Việc chưa làm
 
+- **Cầu nối trên máy operator → GĐ4.** Chưa có nó thì không lấy được mật khẩu/OTP, không mở được
+  profile, và không tạo/sửa được nick có nhập bí mật mới — xem [Cầu nối](#cầu-nối)
 - Tự động đăng Reddit → Phase 05
 
 ## Đã kiểm chứng bằng thực tế

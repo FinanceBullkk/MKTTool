@@ -11,6 +11,7 @@
  * Ghi bằng `markPostJobPosted` chứ không tự viết `prisma.update`: một bài đăng phải để lại đúng
  * một bộ dấu vết dù ai ghi — nếu không, luật 8 mù đúng ở những bài do bộ dò gán.
  */
+import { AUDIT_ACTIONS } from "@/lib/audit/audit-log-actions";
 import { prisma } from "@/lib/db/prisma-client";
 import { OPEN_JOB_STATUSES } from "@/lib/content/content-types";
 import { markPostJobPosted } from "@/lib/queue/post-job-mark-posted";
@@ -89,7 +90,7 @@ export async function autoLinkDiscoveredPosts(
     await prisma.auditLog.create({
       data: {
         accountId,
-        action: "HEALTH_AUTO_LINKED_POST",
+        action: AUDIT_ACTIONS.HEALTH_AUTO_LINKED_POST,
         detail: `job ${match.jobId} ← ${match.post.permalinkUrl}`.slice(0, 500),
       },
     });

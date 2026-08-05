@@ -45,8 +45,6 @@ export interface HealthCheckRunOptions {
   onProgress?: (line: string) => void;
   /** Bơm phiên trình duyệt sẵn có, dùng cho kiểm chứng tay. */
   session?: ObserverSession;
-  /** Đổi chỗ đặt file khóa. Chỉ dùng trong test. */
-  lockPath?: string;
 }
 
 export interface HealthCheckRunResult {
@@ -110,14 +108,13 @@ export async function runHealthCheck(
     now = new Date(),
     onProgress = () => {},
     session: providedSession,
-    lockPath,
   } = options;
 
   const startedAt = Date.now();
 
   // Giành khóa TRƯỚC mọi thứ khác. Hai lượt chạy chồng nhau làm proxy quan sát viên bắn
   // request dồn dập và bị Reddit chặn — xem đầu health-check-lock.ts.
-  const lock = acquireHealthCheckLock({ lockPath, now });
+  const lock = await acquireHealthCheckLock({ now });
 
   try {
     const proxy = await loadObserverProxy();
@@ -149,7 +146,7 @@ export async function runHealthCheck(
       startedAt,
     });
   } finally {
-    lock.release();
+    await lock.release();
   }
 }
 

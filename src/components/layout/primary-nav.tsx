@@ -4,9 +4,9 @@
  * Nav chính, chia theo TẦN SUẤT dùng chứ không theo số lượng trang.
  *
  * Ba mục nằm ngang là ba trang dùng mỗi ngày: hôm nay đăng gì, hàng đợi ra sao, nick còn sống
- * không. Sáu trang còn lại là kho — dựng một lần rồi thỉnh thoảng mới sửa — nên gom vào một
- * dropdown. Xếp cả chín trang cùng trọng số khiến mỗi lần đăng một bài đều có cảm giác phải
- * đi qua cả chín.
+ * không. Bảy trang còn lại là kho — dựng một lần rồi thỉnh thoảng mới sửa — nên gom vào một
+ * dropdown. Xếp cả mười trang cùng trọng số khiến mỗi lần đăng một bài đều có cảm giác phải
+ * đi qua cả mười.
  *
  * Không trang nào bị xóa, chỉ đổi trọng số hiển thị: mọi link cũ vẫn vào được.
  */
@@ -27,6 +27,7 @@ const STORE_ITEMS = [
   { href: "/targets", label: "Đích đăng" },
   { href: "/content", label: "Content" },
   { href: "/facebook", label: "Facebook" },
+  { href: "/relay-devices", label: "Máy cầu nối" },
 ];
 
 const ITEM_CLASS =

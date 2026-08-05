@@ -20,6 +20,7 @@ import {
   formToObject,
 } from "@/lib/accounts/vault-form-schemas";
 import type { ActionResult } from "@/lib/actions/action-result";
+import { AUDIT_ACTIONS } from "@/lib/audit/audit-log-actions";
 import { guardedAction } from "@/lib/auth/guarded-action";
 import { parseLinksInput, stringifyLinks } from "@/lib/content/content-types";
 import { prisma } from "@/lib/db/prisma-client";
@@ -149,7 +150,7 @@ export const createPostJob = guardedAction(async function createPostJob(
     await prisma.auditLog.create({
       data: {
         accountId: job.accountId,
-        action: "RULE_OVERRIDDEN",
+        action: AUDIT_ACTIONS.RULE_OVERRIDDEN,
         detail: `job ${created.id} — ${joinReasons(evaluation)} — lý do: ${overrideReason}`.slice(0, 900),
         actorId: actor.userId,
       },

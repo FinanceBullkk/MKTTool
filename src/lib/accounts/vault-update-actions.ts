@@ -15,12 +15,20 @@
  */
 import { revalidatePath } from "next/cache";
 import type { ActionResult } from "@/lib/actions/action-result";
+import { AUDIT_ACTIONS } from "@/lib/audit/audit-log-actions";
 import { guardedAction } from "@/lib/auth/guarded-action";
-import { encryptCredential, encryptOptionalCredential } from "@/lib/crypto/credential-encryption";
+import { requireNickOwner } from "@/lib/auth/require-actor";
+import { encryptCredential } from "@/lib/crypto/credential-encryption";
+import { loadVaultKey } from "@/lib/crypto/encryption-key-loader";
 import { prisma } from "@/lib/db/prisma-client";
-import { describeUnexpectedDbError, isUniqueConstraintError } from "@/lib/db/prisma-error-helpers";
-import { describeRecheck, recheckJobsMatching } from "@/lib/queue/recheck-jobs-batch";
-import { isValidTotpSecret, normalizeTotpSecret } from "@/lib/totp/totp-code-generator";
+import {
+  describeUnexpectedDbError,
+  isUniqueConstraintError,
+} from "@/lib/db/prisma-error-helpers";
+import {
+  describeRecheck,
+  recheckJobsMatching,
+} from "@/lib/queue/recheck-jobs-batch";
 import { isQuarantinedStatus } from "./account-status";
 import {
   accountUpdateSchema,
@@ -49,7 +57,10 @@ export const updatePersona = guardedAction(async function updatePersona(
     if (isUniqueConstraintError(error)) {
       return { ok: false, message: `Tên nhân vật "${data.name}" đã tồn tại.` };
     }
-    return { ok: false, message: describeUnexpectedDbError(error, "sửa nhân vật") };
+    return {
+      ok: false,
+      message: describeUnexpectedDbError(error, "sửa nhân vật"),
+    };
   }
 
   revalidatePath("/personas");
@@ -71,13 +82,24 @@ export const updateProxy = guardedAction(async function updateProxy(
     await prisma.proxy.update({
       where: { id },
       // Chỉ đụng vào cột mật khẩu khi người dùng thật sự gõ mật khẩu mới.
-      data: { ...data, ...(password ? { passwordEnc: encryptCredential(password) } : {}) },
+      data: {
+        ...data,
+        ...(password
+          ? { passwordEnc: encryptCredential(password, loadVaultKey("server")) }
+          : {}),
+      },
     });
   } catch (error) {
     if (isUniqueConstraintError(error)) {
-      return { ok: false, message: "Proxy trùng nhãn hoặc trùng host/port/username đã có." };
+      return {
+        ok: false,
+        message: "Proxy trùng nhãn hoặc trùng host/port/username đã có.",
+      };
     }
-    return { ok: false, message: describeUnexpectedDbError(error, "sửa proxy") };
+    return {
+      ok: false,
+      message: describeUnexpectedDbError(error, "sửa proxy"),
+    };
   }
 
   revalidatePath("/proxies");
@@ -87,7 +109,9 @@ export const updateProxy = guardedAction(async function updateProxy(
     ok: true,
     message:
       `Đã lưu proxy "${data.label}".` +
-      (password ? " Mật khẩu mới sẽ được đẩy sang profile ở lần mở tiếp theo." : ""),
+      (password
+        ? " Mật khẩu mới sẽ được đẩy sang profile ở lần mở tiếp theo."
+        : ""),
   };
 });
 
@@ -99,21 +123,43 @@ export const updateAccount = guardedAction(async function updateAccount(
   const parsed = accountUpdateSchema.safeParse(formToObject(formData));
   if (!parsed.success) return { ok: false, message: firstError(parsed.error) };
 
-  const { id, password, emailPassword, totpSecret, ...data } = parsed.data;
+  // Ba cột bí mật vào đây đã là ciphertext do cầu nối bọc — xem chú thích ở `createAccount`.
+  const { id, passwordEnc, emailPasswordEnc, totpSecretEnc, ...data } =
+    parsed.data;
 
   // `platform` không sửa được nên form không gửi lên — phải đọc từ DB thì mới chấm được luật
-  // "Reddit bắt buộc proxy + profile antidetect".
-  const existing = await prisma.account.findUnique({ where: { id }, select: { platform: true } });
+  // "Reddit bắt buộc proxy + profile antidetect". `status` đọc kèm để ghi được nhật ký "đổi từ
+  // gì sang gì": biết trạng thái mới mà không biết trạng thái cũ thì hàng nhật ký gần như vô dụng
+  // đúng vào lúc cần nó — lúc đi tìm ai đã kéo một nick từ SHADOWBANNED về HEALTHY.
+  const existing = await prisma.account.findUnique({
+    where: { id },
+    select: { platform: true, status: true },
+  });
   if (!existing) return { ok: false, message: "Không tìm thấy nick cần sửa." };
+
+  /**
+   * Ghi đè bí mật thì phải là chủ nick — **đối xứng với `requestCredentialTicket`**.
+   *
+   * Không gác thì trạng thái là *"tôi không đọc được mật khẩu nick của bạn, nhưng tôi ghi đè
+   * được nó"*. Bất đối xứng đó không giải thích nổi cho ai, và là loại lỗ người ta chỉ phát
+   * hiện sau khi đã bị.
+   *
+   * Chỉ gác khi form THẬT SỰ mang bí mật lên. Ô để trống nghĩa là giữ nguyên giá trị cũ, và
+   * sửa karma / trạng thái / proxy cho nick của đồng nghiệp là việc chung hằng ngày của team —
+   * gác cả những lần đó là làm chậm việc thật để đổi lấy một lớp bảo vệ không nhắm đúng đâu cả.
+   *
+   * Chuyện `status` bị kéo từ SHADOWBANNED về HEALTHY KHÔNG giải bằng phép kiểm này: chủ nick
+   * cũng ép được, và ép trên nick của chính mình thì luật 1-3 vẫn bị vô hiệu y hệt. Thứ giúp
+   * được ở đó là dấu vết, xem `AuditLog` cuối hàm.
+   */
+  // Lỗi quyền ném ra được `guardedAction` đổi thành ActionResult — người bị từ chối cần đọc
+  // được vì sao, chứ không phải một nút chết lặng. Xem chú thích đầu `guarded-action.ts`.
+  if (passwordEnc || emailPasswordEnc || totpSecretEnc) {
+    await requireNickOwner(actor, id);
+  }
 
   const identityError = validatePlatformIdentityFields(existing.platform, data);
   if (identityError) return { ok: false, message: identityError };
-
-  // Kiểm secret dùng được TRƯỚC khi lưu — phát hiện sai ngay lúc nhập, không phải lúc
-  // đang cần đăng nhập gấp.
-  if (totpSecret && !(await isValidTotpSecret(totpSecret))) {
-    return { ok: false, message: "TOTP secret không hợp lệ (phải là chuỗi base32)." };
-  }
 
   try {
     await prisma.account.update({
@@ -129,11 +175,11 @@ export const updateAccount = guardedAction(async function updateAccount(
         quarantineReason: isQuarantinedStatus(data.status)
           ? data.quarantineReason?.trim() || null
           : null,
-        ...(password ? { passwordEnc: encryptCredential(password) } : {}),
-        ...(emailPassword ? { emailPasswordEnc: encryptCredential(emailPassword) } : {}),
-        ...(totpSecret
-          ? { totpSecretEnc: encryptOptionalCredential(normalizeTotpSecret(totpSecret)) }
-          : {}),
+        // Ô để trống nghĩa là GIỮ NGUYÊN, nên chỉ đụng vào cột khi form thật sự mang ciphertext
+        // mới lên. `undefined` với Prisma là "không đổi" — đúng thứ cần ở đây.
+        ...(passwordEnc ? { passwordEnc } : {}),
+        ...(emailPasswordEnc ? { emailPasswordEnc } : {}),
+        ...(totpSecretEnc ? { totpSecretEnc } : {}),
       },
     });
   } catch (error) {
@@ -154,8 +200,14 @@ export const updateAccount = guardedAction(async function updateAccount(
   await prisma.auditLog.create({
     data: {
       accountId: id,
-      action: "ACCOUNT_UPDATED",
-      detail: `karma ${data.karma}, ${data.status}`,
+      action: AUDIT_ACTIONS.ACCOUNT_UPDATED,
+      // Trạng thái đổi thì ghi cả chiều đổi. Đây là đường thứ hai ép được trạng thái nick —
+      // đường kia là bộ dò sức khỏe, và nó đã ghi `HEALTH_STATUS_FORCED` kèm chiều đổi từ lâu.
+      // Hai đường tới cùng một hậu quả thì nhật ký của chúng phải đọc được như nhau.
+      detail:
+        existing.status === data.status
+          ? `karma ${data.karma}, ${data.status}`
+          : `karma ${data.karma}, trạng thái ${existing.status} → ${data.status}`,
       actorId: actor.userId,
     },
   });
@@ -163,7 +215,10 @@ export const updateAccount = guardedAction(async function updateAccount(
   revalidatePath("/accounts");
   revalidatePath(`/accounts/${id}`);
   revalidatePath("/queue");
-  return { ok: true, message: `Đã lưu nick "${data.username}".${describeRecheck(recheck)}` };
+  return {
+    ok: true,
+    message: `Đã lưu nick "${data.username}".${describeRecheck(recheck)}`,
+  };
 });
 
 export const updateTarget = guardedAction(async function updateTarget(
@@ -184,9 +239,15 @@ export const updateTarget = guardedAction(async function updateTarget(
     await prisma.platformTarget.update({ where: { id }, data });
   } catch (error) {
     if (isUniqueConstraintError(error)) {
-      return { ok: false, message: `Đích "${data.name}" đã tồn tại trên nền tảng này.` };
+      return {
+        ok: false,
+        message: `Đích "${data.name}" đã tồn tại trên nền tảng này.`,
+      };
     }
-    return { ok: false, message: describeUnexpectedDbError(error, "sửa đích đăng") };
+    return {
+      ok: false,
+      message: describeUnexpectedDbError(error, "sửa đích đăng"),
+    };
   }
 
   // minKarma, minAccountAgeDays, promoRatio và allowsLinks là đầu vào của luật 3, 6 và 9.
@@ -195,5 +256,8 @@ export const updateTarget = guardedAction(async function updateTarget(
   revalidatePath("/targets");
   revalidatePath(`/targets/${id}`);
   revalidatePath("/queue");
-  return { ok: true, message: `Đã lưu đích "${data.name}".${describeRecheck(recheck)}` };
+  return {
+    ok: true,
+    message: `Đã lưu đích "${data.name}".${describeRecheck(recheck)}`,
+  };
 });

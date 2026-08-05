@@ -5,6 +5,12 @@
 //
 // Mọi field kết thúc bằng `Enc` đều là chuỗi đã mã hóa AES-256-GCM (xem src/lib/crypto).
 // Không bao giờ lưu credential dạng trần.
+//
+// Mỗi field `Enc` phải mang dấu vùng khóa ngay trên cùng dòng — khai báo khóa nào mở được nó:
+//   vault:server   — máy chủ giữ khóa, tự giải mã được
+//   vault:operator — chỉ cầu nối trên máy người vận hành mở được, máy chủ KHÔNG giữ khóa
+// Thêm cột `Enc` mà quên dấu là encrypted-field-registry.test.ts đỏ ngay: chia vùng là quyết
+// định phải nghĩ cho từng cột, không được để rơi vào mặc định nào.
 
 generator client {
   provider = "prisma-client-js"
@@ -37,7 +43,7 @@ model Proxy {
   host        String
   port        Int
   username    String
-  passwordEnc String
+  passwordEnc String // vault:server — máy chủ cần để kiểm proxy sống và đo băng thông
   country     String
   type        String   @default("STATIC_ISP") // STATIC_ISP | MOBILE — cách mua, KHÔNG phải giao thức
   /// Giao thức mạng, đây mới là thứ trình duyệt cần: http | socks5.
@@ -66,14 +72,14 @@ model Proxy {
   /// Cố ý KHÔNG nằm trong nút "kiểm tất cả proxy": mỗi lượt đo tải 1 MB qua proxy, tức tiêu
   /// 1 MB quota trả tiền. Kiểm proxy còn sống chỉ tốn vài KB nên bấm thoải mái; đo băng thông
   /// phải là một hành động có chủ đích, từng proxy một.
-  lastSpeedAt      DateTime?
+  lastSpeedAt     DateTime?
   /// Megabit/giây, tốc độ TẢI XUỐNG. Float vì proxy chậm cho ra số lẻ dưới 1.
   /// `lastSpeedAt` khác null mà cột này null = đã thử đo nhưng KHÔNG đo được, lý do ở
   /// `lastSpeedDetail`. Không đo được thì không được hiện như chậm.
   /// Xếp hạng nhanh/chậm suy ra từ số này (`gradeBandwidth`), không lưu thành cột riêng để
   /// không bao giờ có chuyện hạng và số đo nói hai điều khác nhau.
-  lastSpeedMbps    Float?
-  lastSpeedDetail  String?
+  lastSpeedMbps   Float?
+  lastSpeedDetail String?
 
   @@unique([host, port, username])
 }
@@ -90,7 +96,7 @@ model ObserverProxy {
   host        String
   port        Int
   username    String
-  passwordEnc String
+  passwordEnc String // vault:server — cùng lý do với Proxy.passwordEnc
   country     String
   /// Giao thức mạng: http | socks5. Giống `Proxy.protocol` — xem giải thích ở đó.
   protocol    String   @default("http")
@@ -135,16 +141,62 @@ model HealthCheck {
   @@index([checkedAt])
 }
 
+/// Khóa chặn hai lượt dò sức khỏe chạy chồng nhau.
+///
+/// ## Vì sao khóa phải rời khỏi file
+///
+/// Bản trước là một file trong `data/`, và nó chỉ đúng khi có **đúng một máy** chạy bộ dò —
+/// tức đúng nhờ quy ước, không phải nhờ thiết kế. Từ GĐ5 có ít nhất hai nơi cùng chạy: cron
+/// trên Railway và nút "Dò cả đàn" trong app. Hai nơi đó không nhìn thấy file của nhau, nên
+/// khóa file im lặng mất tác dụng đúng vào lúc nó bắt đầu cần thiết.
+///
+/// ## Vì sao là một HÀNG chứ không phải advisory lock của Postgres
+///
+/// Kế hoạch gốc chốt advisory lock. Đổi vì hai lẽ:
+///
+/// 1. **Advisory lock không mang theo dữ liệu.** Giao diện hỏi "ai đang giữ, giữ bao lâu rồi",
+///    nên vẫn phải có một hàng ở đâu đó — tức là hai cơ chế cho một khái niệm, và chúng sớm
+///    muộn cũng lệch nhau.
+/// 2. **Advisory lock hỏng MỞ.** Nó gắn theo session; Prisma dùng connection pool, và giữ một
+///    connection riêng suốt mười phút trên Railway thì lớp proxy cắt lúc nào không biết.
+///    Connection chết là Postgres **tự nhả khóa** và lượt thứ hai chen vào được — đúng thứ khóa
+///    sinh ra để chặn, mà lại hỏng lặng lẽ. Hàng này hỏng theo chiều ngược: tiến trình chết thì
+///    hàng ở lại và ai đó phải chờ tối đa `STALE_AFTER_MS`. Chờ thì phiền, chồng nhau thì mất
+///    proxy quan sát viên.
+model HealthCheckLock {
+  /// Luôn là hằng `HEALTH_CHECK_LOCK_KEY`. Bảng có tối đa MỘT hàng, và `@id` là thứ ép điều đó
+  /// ở tầng database — cùng vai trò với cờ `wx` của bản khóa file: tạo được hay đụng phải hàng
+  /// đã có, quyết trong một thao tác, không có khe hở giữa "kiểm" và "ghi".
+  key String @id
+
+  /// Chuỗi ngẫu nhiên của riêng lượt đang giữ.
+  ///
+  /// `release()` chỉ xóa hàng khi token khớp. Không có nó thì một lượt chạy quá hạn, bị lượt
+  /// khác giành khóa, rồi mới kết thúc — sẽ xóa mất khóa của lượt đang chạy thật.
+  token String
+
+  /// Máy và tiến trình đang giữ, để dựng câu "ai đang giữ".
+  ///
+  /// Có `host` vì từ GĐ5 khóa này bắc qua nhiều máy: "tiến trình 4821" một mình không nói được
+  /// gì khi người đọc không biết nó ở máy nào.
+  host String
+  pid  Int
+
+  /// Mốc bắt đầu. Quá `STALE_AFTER_MS` thì coi là khóa mồ côi và giành được.
+  startedAt DateTime
+}
+
 model Account {
   id       String @id @default(cuid())
   platform String // REDDIT | FACEBOOK
   username String
 
-  // credential — tất cả đều mã hóa
-  passwordEnc      String
+  // credential — tất cả đều mã hóa, và tất cả đều thuộc vùng operator: không luồng nghiệp vụ
+  // nào trên máy chủ cần tới chúng, nên máy chủ không giữ khóa mở được.
+  passwordEnc      String // vault:operator
   emailAddress     String // email gốc mua kèm nick
-  emailPasswordEnc String
-  totpSecretEnc    String?
+  emailPasswordEnc String // vault:operator
+  totpSecretEnc    String? // vault:operator
 
   /// Liên kết 1:1 — BẮT BUỘC với nick Reddit, bỏ trống được với nick Facebook.
   ///
@@ -318,7 +370,7 @@ model FacebookConnection {
   id             String    @id @default(cuid())
   fbUserId       String    @unique
   name           String
-  accessTokenEnc String // user token long-lived, đã mã hóa
+  accessTokenEnc String // vault:server — user token long-lived, máy chủ gọi Graph API bằng nó
   expiresAt      DateTime? // null = Facebook không trả về hạn
   /// Nick trong kho danh tính, nếu nick đó đã được nhập. Không bắt buộc để
   /// kết nối được Page trước cả khi mua nick.
@@ -337,12 +389,12 @@ model FacebookPage {
   id             String @id @default(cuid())
   pageId         String @unique // id Page trên Facebook
   name           String
-  accessTokenEnc String
+  accessTokenEnc String // vault:server — máy chủ đăng bài bằng token này
 
-  connectionId String
+  connectionId   String
   /// Đích đăng tương ứng — nối để hàng đợi Phase 02 biết job này đăng bằng API.
   /// @unique ép 1 đích : 1 Page, không cho hai Page cùng trỏ về một đích.
-  targetId     String? @unique
+  targetId       String? @unique
   /// Quản trị viên trong kho danh tính. Đặt 2 nick làm admin trên Facebook,
   /// mất 1 nick không mất Page — nhưng ở đây chỉ ghi nick chính.
   adminAccountId String?
@@ -406,6 +458,7 @@ model User {
   sessions      Session[]
   authAccounts  AuthAccount[]
   ownedAccounts Account[]
+  relayDevices  RelayDevice[]
 }
 
 model Session {
@@ -453,4 +506,72 @@ model Verification {
   updatedAt  DateTime @updatedAt
 
   @@index([identifier])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Sổ đăng ký máy chạy cầu nối (Phase 03) — xem
+// plans/260804-1752-web-chung-cho-team-phan-tan/phase-03-tach-hai-vung-khoa-va-ve-ky.md
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Một máy đã được ADMIN cho phép nhận vé.
+///
+/// ## Vì sao máy chủ cần biết từng cái máy
+///
+/// Nội dung vé được **mã hóa cho riêng máy nhận**, nên máy chủ phải có khóa công khai của
+/// đúng cái máy đó trước khi phát vé. Trình duyệt chỉ là người đưa thư: nó cầm vé đi qua
+/// nhưng không mở được — kể cả mật khẩu proxy nằm trong đó.
+///
+/// Lợi thứ hai, và là lý do có cột `revokedAt`: **mất laptop thì thu hồi đúng cái máy đó là
+/// xong**, không phải xoay khóa vùng operator trên toàn bộ máy của team.
+///
+/// ## Ranh giới của việc thu hồi — đọc kỹ trước khi tin vào nó
+///
+/// Thu hồi chặn **vé mới**. Nó KHÔNG làm mất hiệu lực ciphertext mà máy đó đã lấy về trước
+/// đó — thứ ấy nằm trên ổ cứng của chiếc laptop đã mất và không ai với tới được nữa. Mất máy
+/// thì vẫn phải xoay `VAULT_KEY_OPERATOR`; thu hồi chỉ là cái chặn có hiệu lực ngay lập tức
+/// trong lúc chờ xoay khóa.
+model RelayDevice {
+  id String @id @default(cuid())
+
+  /// Tên máy do người đăng ký đặt — "Laptop Dell của Hà". Chỉ để người đọc nhận ra máy nào
+  /// là máy nào lúc cần thu hồi gấp, không mang ý nghĩa kỹ thuật nào.
+  ///
+  /// KHÔNG `@unique` theo (người, tên): đăng ký lại sau khi cài lại máy là chuyện bình thường
+  /// và người ta sẽ đặt đúng cái tên cũ. Chặn chỗ đó là ép họ đặt tên "Laptop Dell 2".
+  name String
+
+  /// Chủ máy. Bắt buộc — một cái máy luôn thuộc về một người cụ thể, và tới Phase 05 việc
+  /// phát vé sẽ đối chiếu người đang bấm với chủ máy nhận.
+  userId String
+
+  /// Khóa công khai X25519 của máy, 64 ký tự hex thường.
+  ///
+  /// X25519 chứ không phải Ed25519: cặp khóa của máy chủ dùng để **ký** (Ed25519), còn cặp
+  /// khóa này dùng để **mã hóa gửi tới** — hai việc khác nhau, hai họ khóa khác nhau.
+  ///
+  /// `@unique` là ràng buộc an toàn chứ không phải dọn dẹp: cùng một khóa nằm ở hai hàng thì
+  /// thu hồi một hàng vẫn còn hàng kia sống, và người thu hồi tưởng đã chặn xong. Chuẩn hóa
+  /// về chữ thường trước khi ghi, vì "AB…" và "ab…" là cùng một khóa nhưng Postgres coi là hai.
+  publicKey String @unique
+
+  /// Ngày đăng ký.
+  createdAt DateTime @default(now())
+
+  /// Mốc thu hồi. `null` = còn dùng được.
+  ///
+  /// Mốc thời gian chứ không phải cờ boolean: cùng trả lời được câu "còn dùng không", nhưng
+  /// thêm câu "thu hồi từ lúc nào" — thứ luôn cần tới vào đúng ngày phải dựng lại xem một
+  /// chiếc máy đã mất còn lấy được gì trước khi bị chặn.
+  ///
+  /// Thu hồi là MỘT CHIỀU và không có đường hoàn tác: khóa của một chiếc máy đã mất thì coi
+  /// như đã lộ, cho bật lại là xóa sạch ý nghĩa của lần thu hồi. Máy tìm lại được thì sinh
+  /// cặp khóa mới rồi đăng ký lại như một máy mới.
+  revokedAt DateTime?
+
+  /// `Cascade`: xóa một người thì đăng ký máy của họ mất theo. Hỏng về hướng đóng — người
+  /// không còn thì máy của họ cũng không nhận vé nữa. (Khác `AuditLog`, vốn phải sống lâu
+  /// hơn tài khoản: sổ này là danh sách quyền, không phải dấu vết.)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }

@@ -44,7 +44,8 @@ jobs:
       # vào một cái vỏ rỗng.
       DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/postgres"
       TEST_DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/mkttool_test"
-      VAULT_KEY: "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff"
+      VAULT_KEY_SERVER: "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff"
+      VAULT_KEY_OPERATOR: "ffeeddccbbaa99887766554433221100ffeeddccbbaa99887766554433221100"
 
     steps:
       - uses: actions/checkout@v4

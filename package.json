@@ -17,7 +17,11 @@
     "db:studio": "prisma studio",
     "db:backup": "tsx --env-file=.env scripts/backup-database.ts",
     "proxies:import": "tsx --env-file=.env scripts/import-proxies-from-provider-list.ts",
+    "proxies:import-sqlite": "tsx --env-file=.env scripts/import-proxies-from-sqlite-backup.ts",
     "vault:keygen": "tsx scripts/generate-vault-key.ts",
+    "keys:server-keygen": "tsx scripts/generate-server-signing-key.ts",
+    "keys:server-pubkey": "tsx scripts/show-server-public-key.ts",
+    "keys:relay-keygen": "tsx scripts/generate-relay-device-key.ts",
     "vault:rekey": "tsx --env-file=.env scripts/rekey-vault-key.ts",
     "vault:smoke": "tsx scripts/smoke-test-identity-vault.ts",
     "rules:smoke": "tsx --env-file=.env scripts/smoke-test-content-rules.ts",
@@ -36,8 +40,11 @@
     "next": "^16.2.12",
     "otplib": "^13.4.1",
     "pg": "^8.22.0",
+    "playwright": "^1.62.1",
+    "prisma": "^7.9.1",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
+    "tsx": "^4.20.6",
     "zod": "^4.4.3"
   },
   "devDependencies": {
@@ -48,10 +55,7 @@
     "@types/react-dom": "^19.2.4",
     "eslint": "^9.39.5",
     "eslint-config-next": "^16.2.12",
-    "playwright": "^1.62.1",
-    "prisma": "^7.9.1",
     "tailwindcss": "^4.3.3",
-    "tsx": "^4.20.6",
     "typescript": "^5.9.3",
     "vitest": "^4.1.10"
   }

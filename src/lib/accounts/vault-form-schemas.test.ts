@@ -8,6 +8,7 @@
 import { describe, expect, it } from "vitest";
 import {
   accountCreateSchema,
+  accountUpdateSchema,
   accountUpdateSchemaFor,
   validatePlatformIdentityFields,
 } from "./vault-form-schemas";
@@ -47,14 +48,22 @@ describe("validatePlatformIdentityFields", () => {
   });
 });
 
+/**
+ * Một chuỗi ciphertext hợp lệ về hình dạng — đúng thứ cầu nối gửi lên từ GĐ3.
+ *
+ * Ghi cứng chứ không gọi `encryptCredential`: bài test này là test thuần, không có khóa và
+ * không cần khóa. Phép kiểm ở schema cũng vậy — nó chỉ hỏi "có phải mật khẩu dạng trần không".
+ */
+const CIPHERTEXT = "v1.AQEBAQEBAQEBAQEB.4G1OxOuMekYYp6mys6sG8w.AIik0-U";
+
 const BASE_FORM = {
   username: "nick-1",
   emailAddress: "a@example.com",
   personaId: "persona-1",
   status: "ALIVE",
   karma: "0",
-  password: "mat-khau",
-  emailPassword: "mat-khau-email",
+  passwordEnc: CIPHERTEXT,
+  emailPasswordEnc: CIPHERTEXT,
 };
 
 describe("accountCreateSchema gắn luật theo nền tảng", () => {
@@ -98,6 +107,50 @@ describe("accountUpdateSchemaFor chấm theo nền tảng đọc từ DB", () =>
       antidetectProfileId: "",
       proxyId: "",
     });
+    expect(result.success).toBe(true);
+  });
+});
+
+/**
+ * Ranh giới của GĐ3 nhìn từ phía schema: máy chủ nhận ciphertext, không nhận mật khẩu.
+ *
+ * Kiểu hỏng phải chặn không phải người dùng gõ sai, mà là **form bị sửa hỏng một ngày nào đó**
+ * rồi bí mật đi thẳng vào database chưa mã hóa — im lặng, cho tới ngày ai đó mở bản sao lưu ra
+ * đọc. Chặn ở đây thì nó hỏng ồn ào ngay lần lưu đầu tiên.
+ */
+describe("ô bí mật phải là ciphertext", () => {
+  const REDDIT = { ...BASE_FORM, platform: "REDDIT", ...FULL };
+
+  it("từ chối mật khẩu dạng trần, kèm câu nói rõ ai phải mã hóa", () => {
+    const result = accountCreateSchema.safeParse({ ...REDDIT, passwordEnc: "mat-khau-tran" });
+
+    expect(result.success).toBe(false);
+    expect(result.success ? "" : result.error.issues[0].message).toContain("cầu nối");
+  });
+
+  it("từ chối chuỗi đúng tiền tố nhưng sai độ dài IV", () => {
+    const result = accountCreateSchema.safeParse({
+      ...REDDIT,
+      passwordEnc: "v1.AAAA.4G1OxOuMekYYp6mys6sG8w.AIik0-U",
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it("TOTP secret để trống vẫn hợp lệ — nick chưa bật 2FA", () => {
+    expect(accountCreateSchema.safeParse({ ...REDDIT, totpSecretEnc: "" }).success).toBe(true);
+  });
+
+  /** Sửa nick: cả ba ô để trống nghĩa là giữ nguyên, nên không cần cầu nối để sửa karma. */
+  it("sửa nick: ba ô bí mật để trống thì parse được", () => {
+    const result = accountUpdateSchema.safeParse({
+      ...BASE_FORM,
+      id: "acc-1",
+      passwordEnc: "",
+      emailPasswordEnc: "",
+      totpSecretEnc: "",
+    });
+
     expect(result.success).toBe(true);
   });
 });

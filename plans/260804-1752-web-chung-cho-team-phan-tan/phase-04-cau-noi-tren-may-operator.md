@@ -45,6 +45,28 @@ Nằm trên đường găng vì quyết định 8 chọn bàn giao một lần �
 8. **Gửi kèm phiên bản trong mọi phản hồi**, và từ chối vé đòi phiên bản cao hơn mình kèm câu
    *"bản cầu nối quá cũ, tải lại"* (QĐ 11 — không có bộ tự cập nhật)
 
+## Hợp đồng HTTP đã chốt sẵn ở GĐ3
+
+Phía web đã viết xong và **đang gọi bốn đường này**, nên chúng không còn là chỗ để quyết lại.
+Khai đầy đủ ở [relay-endpoints.ts](../../src/lib/relay/relay-endpoints.ts) — đọc file đó trước
+khi viết dòng nào của `http-server.ts`.
+
+| Đường | Cách gọi | Trả về |
+|---|---|---|
+| `GET /health` | fetch ngầm | `{ ok, message, relayVersion, publicKey, antidetectReady }` |
+| `POST /ticket` | fetch ngầm, body `{ ticket }` | `{ ok, message, relayVersion }` — vé mở profile |
+| `/secret#<vé>` | **mở tab**, vé ở fragment | trang hiện mật khẩu / OTP, có nút chép, tự đóng |
+| `POST /encrypt-for-vault` | fetch ngầm, body `{ password?, emailPassword?, totpSecret? }` | `{ ok, message, relayVersion, passwordEnc?, emailPasswordEnc?, totpSecretEnc? }` |
+
+Cổng cố định **47821**, và phải bind `127.0.0.1` chứ không phải `localhost` (trên Windows
+`localhost` ra `::1` trước; máy chủ chỉ bind IPv4 sẽ từ chối nối, và kiểu hỏng đó phụ thuộc cấu
+hình mạng từng máy chứ không phụ thuộc code).
+
+**`/encrypt-for-vault` phải tự kiểm TOTP secret.** Máy chủ đã mất phép kiểm này ở GĐ3 — nó không
+đọc nổi chuỗi đã bọc. Cầu nối chuẩn hóa (`normalizeTotpSecret`: bỏ khoảng trắng, viết hoa) rồi
+kiểm bằng `isValidTotpSecret` **trước khi** bọc; secret hỏng thì trả `ok: false` kèm câu nói rõ.
+Không kiểm thì secret rác nằm im trong kho tới ngày cần OTP gấp.
+
 ## Architecture
 
 ```
@@ -106,7 +128,8 @@ Import từ `src/lib/` qua đường dẫn tương đối. **Không dựng works
 - [ ] Mở profile qua adapter, giữ quy tắc đẩy hỏng thì không mở
 - [ ] Trang hiện mật khẩu + nút copy + tự đóng
 - [ ] Sinh OTP kèm số giây còn lại
-- [ ] Mã hóa ciphertext vùng operator lúc tạo/sửa nick
+- [ ] Mã hóa ciphertext vùng operator lúc tạo/sửa nick, **kèm phép kiểm TOTP base32** mà máy chủ
+      đã mất ở GĐ3
 - [ ] Trang trạng thái
 - [ ] `bun build --compile` ra `.exe` chạy trên Windows sạch
 - [ ] `setup.bat` + shortcut Startup + shortcut desktop

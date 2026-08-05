@@ -1,110 +1,149 @@
 "use server";
 
 /**
- * Lấy bí mật của nick ra dùng: mật khẩu để copy, mã OTP để đăng nhập lại.
+ * Phát **vé** cho bí mật của nick: mật khẩu để chép, TOTP secret để sinh mã OTP.
  *
- * Tách khỏi nhóm thêm/sửa/xóa vì đây là mối quan tâm khác hẳn — không phải sửa dữ liệu mà là
- * MỞ KHÓA dữ liệu. Mỗi hàm ở đây là một lần credential rời khỏi lớp mã hóa, nên mỗi hàm đều
- * ghi AuditLog, và gom lại một chỗ thì soát "những đường nào làm lộ credential" chỉ cần đọc
- * đúng một file.
+ * ## File này từng giải mã. Nay thì không, và đó là toàn bộ điểm của GĐ3
+ *
+ * Bản cũ đọc cột `...Enc` rồi mở ra bằng khóa vùng operator ngay tại máy chủ. Nghĩa là
+ * chiếm được máy chủ — hoặc chỉ cần đọc được biến môi trường của nó — là đọc được mật khẩu mọi
+ * nick. Nay máy chủ **không giữ khóa vùng operator nữa**: nó lấy nguyên văn ciphertext trong
+ * database, bọc lại cho đúng chiếc máy sẽ dùng, ký tên, rồi đưa cho trình duyệt mang đi. Nó
+ * không đọc được thứ nó vừa phát, và trình duyệt cũng không.
+ *
+ * Ba lớp chặn giữ nguyên, không lớp nào bị lược đi vì đổi cơ chế:
+ *
+ * | Lớp | Câu hỏi |
+ * |---|---|
+ * | `guardedAction` | đã đăng nhập chưa, còn trong `ALLOWED_EMAILS` không |
+ * | `requireNickOwner` | nick này có phải của bạn không |
+ * | `checkTicketRateLimit` | có phải bạn đang rút cả kho trong một phút không |
+ *
+ * ## `AuditLog` ghi lúc PHÁT VÉ, và đó là mốc đúng
+ *
+ * Bí mật rời kho đúng lúc tấm vé được ký, không phải lúc người dùng nhìn thấy mật khẩu. Máy chủ
+ * tự biết mốc đó; mốc kia thì nó chỉ biết được nếu tin lời trình duyệt khai — mà cầu nối theo
+ * QĐ 5 vốn không nối mạng để báo về.
+ *
+ * Đổi lại, hàng nhật ký nghĩa là *"đã cấp quyền đọc"* chứ không phải *"đã đọc"*. Vé hết hạn sau
+ * 30 giây, nên chênh lệch đó chỉ tồn tại trong nửa phút — và lệch theo hướng an toàn: đếm thừa
+ * một lần lộ tốt hơn đếm thiếu.
  */
 import type { ActionResult } from "@/lib/actions/action-result";
+import { AUDIT_ACTIONS } from "@/lib/audit/audit-log-actions";
 import { guardedAction } from "@/lib/auth/guarded-action";
 import { requireNickOwner } from "@/lib/auth/require-actor";
-import {
-  decryptCredential,
-  decryptOptionalCredential,
-} from "@/lib/crypto/credential-encryption";
 import { prisma } from "@/lib/db/prisma-client";
-import { generateTotpCode } from "@/lib/totp/totp-code-generator";
+import { issueTicket } from "@/lib/tickets/ticket-issuer";
+import { checkTicketRateLimit } from "@/lib/tickets/ticket-rate-limit";
+import { resolveTicketRecipient } from "@/lib/tickets/ticket-recipient-lookup";
+import { TICKET_KINDS, type CredentialField, type SignedTicket } from "@/lib/tickets/ticket-types";
 
-export interface RevealedCredential {
-  value: string;
-}
-
-export interface OtpResult {
-  code: string;
-  secondsRemaining: number;
+/**
+ * Tấm vé kèm tên máy nhận.
+ *
+ * Tên máy đi kèm để giao diện nói được *"đang mở ở Laptop Dell của Hà"*. Với người có hai máy
+ * trong sổ, đó là thứ duy nhất cho biết vé vừa bay về đâu trước khi họ ngồi chờ một tab không
+ * bao giờ mở.
+ */
+export interface IssuedTicket {
+  ticket: SignedTicket;
+  deviceName: string;
 }
 
 /**
- * Thông báo cho người dùng khi giải mã hỏng.
+ * Phát vé để chép một mật khẩu của nick.
  *
- * Phải trả về ActionResult chứ KHÔNG được để lỗi ném ra khỏi server action: lỗi ném ra thì
- * phía trình duyệt chỉ thấy một promise reject chung chung, nút trông như hỏng mà không có
- * chữ nào giải thích — trong khi nguyên nhân gần như luôn là sai VAULT_KEY, thứ người dùng
- * sửa được ngay nếu biết.
+ * `deviceId` chỉ cần khai khi người gọi có nhiều hơn một máy đang dùng — xem
+ * `resolveTicketRecipient`.
  */
-const DECRYPT_FAILED_MESSAGE =
-  "Không giải mã được dữ liệu của nick này. Gần như chắc chắn VAULT_KEY trong .env không phải " +
-  "khóa đã dùng để lưu — kiểm tra lại .env rồi khởi động lại app.";
-
-/**
- * Giải mã một credential để copy. Luôn ghi AuditLog kèm người thực hiện.
- *
- * Hai lớp chặn, không phải một: `guardedAction` hỏi "đã đăng nhập chưa", `requireNickOwner`
- * hỏi "nick này có phải của bạn không". Lớp thứ hai là thứ ngăn người này đọc mật khẩu nick
- * của người kia, và nó nằm ở **tầng dữ liệu** chứ không phải ở chỗ ẩn nút trên giao diện —
- * ẩn nút chỉ chặn người dùng lịch sự, còn server action thì gọi thẳng được nếu biết tên.
- */
-export const revealCredential = guardedAction(async function revealCredential(
+export const requestCredentialTicket = guardedAction(async function requestCredentialTicket(
   actor,
   accountId: string,
-  field: "password" | "emailPassword",
-): Promise<RevealedCredential | ActionResult> {
+  field: CredentialField,
+  deviceId?: string,
+): Promise<IssuedTicket | ActionResult> {
+  // Kiểm quyền TRƯỚC hạn nhịp: người không có quyền với nick này đáng nhận câu "nick của người
+  // khác", không phải câu "bạn bấm nhanh quá". Lỗi ném ra được `guardedAction` đổi thành
+  // ActionResult — xem chú thích ở đó.
   await requireNickOwner(actor, accountId);
 
-  const account = await prisma.account.findUnique({ where: { id: accountId } });
+  const rate = checkTicketRateLimit(actor.userId);
+  if (!rate.allowed) return { ok: false, message: rate.message };
+
+  const account = await prisma.account.findUnique({
+    where: { id: accountId },
+    select: { username: true, passwordEnc: true, emailPasswordEnc: true },
+  });
   if (!account) return { ok: false, message: "Không tìm thấy nick." };
 
-  // Giải mã TRƯỚC rồi mới ghi nhật ký: giải mã hỏng mà đã ghi thì nhật ký nói credential
-  // đã lộ trong khi thật ra không ai đọc được gì — sai theo đúng hướng khó phát hiện nhất.
-  const encrypted = field === "password" ? account.passwordEnc : account.emailPasswordEnc;
+  const recipient = await resolveTicketRecipient(actor, deviceId);
+  if (!recipient.ok) return { ok: false, message: recipient.message };
 
-  let value: string;
-  try {
-    value = decryptCredential(encrypted);
-  } catch {
-    return { ok: false, message: DECRYPT_FAILED_MESSAGE };
-  }
+  const ticket = issueTicket(
+    {
+      kind: TICKET_KINDS.CREDENTIAL,
+      accountId,
+      field,
+      // Nguyên văn cột trong database. Máy chủ chuyển tiếp chứ không mở — nó không có khóa.
+      credentialCiphertext: field === "password" ? account.passwordEnc : account.emailPasswordEnc,
+    },
+    recipient.recipient,
+  );
 
   await prisma.auditLog.create({
-    data: { accountId, action: "CREDENTIAL_REVEALED", detail: field, actorId: actor.userId },
+    data: {
+      accountId,
+      action: AUDIT_ACTIONS.CREDENTIAL_REVEALED,
+      detail: `${field} → máy "${recipient.recipient.deviceName}"`,
+      actorId: actor.userId,
+    },
   });
 
-  return { value };
+  return { ticket, deviceName: recipient.recipient.deviceName };
 });
 
-/** Sinh mã OTP hiện tại cho nick. Cùng hai lớp chặn với `revealCredential`. */
-export const requestOtpCode = guardedAction(async function requestOtpCode(
+/** Phát vé để cầu nối sinh mã OTP. Cùng ba lớp chặn với `requestCredentialTicket`. */
+export const requestOtpTicket = guardedAction(async function requestOtpTicket(
   actor,
   accountId: string,
-): Promise<OtpResult | ActionResult> {
+  deviceId?: string,
+): Promise<IssuedTicket | ActionResult> {
   await requireNickOwner(actor, accountId);
 
-  const account = await prisma.account.findUnique({ where: { id: accountId } });
+  const rate = checkTicketRateLimit(actor.userId);
+  if (!rate.allowed) return { ok: false, message: rate.message };
+
+  const account = await prisma.account.findUnique({
+    where: { id: accountId },
+    select: { totpSecretEnc: true },
+  });
   if (!account) return { ok: false, message: "Không tìm thấy nick." };
 
-  let secret: string | null;
-  try {
-    secret = decryptOptionalCredential(account.totpSecretEnc);
-  } catch {
-    return { ok: false, message: DECRYPT_FAILED_MESSAGE };
-  }
-  if (!secret) return { ok: false, message: "Nick này chưa lưu TOTP secret." };
+  // Cột rỗng là thứ máy chủ VẪN kiểm được dù không đọc nổi nội dung — và phải kiểm ở đây, không
+  // thì người dùng đợi một tab mở ra chỉ để đọc "nick này chưa có 2FA".
+  if (!account.totpSecretEnc) return { ok: false, message: "Nick này chưa lưu TOTP secret." };
 
-  let code: OtpResult;
-  try {
-    code = await generateTotpCode(secret);
-  } catch {
-    return {
-      ok: false,
-      message: "TOTP secret của nick này không dùng được (phải là chuỗi base32 hợp lệ).",
-    };
-  }
+  const recipient = await resolveTicketRecipient(actor, deviceId);
+  if (!recipient.ok) return { ok: false, message: recipient.message };
+
+  const ticket = issueTicket(
+    {
+      kind: TICKET_KINDS.OTP,
+      accountId,
+      totpSecretCiphertext: account.totpSecretEnc,
+    },
+    recipient.recipient,
+  );
 
   await prisma.auditLog.create({
-    data: { accountId, action: "OTP_GENERATED", actorId: actor.userId },
+    data: {
+      accountId,
+      action: AUDIT_ACTIONS.OTP_GENERATED,
+      detail: `máy "${recipient.recipient.deviceName}"`,
+      actorId: actor.userId,
+    },
   });
-  return code;
+
+  return { ticket, deviceName: recipient.recipient.deviceName };
 });

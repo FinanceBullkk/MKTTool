@@ -48,7 +48,16 @@ trúc dưới đây tồn tại.
 
 > **Nguyên tắc chọn:** khi có nhiều đường, lấy đường bền hơn kể cả khi tốn code hơn. Ba chỗ đã
 > sửa theo nguyên tắc này sau khi rà lại (04/08/2026): mã hóa nội dung vé cho cầu nối (QĐ 5),
-> advisory lock Postgres thay khóa file (GĐ5), và Dockerfile thay cấu hình riêng của Railway (QĐ 9).
+> khóa chống chạy chồng chuyển vào database thay khóa file (GĐ5), và Dockerfile thay cấu hình
+> riêng của Railway (QĐ 9).
+>
+> Chỗ thứ hai đã làm 05/08/2026, và **đi khác bản chốt ban đầu**: chốt cũ ghi "advisory lock
+> Postgres", làm thật thì hóa ra advisory lock **hỏng mở** — nó gắn theo session, mà giữ một
+> connection riêng suốt mười phút trên Railway thì lớp proxy cắt lúc nào không biết, và
+> connection chết là Postgres tự nhả khóa cho lượt thứ hai chen vào. Nó cũng không mang được dữ
+> liệu "ai đang giữ", nên vẫn phải kèm một hàng — hai cơ chế cho một khái niệm. Thay bằng
+> **một hàng trong bảng `HealthCheckLock`**: hỏng đóng, và trạng thái là thứ đọc được bằng một
+> truy vấn thường.
 
 ## Kiến trúc
 
@@ -100,7 +109,7 @@ dính luật này. Chrome siết thêm thì chuyển thao tác sang tab nhỏ �
 | 0 | Spike: trình duyệt gọi xuống cầu nối | ✅ xong 04/08 | 0.5 ngày | [phase-00](phase-00-spike-trinh-duyet-goi-cau-noi.md) |
 | 1 | Postgres + múi giờ team | ✅ xong 04/08 | 2-3 ngày | [phase-01](phase-01-postgres-va-mui-gio-team.md) |
 | 2 | Đăng nhập, vai trò, chủ sở hữu nick | ✅ xong 05/08 | 3-4 ngày | [phase-02](phase-02-dang-nhap-vai-tro-chu-so-huu.md) |
-| 3 | Tách hai vùng khóa + vé ký | ⬜ tiếp theo | 3-4 ngày | [phase-03](phase-03-tach-hai-vung-khoa-va-ve-ky.md) |
+| 3 | Tách hai vùng khóa + vé ký | ✅ xong 06/08 | 3-4 ngày | [phase-03](phase-03-tach-hai-vung-khoa-va-ve-ky.md) |
 | 4 | Cầu nối | ⬜ | 4-6 ngày | [phase-04](phase-04-cau-noi-tren-may-operator.md) |
 | 5 | Lên Railway + cron + sao lưu | ⬜ làm song song được | 2-3 ngày | [phase-05](phase-05-len-railway-cron-sao-luu.md) |
 | 6 | Bàn giao team | ⬜ | 2-3 ngày | [phase-06](phase-06-ban-giao-team.md) |

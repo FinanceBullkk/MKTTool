@@ -26,8 +26,6 @@ prisma/*.db*
 # dữ liệu vận hành
 data/screenshots/
 data/logs/
-# khóa chặn hai lượt dò chạy chồng nhau — trạng thái của máy đang chạy, không phải của dự án
-data/*.lock
 # bản sao lưu database — chứa credential đã mã hóa
 data/backups/
 

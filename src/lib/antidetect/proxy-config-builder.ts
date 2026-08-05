@@ -6,6 +6,7 @@
  */
 import type { AntidetectProxyConfig } from "./antidetect-browser-adapter";
 import { decryptCredential } from "@/lib/crypto/credential-encryption";
+import { loadVaultKey } from "@/lib/crypto/encryption-key-loader";
 
 /** Phần bản ghi Proxy cần dùng — nhận cả object Prisma đầy đủ lẫn object rút gọn trong test. */
 export interface ProxyRecordForLaunch {
@@ -48,12 +49,12 @@ export function buildProxyConfig(proxy: ProxyRecordForLaunch): AntidetectProxyCo
 
   let password: string;
   try {
-    password = decryptCredential(proxy.passwordEnc);
+    password = decryptCredential(proxy.passwordEnc, loadVaultKey("server"));
   } catch (cause) {
     // Không kèm chi tiết kỹ thuật vào thông báo cho người dùng cuối, nhưng phải nói rõ
     // hậu quả: không giải mã được thì không đẩy được proxy, nên không được mở profile.
     throw new ProxyConfigError(
-      `Không giải mã được mật khẩu proxy "${proxy.label}" (sai VAULT_KEY hoặc dữ liệu hỏng). ` +
+      `Không giải mã được mật khẩu proxy "${proxy.label}" (sai VAULT_KEY_SERVER hoặc dữ liệu hỏng). ` +
         `Chưa đẩy được proxy nên KHÔNG mở profile.`,
       { cause },
     );

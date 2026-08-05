@@ -1,6 +1,6 @@
 # Bản đồ mã nguồn
 
-**Cập nhật:** 03/08/2026
+**Cập nhật:** 05/08/2026
 
 Tài liệu dành cho người mới và AI agent định vị nhanh trong codebase — **code nằm ở đâu**.
 Hệ thống chạy ở đâu và phụ thuộc gì thì xem [system-architecture.md](system-architecture.md);
@@ -24,6 +24,7 @@ src/
 │   ├── queue/                  Hàng đợi + trang xếp lịch (chấm luật realtime)
 │   ├── facebook/               Kết nối Fanpage, trạng thái token, giải thích về Group
 │   ├── health/                 Bảng sức khỏe nick, lịch sử dò, biểu đồ karma 30 ngày
+│   ├── relay-devices/          Sổ đăng ký máy chạy cầu nối — cả team đọc, ADMIN đăng ký/thu hồi
 │   └── api/
 │       ├── accounts/[id]/launch/   API mở profile antidetect browser
 │       ├── facebook/oauth/         start (sinh state + redirect) và callback (đổi token)
@@ -35,13 +36,18 @@ src/
 │   │                           nhắc việc đăng tay (Reddit + Group)
 │   ├── facebook/               Bảng Page: gán nick quản trị, kiểm token, ngắt kết nối
 │   ├── health/                 Bảng sức khỏe, nút dò lại, biểu đồ karma, quản lý proxy quan sát viên
+│   ├── relay/                  Nút thu hồi máy cầu nối (hỏi lại trước khi gạch tên)
 │   └── content/                Form nhập content
 └── lib/
     ├── accounts/               Server actions + quy tắc trạng thái nick
     ├── actions/                Kiểu ActionResult dùng chung cho mọi server action
     ├── antidetect/             Adapter MultiZen / AdsPower (đổi bằng 1 dòng .env)
+    ├── audit/                  Tên các loại thao tác ghi vào `AuditLog.action` — gom một chỗ vì
+    │                           gõ sai một chữ thì hàng vẫn ghi, chỉ câu truy vấn sau này là hụt
+    ├── auth/                   Đăng nhập Google, danh sách email cho phép, gác lối vào, hai vai trò
     ├── content/                Hằng số loại content, trạng thái job, loại tương tác
-    ├── crypto/                 AES-256-GCM cho credential (mã hóa/giải mã + key loader)
+    ├── crypto/                 AES-256-GCM cho credential — hai vùng khóa (server / operator),
+    │                           registry khai vùng cho từng cột, key loader
     ├── db/                     Prisma client singleton, sao lưu, chặn xóa khi còn tham chiếu
     ├── facebook/               Graph API: OAuth, token, đăng Fanpage (chi tiết bên dưới)
     ├── format/                 Định dạng ngày tiếng Việt
@@ -50,8 +56,13 @@ src/
     │                           và tự gán link cho job từ bài thấy được trên profile
     ├── http/                   Đối chiếu Origin/Host cho route handler trong api/
     ├── platforms/              Gộp họ nền tảng (REDDIT / FACEBOOK)
+    ├── proxies/                Kiểm proxy sống, báo cáo băng thông
     ├── queue/                  Server actions: tạo job, đổi trạng thái, ghi tương tác, tóm tắt promo
     ├── rules/                  Bộ luật an toàn — mỗi luật một file (chi tiết bên dưới)
+    ├── tickets/                Vé ủy quyền (GĐ3) — khóa ký Ed25519 của máy chủ, khóa X25519 của
+    │                           từng máy cầu nối, sổ đăng ký máy, và bộ phát/xác minh vé:
+    │                           bọc cho riêng máy nhận → ký → hết hạn 30s → chống dùng lại.
+    │                           `ticket-types.ts` là hợp đồng dùng chung với cầu nối GĐ4
     └── totp/                   Sinh mã OTP 2FA
 ```
 
@@ -59,15 +70,20 @@ Thư mục khác ở gốc repo:
 
 ```
 prisma/
-├── schema.prisma               Schema duy nhất, 13 model
+├── schema.prisma               Schema duy nhất, 19 model
 └── migrations/                 Lịch sử migration
 scripts/
-├── generate-vault-key.ts       Sinh VAULT_KEY
+├── generate-vault-key.ts       Sinh khóa kho (dùng cho cả hai vùng)
+├── generate-server-signing-key.ts  Sinh cặp khóa ký vé Ed25519 MỚI cho máy chủ
+├── show-server-public-key.ts   In khóa công khai của khóa ký đang dùng
+├── generate-relay-device-key.ts  Sinh cặp khóa X25519 cho MỘT máy cầu nối — chạy trên chính máy đó
 ├── generate-test-totp-secret.ts  Sinh TOTP secret dùng thử
-├── rekey-vault-key.ts          Xoay VAULT_KEY, mã hóa lại toàn bộ credential
+├── rekey-vault-key.ts          Xoay khóa MỘT vùng, mã hóa lại credential của vùng đó
 ├── backup-database.ts          Sao lưu bằng pg_dump (chạy được khi app đang mở)
 ├── upgrade-database.ts         Nâng cấp sau khi nhận bản mới: sao lưu rồi `migrate deploy`
 ├── import-proxies-from-provider-list.ts  Nhập hàng loạt proxy từ file nhà cung cấp
+├── import-proxies-from-sqlite-backup.ts  Nhập proxy từ `dev.db` bản SQLite cũ (mặc định chỉ
+│                                xem trước, phải `--apply` mới ghi)
 ├── run-health-check.ts         Dò shadowban + đọc karma mọi nick Reddit (Phase 03)
 ├── smoke-test-identity-vault.ts  Kiểm chứng Phase 01
 ├── smoke-test-content-rules.ts   Kiểm chứng Phase 02
@@ -75,13 +91,16 @@ scripts/
 └── smoke-test-facebook-pages.ts  Kiểm chứng Phase 04 (không cần Meta App)
 plans/                          Kế hoạch triển khai (chỉ đọc, không sửa)
 docs/                           Tài liệu dự án
+Dockerfile                      Ảnh cho môi trường chạy thật (GĐ5) — dựng trên ảnh Playwright
+                                chính chủ, mang theo src/ + scripts/ + tsx vì lượt dò chạy ở
+                                tiến trình riêng, không nằm trong đồ thị import của Next
 ```
 
 ---
 
 ## Mô hình dữ liệu
 
-13 model trong `prisma/schema.prisma`. Các ràng buộc `@unique` là chỗ nguyên tắc 1:1 được ép.
+19 model trong `prisma/schema.prisma`. Các ràng buộc `@unique` là chỗ nguyên tắc 1:1 được ép.
 
 | Model | Ý nghĩa | Ràng buộc đáng chú ý |
 |---|---|---|
@@ -98,6 +117,10 @@ docs/                           Tài liệu dự án
 | `AuditLog` | Nhật ký thao tác nhạy cảm | Ghi mọi lần: mở profile, xem credential, ghi đè luật, đăng Fanpage |
 | `FacebookConnection` | Một lần OAuth với nick cá nhân — nguồn sinh mọi Page token | `fbUserId @unique`; `expiresAt` là hạn của user token, mọi Page dưới nó chết theo |
 | `FacebookPage` | Một Fanpage đã kết nối | `pageId @unique`; `targetId @unique` ép 1 đích : 1 Page |
+| `User` | **Người dùng công cụ** — không phải nick mạng xã hội (nick là `Account` ở trên) | Hàng này chỉ chứng minh họ TỪNG đăng nhập được. Quyền vào và vai trò tính lại từ `ALLOWED_EMAILS`/`ADMIN_EMAILS` ở **mỗi request**, không đọc cột `role` |
+| `Session`, `AuthAccount`, `Verification` | Do Better Auth quy định hình dạng | `AuthAccount` đổi tên từ mặc định `Account` của thư viện — tên đó đã thuộc về nick từ Phase 01 |
+| `HealthCheckLock` | Khóa chặn hai lượt dò sức khỏe chạy chồng nhau | Tối đa MỘT hàng — `key @id` là thứ ép điều đó, cùng vai trò với cờ `wx` của bản khóa file cũ. `token` để `release()` chỉ xóa khóa của chính mình. Quá 30 phút thì coi là mồ côi và giành được |
+| `RelayDevice` | Một máy chạy cầu nối đã được ADMIN cho vào sổ | `publicKey @unique` (X25519, hex chữ thường) — cùng một khóa nằm hai hàng thì thu hồi một hàng vẫn còn hàng kia sống. `revokedAt` là mốc thời gian chứ không phải cờ, và thu hồi là **một chiều** |
 
 Quan hệ chính: `Account` → `Persona` (n:1), `Account` → `Proxy` (1:1), `PostJob` → `Account` + `PlatformTarget` + `ContentItem`, `Interaction` → `Account` + `PlatformTarget`, `FacebookPage` → `FacebookConnection` (n:1) + `PlatformTarget` (1:1).
 

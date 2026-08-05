@@ -11,6 +11,7 @@
  */
 import { prisma } from "../src/lib/db/prisma-client";
 import { decryptCredential } from "../src/lib/crypto/credential-encryption";
+import { loadVaultKey } from "../src/lib/crypto/encryption-key-loader";
 import { loadDueManualPostReminders } from "../src/lib/queue/manual-post-reminders";
 import { FacebookPublishError, publishToPage } from "../src/lib/facebook/facebook-page-publisher";
 import { saveConnectionWithPages } from "../src/lib/facebook/facebook-token-manager";
@@ -59,10 +60,10 @@ async function run() {
   // 2. Token phải nằm trong DB dạng đã mã hóa, không phải dạng trần.
   const storedRaw = page?.accessTokenEnc ?? "";
   check("token KHÔNG lưu dạng trần", storedRaw !== FAKE_PAGE_TOKEN && !storedRaw.includes("EAAfake"));
-  check("token giải mã lại đúng nguyên bản", decryptCredential(storedRaw) === FAKE_PAGE_TOKEN);
+  check("token giải mã lại đúng nguyên bản", decryptCredential(storedRaw, loadVaultKey("server")) === FAKE_PAGE_TOKEN);
 
   const connectionRaw = page?.connection.accessTokenEnc ?? "";
-  check("user token cũng được mã hóa", decryptCredential(connectionRaw) === "EAAfake-user-token");
+  check("user token cũng được mã hóa", decryptCredential(connectionRaw, loadVaultKey("server")) === "EAAfake-user-token");
 
   // 3. Kết nối lại phải ghi đè token cũ chứ không đẻ thêm dòng.
   await saveConnectionWithPages(
@@ -75,7 +76,7 @@ async function run() {
   check("kết nối lại KHÔNG tạo Page trùng", pageCount === 1, `${pageCount} dòng`);
   check(
     "kết nối lại thay bằng token mới",
-    decryptCredential(refreshed?.accessTokenEnc ?? "") === "EAAfake-page-token-2",
+    decryptCredential(refreshed?.accessTokenEnc ?? "", loadVaultKey("server")) === "EAAfake-page-token-2",
   );
 
   // 4. Token bị Facebook từ chối thì publisher chặn TRƯỚC khi gọi mạng.
