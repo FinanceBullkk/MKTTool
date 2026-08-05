@@ -1,6 +1,6 @@
 # Lộ trình phát triển
 
-**Cập nhật:** 05/08/2026
+**Cập nhật:** 06/08/2026
 
 Đây là **nguồn duy nhất về trạng thái** của dự án. Bản thiết kế chi tiết từng giai đoạn ở
 [plans/](../plans/260801-2030-multi-account-posting-console/plan.md); vì sao làm ở
@@ -11,7 +11,7 @@ Dự án đang chạy **hai luồng song song**:
 | Luồng | Là gì | Trạng thái |
 |---|---|---|
 | **A — Công cụ** | 5 giai đoạn gốc: kho danh tính → hàng đợi → sức khỏe → Facebook → tự đăng Reddit | GĐ1-4 xong, GĐ0 kẹt ở tiền + cold-start, GĐ5 chưa bắt đầu |
-| **B — Web chung** | Biến app một máy thành web chung cho 5-6 người ở 5-6 nơi | GĐ0-2 xong 05/08, GĐ3 đang làm (7/11 việc), GĐ5 đã khởi động (Dockerfile) |
+| **B — Web chung** | Biến app một máy thành web chung cho 5-6 người ở 5-6 nơi | GĐ0-3 xong 06/08, **GĐ4 (cầu nối) là đường găng kế tiếp**, GĐ5 đã khởi động (Dockerfile) |
 
 Luồng B sinh ra sau khi chốt bàn giao cho team — xem
 [plan web chung](../plans/260804-1752-web-chung-cho-team-phan-tan/plan.md). Nó **không thay thế**
@@ -43,7 +43,7 @@ Chi tiết ở [plan.md](../plans/260804-1752-web-chung-cho-team-phan-tan/plan.m
 | 0 | Spike: trình duyệt gọi xuống cầu nối | ✅ Xong | 04/08 | – (chốt 3 ràng buộc bắt buộc cho GĐ2/3/4) |
 | 1 | [Postgres + múi giờ team](../plans/260804-1752-web-chung-cho-team-phan-tan/phase-01-postgres-va-mui-gio-team.md) | ✅ Xong hẳn | 05/08 | – (chốt bắt đầu từ kho rỗng, không nhập lại dữ liệu thử) |
 | 2 | [Đăng nhập, vai trò, chủ sở hữu nick](../plans/260804-1752-web-chung-cho-team-phan-tan/phase-02-dang-nhap-vai-tro-chu-so-huu.md) | ✅ Xong | 05/08 | – (hoãn có chủ ý: bộ lọc "nick của tôi", chỉ là tiện nghi hiển thị) |
-| 3 | [Tách hai vùng khóa + vé ký](../plans/260804-1752-web-chung-cho-team-phan-tan/phase-03-tach-hai-vung-khoa-va-ve-ky.md) | 🟡 Đang làm — 7/11 việc | Bắt đầu 05/08 | Bộ dựng/ký/mã hóa vé, chuyển reveal/OTP sang vé, gỡ khóa vùng operator khỏi máy chủ |
+| 3 | [Tách hai vùng khóa + vé ký](../plans/260804-1752-web-chung-cho-team-phan-tan/phase-03-tach-hai-vung-khoa-va-ve-ky.md) | ✅ Xong — 11/11 việc + khay cảnh báo | 06/08 | – (nghiệm thu bằng mắt phần "mật khẩu hiện ở tab cầu nối" phải chờ GĐ4) |
 | 4 | Cầu nối trên máy operator | ⬜ Chưa bắt đầu | – | **Đường găng.** Chờ GĐ3 |
 | 5 | Lên Railway + cron + sao lưu | 🟡 Đã bắt đầu | 05/08 | `Dockerfile` xong và ảnh đã chạy thật trong container; còn cron, sao lưu, và đẩy lên Railway |
 | 6 | Bàn giao team | ⬜ Chưa bắt đầu | – | Chờ GĐ4 |
@@ -129,6 +129,15 @@ Ngoài 11 việc gốc, hai chốt nữa đóng trong ngày. **Ghi đè bí mậ
 nghiệp nhưng ghi đè được nó. Chỉ gác khi form thật sự mang bí mật lên, nên sửa karma / trạng thái
 / proxy cho nhau vẫn là việc chung. Việc `status` bị kéo từ `SHADOWBANNED` về `HEALTHY` **không**
 giải bằng phân quyền (chủ nick cũng ép được) mà bằng dấu vết: nhật ký nay ghi cả chiều đổi.
+
+Và **khay cảnh báo vận hành** dưới thanh đầu trang, có mặt ở mọi trang. Nó trả lời một câu mà
+trước nay không màn hình nào trả lời: *kho có thật sự đang tách hai vùng khóa không?* Hai mục —
+*hai vùng chung một khóa* (đỏ: GĐ3 đang không có tác dụng gì) và *máy chủ vẫn giữ
+`VAULT_KEY_OPERATOR`* (vàng: đã tách thật nhưng bản sao khóa còn nằm sai chỗ) — mỗi mục một dòng
+với việc phải làm riêng, lọc theo vai trò vì chỉ ADMIN đổi được biến môi trường. Trước đó câu duy
+nhất nói ra chuyện này là một dòng `console.warn` lúc khởi động: dưới máy mình thì thấy, trên
+Railway thì trôi. Cảnh báo *"cầu nối bản cũ"* của GĐ4 và cảnh báo môi trường của GĐ5 nay chỉ là
+thêm một mục vào khay này.
 
 ## Đường găng: cái gì đang chặn
 

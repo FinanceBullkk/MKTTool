@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { SessionBadge } from "@/components/auth/session-badge";
+import { OpsAlertTray } from "@/components/layout/ops-alert-tray";
 import { PrimaryNav } from "@/components/layout/primary-nav";
 import "./globals.css";
 
@@ -24,6 +25,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <SessionBadge />
             </div>
           </header>
+          {/* Ngay dưới header, TRÊN mọi nội dung trang: cấu hình hệ thống đang sai thì đó là
+              thứ phải đọc trước việc của hôm nay. Xem `ops-alert-types.ts`. */}
+          <OpsAlertTray />
           <main>{children}</main>
         </div>
       </body>

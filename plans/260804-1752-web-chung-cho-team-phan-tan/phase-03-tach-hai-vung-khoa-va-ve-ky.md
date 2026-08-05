@@ -10,7 +10,8 @@
 
 ## Overview
 
-**Ưu tiên:** cao | **Trạng thái:** ✅ xong 11/11 việc (06/08/2026) | **Dự kiến:** 3-4 ngày
+**Ưu tiên:** cao | **Trạng thái:** ✅ xong 11/11 việc + khay cảnh báo vận hành (06/08/2026) |
+**Dự kiến:** 3-4 ngày
 
 Chia kho mã hóa làm hai vùng, và dựng cơ chế **vé có chữ ký** để máy chủ ủy quyền cho cầu nối
 mà không cần biết nội dung.
@@ -185,10 +186,19 @@ Ba mục nhỏ trong sổ đăng ký cũng đã đóng cùng ngày:
   không chạm chỗ gọi. 12 chỗ gọi ngoài test, mỗi chỗ thêm một tham số — và thêm xong thì "cột này
   thuộc vùng nào" hiện ngay tại chỗ đọc mã. Làm ở việc 11 vì lúc đó bốn chỗ chạm vùng operator đã
   dọn xong, số chỗ phải sửa còn ít nhất.
-- [ ] **Khay cảnh báo vận hành — một vùng, nhiều mục, lọc theo vai trò.** Cảnh báo đầu tiên phải
-  đưa vào: *"hai vùng đang dùng chung một khóa"*, hiện chỉ là `console.warn` trong
-  `encryption-key-loader.ts` — trên Railway (GĐ5) đó là chỗ không ai đọc, in một lần lúc khởi
-  động rồi trôi. Mà trạng thái đó nghĩa là **cả GĐ3 chưa có tác dụng gì**.
+- [x] **XONG 06/08 — khay cảnh báo vận hành, một vùng nhiều mục, lọc theo vai trò.**
+  [ops-alert-types](../../src/lib/ops-alerts/ops-alert-types.ts) (hợp đồng),
+  [collect-ops-alerts](../../src/lib/ops-alerts/collect-ops-alerts.ts) (nguồn + lọc),
+  [ops-alert-tray](../../src/components/layout/ops-alert-tray.tsx) (vẽ, nằm trong
+  `app/layout.tsx` nên có mặt ở mọi trang). Cảnh báo đầu tiên hóa ra là **hai mục chứ không
+  phải một**, vì hai trạng thái khác nhau về mức độ chứ không phải một chuyện nói hai kiểu:
+  *hai vùng chung một khóa* (đỏ — GĐ3 chưa có tác dụng gì) và *máy chủ vẫn giữ
+  `VAULT_KEY_OPERATOR`* (vàng — đã tách thật, nhưng bản sao khóa còn nằm sai chỗ). Trạng thái
+  thứ hai trước nay **không có tiếng nói nào** kể cả `console.warn`.
+  Thiếu `VAULT_KEY_SERVER` thì cố ý **không** vào khay: chỗ đó đã hỏng ồn ào bằng lỗi, thêm một
+  dòng vàng cho nó chỉ làm loãng khay. Chi tiết gốc: cảnh báo *"hai vùng đang dùng chung một
+  khóa"* hồi đó chỉ là `console.warn` trong `encryption-key-loader.ts` — trên Railway (GĐ5) đó
+  là chỗ không ai đọc, in một lần lúc khởi động rồi trôi.
 
   **Chốt 05/08: không gộp làm một dải với cảnh báo "cầu nối bản cũ" của QĐ 11, cũng không để
   hai dải rời nhau.** Hai cảnh báo khác nhau ở đúng chỗ quan trọng nhất — *ai sửa được*:

@@ -62,6 +62,35 @@ nào gọi nó** — tức là toàn bộ việc chia hai vùng khóa chưa có 
 > trạng thái hay proxy của nick vẫn chạy bình thường: ba ô bí mật để trống nghĩa là giữ nguyên,
 > và form không gọi xuống `127.0.0.1` khi không có gì để bọc.
 
+### Khay cảnh báo vận hành — "kho có thật sự đang tách hai vùng khóa không?"
+
+Việc cuối của GĐ3, và là thứ làm cho mọi việc phía trên **kiểm chứng được từ trong app** thay vì
+phải đi đọc file `.env` của máy chủ.
+
+- **Một vùng cố định dưới thanh đầu trang, có mặt ở mọi trang, mỗi vấn đề một dòng với việc phải
+  làm riêng.** Không nằm ở trang Hôm nay như bảy dải cảnh báo cũ: những dải đó nói về **dữ liệu**
+  (proxy chết, token sắp hết hạn) và xử lý xong thì tắt, còn khay này nói về **cấu hình hệ thống
+  đang sai** — thứ khiến cả một tính năng mất tác dụng trong khi mọi màn hình vẫn trông bình
+  thường. Người dùng không có lý do gì phải ghé trang Hôm nay trước khi làm việc.
+- **Hai mục, không phải một.** *Hai vùng chung một khóa* là **đỏ**: một phiên bị trộm vẫn đọc
+  được mật khẩu nick, tức toàn bộ GĐ3 đang không có tác dụng gì — mà cấu hình thì nhìn y hệt lúc
+  đã tách xong. *Máy chủ vẫn giữ `VAULT_KEY_OPERATOR`* là **vàng**: khóa đã tách thật, nhưng bản
+  sao vẫn nằm trên máy chủ, và trạng thái này trước nay **không có tiếng nói nào** — kể cả
+  `console.warn` cũng không nói.
+- **Thiếu `VAULT_KEY_SERVER` cố ý không vào khay.** Chỗ đó đã hỏng ồn ào bằng lỗi ngay lần mã hóa
+  đầu tiên. Vẽ thêm một dòng cho thứ đã kêu to là dạy người ta lướt qua khay.
+- **Lọc theo ai sửa được, không theo ai quan tâm.** OPERATOR không đổi được biến môi trường của
+  máy chủ, nên đưa họ một dòng đỏ vĩnh viễn chỉ dạy họ phớt lờ — và thói quen đó dính sang cả
+  những mục họ sửa được. Cảnh báo *"cầu nối bản cũ"* của GĐ4 đi hướng ngược lại (người ngồi máy
+  đó tự tải lại `.exe`) nên nó sẽ hiện cho tất cả.
+- **Dòng `console.warn` cũ giữ lại**, nhưng nay cả hai đọc chung một hàm: nó phục vụ lúc chạy
+  dưới máy mình, còn đường tới người dùng thật là khay. Trên Railway (GĐ5) `console.warn` in một
+  lần lúc khởi động rồi trôi — không ai đọc.
+
+**Kiểm chứng:** `typecheck` + `lint` + **678 test xanh** (thêm 10 test cho khay, gồm ca "cùng một
+khóa dán hai chỗ viết hoa/thường khác nhau" — bỏ sót ca đó là bỏ sót đúng lúc cảnh báo cần kêu
+nhất).
+
 ## 05/08/2026 (tối) — Chỗ chạy thật: Dockerfile, khóa vào database, ba lỗi chỉ Docker mới thấy
 
 Việc của GĐ5, chạy song song với GĐ3. Ba thay đổi dưới đây có chung một chủ đề: **thứ đúng khi
