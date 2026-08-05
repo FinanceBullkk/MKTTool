@@ -196,6 +196,14 @@ Ba mục nhỏ trong sổ đăng ký cũng đã đóng cùng ngày:
   **một vùng cố định dưới header**, mỗi vấn đề **một dòng riêng với hành động riêng**, lọc theo
   người xem. Cảnh báo thứ ba (GĐ5 sắp thêm) khi đó chỉ là thêm một mục, không phải quyết lại
   chỗ đặt.
+- [ ] **Gộp vào việc 6 — câu từ chối quyền phải tới được người dùng.** `revealCredential` /
+  `requestOtpCode` để `AuthorizationError` ném trần ra khỏi server action, còn
+  `account-vault-actions-panel.tsx` bắt bằng `catch {}` rồi hiện một câu chung. Nên OPERATOR bấm
+  nhầm nick của đồng nghiệp **không đọc được** câu *"nick này do người khác phụ trách"* — đúng
+  thứ chú thích đầu `guarded-action.ts` viết ra để tránh, và `updateAccount` đã làm đúng
+  (trả `ActionResult`, xem commit `2427c4b`). Chặn vẫn đúng, chỉ có lời giải thích là mất.
+  **Hoãn tới việc 6 vì việc đó viết lại cả hai đầu** — hàm chuyển sang phát vé, và panel cũng
+  phải đổi để nhận vé rồi chuyển xuống cầu nối. Chưa ai dùng app nên chưa ai chịu câu khó hiểu đó.
 - [ ] **Gộp vào việc 6 — hạn nhịp cho đường phát vé.** `revealCredential` / `requestOtpCode` hiện
   không có giới hạn nào: một phiên bị trộm rút sạch bí mật của mọi nick người đó làm chủ trong vài
   giây, `AuditLog` ghi lại nhưng không ai đọc lúc đó. Việc 6 viết lại đúng hai hàm này, nên đó là
