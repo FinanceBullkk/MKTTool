@@ -212,8 +212,50 @@ Import từ `src/lib/` qua đường dẫn tương đối. **Không dựng works
       rồi tự nhớ đừng in ra.
       Trang **hỏi MultiZen ngay lúc vẽ** — bản đầu in ra kết quả nhớ từ lần `/health` nào đó
       trước, kèm câu "bấm tải lại trang để cầu nối hỏi" trong khi tải lại trang không hề hỏi.
-- [ ] `bun build --compile` ra `.exe` chạy trên Windows sạch
-- [ ] `setup.bat` + shortcut Startup + shortcut desktop
+- [x] **XONG 06/08 — `.exe` 87.4 MB, dựng bằng Node SEA chứ không phải bun.**
+      [build-relay-executable](../../scripts/build-relay-executable.ts) — `npm run relay:build`.
+      **Đảo thứ tự so với kế hoạch (bun trước, SEA là đường lùi), có lý do:** phần khó của cầu
+      nối là mật mã lạ — X25519 sealed box, Ed25519, dựng `KeyObject` từ khóa thô — và bộ test
+      chứng minh nó đúng *trên Node 24*. Chạy đúng phần đó trên runtime của bun là đem thứ không
+      được phép sai sang chỗ chưa ai đo, đổi lấy vài chục MB. SEA thì `.exe` **chính là**
+      `node.exe` đã chạy bộ test. bun cũng chưa cài trên máy này, nên "đường lùi" hóa ra rẻ hơn
+      cả đường chính.
+      Bốn bước: esbuild gom cây import (110.7 KB — cũng là phép đo xem có gì lọt vào bundle
+      không) → `--experimental-sea-config` → chép `node.exe` ra làm phôi → postject nhét blob.
+      Chặn build trên non-Windows: SEA gói runtime của **máy đang build**, nên build ở Docker ra
+      một file tên `.exe` mà là ELF, và nó chỉ lộ ra ở tận máy operator.
+      Hai lỗi Windows gặp lúc làm, cả hai đã ghi lại tại chỗ trong mã: `shell: true` cắt đường
+      dẫn ở dấu cách (`C:\Program Files` → lệnh `C:\Program`), nên gọi thẳng file JS của
+      esbuild/postject bằng `process.execPath`, không qua `npx`.
+- [x] **XONG 06/08 — bộ cài: `setup.bat` + `install-relay.ps1`, shortcut Startup + desktop.**
+      **`.bat` chỉ còn là vỏ ASCII gọi PowerShell**, vì cmd.exe đọc file `.bat` bằng cách nhớ vị
+      trí **byte** rồi đọc tiếp từ đó sau mỗi lệnh — một ký tự UTF-8 nhiều byte làm lệch hết, và
+      bản đầu viết tiếng Việt có dấu vỡ thành những lệnh như `'xist'`, `'ARGET_EXE" >nul'`.
+      Ba việc đáng ghi:
+      - **Đường nâng cấp là cùng một file.** Chạy lại thì tắt bản đang chạy (nó giữ file `.exe`
+        nên không chép đè được), chép bản mới, và **giữ nguyên `relay-config.json`** — ghi đè ở
+        đó là xóa khóa vùng operator của máy, thứ không lấy lại được ở đâu.
+      - **Shortcut tạo tên ASCII rồi đổi tên.** `WScript.Shell` là COM đời cũ, ép mọi chuỗi về
+        bảng mã ANSI: trên máy Windows tiếng Anh thì "Cầu nối" thành "C?u n?i", `?` không hợp lệ
+        trong tên file, và `Save()` ném `FileNotFoundException` — câu chẳng liên quan gì tới
+        nguyên nhân. Cùng lý do bỏ hẳn `Description`.
+      - **`WindowStyle = 7`** (thu nhỏ), cố ý không ẩn hẳn: cầu nối giữ khóa vùng operator và mở
+        một cổng trên máy — người ngồi đó phải thấy được là nó đang chạy và tắt được mà không
+        cần Task Manager.
+      `install-relay.ps1` **phải giữ BOM UTF-8** (PowerShell 5.1 không BOM thì đọc theo ANSI và
+      nát hết tiếng Việt trong bộ cài). Build có phép kiểm bắt buộc BOM, đỏ thì dừng.
+- [x] **XONG 06/08 — nghiệm thu chạy trên chính `.exe`.**
+      [smoke-test-relay-executable](../../scripts/smoke-test-relay-executable.ts) +
+      [harness](../../scripts/relay-executable-harness.ts) — `npm run relay:verify`, **16/16
+      PASS**. Bộ test chạy mã nguồn dưới vitest; đóng gói là phép biến đổi khác hẳn, và nó đổi
+      nghĩa của mọi giả định về *file nằm ở đâu* (`process.execPath` thành chính `.exe`,
+      `__dirname` biến mất). Bài này nói chuyện với `.exe` qua đúng con đường web app dùng, và đi
+      tới tận mật khẩu dạng trần: tiến trình test phát vé thật → `.exe` mở ra → so với chuỗi đã
+      gửi. Phép kiểm "gọi `/health` thấy 200" thì mật mã hỏng sau khi gói vẫn xanh, và triệu
+      chứng đầu tiên sẽ là một operator đứng trước câu "không mở được ruột vé" vào ngày bàn giao.
+      Ca đỏ đầu tiên là lỗi của **bài kiểm**, không phải của cầu nối: nó gửi cùng một vé bí mật
+      vào `/ticket` rồi mới tới `/secret/reveal`, mà `verifyTicket` tiêu vé **trước** khi kiểm
+      loại vé — hỏng theo hướng đóng, đúng thứ cần có.
 - [x] **XONG 06/08 — web báo rõ khi cầu nối chưa chạy.**
       Nút *Mở profile* đã nói đủ từ trước qua `describeRelayFailure`. Ba nút bí mật thì không:
       chúng mở tab rồi đoán — *"không thấy gì hiện ra nghĩa là cầu nối chưa chạy"*, câu đẩy việc
