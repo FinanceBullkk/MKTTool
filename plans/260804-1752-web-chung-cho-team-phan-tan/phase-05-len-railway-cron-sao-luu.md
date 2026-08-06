@@ -83,9 +83,11 @@ không nói được gì
 - [x] Dự án Railway + Postgres (06/08/2026) — project `renewed-benevolence`, Postgres
   `postgres-ssl:18` có ổ đĩa riêng, kho cũ đã nạp sang (10 proxy + sổ migration đối chiếu đủ).
   Web chạy ở `https://mkttool-web-production.up.railway.app`
-- [ ] **Nối GitHub** — chưa làm được: repo thuộc org mà tài khoản chỉ là `member`, phải OWNER mới
-  cài được GitHub App. Đang chạy tạm bằng `railway up`, xem
-  [5B trong deployment-guide](../../docs/deployment-guide.md)
+- [x] **Nối GitHub** (06/08/2026) — vướng nửa buổi vì repo thuộc org mà tài khoản chỉ là `member`,
+  phải OWNER mới cài được GitHub App; chạy tạm bằng `railway up` cho tới khi owner cấp quyền. Nối
+  bằng `railway service source connect --repo … --branch master --service mkttool-web`, tức **đổi
+  nguồn của chính service cũ** chứ không dựng lại — giữ nguyên domain, biến môi trường và redirect
+  URI đã khai
 - [x] Khai biến môi trường; **xác nhận không có `VAULT_KEY_OPERATOR`** (06/08/2026) — đã đối chiếu
   danh sách tên biến trên máy chủ, đủ 12 biến cần và **không có** khóa vùng operator
 - [x] `Dockerfile` + `.dockerignore` (05/08/2026) — **đã build thật và nghiệm thu trong container.**
@@ -127,6 +129,8 @@ app chạy ở `/app`; khôi phục bằng Redeploy bản cũ trong HISTORY.
 trong khi cả `Dockerfile` lẫn máy dev đều ở **17**, nên `db:backup:remote` sẽ chết ngay dòng đầu.
 Chú thích cũ trong `Dockerfile` lấy CI làm mốc nên nó đúng vào hôm viết rồi lệch ngay khi hãng cấp
 bản khác. Đã đổi `ARG PG_CLIENT_MAJOR=18`. Lượt **nạp** không dính vì `psql` chỉ gửi SQL dạng chữ.
+Lượt build 10:05 cùng ngày đã kiểm: `postgresql-client-18` (18.4-1.pgdg24.04+1) cài được từ kho
+PGDG, nên chỗ này không còn là suy đoán.
 
 **3. `DATABASE_PUBLIC_URL` không có sẵn, và tab Variables hiển thị nó ở dạng bản mẫu.** Phải tự
 bật **TCP Proxy** cho Postgres mới sinh ra biến đó — và cửa công khai này đi ngược câu *"không phơi
@@ -176,6 +180,12 @@ Chốt 06/08/2026, **đảo với chữ "cron" của kế hoạch gốc**. Ba l�
 - **Không mất lượt khi app khởi động lại** — mốc lượt gần nhất nằm trong database chứ không trong
   bộ nhớ, nên deploy lúc 09:05 không bắn lại lượt 09:00, còn app tắt cả buổi sáng thì lúc bật lên
   chạy bù **một** lượt.
+
+  > ✅ **Đo thật 06/08/2026.** Lượt dò quyết lúc 09:02 (bỏ qua, chưa có proxy quan sát viên); tới
+  > 10:05 nối GitHub làm Railway deploy lại từ đầu, container mới hoàn toàn. Hàng `ScheduledJobRun`
+  > sau đó vẫn nguyên `lastRunAt = 02:02:57Z` và `host` của **container cũ** — tức bộ lịch nhận ra
+  > hôm nay đã quyết xong và không đụng vào. Log cũng im lặng đúng chỗ: chỉ có dòng *"Bật: 09:00"*,
+  > không có dòng tick nào.
 
 Khai `HEALTH_CHECK_DAILY_AT` là **bật**, vắng là **tắt** — và tắt là mặc định, vì máy dev nào cũng
 trỏ vào một database thật. Để "tắt" không trở thành "hỏng mà không ai biết", máy chủ production

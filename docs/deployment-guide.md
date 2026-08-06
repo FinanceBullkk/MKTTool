@@ -284,8 +284,9 @@ cùng một tài khoản Google.
 
 ## Bước 5 — Tạo dịch vụ web
 
-Hai đường. **5A là đích phải tới**; 5B là đường tạm khi chưa xin được quyền, và đó chính là đường
-đã đi ngày 06/08/2026.
+Hai đường. **5A là đích, và đã tới nơi ngày 06/08/2026.** 5B là đường tạm dùng trong lúc chờ owner
+của org cấp quyền — giữ lại vì cùng cảnh sẽ gặp ở dự án khác, và vì nó là đường lùi khi GitHub App
+gặp trục trặc.
 
 ### 5A — Nối GitHub (đích)
 
@@ -308,9 +309,25 @@ Hai đường. **5A là đích phải tới**; 5B là đường tạm khi chưa 
 > sao private của org nằm trên tài khoản cá nhân, và thứ nghiệm thu không phải thứ sẽ chạy. GitHub
 > cũng không cho fork thẳng repo private của org, nên còn nhiều bước hơn 5B.
 
+**Đã lỡ dựng service bằng 5B rồi thì KHÔNG phải dựng lại** — đổi nguồn của chính service đó, để
+giữ nguyên domain, biến môi trường và redirect URI đã khai:
+
+```powershell
+railway service source connect --repo Techieslab-app/MKTTool --branch master --service mkttool-web
+```
+
+Railway dựng deployment trigger và **build ngay một lượt từ `master`**.
+
+> ⚠️ **Trước khi bấm, kiểm `master` đã có đủ code chưa.** Từ giây đó Railway deploy `master`, không
+> deploy thứ trên ổ đĩa nữa — còn commit nào chưa merge thì web **tụt về bản cũ mà không có gì
+> báo**. Kiểm bằng `git log --oneline origin/master..HEAD`: trống là xong.
+
 ### 5B — Đẩy thẳng từ máy (đường tạm)
 
 Không cần GitHub. Dùng đúng `Dockerfile` này. Mất phần tự deploy — mỗi lần cập nhật phải tự gõ lại.
+
+> Chỉ dùng khi **chưa** nối được GitHub. Đã nối rồi mà vẫn `railway up` thì đang đẩy thứ trên ổ đĩa
+> đè lên thứ `master` vừa deploy — hai nguồn cho một service, và không có gì báo cái nào đang chạy.
 
 ```powershell
 npm i -g @railway/cli
