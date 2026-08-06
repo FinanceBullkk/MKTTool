@@ -117,13 +117,28 @@ npm run db:backup
 
 Xem dòng kết quả — nó in **số hàng dữ liệu**. Phải thấy proxy trong đó, không phải số 0.
 
-Rồi nạp lên Railway. Copy `DATABASE_PUBLIC_URL` ở tab **Variables** của dịch vụ Postgres — **đúng
-một giá trị**, khối dưới tự tách ra thành các biến libpq:
+Rồi nạp lên Railway. Lấy chuỗi nối ở dịch vụ Postgres → nút **Connect** (góc trên phải) → mục
+**Public Network**. Panel đó in chuỗi **đã ghép giá trị thật**, dạng
+`postgresql://postgres:AbC123...@shortline.proxy.rlwy.net:41234/railway`.
+
+> ⚠️ **Đừng copy `DATABASE_PUBLIC_URL` ở tab Variables.** Railway hiển thị nó ở **dạng bản mẫu** —
+> `postgresql://${{PGUSER}}:${{PGPASSWORD}}@${{RAILWAY_TCP_PROXY_DOMAIN}}:…` — vì `${{…}}` là cách
+> Railway trỏ sang biến khác của chính nó, và nó chỉ được thay thành giá trị thật lúc container
+> chạy. Dán bản mẫu đó vào terminal thì PowerShell báo *"Invalid URI: The hostname could not be
+> parsed"*. Nút **Connect** là chỗ chắc ăn; trong tab Variables thì phải bấm **biểu tượng con
+> mắt** mới thấy giá trị đã ghép.
+>
+> Railway giấu kỹ quá thì đi đường CLI, chắc chắn ra giá trị thật:
+> `npm i -g @railway/cli; railway login; railway link; railway variables --service Postgres --kv`
+
+Chỉ cần dán **đúng một chuỗi**, khối dưới tự tách ra thành các biến libpq:
 
 ```powershell
 cd E:\MKTTool
 $env:PATH = "C:\Program Files\PostgreSQL\17\bin;$env:PATH"
-$u = [uri]'DÁN_DATABASE_PUBLIC_URL_VÀO_ĐÂY'
+$raw = 'DÁN_CHUỖI_NỐI_VÀO_ĐÂY'
+if ($raw -match '\$\{\{') { throw "Đây là BẢN MẪU của Railway, chưa phải giá trị thật. Lấy ở nút Connect -> Public Network của dịch vụ Postgres." }
+$u = [uri]$raw
 $parts = $u.UserInfo -split ':', 2
 $env:PGHOST     = $u.Host
 $env:PGPORT     = $u.Port
