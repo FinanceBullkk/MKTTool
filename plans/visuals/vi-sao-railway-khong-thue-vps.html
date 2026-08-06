@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vì sao dùng Railway, không thuê VPS - MKTTool</title>
+    <!-- Modern Typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Mermaid JS -->
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'dark',
+            themeVariables: {
+                fontFamily: 'Inter, sans-serif',
+                primaryColor: '#1e293b',
+                primaryTextColor: '#f8fafc',
+                primaryBorderColor: '#475569',
+                lineColor: '#94a3b8',
+                secondaryColor: '#334155',
+                tertiaryColor: '#0f172a'
+            },
+            flowchart: {
+                curve: 'basis'
+            }
+        });
+    </script>
+
+    <!-- Rich Aesthetics Styling -->
+    <style>
+        :root {
+            --bg-gradient: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+            --text-color: #f8fafc;
+            --text-muted: #94a3b8;
+            --card-bg: rgba(30, 41, 59, 0.6);
+            --card-border: rgba(255, 255, 255, 0.08);
+            --accent-gradient: -webkit-linear-gradient(45deg, #38bdf8, #818cf8);
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-gradient);
+            color: var(--text-color);
+            margin: 0;
+            padding: 60px 20px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 50px;
+            max-width: 800px;
+        }
+
+        h1 {
+            font-weight: 700;
+            font-size: 3rem;
+            margin-bottom: 15px;
+            background: var(--accent-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.02em;
+            line-height: 1.15;
+        }
+
+        p.subtitle {
+            color: var(--text-muted);
+            font-size: 1.25rem;
+            font-weight: 400;
+            margin: 0;
+        }
+
+        /* Glassmorphism Cards */
+        .diagram-container {
+            background: var(--card-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--card-border);
+            border-radius: 24px;
+            padding: 40px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            max-width: 1100px;
+            width: 100%;
+            margin-bottom: 40px;
+            overflow-x: auto;
+            transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.4s ease;
+            box-sizing: border-box;
+        }
+
+        .diagram-container:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 35px 60px -15px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+        }
+
+        .diagram-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 30px;
+            color: #e2e8f0;
+            border-bottom: 1px solid var(--card-border);
+            padding-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .diagram-title::before {
+            content: '';
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: linear-gradient(45deg, #38bdf8, #818cf8);
+            flex-shrink: 0;
+        }
+
+        .mermaid {
+            display: flex;
+            justify-content: center;
+            opacity: 0;
+            animation: fadeIn 0.8s ease forwards 0.2s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.98); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        /* Prose */
+        .prose {
+            color: #cbd5e1;
+            font-size: 1.05rem;
+            line-height: 1.75;
+        }
+        .prose p { margin: 0 0 16px; }
+        .prose p:last-child { margin-bottom: 0; }
+        .prose strong { color: #f8fafc; font-weight: 600; }
+        .prose ul { margin: 0 0 16px; padding-left: 22px; }
+        .prose li { margin-bottom: 8px; }
+
+        .lead {
+            font-size: 1.35rem;
+            line-height: 1.6;
+            color: #e2e8f0;
+            font-weight: 500;
+        }
+        .lead em {
+            font-style: normal;
+            background: var(--accent-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: 700;
+        }
+
+        /* Callout */
+        .callout {
+            margin-top: 28px;
+            padding: 20px 24px;
+            border-radius: 16px;
+            background: rgba(56, 189, 248, 0.07);
+            border: 1px solid rgba(56, 189, 248, 0.25);
+            border-left: 4px solid #38bdf8;
+            color: #cbd5e1;
+            line-height: 1.7;
+        }
+        .callout.warn {
+            background: rgba(251, 191, 36, 0.07);
+            border-color: rgba(251, 191, 36, 0.25);
+            border-left-color: #fbbf24;
+        }
+        .callout .label {
+            display: block;
+            font-weight: 700;
+            color: #7dd3fc;
+            margin-bottom: 6px;
+            font-size: 0.85rem;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+        }
+        .callout.warn .label { color: #fcd34d; }
+
+        /* Table */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 28px;
+            font-size: 0.98rem;
+        }
+        th, td {
+            text-align: left;
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--card-border);
+            vertical-align: top;
+        }
+        th {
+            color: #94a3b8;
+            font-weight: 600;
+            font-size: 0.8rem;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+        }
+        td { color: #cbd5e1; }
+        tbody tr:last-child td { border-bottom: none; }
+        td.good { color: #6ee7b7; }
+        td.bad  { color: #fcd34d; }
+
+        /* Legend */
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 24px;
+            margin-top: 26px;
+            font-size: 0.92rem;
+            color: var(--text-muted);
+        }
+        .legend span { display: flex; align-items: center; gap: 9px; }
+        .swatch {
+            width: 15px; height: 15px; border-radius: 4px;
+            display: inline-block; flex-shrink: 0;
+        }
+        .sw-mine   { background: #78350f; border: 2px solid #fbbf24; }
+        .sw-theirs { background: #064e3b; border: 2px solid #34d399; }
+
+        footer {
+            max-width: 1100px;
+            width: 100%;
+            color: #64748b;
+            font-size: 0.9rem;
+            text-align: center;
+            padding: 10px 0 40px;
+        }
+
+        @media (max-width: 640px) {
+            body { padding: 36px 14px; }
+            h1 { font-size: 2rem; }
+            .diagram-container { padding: 24px 18px; }
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 10px; height: 10px; }
+        ::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.5); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.3); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(148, 163, 184, 0.5); }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>Vì sao chạy trên Railway, không thuê VPS</h1>
+        <p class="subtitle">Giải thích cơ chế cho team &middot; 06/08/2026</p>
+    </div>
+
+    <!-- Khối 0: Trả lời ngắn -->
+    <div class="diagram-container">
+        <div class="diagram-title">Trả lời trong một câu</div>
+        <div class="prose">
+            <p class="lead">
+                Mình không <em>cưới</em> Railway. Mình <em>thuê</em> nó 5 USD/tháng để khỏi phải làm
+                bảo trì máy chủ — và đã giữ sẵn đường dọn nhà sang VPS khi cần.
+            </p>
+            <p>
+                Ba câu hỏi cần trả lời, lần lượt ở ba khối bên dưới:
+                <strong>(1)</strong> máy chủ đang làm gì mà không cần màn hình,
+                <strong>(2)</strong> VPS rẻ hơn ở đâu và tốn hơn ở đâu,
+                <strong>(3)</strong> lỡ muốn đổi thì có kẹt không.
+            </p>
+        </div>
+    </div>
+
+    <!-- Khối 1: Việc nào chạy ở đâu -->
+    <div class="diagram-container">
+        <div class="diagram-title">1. Việc nào chạy ở đâu — và vì sao chia như vậy</div>
+        <div class="mermaid">
+flowchart TB
+    subgraph SV ["☁️ MÁY CHỦ trên mạng — KHÔNG có màn hình"]
+        direction TB
+        Web["🌐 Web dùng chung<br/>mọi người mở bằng Chrome"]
+        DB[("🐘 Database<br/>kho nick, proxy, lịch đăng")]
+        Bot["🤖 Robot dò shadowban<br/>Chromium chạy ngầm mỗi sáng 09:00"]
+        FB["📘 Đăng bài Fanpage<br/>gọi thẳng Graph API"]
+    end
+
+    subgraph PC ["💻 MÁY BÀN của nhân viên — CÓ màn hình"]
+        direction TB
+        MZ["🥷 MultiZen antidetect<br/>mở 4-5 cửa sổ nick Reddit"]
+        RL["🔌 Cầu nối Relay<br/>giải mã mật khẩu nick tại chỗ"]
+    end
+
+    Web -- "mở trang, xem kho nick" --> PC
+    Web -. "phát vé có hạn 30 giây" .-> RL
+    RL -- "bơm proxy và bật profile" --> MZ
+
+    classDef server fill:#0f172a,stroke:#38bdf8,stroke-width:2px,color:#e0f2fe;
+    classDef client fill:#312e81,stroke:#818cf8,stroke-width:2px,color:#e0e7ff;
+    classDef db fill:#064e3b,stroke:#34d399,stroke-width:2px,color:#d1fae5;
+
+    class Web,Bot,FB server;
+    class MZ,RL client;
+    class DB db;
+        </div>
+        <div class="prose">
+            <table>
+                <thead>
+                    <tr><th style="width:34%">Thứ chạy trên máy chủ</th><th>Vì sao không cần màn hình</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>Web dùng chung</td><td>Màn hình nằm ở máy người xem, không phải ở máy chủ. Máy chủ chỉ gửi trang về.</td></tr>
+                    <tr><td>Database</td><td>Chỉ là kho dữ liệu, không có gì để nhìn.</td></tr>
+                    <tr><td>Robot dò shadowban</td><td>Nó cũng mở trình duyệt, nhưng là <strong>robot đọc trang</strong> — không cần ai ngồi nhìn. Kiểu chạy này gọi là <em>headless</em>, tức &ldquo;không đầu&rdquo;.</td></tr>
+                    <tr><td>Đăng Fanpage</td><td>Facebook cho gọi thẳng bằng API có token chính thức. Không mở trình duyệt.</td></tr>
+                </tbody>
+            </table>
+            <div class="callout warn">
+                <span class="label">Chỗ duy nhất bắt buộc phải có màn hình</span>
+                <strong>MultiZen</strong> là app desktop — phải mở cửa sổ ra, phải có người ngồi bấm.
+                Reddit và TikTok không cho đăng bằng API, nên chỉ còn cách đăng tay. Vì vậy MultiZen
+                nằm ở <strong>máy bàn của từng bạn</strong>, không nằm trên máy chủ. Máy chủ không màn hình
+                là đủ dùng, không phải là thiếu.
+            </div>
+        </div>
+    </div>
+
+    <!-- Khối 2: Railway vs VPS -->
+    <div class="diagram-container">
+        <div class="diagram-title">2. Cùng 5 USD — khác nhau ở chỗ ai lo phần nào</div>
+        <div class="mermaid">
+flowchart TB
+    subgraph RW ["☁️ RAILWAY — 5 USD/tháng"]
+        direction TB
+        R1["Code MKTTool"]:::mine
+        R2["PostgreSQL"]:::theirs
+        R3["HTTPS + chứng chỉ tự gia hạn"]:::theirs
+        R4["Vá lỗ hổng hệ điều hành"]:::theirs
+        R5["Tường lửa, xoay log, canh ổ đĩa"]:::theirs
+        R6["Tự bật lại khi máy chết"]:::theirs
+        R1 ~~~ R2 ~~~ R3 ~~~ R4 ~~~ R5 ~~~ R6
+    end
+
+    subgraph VP ["🖧 VPS — 5 USD/tháng"]
+        direction TB
+        V1["Code MKTTool"]:::mine
+        V2["PostgreSQL"]:::mine
+        V3["HTTPS + chứng chỉ tự gia hạn"]:::mine
+        V4["Vá lỗ hổng hệ điều hành"]:::mine
+        V5["Tường lửa, xoay log, canh ổ đĩa"]:::mine
+        V6["Tự bật lại khi máy chết"]:::mine
+        V1 ~~~ V2 ~~~ V3 ~~~ V4 ~~~ V5 ~~~ V6
+    end
+
+    classDef mine fill:#78350f,stroke:#fbbf24,stroke-width:2px,color:#fef3c7;
+    classDef theirs fill:#064e3b,stroke:#34d399,stroke-width:2px,color:#d1fae5;
+        </div>
+        <div class="legend">
+            <span><i class="swatch sw-mine"></i> Mình phải tự làm và tự duy trì</span>
+            <span><i class="swatch sw-theirs"></i> Hãng lo, đã tính trong giá thuê</span>
+        </div>
+        <div class="prose">
+            <p style="margin-top:26px">
+                Tiền gần như bằng nhau. Khác nhau là <strong>số ô màu vàng</strong> — tức số việc phải
+                có người làm đều đặn, mãi mãi. Team hiện có <strong>1 người biết code, 5-6 người dùng
+                không rành kỹ thuật</strong>. Không có ai làm quản trị máy chủ. Nên phần &ldquo;tiết kiệm&rdquo;
+                của VPS thật ra là đẩy 5 ô vàng sang cho một người đang không rảnh — và mỗi ô là một thứ
+                có thể chết lúc 2 giờ sáng.
+            </p>
+            <table>
+                <thead>
+                    <tr><th style="width:26%">Điểm so</th><th style="width:37%">Railway</th><th>VPS</th></tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Giá</td>
+                        <td class="good">5 USD/tháng, gồm cả Postgres</td>
+                        <td class="good">5-6 USD/tháng, chưa gồm gì</td>
+                    </tr>
+                    <tr>
+                        <td>Deploy code mới</td>
+                        <td class="good">Đẩy lên GitHub là tự chạy</td>
+                        <td class="bad">Tự dựng quy trình</td>
+                    </tr>
+                    <tr>
+                        <td>Ảnh chạy nặng 4.86 GB<br/><small style="color:#64748b">vì mang theo Chromium cho robot dò</small></td>
+                        <td class="good">Hãng build, không tốn đĩa của mình</td>
+                        <td class="bad">Gói rẻ nhất rất chật đĩa, thực tế phải lên gói cao hơn</td>
+                    </tr>
+                    <tr>
+                        <td>Database chỉ nghe nội bộ</td>
+                        <td class="bad">Phải mở một cửa công khai để kéo bản sao lưu về</td>
+                        <td class="good">Đóng kín được, sao lưu ngay trên máy đó</td>
+                    </tr>
+                    <tr>
+                        <td>Chạy MultiZen trên máy chủ</td>
+                        <td class="bad">Không được — không có màn hình</td>
+                        <td class="good">Được, nếu thuê loại VPS có desktop</td>
+                    </tr>
+                </tbody>
+            </table>
+            <div class="callout">
+                <span class="label">Nói thẳng hai chỗ Railway dở</span>
+                <strong>Một:</strong> lệnh đẩy code nếu quên ghi rõ tên dịch vụ thì có thể đè nhầm lên
+                chính database — <strong>đã vấp thật ngày 06/08</strong>, nay có quy tắc bắt buộc ghi rõ.
+                <strong>Hai:</strong> sao lưu ổ đĩa của Railway đòi gói 20 USD. Nhưng bản sao của họ nằm
+                cùng tài khoản với bản gốc, nên mất tài khoản là mất cả hai — vì vậy mình <strong>không
+                trông vào nó</strong>, mà tự đẩy bản sao sang Cloudflare R2 mỗi đêm, ở nhà khác hẳn.
+            </div>
+        </div>
+    </div>
+
+    <!-- Khối 3: Không bị khóa chân -->
+    <div class="diagram-container">
+        <div class="diagram-title">3. Lỡ muốn đổi thì có kẹt không — ba chốt chống khóa chân</div>
+        <div class="mermaid">
+flowchart LR
+    Box["📦 Toàn bộ app nằm trong<br/>MỘT thùng Docker<br/>tự đóng gói"]:::box
+
+    Box --> RW["☁️ Railway<br/>đang chạy hôm nay"]:::now
+    Box -.-> VPS["🖧 VPS bất kỳ"]:::alt
+    Box -.-> Fly["☁️ Fly.io / Render"]:::alt
+    Box -.-> Own["🏢 Máy đặt tại văn phòng"]:::alt
+
+    classDef box fill:#312e81,stroke:#818cf8,stroke-width:3px,color:#e0e7ff;
+    classDef now fill:#064e3b,stroke:#34d399,stroke-width:2px,color:#d1fae5;
+    classDef alt fill:#1e293b,stroke:#475569,stroke-width:1px,stroke-dasharray: 5 5,color:#cbd5e1;
+        </div>
+        <div class="prose">
+            <p style="margin-top:26px">
+                Ví như <strong>đồ đạc xếp sẵn trong thùng container, không đóng đinh vào tường căn hộ</strong>.
+                Ba thứ dễ dính chặt vào một hãng nhất thì mình cố ý không dùng đồ của hãng:
+            </p>
+            <table>
+                <thead>
+                    <tr><th style="width:26%">Hạng mục</th><th style="width:31%">Người ta hay dùng</th><th>Mình dùng — và được gì</th></tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Cách đóng gói app</td>
+                        <td class="bad">Công cụ build riêng của Railway</td>
+                        <td class="good">Dockerfile tự viết &mdash; chỗ nào chạy được Docker là chạy được</td>
+                    </tr>
+                    <tr>
+                        <td>Chạy theo lịch<br/><small style="color:#64748b">robot dò 09:00, sao lưu 03:00</small></td>
+                        <td class="bad">Dịch vụ cron của Railway</td>
+                        <td class="good">Bộ lịch nằm ngay trong app &mdash; đi theo app sang bất cứ đâu</td>
+                    </tr>
+                    <tr>
+                        <td>Sao lưu dữ liệu</td>
+                        <td class="bad">Nút backup của Railway</td>
+                        <td class="good">Tự đẩy sang Cloudflare R2 &mdash; bản sao không nằm cùng nhà với bản gốc</td>
+                    </tr>
+                </tbody>
+            </table>
+            <div class="callout">
+                <span class="label">Kết quả</span>
+                Muốn dọn sang VPS bất cứ lúc nào: bê thùng Docker qua, dựng một Postgres, đổi vài dòng
+                cấu hình. <strong>Mất khoảng một buổi.</strong> Đó là điều được chuẩn bị có chủ đích ngay
+                từ đầu, không phải may mắn.
+            </div>
+        </div>
+    </div>
+
+    <!-- Khối 4: Khi nào đổi -->
+    <div class="diagram-container">
+        <div class="diagram-title">4. Vậy khi nào thì đổi sang VPS là đúng</div>
+        <div class="mermaid">
+flowchart TD
+    Q1{"Một máy bàn phải mở<br/>trên 20 cửa sổ MultiZen?"}
+    Q2{"Có người trong team<br/>nhận việc quản trị máy chủ<br/>như một phần công việc?"}
+    Q3{"Hóa đơn Railway vượt hẳn<br/>giá VPS tương đương?"}
+
+    Q1 -- "CHƯA. Đang 4-5 cửa sổ / máy" --> Q2
+    Q1 -- "RỒI" --> Move["🖧 Thuê VPS Windows có desktop<br/>cài MultiZen chạy ngay trên đó"]:::move
+
+    Q2 -- "Chưa có ai" --> Q3
+    Q2 -- "Có rồi" --> Move
+
+    Q3 -- "Chưa" --> Stay["✅ Ở lại Railway<br/>đây là tình trạng hiện nay"]:::stay
+    Q3 -- "Vượt rồi" --> Move
+
+    classDef stay fill:#064e3b,stroke:#34d399,stroke-width:2px,color:#d1fae5;
+    classDef move fill:#78350f,stroke:#fbbf24,stroke-width:2px,color:#fef3c7;
+        </div>
+        <div class="prose">
+            <p style="margin-top:26px">
+                <strong>Con số 20 là trần của MỘT máy, không phải của cả team.</strong> Đây là chỗ dễ hiểu nhầm nhất.
+            </p>
+            <table>
+                <thead>
+                    <tr><th style="width:50%">Phép tính</th><th>Kết quả</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>Mỗi người mở</td><td class="good">4-5 cửa sổ</td></tr>
+                    <tr><td>Cả team 5-6 người, cộng lại</td><td>20-25 nick</td></tr>
+                    <tr><td>Nhưng trần lại nằm ở <strong>từng máy</strong></td><td class="good">4-5 / 20 &mdash; còn xa mới chật</td></tr>
+                </tbody>
+            </table>
+            <p style="margin-top:20px">
+                Team vốn đã là &ldquo;nhiều máy&rdquo; — mỗi người một máy — nên kiến trúc phân tán đã
+                giải quyết sẵn chuyện này. Thêm nữa, hiện chỉ <strong>1-2 người vận hành Reddit</strong>,
+                tức chỉ 1-2 máy thật sự cần MultiZen.
+            </p>
+            <p style="color:#94a3b8">
+                Về RAM: mỗi profile antidetect nặng cỡ một cửa sổ Chrome. 4-5 cái ước chừng 2-3 GB — máy
+                8 GB chạy được, máy 16 GB thoải mái. <em>Con số này là ước lượng, chưa đo thật trên MultiZen;
+                hôm nào mở đủ 5 profile rồi liếc Task Manager một lượt là biết số thật.</em>
+            </p>
+        </div>
+    </div>
+
+    <!-- Khối 5: Chi phí thật -->
+    <div class="diagram-container">
+        <div class="diagram-title">5. Nếu bàn chuyện tiền, thì đây mới là chỗ đáng bàn</div>
+        <div class="mermaid">
+flowchart LR
+    N10["10 nick<br/>hôm nay"] --> P10["10 proxy tĩnh"]:::grow
+    N25["25 nick<br/>nếu mở rộng"] --> P25["25 proxy tĩnh"]:::grow
+
+    N10 --> S1["Máy chủ: 5 USD"]:::flat
+    N25 --> S2["Máy chủ: vẫn 5 USD"]:::flat
+
+    classDef grow fill:#78350f,stroke:#fbbf24,stroke-width:2px,color:#fef3c7;
+    classDef flat fill:#064e3b,stroke:#34d399,stroke-width:2px,color:#d1fae5;
+        </div>
+        <div class="prose">
+            <p style="margin-top:26px">
+                Nguyên tắc <strong>1 nick = 1 proxy tĩnh riêng</strong> do database ép, không lách được —
+                đây là thứ giữ cho các nick không bị nhận diện là cùng một người. Nên tiền proxy
+                <strong>tăng thẳng theo số nick</strong>, còn tiền máy chủ thì gần như đứng yên.
+            </p>
+            <div class="callout warn">
+                <span class="label">Ý chính</span>
+                Tranh luận Railway hay VPS là tranh luận quanh khoản 5 USD/tháng. Khoản thật sự lớn dần
+                theo quy mô là <strong>proxy</strong>. Nếu team muốn tối ưu chi phí hạ tầng, nên soi chỗ đó trước.
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        Nguồn: <code>docs/system-architecture.md</code> &middot; <code>docs/deployment-guide.md</code> &middot;
+        <code>plans/260804-1752-web-chung-cho-team-phan-tan/plan.md</code> (Quyết định 9)
+    </footer>
+
+</body>
+</html>
