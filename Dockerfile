@@ -125,8 +125,12 @@ COPY --chown=pwuser:pwuser prisma ./prisma
 RUN npm ci --omit=dev && npm cache clean --force
 
 # `.next` là bản đã build. `src` và `scripts` là mã nguồn tiến trình dò chạy bằng tsx.
+#
+# `prisma.config.ts` phải có mặt: từ Prisma 7, `url` không còn nằm trong schema.prisma nữa, nên
+# `prisma migrate deploy` ở bước pre-deploy đọc `datasource.url` từ chính file này. Thiếu nó thì
+# lệnh nạp được schema rồi mới chết với "The datasource.url property is required". Đã vấp thật.
 COPY --from=builder --chown=pwuser:pwuser /app/.next ./.next
-COPY --chown=pwuser:pwuser next.config.ts tsconfig.json ./
+COPY --chown=pwuser:pwuser next.config.ts tsconfig.json prisma.config.ts ./
 COPY --chown=pwuser:pwuser src ./src
 COPY --chown=pwuser:pwuser scripts ./scripts
 
