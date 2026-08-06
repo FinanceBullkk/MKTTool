@@ -663,10 +663,25 @@ FACEBOOK_REDIRECT_URI=https://mkttool-web-production.up.railway.app/api/facebook
 > địa chỉ localhost không tồn tại. Xem `DEFAULT_REDIRECT_URI` trong
 > [facebook-app-config.ts](../src/lib/facebook/facebook-app-config.ts).
 
-### 11.3 — Thêm redirect URI vào Meta App
+### 11.3 — Khai domain ở Meta App, **hai chỗ khác nhau**
 
-Meta App → **Facebook Login for Business** → **Settings** → *Valid OAuth Redirect URIs* → dán đúng
-chuỗi ở 11.2 → **Save Changes**.
+Đây là chỗ vấp thật ngày 06/08/2026. Meta có **hai** ô khai domain, nằm ở hai trang khác nhau, và
+thiếu ô nào cũng chặn — nhưng bằng hai câu lỗi khác nhau nên rất dễ tưởng đã làm xong.
+
+**(a) App Domains — `Settings` → `Basic`.** Làm cái này **trước**.
+
+1. Kéo xuống đáy trang → **`+ Add Platform`** → chọn **`Website`** → *Site URL*:
+   `https://mkttool-web-production.up.railway.app/`
+2. Kéo lên ô **App Domains** → thêm `mkttool-web-production.up.railway.app`
+   — **chỉ domain**, không `https://`, không đường dẫn.
+3. **Save Changes**.
+
+> **Thứ tự không tùy tiện.** Meta đối chiếu ô App Domains với các URL nền tảng đã khai; chưa thêm
+> platform Website thì nó từ chối domain. Làm ngược là quay lại làm từ đầu.
+
+**(b) Valid OAuth Redirect URIs — `Facebook Login for Business` → `Settings`.**
+
+Dán đúng chuỗi đầy đủ ở 11.2 → **Save Changes**.
 
 > **Giữ nguyên chuỗi `localhost` đang có, đừng thay.** Meta cho khai nhiều URI, và máy dev vẫn cần
 > chuỗi cũ để chạy. Thay thì lần sau chạy `npm run dev` là luồng kết nối hỏng.
@@ -698,7 +713,8 @@ Xong thì bấm **Kiểm tra token tất cả Page** ngay, đừng đợi tới 
 
 | Thấy gì | Nguyên nhân thật |
 |---|---|
-| Facebook báo **"URL Blocked"** / redirect URI không hợp lệ | Chuỗi ở 11.2 và 11.3 lệch nhau — thường là dấu `/` cuối, `http` vs `https`, hoặc quên bấm **Save Changes** |
+| **"Can't load URL — The domain of this URL isn't included in the app's domains"** | Thiếu **11.3 (a)**: domain chưa có trong *App Domains* ở `Settings → Basic`. Meta chặn ngay tại dialog, **trước** cả bước xét redirect URI — nên khai đủ (b) mà thiếu (a) vẫn hỏng. *(Đã vấp thật 06/08/2026.)* Kèm một tin tốt: câu này nhắc tới "domain" nghĩa là `FACEBOOK_REDIRECT_URI` trên Railway đã khai đúng — chưa khai thì nó rơi về `localhost`, mà Meta miễn trừ `localhost` nên lỗi sẽ khác hẳn |
+| Facebook báo **"URL Blocked"** / redirect URI không hợp lệ | Chuỗi ở 11.2 và 11.3 (b) lệch nhau — thường là dấu `/` cuối, `http` vs `https`, hoặc quên bấm **Save Changes** |
 | App báo *"Đang mở app bằng X nhưng `FACEBOOK_REDIRECT_URI` khai Y"* | Biến ở 11.2 chưa khai hoặc khai sai. Đây là lớp chặn cố ý dừng sớm, không phải lỗi |
 | Người trong team thấy màn hình *"app chưa hoạt động"* | Chưa thêm vào Tester (11.4), hoặc đã thêm mà họ **chưa bấm chấp nhận** |
 | Đăng được hôm nay, mai hỏng | Token chết không báo trước — nick admin Page đổi mật khẩu, gỡ app, hoặc bị Meta khóa |
