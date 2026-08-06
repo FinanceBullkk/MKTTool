@@ -637,6 +637,12 @@ lượt gần nhất hỏng, bản sao mới nhất quá 2 ngày tuổi, hoặc 
 
 Bỏ qua được, cả app vẫn chạy bình thường thiếu nó.
 
+> ✅ **Đã đi trọn một lượt thật 06/08/2026.** Nick `Anh Hao`, Page `BaeJiyeon TFT`, đích đăng tự
+> tạo, kiểm token 16:08 báo *"Token không có hạn (sinh từ user token dài hạn)"*.
+>
+> **Meta CHẤP NHẬN domain `*.up.railway.app`** — rủi ro để mở từ lúc lập kế hoạch, nay đóng, và
+> **không phải mua tên miền riêng**. Chỗ vấp thật không nằm ở domain mà ở 11.3 (a) bên dưới.
+
 > **KHÔNG tạo Meta App mới.** App hiện có đã đăng thật lên Fanpage ngày 03/08/2026 — nó đúng loại
 > (Business + Facebook Login for Business) và đã có configuration với ba quyền. Việc ở đây là
 > **trỏ app đó sang domain Railway**, tức thêm một redirect URI thứ hai. Tạo app mới là làm lại
@@ -772,7 +778,15 @@ Xếp theo thứ tự nên làm.
    `PRODUCTION_DATABASE_URL`) đúng lúc bấm *"Dò cả đàn"* trên web. Lượt thứ hai phải bị từ chối
    kèm câu nói rõ **máy nào**, tiến trình nào đang giữ và giữ bao lâu rồi. Đây là thứ chỉ chứng
    minh được khi khóa đã bắc qua hai máy thật.
-3. **Facebook** (bước 11) — hoãn được, cả app vẫn chạy bình thường thiếu nó.
+3. ~~**Facebook** (bước 11)~~ **xong 06/08/2026** — đã nối Fanpage thật, token không hạn, Meta
+   chấp nhận domain Railway. Còn nợ nửa sau của bước 11.4: **cả team vào vai trò Tester**, làm
+   ở GĐ6 khi team đã có tài khoản.
+4. **Sửa lỗi chuyển hướng của callback Facebook.** Kết nối chạy đúng và lưu xong, nhưng người
+   dùng bị ném sang `https://localhost:3000` kèm `ERR_SSL_PROTOCOL_ERROR`:
+   [callback/route.ts](../src/app/api/facebook/oauth/callback/route.ts) dựng địa chỉ từ
+   `request.url`, mà sau proxy Railway nó ghép giao thức từ `x-forwarded-proto` với host nội bộ
+   trong container. Route `start` đã tránh đúng bẫy này từ trước nhưng `callback` không thừa
+   hưởng — rút phần dựng địa chỉ ra `src/lib/http/` cho cả hai dùng chung.
 
 Đã xong, không còn nợ: nối GitHub (đẩy commit lên `master` là web tự cập nhật),
 `npm run db:backup:remote` đã chạy và đã khôi phục thử, sao lưu tự động lên R2, và `.exe` cầu nối.

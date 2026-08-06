@@ -94,9 +94,26 @@ không nói được gì
   Ảnh **4.86 GB**, chạy bằng `pwuser` (không phải root). Dựng trên
   `mcr.microsoft.com/playwright:v1.62.1-noble`. Ba chốt lúc viết ở [dưới](#dockerfile--ba-chốt-đã-đóng);
   ba lỗi mà chính lượt build bắt được ở [đây](#build-thật-bắt-được-ba-lỗi-mà-test-không-thấy)
-- [ ] Thử domain Railway với Facebook; mua tên miền nếu bị từ chối
+- [x] **Thử domain Railway với Facebook** (06/08/2026) — **Meta CHẤP NHẬN `*.up.railway.app`,
+  không phải mua tên miền.** Rủi ro để mở từ lúc lập kế hoạch, nay đóng. Nhưng phải khai domain ở
+  **hai ô khác nhau**, và thiếu ô nào cũng chặn bằng hai câu lỗi khác nhau: *App Domains* ở
+  `Settings → Basic` (kèm platform Website, phải thêm trước), và *Valid OAuth Redirect URIs* ở
+  `Facebook Login for Business → Settings`. Vấp thật ở ô thứ nhất — xem
+  [deployment-guide bước 11.3](../../docs/deployment-guide.md)
 - [x] Redirect URI **của Google** + `BETTER_AUTH_URL` (06/08/2026) — **đăng nhập thật đã vào được**
-- [ ] Redirect URI **của Facebook** + cả team vào vai trò Tester
+- [x] **Redirect URI của Facebook — đã nối Fanpage thật trên máy chủ** (06/08/2026). Nick
+  `Anh Hao`, Page `BaeJiyeon TFT`, đích đăng tự tạo, kiểm token lúc 16:08: **"Token không có hạn
+  (sinh từ user token dài hạn)"** — câu đó chứng minh bước đổi token 60 ngày không bị bỏ, thứ mà
+  dừng ở token 2 giờ thì trưa hôm sau ngừng đăng không rõ vì sao.
+  > 🐞 **Lượt kết nối phát hiện một lỗi thật, CHƯA SỬA:** callback dựng địa chỉ quay về từ
+  > `request.url`, mà sau proxy Railway nó ghép thành `https://localhost:3000` — giao thức lấy
+  > từ `x-forwarded-proto`, host lấy từ địa chỉ nội bộ trong container. Người dùng gặp
+  > `ERR_SSL_PROTOCOL_ERROR` dù kết nối **đã lưu xong**. Route `start` đã tránh đúng bẫy này từ
+  > trước (đọc header `Host` + `x-forwarded-proto`) nhưng route `callback` không thừa hưởng.
+  > Sửa: rút phần dựng địa chỉ ra `src/lib/http/` cho cả hai route dùng chung.
+- [ ] Cả team vào vai trò **Tester** — chưa làm, và chưa làm được: app ở chế độ Development nên
+  chỉ người có vai trò mới cấp quyền được, nhưng team chưa có tài khoản. Việc này thuộc
+  [GĐ6](phase-06-ban-giao-team.md)
 - [x] Cron dò shadowban hằng ngày theo `TEAM_TIMEZONE` (06/08/2026) — **bộ lịch nằm trong app,
   không dùng cron của hãng.** Lý do ở [dưới](#vì-sao-bộ-lịch-nằm-trong-app-thay-vì-cron-của-railway)
 - [x] ~~Advisory lock Postgres~~ **bảng `HealthCheckLock`** thay khóa file (05/08/2026) —
