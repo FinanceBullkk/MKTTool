@@ -107,10 +107,11 @@ không nói được gì
   viên nào, nên lượt 09:00 ngày 06/08 ghi đúng câu *"bỏ qua vì chưa có proxy quan sát viên"*.
   Đó là hành vi đúng, nhưng chưa phải một lượt dò thật
 
-### Ba cái bẫy của lượt lên máy chủ thật (06/08/2026)
+### Bốn cái bẫy của lượt lên máy chủ thật (06/08/2026)
 
-Cả ba đều **không** làm test nào đỏ, và cả ba đều có triệu chứng chỉ sai hướng. Chi tiết thao tác
-ở [deployment-guide.md](../../docs/deployment-guide.md); ghi lại đây phần *vì sao*.
+Ba cái đầu **không** làm test nào đỏ và đều có triệu chứng chỉ sai hướng; cái thứ tư thì ngược
+lại — chỉ CI mới thấy. Chi tiết thao tác ở [deployment-guide.md](../../docs/deployment-guide.md);
+ghi lại đây phần *vì sao*.
 
 **1. `railway up` ghi đè lên service database.** Một lượt không kèm `--service` deploy MKTTool đè
 lên dịch vụ Postgres, và service đó chạy Next.js nghe ở cổng 5432. Triệu chứng là
@@ -132,6 +133,30 @@ bật **TCP Proxy** cho Postgres mới sinh ra biến đó — và cửa công k
 Postgres ra internet"* trong phần Security dưới đây, nên ranh giới phải nói rõ: **app vẫn đi mạng
 nội bộ**, cửa công khai chỉ phục vụ máy quản trị nạp dữ liệu và kéo bản sao lưu về. Không có nó thì
 bản sao lưu duy nhất nằm trong chính Railway — mà thứ nó phải chống lại là *mất cả dự án Railway*.
+
+### Cái bẫy thứ tư — và nó nằm trong code, không nằm ở hãng
+
+CI bắt được một lỗi mà **cả 836 test ở máy dev đều bỏ sót**, và lý do bỏ sót mới là phần đáng ghi.
+
+`tickDailyHealthCheck` nhận một mốc `now` và dùng nó để tính mốc hẹn. Nhưng nhánh kiểm khóa chống
+chạy chồng gọi `readHealthCheckLockStatus()` **không truyền `now`**, nên nó lấy đồng hồ máy để đo
+"khóa đã mồ côi chưa". Một thao tác, hai đồng hồ.
+
+Trên máy chủ hai đồng hồ bằng nhau nên **không có triệu chứng nào**. Chỗ nó lộ ra là bài test:
+test giành khóa với mốc giả rồi hỏi tick, và tuổi khóa hóa ra được đo bằng khoảng cách từ *mốc
+giả* tới *giờ thật*. Hệ quả: bài test chỉ xanh trong đúng 30 phút mỗi ngày — bằng `STALE_AFTER_MS`.
+Máy dev xanh vì lượt chạy rơi trúng khung đó; CI chạy lúc 02:53Z thì "khóa mới hai phút" thành
+"khóa mồ côi 55 phút", và tick bắn lượt dò thay vì bỏ qua.
+
+**Ba điều rút ra:**
+
+1. **Một thao tác phải chạy trên một đồng hồ.** Cùng họ với `TEAM_TIMEZONE`: ở đó là "mỗi máy một
+   múi giờ", ở đây là "mỗi tầng một mốc thời gian". Tham số `now` mà không đi hết xuống đáy thì
+   chỉ là ảo giác kiểm soát được thời gian.
+2. **Test xanh ở máy dev không chứng minh được gì về thời gian.** Nó chỉ chứng minh lượt chạy đó
+   rơi vào khung may mắn. CI chạy ở giờ khác chính là thứ phát hiện ra.
+3. Sửa ở **gốc**, không vá bài test. Vá test thì cái lỗi hai-đồng-hồ vẫn nằm nguyên trong code, chờ
+   một chỗ khác gọi tới.
 
 ### Vì sao bộ lịch nằm trong app, thay vì cron của Railway
 
