@@ -54,3 +54,8 @@ Bằng chứng cho các tuyên bố "đã chạy thật" — không phải tài 
 [archive/](archive/README.md) giữ hai tài liệu trước khi xoay hướng (tháng 7/2026: 50+ nick,
 Twitter/X, VPS + Docker). **Không dùng làm căn cứ cho quyết định hiện tại** — file
 [archive/README.md](archive/README.md) giải thích rõ đã bỏ gì và vì sao.
+
+Cùng thư mục còn
+[phần nhật ký thay đổi tới hết 04/08/2026](archive/project-changelog-den-04-08-2026.md), cắt ra
+ngày 06/08/2026 khi file sống chạm ngưỡng 800 dòng. File đó **vẫn là lịch sử của dự án hiện tại**
+— khác hẳn hai file trên — chỉ là phần đã cũ đủ để không cần mở mỗi ngày.

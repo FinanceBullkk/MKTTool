@@ -43,9 +43,9 @@ Chi tiết ở [plan.md](../plans/260804-1752-web-chung-cho-team-phan-tan/plan.m
 | 0 | Spike: trình duyệt gọi xuống cầu nối | ✅ Xong | 04/08 | – (chốt 3 ràng buộc bắt buộc cho GĐ2/3/4) |
 | 1 | [Postgres + múi giờ team](../plans/260804-1752-web-chung-cho-team-phan-tan/phase-01-postgres-va-mui-gio-team.md) | ✅ Xong hẳn | 05/08 | – (chốt bắt đầu từ kho rỗng, không nhập lại dữ liệu thử) |
 | 2 | [Đăng nhập, vai trò, chủ sở hữu nick](../plans/260804-1752-web-chung-cho-team-phan-tan/phase-02-dang-nhap-vai-tro-chu-so-huu.md) | ✅ Xong | 05/08 | – (hoãn có chủ ý: bộ lọc "nick của tôi", chỉ là tiện nghi hiển thị) |
-| 3 | [Tách hai vùng khóa + vé ký](../plans/260804-1752-web-chung-cho-team-phan-tan/phase-03-tach-hai-vung-khoa-va-ve-ky.md) | ✅ Xong — 11/11 việc + khay cảnh báo | 06/08 | – (nghiệm thu bằng mắt phần "mật khẩu hiện ở tab cầu nối" phải chờ GĐ4) |
-| 4 | [Cầu nối trên máy operator](../plans/260804-1752-web-chung-cho-team-phan-tan/phase-04-cau-noi-tren-may-operator.md) | 🟢 Code xong — 19/19 việc | 06/08 | Cả 19 việc code đã xong: `.exe` 87.4 MB (Node SEA, không phải bun) **nghiệm thu 16/16 trên chính file đó**, gói `.zip` 32.6 MB tải sau lớp đăng nhập ở `/relay-download`, bộ cài chạy lại được để nâng cấp, dải cảnh báo bản cũ. **Chưa đóng hẳn**: hai tiêu chí nghiệm thu bằng tay còn lại cần **một máy Windows thứ hai không cài Node** |
-| 5 | Lên Railway + cron + sao lưu | 🟡 Đang chạy | 06/08 | `Dockerfile` xong và ảnh đã chạy thật trong container. **Lịch dò hằng ngày xong 06/08** — nằm trong app, không dùng cron của hãng. Còn sao lưu, và đẩy lên Railway |
+| 3 | [Tách hai vùng khóa + vé ký](../plans/260804-1752-web-chung-cho-team-phan-tan/phase-03-tach-hai-vung-khoa-va-ve-ky.md) | ✅ Xong | 06/08 | – |
+| 4 | [Cầu nối trên máy operator](../plans/260804-1752-web-chung-cho-team-phan-tan/phase-04-cau-noi-tren-may-operator.md) | ✅ Xong | 06/08 | Đã nghiệm thu thành công trên máy Windows thứ hai không cài Node. |
+| 5 | Lên Railway + cron + sao lưu | 🟡 Đang chạy | 06/08 | Xong ba việc làm được mà chưa cần tài khoản: `Dockerfile` (đã chạy thật trong container), **lịch dò hằng ngày** (nằm trong app, không dùng cron của hãng), và **`db:backup:remote`** kéo bản sao từ máy chủ về máy quản trị. Còn lại đều cần tài khoản: dựng dự án Railway, khai biến môi trường, domain cho Facebook, và phép thử hai tiến trình chạy song song |
 | 6 | Bàn giao team | ⬜ Chưa bắt đầu | – | Chờ GĐ4 |
 
 **GĐ1 đã đổi nền dữ liệu sang Postgres và đóng hẳn** (05/08/2026): 482/482 test, 4 smoke test và
