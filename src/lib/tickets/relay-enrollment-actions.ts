@@ -94,9 +94,11 @@ export const enrollThisMachine = adminAction(async function enrollThisMachine(
     return {
       ok: false,
       message:
-        `Khóa của máy này đã bị thu hồi (máy "${existing.name}" của ${existing.user.email}). ` +
-        `Xóa file relay-device-key.json trên máy đó rồi khởi động lại cầu nối để nó sinh cặp ` +
-        `khóa MỚI, sau đó đăng ký lại.`,
+        `Khóa của máy này đã bị thu hồi (máy "${existing.name}" của ${existing.user.email}) — ` +
+        `khóa của một máy đã gạch tên coi như đã lộ.\n\n` +
+        `Sinh cặp khóa MỚI: tắt cầu nối, xóa file "relay-device-key.json" trong ` +
+        `%LOCALAPPDATA%\\MKTTool-Relay, rồi bật lại và bấm "Tìm cầu nối" lần nữa. File ` +
+        `relay-config.json giữ nguyên, không mất khóa vùng operator.`,
     };
   }
 

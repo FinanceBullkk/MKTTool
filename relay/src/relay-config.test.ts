@@ -1,5 +1,9 @@
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { reviewRelayConfig } from "./relay-config";
+import { loadRelayConfig, reviewRelayConfig } from "./relay-config";
+import { CONFIG_FILE } from "./relay-home";
 
 const HEX_64 = "a".repeat(64);
 
@@ -50,6 +54,23 @@ describe("reviewRelayConfig", () => {
     // không bao giờ ra khỏi vạch xuất phát — web app cần CORS để cấu hình hộ, mà CORS cần nguồn
     // tin, mà nguồn tin lại chỉ có sau khi cấu hình đủ. Xem `resolveWebOrigin`.
     expect(problemFields({})).toEqual(["deviceId", "serverPublicKey", "vaultKeyOperator"]);
+  });
+
+  it("BOM ở đầu file KHÔNG bị đọc thành JSON hỏng", () => {
+    // Ca này chết ở lượt cài đầu tiên của bản 2 (06/08/2026): bộ cài ghi kèm BOM, cầu nối báo
+    // "không phải JSON hợp lệ", và người đọc câu đó đi soi dấu phẩy chứ không nghĩ tới ba byte
+    // vô hình. Nay chỗ ĐỌC chịu được, không chỉ chỗ ghi — file này là thứ người dùng sửa tay.
+    const home = mkdtempSync(path.join(tmpdir(), "mkttool-bom-"));
+    try {
+      writeFileSync(
+        path.join(home, CONFIG_FILE),
+        `﻿${JSON.stringify(validConfig())}`,
+        "utf8",
+      );
+      expect(loadRelayConfig(home).ok).toBe(true);
+    } finally {
+      rmSync(home, { recursive: true, force: true });
+    }
   });
 
   it("bắt khóa sai độ dài", () => {
