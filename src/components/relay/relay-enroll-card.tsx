@@ -39,7 +39,13 @@ const BUTTON_CLASS =
   "rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white transition " +
   "hover:bg-neutral-700 disabled:opacity-50 dark:bg-neutral-100 dark:text-neutral-900";
 
-export function RelayEnrollCard({ teamMembers }: { teamMembers: TeamMember[] }) {
+export function RelayEnrollCard({
+  teamMembers,
+  isAdmin,
+}: {
+  teamMembers: TeamMember[];
+  isAdmin: boolean;
+}) {
   const [busy, setBusy] = useState(false);
   const [found, setFound] = useState<Found | null>(null);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
@@ -54,21 +60,26 @@ export function RelayEnrollCard({ teamMembers }: { teamMembers: TeamMember[] }) 
     // `ok: false` kèm câu "chưa cấu hình xong" — tức đúng chiếc máy mà nút này sinh ra để phục vụ.
     // Coi nó là lỗi thì tính năng này không bao giờ chạy được lần nào.
     if (outcome.status === "ok" || outcome.status === "rejected") {
-      const data = outcome.status === "ok" ? outcome.data : null;
-      if (data) {
+      // Đọc thân ở CẢ hai nhánh. Máy vừa cài xong luôn đi ra bằng nhánh `rejected` — `/health`
+      // của nó trả `ok: false` vì cấu hình còn thiếu — nên chỉ đọc nhánh `ok` là bỏ đúng chiếc
+      // máy cần đăng ký, và đó là mọi chiếc máy ở lần đầu.
+      const data = outcome.data;
+      if (data?.publicKey) {
         setFound({
           publicKey: data.publicKey,
           configured: data.configured ?? false,
           deviceId: data.deviceId ?? null,
         });
       } else {
-        // Nhánh `rejected` không mang thân đầy đủ. Hỏi lại một lượt nữa thì thừa — câu duy nhất
-        // cần nói là cầu nối có đó nhưng chưa cấu hình, và nút đăng ký vẫn phải hiện ra.
+        // Trả lời được mà không có khóa công khai thì thứ đang nghe ở cổng đó nhiều khả năng
+        // không phải cầu nối. Kèm luôn câu nó vừa nói — đó là manh mối duy nhất còn lại.
+        const said = outcome.status === "rejected" ? ` Nó nói: "${outcome.message}".` : "";
         setMessage({
           ok: false,
           text:
-            "Cầu nối đang chạy nhưng chưa đọc được khóa công khai của nó. Mở " +
-            "http://127.0.0.1:47821 trên máy này để xem nó báo gì.",
+            "Có thứ gì đó đang trả lời ở cổng 47821 nhưng không khai khóa công khai, nên nhiều " +
+            `khả năng nó không phải cầu nối.${said} Mở http://127.0.0.1:47821 trên máy này để ` +
+            "xem trực tiếp.",
         });
       }
     } else {
@@ -157,13 +168,22 @@ export function RelayEnrollCard({ teamMembers }: { teamMembers: TeamMember[] }) 
                 placeholder="Laptop Dell của Hà"
                 hint="Tới ngày phải thu hồi gấp, đây là thứ duy nhất để nhận ra máy nào là máy nào."
               />
-              <SelectField
-                label="Người dùng máy"
-                name="userId"
-                required
-                options={teamMembers.map((member) => ({ value: member.id, label: member.email }))}
-                hint="Chỉ hiện người đã đăng nhập ít nhất một lần."
-              />
+              {/* OPERATOR không chọn chủ máy: máy họ đăng ký luôn thuộc về chính họ, và server
+                  action ép điều đó chứ không dựa vào việc ô này có hiện hay không. */}
+              {isAdmin ? (
+                <SelectField
+                  label="Người dùng máy"
+                  name="userId"
+                  required
+                  options={teamMembers.map((member) => ({ value: member.id, label: member.email }))}
+                  hint="Chỉ hiện người đã đăng nhập ít nhất một lần."
+                />
+              ) : (
+                <p className={NOTE_CLASS}>
+                  Máy này sẽ được ghi cho <strong>chính bạn</strong>. Cài hộ người khác là việc của
+                  quản trị viên.
+                </p>
+              )}
               <button type="submit" className={BUTTON_CLASS} disabled={busy}>
                 {busy ? "Đang ghi…" : "Đăng ký & cấu hình máy này"}
               </button>

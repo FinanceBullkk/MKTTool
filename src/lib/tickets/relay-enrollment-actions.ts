@@ -10,12 +10,23 @@
  * nên nó trả về cả `serverPublicKey` để trình duyệt đẩy ngược xuống cầu nối. Hai việc khác nhau
  * về cả đầu vào lẫn đầu ra.
  *
- * ## Vì sao vẫn là `adminAction`
+ * ## Ai đăng ký được, và vì sao ranh giới nằm ở CHỦ MÁY chứ không ở vai trò
  *
- * Giữ nguyên ranh giới của GĐ3. Trình duyệt đọc khóa từ cầu nối trên chính máy đó, nhưng **server
- * action không biết điều đó** — nó chỉ thấy một chuỗi hex do client gửi lên. Nới xuống OPERATOR
- * là cho phép bất kỳ ai đăng ký khóa của một chiếc máy bất kỳ, tức tự mở thêm một chỗ nhận
- * ciphertext. Cái nút mới này làm việc cài **bớt gõ**, không làm nó **bớt kiểm**.
+ * OPERATOR tự đăng ký được **máy của chính mình**; đăng ký hộ người khác thì vẫn phải là ADMIN
+ * (đường đó ở `relay-device-actions.ts`), và thu hồi cũng vậy.
+ *
+ * Bản đầu để cả đường này là `adminAction`, với lý lẽ: server action không biết chuỗi hex kia có
+ * thật sự đến từ cầu nối trên máy người bấm hay không. Lý lẽ ấy đúng nhưng **không dẫn tới kết
+ * luận ấy** — vì thứ nó sợ là "mở thêm một chỗ nhận ciphertext", mà một chiếc máy mới đăng ký
+ * **vẫn không đọc nổi gì**: ruột vé còn một lớp mã hóa nữa, mở bằng `VAULT_KEY_OPERATOR`, thứ
+ * máy chủ không có và không phát cho ai. Kẻ đã cầm được khóa vùng operator thì đã ở trong rồi.
+ *
+ * Đổi lại là một nửa lý do của cả tính năng: **người ngồi ở máy chính là người cài nó**. Bắt họ
+ * đợi ADMIN đăng nhập hộ trên máy mình là dựng lại đúng vòng chờ mà nút này sinh ra để dẹp.
+ *
+ * Thứ **không** nới: `userId` không đọc từ form khi người bấm là OPERATOR — ép bằng chính người
+ * đang đăng nhập. Không có nó thì "tự đăng ký máy mình" thành "đăng ký một máy cho bất kỳ ai",
+ * và đó mới đúng là chỗ đáng sợ ban đầu.
  *
  * ## Máy đã có trong sổ thì KHÔNG phải lỗi
  *
@@ -28,7 +39,7 @@ import { firstError, formToObject } from "@/lib/accounts/vault-form-schemas";
 import type { ActionResult } from "@/lib/actions/action-result";
 import { AUDIT_ACTIONS } from "@/lib/audit/audit-log-actions";
 import { isEmailAllowed, readEmailAccessList } from "@/lib/auth/allowed-emails";
-import { adminAction } from "@/lib/auth/guarded-action";
+import { guardedAction } from "@/lib/auth/guarded-action";
 import { prisma } from "@/lib/db/prisma-client";
 import {
   RelayDeviceKeyError,
@@ -55,11 +66,12 @@ const enrollmentSchema = z.object({
     .trim()
     .min(1, "Đặt tên cho máy — tới ngày phải thu hồi gấp thì đó là thứ duy nhất để nhận ra nó.")
     .max(80, "Tên máy dài quá 80 ký tự."),
-  userId: z.string().min(1, "Chọn người dùng chiếc máy này."),
+  /** Chỉ ADMIN mới được nghe. Với OPERATOR thì bỏ qua, xem phần chọn chủ máy bên dưới. */
+  userId: z.string().optional(),
   publicKey: z.string().min(1, "Không đọc được khóa công khai từ cầu nối trên máy này."),
 });
 
-export const enrollThisMachine = adminAction(async function enrollThisMachine(
+export const enrollThisMachine = guardedAction(async function enrollThisMachine(
   actor,
   _prev: EnrollmentResult | null,
   formData: FormData,
@@ -67,7 +79,13 @@ export const enrollThisMachine = adminAction(async function enrollThisMachine(
   const parsed = enrollmentSchema.safeParse(formToObject(formData));
   if (!parsed.success) return { ok: false, message: firstError(parsed.error) };
 
-  const { name, userId, publicKey } = parsed.data;
+  const { name, publicKey } = parsed.data;
+
+  // Chủ máy: ADMIN chọn được (họ hay ngồi máy người khác để cài hộ), OPERATOR thì luôn là chính
+  // mình. Ép ở đây chứ không ẩn ô trên giao diện — ẩn nút không phải là chặn, và người gọi thẳng
+  // endpoint thì không thấy giao diện nào cả.
+  const userId = actor.role === "ADMIN" ? (parsed.data.userId ?? actor.userId) : actor.userId;
+  if (!userId) return { ok: false, message: "Chọn người dùng chiếc máy này." };
 
   // Đi vòng qua `KeyObject` rồi lấy hex ra lại, thay vì tin chuỗi client gửi lên: thứ vào
   // database phải là thứ OpenSSL đọc được thật.

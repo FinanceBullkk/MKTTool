@@ -62,8 +62,18 @@ import {
 export type RelayOutcome<T> =
   /** Cầu nối trả lời và nói việc đã xong. */
   | { status: "ok"; data: T; relayVersion?: number }
-  /** Cầu nối trả lời nhưng từ chối — vé hỏng, MultiZen không mở được, bản quá cũ… */
-  | { status: "rejected"; message: string; relayVersion?: number }
+  /**
+   * Cầu nối trả lời nhưng từ chối — vé hỏng, MultiZen không mở được, bản quá cũ…
+   *
+   * Mang theo cả `data`, và đó không phải tiện tay giữ lại: `/health` của một chiếc máy **chưa
+   * cấu hình xong** trả về `ok: false` — tức đi ra bằng đúng nhánh này — nhưng thân của nó vẫn
+   * có `publicKey`, thứ duy nhất để đăng ký chính chiếc máy đó. Vứt thân đi ở đây là khóa luồng
+   * cài đặt ở đúng chiếc máy nó sinh ra để phục vụ, mà lại khóa theo kiểu không ai đoán ra: cầu
+   * nối trả lời đầy đủ, web app thì bảo "chưa đọc được khóa công khai".
+   *
+   * `undefined` khi phản hồi không đọc nổi thành JSON — lúc đó không có thân nào để giữ.
+   */
+  | { status: "rejected"; message: string; data?: T; relayVersion?: number }
   /** Không ai nghe ở `127.0.0.1` — gần như chắc chắn cầu nối chưa chạy. */
   | { status: "unreachable"; message: string }
   /** Request treo tới hết hạn giờ — gần như chắc chắn chưa cấp quyền mạng nội bộ. */
@@ -119,6 +129,9 @@ async function callRelay<T extends RelayReply>(
     return {
       status: "rejected",
       message: body.message || `Cầu nối từ chối (HTTP ${response.status}).`,
+      // Giữ nguyên thân: một lời từ chối vẫn khai đủ thứ chỗ gọi cần — xem chú thích ở nhánh
+      // `rejected` của `RelayOutcome`.
+      data: body,
       relayVersion: body.relayVersion,
     };
   }
