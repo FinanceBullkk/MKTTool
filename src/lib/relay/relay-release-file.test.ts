@@ -51,7 +51,12 @@ describe("readRelayRelease", () => {
     if (release.available) {
       expect(release.sizeBytes).toBe(2048);
       expect(release.version).toBe(RELAY_VERSION);
-      expect(release.builtAt.getTime()).toBeLessThanOrEqual(Date.now());
+      // Nới một giây thay vì so thẳng với `Date.now()`. Mốc sửa file trên NTFS có độ phân giải
+      // mịn hơn mili giây và được LÀM TRÒN khi thành `Date`, còn `Date.now()` thì CẮT — nên mtime
+      // của một file vừa ghi xong hoàn toàn có thể lớn hơn `Date.now()` gọi ngay sau đó đúng 1 ms.
+      // Đã đỏ thật vì lý do này (06/08/2026). Thứ phép kiểm này quan tâm là "mốc lấy từ file chứ
+      // không phải bịa ra", chứ không phải độ chính xác mili giây.
+      expect(release.builtAt.getTime()).toBeLessThanOrEqual(Date.now() + 1_000);
     }
   });
 

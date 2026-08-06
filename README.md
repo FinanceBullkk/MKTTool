@@ -130,7 +130,8 @@ Có thì nó **sao lưu trước**, áp xong mới báo — và nếu áp hỏng
 | `npm run build` | Build production |
 | `npm run db:upgrade` | **Nhận bản mới thì chạy lệnh này** — sao lưu rồi áp thay đổi cấu trúc |
 | `npm run db:migrate` | Tạo migration mới (chỉ dùng khi phát triển) |
-| `npm run db:backup` | Sao lưu database ra `data/backups/` |
+| `npm run db:backup` | Sao lưu database của máy này ra `data/backups/` |
+| `npm run db:backup:remote` | Hút bản sao từ **máy chủ thật** về máy này (cần `PRODUCTION_DATABASE_URL`) |
 | `npm run proxies:import <file>` | Nhập hàng loạt proxy từ file `host:port:user:pass` của nhà cung cấp |
 | `npm run proxies:import-sqlite` | Nhập proxy từ `dev.db` của bản SQLite cũ sang Postgres. **Mặc định chỉ xem trước**, thêm `-- --apply` mới ghi. Khóa cũ khác khóa hiện tại thì khai qua `VAULT_KEY_LEGACY` |
 | `npm run db:studio` | Mở Prisma Studio xem database |
@@ -676,12 +677,29 @@ mà quên gác thì test đỏ ngay chứ không lặng lẽ mở toang một l�
 ### Sao lưu — hai nửa, cất hai nơi
 
 ```bash
-npm run db:backup     # → data/backups/mkttool-<ngày>-<giờ>.sql
+npm run db:backup            # database của MÁY NÀY  → data/backups/mkttool-<ngày>-<giờ>.sql
+npm run db:backup:remote     # hút từ MÁY CHỦ THẬT   → data/backups/mkttool-prod-<ngày>-<giờ>.sql
 ```
 
 Chạy được khi app đang mở: `pg_dump` chụp ảnh trong một transaction nên bản sao luôn nhất quán,
 không phải tắt server mới sao lưu được. Tên file có mốc thời gian nên **không bao giờ ghi đè
 bản cũ**.
+
+**Lệnh thứ hai là nếp sao lưu thật khi đã lên Railway.** Nó đọc `PRODUCTION_DATABASE_URL` — khai
+ở `.env` của **máy bạn**, không khai trên máy chủ. Thiếu biến đó thì lệnh dừng ngay kèm hướng dẫn;
+nó **không bao giờ lùi về `DATABASE_URL`**, vì làm vậy là dựng ra một file mang tên `mkttool-prod-…`
+chứa dữ liệu máy dev — bản sao nói dối, và chỉ lộ ra vào ngày cần tới nó.
+
+> **Vì sao máy chủ KHÔNG tự chạy `db:backup` hằng đêm**, dù đã có bộ lịch trong app. Trong
+> container, `data/backups/` là **ổ tạm** — nó biến mất sau mỗi lần deploy. Một bản sao lưu chết
+> cùng lúc với thứ nó bảo vệ thì tệ hơn không có, vì nó *trông như* có. Nên hai nửa nằm hai nơi:
+> **Railway tự sao lưu ổ đĩa** (bật trong bảng điều khiển của dịch vụ Postgres), còn
+> `db:backup:remote` kéo một bản về máy quản trị — nơi không mất theo máy chủ.
+
+Mỗi lượt sao lưu in ra **số hàng dữ liệu và số bảng có dữ liệu**, và nói thẳng khi con số là 0.
+Không thừa: `pg_dump` chạy trên một database **rỗng** vẫn cho ra file `.sql` hợp lệ, đủ cấu trúc
+bảng, và mọi câu "✅ đã sao lưu" đều đúng. `PRODUCTION_DATABASE_URL` trỏ nhầm sang một Postgres
+mới dựng là ra đúng cảnh đó — mà bản sao lưu là thứ chỉ được kiểm chứng vào ngày muộn nhất có thể.
 
 Bản sao là SQL dạng chữ (`--format=plain`) chứ không phải dạng nén, dù dạng nén nhỏ hơn. Vì bản
 sao phải **đọc được bằng mắt** để kiểm "không có credential dạng trần" — quét chuỗi trên file nén
