@@ -178,6 +178,14 @@ describe("tickDailyHealthCheck", () => {
     expect(launcher.calls).toHaveLength(0);
   });
 
+  /**
+   * Khóa được giành với mốc **tương đối so với `AFTER`**, không phải `new Date()`. Cả bài test
+   * chạy trên một đồng hồ giả, và tuổi khóa phải đo bằng chính đồng hồ đó — nếu không thì "khóa
+   * mới hai phút" biến thành "khóa mồ côi" ngay khi giờ thật trôi quá 30 phút so với mốc giả.
+   *
+   * Đúng cái bẫy đã làm CI đỏ 06/08/2026, trong khi máy dev xanh vì lượt chạy rơi trúng khung 30
+   * phút đó. Thứ sửa nó là `tickDailyHealthCheck` truyền `now` xuống `readHealthCheckLockStatus`.
+   */
   it("đang có lượt dò chạy dở thì bỏ qua, kèm câu nói ai đang giữ", async () => {
     const launcher = fakeLauncher();
     const held = await acquireHealthCheckLock({ now: new Date(AFTER.getTime() - 120_000) });

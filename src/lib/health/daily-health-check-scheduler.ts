@@ -116,7 +116,7 @@ export async function tickDailyHealthCheck(
     };
   }
 
-  const skip = await reasonToSkip(countActiveObserverProxies);
+  const skip = await reasonToSkip(countActiveObserverProxies, now);
   if (skip) {
     await recordScheduledRunOutcome(DAILY_HEALTH_CHECK_JOB_KEY, "SKIPPED", skip);
     return { status: "skipped", message: skip };
@@ -140,11 +140,23 @@ export async function tickDailyHealthCheck(
  * Cả hai lý do đều phải kiểm TRƯỚC khi sinh tiến trình. Sinh một tiến trình chắc chắn chết ngay
  * dòng đầu là cách tệ nhất để báo lỗi ở đây: `stdio: "ignore"` nuốt sạch câu lỗi, nên sổ sẽ ghi
  * "đã bắn" trong khi thật ra không có gì chạy — đúng kiểu hỏng mà cả bộ dò sinh ra để diệt.
+ *
+ * ## Vì sao `now` phải đi xuống tận đây
+ *
+ * `readHealthCheckLockStatus` cần một mốc để đo khóa đã mồ côi chưa (quá `STALE_AFTER_MS` thì coi
+ * như không ai giữ). Bỏ trống thì nó lấy đồng hồ thật — và **một lượt tick sẽ chạy trên hai đồng
+ * hồ khác nhau**: mốc hẹn tính theo `now` được truyền vào, còn tuổi khóa tính theo giờ máy.
+ *
+ * Trên máy chủ hai đồng hồ đó bằng nhau nên không ai thấy gì. Chỗ nó lộ ra là CI: một bài test
+ * giành khóa với mốc giả rồi hỏi tick, và tuổi khóa hóa ra được đo bằng khoảng cách từ mốc giả
+ * tới giờ thật — nên bài test chỉ xanh trong đúng 30 phút mỗi ngày. Đã đỏ thật 06/08/2026, sau
+ * khi đã xanh ở máy dev vì lượt chạy rơi trúng khung đó.
  */
 async function reasonToSkip(
   countActiveObserverProxies: () => Promise<number>,
+  now: Date,
 ): Promise<string | null> {
-  const running = await readHealthCheckLockStatus();
+  const running = await readHealthCheckLockStatus({ now });
   if (running.running) {
     return (
       `Bỏ qua: đang có một lượt dò chạy dở (máy ${running.host}, tiến trình ${running.pid}, ` +
