@@ -296,13 +296,32 @@ gặp trục trặc.
    - **Source → Branch:** `master`
    - **Build:** Railway tự nhận `Dockerfile` ở gốc kho. Không cần đổi gì.
    - **Deploy → Pre-Deploy Command:** `npx prisma migrate deploy`
+     — lệnh này chạy trong **image runner**, nên `prisma.config.ts` phải được chép vào đó. Prisma 7
+     giữ `url` ở file config chứ không ở `schema.prisma`; thiếu file thì lệnh nạp được schema rồi mới
+     chết với *"The datasource.url property is required"*, còn log build vẫn xanh và image vẫn push
+     xong. Chỉ log **chạy** mới lộ. Đã vấp thật 06/08/2026, vá ở `Dockerfile`.
 
 > ⚠️ **Repo thuộc org thì phải là OWNER của org mới cài được GitHub App.** Đã vấp thật: tài khoản
-> chỉ là `member` (quyền `push`, không có `admin`), nên Railway **không nhìn thấy repo** trong danh
-> sách và không có cách nào tự cấp.
+> chỉ là `member` (quyền `push`, không có `admin`), nên không tự cài được.
 >
 > Xin quyền ở https://github.com/apps/railway-app/installations/new — chọn org, GitHub sẽ hiện nút
 > **Request** thay vì Install rồi báo cho owner. Nhắn thẳng cho một owner thì nhanh hơn.
+>
+> ⚠️ **Owner cài xong rồi repo VẪN không hiện trong danh sách Connect Repo — và đây là bẫy riêng,
+> không phải cài thiếu.** Danh sách đó **lọc theo quyền `admin` trên từng repo**, mà `member` chỉ có
+> `push`. Kiểm bằng `gh api repos/Techieslab-app/MKTTool --jq .permissions`: `admin: false` là sẽ
+> không bao giờ thấy repo trong ô chọn, dù GitHub App đã cài đủ và badge `installed` đã hiện.
+>
+> Mất gần một tiếng ngày 06/08/2026 vì chỗ này. Thứ làm nó tốn thời gian là **thông báo lỗi trỏ sai
+> hướng**: UI chỉ nói `GitHub Repo not found`, nghe như thiếu quyền truy cập, nên cả buổi đi xin
+> owner cấp thêm quyền — trong khi quyền đã đủ từ lâu và chỗ hỏng là vai trò của mình trong org.
+>
+> **Đừng đi xin quyền `admin`. Nối bằng CLI** — lệnh ở khối dưới gọi thẳng API nên không đi qua cái
+> lọc đó. Đây cũng đúng là cách lượt thành công đầu tiên đã nối.
+>
+> Đừng chẩn đoán bằng token CLI. Nhóm query `github*` của API Railway chỉ mở cho phiên trình duyệt;
+> gọi bằng token CLI thì `githubRepos` trả `Not Authorized` còn `githubRepoBranches` trả
+> `GitHub Repo not found` **bất kể trạng thái thật ra sao**. Đã tin nhầm hai lượt.
 >
 > **Đừng clone sang repo cá nhân để đi vòng.** Nó chỉ hơn 5B đúng một điểm (thử được vòng
 > *push → tự deploy*, mảnh ít khả năng hỏng nhất), đổi lại nhận ba thứ: hai nguồn sự thật, một bản
@@ -317,6 +336,17 @@ railway service source connect --repo Techieslab-app/MKTTool --branch master --s
 ```
 
 Railway dựng deployment trigger và **build ngay một lượt từ `master`**.
+
+> ⚠️ **`source connect` reset Builder về Railpack.** Sau khi chạy, ô `builder` trong API ghi
+> `RAILPACK` chứ không phải `DOCKERFILE`. Thực tế **không sao** — Railway tự nhận `Dockerfile` ở gốc
+> kho lúc build và đè lên giá trị lưu, UI hiện `Dockerfile · Automatically Detected`. Kiểm ở
+> `serviceManifest.build` của lượt deploy: `builder: DOCKERFILE, dockerfilePath: /Dockerfile` là
+> đúng. Đừng hoảng vì con số trong Settings.
+
+> ⚠️ **Vá `rootDirectory` TRƯỚC khi chạy lệnh này.** Lệnh build ngay lập tức, nên mọi cấu hình sai
+> đều nổ trong lượt đó. Ngày 06/08/2026 một cú Disconnect đã dán tên repo vào ô **Root Directory**
+> (`/Techieslab-app/MKTTool`) — ô nằm ngay dưới Source Repo, nhìn giống nhau, và nhận giá trị sai mà
+> không cảnh báo gì. Trỏ vào thư mục con không tồn tại thì hỏng cả deploy từ GitHub lẫn `railway up`.
 
 > ⚠️ **Trước khi bấm, kiểm `master` đã có đủ code chưa.** Từ giây đó Railway deploy `master`, không
 > deploy thứ trên ổ đĩa nữa — còn commit nào chưa merge thì web **tụt về bản cũ mà không có gì
