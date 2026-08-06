@@ -78,11 +78,36 @@ export async function dumpDatabaseTo(
 }
 
 /**
+ * Trần thời gian cho một lượt `pg_dump`.
+ *
+ * **Vì sao phải có trần, chứ không phải chờ đến khi xong:** `runPgDump` chỉ kết thúc khi tiến
+ * trình con đóng. Tiến trình đó treo — mạng nội bộ đứt giữa chừng, server nhận kết nối rồi không
+ * trả lời — thì Promise **không bao giờ giải quyết**. Lượt sao lưu đêm sẽ im lặng tuyệt đối:
+ * không dòng log nào, không kết quả nào ghi vào `ScheduledJobRun`, và nhìn từ ngoài giống hệt
+ * trạng thái "chưa tới giờ hẹn".
+ *
+ * Đó đúng là kiểu hỏng mà cả module này dựng lên để chặn. Dump rỗng đã bị coi là thất bại vì một
+ * bản sao *trông như thật* nguy hiểm hơn không có bản sao nào; dump treo cũng cùng loại, chỉ khác
+ * là nó không để lại dấu vết nào để ai đó nghi ngờ.
+ *
+ * 10 phút là trần rộng rãi chứ không phải ước lượng sát: bản dump thật hiện nay 35 KB, xong trong
+ * vài giây. Trần này để phân biệt "chậm bất thường" với "không bao giờ xong", không phải để tối ưu.
+ */
+const PG_DUMP_TIMEOUT_MS = 10 * 60 * 1000;
+
+/** Khoảng chờ sau `SIGTERM` trước khi `SIGKILL`, để `pg_dump` kịp hủy truy vấn đang mở. */
+const PG_DUMP_KILL_GRACE_MS = 5_000;
+
+/**
  * `--no-owner --no-privileges`: bản sao khôi phục được vào máy khác với tên chủ sở hữu khác.
  * Bản sao chỉ hữu ích khi máy cũ đã hỏng, mà lúc đó tên role trên máy mới gần như chắc chắn
  * khác — giữ chủ sở hữu vào file là tự đặt một cái bẫy ngay lúc cần nó nhất.
  */
-function runPgDump(filePath: string, toolEnv: Record<string, string>): Promise<void> {
+function runPgDump(
+  filePath: string,
+  toolEnv: Record<string, string>,
+  timeoutMs: number = PG_DUMP_TIMEOUT_MS,
+): Promise<void> {
   return new Promise((resolve, reject) => {
     const child = spawn(
       "pg_dump",
@@ -97,23 +122,58 @@ function runPgDump(filePath: string, toolEnv: Record<string, string>): Promise<v
       stderr += chunk.toString();
     });
 
+    // Hết giờ và tiến trình đóng là hai đường đua nhau: giết tiến trình cũng làm `close` bắn.
+    // Chốt đúng một lần, nếu không thì lượt quá giờ sẽ vừa `reject` vừa `resolve` ngay sau đó.
+    let settled = false;
+    let timeoutTimer: NodeJS.Timeout | undefined;
+    let killTimer: NodeJS.Timeout | undefined;
+    const settle = (finish: () => void) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeoutTimer);
+      finish();
+    };
+
+    timeoutTimer = setTimeout(() => {
+      child.kill("SIGTERM");
+      killTimer = setTimeout(() => child.kill("SIGKILL"), PG_DUMP_KILL_GRACE_MS);
+      killTimer.unref();
+
+      settle(() =>
+        reject(
+          new Error(
+            `pg_dump không xong sau ${Math.round(timeoutMs / 1000)} giây nên đã bị buộc dừng. ` +
+              "File sinh ra dở dang, không dùng làm bản sao được. Kiểm lại đường mạng tới database.",
+          ),
+        ),
+      );
+    }, timeoutMs);
+    // Không giữ vòng lặp sự kiện sống chỉ vì cái hẹn này: `npm run db:backup` phải thoát ngay
+    // khi dump xong, chứ không nằm đợi hết 10 phút.
+    timeoutTimer.unref();
+
     child.on("error", (cause: NodeJS.ErrnoException) => {
-      reject(
-        cause.code === "ENOENT"
-          ? new Error(
-              "Không tìm thấy lệnh pg_dump. Thêm thư mục bin của Postgres vào PATH " +
-                '(mặc định trên Windows: "C:\\Program Files\\PostgreSQL\\17\\bin") rồi mở lại terminal.',
-            )
-          : cause,
+      settle(() =>
+        reject(
+          cause.code === "ENOENT"
+            ? new Error(
+                "Không tìm thấy lệnh pg_dump. Thêm thư mục bin của Postgres vào PATH " +
+                  '(mặc định trên Windows: "C:\\Program Files\\PostgreSQL\\17\\bin") rồi mở lại terminal.',
+              )
+            : cause,
+        ),
       );
     });
 
     child.on("close", (code) => {
-      if (code === 0) {
-        resolve();
-        return;
-      }
-      reject(new Error(`pg_dump dừng với mã ${code}.${stderr ? `\n${stderr.trim()}` : ""}`));
+      clearTimeout(killTimer);
+      settle(() => {
+        if (code === 0) {
+          resolve();
+          return;
+        }
+        reject(new Error(`pg_dump dừng với mã ${code}.${stderr ? `\n${stderr.trim()}` : ""}`));
+      });
     });
   });
 }
