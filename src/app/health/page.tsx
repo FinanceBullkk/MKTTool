@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { AccountHealthTable } from "@/components/health/account-health-table";
+import { DailyScheduleSummary } from "@/components/health/daily-schedule-summary";
 import { HerdHealthCheckControls } from "@/components/health/herd-health-check-controls";
 import { KarmaTrendChart } from "@/components/health/karma-trend-chart";
 import { Card, DataTable, EmptyState, PageHeading, StatusBadge } from "@/components/ui/page-section";
 import { formatDayMonthTime } from "@/lib/format/vietnamese-date-format";
+import { readDailyHealthCheckSchedule } from "@/lib/health/daily-health-check-scheduler";
 import { readHealthCheckLockStatus } from "@/lib/health/health-check-lock";
 import {
   KARMA_TREND_DAYS,
@@ -19,6 +21,7 @@ export default async function HealthPage() {
   const rows = await loadAccountHealthRows();
   const recent = await loadRecentChecks(60);
   const lockStatus = await readHealthCheckLockStatus();
+  const schedule = await readDailyHealthCheckSchedule();
 
   // Biểu đồ karma cho từng nick — chỉ vẽ nick nào đã có số liệu.
   const trends = await Promise.all(
@@ -47,10 +50,13 @@ export default async function HealthPage() {
 
         <p className="mt-4 text-xs text-neutral-500">
           Nút &quot;Dò lại ngay&quot; ở từng dòng chỉ dò một nick, dùng khi đang soi một nick đáng
-          ngờ. Lượt đầy đủ vẫn nên đặt lịch chạy một lần mỗi ngày bằng{" "}
-          <code>npm run health</code> (Task Scheduler) — nút ở trên chạy đúng lệnh đó, chỉ khác là
+          ngờ. Nút &quot;Dò cả đàn&quot; chạy đúng lệnh <code>npm run health</code>, chỉ khác là
           không phải mở terminal.
         </p>
+      </Card>
+
+      <Card title="Lịch dò hằng ngày">
+        <DailyScheduleSummary schedule={schedule} />
       </Card>
 
       {withTrend.length > 0 ? (

@@ -66,7 +66,10 @@ không nói được gì
 3. Viết `Dockerfile` cài Chromium + thư viện hệ thống cho Playwright
 4. Thử domain miễn phí của Railway làm redirect URI Facebook. Meta từ chối thì mua tên miền
 5. Khai lại redirect URI trong Meta app; thêm cả team vào vai trò Tester
-6. Cron chạy `npm run health` mỗi ngày, giờ tính theo `TEAM_TIMEZONE`
+6. ~~Cron chạy `npm run health` mỗi ngày, giờ tính theo `TEAM_TIMEZONE`~~ **xong 06/08/2026**, và
+   đi khác chốt ban đầu: bộ lịch nằm **trong app** (`src/instrumentation.ts` →
+   `daily-health-check-scheduler.ts`), bật bằng biến `HEALTH_CHECK_DAILY_AT="09:00"`. Trên Railway
+   không phải dựng dịch vụ cron nào — chỉ khai thêm một biến môi trường
 7. ~~Đổi khóa file sang advisory lock Postgres~~ **xong** — còn phép thử hai lượt chạy song song
    từ hai tiến trình thật (test tự động đã phủ phần logic; phép thử này kiểm cả đường mạng)
 8. Bật sao lưu tự động của Railway; viết script `pg_dump` tải bản sao về máy
@@ -82,11 +85,35 @@ không nói được gì
   ba lỗi mà chính lượt build bắt được ở [đây](#build-thật-bắt-được-ba-lỗi-mà-test-không-thấy)
 - [ ] Thử domain Railway với Facebook; mua tên miền nếu bị từ chối
 - [ ] Redirect URI + cả team vào vai trò Tester
-- [ ] Cron dò shadowban hằng ngày theo `TEAM_TIMEZONE`
+- [x] Cron dò shadowban hằng ngày theo `TEAM_TIMEZONE` (06/08/2026) — **bộ lịch nằm trong app,
+  không dùng cron của hãng.** Lý do ở [dưới](#vì-sao-bộ-lịch-nằm-trong-app-thay-vì-cron-của-railway)
 - [x] ~~Advisory lock Postgres~~ **bảng `HealthCheckLock`** thay khóa file (05/08/2026) —
   còn nợ phép thử **hai tiến trình thật chạy song song**, làm ở bước 9 khi đã có Railway
 - [ ] Sao lưu tự động + script tải bản sao về máy
 - [ ] Chạy thử một lượt dò thật, kết quả lên `/health`
+
+### Vì sao bộ lịch nằm trong app, thay vì cron của Railway
+
+Chốt 06/08/2026, **đảo với chữ "cron" của kế hoạch gốc**. Ba lý do, xếp theo sức nặng:
+
+| Lý do | Chi tiết |
+|---|---|
+| **Cron của hãng chỉ nhận giờ UTC** | Giờ hẹn khi đó nằm ở **hai nơi**: `TEAM_TIMEZONE` trong app, và một chuỗi `0 2 * * *` trong bảng điều khiển Railway. Đổi múi giờ team mà quên sửa chuỗi kia là dò sai giờ và **không có gì báo** — đúng họ hỏng mà cả plan này đang tránh (`pg_dump` lệch major, luật firewall WebRTC hết tác dụng lặng lẽ) |
+| **Cron là cấu hình riêng của hãng** | Tiêu chí thành công của chính GĐ5 đòi *"deploy sang Render/Fly chỉ bằng cùng `Dockerfile` đó"*. Một lịch chạy chỉ tồn tại trong bảng điều khiển Railway không đi theo file nào cả |
+| **Phải dựng dịch vụ thứ hai** | Cron của Railway là một service riêng. Tức deploy thêm một bản ảnh 4.86 GB để chạy mười phút mỗi ngày |
+
+Đổi lại, bộ lịch trong app phải tự lo hai thứ mà cron của hãng cho sẵn, và cả hai đều rẻ:
+
+- **Chạy đúng một lần dù có nhiều bản app** — một hàng `ScheduledJobRun`, đòi quyền bằng
+  `updateMany` có điều kiện `lastRunAt < mốc hẹn`. Cùng nguyên tắc với `HealthCheckLock`: quyết
+  trong một lệnh, không có khe giữa "kiểm" và "ghi".
+- **Không mất lượt khi app khởi động lại** — mốc lượt gần nhất nằm trong database chứ không trong
+  bộ nhớ, nên deploy lúc 09:05 không bắn lại lượt 09:00, còn app tắt cả buổi sáng thì lúc bật lên
+  chạy bù **một** lượt.
+
+Khai `HEALTH_CHECK_DAILY_AT` là **bật**, vắng là **tắt** — và tắt là mặc định, vì máy dev nào cũng
+trỏ vào một database thật. Để "tắt" không trở thành "hỏng mà không ai biết", máy chủ production
+thiếu biến này thì khay cảnh báo vận hành nhắc ADMIN, khai sai dạng thì kêu đỏ.
 
 ### Dockerfile — ba chốt đã đóng
 

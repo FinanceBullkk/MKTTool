@@ -143,7 +143,7 @@ Có thì nó **sao lưu trước**, áp xong mới báo — và nếu áp hỏng
 | `npm run vault:testotp` | Sinh TOTP secret dùng thử để kiểm chứng tính năng OTP |
 | `npm run rules:smoke` | Kiểm chứng nghiệm thu Phase 02 (bộ luật) trên DB thật |
 | `npm run facebook:smoke` | Kiểm chứng nghiệm thu Phase 04 (Facebook Pages) — không cần Meta App |
-| `npm run health` | Dò shadowban + đọc karma cho mọi nick Reddit (đặt lịch chạy hằng ngày) |
+| `npm run health` | Dò shadowban + đọc karma cho mọi nick Reddit. Máy chủ tự chạy hằng ngày — xem [Lịch dò hằng ngày](#lịch-dò-hằng-ngày) |
 | `npm run health:smoke` | Kiểm chứng nghiệm thu Phase 03 — không cần nick, không cần proxy |
 
 ## Cách test
@@ -814,26 +814,54 @@ proxy thường (xem [Proxy được kiểm trước khi mở](#proxy-được-k
 mỗi lượt dò quan trọng: proxy này chết thì mọi nick ra kết luận *Không dò được* — trung thực
 nhưng vô dụng, và người đọc sẽ đi tìm lỗi ở phía Reddit.
 
-### Ba cách chạy một lượt dò
+### Bốn cách chạy một lượt dò
 
 | Cách | Dùng khi |
 |---|---|
+| **Lịch hằng ngày** | nếp thường. Máy chủ tự chạy một lượt mỗi ngày — xem [Lịch dò hằng ngày](#lịch-dò-hằng-ngày) |
 | Nút **"Dò cả đàn"** ở `/health` | muốn chạy ngay mà không mở terminal. Chạy nền ở tiến trình riêng — đóng tab không ảnh hưởng, tải lại trang thì bảng đầy dần |
-| `npm run health` | đặt lịch chạy hằng ngày bằng Task Scheduler. **Một lần mỗi ngày là đủ** |
+| `npm run health` | chạy tay từ terminal, ví dụ khi đang soi một lỗi |
 | Nút **"Dò lại ngay"** ở từng dòng | soi lại đúng một nick đáng ngờ |
 
-Nút "Dò cả đàn" sinh **đúng tiến trình mà `npm run health` chạy**, không phải một bản sao của
-luồng dò — nên hai đường không thể lệch nhau.
+Cả bốn đường sinh **đúng một tiến trình `tsx scripts/run-health-check.ts`**, không phải bốn bản
+sao của luồng dò — nên chúng không thể lệch nhau.
 
 Lượt đầy đủ nghỉ **ngẫu nhiên 30-90 giây giữa các nick**, nên 8 nick mất gần mười phút. Đó là
 chủ ý: tám lượt xem profile bắn ra trong ba giây từ một IP là hành vi của máy, và chính bộ dò
 sẽ bị chặn trước tiên.
 
-**Hai lượt dò không bao giờ chạy chồng nhau.** Lượt đang chạy giữ một file khóa
-(`data/health-check.lock`); lượt thứ hai bị từ chối kèm câu nói rõ ai đang giữ và giữ bao lâu
-rồi. Khóa là file chứ không phải biến trong bộ nhớ vì `npm run health` chạy ở tiến trình riêng —
-cặp dễ đụng nhau nhất chính là lịch chạy 3 giờ sáng gặp người đang bấm nút. Tiến trình bị tắt
+**Hai lượt dò không bao giờ chạy chồng nhau.** Lượt đang chạy giữ một hàng trong bảng
+`HealthCheckLock`; lượt thứ hai bị từ chối kèm câu nói rõ **máy nào**, tiến trình nào đang giữ và
+giữ bao lâu rồi. Khóa nằm trong database chứ không phải trong file hay trong bộ nhớ vì từ khi lên
+máy chủ nó phải bắc qua **ba nơi** — lịch trên máy chủ, nút bấm trong web app, và `npm run health`
+gõ ở máy một người nào đó — mà ba nơi đó không nhìn thấy hệ thống tệp của nhau. Tiến trình bị tắt
 ngang để lại khóa mồ côi thì sau 30 phút lượt sau tự giành lấy.
+
+### Lịch dò hằng ngày
+
+Khai `HEALTH_CHECK_DAILY_AT="09:00"` (giờ team) trong biến môi trường **của máy chủ** là bộ dò tự
+chạy mỗi ngày một lần. Trạng thái hiện ở khối **"Lịch dò hằng ngày"** ngay trang `/health`: giờ
+hẹn, lượt gần nhất lúc nào, và lượt đó đã bắn hay bị bỏ qua vì lý do gì.
+
+**Vắng biến này là lịch TẮT**, và đó là mặc định. Cố ý: máy dev nào cũng trỏ vào một database
+thật, nên lịch tự bật sẵn nghĩa là mỗi người mở máy lại bắn một lượt dò tiêu quota proxy quan sát
+viên. Máy chủ chạy production mà chưa khai thì khay cảnh báo vận hành nhắc ADMIN; khai sai dạng
+thì nó kêu đỏ chứ **không** lặng lẽ coi như tắt.
+
+Bốn điều nên biết về cách nó cư xử:
+
+| Tình huống | Nó làm gì |
+|---|---|
+| App tắt lúc tới giờ hẹn, bật lại lúc 21:00 | chạy bù **một** lượt ngay, dù lỡ mấy ngày cũng chỉ bù một |
+| Deploy lại lúc 09:05, ngay sau lượt 09:00 | **không** chạy lại — mốc lượt gần nhất nằm trong database, không nằm trong bộ nhớ |
+| Đang có người bấm "Dò cả đàn" đúng lúc đó | bỏ qua, và ghi rõ *"lượt đó đã đủ số liệu cho hôm nay"* |
+| Chưa có proxy quan sát viên nào bật | bỏ qua kèm lý do, **không** thử lại mỗi phút — thứ đang chặn cần một người sửa |
+
+> **Vì sao không dùng cron của Railway.** Cron của hãng chỉ nhận giờ **UTC**, mà giờ hẹn phải theo
+> `TEAM_TIMEZONE`. Khai bằng cron nghĩa là cùng một giờ hẹn nằm ở hai nơi, và đổi múi giờ team mà
+> quên sửa chuỗi cron là dò sai giờ **mà không có gì báo** — đúng họ hỏng với `pg_dump` lệch major
+> và luật firewall WebRTC. Thêm nữa: cron là cấu hình riêng của từng hãng, mà cả ảnh Docker dựng
+> ra để chạy được ở nhiều hãng bằng cùng một file.
 
 Ảnh chụp màn hình **chỉ giữ khi kết luận khác "khỏe"**, và tự xóa sau 30 ngày ở cuối mỗi lượt
 dò. Bản ghi kết luận thì giữ nguyên vĩnh viễn — đó là thứ vẽ ra xu hướng karma và cho biết nick

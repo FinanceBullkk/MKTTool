@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { collectOpsAlerts, vaultKeySeparationAlert } from "./collect-ops-alerts";
+import {
+  collectOpsAlerts,
+  dailyHealthCheckScheduleAlert,
+  vaultKeySeparationAlert,
+} from "./collect-ops-alerts";
 
 /** Hai khóa hex hợp lệ, khác nhau. Nội dung không quan trọng — chỉ so bằng nhau hay không. */
 const KEY_A = "a".repeat(64);
@@ -48,6 +52,43 @@ describe("vaultKeySeparationAlert", () => {
 
   it("chuỗi rỗng tính là chưa đặt, không tính là hai khóa bằng nhau", () => {
     expect(vaultKeySeparationAlert(env("   ", "   "))).toBeNull();
+  });
+});
+
+describe("dailyHealthCheckScheduleAlert", () => {
+  const prod = (at?: string) => ({
+    NODE_ENV: "production",
+    ...(at === undefined ? {} : { HEALTH_CHECK_DAILY_AT: at }),
+  });
+
+  it("im lặng ở máy dev — máy dev cố ý không bật lịch", () => {
+    expect(dailyHealthCheckScheduleAlert({})).toBeNull();
+    expect(dailyHealthCheckScheduleAlert({ NODE_ENV: "development" })).toBeNull();
+  });
+
+  it("im lặng khi lịch đã bật", () => {
+    expect(dailyHealthCheckScheduleAlert(prod("09:00"))).toBeNull();
+  });
+
+  it("báo VÀNG khi máy chủ chạy mà chưa bật lịch", () => {
+    const alert = dailyHealthCheckScheduleAlert(prod());
+
+    expect(alert?.id).toBe("health-check-schedule-off");
+    expect(alert?.tone).toBe("amber");
+    expect(alert?.audience).toBe("ADMIN");
+    expect(alert?.action).toContain("HEALTH_CHECK_DAILY_AT");
+  });
+
+  /**
+   * Khai sai nặng hơn chưa khai: người gõ `9h00` vào biến này ĐANG TIN là lịch đã bật, nên câu
+   * cảnh báo phải nói ra đúng chỗ sai chứ không chỉ nói "chưa bật".
+   */
+  it("báo ĐỎ khi khai sai dạng, kèm chỗ sai", () => {
+    const alert = dailyHealthCheckScheduleAlert(prod("9h00"));
+
+    expect(alert?.id).toBe("health-check-schedule-invalid");
+    expect(alert?.tone).toBe("red");
+    expect(alert?.message).toContain("9h00");
   });
 });
 

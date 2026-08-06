@@ -14,6 +14,8 @@ import {
   VAULT_KEY_ENV,
   type VaultKeyEnv,
 } from "../crypto/encryption-key-loader";
+import { DAILY_HEALTH_CHECK_ENV } from "../health/daily-health-check-config";
+import { readDailyScheduleTime } from "../schedule/daily-run-schedule";
 import type { OpsAlert } from "./ops-alert-types";
 
 /**
@@ -67,6 +69,47 @@ export function vaultKeySeparationAlert(env: VaultKeyEnv = process.env): OpsAler
   return null;
 }
 
+/**
+ * Cảnh báo lịch dò shadowban chưa bật — hoặc khai sai nên không bật được.
+ *
+ * Đây đúng loại hỏng mà khay này sinh ra để bắt: **mọi màn hình trông bình thường**. Bảng sức
+ * khỏe vẫn đầy số liệu của lượt dò tay gần nhất, không ô nào đỏ, không dòng nào thiếu — chỉ là
+ * số liệu đó mỗi ngày một cũ đi, và tới lúc ai đó để ý thì cả cụm nick đã bị ẩn hai tuần. Cùng
+ * lập luận với luật 10 của bộ luật: *không có tin xấu* không phải là *tin tốt*.
+ *
+ * **Chỉ kêu ở môi trường production.** Máy dev cố ý không bật lịch (xem `readDailyScheduleTime`),
+ * nên kêu ở đó là dạy người ta phớt lờ cả khay.
+ */
+export function dailyHealthCheckScheduleAlert(env: VaultKeyEnv = process.env): OpsAlert | null {
+  if (env.NODE_ENV !== "production") return null;
+
+  try {
+    if (readDailyScheduleTime(env[DAILY_HEALTH_CHECK_ENV]) !== null) return null;
+  } catch (error) {
+    return {
+      id: "health-check-schedule-invalid",
+      tone: "red",
+      audience: "ADMIN",
+      message:
+        `${DAILY_HEALTH_CHECK_ENV} khai sai nên lịch dò shadowban KHÔNG chạy: ` +
+        `${error instanceof Error ? error.message : String(error)}`,
+      action: `Sửa ${DAILY_HEALTH_CHECK_ENV} về dạng HH:MM (ví dụ "09:00") rồi khởi động lại.`,
+    };
+  }
+
+  return {
+    id: "health-check-schedule-off",
+    tone: "amber",
+    audience: "ADMIN",
+    message:
+      "Lịch dò shadowban đang tắt, nên bộ dò chỉ chạy khi có người bấm nút. Bảng sức khỏe vẫn " +
+      "trông đầy đủ trong lúc số liệu mỗi ngày một cũ đi — shadowban thì im lặng.",
+    action:
+      `Khai ${DAILY_HEALTH_CHECK_ENV}="09:00" (giờ team) trong biến môi trường của máy chủ rồi ` +
+      `khởi động lại.`,
+  };
+}
+
 /** Vai trò của người đang xem, theo đúng hai vai trò của `Actor`. */
 export type OpsAlertViewerRole = "ADMIN" | "OPERATOR";
 
@@ -81,7 +124,9 @@ export function collectOpsAlerts(
   role: OpsAlertViewerRole,
   env: VaultKeyEnv = process.env,
 ): OpsAlert[] {
-  const all = [vaultKeySeparationAlert(env)].filter((alert): alert is OpsAlert => alert !== null);
+  const all = [vaultKeySeparationAlert(env), dailyHealthCheckScheduleAlert(env)].filter(
+    (alert): alert is OpsAlert => alert !== null,
+  );
 
   return all
     .filter((alert) => alert.audience === "EVERYONE" || role === "ADMIN")
