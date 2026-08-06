@@ -83,7 +83,11 @@ Không có gì mới. Phase này là quy trình, không phải code.
 - [ ] Tài liệu vận hành có ảnh hộp xin quyền — dùng làm **đường cấp lại**, không phải cấp lần đầu
 - [ ] Đào tạo nhóm Fanpage/content
 - [ ] Đào tạo nhóm Reddit/TikTok
-- [ ] `docs/huong-dan-van-hanh-cho-team.md`
+- [x] `docs/huong-dan-van-hanh-cho-team.md` (06/08/2026) — 348 dòng, viết cho **người dùng cuối**
+  chứ không phải người cài: chia hai nhóm ngay đầu file (Fanpage chỉ cần Chrome / Reddit cần
+  MultiZen + cầu nối) và nói rõ nhóm nào đọc mục nào. Ba việc hỏng trong im lặng nằm ở một mục
+  riêng, kèm **phép tự kiểm hằng tuần** cho việc thứ nhất: số nick trong ô "Chưa đối chiếu được"
+  phải bằng 0. Còn thiếu ảnh chụp màn hình — đã ghi thành checklist mở ở cuối file, không để lặng lẽ
 - [ ] Cập nhật README + deployment-guide + system-architecture + roadmap + changelog
 - [ ] Chạy thử một vòng thật đầu-cuối
 - [ ] Ghi quy trình khi có người rời team

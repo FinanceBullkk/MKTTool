@@ -1,11 +1,12 @@
 # Tài liệu MKTTool — bắt đầu từ đâu
 
-**Cập nhật:** 03/08/2026
+**Cập nhật:** 06/08/2026
 
 Repo này có 12+ file tài liệu. Đừng đọc hết. Tra theo câu hỏi bạn đang có:
 
 | Bạn muốn biết | Đọc file |
 |---|---|
+| **Dùng công cụ hằng ngày** (không cài gì, không sửa code) | [huong-dan-van-hanh-cho-team.md](huong-dan-van-hanh-cho-team.md) — cẩm nang cho người dùng cuối |
 | Cài và chạy công cụ, dùng từng màn hình | [../README.md](../README.md) — cẩm nang vận hành, đọc trước tiên |
 | Dự án giải quyết vấn đề gì, cho ai, không làm gì | [project-overview-pdr.md](project-overview-pdr.md) |
 | "Shadowban", "cold-start", "proxy quan sát viên" nghĩa là gì | [domain-glossary.md](domain-glossary.md) |
@@ -18,8 +19,9 @@ Repo này có 12+ file tài liệu. Đừng đọc hết. Tra theo câu hỏi b�
 
 ## Ba vai, ba đường đọc
 
-**Bạn MKT sắp dùng công cụ:** [../README.md](../README.md) → mục *Thứ tự nhập liệu* → *Bộ luật an
-toàn* → *Đăng bài*. Không cần đọc gì trong `docs/`.
+**Bạn MKT sắp dùng công cụ:** [huong-dan-van-hanh-cho-team.md](huong-dan-van-hanh-cho-team.md), đọc
+hết một lượt — nó viết cho đúng vai này và không có gì khác cần đọc. Muốn hiểu sâu hơn phần bộ luật
+thì mở thêm [../README.md](../README.md) mục *Bộ luật an toàn*.
 
 **Dev mới nhận repo:** [project-overview-pdr.md](project-overview-pdr.md) →
 [system-architecture.md](system-architecture.md) → [codebase-summary.md](codebase-summary.md) →
