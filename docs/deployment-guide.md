@@ -650,16 +650,30 @@ Bỏ qua được, cả app vẫn chạy bình thường thiếu nó.
 
 ## Bước 12 — Đưa `.exe` cầu nối lên máy chủ
 
-Chưa làm cũng không sao: `/relay-download` nói rõ *"chưa có gói"* thay vì hỏng.
+**Chưa làm là đúng lịch, không phải nợ.** `/relay-download` nói rõ *"chưa có gói"* kèm việc phải
+làm, thay vì hỏng — xem [relay-release-file.ts](../src/lib/relay/relay-release-file.ts).
 
 `.exe` dựng trên Windows còn ảnh chạy dựng trên Linux, nên nó **không thể nằm trong ảnh Docker**.
-Ba đường, chưa chốt:
 
-| Đường | Được | Mất |
-|---|---|---|
-| Gắn volume Railway rồi upload tay | mã đã hỗ trợ sẵn qua `RELAY_RELEASE_DIR`; file ở sau lớp đăng nhập | mỗi bản mới phải upload tay |
-| Đẩy lên GitHub Releases, web chỉ giữ link | không tốn dung lượng máy chủ | link công khai — mất tính chất *"chỉ tải được sau khi đăng nhập"* của QĐ 11 |
-| Build `.exe` trong CI Windows rồi bake vào ảnh | tự động hẳn | thêm một job CI Windows, và ảnh phồng thêm 87 MB mỗi bản |
+**Đã chốt 06/08/2026 — [QĐ 12](../plans/260804-1752-web-chung-cho-team-phan-tan/plan.md#qđ-12--gói-cầu-nối-cất-trên-r2-app-lấy-hộ-chưa-làm-ngay): ngăn riêng trên R2, app lấy hộ.**
+Ba đường kia đã cân và loại; lý do từng đường nằm trong QĐ 12, đừng phân tích lại từ đầu.
+
+Tóm tắt cách chạy: người tải bấm nút → app kiểm phiên đăng nhập → app lấy file từ R2 rồi stream
+về. Không có URL công khai, không cần volume, không phồng ảnh. Chọn R2 vì nó **đã dựng sẵn** cho
+việc sao lưu ở bước 10.
+
+> ⚠️ **Bucket riêng + token riêng, chỉ đọc.** Đừng nới token sao lưu hiện có — cùng lý do đã ghi
+> ở bước 10: token nằm cạnh `VAULT_KEY_SERVER`, nên một chìa mở được mọi ngăn làm nặng thêm hậu
+> quả của một lần chiếm máy chủ.
+
+**Làm khi chạm một trong hai mốc**, không làm sớm hơn:
+
+1. Đợt TikTok vào — mọi người đều cần MultiZen, số máy nở ra, chép tay hết rẻ.
+2. Có bản cầu nối **thứ hai** phải phát — lúc đó dải *"cầu nối bản cũ, tải bản mới ở đây"* mới bắt
+   đầu trỏ vào chỗ trống.
+
+Tới đó thì đợt bàn giao này (1-2 máy Reddit, người cài ngồi cạnh máy) chép gói bằng USB là xong.
+Biến `RELAY_RELEASE_DIR` vẫn còn, dùng được nếu cần một đường tạm.
 
 ---
 

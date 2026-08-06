@@ -30,7 +30,7 @@ bạn hoặc team bạn quản lý" là use case **không được chấp nhận
 dạng Reddit: MultiZen + đăng tay. Đây là lý do **mọi người đều cần MultiZen**, và là lý do kiến
 trúc dưới đây tồn tại.
 
-## Mười một quyết định đã chốt
+## Mười hai quyết định đã chốt
 
 | # | Quyết định | Chốt |
 |---|---|---|
@@ -42,9 +42,10 @@ trúc dưới đây tồn tại.
 | 6 | Cầu nối viết bằng gì | **TypeScript → một file `.exe`**, dùng lại 929 dòng đã có test. **GĐ0 đã đo bằng Node SEA: chạy được, 87 MB** |
 | 7 | File video (TikTok) | **Kho file riêng** (R2). Chốt hướng nay, xây khi làm TikTok |
 | 8 | Cách bàn giao | **Làm hết rồi bàn giao một lần.** Không có giai đoạn quá độ |
-| 9 | Stack | **Dockerfile** (di động giữa các hãng) chạy trên Railway + Postgres Railway + Better Auth + Bun đóng gói cầu nối |
+| 9 | Stack | **Dockerfile** (di động giữa các hãng) chạy trên Railway + Postgres Railway + Better Auth + ~~Bun~~ đóng gói cầu nối. **Đã đi khác: Node SEA, không phải bun** — lý do ở [GĐ4](phase-04-cau-noi-tren-may-operator.md) |
 | 10 | Quyền mạng nội bộ ở GĐ6 | **Không đặt policy Chrome.** Người cài bấm "Cho phép" hộ ngay trong buổi cài máy — [chi tiết](#qđ-10--không-đặt-policy-chrome-người-cài-bấm-cho-phép-hộ-ngay-trong-buổi-cài-máy) |
 | 11 | Phát hành cầu nối | **Không tự cập nhật** (đục thủng tính chất ngoại tuyến của QĐ 5). Tải từ web app sau đăng nhập, app tự báo bản cũ — [chi tiết](#qđ-11--cầu-nối-không-tự-cập-nhật-tải-từ-chính-web-app-và-app-tự-báo-khi-bản-cũ) |
+| 12 | Gói cầu nối nằm ở đâu | **Ngăn riêng trên R2, app lấy hộ và stream về sau lớp đăng nhập.** Chưa làm ngay — có mốc kích hoạt — [chi tiết](#qđ-12--gói-cầu-nối-cất-trên-r2-app-lấy-hộ-chưa-làm-ngay) |
 
 > **Nguyên tắc chọn:** khi có nhiều đường, lấy đường bền hơn kể cả khi tốn code hơn. Ba chỗ đã
 > sửa theo nguyên tắc này sau khi rà lại (04/08/2026): mã hóa nội dung vé cho cầu nối (QĐ 5),
@@ -210,6 +211,48 @@ câu *"bản cầu nối quá cũ, tải lại"* — chứ không phải hỏng 
 
 > Không mua chứng chỉ ký số (quyết định plan này) nghĩa là **mỗi bản mới lại gặp SmartScreen**.
 > Đó là thêm một lý do phát hành thưa và có chủ ý, thay vì cập nhật liên tục.
+
+### QĐ 12 — Gói cầu nối cất trên R2, app lấy hộ. Chưa làm ngay
+
+**Chốt 06/08/2026.** QĐ 11 đã định *team tải từ đâu* (từ app, sau lớp đăng nhập). Câu còn hở hẹp
+hơn: **file bằng cách nào lên tới máy chủ** — vì `relay/dist/` bị gitignore (87 MB, dựng lại được),
+nên gói `.zip` không nằm trong ảnh Docker và `/relay-download` trên Railway đang nói *"chưa có gói"*.
+
+**Chốt: ngăn riêng trên Cloudflare R2.** Người tải bấm nút trên web → app kiểm phiên đăng nhập →
+app tự lấy file từ R2 rồi stream về. Người tải không thấy địa chỉ ngăn, không có chìa, không có
+URL công khai nào. Giữ trọn QĐ 11.
+
+Chọn R2 vì **nó đã có sẵn** — dựng 06/08 cho việc sao lưu hằng đêm. Không thêm hãng, không thêm
+hóa đơn, không thêm món phải nhớ khi chuyển nhà (khác volume: volume không đi theo thùng Docker,
+đục một lỗ vào QĐ 9).
+
+Phải viết thêm: `getObject` cho [r2-client.ts](../../src/lib/backup/r2-client.ts) (~30-40 dòng,
+dùng lại bộ ký SigV4 đã có), và một nhánh đọc-từ-R2 cho
+[relay-release-file.ts](../../src/lib/relay/relay-release-file.ts) thay `statSync`. Ước ~100 dòng
+kèm test.
+
+> ⚠️ **Bucket riêng + token riêng, chỉ đọc.** KHÔNG nới token sao lưu hiện có. Token này nằm cùng
+> chỗ với `VAULT_KEY_SERVER`; một chìa mở được mọi ngăn ở đó **mở rộng** thiệt hại của một lần
+> chiếm máy chủ chứ không thu hẹp nó. Ngăn gói cài chứa thứ công khai được — mất nó không mất gì;
+> ngăn sao lưu thì không.
+
+**Ba đường bị loại, và lý do:**
+
+| Đường | Vì sao loại |
+|---|---|
+| Volume Railway + upload tay | Railway **không có nút upload** — "upload tay" nghe như một thao tác, thực tế là một quy trình phải nghĩ ra (`railway ssh`, hoặc dựng endpoint tạm rồi gỡ). Và volume không đi theo thùng Docker |
+| GitHub Releases, web giữ link | **Mở lại QĐ 11**, không phải một đánh đổi thường. Repo private nên vẫn cần đăng nhập GitHub — nhưng đó là **tập người khác** với `ALLOWED_EMAILS`. Điểm mạnh thật của nó: mã băm và file ở hai miền tin cậy khác nhau |
+| CI Windows build + bake vào ảnh | **Không tự đứng được.** Railway build ảnh từ repo; artifact Windows không có ở đó nên Dockerfile vẫn phải tải về từ *một chỗ chứa nào đó*. Nó là lớp tự động chồng lên A/B/D, không thay được chúng. Kèm: build bắt buộc chạy trên runner Windows (SEA gói runtime máy build), tính phí gấp đôi |
+
+**Chưa làm ngay, và đây là phần cố ý.** Đợt bàn giao chỉ 1-2 máy Reddit, người cài ngồi cạnh máy —
+chép gói bằng USB là xong. Viết code cho một đường phát hành mà mỗi năm dùng vài lần, trong lúc
+proxy quan sát viên và Facebook đang chặn nghiệm thu, là đảo thứ tự.
+
+**Mốc kích hoạt — làm khi CHẠM MỘT trong hai:**
+
+1. **Đợt TikTok vào.** Mọi người đều cần MultiZen, số máy nở ra, chép tay hết rẻ.
+2. **Có bản cầu nối thứ hai phải phát.** Lúc đó dải *"cầu nối bản cũ, tải bản mới ở đây"* bắt đầu
+   trỏ vào chỗ trống — lỗ hổng thành thật, không còn là giả định.
 
 ## Câu chưa trả lời
 
