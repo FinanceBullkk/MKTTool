@@ -153,10 +153,16 @@ Dòng cuối in ra chỗ nó sắp nạp vào — **đọc dòng đó trước k
 `*.proxy.rlwy.net`, port là số 5 chữ số, db là `railway`. Đúng rồi mới nạp:
 
 ```powershell
-psql -f data\backups\mkttool-<ngày>-<giờ>.sql
+psql -v ON_ERROR_STOP=1 -f data\backups\mkttool-<ngày>-<giờ>.sql
 ```
 
 Bản sao xuất kèm `--no-owner --no-privileges` nên nạp được vào Railway dù tên role khác máy anh.
+
+> **`ON_ERROR_STOP=1` không phải tùy chọn làm màu.** Mặc định `psql -f` gặp lỗi vẫn **chạy tiếp
+> hết file**, chỉ in `ERROR:` rồi đi. Với một bản khôi phục thì đó là kiểu hỏng tệ nhất: nhận về
+> một database *có vài bảng*, trông như đã xong, và chỗ thiếu chỉ lộ ra nhiều ngày sau. Có cờ này
+> thì hoặc vào đủ, hoặc dừng ngay ở chỗ hỏng đầu tiên — và câu lỗi nằm ở cuối màn hình thay vì
+> trôi mất giữa hàng trăm dòng.
 
 > **Ba cái bẫy ở khối trên, cả ba đều đã sập thật khi làm lần đầu:**
 >
@@ -177,12 +183,18 @@ Bản sao xuất kèm `--no-owner --no-privileges` nên nạp được vào Rail
 Đối chiếu ngay, đừng tin dòng "thành công". Biến vẫn còn trong cửa sổ đó nên không phải khai lại:
 
 ```powershell
-psql -c 'SELECT count(*) FROM "Proxy";'
+psql -c 'SELECT count(*) FROM \"Proxy\";'
 ```
 
 ```powershell
 psql -c 'SELECT count(*) FROM _prisma_migrations;'
 ```
+
+> Cặp `\"` là **bắt buộc**, không phải thừa. Tên bảng của Prisma viết hoa nên trong SQL phải có
+> nháy kép, mà PowerShell **nuốt mất nháy kép** khi chuyển tham số sang một chương trình ngoài —
+> viết `'... FROM "Proxy"'` thì Postgres nhận được `FROM Proxy`, tự hạ thành `proxy` viết thường
+> và báo *relation "proxy" does not exist*. Câu lỗi đó trông y hệt "bảng chưa được tạo", nên rất
+> dễ đi sửa nhầm phía khôi phục.
 
 Kho dev **tính tới 06/08/2026** chứa đúng ngần này (đã đếm trên bản dump thật), nên hai con số
 phải ra:
