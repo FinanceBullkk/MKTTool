@@ -1,4 +1,4 @@
-import { createPrivateKey, diffieHellman } from "node:crypto";
+import { createPrivateKey, createPublicKey, diffieHellman } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import {
   RELAY_PUBLIC_KEY_HEX_LENGTH,
@@ -6,6 +6,7 @@ import {
   assertRelayPublicKeyUsable,
   generateRelayDeviceKeyPair,
   normalizeRelayPublicKey,
+  relayPrivateKeyToKeyObject,
   relayPublicKeyToHex,
   relayPublicKeyToKeyObject,
 } from "./relay-device-key";
@@ -167,5 +168,36 @@ describe("generateRelayDeviceKeyPair", () => {
     expect(generateRelayDeviceKeyPair().publicKeyHex).not.toBe(
       generateRelayDeviceKeyPair().publicKeyHex,
     );
+  });
+});
+
+describe("relayPrivateKeyToKeyObject", () => {
+  it("dựng đúng khóa riêng của vector RFC 7748 — suy ra đúng khóa công khai của nó", () => {
+    // Phép thử thật của hàm này: nó ghép DER bằng tay (JWK không dùng được cho khóa riêng OKP
+    // vì đòi cả phần công khai). Ghép sai một byte thì OpenSSL vẫn nhận, nhưng khóa suy ra sẽ
+    // khác — và triệu chứng chỉ hiện ra ở tấm vé thật đầu tiên trên máy operator.
+    const key = relayPrivateKeyToKeyObject(RFC_7748.bobPrivateKey);
+
+    expect(relayPublicKeyToHex(createPublicKey(key))).toBe(RFC_7748.bobPublicKey);
+  });
+
+  it("bí mật chung khớp vector, tức thứ tự byte đúng", () => {
+    const shared = diffieHellman({
+      privateKey: relayPrivateKeyToKeyObject(RFC_7748.bobPrivateKey),
+      publicKey: relayPublicKeyToKeyObject(RFC_7748.alicePublicKey),
+    });
+
+    expect(shared.toString("hex")).toBe(RFC_7748.sharedSecret);
+  });
+
+  it("nhận hex viết hoa và có xuống dòng — khóa chép từ file hay dính cả hai", () => {
+    const key = relayPrivateKeyToKeyObject(`${RFC_7748.bobPrivateKey.toUpperCase()}\n`);
+
+    expect(relayPublicKeyToHex(createPublicKey(key))).toBe(RFC_7748.bobPublicKey);
+  });
+
+  it("chuỗi sai độ dài bị từ chối kèm câu chỉ vào file khóa của cầu nối", () => {
+    expect(() => relayPrivateKeyToKeyObject("abcd")).toThrow(RelayDeviceKeyError);
+    expect(() => relayPrivateKeyToKeyObject("abcd")).toThrow(/file khóa|File khóa/);
   });
 });

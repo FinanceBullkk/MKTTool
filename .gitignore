@@ -29,6 +29,15 @@ data/logs/
 # bản sao lưu database — chứa credential đã mã hóa
 data/backups/
 
+# thư mục dữ liệu của cầu nối lúc chạy dưới máy dev (RELAY_HOME).
+# Trong đó có KHÓA RIÊNG của máy và KHÓA VÙNG OPERATOR — commit nhầm là mất cả hai lớp
+# mà GĐ3/GĐ4 dựng ra.
+relay/.dev-home/
+relay-device-key.json
+relay-config.json
+# .exe đóng gói — 87 MB, và dựng lại được từ mã nguồn
+relay/dist/
+
 # cấu hình Claude Code của riêng từng máy (quyền đã duyệt, không phải của dự án)
 .claude/settings.local.json
 

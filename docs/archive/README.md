@@ -1,9 +1,15 @@
 # docs/archive — Tài liệu bản cũ
 
-Hai file trong thư mục này thuộc **bản trước khi xoay hướng** (tháng 7/2026).
-Giữ lại để tra cứu lịch sử và hiểu lý do đã bỏ hướng cũ.
+Thư mục này có **hai loại file, đừng lẫn chúng với nhau**:
 
-> **Không dùng hai file này làm căn cứ cho quyết định hiện tại.**
+| File | Là gì |
+|---|---|
+| `Technical_Analysis_And_Risk_Assessment.md`, `X_Twitter_Automation_Blueprint.md` | **bản trước khi xoay hướng** (tháng 7/2026) — hướng đi đã bỏ |
+| [`project-changelog-den-04-08-2026.md`](project-changelog-den-04-08-2026.md) | **lịch sử thật của dự án hiện tại**, phần đã cũ của nhật ký thay đổi |
+
+Phần còn lại của trang này nói về **loại thứ nhất**.
+
+> **Không dùng hai file của bản cũ làm căn cứ cho quyết định hiện tại.**
 > Thiết kế, quy mô, stack kỹ thuật và chiến thuật proxy đã thay đổi toàn bộ.
 
 ## So sánh bản cũ với hiện tại

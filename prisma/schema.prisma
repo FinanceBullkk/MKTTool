@@ -186,6 +186,46 @@ model HealthCheckLock {
   startedAt DateTime
 }
 
+/// Lượt gần nhất của một việc chạy theo lịch — thứ giữ cho bộ lịch bắn ĐÚNG MỘT LẦN mỗi ngày.
+///
+/// ## Vì sao là một hàng chứ không phải một biến trong bộ nhớ
+///
+/// Bộ lịch sống trong chính web app (xem `src/lib/health/daily-health-check-scheduler.ts`), và
+/// web app thì bị khởi động lại: mỗi lần deploy, mỗi lần Railway thay container, mỗi lần tiến
+/// trình chết. Một biến trong bộ nhớ mất theo, nên deploy lúc 09:05 là bắn lại lượt vừa chạy
+/// lúc 09:00 — hai lượt cách nhau năm phút, đúng thứ `HealthCheckLock` sinh ra để chặn.
+///
+/// Nó cũng là chỗ **đòi quyền chạy**: `updateMany` có điều kiện `lastRunAt < mốc hẹn` nên hai
+/// bản sao của app cùng tick lúc 09:00 thì chỉ một bản đổi được hàng. Quyết trong một lệnh,
+/// không có khe hở giữa "đọc" và "ghi" — cùng nguyên tắc với `@id` của `HealthCheckLock`.
+///
+/// ## Vì sao KHÔNG suy ra từ bảng `HealthCheck`
+///
+/// "Lần dò gần nhất" trong bảng đó cũng được ghi bởi nút *"Dò lại ngay"* của một nick lẻ. Lấy
+/// nó làm mốc thì một lượt dò một nick lúc 08:50 sẽ nuốt mất lượt cả đàn lúc 09:00, và không có
+/// gì báo. Hai khái niệm khác nhau thì phải là hai chỗ khác nhau.
+model ScheduledJobRun {
+  /// Tên việc — hằng khai trong code, ví dụ `daily-health-check`.
+  key String @id
+
+  /// Mốc bộ lịch QUYẾT ĐỊNH cho lượt gần nhất — kể cả khi quyết định là "bỏ qua".
+  ///
+  /// Ghi ngay lúc đòi quyền, TRƯỚC khi biết lượt đó có chạy được không. Cố ý: nếu chỉ ghi khi
+  /// chạy thành công thì một lỗi kéo dài (mất proxy quan sát viên chẳng hạn) làm bộ lịch thử
+  /// lại mỗi phút suốt mười lăm tiếng. Chuyện gì đã xảy ra thì `outcome` kể.
+  lastRunAt DateTime
+
+  /// Máy nào của app đã quyết. Có nhiều bản sao chạy song song thì đây là thứ nói bản nào.
+  host String
+
+  /// LAUNCHED | SKIPPED — xem `DailyRunOutcome`. Cùng vai trò với `verdict` của `HealthCheck`:
+  /// "không chạy" phải phân biệt được với "chưa tới lượt".
+  outcome String
+
+  /// Vì sao lại là kết quả đó, viết cho người đọc trang Sức khỏe.
+  detail String?
+}
+
 model Account {
   id       String @id @default(cuid())
   platform String // REDDIT | FACEBOOK

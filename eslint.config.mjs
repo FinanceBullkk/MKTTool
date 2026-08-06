@@ -10,7 +10,12 @@ import nextTypescript from "eslint-config-next/typescript";
  */
 const config = [
   {
-    ignores: [".next/**", "node_modules/**", "data/**", "prisma/migrations/**"],
+    // `relay/dist/**` là sản phẩm của `npm run relay:build`, không phải mã người viết. ESLint
+    // **không đọc `.gitignore`**, nên thư mục này bị lint dù git đã bỏ qua nó — và nó chứa
+    // `relay-bundle.cjs`, một file `.cjs` không khớp glob của eslint-config-next. Hệ quả là
+    // ESLint đổ ngay từ bước dựng cấu hình ("không tìm thấy plugin react-hooks") thay vì báo một
+    // lỗi lint, tức cả `npm run lint` chết chỉ vì có người vừa build.
+    ignores: [".next/**", "node_modules/**", "data/**", "prisma/migrations/**", "relay/dist/**"],
   },
   ...next,
   ...nextTypescript,

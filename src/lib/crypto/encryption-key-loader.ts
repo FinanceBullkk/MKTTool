@@ -101,16 +101,57 @@ function explainMissingKey(envName: string): string {
 }
 
 /**
+ * Thế đứng hiện tại của hai vùng khóa **trên tiến trình máy chủ này**.
+ *
+ * Ba trạng thái, xếp theo thứ tự từ đích ngược về:
+ *
+ *   `separated`      máy chủ chỉ có khóa vùng server. ĐÍCH của GĐ3 — chiếm được máy chủ cũng
+ *                    không mở nổi một mật khẩu nick nào.
+ *   `operator-key-on-server`  hai khóa đã khác nhau, nhưng khóa vùng operator vẫn nằm trên máy
+ *                    chủ. Việc tách đã làm; việc gỡ thì chưa.
+ *   `shared-key`     hai biến cùng một giá trị. Cấu hình nhìn y hệt lúc đã tách xong, nhưng
+ *                    **cả GĐ3 chưa có tác dụng gì**.
+ *   `no-server-key`  chưa cấu hình nổi — app sẽ đổ ngay lần mã hóa đầu tiên.
+ */
+export type VaultKeyPosture =
+  | "separated"
+  | "operator-key-on-server"
+  | "shared-key"
+  | "no-server-key";
+
+/**
+ * Chỉ hai biến khóa là thứ phép đọc thế đứng cần.
+ *
+ * Không khai `NodeJS.ProcessEnv`: Next.js bồi thêm các trường bắt buộc (`NODE_ENV`) vào kiểu đó,
+ * nên test muốn dựng một môi trường giả sẽ phải khai bừa những trường nó không quan tâm.
+ */
+export type VaultKeyEnv = Partial<Record<string, string>>;
+
+/**
+ * Đọc thế đứng từ môi trường. Hàm thuần theo `env` truyền vào nên test được mà không đụng
+ * `process.env`, và **không bao giờ trả ra giá trị khóa** — chỉ trả ra kết luận.
+ */
+export function readVaultKeyPosture(env: VaultKeyEnv = process.env): VaultKeyPosture {
+  const server = env[VAULT_KEY_ENV.server]?.trim().toLowerCase();
+  const operator = env[VAULT_KEY_ENV.operator]?.trim().toLowerCase();
+
+  if (!server) return "no-server-key";
+  if (!operator) return "separated";
+  return server === operator ? "shared-key" : "operator-key-on-server";
+}
+
+/**
  * Hai vùng dùng chung một khóa thì việc chia vùng chưa có tác dụng gì — chiếm được máy chủ vẫn
  * mở được mật khẩu nick. Đó là trạng thái ĐÚNG trong lúc chuyển đổi, nhưng phải nói ra, vì
  * cấu hình nhìn giống hệt lúc đã tách xong.
+ *
+ * Dòng `console.warn` này chỉ tới được người đang mở terminal — tức là chỉ lúc chạy máy mình.
+ * Trên Railway nó in một lần lúc khởi động rồi trôi. Nên **đường tới người dùng thật là khay
+ * cảnh báo vận hành** (`src/lib/ops-alerts/`), còn dòng này giữ lại cho lúc chạy dưới máy.
  */
 function warnOnceIfKeysIdentical(): void {
   if (warnedAboutIdenticalKeys) return;
-
-  const server = process.env[VAULT_KEY_ENV.server]?.trim().toLowerCase();
-  const operator = process.env[VAULT_KEY_ENV.operator]?.trim().toLowerCase();
-  if (!server || !operator || server !== operator) return;
+  if (readVaultKeyPosture() !== "shared-key") return;
 
   warnedAboutIdenticalKeys = true;
   console.warn(

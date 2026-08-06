@@ -115,6 +115,38 @@ export function publicKeyToHex(publicKey: KeyObject): string {
   return Buffer.from(jwk.x, "base64url").toString("hex");
 }
 
+/**
+ * Dựng khóa công khai Ed25519 từ hex. Chạy trên **cầu nối** — đầu bên kia của `publicKeyToHex`.
+ *
+ * Ở cùng file với hàm xuất ra hex có chủ ý: hai nửa của một giao kèo mà nằm hai nơi thì sớm
+ * muộn lệch nhau, và lệch ở đây nghĩa là **mọi tấm vé đều bị từ chối** với lý do "chữ ký sai" —
+ * câu chỉ vào đúng chỗ nhưng chỉ nhầm nguyên nhân.
+ *
+ * Khác `relayPrivateKeyToKeyObject`, chỗ này đi được đường JWK: khóa **công khai** chỉ cần `x`.
+ */
+export function publicKeyFromHex(hexKey: string): KeyObject {
+  const hex = hexKey.replace(/\s+/g, "").toLowerCase();
+
+  if (hex.length !== SIGNING_SEED_HEX_LENGTH || !/^[0-9a-f]+$/.test(hex)) {
+    throw new ServerSigningKeyError(
+      `Khóa công khai của máy chủ phải là ${SIGNING_SEED_HEX_LENGTH} ký tự hex. ` +
+        `Chạy \`npm run keys:server-pubkey\` trên máy chủ rồi chép lại nguyên dòng.`,
+    );
+  }
+
+  try {
+    return createPublicKey({
+      key: { kty: "OKP", crv: "Ed25519", x: Buffer.from(hex, "hex").toString("base64url") },
+      format: "jwk",
+    });
+  } catch (cause) {
+    throw new ServerSigningKeyError(
+      `Chuỗi này đúng độ dài nhưng không phải khóa công khai Ed25519 hợp lệ. ` +
+        `Kiểm xem có chép nhầm khóa của máy cầu nối (X25519) không. (${(cause as Error).message})`,
+    );
+  }
+}
+
 /** Đọc hạt giống từ process.env rồi dựng cặp khóa, có cache. */
 export function loadServerSigningKeys(): ServerSigningKeys {
   if (cachedKeys) return cachedKeys;

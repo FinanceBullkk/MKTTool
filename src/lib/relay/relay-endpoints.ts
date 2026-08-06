@@ -63,7 +63,31 @@ export const RELAY_PATHS = {
  */
 export const RELAY_TIMEOUT_MS = 4_000;
 
-/** Phiên bản cầu nối mà bản web này biết cách nói chuyện. Xem `MIN_RELAY_VERSION`. */
+/**
+ * Phiên bản của bản cầu nối **dựng ra từ cây mã nguồn này**.
+ *
+ * Ba con số phiên bản trong hệ, đừng lẫn (hai cái kia ở `src/lib/tickets/ticket-types.ts`):
+ *
+ *   `TICKET_FORMAT_VERSION`  hình dạng bao ngoài của vé. Máy chủ khai, cầu nối đối chiếu.
+ *   `MIN_RELAY_VERSION`      bản cầu nối tối thiểu máy chủ đòi. Máy chủ khai vào từng tấm vé.
+ *   `RELAY_VERSION` (đây)    bản cầu nối. Cầu nối tự khai, gửi kèm **mọi** phản hồi.
+ *
+ * ## Vì sao số này nằm ở file hợp đồng, không nằm trong `relay/`
+ *
+ * Nó có **hai người đọc**: cầu nối tự khai mình bản mấy, và web app so con số nhận được với
+ * bản mà máy chủ đang phát hành để hiện dải *"cầu nối bản cũ, tải bản mới ở đây"* (QĐ 11 — không
+ * có bộ tự cập nhật). Để hai bản sao ở hai nơi thì có ngày một bên tăng còn bên kia quên, và
+ * kiểu hỏng đó là **cảnh báo im lặng**: mọi người chạy bản cũ mà không dải nào kêu.
+ *
+ * File này vốn đã là chỗ hai bên cùng đọc — cầu nối lấy `RELAY_ORIGIN`, `RELAY_PATHS` từ đây.
+ *
+ * **Tăng khi phát hành một bản `.exe` mới có thay đổi người dùng thấy được.** Đây là số phải nhớ
+ * tăng bằng tay: tự sinh theo git hash thì nó đổi ở mọi lượt build, và một số đổi liên tục thì
+ * cảnh báo "bản cũ" kêu liên tục cho tới lúc không ai còn nhìn.
+ */
+export const RELAY_VERSION = 1;
+
+/** Những gì `/health` trả về. */
 export interface RelayHealth {
   relayVersion: number;
   /** Khóa công khai X25519 của máy này, hex — để đối chiếu với sổ đăng ký khi nghi dán nhầm. */

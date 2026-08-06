@@ -18,6 +18,7 @@ import { spawn } from "node:child_process";
 import { existsSync, mkdirSync } from "node:fs";
 import path from "node:path";
 import { formatTimestampForFileName } from "../format/vietnamese-date-format";
+import { resolveBackupSource, type BackupSource } from "./backup-source";
 import { postgresToolEnv } from "./postgres-connection-env";
 
 /** Thư mục chứa bản sao lưu. Đã nằm trong .gitignore — bản sao chứa credential đã mã hóa. */
@@ -29,23 +30,28 @@ export const BACKUP_FILE_EXTENSION = ".sql";
 export interface BackupResult {
   /** Đường dẫn tuyệt đối tới file vừa tạo. */
   filePath: string;
+  source: BackupSource;
 }
 
 /**
  * Tạo một bản sao lưu mới trong `data/backups/`. Trả về đường dẫn file.
  *
- * Tên file có mốc thời gian nên không bao giờ ghi đè bản cũ.
+ * Tên file có mốc thời gian nên không bao giờ ghi đè bản cũ, và mang **tiền tố theo nguồn** nên
+ * bản của máy chủ không lẫn với bản của máy dev — xem `backup-source.ts`.
  */
-export async function backupDatabase(now: Date = new Date()): Promise<BackupResult> {
+export async function backupDatabase(
+  options: { now?: Date; source?: BackupSource } = {},
+): Promise<BackupResult> {
+  const { now = new Date(), source = resolveBackupSource("local") } = options;
   mkdirSync(BACKUP_DIR, { recursive: true });
 
   const filePath = path.resolve(
     BACKUP_DIR,
-    `mkttool-${formatTimestampForFileName(now)}${BACKUP_FILE_EXTENSION}`,
+    `${source.namePrefix}-${formatTimestampForFileName(now)}${BACKUP_FILE_EXTENSION}`,
   );
-  await dumpDatabaseTo(filePath);
+  await dumpDatabaseTo(filePath, source);
 
-  return { filePath };
+  return { filePath, source };
 }
 
 /**
@@ -58,19 +64,17 @@ export async function backupDatabase(now: Date = new Date()): Promise<BackupResu
  * **Từ chối ghi đè file đã tồn tại.** Sao lưu không được phép âm thầm mất bản trước —
  * `VACUUM INTO` của SQLite trước đây cũng từ chối, giữ nguyên hành vi đó.
  */
-export async function dumpDatabaseTo(filePath: string): Promise<void> {
+export async function dumpDatabaseTo(
+  filePath: string,
+  source: BackupSource = resolveBackupSource("local"),
+): Promise<void> {
   if (existsSync(filePath)) {
     throw new Error(
       `Đã có file ${filePath}. Sao lưu không ghi đè bản cũ — đổi tên hoặc chờ sang giây kế tiếp.`,
     );
   }
 
-  const databaseUrl = process.env.DATABASE_URL;
-  if (!databaseUrl) {
-    throw new Error("Thiếu DATABASE_URL. Sao chép .env.example thành .env rồi điền giá trị.");
-  }
-
-  await runPgDump(filePath, postgresToolEnv(databaseUrl));
+  await runPgDump(filePath, postgresToolEnv(source.databaseUrl));
 }
 
 /**
