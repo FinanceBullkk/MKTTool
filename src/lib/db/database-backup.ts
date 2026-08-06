@@ -125,7 +125,6 @@ function runPgDump(
     // Hết giờ và tiến trình đóng là hai đường đua nhau: giết tiến trình cũng làm `close` bắn.
     // Chốt đúng một lần, nếu không thì lượt quá giờ sẽ vừa `reject` vừa `resolve` ngay sau đó.
     let settled = false;
-    let timeoutTimer: NodeJS.Timeout | undefined;
     let killTimer: NodeJS.Timeout | undefined;
     const settle = (finish: () => void) => {
       if (settled) return;
@@ -134,7 +133,7 @@ function runPgDump(
       finish();
     };
 
-    timeoutTimer = setTimeout(() => {
+    const timeoutTimer = setTimeout(() => {
       child.kill("SIGTERM");
       killTimer = setTimeout(() => child.kill("SIGKILL"), PG_DUMP_KILL_GRACE_MS);
       killTimer.unref();
