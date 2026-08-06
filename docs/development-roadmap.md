@@ -11,7 +11,7 @@ Dự án đang chạy **hai luồng song song**:
 | Luồng | Là gì | Trạng thái |
 |---|---|---|
 | **A — Công cụ** | 5 giai đoạn gốc: kho danh tính → hàng đợi → sức khỏe → Facebook → tự đăng Reddit | GĐ1-4 xong, GĐ0 kẹt ở tiền + cold-start, GĐ5 chưa bắt đầu |
-| **B — Web chung** | Biến app một máy thành web chung cho 5-6 người ở 5-6 nơi | GĐ0-3 xong, **GĐ4 code xong 06/08** (chờ nghiệm thu trên máy Windows thứ hai), GĐ5 đã khởi động (Dockerfile) |
+| **B — Web chung** | Biến app một máy thành web chung cho 5-6 người ở 5-6 nơi | **GĐ0-4 xong 06/08**, GĐ5 đang chạy (xong hết phần chưa cần tài khoản Railway) |
 
 Luồng B sinh ra sau khi chốt bàn giao cho team — xem
 [plan web chung](../plans/260804-1752-web-chung-cho-team-phan-tan/plan.md). Nó **không thay thế**
@@ -46,7 +46,7 @@ Chi tiết ở [plan.md](../plans/260804-1752-web-chung-cho-team-phan-tan/plan.m
 | 3 | [Tách hai vùng khóa + vé ký](../plans/260804-1752-web-chung-cho-team-phan-tan/phase-03-tach-hai-vung-khoa-va-ve-ky.md) | ✅ Xong | 06/08 | – |
 | 4 | [Cầu nối trên máy operator](../plans/260804-1752-web-chung-cho-team-phan-tan/phase-04-cau-noi-tren-may-operator.md) | ✅ Xong | 06/08 | Đã nghiệm thu thành công trên máy Windows thứ hai không cài Node. |
 | 5 | Lên Railway + cron + sao lưu | 🟡 Đang chạy | 06/08 | Xong ba việc làm được mà chưa cần tài khoản: `Dockerfile` (đã chạy thật trong container), **lịch dò hằng ngày** (nằm trong app, không dùng cron của hãng), và **`db:backup:remote`** kéo bản sao từ máy chủ về máy quản trị. Còn lại đều cần tài khoản: dựng dự án Railway, khai biến môi trường, domain cho Facebook, và phép thử hai tiến trình chạy song song |
-| 6 | Bàn giao team | ⬜ Chưa bắt đầu | – | Chờ GĐ4 |
+| 6 | Bàn giao team | ⬜ Chưa bắt đầu | – | GĐ4 đã hết chặn. Chờ web chạy thật trên Railway (GĐ5) — không cài máy cho ai trước khi có một địa chỉ để trỏ tới |
 
 **GĐ1 đã đổi nền dữ liệu sang Postgres và đóng hẳn** (05/08/2026): 482/482 test, 4 smoke test và
 `npm run db:backup` đều xanh trên Postgres. Ràng buộc 1 nick = 1 proxy vẫn do database ép.
