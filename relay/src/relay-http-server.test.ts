@@ -10,7 +10,8 @@ const running: { close: () => void }[] = [];
 
 async function startServer(allowedOrigin: string | null = WEB_ORIGIN): Promise<string> {
   const server = createRelayServer({
-    allowedOrigin,
+    // Hàm chứ không phải giá trị: cấu hình đổi được lúc chạy, nên khung phải hỏi lại mỗi lượt.
+    allowedOrigin: () => allowedOrigin,
     htmlPages: { "/": () => "<!doctype html><title>trang trạng thái</title>" },
     routes: {
       "/health": () => ({ ok: true, message: "sẵn sàng" }),

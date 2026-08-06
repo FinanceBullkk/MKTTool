@@ -1,5 +1,6 @@
 import { RelayDeviceIdCell } from "@/components/relay/relay-device-id-cell";
 import { RelayDeviceRevokeButton } from "@/components/relay/relay-device-revoke-button";
+import { RelayEnrollCard } from "@/components/relay/relay-enroll-card";
 import { ActionForm, Field, SelectField } from "@/components/ui/form-controls";
 import { Card, DataTable, EmptyState, PageHeading, StatusBadge } from "@/components/ui/page-section";
 import { isEmailAllowed, readEmailAccessList } from "@/lib/auth/allowed-emails";
@@ -135,7 +136,17 @@ export default async function RelayDevicesPage() {
       </Card>
 
       {isAdmin ? (
-        <Card title="Đăng ký máy mới">
+        <Card title="Cài máy này">
+          <RelayEnrollCard teamMembers={teamMembers} />
+        </Card>
+      ) : null}
+
+      {isAdmin ? (
+        <Card title="Đăng ký một máy KHÁC (nhập tay)">
+          <p className="mb-4 text-sm text-neutral-600 dark:text-neutral-400">
+            Chỉ dùng khi không ngồi được ở máy đó — lúc ấy phải xin họ chép khóa công khai gửi
+            sang, và sau khi ghi vào sổ thì còn phải gửi ngược mã máy về cho họ dán tay.
+          </p>
           <ActionForm action={registerRelayDevice} submitLabel="Ghi vào sổ">
             <Field
               label="Tên máy"

@@ -21,11 +21,11 @@
  * Nên bài này đi trọn vòng: máy chủ (tiến trình này) phát vé thật → `.exe` mở ra → so mật khẩu
  * lấy được với chuỗi đã gửi đi. Sai một byte ở bất cứ đâu trong dây chuyền là đỏ.
  */
-import { existsSync, writeFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import path from "node:path";
 import { randomBytes } from "node:crypto";
 import { decryptCredential, encryptCredential } from "../src/lib/crypto/credential-encryption";
-import { RELAY_PATHS, RELAY_VERSION } from "../src/lib/relay/relay-endpoints";
+import { RELAY_ORIGIN, RELAY_PATHS, RELAY_VERSION } from "../src/lib/relay/relay-endpoints";
 import {
   publicKeyToHex,
   resetServerSigningKeysCache,
@@ -76,7 +76,9 @@ async function run() {
   console.log(`\nNghiệm thu ${path.relative(process.cwd(), EXECUTABLE_FILE)}`);
   console.log(`Thư mục dữ liệu tạm: ${home}\n`);
 
-  let relay = await startRelay(home);
+  // Một lượt chạy duy nhất cho cả bài: từ bản 2, cấu hình nạp nóng nên không còn chỗ nào phải
+  // tắt/bật lại giữa chừng — và chính điều đó là thứ bài này đang chứng minh.
+  const relay = await startRelay(home);
   try {
     console.log("Lượt 1 — chưa có file cấu hình");
     const bare = await relayCall(RELAY_PATHS.health);
@@ -91,24 +93,51 @@ async function run() {
       devicePublicKey.slice(0, 12) + "…",
     );
 
-    // Cầu nối chỉ đọc cấu hình lúc khởi động — phải tắt/bật lại, không có đường nạp nóng.
-    relay.stop();
-    writeFileSync(
-      path.join(home, "relay-config.json"),
-      JSON.stringify(
-        {
-          deviceId: DEVICE_ID,
-          serverPublicKey,
-          vaultKeyOperator: vaultKeyOperator.toString("hex"),
-          webOrigin: "http://localhost:3000",
-        },
-        null,
-        2,
-      ),
-    );
-    relay = await startRelay(home);
+    // Cấu hình bằng ĐÚNG đường mà GĐ6 dùng — không ghi tay file rồi tắt/bật lại. Đây là chỗ duy
+    // nhất chứng minh được luồng cài mới chạy trên chính `.exe` đã đóng gói, gồm cả việc nạp lại
+    // cấu hình nóng: cả khối dưới đây không có một lượt khởi động lại nào.
+    console.log("\nLượt 2 — web app cấu hình hộ (không tắt/bật lại)");
+    const bakedOrigin = String(bare.webOrigin);
+    check("khai ra nguồn web nó tin", /^https?:\/\//.test(bakedOrigin), bakedOrigin);
 
-    console.log("\nLượt 2 — đã cấu hình");
+    const wrongOrigin = await relayCall(
+      RELAY_PATHS.configure,
+      { deviceId: DEVICE_ID, serverPublicKey },
+      { origin: "https://ke-tan-cong.example" },
+    );
+    // Nguồn lạ mà ghi được là cầu nối bị trỏ sang máy chủ khác — lúc đó nó thành máy giải mã thuê
+    // cho bất kỳ ciphertext nào lấy được từ một bản sao lưu rò rỉ.
+    check("nguồn lạ bị từ chối", wrongOrigin.ok === false, String(wrongOrigin.message).slice(0, 60));
+
+    const configured = await relayCall(
+      RELAY_PATHS.configure,
+      { deviceId: DEVICE_ID, serverPublicKey },
+      { origin: bakedOrigin },
+    );
+    check("nhận cấu hình từ đúng nguồn web", configured.ok === true, String(configured.message));
+
+    const afterConfigure = await relayCall(RELAY_PATHS.health);
+    check("đã nhận mã máy", afterConfigure.deviceId === DEVICE_ID);
+    // Còn thiếu khóa vùng operator, và phải nói thẳng là còn thiếu: máy chủ không có khóa đó để
+    // gửi xuống, nên đây là bước người dùng phải tự làm.
+    check("vẫn báo chưa xong vì thiếu khóa operator", afterConfigure.ok === false);
+
+    const keySet = await relayCall(
+      RELAY_PATHS.setOperatorKey,
+      { vaultKeyOperator: vaultKeyOperator.toString("hex") },
+      { origin: RELAY_ORIGIN },
+    );
+    check("nhận khóa operator từ trang của chính nó", keySet.ok === true, String(keySet.message));
+
+    const fromWeb = await relayCall(
+      RELAY_PATHS.setOperatorKey,
+      { vaultKeyOperator: vaultKeyOperator.toString("hex") },
+      { origin: bakedOrigin },
+    );
+    // Khóa vùng operator đi qua trang web là khóa đã đi qua máy chủ — cả GĐ3 mất nghĩa ở đó.
+    check("web app KHÔNG dán được khóa operator", fromWeb.ok === false);
+
+    console.log("\nLượt 3 — sẵn sàng, chưa lần nào khởi động lại");
     const ready = await relayCall(RELAY_PATHS.health);
     check("báo sẵn sàng", ready.ok === true, String(ready.message));
 

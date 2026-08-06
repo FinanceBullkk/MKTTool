@@ -153,6 +153,22 @@ Mọi việc khác vẫn chạy bình thường khi cầu nối tắt — kể c
 > Nếu bạn có **hai máy** trong sổ, công cụ sẽ hỏi bạn đang ngồi máy nào trước khi bấm. Chọn đúng —
 > chọn sai là phát ra một tấm vé chắc chắn hỏng, phải làm lại.
 
+### Cài cầu nối — ba bước
+
+1. Giải nén cả ba file vào một thư mục, bấm đúp **`setup.bat`**.
+2. Vẫn trên máy đó, mở `/relay-devices` → **Tìm cầu nối trên máy này** → **Đăng ký & cấu hình**.
+   Web app tự đọc khóa của cầu nối và gửi cấu hình ngược xuống.
+3. Quay lại trang trạng thái của cầu nối (`http://127.0.0.1:47821`), dán **khóa vùng operator**.
+
+Bước 3 là thứ duy nhất phải gõ tay, và nó phải như vậy: **máy chủ không có khóa đó để gửi xuống** —
+đó là cả điểm của thiết kế. Xin ADMIN qua trình quản lý mật khẩu dùng chung, đừng qua chat.
+
+> Bước 2 chỉ ADMIN bấm được. Đợt bàn giao này ADMIN ngồi cùng máy (hoặc remote desktop), nên
+> không ai phải chờ ai.
+
+> **Đang chạy bản cũ?** Tải lại ở `/relay-download` rồi chạy `setup.bat` lần nữa. Nó giữ nguyên
+> cấu hình cũ — không phải đăng ký lại máy, không phải xin lại khóa.
+
 ### Bốn bước đăng một bài
 
 **Bước 1 — Bấm "Mở profile"** ngay trên dòng job ở thẻ "Đăng tay". Nó tự đẩy proxy vào profile rồi

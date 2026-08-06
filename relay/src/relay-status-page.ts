@@ -12,11 +12,15 @@
  *
  * Trang này nằm trong `.exe` và chỉ có một người xem mỗi lần. Kéo bất cứ thư viện nào vào đây
  * là cộng dung lượng vào một file 87 MB vốn phải tải tay qua remote desktop, đổi lấy vài cái
- * bo góc. Cũng không có JavaScript: mọi thứ trang này biết đều đã biết lúc dựng chuỗi.
+ * bo góc.
+ *
+ * JavaScript chỉ có đúng ở **một** chỗ — ô dán khóa vùng operator, xem
+ * `relay-operator-key-form.ts`. Mọi thứ còn lại đã biết lúc dựng chuỗi.
  */
+import { RELAY_PATHS, RELAY_VERSION } from "../../src/lib/relay/relay-endpoints";
+import { renderOperatorKeyForm } from "./relay-operator-key-form";
 import { CONFIG_FILE, DEVICE_KEY_FILE } from "./relay-home";
 import { CONFIG_TEMPLATE, type ConfigProblem } from "./relay-config";
-import { RELAY_VERSION } from "../../src/lib/relay/relay-endpoints";
 
 export interface StatusPageInput {
   /** Khóa công khai của máy này, hex. */
@@ -39,6 +43,8 @@ export interface StatusPageInput {
   } | null;
   /** Cầu nối nối được MultiZen trên cùng máy không. `null` = chưa điền token nên không hỏi được. */
   antidetectReady: boolean | null;
+  /** Nguồn web được tin — in ra kể cả khi cấu hình chưa đủ, vì sai nó là hỏng theo kiểu CORS. */
+  webOrigin: string;
 }
 
 /** Chèn văn bản vào HTML. Khóa và đường dẫn đều là dữ liệu, không phải mã. */
@@ -109,7 +115,9 @@ export function renderStatusPage(input: StatusPageInput): string {
 <code>${escapeHtml(DEVICE_KEY_FILE)}</code> và không bao giờ rời máy này.</p>
 <code class="key">${escapeHtml(input.publicKeyHex)}</code>
 
-${configured ? renderActiveConfig(input.config) : renderProblems(input.problems)}
+${configured ? renderActiveConfig(input.config) : renderProblems(input.problems, input.webOrigin)}
+
+${renderOperatorKeyForm(RELAY_PATHS.setOperatorKey, configured)}
 </body></html>`;
 }
 
@@ -137,14 +145,33 @@ function renderActiveConfig(config: StatusPageInput["config"]): string {
 đúng hay sai chỉ biết được khi có tấm vé đầu tiên: sai khóa thì vé nào cũng báo chữ ký không hợp lệ.</p>`;
 }
 
-function renderProblems(problems: ConfigProblem[]): string {
+/**
+ * Còn thiếu gì, và **cách lấy từng thứ** — hai đường khác nhau, đừng gộp.
+ *
+ * `deviceId` và `serverPublicKey` do web app ghi hộ khi bấm một nút; khóa vùng operator thì phải
+ * dán tay vì máy chủ không có nó. Người cài đọc trang này lúc đang bí, nên chỗ này phải nói ra
+ * đúng thứ tự làm chứ không chỉ liệt kê thứ thiếu.
+ */
+function renderProblems(problems: ConfigProblem[], webOrigin: string): string {
   const items = problems.map((problem) => `<li>${escapeHtml(problem.message)}</li>`).join("");
 
   return `<h2>Còn thiếu</h2>
 <ul>${items}</ul>
-<p>Sửa <code>${escapeHtml(CONFIG_FILE)}</code> trong thư mục dữ liệu rồi khởi động lại cầu nối.
-Mẫu đầy đủ:</p>
+
+<h2>Hai bước để xong</h2>
+<ol>
+  <li>Mở <code>${escapeHtml(webOrigin)}/relay-devices</code>, đăng nhập, rồi bấm
+      <strong>Đăng ký máy này</strong>. Web app tự đọc khóa công khai ở trên và tự ghi mã máy
+      cùng khóa máy chủ xuống đây — không phải chép tay.</li>
+  <li>Dán <strong>khóa vùng operator</strong> ở ô cuối trang này.</li>
+</ol>
+<p class="muted">Cả hai đều có hiệu lực ngay, không phải tắt bật lại cầu nối.</p>
+
+<details><summary class="muted">Cách cũ: sửa tay <code>${escapeHtml(CONFIG_FILE)}</code></summary>
 <pre>${escapeHtml(JSON.stringify(CONFIG_TEMPLATE, null, 2))}</pre>
+<p class="muted">Sửa tay thì phải khởi động lại cầu nối. Chỉ dùng khi web app không mở được.</p>
+</details>
+
 <p class="muted">Cầu nối vẫn nghe khi thiếu cấu hình, nhưng mọi việc thật đều bị từ chối — nó
 không đoán bừa bằng khóa nào.</p>`;
 }

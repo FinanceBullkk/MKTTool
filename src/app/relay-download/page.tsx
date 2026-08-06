@@ -101,7 +101,7 @@ export default async function RelayDownloadPage() {
         )}
       </Card>
 
-      <Card title="Cài lần đầu — bốn bước">
+      <Card title="Cài lần đầu — ba bước">
         <ol className="ml-5 list-decimal space-y-3 text-sm text-neutral-600 dark:text-neutral-400">
           <li>
             Giải nén rồi bấm đúp <code className="font-mono">setup.bat</code>. Nó chép chương trình
@@ -109,23 +109,23 @@ export default async function RelayDownloadPage() {
             thái của chính nó.
           </li>
           <li>
-            Trên trang trạng thái vừa mở, chép <strong>khóa công khai</strong> của máy và gửi cho
-            quản trị viên. Đây là khóa <em>công khai</em> — gửi qua chat cũng không mất gì.
-          </li>
-          <li>
-            Quản trị viên ghi máy vào sổ tại{" "}
+            Vẫn trên máy đó, mở{" "}
             <Link href="/relay-devices" className="underline">
               /relay-devices
             </Link>{" "}
-            rồi gửi lại <strong>mã máy</strong>. Mở{" "}
-            <code className="font-mono">relay-config.json</code> cạnh chương trình, điền mã máy và
-            ba giá trị còn lại (khóa công khai máy chủ, khóa vùng operator, địa chỉ web app).
+            và bấm <strong>Tìm cầu nối trên máy này</strong> → <strong>Đăng ký &amp; cấu hình</strong>
+            . Web app tự đọc khóa công khai của cầu nối, ghi máy vào sổ, rồi gửi mã máy cùng khóa
+            máy chủ ngược xuống — không phải chép tay giá trị nào.
           </li>
           <li>
-            Tắt bật lại cầu nối bằng shortcut ngoài desktop — cấu hình chỉ được đọc lúc khởi động.
-            Trang trạng thái sẽ chuyển sang &quot;sẵn sàng&quot;.
+            Quay lại trang trạng thái của cầu nối và dán <strong>khóa vùng operator</strong> vào ô
+            cuối trang. Đây là thứ duy nhất phải điền tay, và nó phải như vậy:{" "}
+            <strong>máy chủ không có khóa này để gửi xuống</strong>.
           </li>
         </ol>
+        <p className="mt-4 text-xs text-neutral-500">
+          Cả hai bước cấu hình có hiệu lực ngay, không phải tắt bật lại cầu nối.
+        </p>
       </Card>
 
       <Card title="Hai điều sẽ gặp, và đều bình thường">

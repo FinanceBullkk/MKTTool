@@ -45,6 +45,7 @@ import {
   RELAY_PATHS,
   RELAY_TIMEOUT_MS,
   RELAY_VERSION,
+  type ConfigureRelayRequest,
   type RelayHealth,
   type RelayReply,
   relayUrl,
@@ -164,6 +165,23 @@ export function sendTicketToRelay(ticket: string): Promise<RelayOutcome<RelayRep
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ ticket }),
+  });
+}
+
+/**
+ * Ghi hộ cấu hình xuống cầu nối trên máy đang ngồi.
+ *
+ * Thay cho việc người cài chép tay hai giá trị mà chỉ máy chủ mới biết. Đường này chỉ đi được vì
+ * cầu nối **nung sẵn nguồn web vào bản build** — chưa cấu hình mà vẫn cấp header CORS cho đúng
+ * một nguồn. Xem `BUILT_IN_WEB_ORIGIN`.
+ */
+export function configureRelay(
+  enrollment: ConfigureRelayRequest,
+): Promise<RelayOutcome<RelayReply>> {
+  return callRelay<RelayReply>(RELAY_PATHS.configure, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(enrollment),
   });
 }
 

@@ -35,7 +35,10 @@ import { copyFileSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync 
 import { createRequire } from "node:module";
 import path from "node:path";
 import { RELAY_VERSION } from "../src/lib/relay/relay-endpoints";
-import { relayArchiveChecksum } from "../src/lib/relay/relay-release-file";
+import {
+  readRelayReleaseFromDisk,
+  relayArchiveChecksum,
+} from "../src/lib/relay/relay-release-file";
 
 /**
  * Gọi esbuild và postject qua **file JS của chúng**, chạy bằng chính `node` đang chạy script này.
@@ -100,7 +103,53 @@ if (process.platform !== "win32") {
   process.exit(1);
 }
 
+/**
+ * Nguồn web nung vào bản build này.
+ *
+ * Bắt buộc phải khai, và **không có mặc định** — một `.exe` lặng lẽ trỏ về `localhost:3000` đi
+ * tới máy operator là một chiếc cầu nối không bao giờ nói chuyện được với web app thật, mà triệu
+ * chứng của nó (mọi nút im lặng) chẳng chỉ về phía này chút nào.
+ */
+const originFlag = process.argv
+  .find((argument) => argument.startsWith("--web-origin="))
+  ?.slice("--web-origin=".length);
+
+// Cờ dòng lệnh đứng trước biến môi trường: máy dev khai `BETTER_AUTH_URL=http://localhost:3000`
+// cho việc phát triển, mà bản phát cho team thì phải trỏ về Railway. Bắt sửa `.env` qua lại giữa
+// hai lần build là cách chắc chắn để có ngày phát nhầm một bản trỏ về localhost.
+const webOrigin = (
+  originFlag ||
+  process.env.RELAY_WEB_ORIGIN ||
+  process.env.BETTER_AUTH_URL ||
+  ""
+).trim();
+if (!webOrigin) {
+  console.error(
+    `\nChưa biết nung nguồn web nào vào bản này.\n\n` +
+      `Khai bằng cờ — đúng địa chỉ web app mà những chiếc máy chạy bản này sẽ nói chuyện cùng:\n\n` +
+      `  npm run relay:build -- --web-origin=https://mkttool-web-production.up.railway.app\n\n` +
+      `Hoặc đặt RELAY_WEB_ORIGIN trong .env.\n`,
+  );
+  process.exit(1);
+}
+
+let normalizedOrigin: string;
+try {
+  const url = new URL(webOrigin);
+  if (url.pathname !== "/" || url.search !== "" || url.hash !== "") {
+    throw new Error(`chỉ được là phần nguồn, không kèm đường dẫn — đang có "${webOrigin}"`);
+  }
+  normalizedOrigin = url.origin;
+} catch (error) {
+  console.error(`\nRELAY_WEB_ORIGIN không dùng được: ${(error as Error).message}\n`);
+  process.exit(1);
+}
+
 console.log(`\nĐóng gói cầu nối bản ${RELAY_VERSION} — Node ${process.version} (${process.arch})`);
+console.log(`Nguồn web nung vào bản này: ${normalizedOrigin}`);
+if (new URL(normalizedOrigin).hostname === "localhost") {
+  console.log("  ⚠️  Đây là địa chỉ máy dev. Bản này KHÔNG dùng được trên máy operator.");
+}
 
 // Xóa sạch trước mỗi lượt: một file cũ sót lại từ lượt build hỏng sẽ được đóng gói tiếp mà không
 // ai biết, và thứ đi ra là một .exe mang mã nguồn của hôm qua.
@@ -114,6 +163,13 @@ runTool("esbuild/bin/esbuild", [
   "--platform=node",
   `--target=node${process.versions.node.split(".")[0]}`,
   "--format=cjs",
+  // Nung nguồn web vào bundle. Không có nó thì cầu nối khởi động ở trạng thái "không tin ai",
+  // và web app không tự cấu hình hộ được — xem `BUILT_IN_WEB_ORIGIN`.
+  // Đúng MỘT lượt `JSON.stringify`: esbuild cần vế phải là một biểu thức JS, tức chuỗi có kèm
+  // dấu nháy. Bọc hai lượt thì dấu nháy lọt vào trong chính giá trị, và cầu nối đi tin một nguồn
+  // tên là `"https://…"` — kể cả dấu ngoặc. Đã vấp thật: mọi lời gọi hỏng theo kiểu CORS.
+  // Không cần lớp thoát cho shell vì `execFileSync` truyền argv thẳng, không qua `cmd`.
+  `--define:process.env.RELAY_WEB_ORIGIN=${JSON.stringify(normalizedOrigin)}`,
   `--outfile=${BUNDLE_FILE}`,
 ]);
 console.log(`      ${path.relative(process.cwd(), BUNDLE_FILE)} — ${sizeOf(BUNDLE_FILE)}`);
@@ -195,7 +251,11 @@ async function printSummary(): Promise<void> {
 
   // Dùng lại đúng hàm mà trang tải dùng, không băm lại bằng một lệnh khác: hai đường tính ra hai
   // con số là kiểu hỏng tệ nhất ở đây — người cài đối chiếu thấy lệch rồi kết luận file hỏng.
-  console.log(`   SHA-256: ${await relayArchiveChecksum()}`);
+  //
+  // **Ép nhánh đĩa.** Máy build có khai ngăn R2 (nó cần token ghi để `relay:publish`), nên
+  // `readRelayRelease()` không tham số sẽ đi hỏi R2 và in ra mã băm của gói ĐANG nằm trên đó —
+  // tức mã của bản trước. Đã in nhầm thật một lượt: hai bản khác nhau ra cùng một chuỗi.
+  console.log(`   SHA-256: ${await relayArchiveChecksum(readRelayReleaseFromDisk())}`);
   console.log(`
 Nghiệm thu ngay: npm run relay:verify
 
