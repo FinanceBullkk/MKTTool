@@ -297,12 +297,23 @@ Ba việc OPERATOR không làm được:
 Chủ máy do công cụ ép bằng tài khoản đang đăng nhập, không chọn được người khác.
 
 **Tầm nhìn thì không chia — ai cũng thấy nick, job, tương tác và lịch sử của người khác.** Đây là
-cố ý: luật đụng độ thread phải nêu đúng tên nick của đồng nghiệp thì bạn mới xử lý được. Thứ duy
-nhất bị chia là **bí mật của nick**.
+cố ý: luật đụng độ thread phải nêu đúng tên nick của đồng nghiệp thì bạn mới xử lý được. Thứ bị
+chia là **bí mật của nick** và **quyền ghi kho proxy**.
 
 Và chặn đó nằm ở tầng dữ liệu, không phải ẩn nút cho đẹp: máy chủ **từ chối phát vé** cho nick
 không phải của bạn, kèm câu nói rõ nick đó do ai phụ trách. Không có mẹo nào lách được từ phía
 trình duyệt.
+
+Từ 07/08/2026 có thêm một vế nữa, và nó áp cho **cả nút mở profile** chứ không chỉ nút lấy bí
+mật: mỗi nick được **ghim vào một chiếc máy**, và vé chỉ bay tới chiếc máy đó. Bấm trên nick nằm
+ở máy người khác thì công cụ nói thẳng *"nick này ở máy X của …"* — kể cả bạn là ADMIN, vì vé mã
+hóa cho khóa của máy kia nên phát được cũng không mở nổi. Muốn đổi thì ADMIN gán lại cụm ở trang
+chi tiết nick.
+
+Kho proxy (`/proxies`) cũng về tay ADMIN: thêm, sửa, xóa và **đo tốc độ** đều chỉ ADMIN làm được.
+Mật khẩu proxy không có bản thứ hai ở đâu cả nên xóa nhầm là mất tiền thật, còn nút đo tốc độ thì
+đốt 1 MB quota trả tiền mỗi lượt. Nút **Kiểm** vẫn để mở cho mọi người — nó tốn vài KB và là thứ
+cần bấm đúng lúc đang gấp.
 
 > Công cụ giới hạn **10 lượt lấy bí mật một phút**. Bạn sẽ không bao giờ chạm ngưỡng đó khi làm
 > việc bình thường. Nó tồn tại để nếu tab của bạn bị chiếm, kẻ chiếm không rút sạch kho trong vài

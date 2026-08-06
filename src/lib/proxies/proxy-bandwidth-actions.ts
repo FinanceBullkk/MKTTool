@@ -6,17 +6,24 @@
  * Cố ý CHỈ CÓ bản đo một proxy, không có bản "đo cả kho": mỗi lượt tải 1 MB qua proxy, nhân
  * cả đàn là vài chục MB quota trả tiền mỗi lần bấm. Một cái nút đốt tiền theo mẻ là thứ sớm
  * muộn cũng có người bấm nhầm.
+ *
+ * ## Vì sao `adminAction`, trong khi nút "Kiểm" thì ai cũng bấm được
+ *
+ * Cùng một lý lẽ, đọc theo hai hướng: nút này **tiêu quota trả tiền**, mỗi lượt 1 MB, và với
+ * 6 người dùng chung thì "mỗi người bấm thử vài cái" là một hóa đơn không ai cố ý tạo ra. Nút
+ * kiểm proxy còn sống thì tốn vài KB và là thứ cần bấm đúng lúc đang gấp — gác nó lại là bắt
+ * người đang xử lý sự cố đi tìm ADMIN.
  */
 import { revalidatePath } from "next/cache";
 import type { ActionResult } from "@/lib/actions/action-result";
-import { guardedAction } from "@/lib/auth/guarded-action";
+import { adminAction } from "@/lib/auth/guarded-action";
 import { decryptCredential } from "@/lib/crypto/credential-encryption";
 import { loadVaultKey } from "@/lib/crypto/encryption-key-loader";
 import { prisma } from "@/lib/db/prisma-client";
 import { measureProxyBandwidth } from "./proxy-bandwidth-probe";
 import { summarizeBandwidth } from "./proxy-bandwidth-report";
 
-export const measureOneProxySpeed = guardedAction(async function measureOneProxySpeed(
+export const measureOneProxySpeed = adminAction(async function measureOneProxySpeed(
   _actor,
   proxyId: string,
 ): Promise<ActionResult> {

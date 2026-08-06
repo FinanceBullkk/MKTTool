@@ -12,6 +12,54 @@ Dự án chưa phát hành phiên bản (`0.1.0`, dùng nội bộ). Mốc chia 
 
 ---
 
+## 07/08/2026 — Nick ghim vào một máy, và kho proxy về tay ADMIN
+
+Chuẩn bị cho GĐ6 (bàn giao 5-6 người). Mô hình phân quyền trước đó viết cho **một** người vận
+hành cả đàn: chỉ có 4 việc chỉ-ADMIN-làm-được, còn xóa nick và xóa proxy thì ai cũng làm được.
+
+**Gốc của vấn đề là một ô còn thiếu.** `Account.antidetectProfileId` là khóa chính của một file
+SQLite trên **đúng một máy** — MultiZen không đồng bộ profile, không có tài khoản, không có
+license server (đo trên máy thật 07/08; per-profile cloud sync và team workspace mới ở roadmap của
+họ). Nhưng database lưu nó như giá trị toàn cục, nên route mở profile phải đoán *"máy của người
+đang bấm"*, và đoán đó sai mỗi khi người bấm không phải chủ nick.
+
+- **`Account.deviceId → RelayDevice`, và vé bay về máy GIỮ NICK.** Máy nhận suy ra từ nick chứ
+  không từ người bấm (`resolveNickDeviceRecipient`). Áp cho cả vé mở profile lẫn vé bí mật; nick
+  không có máy (Facebook) vẫn đi đường cũ.
+- **Ba lỗ đóng cùng lúc.** (1) Bấm "Mở profile" trên nick người khác từng phát được vé rồi chết ở
+  cầu nối bằng một lỗi MultiZen mơ hồ. (2) Ruột vé `LAUNCH_PROFILE` chứa **mật khẩu proxy đã giải
+  mã** và vé mở profile cố ý không bị đếm hạn nhịp — nên ai đăng nhập được cũng rút được mật khẩu
+  cả kho proxy bằng cách bấm nút, dù `/proxies` không bao giờ hiện chúng. (3) Nút "Mở profile" ở
+  thẻ nhắc việc gọi `/launch` không kèm `deviceId` nên hỏng với người có hai máy.
+- **ADMIN không có ngoại lệ ở nút mở profile.** Ngược `requireNickOwner`, và không phải vì siết
+  chặt hơn: vé bọc mật mã cho khóa của máy kia nên phát được cũng không mở nổi. Đường khôi phục là
+  gán lại cụm — một thao tác có tên, có `AuditLog`.
+- **"Phân công nick" thành "Phân công cụm".** `assignAccountOwner` → `assignAccountCluster`, gán
+  người **và** máy trong một form, một transaction. Ép bất biến `deviceId có giá trị ⟹
+  device.userId == ownerId và máy chưa thu hồi` — Postgres không ép được ràng buộc bắc qua hai
+  bảng nếu không có trigger.
+- **Đổi máy ghi `ACCOUNT_DEVICE_MOVED` riêng**, kèm nhắc `export → import → xóa bản ở máy cũ`.
+  Cảnh báo chứ không chặn: chuyển hẳn rồi xóa bản cũ là chuyện người thật vẫn làm; thứ giết nick
+  là xoay vòng hai máy và quên xóa bản cũ, cả hai đều ngoài tầm với của database.
+- **Thu hồi máy gỡ ghim nick của nó** trong cùng transaction, **không bị chặn** — mất laptop là
+  đường khẩn cấp, thủ tục không được đặt trước thiệt hại. Câu trả về nói rõ mấy nick vừa mất ghim,
+  và `/relay-devices` hiện số nick đang ghim ngay dưới tên máy.
+- **Hai dải cảnh báo mới ở trang Hôm nay:** nick ghim lệch (đỏ) và nick có profile mà chưa ghim
+  máy (vàng). Đặt ở đây chứ không ở khay vận hành vì khay hiện trên mọi trang nên nó cấm truy vấn
+  database — đúng ranh giới `collect-ops-alerts.ts` đã vạch.
+- **Kho proxy chỉ ADMIN ghi được:** `createProxy` / `updateProxy` / `deleteProxy` /
+  `measureOneProxySpeed` → `adminAction`. Mật khẩu proxy không có bản thứ hai ở đâu ngoài kho, và
+  nút đo tốc độ đốt 1 MB quota trả tiền mỗi lượt. Nút **Kiểm** vẫn để mở: vài KB, và cần bấm đúng
+  lúc đang gấp.
+
+Làm trước bước nhập liệu của GĐ6 vì kho nick trên máy chủ còn rỗng — migration không cần gán tay
+cụm nào. Thứ tự nhập liệu đổi theo: **đăng ký máy cầu nối là bước 0**.
+
+5 file test mới (bảng chuyển trạng thái cụm, bất biến khi gán, bốn lối ra của bộ tìm máy nhận,
+thu hồi máy gỡ ghim, ranh giới ADMIN của kho proxy). 999/999 xanh.
+
+---
+
 ## 06/08/2026 (khuya, 3) — Khóa vùng operator tự về máy, không còn ai phải chép
 
 Cầu nối **bản 5**. Mảnh cuối của luồng cài: `deviceId` và `serverPublicKey` đã tự đi xuống từ hôm

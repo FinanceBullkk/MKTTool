@@ -16,7 +16,7 @@
 import { revalidatePath } from "next/cache";
 import type { ActionResult } from "@/lib/actions/action-result";
 import { AUDIT_ACTIONS } from "@/lib/audit/audit-log-actions";
-import { guardedAction } from "@/lib/auth/guarded-action";
+import { adminAction, guardedAction } from "@/lib/auth/guarded-action";
 import { requireNickOwner } from "@/lib/auth/require-actor";
 import { encryptCredential } from "@/lib/crypto/credential-encryption";
 import { loadVaultKey } from "@/lib/crypto/encryption-key-loader";
@@ -68,7 +68,8 @@ export const updatePersona = guardedAction(async function updatePersona(
   return { ok: true, message: `Đã lưu nhân vật "${data.name}".` };
 });
 
-export const updateProxy = guardedAction(async function updateProxy(
+/** Chỉ ADMIN — cùng lý lẽ với `deleteProxy`: sửa nhầm host/port là mất một proxy đang chạy. */
+export const updateProxy = adminAction(async function updateProxy(
   _actor,
   _prev: ActionResult | null,
   formData: FormData,
