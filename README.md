@@ -155,7 +155,7 @@ proxy, không cần tài khoản nào, và kiểm tra được phần lớn ch�
 | Chặng | Cần gì | Kiểm chứng điều gì |
 |---|---|---|
 | **A** | không gì cả | `npm run vault:smoke` + `npm run rules:smoke` + `npm run facebook:smoke` + `npm run health:smoke` + nhập dữ liệu giả qua UI: ràng buộc 1:1, bộ luật an toàn, và đường đi Facebook trong máy |
-| **A+** | cầu nối (GĐ4, **chưa có**) | Mã hóa, lấy mật khẩu, OTP (dùng `npm run vault:testotp` đối chiếu với Google Authenticator). Ba việc này rời khỏi chặng A từ 06/08/2026 vì khóa mở bí mật nick không còn ở máy chủ — xem [Cầu nối](#cầu-nối) |
+| **A+** | cầu nối | Mã hóa, lấy mật khẩu, OTP (dùng `npm run vault:testotp` đối chiếu với Google Authenticator). Ba việc này rời khỏi chặng A từ 06/08/2026 vì khóa mở bí mật nick không còn ở máy chủ — xem [Cầu nối](#cầu-nối) |
 | **B** | MultiZen (miễn phí) | Profile trống, không đăng nhập gì. Bấm "Mở profile" → công cụ có mở được profile không. ✅ **Đạt 02/08/2026** — đây từng là câu hỏi chặn đường của Phase 00 |
 | **C** | 1 proxy bất kỳ | Nhập proxy vào `/proxies`, gắn cho nick, bấm "Mở profile" → vào `ipinfo.io` → IP phải khớp proxy. Không cần chạm vào cài đặt MultiZen. ✅ **Đạt 02/08/2026** — [báo cáo](plans/reports/chang-c-260802-1443-proxy-push-verification.md) |
 | **D** | nick thật + proxy đúng loại | Chỉ làm sau khi A/B/C xong. Xem quy trình cold-start ở [Phase 00](plans/260801-2030-multi-account-posting-console/phase-00-preparation-and-feasibility-check.md) |
@@ -372,8 +372,7 @@ bằng IP nhà mà không ai nhận ra.
 
 > ⚠️ **Từ 06/08/2026 việc đó do cầu nối trên máy bạn làm, không phải máy chủ** — xem
 > [Cầu nối](#cầu-nối). Máy chủ kiểm proxy còn sống rồi phát một tấm vé đã mã hóa; cầu nối mở vé
-> ra, đẩy proxy và mở trình duyệt. **Cầu nối là phần của GĐ4 và chưa có**, nên tới lúc đó nút
-> "Mở profile" báo *"không thấy cầu nối trên máy này"*.
+> ra, đẩy proxy và mở trình duyệt.
 
 Trường **Giao thức** (`http` / `socks5`) ở `/proxies` phải khớp cổng nhà cung cấp cấp — nhiều nơi
 dùng cổng khác nhau cho hai giao thức (Webshare thì cùng cổng phục vụ cả hai).
@@ -527,7 +526,7 @@ gì thấy được.
 Bí mật (mật khẩu, OTP) hiện ở **một cửa sổ nhỏ do chính cầu nối phục vụ**, không hiện trên trang
 web. Mở profile thì gọi ngầm, không mở tab nào.
 
-> ⚠️ **Cầu nối là phần của GĐ4 và CHƯA CÓ.** Tới khi nó xong, ba việc dưới đây không làm được:
+> ⚠️ **Lưu ý:** Ba việc dưới đây bắt buộc phải có cầu nối đang chạy trên máy:
 > lấy mật khẩu/OTP, mở profile, và tạo/sửa nick **có nhập bí mật mới**. Mọi việc khác vẫn chạy
 > bình thường — kể cả sửa karma, trạng thái, proxy của nick, vì ba ô bí mật để trống nghĩa là
 > giữ nguyên và form không cần gọi tới cầu nối.

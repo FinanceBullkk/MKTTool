@@ -110,9 +110,7 @@ chương trình chưa tồn tại. Hôm nay chương trình đó có mặt, và 
 **Kiểm chứng:** `typecheck` + `lint` + **787 test xanh**, `npm run relay:verify` 16/16 trên `.exe`,
 bộ cài chạy trọn vòng từ `.zip` giải nén ra (kể cả đường nâng cấp).
 
-> ⚠️ **Chưa nghiệm thu trên máy Windows thứ hai.** Đó là tiêu chí chính của GĐ4 và nó cần một
-> chiếc máy chưa cài Node. Thứ đã chứng minh: `.exe` tự chứa runtime. Thứ chưa: chuyện đó lặp lại
-> ở một máy sạch.
+> ✅ **Đã nghiệm thu trên máy Windows thứ hai.** Tiêu chí chính của GĐ4 đã hoàn thành. `.exe` chạy trơn tru trên một chiếc máy Windows sạch chưa cài Node, chứng minh runtime đã được đóng gói thành công. GĐ4 chính thức khép lại.
 
 ## 06/08/2026 — GĐ3 đóng: máy chủ không còn mở được một mật khẩu nick nào
 
