@@ -66,10 +66,41 @@ tới dữ liệu, và hai môi trường dùng chung một khóa ký phiên là
 1. Vào [railway.com](https://railway.com), đăng nhập bằng GitHub.
 2. **New Project** → **Deploy PostgreSQL**. Dựng Postgres **trước** để có sẵn database rỗng cho
    bước nạp dữ liệu.
-3. Bấm vào dịch vụ Postgres → tab **Variables** → chép hai giá trị:
-   - `DATABASE_URL` — địa chỉ **nội bộ** (`postgres.railway.internal`). App sẽ dùng cái này.
-   - `DATABASE_PUBLIC_URL` — địa chỉ **công khai** (`*.proxy.rlwy.net`). Máy anh dùng cái này để
-     nạp dữ liệu và để sao lưu.
+3. Bấm vào dịch vụ Postgres → tab **Variables** → chép `DATABASE_URL`. Đây là địa chỉ **nội bộ**
+   (`postgres.railway.internal`), và app sẽ dùng đúng cái này.
+4. **Mở cổng công khai cho Postgres** — mặc định KHÔNG có, nên chưa làm bước này thì sẽ không
+   thấy `DATABASE_PUBLIC_URL` ở đâu cả.
+
+   Dịch vụ Postgres → **Settings** → **Networking** → **Public Networking** → bật **TCP Proxy**
+   (proxy cổng `5432`). Quay lại tab **Variables**, ba biến mới xuất hiện:
+   `RAILWAY_TCP_PROXY_DOMAIN`, `RAILWAY_TCP_PROXY_PORT`, và `DATABASE_PUBLIC_URL`.
+
+   `DATABASE_PUBLIC_URL` vẫn không hiện thì tự ghép — nó chỉ là `DATABASE_URL` thay host/port:
+
+   ```
+   postgresql://postgres:<PGPASSWORD>@<RAILWAY_TCP_PROXY_DOMAIN>:<RAILWAY_TCP_PROXY_PORT>/railway?sslmode=require
+   ```
+
+> ### Cửa công khai này là một đánh đổi, không phải bước thủ tục
+>
+> Phần Security của kế hoạch GĐ5 ghi *"`DATABASE_URL` dùng mạng nội bộ của Railway, không phơi
+> Postgres ra internet"*. Bật TCP proxy đi ngược câu đó, nên phải nói rõ ranh giới:
+>
+> - **App vẫn đi mạng nội bộ.** Biến `${{Postgres.DATABASE_URL}}` ở bước 6 không đổi. Cửa công
+>   khai **không** phải đường app dùng.
+> - **Nó tồn tại cho đúng hai việc**: máy quản trị nạp dữ liệu (bước 4) và kéo bản sao lưu về
+>   (bước 10).
+> - **Vì sao vẫn đáng bật:** không có nó thì bản sao lưu duy nhất nằm trong chính Railway — mà
+>   thứ nó phải chống lại chính là *mất cả dự án Railway*. Bản sao ở cùng nhà với bản gốc không
+>   phải bản sao.
+>
+> Tắt proxy sau khi nạp xong và chỉ bật lại mỗi lần sao lưu thì an toàn hơn thật — nhưng ma sát
+> đó thường dẫn tới "tháng sau sao lưu", và một nếp sao lưu không ai làm thì bằng không.
+>
+> ⚠️ `psql` báo *"server does not support SSL"* nghĩa là bản Postgres đó chưa bật SSL. Bỏ
+> `?sslmode=require` ra là nối được — nhưng lúc đó **mật khẩu database đi qua internet dạng
+> trần**, mà nó là chìa vào toàn bộ kho ciphertext. Gặp ca này thì dừng lại cân nhắc, đừng bỏ
+> tham số cho xong.
 
 > Gói **Hobby ($5/tháng)** là mức tối thiểu thực tế: ảnh chạy nặng 4.86 GB vì mang theo Chromium
 > cho bộ dò shadowban, và gói miễn phí không đủ chỗ.
