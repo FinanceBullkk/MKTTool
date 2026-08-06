@@ -11,6 +11,7 @@ Repo này có 12+ file tài liệu. Đừng đọc hết. Tra theo câu hỏi b�
 | "Shadowban", "cold-start", "proxy quan sát viên" nghĩa là gì | [domain-glossary.md](domain-glossary.md) |
 | Làm tới đâu rồi, tiếp theo làm gì, cái gì đang chặn | [development-roadmap.md](development-roadmap.md) |
 | Đã đổi những gì, ngày nào | [project-changelog.md](project-changelog.md) |
+| Đưa web lên máy chủ thật (Railway) | [deployment-guide.md](deployment-guide.md) |
 | Hệ thống chạy ở đâu, phụ thuộc cái gì, hỏng thì hỏng thế nào | [system-architecture.md](system-architecture.md) |
 | Code nằm ở đâu, luồng nào gọi file nào | [codebase-summary.md](codebase-summary.md) |
 | Quy ước viết code, test, commit trước khi đóng góp | [code-standards.md](code-standards.md) |
