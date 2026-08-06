@@ -93,6 +93,14 @@ export default async function RelayDevicesPage() {
 
   return (
     <>
+      <PageHeading
+        title="Máy chạy cầu nối"
+        description="Mỗi máy có cặp khóa riêng. Máy chủ mã hóa nội dung vé bằng khóa công khai của đúng máy nhận, nên trình duyệt chỉ là người đưa thư — nó chuyển vé đi nhưng không đọc được gì bên trong."
+      />
+
+      {/* Thẻ này đứng ngay dưới tiêu đề chứ không đứng TRÊN nó (sửa 07/08/2026): một thẻ nổi phía
+          trên tiêu đề trang làm thứ tự đọc bị lộn. Vẫn ở gần đầu vì với ADMIN đây là việc cần bấm
+          ngay — máy đang chờ khóa là máy chưa làm được gì cả. */}
       {isAdmin && awaitingKey.length > 0 ? (
         <Card title={`Đang chờ cấp khóa — ${awaitingKey.length} máy`}>
           <p className="mb-4 text-sm text-neutral-600 dark:text-neutral-400">
@@ -123,11 +131,6 @@ export default async function RelayDevicesPage() {
           </p>
         </Card>
       ) : null}
-
-      <PageHeading
-        title="Máy chạy cầu nối"
-        description="Mỗi máy có cặp khóa riêng. Máy chủ mã hóa nội dung vé bằng khóa công khai của đúng máy nhận, nên trình duyệt chỉ là người đưa thư — nó chuyển vé đi nhưng không đọc được gì bên trong."
-      />
 
       <Card title={`Sổ đăng ký — ${active} máy đang dùng, ${devices.length - active} đã thu hồi`}>
         {devices.length === 0 ? (

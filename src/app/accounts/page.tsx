@@ -7,11 +7,14 @@ import {
   StatusBadge,
 } from "@/components/ui/page-section";
 import { AccountFormFields } from "@/components/vault/account-form-fields";
+import { AccountReadinessCell } from "@/components/vault/account-readiness-badge";
 import { AccountVaultForm } from "@/components/vault/account-vault-form";
+import { describeAccountReadiness } from "@/lib/accounts/account-readiness";
 import { createAccount } from "@/lib/accounts/vault-create-actions";
 import {
   accountAgeInDays,
   coldStartDaysRemaining,
+  defaultColdStartDayKey,
   getStatusPresentation,
 } from "@/lib/accounts/account-status";
 import { prisma } from "@/lib/db/prisma-client";
@@ -21,7 +24,11 @@ export const dynamic = "force-dynamic";
 export default async function AccountsPage() {
   const [accounts, personas, freeProxies] = await Promise.all([
     prisma.account.findMany({
-      include: { persona: true, proxy: true },
+      include: {
+        persona: true,
+        proxy: true,
+        device: { select: { userId: true, revokedAt: true } },
+      },
       orderBy: [{ platform: "asc" }, { username: "asc" }],
     }),
     prisma.persona.findMany({ orderBy: { name: "asc" } }),
@@ -35,6 +42,7 @@ export default async function AccountsPage() {
   );
 
   const canCreate = personas.length > 0 && freeProxies.length > 0;
+  const defaultColdStartUntil = defaultColdStartDayKey();
 
   return (
     <>
@@ -48,7 +56,16 @@ export default async function AccountsPage() {
           <EmptyState>Chưa có nick nào.</EmptyState>
         ) : (
           <DataTable
-            headers={["Nick", "Nền tảng", "Trạng thái", "Nhân vật", "Proxy", "Karma", "Tuổi nick"]}
+            headers={[
+              "Nick",
+              "Sẵn sàng",
+              "Nền tảng",
+              "Trạng thái",
+              "Nhân vật",
+              "Proxy",
+              "Karma",
+              "Tuổi nick",
+            ]}
           >
             {sorted.map((account) => {
               const presentation = getStatusPresentation(account.status);
@@ -61,6 +78,12 @@ export default async function AccountsPage() {
                     <Link href={`/accounts/${account.id}`} className="hover:underline">
                       {account.username}
                     </Link>
+                  </td>
+                  {/* Cột này đứng thứ hai có chủ ý: nó là câu hỏi người ta mở trang này để hỏi.
+                      "Trạng thái" bên phải nói về sức khỏe nick, khác hẳn — một nick "Khỏe" vẫn
+                      có thể chưa dùng được vì chưa ghim máy. */}
+                  <td className="py-2 pr-4">
+                    <AccountReadinessCell readiness={describeAccountReadiness(account)} />
                   </td>
                   <td className="py-2 pr-4 text-xs text-neutral-600 dark:text-neutral-400">
                     {account.platform}
@@ -109,6 +132,7 @@ export default async function AccountsPage() {
                 id: proxy.id,
                 label: `${proxy.label} — ${proxy.country}`,
               }))}
+              defaultColdStartUntil={defaultColdStartUntil}
             />
           </AccountVaultForm>
         )}

@@ -10,7 +10,7 @@ import {
   coldStartDaysRemaining,
   getStatusPresentation,
 } from "@/lib/accounts/account-status";
-import { describeDrift, loadClusterWarnings } from "@/lib/accounts/account-cluster-warnings";
+import { loadClusterWarnings } from "@/lib/accounts/account-cluster-warnings";
 import { evaluateBackupFreshness } from "@/lib/backup/backup-freshness-warning";
 import { readDailyBackupSchedule } from "@/lib/backup/daily-backup-scheduler";
 import { prisma } from "@/lib/db/prisma-client";
@@ -137,22 +137,21 @@ export default async function OverviewPage() {
         </AlertBanner>
       ) : null}
 
-      {/* Cụm lệch đứng cạnh proxy vì cùng một họ hỏng: cả hai đều làm nick đi ra ngoài bằng thứ
-          không phải của nó, và cả hai đều trông bình thường cho tới lúc bấm nút. */}
-      {clusterWarnings.drifted.length > 0 ? (
+      {/* Cụm hỏng đứng cạnh proxy vì cùng một họ: cả hai đều trông bình thường cho tới lúc bấm
+          nút, và cả hai đều làm nick đi ra ngoài bằng thứ không phải của nó. */}
+      {clusterWarnings.broken.length > 0 ? (
         <AlertBanner tone="red">
           <p className="font-medium">
-            {clusterWarnings.drifted.length} nick ghim lệch máy — chủ nick xin được bí mật nhưng
-            vé bay về máy khác:
+            {clusterWarnings.broken.length} nick có cụm đã hỏng — đáng lẽ không xảy ra được:
           </p>
           <ul className="mt-2 space-y-1">
-            {clusterWarnings.drifted.map((row) => (
+            {clusterWarnings.broken.map((row) => (
               <li key={row.id}>
                 <Link href={`/accounts/${row.id}`} className="underline">
                   {row.username}
                 </Link>{" "}
                 <span className="text-neutral-600 dark:text-neutral-400">
-                  — {describeDrift(row)}
+                  — {row.readiness.summary}
                 </span>
               </li>
             ))}
@@ -161,25 +160,29 @@ export default async function OverviewPage() {
         </AlertBanner>
       ) : null}
 
-      {clusterWarnings.unpinned.length > 0 ? (
+      {clusterWarnings.incomplete.length > 0 ? (
         <AlertBanner tone="amber">
           <p className="font-medium">
-            {clusterWarnings.unpinned.length} nick có profile antidetect nhưng chưa ghim vào máy
-            nào — không mở profile và không lấy được bí mật của chúng:
+            {clusterWarnings.incomplete.length} nick chưa dùng được vì còn thiếu cấu hình:
           </p>
           <ul className="mt-2 space-y-1">
-            {clusterWarnings.unpinned.map((row) => (
+            {clusterWarnings.incomplete.map((row) => (
               <li key={row.id}>
                 <Link href={`/accounts/${row.id}`} className="underline">
                   {row.username}
                 </Link>{" "}
-                <span className="text-neutral-600 dark:text-neutral-400">— {row.platform}</span>
+                <span className="text-neutral-600 dark:text-neutral-400">
+                  — {row.readiness.summary}
+                </span>
               </li>
             ))}
           </ul>
           <p className="mt-2">
-            Id profile chỉ có nghĩa trên đúng chiếc máy tạo ra nó, nên kho phải biết máy nào.
-            Quản trị viên gán cụm ở trang chi tiết nick.
+            Mở trang chi tiết nick để xem từng việc còn thiếu, hoặc xem{" "}
+            <Link href="/setup" className="underline">
+              trang Chuẩn bị
+            </Link>{" "}
+            nếu đang dựng kho lần đầu.
           </p>
         </AlertBanner>
       ) : null}

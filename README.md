@@ -167,21 +167,43 @@ proxy, không cần tài khoản nào, và kiểm tra được phần lớn ch�
 
 ## Thứ tự nhập liệu
 
+**Mở `/setup` là thấy đúng danh sách này kèm trạng thái thật của kho** — bước nào xong, bước nào
+còn dở, và bước tiếp theo phải làm gì. Không cần nhớ thứ tự dưới đây.
+
 0. **Máy chạy cầu nối** (`/relay-devices`) — cài cầu nối và đăng ký máy của từng người
 1. **Nhân vật** (`/personas`) — mỗi nick một giọng, một mảng nội dung
 2. **Proxy** (`/proxies`) — mua proxy TRƯỚC khi mua nick
-3. **Tài khoản** (`/accounts`) — gắn nhân vật + proxy, đặt cold-start 14 ngày
-4. **Phân công cụm** (trang chi tiết nick) — giao nick cho ai, **trên máy nào**
-5. **Đích đăng** (`/targets`) — subreddit kèm luật thật của sub đó
-6. **Content** (`/content`) — bài team viết; phải nằm ở đây thì bộ luật mới so trùng được
-7. **Hàng đợi** (`/queue`) — xếp lịch đăng, bộ luật chấm trước khi cho lưu
+3. **Proxy quan sát viên** (`/proxies`) — con mắt người ngoài của bộ dò shadowban
+4. **Tài khoản** (`/accounts`) — gắn nhân vật + proxy; cold-start 14 ngày điền sẵn
+5. **Phân công cụm** (trang chi tiết nick) — giao nick cho ai, **trên máy nào**
+6. **Đích đăng** (`/targets`) — subreddit kèm luật thật của sub đó
+7. **Content** (`/content`) — bài team viết; phải nằm ở đây thì bộ luật mới so trùng được
+8. **Hàng đợi** (`/queue`) — xếp lịch đăng, bộ luật chấm trước khi cho lưu
 
-Riêng Fanpage không phải nhập tay ở bước 5: kết nối ở `/facebook` là công cụ tự tạo đích đăng.
+Riêng Fanpage không phải nhập tay ở bước 6: kết nối ở `/facebook` là công cụ tự tạo đích đăng.
 
 > **Bước 0 đứng trước là có lý do.** Nick chưa ghim vào máy nào thì không mở được profile và
 > không lấy được bí mật — xem [Nick ghim vào một máy](#nick-ghim-vào-một-máy). Đăng ký máy sau
 > khi đã nhập cả đàn nick nghĩa là phải quay lại gán tay từng cụm, đúng lúc không ai còn nhớ
 > profile nào nằm ở máy nào.
+
+### Nick này đã dùng được chưa
+
+Một nick Reddit cần đủ **bảy** điều kiện: nhân vật, proxy, proxy còn sống, id profile antidetect,
+chủ, máy, và hết cold-start. Nick Facebook chỉ cần chủ — Fanpage đăng bằng Graph API nên không có
+proxy, profile hay máy nào để đòi.
+
+Không phải tự ghép bảy thứ đó bằng mắt: cột **Sẵn sàng** ở `/accounts` nói ngay, và trang chi tiết
+nick hiện một khối liệt kê từng việc còn thiếu kèm chỗ sửa. Ba màu, ba nghĩa khác nhau:
+
+| Màu | Nghĩa |
+|---|---|
+| 🟢 Sẵn sàng | dùng được ngay |
+| 🟡 Đang chờ | không ai phải làm gì, chỉ chờ hết cold-start |
+| 🔴 Chưa dùng được | có người phải làm gì đó |
+
+Phân biệt **chờ** với **thiếu** là chủ ý: gộp chung thì một nick đang cold-start đúng lịch trông
+y hệt một nick quên gắn proxy.
 
 ### Sửa và xóa
 

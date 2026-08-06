@@ -1,101 +1,81 @@
 /**
- * Hai kiểu hỏng của **cụm danh tính** mà không màn hình nào tự lộ ra.
+ * Nick chưa dùng được — dải cảnh báo ở trang **Hôm nay**.
  *
  * ## Vì sao ở trang Hôm nay chứ không ở khay cảnh báo vận hành
  *
- * Khay (`collect-ops-alerts.ts`) hiện trên MỌI trang nên nó cấm hẳn truy vấn database — mỗi
- * truy vấn thêm vào là một truy vấn nhân với số trang người ta mở. Hai cảnh báo dưới đây phải
- * đọc kho, nên chúng thuộc về trang Hôm nay, đúng ranh giới file kia đã vạch.
+ * Khay (`collect-ops-alerts.ts`) hiện trên MỌI trang nên nó cấm hẳn truy vấn database — mỗi truy
+ * vấn thêm vào là một truy vấn nhân với số trang người ta mở. Cảnh báo dưới đây phải đọc kho, nên
+ * nó thuộc về trang Hôm nay, đúng ranh giới file kia đã vạch.
  *
- * ## Hai kiểu hỏng, hai mức
+ * ## Một phép chấm, hai mức
  *
- * | Kiểu | Mức | Triệu chứng nếu không kêu |
+ * Cả hai mức đều đọc `describeAccountReadiness()` — không có phép chấm thứ hai ở đây. Chia mức
+ * theo **nguyên nhân**, vì hai nguyên nhân dẫn tới hai hành động khác nhau:
+ *
+ * | Mức | Khi nào | Vì sao nặng hơn / nhẹ hơn |
  * |---|---|---|
- * | **Lệch bất biến** — nick ghim vào máy của người không phải chủ, hoặc máy đã thu hồi | đỏ | Chủ nick xin được bí mật nhưng vé bay về máy người khác. Cả hai đầu đều "đúng" nên không ai đi tìm |
- * | **Chưa ghim máy** — có profile antidetect mà không biết nó ở máy nào | vàng | Bấm mở profile mới biết. Với nick đang cold-start thì phát hiện muộn hàng tuần |
+ * | 🔴 | cụm lệch, hoặc máy đã thu hồi | Đáng lẽ **không xảy ra được** — `assignAccountCluster` chặn từ lúc ghi. Có hàng nghĩa là bất biến đã trôi, và nó trôi âm thầm vì cả hai đầu đều trông đúng |
+ * | 🟡 | còn thiếu thứ gì đó (proxy, profile, chủ, máy) | Bình thường với nick vừa nhập; chỉ là chưa ai làm nốt |
  *
- * Kiểu thứ nhất đáng lẽ không xảy ra được: `assignAccountCluster()` chặn từ lúc ghi. Nó vẫn
- * được soi vì bất biến bắc qua hai bảng, mà Postgres không ép được kiểu đó nếu không có trigger —
- * và một bất biến chỉ do code giữ là một bất biến sẽ có ngày trôi. Sổ nói sai về việc một nick
- * sẵn sàng hay chưa thì tệ hơn sổ không nói gì.
+ * Nick chỉ còn chờ cold-start **không** vào đây: nó đã có mục riêng ở trang Hôm nay, và một nick
+ * đang chờ đúng lịch thì không phải việc cần ai xử lý.
  *
- * Nick `DEAD` bị bỏ qua ở cả hai: nick đã nghỉ thì không ghim máy nào là đúng, không phải thiếu sót.
+ * Nick `DEAD` bị bỏ qua: nick đã nghỉ thì thiếu gì cũng là đúng, không phải sót.
  */
 import { prisma } from "@/lib/db/prisma-client";
+import { describeAccountReadiness, type AccountReadiness } from "./account-readiness";
 
-export interface DriftedClusterRow {
+export interface UnreadyAccountRow {
   id: string;
   username: string;
-  /** Email chủ nick, `null` khi nick không có chủ mà vẫn còn ghim máy. */
-  ownerEmail: string | null;
-  deviceName: string;
-  /** Chủ của chiếc máy đang ghim — chỗ lệch nằm ở đây. */
-  deviceOwnerEmail: string;
-  revoked: boolean;
-}
-
-export interface UnpinnedNickRow {
-  id: string;
-  username: string;
-  platform: string;
+  readiness: AccountReadiness;
 }
 
 export interface ClusterWarnings {
-  drifted: DriftedClusterRow[];
-  unpinned: UnpinnedNickRow[];
+  /** Bất biến cụm đã trôi — xem bảng trong chú thích đầu file. */
+  broken: UnreadyAccountRow[];
+  /** Chưa cấu hình xong. */
+  incomplete: UnreadyAccountRow[];
 }
+
+/** Hai mã báo rằng cụm đã trôi chứ không phải chưa làm xong. */
+const BROKEN_CODES = ["CLUSTER_DRIFT", "DEVICE_REVOKED"] as const;
 
 export async function loadClusterWarnings(): Promise<ClusterWarnings> {
-  const [pinned, unpinned] = await Promise.all([
-    // Lọc phần lệch bằng JS chứ không bằng `where`: so hai cột nằm ở hai bảng khác nhau
-    // (`Account.ownerId` với `RelayDevice.userId`) là thứ Prisma không diễn đạt được. Số hàng ở
-    // đây bằng số nick có ghim máy — hàng chục, không phải hàng vạn.
-    prisma.account.findMany({
-      where: { deviceId: { not: null }, status: { not: "DEAD" } },
-      select: {
-        id: true,
-        username: true,
-        ownerId: true,
-        owner: { select: { email: true } },
-        device: {
-          select: { name: true, userId: true, revokedAt: true, user: { select: { email: true } } },
-        },
-      },
-      orderBy: { username: "asc" },
-    }),
-    prisma.account.findMany({
-      where: {
-        deviceId: null,
-        antidetectProfileId: { not: null },
-        status: { not: "DEAD" },
-      },
-      select: { id: true, username: true, platform: true },
-      orderBy: { username: "asc" },
-    }),
-  ]);
+  const accounts = await prisma.account.findMany({
+    where: { status: { not: "DEAD" } },
+    select: {
+      id: true,
+      username: true,
+      platform: true,
+      status: true,
+      coldStartUntil: true,
+      personaId: true,
+      antidetectProfileId: true,
+      ownerId: true,
+      proxy: { select: { lastCheckVerdict: true } },
+      device: { select: { userId: true, revokedAt: true } },
+    },
+    orderBy: { username: "asc" },
+  });
 
-  const drifted = pinned
-    .filter((row) => row.device !== null)
-    .filter((row) => row.device!.userId !== row.ownerId || row.device!.revokedAt !== null)
-    .map((row) => ({
-      id: row.id,
-      username: row.username,
-      ownerEmail: row.owner?.email ?? null,
-      deviceName: row.device!.name,
-      deviceOwnerEmail: row.device!.user.email,
-      revoked: row.device!.revokedAt !== null,
-    }));
+  const broken: UnreadyAccountRow[] = [];
+  const incomplete: UnreadyAccountRow[] = [];
 
-  return { drifted, unpinned };
-}
+  for (const account of accounts) {
+    const readiness = describeAccountReadiness(account);
 
-/** Câu giải thích một hàng lệch — hai nguyên nhân, hai việc phải làm khác nhau. */
-export function describeDrift(row: DriftedClusterRow): string {
-  if (row.revoked) {
-    return `ghim ở máy "${row.deviceName}" đã bị thu hồi`;
+    // Sẵn sàng, hoặc chỉ còn chờ cold-start → không phải việc của dải này.
+    if (readiness.ready || readiness.waiting) continue;
+
+    const row = { id: account.id, username: account.username, readiness };
+    const isBroken = readiness.blockers.some((blocker) =>
+      BROKEN_CODES.includes(blocker.code as (typeof BROKEN_CODES)[number]),
+    );
+
+    if (isBroken) broken.push(row);
+    else incomplete.push(row);
   }
-  return (
-    `ghim ở máy "${row.deviceName}" của ${row.deviceOwnerEmail}, nhưng chủ nick là ` +
-    `${row.ownerEmail ?? "— chưa ai"}`
-  );
+
+  return { broken, incomplete };
 }

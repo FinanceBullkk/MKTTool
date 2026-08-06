@@ -6,6 +6,8 @@
  * nhanh nhất biến cảnh báo mềm thành khóa vĩnh viễn.
  */
 
+import { localDayKey } from "@/lib/format/vietnamese-date-format";
+
 export const ACCOUNT_STATUSES = [
   "COLD_START",
   "ALIVE",
@@ -102,6 +104,20 @@ export function coldStartDaysRemaining(
   if (!isInColdStart(coldStartUntil, now)) return 0;
   const msRemaining = (coldStartUntil as Date).getTime() - now.getTime();
   return Math.ceil(msRemaining / 86_400_000);
+}
+
+/** Cold-start chuẩn cho nick vừa mua. Quy ước của dự án, lặp lại ở mọi nick — xem README. */
+export const COLD_START_DAYS = 14;
+
+/**
+ * Ngày cold-start điền sẵn cho form thêm nick, dạng `YYYY-MM-DD` theo múi giờ team.
+ *
+ * Nằm ở lib chứ không tính thẳng trong trang vì hai lý do, và cả hai đều là quy tắc của dự án:
+ * `Date.now()` trong thân component bị `react-hooks/purity` chặn, còn tính ở phía trình duyệt
+ * thì ra ngày theo máy người dùng — đúng lớp lỗi mà `machine-clock-ban.test.ts` cấm.
+ */
+export function defaultColdStartDayKey(now: Date = new Date()): string {
+  return localDayKey(new Date(now.getTime() + COLD_START_DAYS * 86_400_000));
 }
 
 /** Tuổi nick trên nền tảng, tính theo ngày. Dùng cho luật minAccountAgeDays ở Phase 02. */

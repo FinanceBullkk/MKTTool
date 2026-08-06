@@ -12,6 +12,45 @@ Dự án chưa phát hành phiên bản (`0.1.0`, dùng nội bộ). Mốc chia 
 
 ---
 
+## 07/08/2026 (2) — Trang Chuẩn bị, và "nick này dùng được chưa"
+
+Khảo sát UX trước khi bàn giao GĐ6 ([báo cáo](../plans/reports/uxreview-260807-0459-luong-cau-hinh-va-onboarding.md))
+tìm ra ba chỗ gãy nặng, cả ba đều thuộc luồng **dựng kho và cấu hình**, không phải luồng vận hành
+hằng ngày.
+
+- **Trang `/setup` "Chuẩn bị"** — checklist 9 bước, mỗi bước **đọc trạng thái thật từ kho**
+  (`3 nhân vật` / `chưa có proxy nào` / `1/2 nick đã gán chủ và máy`) kèm nút đi thẳng, và
+  highlight bước phải làm tiếp. Trước đó hướng dẫn duy nhất trong cả app là một dòng chữ xám nằm
+  trong thẻ *Sức khỏe đàn nick* — sai chỗ, không link, nêu 3 trên 8 bước, và **biến mất ngay khi
+  có nick đầu tiên**, đúng lúc còn 5 bước chưa làm. Thứ tự đầy đủ chỉ có trong README.
+- **`describeAccountReadiness()`** — một hàm thuần trả lời "nick này thiếu gì", ba chỗ đọc: cột
+  **Sẵn sàng** ở `/accounts`, khối liệt kê ở đầu trang chi tiết nick, và dải cảnh báo trang Hôm
+  nay. Trước đó bảy điều kiện nằm rải ở bốn bảng và người dùng phải tự ghép từ bảng Thông tin 15
+  dòng — trang danh sách thì không nói gì cả.
+- **Phân biệt "chờ" với "thiếu".** Cold-start là chặn loại *chờ*: không ai phải làm gì. Gộp chung
+  với "chưa gắn proxy" thì một nick đang cold-start đúng lịch trông y hệt một nick quên gắn proxy.
+- **Ranh giới Reddit / Facebook nằm trong phép chấm.** Nick Facebook không proxy, không profile,
+  không máy vẫn là *Sẵn sàng* — Fanpage đăng bằng Graph API. Đòi đủ bảy điều kiện là bịa ra ba lỗi
+  vĩnh viễn không sửa được, và người đọc sẽ học cách phớt lờ cả cột.
+- **Thẻ Phân công cụm hiện dạng CHỈ ĐỌC với OPERATOR** thay vì biến mất. Đây là nợ do chính bản
+  trước tạo ra: họ tạo xong nick, bấm "Mở profile", nhận câu *"chưa ghim vào máy nào"* — và trên
+  màn hình của họ không có gì nói chỗ đó ở đâu hay ai làm được.
+- **Nav tách `Cài đặt` khỏi `Kho`.** Hai nhóm khác nhau về *thời điểm* chứ không phải chủ đề: kho
+  sửa hằng tuần, cài đặt đụng lúc dựng lần đầu. Cầu nối từng nằm cạnh Content, trong khi với người
+  mới nó là việc số 0.
+- **Form thêm nick bớt hai ô.** `Trạng thái` bỏ hẳn khỏi form tạo (nick mới luôn `COLD_START`, để
+  `default` trong schema), và `Cold-start tới ngày` **điền sẵn +14 ngày** thay vì bắt tự cộng.
+- Thẻ *"Đang chờ cấp khóa"* ở `/relay-devices` từng render **phía trên** `PageHeading` — thứ tự
+  đọc bị lộn. Nay nằm dưới tiêu đề.
+
+Hai file test mới (18 bài cho phép chấm sẵn sàng, 10 bài cho checklist). 1017/1017 xanh.
+
+**Chưa làm, có lý do:** ô **chọn** profile antidetect thay ô gõ tay UUID. Nó cần một endpoint mới
+ở cầu nối để liệt kê profile, mà cầu nối **không tự cập nhật** — máy chạy bản cũ vẫn phải gõ tay,
+nên phải giữ cả hai đường. Việc riêng, không ghép vào lượt này.
+
+---
+
 ## 07/08/2026 — Nick ghim vào một máy, và kho proxy về tay ADMIN
 
 Chuẩn bị cho GĐ6 (bàn giao 5-6 người). Mô hình phân quyền trước đó viết cho **một** người vận

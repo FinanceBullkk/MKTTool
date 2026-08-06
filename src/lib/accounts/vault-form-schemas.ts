@@ -202,6 +202,16 @@ function withPlatformIdentityCheck<T extends z.ZodTypeAny>(schema: T, platform: 
 const accountCreateBase = z.object({
   ...accountShape,
   platform: z.enum(["REDDIT", "FACEBOOK"]),
+  /**
+   * Nick mới **luôn** bắt đầu ở `COLD_START`, nên form tạo không hỏi nữa (07/08/2026).
+   *
+   * Ô đó từng nằm trong form tạo cùng "Lý do cách ly" — hai ô **vận hành** đứng lẫn giữa các ô
+   * danh tính, và chúng chỉ có nghĩa cho một nick đã sống một thời gian. Người nhập liệu phải
+   * quyết định một thứ chưa có câu trả lời nào khác ngoài mặc định.
+   *
+   * `default` chứ không bỏ hẳn khỏi schema: form **sửa** vẫn gửi ô này lên và vẫn phải đổi được.
+   */
+  status: z.enum(ACCOUNT_STATUSES).default("COLD_START"),
   passwordEnc: encryptedCredential("Mật khẩu nick"),
   emailPasswordEnc: encryptedCredential("Mật khẩu email"),
   totpSecretEnc: optionalEncryptedCredential("TOTP secret"),

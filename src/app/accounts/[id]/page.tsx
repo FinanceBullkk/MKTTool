@@ -5,7 +5,9 @@ import { ActionForm, SelectField } from "@/components/ui/form-controls";
 import { Card, PageHeading, StatusBadge } from "@/components/ui/page-section";
 import { AccountFormFields } from "@/components/vault/account-form-fields";
 import { AccountVaultForm } from "@/components/vault/account-vault-form";
+import { AccountReadinessPanel } from "@/components/vault/account-readiness-badge";
 import { assignAccountCluster } from "@/lib/accounts/account-owner-actions";
+import { describeAccountReadiness } from "@/lib/accounts/account-readiness";
 import {
   accountAgeInDays,
   coldStartDaysRemaining,
@@ -39,7 +41,7 @@ export default async function AccountDetailPage({
       persona: true,
       proxy: true,
       owner: { select: { email: true } },
-      device: { select: { name: true, revokedAt: true } },
+      device: { select: { name: true, revokedAt: true, userId: true } },
     },
   });
 
@@ -50,6 +52,7 @@ export default async function AccountDetailPage({
   const presentation = getStatusPresentation(account.status);
   const coldDays = coldStartDaysRemaining(account.coldStartUntil);
   const age = accountAgeInDays(account.platformCreatedAt);
+  const readiness = describeAccountReadiness(account);
 
   const [auditLogs, personas, selectableProxies, teamMembers, relayDevices, assignableDevices] =
     await Promise.all([
@@ -135,6 +138,11 @@ export default async function AccountDetailPage({
         </div>
       ) : null}
 
+      {/* Đứng trên mọi thẻ: nick chưa đủ điều kiện thì bốn cái nút bên dưới đều báo lỗi, và
+          người đọc cần biết TẠI SAO trước khi bấm chứ không phải sau. Nick sẵn sàng thì khối
+          này không vẽ gì — một dải xanh "mọi thứ ổn" trên mỗi trang là thứ mắt học cách bỏ qua. */}
+      <AccountReadinessPanel readiness={readiness} />
+
       <Card title="Thao tác">
         <AccountVaultActionsPanel
           accountId={account.id}
@@ -163,9 +171,31 @@ export default async function AccountDetailPage({
         ) : null}
       </Card>
 
-      {/* Chỉ quản trị viên thấy thẻ này. Ẩn thẻ chỉ là dọn màn hình cho gọn — chặn THẬT nằm ở
-          `adminAction` bọc ngoài server action, nên OPERATOR gọi thẳng endpoint vẫn bị từ chối. */}
-      {viewer?.role === "ADMIN" ? (
+      {/* OPERATOR thấy thẻ ở dạng CHỈ ĐỌC, không phải thẻ biến mất.
+
+          Ẩn hẳn thì đúng về bảo mật nhưng sai về giao tiếp: họ tạo xong nick, bấm "Mở profile",
+          nhận câu "chưa ghim vào máy nào" — và trên màn hình của họ không có gì nói chỗ đó ở đâu
+          hay ai làm được. Chặn THẬT nằm ở `adminAction` bọc ngoài server action, nên hiện thông
+          tin ra không nới lỏng gì cả. */}
+      {viewer?.role !== "ADMIN" ? (
+        <Card title="Phân công cụm">
+          <dl className="mb-4 grid gap-x-8 gap-y-3 sm:grid-cols-2">
+            <div>
+              <dt className="text-xs uppercase tracking-wide text-neutral-500">Người phụ trách</dt>
+              <dd className="mt-0.5 text-sm">{account.owner?.email ?? "— chưa phân công"}</dd>
+            </div>
+            <div>
+              <dt className="text-xs uppercase tracking-wide text-neutral-500">Máy giữ profile</dt>
+              <dd className="mt-0.5 text-sm">{account.device?.name ?? "— chưa ghim"}</dd>
+            </div>
+          </dl>
+          <p className="text-sm text-neutral-600 dark:text-neutral-400">
+            Hai ô này do <strong>quản trị viên</strong> gán. Người phụ trách là người duy nhất
+            ngoài quản trị viên xin được mật khẩu và mã OTP của nick; máy giữ profile quyết định
+            vé bay về đâu. Cần đổi thì nhắn quản trị viên — kể cả khi nick này là của bạn.
+          </p>
+        </Card>
+      ) : (
         <Card title="Phân công cụm">
           <p className="mb-4 text-sm text-neutral-600 dark:text-neutral-400">
             Hai ô này đi cùng nhau. <strong>Người phụ trách</strong> là người duy nhất ngoài quản
@@ -222,7 +252,7 @@ export default async function AccountDetailPage({
             </ActionForm>
           )}
         </Card>
-      ) : null}
+      )}
 
       <Card title="Sửa nick">
         <p className="mb-4 text-sm text-neutral-600 dark:text-neutral-400">
