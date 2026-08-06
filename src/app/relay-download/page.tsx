@@ -34,8 +34,9 @@ const BUTTON_CLASS =
  * rồi đưa ra một nút bấm vào là 404.
  */
 export default async function RelayDownloadPage() {
-  const release = readRelayRelease();
-  const checksum = await relayArchiveChecksum();
+  const release = await readRelayRelease();
+  // Truyền lại `release` để khỏi hỏi nguồn hai lần — với nguồn R2 đó là một request qua mạng.
+  const checksum = await relayArchiveChecksum(release);
 
   return (
     <>
@@ -88,13 +89,14 @@ export default async function RelayDownloadPage() {
           </div>
         ) : (
           <EmptyState>
-            Máy chủ này chưa có gói cài nào.
+            Máy chủ này chưa có gói cài nào — đã tìm ở{" "}
+            <code className="font-mono text-xs">{release.expectedPath}</code>.
             <br />
             <br />
-            Người quản trị chạy <code className="font-mono">npm run relay:build</code> trên một máy
-            Windows rồi đặt file vào{" "}
-            <code className="font-mono text-xs">{release.expectedPath}</code>, hoặc trỏ biến môi
-            trường <code className="font-mono">RELAY_RELEASE_DIR</code> sang nơi đang chứa nó.
+            Người quản trị dựng bằng <code className="font-mono">npm run relay:build</code> trên một
+            máy Windows, rồi <code className="font-mono">npm run relay:publish</code> để đẩy lên
+            ngăn phát hành. Máy chủ chưa khai ngăn đó thì nó tìm trên đĩa — đổi chỗ tìm bằng biến{" "}
+            <code className="font-mono">RELAY_RELEASE_DIR</code>.
           </EmptyState>
         )}
       </Card>

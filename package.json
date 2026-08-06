@@ -35,6 +35,7 @@
     "vault:testotp": "tsx scripts/generate-test-totp-secret.ts",
     "relay:dev": "tsx relay/src/main.ts",
     "relay:build": "tsx scripts/build-relay-executable.ts",
+    "relay:publish": "tsx --env-file=.env scripts/publish-relay-release.ts",
     "relay:verify": "tsx scripts/smoke-test-relay-executable.ts"
   },
   "dependencies": {

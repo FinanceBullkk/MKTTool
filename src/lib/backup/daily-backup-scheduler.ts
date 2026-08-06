@@ -40,7 +40,8 @@ import {
   type ScheduledJobRunRecord,
 } from "../schedule/scheduled-job-run-store";
 import { DAILY_BACKUP_ENV, DAILY_BACKUP_JOB_KEY } from "./daily-backup-config";
-import { putObject, readR2Config, type R2Config } from "./r2-client";
+import { putObject } from "../r2/r2-client";
+import { readR2Config, type R2Config } from "../r2/r2-config";
 
 export { DAILY_BACKUP_ENV, DAILY_BACKUP_JOB_KEY };
 

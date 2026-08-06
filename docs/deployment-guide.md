@@ -510,7 +510,7 @@ Mở `https://<domain>` và đi hết danh sách này:
 | Bấm **"Kiểm"** một proxy | ra kết luận thật (Sống / Chết / …). Đây là phép thử `VAULT_KEY_SERVER` đúng khóa: sai khóa thì không giải mã được mật khẩu proxy | – |
 | `/health` → khối *"Lịch dò hằng ngày"* | *"Tự chạy 09:00 mỗi ngày theo giờ team"* | – |
 | Log của dịch vụ web lúc khởi động | dòng `[lịch dò] Bật: 09:00 mỗi ngày theo Asia/Ho_Chi_Minh.` | ✅ |
-| `/relay-download` | nói *"chưa có gói"* kèm đường dẫn nó đã tìm. Đúng — `.exe` chưa lên máy chủ, xem bước 12 | – |
+| `/relay-download` | có gói, đúng dung lượng và mã băm của bản vừa `relay:publish` — xem bước 12. Chưa dựng ngăn R2 thì nó nói *"chưa có gói"* kèm chỗ đã tìm, và đó là câu đúng chứ không phải lỗi | – |
 
 > **Bộ lịch đã tự chạy thật lúc 09:02 giờ team ngày 06/08/2026**, và log ghi đúng câu nó phải ghi:
 > *"Bỏ qua: chưa có proxy quan sát viên nào đang bật"*. Câu đó chỉ ra được sau khi bộ lịch đã đọc
@@ -738,30 +738,116 @@ Xong thì bấm **Kiểm tra token tất cả Page** ngay, đừng đợi tới 
 
 ## Bước 12 — Đưa `.exe` cầu nối lên máy chủ
 
-**Chưa làm là đúng lịch, không phải nợ.** `/relay-download` nói rõ *"chưa có gói"* kèm việc phải
-làm, thay vì hỏng — xem [relay-release-file.ts](../src/lib/relay/relay-release-file.ts).
+**Xong 06/08/2026** theo [QĐ 12](../plans/260804-1752-web-chung-cho-team-phan-tan/plan.md#qđ-12--gói-cầu-nối-cất-trên-r2-app-lấy-hộ):
+ngăn riêng trên R2, app lấy hộ. Ba đường kia đã cân và loại; lý do từng đường nằm trong QĐ 12,
+đừng phân tích lại từ đầu.
 
-`.exe` dựng trên Windows còn ảnh chạy dựng trên Linux, nên nó **không thể nằm trong ảnh Docker**.
+`.exe` dựng trên Windows còn ảnh chạy dựng trên Linux, nên nó **không thể nằm trong ảnh Docker** —
+đó là lý do phải có một chỗ thứ ba để đặt file.
 
-**Đã chốt 06/08/2026 — [QĐ 12](../plans/260804-1752-web-chung-cho-team-phan-tan/plan.md#qđ-12--gói-cầu-nối-cất-trên-r2-app-lấy-hộ-chưa-làm-ngay): ngăn riêng trên R2, app lấy hộ.**
-Ba đường kia đã cân và loại; lý do từng đường nằm trong QĐ 12, đừng phân tích lại từ đầu.
+Đường đi trọn vẹn: máy Windows `relay:build` → `relay:publish` → **R2** → người trong team bấm nút
+→ app kiểm phiên đăng nhập → app lấy file từ R2 rồi stream về. Không có URL công khai, không cần
+volume, không phồng ảnh.
 
-Tóm tắt cách chạy: người tải bấm nút → app kiểm phiên đăng nhập → app lấy file từ R2 rồi stream
-về. Không có URL công khai, không cần volume, không phồng ảnh. Chọn R2 vì nó **đã dựng sẵn** cho
-việc sao lưu ở bước 10.
+### Dựng ngăn (một lần, ~5 phút)
 
-> ⚠️ **Bucket riêng + token riêng, chỉ đọc.** Đừng nới token sao lưu hiện có — cùng lý do đã ghi
-> ở bước 10: token nằm cạnh `VAULT_KEY_SERVER`, nên một chìa mở được mọi ngăn làm nặng thêm hậu
-> quả của một lần chiếm máy chủ.
+Cùng tài khoản Cloudflare đã dựng ở bước 10 — chỉ thêm một bucket và **hai** token.
 
-**Làm khi chạm một trong hai mốc**, không làm sớm hơn:
+**1. Tạo bucket riêng**
 
-1. Đợt TikTok vào — mọi người đều cần MultiZen, số máy nở ra, chép tay hết rẻ.
-2. Có bản cầu nối **thứ hai** phải phát — lúc đó dải *"cầu nối bản cũ, tải bản mới ở đây"* mới bắt
-   đầu trỏ vào chỗ trống.
+Cloudflare Dashboard → **R2** → **Create bucket**, đặt tên `mkttool-relay-release`. **Để riêng
+tư**, đừng bật public access — QĐ 11 nói gói chỉ tải được sau lớp đăng nhập, mà một bucket public
+là một URL ai cầm cũng tải được, tức mở lại đúng thứ vừa đóng.
 
-Tới đó thì đợt bàn giao này (1-2 máy Reddit, người cài ngồi cạnh máy) chép gói bằng USB là xong.
-Biến `RELAY_RELEASE_DIR` vẫn còn, dùng được nếu cần một đường tạm.
+**2. Tạo hai token, mỗi token một quyền khác nhau**
+
+**R2** → **Manage API Tokens** → **Create API Token**, làm **hai lần**:
+
+| Token | Permissions | Phạm vi | Dán vào đâu |
+|---|---|---|---|
+| **Đọc** — cho máy chủ | `Object Read only` | chỉ bucket `mkttool-relay-release` | Variables của dịch vụ web trên Railway |
+| **Ghi** — cho máy build | `Object Read & Write` | chỉ bucket `mkttool-relay-release` | `.env` trên máy Windows của anh |
+
+Phạm vi phải là **Apply to specific buckets** → chọn đúng bucket vừa tạo, **không** phải *Apply to
+all buckets*. Chọn nhầm là token này mở luôn được bucket sao lưu.
+
+**3. Chép ba giá trị mỗi token**
+
+Mỗi lần tạo xong, Cloudflare hiện **Access Key ID** và **Secret Access Key** — *Secret chỉ hiện
+đúng một lần*, đóng trang là phải tạo token mới. **Account ID** lấy ở góc phải trang R2, và nó
+**giống hệt** `R2_ACCOUNT_ID` của bước 10 vì cùng một tài khoản.
+
+**4. Khai bốn biến, ở hai nơi khác nhau**
+
+Trên **Railway** (Variables của dịch vụ web) — token **đọc**:
+
+```
+RELAY_RELEASE_R2_ACCOUNT_ID=<Account ID>
+RELAY_RELEASE_R2_BUCKET=mkttool-relay-release
+RELAY_RELEASE_R2_ACCESS_KEY_ID=<Access Key ID của token ĐỌC>
+RELAY_RELEASE_R2_SECRET_ACCESS_KEY=<Secret của token ĐỌC>
+```
+
+Trong **`.env` máy Windows** — token **ghi**, cùng tên biến, khác giá trị:
+
+```
+RELAY_RELEASE_R2_ACCOUNT_ID=<Account ID>
+RELAY_RELEASE_R2_BUCKET=mkttool-relay-release
+RELAY_RELEASE_R2_ACCESS_KEY_ID=<Access Key ID của token GHI>
+RELAY_RELEASE_R2_SECRET_ACCESS_KEY=<Secret của token GHI>
+```
+
+> ⚠️ **Đừng dán token ghi lên Railway.** Máy chủ không có việc gì phải ghi vào ngăn này — file đi
+> lên từ máy đã build. Để chìa ghi ở đó nghĩa là chiếm được máy chủ thì **thay được gói cài mà cả
+> team sắp tải về**, tức đổi một ngăn "mất cũng không sao" thành một đường phát tán mã.
+
+> ⚠️ **Đừng nới token sao lưu hiện có cho dùng chung.** Cùng lý do đã ghi ở bước 10: token nằm cạnh
+> `VAULT_KEY_SERVER`, nên một chìa mở được mọi ngăn làm nặng thêm hậu quả của một lần chiếm máy chủ.
+> Ngăn gói cài chứa thứ công khai được, mất nó không mất gì; ngăn sao lưu thì không.
+
+**5. Bốn biến phải đủ cả bốn hoặc rỗng cả bốn.** Khai một nửa thì app dừng kèm thông báo — cùng
+quy tắc với `R2_*`, và cùng lý do: một tính năng không chạy mà nhìn như đang chạy tệ hơn một tính
+năng tắt hẳn.
+
+### Mỗi lần phát hành
+
+```bash
+npm run relay:build      # trên máy Windows
+npm run relay:publish    # đẩy lên R2, đính kèm mã băm SHA-256
+```
+
+`relay:publish` **đọc lại từ R2 để đối chiếu** sau khi đẩy: một lượt `PUT` trả 200 chứng minh R2
+nhận request, không chứng minh thứ nằm trên đó là thứ mình định gửi. Ca hỏng đáng sợ là metadata
+mã băm không bám vào object — lúc đó trang tải lặng lẽ bỏ cột SHA-256 mà không ai để ý.
+
+Hai lệnh tách rời có chủ ý: build là việc làm nhiều lần kể cả để thử, còn phát hành là việc **cả
+team nhìn thấy** — nó đổi thứ mọi người tải về và bật dải *"cầu nối bản cũ"* trên máy người khác.
+
+> Máy chủ **không khai** bốn biến đó thì nó tìm gói trên đĩa ở `relay/dist` — đường của máy dev vừa
+> build xong, để mở thử trang tải mà không phải dựng ngăn R2 trước. Đổi chỗ tìm bằng
+> `RELAY_RELEASE_DIR`.
+
+### Nghiệm thu lượt phát hành đầu tiên
+
+| Kiểm ở đâu | Phải thấy |
+|---|---|
+| Cuối `npm run relay:publish` | `✅ Đã phát hành` — nó chỉ in dòng đó sau khi đã đọc lại từ R2 và đối chiếu khớp cả dung lượng lẫn mã băm |
+| Bucket trên Cloudflare | object `MKTTool-Relay.zip`, đúng dung lượng |
+| `/relay-download` trên Railway | dung lượng + mốc đóng gói + **chuỗi SHA-256** hiện đủ |
+| Bấm nút tải trên Railway | file về đủ; `Get-FileHash <file> -Algorithm SHA256` khớp chuỗi trên trang |
+
+**Ba kiểu hỏng và câu nó nói ra:**
+
+| Triệu chứng | Nguyên nhân thường gặp |
+|---|---|
+| `403 SignatureDoesNotMatch` lúc publish | Access Key / Secret dán lệch, hoặc lẫn giữa hai token |
+| `403 AccessDenied` lúc publish | Token đọc bị dán nhầm vào máy build — nó không có quyền ghi |
+| Trang tải nói *"chưa có gói"* dù đã publish | Máy chủ khai nhầm tên bucket, hoặc bốn biến chưa được Railway nạp lại sau khi thêm |
+| Trang tải có gói nhưng **thiếu dòng SHA-256** | Metadata không bám vào object — publish lại; `relay:publish` lẽ ra đã chặn ca này ở bước đối chiếu |
+
+> Ký sai **không hỏng lặng lẽ được**: R2 từ chối ngay lượt đầu, và thông báo mang nguyên mã lỗi của
+> Cloudflare chứ không rút gọn thành "HTTP 403" — vì `AccessDenied` với `SignatureDoesNotMatch` dẫn
+> tới hai việc phải làm khác hẳn nhau.
 
 ---
 
@@ -781,12 +867,9 @@ Xếp theo thứ tự nên làm.
 3. ~~**Facebook** (bước 11)~~ **xong 06/08/2026** — đã nối Fanpage thật, token không hạn, Meta
    chấp nhận domain Railway. Còn nợ nửa sau của bước 11.4: **cả team vào vai trò Tester**, làm
    ở GĐ6 khi team đã có tài khoản.
-4. **Sửa lỗi chuyển hướng của callback Facebook.** Kết nối chạy đúng và lưu xong, nhưng người
-   dùng bị ném sang `https://localhost:3000` kèm `ERR_SSL_PROTOCOL_ERROR`:
-   [callback/route.ts](../src/app/api/facebook/oauth/callback/route.ts) dựng địa chỉ từ
-   `request.url`, mà sau proxy Railway nó ghép giao thức từ `x-forwarded-proto` với host nội bộ
-   trong container. Route `start` đã tránh đúng bẫy này từ trước nhưng `callback` không thừa
-   hưởng — rút phần dựng địa chỉ ra `src/lib/http/` cho cả hai dùng chung.
+4. ~~**Sửa lỗi chuyển hướng của callback Facebook**~~ **xong 06/08/2026** — đã rút phần dựng địa
+   chỉ ra [request-base-url.ts](../src/lib/http/request-base-url.ts), cả hai route OAuth dùng
+   chung. Lần deploy tới là hết `ERR_SSL_PROTOCOL_ERROR` sau khi nối Fanpage.
 
 Đã xong, không còn nợ: nối GitHub (đẩy commit lên `master` là web tự cập nhật),
 `npm run db:backup:remote` đã chạy và đã khôi phục thử, sao lưu tự động lên R2, và `.exe` cầu nối.

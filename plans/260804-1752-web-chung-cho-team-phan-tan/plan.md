@@ -212,9 +212,14 @@ câu *"bản cầu nối quá cũ, tải lại"* — chứ không phải hỏng 
 > Không mua chứng chỉ ký số (quyết định plan này) nghĩa là **mỗi bản mới lại gặp SmartScreen**.
 > Đó là thêm một lý do phát hành thưa và có chủ ý, thay vì cập nhật liên tục.
 
-### QĐ 12 — Gói cầu nối cất trên R2, app lấy hộ. Chưa làm ngay
+### QĐ 12 — Gói cầu nối cất trên R2, app lấy hộ
 
-**Chốt 06/08/2026.** QĐ 11 đã định *team tải từ đâu* (từ app, sau lớp đăng nhập). Câu còn hở hẹp
+**Chốt 06/08/2026, và làm luôn trong ngày** — sớm hơn mốc kích hoạt đã hẹn ở cuối mục này. Lý do
+đổi ý: `/relay-download` trên Railway là một nút bấm vào ra trang trống, tức một trạng thái hỏng
+**nhìn thấy được** ngay trong buổi bàn giao đầu tiên. Phần "chưa làm ngay" bên dưới giữ nguyên làm
+ghi chép về cách cân nhắc, không còn là trạng thái.
+
+QĐ 11 đã định *team tải từ đâu* (từ app, sau lớp đăng nhập). Câu còn hở hẹp
 hơn: **file bằng cách nào lên tới máy chủ** — vì `relay/dist/` bị gitignore (87 MB, dựng lại được),
 nên gói `.zip` không nằm trong ảnh Docker và `/relay-download` trên Railway đang nói *"chưa có gói"*.
 
@@ -226,10 +231,18 @@ Chọn R2 vì **nó đã có sẵn** — dựng 06/08 cho việc sao lưu hằng
 hóa đơn, không thêm món phải nhớ khi chuyển nhà (khác volume: volume không đi theo thùng Docker,
 đục một lỗ vào QĐ 9).
 
-Phải viết thêm: `getObject` cho [r2-client.ts](../../src/lib/backup/r2-client.ts) (~30-40 dòng,
-dùng lại bộ ký SigV4 đã có), và một nhánh đọc-từ-R2 cho
-[relay-release-file.ts](../../src/lib/relay/relay-release-file.ts) thay `statSync`. Ước ~100 dòng
-kèm test.
+**Đã viết** (06/08/2026): `headObject` + `getObject` cho [r2-client.ts](../../src/lib/r2/r2-client.ts),
+nhánh đọc-từ-R2 ở [relay-release-r2.ts](../../src/lib/relay/relay-release-r2.ts), và bộ phát hành
+[publish-relay-release.ts](../../scripts/publish-relay-release.ts) (`npm run relay:publish`). Module
+R2 dời từ `lib/backup/` sang `lib/r2/` vì nay nó phục vụ hai tính năng — tên cũ nói dối.
+
+Hai chỗ lệch so với ước tính ban đầu, cả hai đều đáng:
+
+- **`headObject` chứ không chỉ `getObject`.** Trang tải cần dung lượng, mốc phát hành và mã băm ở
+  *mỗi lượt xem*, nhưng không cần nội dung. Chỉ có `getObject` thì mỗi lượt mở trang kéo 32 MB về
+  để in ra một dòng chữ.
+- **Mã băm đính vào metadata lúc phát hành**, không băm lại ở máy chủ. Cùng lý do, và nó giữ nguyên
+  mức tin cậy cũ: con số vẫn đi cùng đường với file, vẫn không phải chữ ký số.
 
 > ⚠️ **Bucket riêng + token riêng, chỉ đọc.** KHÔNG nới token sao lưu hiện có. Token này nằm cùng
 > chỗ với `VAULT_KEY_SERVER`; một chìa mở được mọi ngăn ở đó **mở rộng** thiệt hại của một lần
@@ -244,15 +257,21 @@ kèm test.
 | GitHub Releases, web giữ link | **Mở lại QĐ 11**, không phải một đánh đổi thường. Repo private nên vẫn cần đăng nhập GitHub — nhưng đó là **tập người khác** với `ALLOWED_EMAILS`. Điểm mạnh thật của nó: mã băm và file ở hai miền tin cậy khác nhau |
 | CI Windows build + bake vào ảnh | **Không tự đứng được.** Railway build ảnh từ repo; artifact Windows không có ở đó nên Dockerfile vẫn phải tải về từ *một chỗ chứa nào đó*. Nó là lớp tự động chồng lên A/B/D, không thay được chúng. Kèm: build bắt buộc chạy trên runner Windows (SEA gói runtime máy build), tính phí gấp đôi |
 
-**Chưa làm ngay, và đây là phần cố ý.** Đợt bàn giao chỉ 1-2 máy Reddit, người cài ngồi cạnh máy —
-chép gói bằng USB là xong. Viết code cho một đường phát hành mà mỗi năm dùng vài lần, trong lúc
-proxy quan sát viên và Facebook đang chặn nghiệm thu, là đảo thứ tự.
+~~**Chưa làm ngay, và đây là phần cố ý.**~~ Đợt bàn giao chỉ 1-2 máy Reddit, người cài ngồi cạnh
+máy — chép gói bằng USB là xong. Viết code cho một đường phát hành mà mỗi năm dùng vài lần, trong
+lúc proxy quan sát viên và Facebook đang chặn nghiệm thu, là đảo thứ tự.
 
-**Mốc kích hoạt — làm khi CHẠM MỘT trong hai:**
+~~**Mốc kích hoạt — làm khi CHẠM MỘT trong hai:**~~
 
 1. **Đợt TikTok vào.** Mọi người đều cần MultiZen, số máy nở ra, chép tay hết rẻ.
 2. **Có bản cầu nối thứ hai phải phát.** Lúc đó dải *"cầu nối bản cũ, tải bản mới ở đây"* bắt đầu
    trỏ vào chỗ trống — lỗ hổng thành thật, không còn là giả định.
+
+> **Vì sao làm sớm hơn cả hai mốc.** Lý lẽ hoãn ở trên cân *chi phí viết code* với *tần suất dùng*,
+> và bỏ sót một cột thứ ba: `/relay-download` không phải một tính năng vắng mặt mà là một **màn
+> hình hỏng đang bày ra**. Người đầu tiên được bàn giao sẽ mở đúng trang đó, và câu "chưa có gói,
+> nhờ ADMIN gửi file qua chat" dựng lại đúng thói quen mà QĐ 11 sinh ra để dẹp. Phần code hóa ra
+> cũng rẻ hơn ước tính vì bộ ký SigV4 đã có sẵn.
 
 ## Câu chưa trả lời
 

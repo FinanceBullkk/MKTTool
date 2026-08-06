@@ -15,7 +15,7 @@ import {
   type VaultKeyEnv,
 } from "../crypto/encryption-key-loader";
 import { DAILY_BACKUP_ENV } from "../backup/daily-backup-config";
-import { readR2Config } from "../backup/r2-client";
+import { readR2Config } from "../r2/r2-config";
 import { DAILY_HEALTH_CHECK_ENV } from "../health/daily-health-check-config";
 import { readDailyScheduleTime } from "../schedule/daily-run-schedule";
 import type { OpsAlert } from "./ops-alert-types";

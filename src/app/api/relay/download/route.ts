@@ -17,11 +17,13 @@
  * lúc — trên gói Railway nhỏ thì hai người cùng bấm là đủ để tiến trình chết vì hết bộ nhớ, và
  * triệu chứng sẽ là "web tự khởi động lại" chứ không phải "tải hỏng".
  */
-import { createReadStream } from "node:fs";
-import { Readable } from "node:stream";
 import { NextResponse } from "next/server";
 import { guardedRoute } from "@/lib/auth/guarded-route";
-import { readRelayRelease, relayDownloadFileName } from "@/lib/relay/relay-release-file";
+import {
+  openRelayArchive,
+  readRelayRelease,
+  relayDownloadFileName,
+} from "@/lib/relay/relay-release-file";
 
 export const runtime = "nodejs";
 
@@ -30,7 +32,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export const GET = guardedRoute(async function GET() {
-  const release = readRelayRelease();
+  const release = await readRelayRelease();
 
   if (!release.available) {
     return NextResponse.json(
@@ -38,14 +40,14 @@ export const GET = guardedRoute(async function GET() {
         ok: false,
         message:
           `Máy chủ này chưa có gói cài nào để tải (đã tìm ở ${release.expectedPath}). ` +
-          `Người quản trị dựng bằng "npm run relay:build" trên một máy Windows rồi đặt file ` +
-          `vào đúng chỗ đó, hoặc trỏ biến RELAY_RELEASE_DIR sang nơi đang chứa nó.`,
+          `Người quản trị dựng bằng "npm run relay:build" trên một máy Windows rồi đẩy lên ` +
+          `bằng "npm run relay:publish".`,
       },
       { status: 404 },
     );
   }
 
-  const stream = Readable.toWeb(createReadStream(release.path)) as ReadableStream<Uint8Array>;
+  const stream = await openRelayArchive(release);
 
   return new Response(stream, {
     headers: {

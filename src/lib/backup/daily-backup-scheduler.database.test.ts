@@ -9,7 +9,7 @@ import {
   readDailyBackupSchedule,
   tickDailyBackup,
 } from "./daily-backup-scheduler";
-import { R2_ENV } from "./r2-client";
+import { R2_ENV } from "../r2/r2-config";
 
 /**
  * `pg_dump` và mạng đều tiêm vào — test không có việc gì gọi Postgres bằng tiến trình con hay

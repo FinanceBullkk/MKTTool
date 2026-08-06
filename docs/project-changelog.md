@@ -12,6 +12,39 @@ Dự án chưa phát hành phiên bản (`0.1.0`, dùng nội bộ). Mốc chia 
 
 ---
 
+## 06/08/2026 (khuya) — Gói cầu nối phát qua R2: `/relay-download` hết là một nút bấm vào ra trang trống
+
+`.exe` cầu nối dựng trên Windows còn ảnh chạy dựng trên Linux, nên nó không thể nằm trong ảnh
+Docker — và `relay/dist/` lại bị gitignore, nên nó cũng không đi theo repo. Hệ quả: trang tải trên
+Railway nói *"chưa có gói"* với **mọi** người mở nó. Nay có chỗ thứ ba để đặt file
+([QĐ 12](../plans/260804-1752-web-chung-cho-team-phan-tan/plan.md#qđ-12--gói-cầu-nối-cất-trên-r2-app-lấy-hộ)).
+
+- **Ngăn R2 riêng, token riêng.** Bốn biến `RELAY_RELEASE_R2_*` tách hẳn khỏi bốn biến `R2_*` của
+  sao lưu. Máy chủ dùng token **chỉ đọc**; token **ghi** chỉ nằm ở `.env` của máy build. Gộp hai
+  ngăn vào một chìa là mở rộng thiệt hại của một lần chiếm máy chủ chứ không thu hẹp nó — ngăn gói
+  cài chứa thứ công khai được, ngăn sao lưu thì không.
+- **`npm run relay:publish`** đẩy gói lên, rồi **đọc lại từ R2 để đối chiếu**. Một lượt `PUT` trả
+  200 chứng minh R2 nhận request, không chứng minh thứ nằm trên đó là thứ mình định gửi.
+- **Tách khỏi `relay:build` có chủ ý.** Build là việc làm nhiều lần kể cả để thử; phát hành là việc
+  cả team nhìn thấy — nó đổi thứ mọi người tải về và bật dải *"cầu nối bản cũ"* trên máy người khác.
+- **Mã băm băm một lần lúc phát hành**, đính vào metadata của object. Máy chủ đọc nó bằng một
+  request `HEAD` thay vì kéo 32 MB về ở mỗi lượt mở trang. Mức tin cậy không đổi: con số vẫn đi
+  cùng đường với file, vẫn không phải chữ ký số. Mã băm sai hình dạng bị chặn ở cửa — một chuỗi rác
+  đi tới trang tải sẽ được người cài đem đối chiếu, thấy lệch, rồi kết luận file hỏng.
+- **Không khai ngăn thì máy chủ tìm trên đĩa** như trước. Đó là đường của máy dev vừa build xong,
+  để mở thử trang tải mà không phải dựng R2 trước.
+- **Lỗi mạng không hóa thành "chưa có gói".** Hai chuyện đó dẫn tới hai việc phải làm khác hẳn
+  nhau, và câu sai sẽ cử người quản trị đi build lại một gói vốn đã nằm sẵn trên R2.
+
+> Module R2 dời từ `lib/backup/` sang `lib/r2/` — nay nó phục vụ hai tính năng, tên cũ nói dối.
+
+> **Làm sớm hơn mốc đã hẹn.** QĐ 12 định hoãn tới đợt TikTok hoặc bản cầu nối thứ hai, với lý lẽ
+> "1-2 máy thì chép USB là xong". Lý lẽ đó cân chi phí code với tần suất dùng nhưng bỏ sót cột thứ
+> ba: đây không phải một tính năng vắng mặt mà là một **màn hình hỏng đang bày ra** cho đúng người
+> được bàn giao đầu tiên.
+
+---
+
 ## 06/08/2026 (tối) — GĐ5: web lên máy chủ thật, deploy tự động, và bản sao lưu tự rời khỏi Railway
 
 Ba mảnh cuối của GĐ5, và cả ba đều đóng cùng một lỗ: **thứ cần một người nhớ thì sớm muộn cũng có

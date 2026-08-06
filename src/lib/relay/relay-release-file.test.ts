@@ -9,7 +9,8 @@
 import { mkdtempSync, mkdirSync, rmSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { RELAY_RELEASE_R2_ENV } from "../r2/r2-config";
 import { RELAY_VERSION } from "./relay-endpoints";
 import {
   RELAY_ARCHIVE_NAME,
@@ -27,26 +28,32 @@ function makeReleaseDir(): string {
   return dir;
 }
 
+// Bộ test này đo **nhánh đĩa**. Máy chạy nó có thể đã khai ngăn R2 trong môi trường của mình, và
+// khi đó `readRelayRelease` sẽ đi hỏi qua mạng — bài test hoặc treo, hoặc đo nhầm thứ khác.
+beforeEach(() => {
+  for (const name of Object.values(RELAY_RELEASE_R2_ENV)) delete process.env[name];
+});
+
 afterEach(() => {
   delete process.env.RELAY_RELEASE_DIR;
   for (const dir of homes.splice(0)) rmSync(dir, { recursive: true, force: true });
 });
 
 describe("readRelayRelease", () => {
-  it("thư mục rỗng — nói chưa có, kèm ĐÚNG chỗ đã tìm", () => {
+  it("thư mục rỗng — nói chưa có, kèm ĐÚNG chỗ đã tìm", async () => {
     const dir = makeReleaseDir();
-    const release = readRelayRelease();
+    const release = await readRelayRelease();
 
     expect(release.available).toBe(false);
     // Câu trên trang tải in thẳng đường dẫn này ra. Sai nó là chỉ người sửa đi nhầm thư mục.
     if (!release.available) expect(release.expectedPath).toBe(path.join(dir, RELAY_ARCHIVE_NAME));
   });
 
-  it("có gói — trả dung lượng và mốc đóng gói", () => {
+  it("có gói — trả dung lượng và mốc đóng gói", async () => {
     const dir = makeReleaseDir();
     writeFileSync(path.join(dir, RELAY_ARCHIVE_NAME), "x".repeat(2048));
 
-    const release = readRelayRelease();
+    const release = await readRelayRelease();
     expect(release.available).toBe(true);
     if (release.available) {
       expect(release.sizeBytes).toBe(2048);
@@ -60,13 +67,13 @@ describe("readRelayRelease", () => {
     }
   });
 
-  it("một THƯ MỤC trùng tên không tính là gói", () => {
+  it("một THƯ MỤC trùng tên không tính là gói", async () => {
     // `statSync` qua được cả thư mục, và nhánh sau sẽ đem nó đi stream — đường hỏng đó ra lỗi
     // EISDIR giữa lúc trình duyệt đang tải, tức người dùng nhận một file rỗng mà không báo gì.
     const dir = makeReleaseDir();
     mkdirSync(path.join(dir, RELAY_ARCHIVE_NAME));
 
-    expect(readRelayRelease().available).toBe(false);
+    expect((await readRelayRelease()).available).toBe(false);
   });
 
   it("tên lúc tải xuống mang số phiên bản, tên trên đĩa thì không", () => {
