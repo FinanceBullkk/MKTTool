@@ -67,6 +67,7 @@ export async function backupDatabase(
 export async function dumpDatabaseTo(
   filePath: string,
   source: BackupSource = resolveBackupSource("local"),
+  timeoutMs: number = PG_DUMP_TIMEOUT_MS,
 ): Promise<void> {
   if (existsSync(filePath)) {
     throw new Error(
@@ -74,7 +75,7 @@ export async function dumpDatabaseTo(
     );
   }
 
-  await runPgDump(filePath, postgresToolEnv(source.databaseUrl));
+  await runPgDump(filePath, postgresToolEnv(source.databaseUrl), timeoutMs);
 }
 
 /**
