@@ -26,6 +26,8 @@
 import { RELAY_ORIGIN, RELAY_PATHS, RELAY_VERSION } from "../../src/lib/relay/relay-endpoints";
 import { handleConfigure } from "./handle-configure";
 import { handleEncryptForVault } from "./handle-encrypt-for-vault";
+import { handleReceiveOperatorKey } from "./handle-receive-operator-key";
+import { handleSealOperatorKey } from "./handle-seal-operator-key";
 import { handleSecretReveal } from "./handle-secret";
 import { handleSetOperatorKey } from "./handle-set-operator-key";
 import { handleTicketRequest } from "./handle-ticket";
@@ -195,6 +197,18 @@ async function main(): Promise<void> {
         handleEncryptForVault(body, {
           vaultKeyOperator: state.vaultKeyOperator,
           notConfiguredMessage: notConfiguredMessage(),
+        }),
+      [RELAY_PATHS.sealOperatorKey]: (request, body) =>
+        handleSealOperatorKey(request, body, {
+          allowedOrigin: state.webOrigin || null,
+          vaultKeyOperator: state.vaultKeyOperator,
+          notConfiguredMessage: notConfiguredMessage(),
+        }),
+      [RELAY_PATHS.receiveOperatorKey]: (_request, body) =>
+        handleReceiveOperatorKey(body, {
+          devicePrivateKey: keypair.privateKey,
+          home,
+          onConfigured: reloadConfig,
         }),
     },
   });

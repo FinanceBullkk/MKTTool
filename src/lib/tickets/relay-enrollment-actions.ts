@@ -47,6 +47,7 @@ import {
   relayPublicKeyToHex,
   relayPublicKeyToKeyObject,
 } from "./relay-device-key";
+import type { SealedOperatorKeyGrant } from "@/lib/relay/relay-endpoints";
 import { loadServerSigningKeys } from "./server-signing-key";
 
 /** Hai giá trị cầu nối cần, và chỉ máy chủ mới biết. */
@@ -162,4 +163,136 @@ export const enrollThisMachine = guardedAction(async function enrollThisMachine(
     message: `Đã ghi máy "${name}" vào sổ cho ${owner.email}. Đang gửi cấu hình xuống cầu nối.`,
     enrollment: { deviceId: device.id, serverPublicKey },
   };
+});
+
+/** Khóa vùng operator của chiếc máy đang ngồi đang ở đâu. */
+export interface OperatorKeyGrantResult extends ActionResult {
+  /**
+   * `ready` — có hộp, trình duyệt đẩy xuống cầu nối ngay.
+   * `waiting` — chưa ai cấp; máy này phải đợi quản trị viên bấm.
+   * `already` — máy đã báo có khóa từ trước, không phải làm gì.
+   */
+  state?: "ready" | "waiting" | "already";
+  grant?: SealedOperatorKeyGrant;
+}
+
+const deviceIdSchema = z.object({ deviceId: z.string().min(1, "Thiếu mã máy.") });
+
+/**
+ * Máy đang ngồi hỏi xem có hộp khóa nào đang chờ nó không.
+ *
+ * ## Vì sao vẫn kiểm chủ máy, dù hộp đã bọc cho đúng một máy
+ *
+ * Kiểm ở đây không chặn được việc đọc ruột — bọc rồi thì người lạ lấy về cũng chỉ có một khối
+ * rác. Nó chặn thứ khác: **đọc sổ bằng cách dò**. Không kiểm thì bất kỳ ai đăng nhập được cũng
+ * quét được `deviceId` để biết máy nào đã được cấp khóa lúc nào, tức là dựng lại được lịch làm
+ * việc của đồng nghiệp từ một endpoint vốn không sinh ra để trả lời câu đó.
+ */
+export const readOperatorKeyGrant = guardedAction(async function readOperatorKeyGrant(
+  actor,
+  _prev: OperatorKeyGrantResult | null,
+  formData: FormData,
+): Promise<OperatorKeyGrantResult> {
+  const parsed = deviceIdSchema.safeParse(formToObject(formData));
+  if (!parsed.success) return { ok: false, message: firstError(parsed.error) };
+
+  const device = await prisma.relayDevice.findUnique({
+    where: { id: parsed.data.deviceId },
+    select: {
+      userId: true,
+      name: true,
+      revokedAt: true,
+      operatorKeyGrant: true,
+      operatorKeyReadyAt: true,
+    },
+  });
+  if (!device) {
+    return {
+      ok: false,
+      message:
+        "Máy này không có trong sổ. Nhiều khả năng nó đã bị xóa khỏi sổ sau khi cấu hình — bấm " +
+        '"Tìm cầu nối" rồi đăng ký lại.',
+    };
+  }
+
+  if (actor.role !== "ADMIN" && device.userId !== actor.userId) {
+    return { ok: false, message: "Máy này không phải máy của bạn." };
+  }
+
+  if (device.revokedAt) {
+    return { ok: false, message: `Máy "${device.name}" đã bị thu hồi.` };
+  }
+
+  if (device.operatorKeyGrant) {
+    let grant: unknown;
+    try {
+      grant = JSON.parse(device.operatorKeyGrant);
+    } catch {
+      return { ok: false, message: "Hộp khóa lưu trong sổ đã hỏng — xin quản trị viên cấp lại." };
+    }
+
+    const raw = (typeof grant === "object" && grant !== null ? grant : {}) as Record<
+      string,
+      unknown
+    >;
+    if (typeof raw.ephemeralPublicKey !== "string" || typeof raw.sealed !== "string") {
+      return { ok: false, message: "Hộp khóa lưu trong sổ thiếu phần — xin quản trị viên cấp lại." };
+    }
+
+    return {
+      ok: true,
+      message: "Có khóa đang chờ máy này.",
+      state: "ready",
+      grant: { ephemeralPublicKey: raw.ephemeralPublicKey, sealed: raw.sealed },
+    };
+  }
+
+  return device.operatorKeyReadyAt
+    ? { ok: true, message: "Máy này đã báo có khóa từ trước.", state: "already" }
+    : { ok: true, message: "Chưa có khóa nào được cấp cho máy này.", state: "waiting" };
+});
+
+/**
+ * Chiếc máy tự báo rằng nó **đã có** khóa vùng operator.
+ *
+ * ## Vì sao là "máy tự báo" chứ không phải "đã giao xong"
+ *
+ * Có hai đường để một máy có khóa: được cấp, và người dùng dán tay ở trang trạng thái của cầu
+ * nối. Đường thứ hai là đường bootstrap — và là đường **duy nhất** cho chiếc máy đầu tiên của cả
+ * team, vì lúc đó chưa tồn tại cầu nối nào khác để bọc từ đó. Máy chủ không thấy được đường ấy.
+ *
+ * Nên hàm này ghi đúng thứ nó biết: *chiếc máy đó vừa khai là nó đã đủ cấu hình*. Suy ra trạng
+ * thái từ việc "đã cấp hay chưa" thì sổ sẽ nói một chiếc máy đang chạy tốt là chưa sẵn sàng.
+ */
+export const markOperatorKeyReady = guardedAction(async function markOperatorKeyReady(
+  actor,
+  _prev: ActionResult | null,
+  formData: FormData,
+): Promise<ActionResult> {
+  const parsed = deviceIdSchema.safeParse(formToObject(formData));
+  if (!parsed.success) return { ok: false, message: firstError(parsed.error) };
+
+  const device = await prisma.relayDevice.findUnique({
+    where: { id: parsed.data.deviceId },
+    select: { userId: true },
+  });
+  if (!device) return { ok: false, message: "Máy này không có trong sổ." };
+
+  if (actor.role !== "ADMIN" && device.userId !== actor.userId) {
+    return { ok: false, message: "Máy này không phải máy của bạn." };
+  }
+
+  await prisma.relayDevice.update({
+    where: { id: parsed.data.deviceId },
+    data: {
+      // Xóa hộp ngay khi nó tới nơi. Giữ lại một bản sao đã dùng xong chỉ là thêm một thứ để rò
+      // nếu có ngày bản sao lưu database lọt ra ngoài.
+      operatorKeyGrant: null,
+      operatorKeyReadyAt: new Date(),
+    },
+  });
+
+  revalidatePath("/relay-devices");
+
+  return { ok: true, message: "Máy này đã sẵn sàng." };
 });

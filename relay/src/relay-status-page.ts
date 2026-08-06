@@ -158,14 +158,22 @@ function renderProblems(problems: ConfigProblem[], webOrigin: string): string {
   return `<h2>Còn thiếu</h2>
 <ul>${items}</ul>
 
-<h2>Hai bước để xong</h2>
+<h2>Một bước để xong</h2>
 <ol>
   <li>Mở <code>${escapeHtml(webOrigin)}/relay-devices</code>, đăng nhập, rồi bấm
-      <strong>Đăng ký máy này</strong>. Web app tự đọc khóa công khai ở trên và tự ghi mã máy
-      cùng khóa máy chủ xuống đây — không phải chép tay.</li>
-  <li>Dán <strong>khóa vùng operator</strong> ở ô cuối trang này.</li>
+      <strong>Đăng ký máy này</strong>. Web app tự đọc khóa công khai ở trên, ghi máy vào sổ, và
+      gửi cấu hình ngược xuống đây — không phải chép tay giá trị nào.</li>
 </ol>
-<p class="muted">Cả hai đều có hiệu lực ngay, không phải tắt bật lại cầu nối.</p>
+<p><strong>Khóa vùng operator thì không phải làm gì:</strong> sau khi đăng ký, quản trị viên bấm
+   <em>Cấp khóa</em> cho máy này, và ngay lần sau bạn mở web app thì khóa tự về. Trang đó nói rõ
+   đang chờ hay đã xong.</p>
+<p class="muted">Có hiệu lực ngay, không phải tắt bật lại cầu nối.</p>
+
+<details><summary class="muted">Dán tay khóa vùng operator</summary>
+<p class="muted">Hai ca cần tới ô ở cuối trang này: <strong>chiếc máy đầu tiên của cả team</strong>
+   — lúc đó chưa có cầu nối nào khác để cấp khóa từ đó — và lúc cần dùng ngay mà không đợi được
+   quản trị viên.</p>
+</details>
 
 <details><summary class="muted">Cách cũ: sửa tay <code>${escapeHtml(CONFIG_FILE)}</code></summary>
 <pre>${escapeHtml(JSON.stringify(CONFIG_TEMPLATE, null, 2))}</pre>
@@ -175,3 +183,4 @@ function renderProblems(problems: ConfigProblem[], webOrigin: string): string {
 <p class="muted">Cầu nối vẫn nghe khi thiếu cấu hình, nhưng mọi việc thật đều bị từ chối — nó
 không đoán bừa bằng khóa nào.</p>`;
 }
+

@@ -57,6 +57,16 @@ export const RELAY_PATHS = {
    * `deviceId` nhưng **không** có khóa vùng operator, và ngày nó có thì GĐ3 mất nghĩa.
    */
   setOperatorKey: "/set-operator-key",
+  /**
+   * POST `{ recipientPublicKey }` — **cầu nối của ADMIN** bọc khóa vùng operator cho một máy khác.
+   *
+   * Trả về một cái hộp mà **chỉ chiếc máy nhận mở được**, không phải khóa. Đó là điểm phân biệt
+   * với mọi đường khác ở đây, và là điều kiện để đường này an toàn mà không cần cầu nối biết ai
+   * là ADMIN: thứ nó phát ra vô dụng với chính người vừa gọi nó.
+   */
+  sealOperatorKey: "/seal-operator-key",
+  /** POST `{ ephemeralPublicKey, sealed }` — máy nhận mở hộp bằng khóa riêng của nó rồi lưu lại. */
+  receiveOperatorKey: "/receive-operator-key",
 } as const;
 
 /**
@@ -81,6 +91,30 @@ export const RELAY_PATHS = {
  * Nung vào chỉ là đổi mặc định từ *"không tin ai"* thành *"tin đúng địa chỉ của team"*.
  */
 export const BUILT_IN_WEB_ORIGIN = process.env.RELAY_WEB_ORIGIN?.trim() || "http://localhost:3000";
+
+/**
+ * Khóa vùng operator đã bọc cho **riêng một chiếc máy**.
+ *
+ * Cùng hình dạng với `SealedPayload` của `ticket-sealed-box.ts`, và cố ý dùng lại đúng cơ chế đó
+ * thay vì nghĩ ra cái mới: nó đã được soi kỹ, đã có test, và đã chạy trên mọi tấm vé. Khai lại ở
+ * file hợp đồng này vì đây là thứ **web app cầm và chuyển tiếp** — nó không được import từ
+ * `tickets/` để rồi kéo theo cả cây phụ thuộc của máy chủ vào bundle trình duyệt.
+ */
+export interface SealedOperatorKeyGrant {
+  /** Khóa công khai dùng một lần của bên bọc, hex. */
+  ephemeralPublicKey: string;
+  /** Khóa vùng operator đã mã hóa — định dạng `v1.iv.tag.ct`. */
+  sealed: string;
+}
+
+/** Thân của `POST /seal-operator-key`: khóa công khai của chiếc máy sẽ nhận. */
+export interface SealOperatorKeyRequest {
+  /** `RelayDevice.publicKey` của máy nhận, hex. Công khai đúng nghĩa — lộ cũng không mất gì. */
+  recipientPublicKey: string;
+}
+
+/** Hộp đã bọc, để web app đẩy lên máy chủ giữ hộ. */
+export interface SealOperatorKeyReply extends RelayReply, Partial<SealedOperatorKeyGrant> {}
 
 /** Thân của `POST /configure` — hai giá trị mà chỉ máy chủ mới biết. */
 export interface ConfigureRelayRequest {
@@ -125,7 +159,7 @@ export const RELAY_TIMEOUT_MS = 4_000;
  * tăng bằng tay: tự sinh theo git hash thì nó đổi ở mọi lượt build, và một số đổi liên tục thì
  * cảnh báo "bản cũ" kêu liên tục cho tới lúc không ai còn nhìn.
  */
-export const RELAY_VERSION = 4;
+export const RELAY_VERSION = 5;
 
 /** Những gì `/health` trả về. */
 export interface RelayHealth {

@@ -1,6 +1,7 @@
 import { RelayDeviceIdCell } from "@/components/relay/relay-device-id-cell";
 import { RelayDeviceRevokeButton } from "@/components/relay/relay-device-revoke-button";
 import { RelayEnrollCard } from "@/components/relay/relay-enroll-card";
+import { RelayGrantKeyButton } from "@/components/relay/relay-grant-key-button";
 import { ActionForm, Field, SelectField } from "@/components/ui/form-controls";
 import { Card, DataTable, EmptyState, PageHeading, StatusBadge } from "@/components/ui/page-section";
 import { isEmailAllowed, readEmailAccessList } from "@/lib/auth/allowed-emails";
@@ -52,8 +53,72 @@ export default async function RelayDevicesPage() {
   const accessList = readEmailAccessList();
   const canStillSignIn = (email: string) => isEmailAllowed(email, accessList);
 
+  /**
+   * Khóa vùng operator của một máy đang ở đâu — **theo những gì máy chủ biết được**.
+   *
+   * Ba trạng thái, và cách đọc chúng phải cẩn thận đúng ở chỗ này: `chưa cấp` KHÔNG có nghĩa là
+   * máy đó không có khóa. Có đường thứ hai để một máy có khóa — người dùng dán tay ở trang trạng
+   * thái của cầu nối — và máy chủ mù hoàn toàn với đường đó cho tới khi chính chiếc máy ấy mở web
+   * app và tự khai. Nên nhãn nói *"chưa cấp"*, không nói *"chưa có khóa"*.
+   */
+  const keyStatus = (device: (typeof devices)[number]) => {
+    if (device.operatorKeyReadyAt) {
+      return {
+        label: `máy đã báo có khóa ${formatFullDateTime(device.operatorKeyReadyAt)}`,
+        className:
+          "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400",
+      };
+    }
+    if (device.operatorKeyGrant) {
+      return {
+        label: "đã cấp — chờ máy đó mở web app",
+        className: "bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-400",
+      };
+    }
+    return {
+      label: "chưa cấp",
+      className: "bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400",
+    };
+  };
+
+  /** Máy đã vào sổ, còn dùng được, mà chưa có khóa và cũng chưa được cấp. */
+  const awaitingKey = devices.filter(
+    (device) => !device.revokedAt && !device.operatorKeyGrant && !device.operatorKeyReadyAt,
+  );
+
   return (
     <>
+      {isAdmin && awaitingKey.length > 0 ? (
+        <Card title={`Đang chờ cấp khóa — ${awaitingKey.length} máy`}>
+          <p className="mb-4 text-sm text-neutral-600 dark:text-neutral-400">
+            Mấy máy này đã vào sổ nhưng chưa có khóa vùng operator, nên chưa lấy được mật khẩu hay
+            mở được profile. Bấm <strong>Cấp khóa</strong> là xong — khóa được bọc bằng cầu nối
+            trên máy bạn, cho riêng từng máy nhận, và tự về máy đó ngay lần sau họ mở web app.
+          </p>
+          <DataTable headers={["Máy", "Người dùng", "Đăng ký", ""]}>
+            {awaitingKey.map((device) => (
+              <tr key={device.id}>
+                <td className="py-2 pr-4 font-medium">{device.name}</td>
+                <td className="py-2 pr-4">{device.user.email}</td>
+                <td className="py-2 pr-4 text-xs">{formatFullDateTime(device.createdAt)}</td>
+                <td className="py-2 pr-4 text-right">
+                  <RelayGrantKeyButton
+                    deviceId={device.id}
+                    devicePublicKey={device.publicKey}
+                    deviceName={device.name}
+                    alreadyReady={false}
+                  />
+                </td>
+              </tr>
+            ))}
+          </DataTable>
+          <p className="mt-4 text-xs text-neutral-500">
+            Máy nào lấy khóa bằng cách dán tay thì vẫn nằm ở đây cho tới khi chính nó mở web app và
+            tự khai — máy chủ không thấy được đường đó. Cấp thêm một lần nữa cũng không sao.
+          </p>
+        </Card>
+      ) : null}
+
       <PageHeading
         title="Máy chạy cầu nối"
         description="Mỗi máy có cặp khóa riêng. Máy chủ mã hóa nội dung vé bằng khóa công khai của đúng máy nhận, nên trình duyệt chỉ là người đưa thư — nó chuyển vé đi nhưng không đọc được gì bên trong."
@@ -62,12 +127,22 @@ export default async function RelayDevicesPage() {
       <Card title={`Sổ đăng ký — ${active} máy đang dùng, ${devices.length - active} đã thu hồi`}>
         {devices.length === 0 ? (
           <EmptyState>
-            Chưa có máy nào trong sổ. Cài cầu nối trên máy cần dùng, chép khóa công khai nó in ra,
-            rồi dán vào form bên dưới.
+            Chưa có máy nào trong sổ. Cài cầu nối trên máy cần dùng, rồi mở web app{" "}
+            <strong>ngay trên chính máy đó</strong> và bấm &quot;Tìm cầu nối&quot; ở thẻ bên dưới —
+            không phải chép khóa công khai đi đâu cả.
           </EmptyState>
         ) : (
           <DataTable
-            headers={["Máy", "Người dùng", "Mã máy", "Khóa công khai", "Đăng ký", "Trạng thái", ""]}
+            headers={[
+              "Máy",
+              "Người dùng",
+              "Mã máy",
+              "Khóa công khai",
+              "Đăng ký",
+              "Trạng thái",
+              "Khóa operator",
+              "",
+            ]}
           >
             {devices.map((device) => (
               <tr key={device.id} className={device.revokedAt ? "text-neutral-400" : undefined}>
@@ -108,12 +183,27 @@ export default async function RelayDevicesPage() {
                     />
                   )}
                 </td>
+                <td className="py-2 pr-4">
+                  {device.revokedAt ? null : (
+                    <StatusBadge {...keyStatus(device)} />
+                  )}
+                </td>
                 <td className="py-2 pr-4 text-right">
                   {isAdmin && !device.revokedAt ? (
-                    <RelayDeviceRevokeButton
-                      action={revokeRelayDevice.bind(null, device.id)}
-                      deviceName={device.name}
-                    />
+                    <div className="space-y-2">
+                      {device.operatorKeyReadyAt || device.operatorKeyGrant ? (
+                        <RelayGrantKeyButton
+                          deviceId={device.id}
+                          devicePublicKey={device.publicKey}
+                          deviceName={device.name}
+                          alreadyReady={Boolean(device.operatorKeyReadyAt)}
+                        />
+                      ) : null}
+                      <RelayDeviceRevokeButton
+                        action={revokeRelayDevice.bind(null, device.id)}
+                        deviceName={device.name}
+                      />
+                    </div>
                   ) : null}
                 </td>
               </tr>
@@ -121,24 +211,25 @@ export default async function RelayDevicesPage() {
           </DataTable>
         )}
         <p className="mt-4 text-xs text-neutral-500">
-          <strong className="text-neutral-700 dark:text-neutral-300">Mã máy</strong> là thứ chép
-          xuống máy đang cài: mở{" "}
-          <code className="rounded bg-neutral-100 px-1 py-0.5 font-mono dark:bg-neutral-800">
-            relay-config.json
-          </code>{" "}
-          của cầu nối và dán vào ô{" "}
+          <strong className="text-neutral-700 dark:text-neutral-300">Mã máy</strong> là thứ chiếc
+          máy đó phải biết để nhận ra vé của chính nó. Bấm &quot;Tìm cầu nối&quot; ở thẻ bên dưới
+          thì web app <strong>tự ghi nó xuống</strong> — chỉ khi đăng ký hộ bằng form nhập tay mới
+          phải chép mã này về cho họ dán vào ô{" "}
           <code className="rounded bg-neutral-100 px-1 py-0.5 font-mono dark:bg-neutral-800">
             deviceId
+          </code>{" "}
+          trong{" "}
+          <code className="rounded bg-neutral-100 px-1 py-0.5 font-mono dark:bg-neutral-800">
+            relay-config.json
           </code>
-          . Cầu nối không tự hỏi được mã của chính nó, nên đây là đường duy nhất — dán thiếu hoặc
-          dán nhầm hàng thì mọi nút đều báo &quot;vé này phát cho máy khác&quot;.
+          . Dán thiếu hoặc dán nhầm hàng thì mọi nút đều báo &quot;vé này phát cho máy khác&quot;.
         </p>
       </Card>
 
       {/* Hiện cho MỌI vai trò: người ngồi ở máy chính là người cài nó, và bắt họ đợi ADMIN đăng
           nhập hộ trên máy mình là dựng lại đúng vòng chờ mà nút này sinh ra để dẹp. Ranh giới nằm
           ở chủ máy — OPERATOR chỉ đăng ký được máy của chính họ. */}
-      <Card title="Cài máy này">
+      <Card title="Cài máy này (Máy bạn đang ngồi)">
         <RelayEnrollCard teamMembers={teamMembers} isAdmin={isAdmin} />
       </Card>
 

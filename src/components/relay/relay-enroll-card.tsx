@@ -14,17 +14,31 @@
  * `deviceId` chỉ tồn tại **sau** khi khóa công khai đi lên và máy chủ ghi vào sổ. Nên luồng là
  * hai chiều: đọc khóa từ cầu nối → gửi lên → nhận mã máy về → đẩy ngược xuống cầu nối. Trình
  * duyệt làm người đưa thư ở cả hai chiều, đúng vai nó đã làm với vé.
+ *
+ * ## Bốn trạng thái, và vì sao `deviceId` mới là thứ phân biệt "đã vào sổ"
+ *
+ * `configured` của `/health` là **đủ CẢ BA giá trị**, kể cả khóa vùng operator. Một chiếc máy vừa
+ * đăng ký xong nhưng chưa được cấp khóa vẫn trả `configured: false` — đúng, vì nó chưa làm được
+ * việc gì thật. Dùng cờ đó để trả lời câu *"đã vào sổ chưa"* là gộp hai câu hỏi khác nhau, và
+ * hệ quả là chiếc máy đang chờ khóa sẽ bị mời đăng ký lại lần nữa.
+ *
+ * Nên: `deviceId` trả lời *"đã vào sổ chưa"*, `configured` trả lời *"làm việc được chưa"*.
  */
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Field, SelectField } from "@/components/ui/form-controls";
 import {
   configureRelay,
   describeRelayFailure,
   pingRelay,
+  receiveOperatorKey,
   type RelayOutcome,
 } from "@/lib/relay/relay-browser-client";
-import type { RelayHealth, RelayReply } from "@/lib/relay/relay-endpoints";
-import { enrollThisMachine } from "@/lib/tickets/relay-enrollment-actions";
+import { RELAY_ORIGIN, type RelayHealth, type RelayReply } from "@/lib/relay/relay-endpoints";
+import {
+  enrollThisMachine,
+  markOperatorKeyReady,
+  readOperatorKeyGrant,
+} from "@/lib/tickets/relay-enrollment-actions";
 
 interface TeamMember {
   id: string;
@@ -33,6 +47,14 @@ interface TeamMember {
 
 /** Cầu nối trên máy này đang ở đâu trong quá trình cài. */
 type Found = { publicKey: string; configured: boolean; deviceId: string | null };
+
+/**
+ * Nhịp hỏi lại khi đang đợi quản trị viên cấp khóa.
+ *
+ * 10 giây: đủ thưa để không phải là một vòng lặp bận, đủ dày để người vừa được duyệt không phải
+ * tự hỏi có nên tải lại trang không. Chỉ chạy ở đúng trạng thái đang chờ — xem `useEffect` bên dưới.
+ */
+const GRANT_POLL_MS = 10_000;
 
 const NOTE_CLASS = "text-xs text-neutral-500";
 const BUTTON_CLASS =
@@ -49,6 +71,50 @@ export function RelayEnrollCard({
   const [busy, setBusy] = useState(false);
   const [found, setFound] = useState<Found | null>(null);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
+  /** Câu mô tả lượt đi lấy khóa gần nhất. Tách khỏi `message` vì nó tự đổi, không do ai bấm. */
+  const [keyNote, setKeyNote] = useState<string | null>(null);
+  /** Đã báo lên máy chủ rằng máy này có khóa chưa — chỉ báo một lần cho mỗi lượt mở trang. */
+  const reported = useRef(false);
+
+  /**
+   * Đi lấy hộp khóa nếu có, mở nó ra, rồi báo lại cho sổ.
+   *
+   * Ba lời gọi nhưng người dùng không bấm gì cả: máy chủ giữ hộ → cầu nối mở → sổ ghi nhận. Chỗ
+   * duy nhất khóa hiện ra dạng dùng được là bên trong cầu nối, đúng như mọi đường khác của GĐ3.
+   */
+  const pickUpKey = useCallback(async (deviceId: string) => {
+    const askForm = new FormData();
+    askForm.set("deviceId", deviceId);
+
+    const waiting = await readOperatorKeyGrant(null, askForm);
+    if (!waiting.ok) {
+      setKeyNote(waiting.message);
+      return;
+    }
+    // `guardedAction` có thể trả về lời từ chối của chính lớp gác — một `ActionResult` trần,
+    // không mang hộp khóa. Thu hẹp kiểu thay vì ép, đúng như `enroll` làm với `enrollment`.
+    const grant = "grant" in waiting ? waiting.grant : undefined;
+    if (!grant) {
+      setKeyNote(null);
+      return;
+    }
+
+    const opened = await receiveOperatorKey(grant);
+    if (opened.status !== "ok") {
+      setKeyNote(`Nhận được khóa nhưng cầu nối chưa lưu được: ${describeRelayFailure(opened)}`);
+      return;
+    }
+
+    // Chỉ báo lên sổ SAU khi cầu nối đã xác nhận lưu xong. Báo trước là xóa mất cái hộp của một
+    // chiếc máy chưa thật sự nhận được nó, và lúc đó chỉ còn đường xin cấp lại.
+    const doneForm = new FormData();
+    doneForm.set("deviceId", deviceId);
+    await markOperatorKeyReady(null, doneForm);
+
+    reported.current = true;
+    setFound((current) => (current ? { ...current, configured: true } : current));
+    setKeyNote(null);
+  }, []);
 
   async function findRelay() {
     setBusy(true);
@@ -118,10 +184,54 @@ export function RelayEnrollCard({
       return;
     }
 
-    setFound({ ...found, configured: true, deviceId: enrollment.deviceId });
+    // KHÔNG đặt `configured: true` ở đây. Máy vừa vào sổ và vừa nhận `deviceId`, nhưng khóa vùng
+    // operator thì chưa — nó tới ở bước sau, và cờ này là thứ quyết định giao diện nói "xong" hay
+    // "đang chờ". Đặt sớm là hứa hộ một việc chưa xảy ra.
+    setFound({ ...found, deviceId: enrollment.deviceId });
     setMessage({ ok: true, text: pushed.data.message });
     setBusy(false);
+
+    // Có thể quản trị viên đã cấp sẵn từ trước — hỏi luôn thay vì bắt đợi hết một nhịp.
+    void pickUpKey(enrollment.deviceId);
   }
+
+  /**
+   * Đang chờ khóa thì tự hỏi lại, không bắt người dùng tải trang.
+   *
+   * Chỉ chạy khi đã vào sổ mà chưa đủ cấu hình — tức đúng một trạng thái. Ràng buộc 1 (LNA) không
+   * bị vi phạm: tới được đây nghĩa là đã có một lượt ping thành công **từ một cú bấm**, nên quyền
+   * mạng nội bộ đã được cấp và các lời gọi nền sau đó đi lọt.
+   */
+  useEffect(() => {
+    const deviceId = found?.deviceId;
+    if (!deviceId || found?.configured) return;
+
+    // Nhịp đầu đẩy sang tick sau thay vì gọi thẳng trong thân effect: gọi thẳng là dựng một
+    // chuỗi render nối đuôi nhau ngay lúc React đang commit, và đó cũng là thứ eslint chặn.
+    const first = setTimeout(() => void pickUpKey(deviceId), 0);
+    const timer = setInterval(() => void pickUpKey(deviceId), GRANT_POLL_MS);
+    return () => {
+      clearTimeout(first);
+      clearInterval(timer);
+    };
+  }, [found?.deviceId, found?.configured, pickUpKey]);
+
+  /**
+   * Máy đã đủ cấu hình mà sổ chưa biết → báo lên một lần.
+   *
+   * Đây là đường **dán tay**: chiếc máy đầu tiên của cả team lấy khóa ở trang trạng thái của cầu
+   * nối, và máy chủ không thấy được việc đó. Không báo thì sổ hiện "chưa có khóa" cho một chiếc
+   * máy đang chạy tốt — và người đọc sổ sẽ đi cấp lại một thứ đã có.
+   */
+  useEffect(() => {
+    const deviceId = found?.deviceId;
+    if (!deviceId || !found?.configured || reported.current) return;
+
+    reported.current = true;
+    const form = new FormData();
+    form.set("deviceId", deviceId);
+    void markOperatorKeyReady(null, form);
+  }, [found?.deviceId, found?.configured]);
 
   return (
     <div className="space-y-4">
@@ -152,13 +262,27 @@ export function RelayEnrollCard({
 
           {found.configured ? (
             <p className="text-sm text-emerald-700 dark:text-emerald-400">
-              Máy này đã cấu hình xong{found.deviceId ? ` (mã ${found.deviceId})` : ""}. Còn khóa
-              vùng operator thì dán ở trang của chính cầu nối —{" "}
-              <a className="underline" href="http://127.0.0.1:47821" target="_blank" rel="noopener">
-                mở trang đó
-              </a>
-              . Máy chủ không có khóa ấy để gửi xuống.
+              Máy này đã sẵn sàng{found.deviceId ? ` (mã ${found.deviceId})` : ""}. Lấy mật khẩu,
+              OTP và mở profile đều dùng được từ đây.
             </p>
+          ) : found.deviceId ? (
+            <div className="space-y-2 rounded-md border border-amber-200 bg-amber-50 p-3 dark:border-amber-900/50 dark:bg-amber-950/30">
+              <p className="text-sm text-amber-900 dark:text-amber-200">
+                Đã ghi máy này vào sổ. <strong>Đang chờ quản trị viên cấp khóa</strong> — khóa tự
+                về, trang này tự cập nhật, không phải làm gì thêm.
+              </p>
+              <p className={NOTE_CLASS}>
+                Cần dùng ngay mà không đợi được thì dán tay khóa vùng operator ở{" "}
+                <a className="underline" href={RELAY_ORIGIN} target="_blank" rel="noopener">
+                  trang của chính cầu nối
+                </a>
+                . Đó cũng là đường duy nhất cho chiếc máy đầu tiên của cả team — lúc đó chưa có cầu
+                nối nào khác để cấp khóa từ đó.
+              </p>
+              {keyNote ? (
+                <p className="text-xs text-red-700 dark:text-red-400">{keyNote}</p>
+              ) : null}
+            </div>
           ) : (
             <form action={enroll} className="space-y-4">
               <Field
