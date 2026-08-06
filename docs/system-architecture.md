@@ -1,6 +1,6 @@
 # Kiến trúc hệ thống
 
-**Cập nhật:** 03/08/2026
+**Cập nhật:** 06/08/2026
 
 Tài liệu này trả lời: hệ thống **chạy ở đâu**, **tin ai**, **phụ thuộc gì**, và **hỏng thì hỏng
 thế nào**. Code nằm ở đâu thì tra [codebase-summary.md](codebase-summary.md); thuật ngữ tra
@@ -10,32 +10,49 @@ thế nào**. Code nằm ở đâu thì tra [codebase-summary.md](codebase-summa
 
 ## 1. Hình dung tổng thể
 
-```
-        MÁY BÀN CỦA BẠN MKT (Windows/macOS)
-┌─────────────────────────────────────────────────────┐
-│                                                     │
-│  Trình duyệt ──▶ Next.js (127.0.0.1:3000)           │
-│                   │  server actions + route handler │
-│                   ▼                                 │
-│              PostgreSQL ── credential đã mã hóa     │
-│                   │                                 │
-│                   ├──▶ MultiZen (MCP 127.0.0.1:7777)│──▶ profile ──▶ proxy tĩnh ──▶ Reddit
-│                   │                                 │
-│                   ├──▶ Playwright (Chromium riêng)  │──▶ proxy quan sát viên ──▶ old.reddit.com
-│                   │                                 │
-│                   └──▶ Graph API (HTTPS)            │──▶ Facebook Fanpage
-│                                                     │
-│  data/  ảnh chụp · sao lưu · file khóa              │
-│  .env   VAULT_KEY_SERVER + _OPERATOR (ngoài database)│
-└─────────────────────────────────────────────────────┘
+```mermaid
+flowchart LR
+    subgraph Server["MÁY CHỦ (Railway / Docker / VPS)"]
+        direction TB
+        NextJS["Next.js<br/>(phát vé ký Ed25519)"]
+        DB[("PostgreSQL<br/>(Kho dữ liệu chung)")]
+        Playwright["Playwright"]
+        ProxyQuanSat["Proxy quan sát viên"]
+        GraphAPI["Graph API"]
+        FB["Facebook Fanpage"]
+        Config["data/ (ảnh chụp, sao lưu)<br/>.env (VAULT_KEY_SERVER + TICKET_SIGNING_KEY)"]
+        
+        NextJS --> DB
+        DB --> Playwright
+        Playwright --> ProxyQuanSat
+        DB --> GraphAPI
+        GraphAPI --> FB
+        
+        style Config fill:#f9f9f9,stroke:#333,stroke-dasharray: 5 5
+    end
+
+    subgraph Client["MÁY BÀN CỦA TEAM (Nhiều máy)"]
+        direction TB
+        Browser["Trình duyệt<br/>(Đăng nhập Google)"]
+        Relay["Cầu nối (Relay .exe)<br/>(chứa VAULT_KEY_OPERATOR)"]
+        MultiZen["MultiZen"]
+        ProxyTinh["Proxy tĩnh"]
+        Reddit["Reddit"]
+
+        Browser -- "chuyển vé qua<br/>127.0.0.1:47821" --> Relay
+        Relay --> MultiZen
+        MultiZen --> ProxyTinh
+        ProxyTinh --> Reddit
+    end
+
+    Browser -- "gọi API qua HTTPS" --> NextJS
 ```
 
-**Một tiến trình, một máy, một người.** Không server, không container, không hàng đợi việc,
-không cache. `npm run dev` là toàn bộ hệ thống đang chạy.
+**Mô hình phân tán (Team nhiều người).**
+- **Máy chủ** chạy trên mạng thật (Railway/VPS bằng Docker), lo tính toán, bộ luật, dò shadowban, đăng Fanpage và quản lý toàn bộ dữ liệu chung.
+- **Máy bàn** của nhân viên chạy Trình duyệt và **Cầu nối (Relay)** để mở trình duyệt ẩn danh (MultiZen) và giải mã mật khẩu nick nội bộ.
 
-Ba đường ra internet đi qua **ba IP khác nhau và không được lẫn**: nick đi bằng proxy tĩnh của
-chính nó, bộ dò đi bằng proxy quan sát viên, Graph API đi bằng IP nhà. Lẫn đường nào cũng phá
-đúng thứ nó đang bảo vệ.
+Ba đường ra internet đi qua **ba IP khác nhau và không được lẫn**: nick đi bằng proxy tĩnh của chính nó (từ máy bàn), bộ dò đi bằng proxy quan sát viên (từ máy chủ), Graph API đi bằng IP máy chủ. Lẫn đường nào cũng phá đúng thứ nó đang bảo vệ.
 
 ## 2. Vòng đời một bài đăng — và vòng phản hồi nuôi bộ luật
 
@@ -76,16 +93,12 @@ một mẩu trí nhớ của luật ấy. Lưu **sau** khi chấm luật, để 
 | **Đăng nhập** | Google OAuth (Better Auth) + danh sách trắng `ALLOWED_EMAILS`. Kiểm ở **mọi request** chứ không chỉ lúc tạo tài khoản — gỡ email khỏi `.env` rồi khởi động lại là mất quyền ngay, kể cả đang mở sẵn tab |
 | **Trang** | `src/proxy.ts` (Next 16 đổi tên từ `middleware.ts`) chặn mọi trang trước khi nó kịp hỏi database; chưa đăng nhập thì chuyển hướng về `/login`. **Bắt buộc `runtime: "nodejs"`** — mặc định edge không nạp được Prisma và mọi trang thành 500. Kiểm phiên thật chứ không ngó cookie, để người vừa bị gỡ khỏi `ALLOWED_EMAILS` mất quyền ngay |
 | **Lối vào** | Mọi export trong file `"use server"` và mọi method trong `route.ts` phải bọc `guardedAction`/`guardedRoute`. Gác nằm ở **chữ ký**, không nằm trong thân hàm, nên không nhánh nào bỏ qua được; `guarded-entry-points.test.ts` kiểm bằng hình dạng mã nguồn và `NOT_YET_GUARDED` phải rỗng |
-| **Bí mật của nick** | `requireNickOwner`: chỉ chủ nick hoặc ADMIN giải mã được mật khẩu/OTP. Chặn ở **tầng dữ liệu**, không phải ẩn nút — server action gọi thẳng được nếu biết tên. Tầm nhìn thì **không chia**: luật 8 phải nêu đúng tên nick của đồng nghiệp mới dùng được |
+| **Bí mật của nick** | `requireNickOwner`: máy chủ chỉ cấp **vé mã hóa** chứa mật khẩu/OTP cho đúng chủ nick hoặc ADMIN. Chặn ở **tầng dữ liệu**, không phải ẩn nút. Tầm nhìn thông tin thì **không chia**: luật đụng độ thread phải nêu đúng tên nick của đồng nghiệp mới dùng được. Mật khẩu thật chỉ xuất hiện ở Cầu nối trên máy của đúng người đó. |
 | **Route handler trong `api/`** | Đối chiếu `Origin`/`Host` (`same-origin-guard.ts`) — chặn trang khác trong cùng trình duyệt gọi sang |
 | **Credential** | Mã hóa AES-256-GCM trước khi ghi. 8 cột ở 5 bảng, khai trong `encrypted-field-registry.ts` kèm **vùng khóa** từng cột (`server` = máy chủ mở được, `operator` = 3 cột credential của `Account`). Test đọc thẳng `schema.prisma` để bắt cột `*Enc` khai thiếu **và** khai lệch vùng so với dấu `vault:*` trong schema. Mặc định của `encryptCredential` là khóa `server`; cột vùng operator phải truyền `loadVaultKey("operator")` rõ ràng |
-| **Khóa mã hóa** | Hai khóa ở `.env`, **không** nằm trong database: `VAULT_KEY_SERVER` (proxy + token FB) và `VAULT_KEY_OPERATOR` (bí mật nick). Database bị chép đi mà không có khóa thì vô dụng — nên phải cất **khác nơi**. Đích của GĐ3: khóa operator không ở trên máy chủ, chiếm được máy chủ vẫn không mở nổi mật khẩu nick |
-| **Bí mật lọt ra log** | Mật khẩu proxy chỉ tồn tại dạng trần trong `proxy-config-builder.ts` và lời gọi adapter; token Facebook đi qua `redactTokens()` trước mọi thông báo lỗi |
-| **Nhật ký** | `AuditLog` ghi mọi thao tác nhạy cảm: mở profile, xem credential, ghi đè luật, đăng Fanpage |
-
-**Cái chưa canh:** không có phân quyền, không mã hóa ổ đĩa ở tầng ứng dụng, không chống người
-dùng chính mình. Đúng mô hình một người dùng — nếu sau này nhiều người dùng chung một bản cài thì
-toàn bộ mục này phải làm lại.
+| **Khóa mã hóa** | Hai khóa hoàn toàn tách biệt: `VAULT_KEY_SERVER` nằm ở máy chủ (giữ proxy + token FB), và `VAULT_KEY_OPERATOR` nằm ở cầu nối trên máy nhân viên (giữ bí mật nick). Chiếm được máy chủ cũng không thể mở nổi mật khẩu nick nào vì khóa không hề tồn tại ở đó. |
+| **Bí mật lọt ra log** | Mật khẩu proxy chỉ tồn tại dạng trần trong lời gọi phát vé; token Facebook đi qua `redactTokens()` trước mọi thông báo lỗi |
+| **Nhật ký** | `AuditLog` ghi mọi thao tác nhạy cảm: mở profile, xem credential, ghi đè luật, đăng Fanpage, phát vé ký |
 
 ## 4. Nơi dữ liệu nằm
 
@@ -156,7 +169,7 @@ Không làm bây giờ. Ghi lại để lần sau khỏi tranh luận lại từ
 
 | Nếu | Phải đổi gì |
 |---|---|
-| Nhiều người dùng chung một bản | **Đang làm** — xem [plan web chung](../plans/260804-1752-web-chung-cho-team-phan-tan/plan.md). Postgres, đăng nhập Google + phân quyền, và tách `VAULT_KEY` thành `VAULT_KEY_SERVER` / `VAULT_KEY_OPERATOR` đã xong (05/08/2026). Còn: cầu nối trên máy operator nhận **vé ký** thay vì mật khẩu, rồi gỡ hẳn khóa vùng operator khỏi máy chủ. Toàn bộ §3 làm lại |
+| Nhiều người dùng chung một bản | **Đã xong** — hệ thống hiện tại đã là web chung. Database chuyển sang Postgres, đăng nhập bằng Google OAuth, phân quyền ADMIN/OPERATOR, và kho danh tính đã tách hai vùng khóa với cầu nối (Relay) giải mã độc lập trên máy trạm. |
 | Chạy 24/7 không ai ngồi máy | Cần hàng đợi việc thật (không phải bảng `PostJob`) + máy luôn bật. Nhưng xem lại mục "không làm" ở PDR trước đã |
 | Trên 20 nick | Antidetect browser trên máy bàn hết chỗ; cần VPS có GUI hoặc nhiều máy. Chi phí proxy tăng tuyến tính |
 | Thêm nền tảng mới | Thêm giá trị vào `platform-family.ts`; đích chưa có bộ đăng tự động sẽ tự rơi vào nhắc việc đăng tay — không im lặng biến mất |

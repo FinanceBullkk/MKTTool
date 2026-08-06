@@ -9,7 +9,9 @@
 
 ## Overview
 
-**Ưu tiên:** trung bình | **Trạng thái:** chưa làm | **Dự kiến:** 2-3 ngày
+**Ưu tiên:** trung bình | **Trạng thái:** 🟢 web đã chạy thật trên Railway (06/08/2026) | **Dự kiến:** 2-3 ngày
+
+Thao tác tay từng bước: [docs/deployment-guide.md](../../docs/deployment-guide.md).
 
 Đưa web lên Railway, chuyển bộ dò shadowban thành cron chạy trên đó, và dựng nếp sao lưu.
 
@@ -78,14 +80,21 @@ không nói được gì
 
 ## Todo List
 
-- [ ] Dự án Railway + Postgres + nối GitHub
-- [ ] Khai biến môi trường; **xác nhận không có `VAULT_KEY_OPERATOR`**
+- [x] Dự án Railway + Postgres (06/08/2026) — project `renewed-benevolence`, Postgres
+  `postgres-ssl:18` có ổ đĩa riêng, kho cũ đã nạp sang (10 proxy + sổ migration đối chiếu đủ).
+  Web chạy ở `https://mkttool-web-production.up.railway.app`
+- [ ] **Nối GitHub** — chưa làm được: repo thuộc org mà tài khoản chỉ là `member`, phải OWNER mới
+  cài được GitHub App. Đang chạy tạm bằng `railway up`, xem
+  [5B trong deployment-guide](../../docs/deployment-guide.md)
+- [x] Khai biến môi trường; **xác nhận không có `VAULT_KEY_OPERATOR`** (06/08/2026) — đã đối chiếu
+  danh sách tên biến trên máy chủ, đủ 12 biến cần và **không có** khóa vùng operator
 - [x] `Dockerfile` + `.dockerignore` (05/08/2026) — **đã build thật và nghiệm thu trong container.**
   Ảnh **4.86 GB**, chạy bằng `pwuser` (không phải root). Dựng trên
   `mcr.microsoft.com/playwright:v1.62.1-noble`. Ba chốt lúc viết ở [dưới](#dockerfile--ba-chốt-đã-đóng);
   ba lỗi mà chính lượt build bắt được ở [đây](#build-thật-bắt-được-ba-lỗi-mà-test-không-thấy)
 - [ ] Thử domain Railway với Facebook; mua tên miền nếu bị từ chối
-- [ ] Redirect URI + cả team vào vai trò Tester
+- [x] Redirect URI **của Google** + `BETTER_AUTH_URL` (06/08/2026) — **đăng nhập thật đã vào được**
+- [ ] Redirect URI **của Facebook** + cả team vào vai trò Tester
 - [x] Cron dò shadowban hằng ngày theo `TEAM_TIMEZONE` (06/08/2026) — **bộ lịch nằm trong app,
   không dùng cron của hãng.** Lý do ở [dưới](#vì-sao-bộ-lịch-nằm-trong-app-thay-vì-cron-của-railway)
 - [x] ~~Advisory lock Postgres~~ **bảng `HealthCheckLock`** thay khóa file (05/08/2026) —
@@ -94,7 +103,60 @@ không nói được gì
   `npm run db:backup:remote` hút từ `PRODUCTION_DATABASE_URL` về máy quản trị, tên file mang dấu
   `prod`. Phần "tự động" là nút bật trong bảng điều khiển Railway, **cố ý không làm trong app** —
   xem [dưới](#sao-lưu-hai-nửa-và-vì-sao-nửa-tự-động-không-nằm-trong-app)
-- [ ] Chạy thử một lượt dò thật, kết quả lên `/health`
+- [ ] Chạy thử một lượt dò thật, kết quả lên `/health` — **chưa được**: kho chưa có proxy quan sát
+  viên nào, nên lượt 09:00 ngày 06/08 ghi đúng câu *"bỏ qua vì chưa có proxy quan sát viên"*.
+  Đó là hành vi đúng, nhưng chưa phải một lượt dò thật
+
+### Bốn cái bẫy của lượt lên máy chủ thật (06/08/2026)
+
+Ba cái đầu **không** làm test nào đỏ và đều có triệu chứng chỉ sai hướng; cái thứ tư thì ngược
+lại — chỉ CI mới thấy. Chi tiết thao tác ở [deployment-guide.md](../../docs/deployment-guide.md);
+ghi lại đây phần *vì sao*.
+
+**1. `railway up` ghi đè lên service database.** Một lượt không kèm `--service` deploy MKTTool đè
+lên dịch vụ Postgres, và service đó chạy Next.js nghe ở cổng 5432. Triệu chứng là
+`prisma:error Connection terminated unexpectedly` — câu chỉ về phía mạng hoặc Prisma, không có
+chữ nào chỉ về việc database đã bị thay bằng một máy chủ web. `DATABASE_URL` vẫn đúng, service vẫn
+`Online`, Railway vẫn báo *"Deployment successful"*. Dữ liệu không mất vì ổ đĩa vẫn gắn nguyên và
+app chạy ở `/app`; khôi phục bằng Redeploy bản cũ trong HISTORY.
+
+> Bài học rộng hơn: `railway up` coi mọi service như nhau. **Một lệnh deploy không phân biệt được
+> web với database là một lệnh phải luôn gọi kèm `--service`.**
+
+**2. `pg_dump` phải theo major của SERVER, không theo bản ở máy dev.** Railway cấp Postgres **18**
+trong khi cả `Dockerfile` lẫn máy dev đều ở **17**, nên `db:backup:remote` sẽ chết ngay dòng đầu.
+Chú thích cũ trong `Dockerfile` lấy CI làm mốc nên nó đúng vào hôm viết rồi lệch ngay khi hãng cấp
+bản khác. Đã đổi `ARG PG_CLIENT_MAJOR=18`. Lượt **nạp** không dính vì `psql` chỉ gửi SQL dạng chữ.
+
+**3. `DATABASE_PUBLIC_URL` không có sẵn, và tab Variables hiển thị nó ở dạng bản mẫu.** Phải tự
+bật **TCP Proxy** cho Postgres mới sinh ra biến đó — và cửa công khai này đi ngược câu *"không phơi
+Postgres ra internet"* trong phần Security dưới đây, nên ranh giới phải nói rõ: **app vẫn đi mạng
+nội bộ**, cửa công khai chỉ phục vụ máy quản trị nạp dữ liệu và kéo bản sao lưu về. Không có nó thì
+bản sao lưu duy nhất nằm trong chính Railway — mà thứ nó phải chống lại là *mất cả dự án Railway*.
+
+### Cái bẫy thứ tư — và nó nằm trong code, không nằm ở hãng
+
+CI bắt được một lỗi mà **cả 836 test ở máy dev đều bỏ sót**, và lý do bỏ sót mới là phần đáng ghi.
+
+`tickDailyHealthCheck` nhận một mốc `now` và dùng nó để tính mốc hẹn. Nhưng nhánh kiểm khóa chống
+chạy chồng gọi `readHealthCheckLockStatus()` **không truyền `now`**, nên nó lấy đồng hồ máy để đo
+"khóa đã mồ côi chưa". Một thao tác, hai đồng hồ.
+
+Trên máy chủ hai đồng hồ bằng nhau nên **không có triệu chứng nào**. Chỗ nó lộ ra là bài test:
+test giành khóa với mốc giả rồi hỏi tick, và tuổi khóa hóa ra được đo bằng khoảng cách từ *mốc
+giả* tới *giờ thật*. Hệ quả: bài test chỉ xanh trong đúng 30 phút mỗi ngày — bằng `STALE_AFTER_MS`.
+Máy dev xanh vì lượt chạy rơi trúng khung đó; CI chạy lúc 02:53Z thì "khóa mới hai phút" thành
+"khóa mồ côi 55 phút", và tick bắn lượt dò thay vì bỏ qua.
+
+**Ba điều rút ra:**
+
+1. **Một thao tác phải chạy trên một đồng hồ.** Cùng họ với `TEAM_TIMEZONE`: ở đó là "mỗi máy một
+   múi giờ", ở đây là "mỗi tầng một mốc thời gian". Tham số `now` mà không đi hết xuống đáy thì
+   chỉ là ảo giác kiểm soát được thời gian.
+2. **Test xanh ở máy dev không chứng minh được gì về thời gian.** Nó chỉ chứng minh lượt chạy đó
+   rơi vào khung may mắn. CI chạy ở giờ khác chính là thứ phát hiện ra.
+3. Sửa ở **gốc**, không vá bài test. Vá test thì cái lỗi hai-đồng-hồ vẫn nằm nguyên trong code, chờ
+   một chỗ khác gọi tới.
 
 ### Vì sao bộ lịch nằm trong app, thay vì cron của Railway
 

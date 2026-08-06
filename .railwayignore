@@ -1,0 +1,56 @@
+# Thứ KHÔNG được rời khỏi máy này khi chạy `railway up`.
+#
+# ## Vì sao có file này, khi đã có .gitignore và .dockerignore
+#
+# Ba file, ba ranh giới khác nhau, và cái ở giữa là cái dễ quên nhất:
+#
+#   .gitignore     — chặn thứ lọt vào KHO GIT
+#   .railwayignore — chặn thứ RỜI KHỎI MÁY NÀY lên máy build của hãng
+#   .dockerignore  — chặn thứ lọt vào ẢNH sẽ chạy trên máy chủ
+#
+# `railway up` nén nguyên thư mục hiện tại rồi đẩy đi. `.dockerignore` không cứu được ở đây: nó
+# lọc lúc BUILD, tức sau khi file đã nằm trên máy của hãng rồi. Mà `.env` của máy dev chứa cả hai
+# khóa kho — thứ mất là mất vĩnh viễn, không mua lại được.
+#
+# Railway có đọc `.gitignore`, nên về lý thì `.env` đã an toàn. File này tồn tại để **không phải
+# đặt cược khóa kho vào một hành vi mặc định** có thể đổi giữa hai bản CLI.
+#
+# ## Cái KHÔNG được cho vào đây
+#
+# `Dockerfile` phải đi lên — khác `.dockerignore`, nơi nó bị loại vì Docker nhận riêng. Loại nó ở
+# đây là Railway không biết build kiểu gì và sẽ tự đoán bằng Nixpacks, tức dựng một ảnh hoàn toàn
+# khác ảnh đã nghiệm thu.
+
+# ── Bí mật: lý do chính file này tồn tại ────────────────────────────────────
+.env
+.env.*
+!.env.example
+*.key
+relay-device-key.json
+relay-config.json
+
+# ── Dữ liệu vận hành: bản sao lưu chứa ciphertext của cả kho ────────────────
+data/backups
+data/screenshots
+data/logs
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+prisma/*.db*
+
+# ── Nặng và vô ích: dựng lại trong ảnh, hoặc không thuộc về ảnh web ─────────
+node_modules
+.next
+out
+.test-tmp
+tsconfig.tsbuildinfo
+# `.exe` + `.zip` của cầu nối, ~120 MB. Ảnh web không dùng tới; gói phát hành đi đường riêng.
+relay/dist
+relay/.dev-home
+
+# ── Của riêng máy dev ───────────────────────────────────────────────────────
+.git
+.claude
+.vscode
+.idea
