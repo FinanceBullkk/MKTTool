@@ -637,11 +637,77 @@ lượt gần nhất hỏng, bản sao mới nhất quá 2 ngày tuổi, hoặc 
 
 Bỏ qua được, cả app vẫn chạy bình thường thiếu nó.
 
-1. Thêm vào Variables của dịch vụ web: `FACEBOOK_APP_ID`, `FACEBOOK_APP_SECRET`,
-   `FACEBOOK_LOGIN_CONFIG_ID` (chép từ `.env` máy anh), và
-   `FACEBOOK_REDIRECT_URI=https://<domain>/api/facebook/oauth/callback`.
-2. Vào Meta App → **Facebook Login for Business** → **Settings** → thêm đúng chuỗi redirect URI
-   trên.
+> **KHÔNG tạo Meta App mới.** App hiện có đã đăng thật lên Fanpage ngày 03/08/2026 — nó đúng loại
+> (Business + Facebook Login for Business) và đã có configuration với ba quyền. Việc ở đây là
+> **trỏ app đó sang domain Railway**, tức thêm một redirect URI thứ hai. Tạo app mới là làm lại
+> từ đầu phần khó nhất (chọn sai use case lúc tạo là **không sửa được**, phải bỏ app đi).
+
+### 11.1 — Chép ba giá trị từ `.env` máy anh
+
+`FACEBOOK_APP_ID` · `FACEBOOK_APP_SECRET` · `FACEBOOK_LOGIN_CONFIG_ID`
+
+Chép **nguyên văn**, đừng gõ lại tay.
+
+### 11.2 — Khai bốn biến vào Variables của dịch vụ web
+
+Ba biến trên, cộng thêm:
+
+```
+FACEBOOK_REDIRECT_URI=https://mkttool-web-production.up.railway.app/api/facebook/oauth/callback
+```
+
+**Không có dấu `/` ở cuối.** Facebook so chuỗi thô từng ký tự.
+
+> **Khai thiếu biến này thì hỏng theo kiểu khó đoán:** mặc định trong code là
+> `http://localhost:3000/api/facebook/oauth/callback` — máy chủ sẽ tự tin gửi người dùng tới một
+> địa chỉ localhost không tồn tại. Xem `DEFAULT_REDIRECT_URI` trong
+> [facebook-app-config.ts](../src/lib/facebook/facebook-app-config.ts).
+
+### 11.3 — Thêm redirect URI vào Meta App
+
+Meta App → **Facebook Login for Business** → **Settings** → *Valid OAuth Redirect URIs* → dán đúng
+chuỗi ở 11.2 → **Save Changes**.
+
+> **Giữ nguyên chuỗi `localhost` đang có, đừng thay.** Meta cho khai nhiều URI, và máy dev vẫn cần
+> chuỗi cũ để chạy. Thay thì lần sau chạy `npm run dev` là luồng kết nối hỏng.
+
+### 11.4 — Thêm cả team vào vai trò Tester
+
+**Bước này hay bị bỏ, và nó chặn cả team chứ không chặn anh.**
+
+App đang ở chế độ **Development**. Ở chế độ đó, **chỉ người có vai trò trong app** mới cấp quyền
+được — người ngoài bấm kết nối sẽ gặp màn hình báo app chưa hoạt động, không phải màn hình cấp
+quyền. Anh là admin nên anh không gặp, và vì thế dễ tưởng mọi thứ ổn.
+
+Meta App → **App Roles** → **Roles** → **Add People** → chọn **Tester** → thêm nick Facebook cá
+nhân của từng người sẽ nối Fanpage.
+
+> Mỗi người phải **tự vào thông báo Facebook của mình và bấm chấp nhận** lời mời. Chưa chấp nhận
+> thì vai trò chưa có hiệu lực, mà lời mời nằm lẫn trong thông báo nên rất dễ trôi. Nhắc bằng lời
+> lúc đào tạo, đừng chỉ gửi lời mời rồi thôi.
+
+### 11.5 — Nối Fanpage và kiểm
+
+Mở `https://mkttool-web-production.up.railway.app/facebook` → **Kết nối nick Facebook** → đăng
+nhập bằng nick đang quản trị Page → **tick chọn TỪNG Page** ở màn hình cấp quyền (bỏ sót Page nào
+là Page đó không hiện ra).
+
+Xong thì bấm **Kiểm tra token tất cả Page** ngay, đừng đợi tới lúc cần đăng gấp.
+
+### Bốn câu lỗi hay gặp, và nghĩa thật của chúng
+
+| Thấy gì | Nguyên nhân thật |
+|---|---|
+| Facebook báo **"URL Blocked"** / redirect URI không hợp lệ | Chuỗi ở 11.2 và 11.3 lệch nhau — thường là dấu `/` cuối, `http` vs `https`, hoặc quên bấm **Save Changes** |
+| App báo *"Đang mở app bằng X nhưng `FACEBOOK_REDIRECT_URI` khai Y"* | Biến ở 11.2 chưa khai hoặc khai sai. Đây là lớp chặn cố ý dừng sớm, không phải lỗi |
+| Người trong team thấy màn hình *"app chưa hoạt động"* | Chưa thêm vào Tester (11.4), hoặc đã thêm mà họ **chưa bấm chấp nhận** |
+| Đăng được hôm nay, mai hỏng | Token chết không báo trước — nick admin Page đổi mật khẩu, gỡ app, hoặc bị Meta khóa |
+
+> ⚠️ **Câu lỗi ở dòng thứ hai đang chỉ sai giao thức.**
+> [facebook-redirect-host-guard.ts:46](../src/lib/facebook/facebook-redirect-host-guard.ts:46) ghép
+> cứng `http://` khi khuyên "mở lại app bằng…" — sót lại từ thời chỉ chạy localhost. Trên máy chủ
+> thật nó sẽ bảo anh mở `http://mkttool-web-production…`, tức chỉ sai đúng thứ nó sinh ra để chỉ
+> đúng. Đọc câu đó thì tự đổi thành `https`.
 
 > **Đây là chỗ có thể vướng.** Meta có thể từ chối domain `*.up.railway.app` vì nó là domain dùng
 > chung. Vướng thì mua một tên miền riêng (~12 USD/năm), trỏ về Railway ở **Settings → Networking
