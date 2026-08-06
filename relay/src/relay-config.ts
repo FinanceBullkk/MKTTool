@@ -18,7 +18,8 @@
  * tại **sau** khi khóa công khai đi lên. Cầu nối không hỏi lại được — theo QĐ 5 nó không nối
  * mạng ra ngoài. Nên luồng cài là hai chiều: khóa công khai đi lên, mã máy đi xuống.
  */
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
+import { BUILT_IN_WEB_ORIGIN } from "../../src/lib/relay/relay-endpoints";
 import { CONFIG_FILE, relayFilePath, resolveRelayHome } from "./relay-home";
 
 /** Cấu hình đã kiểm xong, sẵn sàng dùng. */
@@ -64,12 +65,45 @@ const SERVER_PUBLIC_KEY_HEX_LENGTH = 64;
  * đọc trang trạng thái, không đọc tài liệu bàn giao.
  */
 export const CONFIG_TEMPLATE = {
-  deviceId: "<mã máy, lấy ở trang Máy cầu nối trên web sau khi đăng ký>",
-  serverPublicKey: "<64 ký tự hex — chạy `npm run keys:server-pubkey` trên máy chủ>",
-  vaultKeyOperator: "<64 ký tự hex — khóa vùng operator của team>",
-  webOrigin: "https://<địa chỉ web app>",
+  deviceId: "<web app tự điền khi bấm \"Đăng ký máy này\">",
+  serverPublicKey: "<web app tự điền>",
+  vaultKeyOperator: "<64 ký tự hex — dán ở ngay trang này, ô bên dưới>",
   multizenToken: "<chỉ cần nếu máy này mở profile: MultiZen → MCP → Connect an agent>",
 };
+
+/**
+ * Ghi lại file cấu hình, **giữ nguyên những ô không được nhắc tới**.
+ *
+ * Đây là tính chất quan trọng nhất của hàm này, không phải một tiện nghi. Hai đường ghi vào file
+ * này đi từ hai phía và không bao giờ được đạp lên nhau:
+ *
+ *  - web app đẩy xuống `deviceId` + `serverPublicKey` (nó biết hai thứ đó)
+ *  - người dùng dán `vaultKeyOperator` ở trang trạng thái (máy chủ **không** có khóa này)
+ *
+ * Ghi đè cả file ở một trong hai đường là xóa mất phần của đường kia — và ca tệ nhất là xóa khóa
+ * vùng operator, thứ phải đi xin lại quản trị viên.
+ */
+export function writeRelayConfig(
+  patch: Partial<Record<keyof RelayConfig, string>>,
+  home: string = resolveRelayHome(),
+): void {
+  const filePath = relayFilePath(CONFIG_FILE, home);
+
+  let current: Record<string, unknown> = {};
+  try {
+    const parsed: unknown = JSON.parse(readFileSync(filePath, "utf8"));
+    if (typeof parsed === "object" && parsed !== null) current = parsed as Record<string, unknown>;
+  } catch {
+    // File chưa có hoặc hỏng JSON: bắt đầu từ object rỗng. Không dừng lại — đây chính là đường
+    // đưa một máy mới cài từ "chưa có gì" sang "cấu hình xong".
+  }
+
+  for (const [field, value] of Object.entries(patch)) {
+    if (value !== undefined) current[field] = value;
+  }
+
+  writeFileSync(filePath, `${JSON.stringify(current, null, 2)}\n`, "utf8");
+}
 
 function hexProblem(
   field: keyof RelayConfig,
@@ -142,7 +176,12 @@ export function reviewRelayConfig(parsed: unknown): ConfigLoad {
   );
   if (vaultKeyProblem) problems.push(vaultKeyProblem);
 
-  const webOrigin = typeof raw.webOrigin === "string" ? raw.webOrigin.trim() : "";
+  // Bỏ trống là dùng nguồn nung vào bản build — thứ đúng với gần như mọi máy. Ô này chỉ còn là
+  // đường thoát cho ngày đổi domain, nên nó không còn nằm trong danh sách "thiếu gì".
+  const webOrigin =
+    typeof raw.webOrigin === "string" && raw.webOrigin.trim() !== ""
+      ? raw.webOrigin.trim()
+      : BUILT_IN_WEB_ORIGIN;
   const originProblem = reviewWebOrigin(webOrigin);
   if (originProblem) problems.push(originProblem);
 
@@ -214,6 +253,60 @@ function reviewWebOrigin(value: string): ConfigProblem | null {
 /** `new URL(...).origin` bỏ dấu `/` cuối, đúng dạng mà trình duyệt gửi trong header `Origin`. */
 function normalizeOrigin(value: string): string {
   return new URL(value).origin;
+}
+
+/**
+ * Nguồn web mà cầu nối tin, đọc **độc lập với phần cấu hình còn lại**.
+ *
+ * Phải tách ra vì thứ tự phụ thuộc: web app chỉ cấu hình hộ được nếu nó nói chuyện được với cầu
+ * nối, mà nói chuyện được thì cần CORS, mà CORS cần nguồn tin. Nếu nguồn tin chỉ có khi cấu hình
+ * đã **đủ**, thì một chiếc máy vừa cài — nơi chưa có gì cả — không bao giờ ra khỏi được vạch
+ * xuất phát.
+ *
+ * Nên nguồn tin lấy từ bản build, và file cấu hình chỉ ghi đè khi nó khai một giá trị dùng được.
+ * Khai bậy thì bỏ qua chứ không làm cầu nối câm: một `webOrigin` gõ nhầm mà khóa luôn đường sửa
+ * nó từ xa là một chiếc máy phải đi tới tận nơi mới cứu được.
+ *
+ * ## Giá trị nung vào cũng phải qua cửa kiểm
+ *
+ * Chuỗi trắng nghĩa là **không tin ai** — và đó là câu trả lời đúng cho một bản build hỏng. Bộ
+ * build đã soi giá trị này rồi, nhưng nó soi *trước* bước nung; bản đầu của bước nung bọc thừa
+ * một lớp dấu nháy nên thứ đi vào `.exe` là `"https://…"` kể cả dấu ngoặc, và cầu nối đem đúng
+ * chuỗi rác đó ra đối chiếu `Origin`. Hỏng theo kiểu CORS, không câu lỗi nào chỉ về đây.
+ */
+export function resolveWebOrigin(home: string = resolveRelayHome()): string {
+  const raw = readRawConfig(home).webOrigin;
+  if (typeof raw === "string" && raw.trim() !== "" && !reviewWebOrigin(raw.trim())) {
+    return normalizeOrigin(raw.trim());
+  }
+
+  const baked = BUILT_IN_WEB_ORIGIN.trim();
+  return reviewWebOrigin(baked) ? "" : normalizeOrigin(baked);
+}
+
+/**
+ * Mã máy đã ghi trong file, **kể cả khi phần cấu hình còn lại chưa đủ**.
+ *
+ * Cùng lý lẽ với `resolveWebOrigin`: web app vừa ghi mã máy xuống và cần thấy nó có tới nơi
+ * không. Đọc qua `loadRelayConfig` thì không thấy — cấu hình thiếu khóa vùng operator nên cả
+ * object là `null`, và câu trả lời sẽ là *"chưa có mã máy nào"* ngay sau một lượt ghi thành công.
+ * Đúng cảnh làm người dùng bấm lại lần nữa vì tưởng hỏng.
+ */
+export function resolveDeviceId(home: string = resolveRelayHome()): string | null {
+  const raw = readRawConfig(home).deviceId;
+  return typeof raw === "string" && raw.trim() !== "" ? raw.trim() : null;
+}
+
+/** File cấu hình dưới dạng thô. Chưa có file, hoặc hỏng JSON, đều thành object rỗng. */
+function readRawConfig(home: string): Record<string, unknown> {
+  try {
+    const parsed: unknown = JSON.parse(readFileSync(relayFilePath(CONFIG_FILE, home), "utf8"));
+    if (typeof parsed === "object" && parsed !== null) return parsed as Record<string, unknown>;
+  } catch {
+    // Chưa cài xong, hoặc ai đó sửa tay làm hỏng JSON. Cả hai không phải ngoại lệ ở đây.
+  }
+
+  return {};
 }
 
 /** Đọc file cấu hình rồi soi. File chưa có cũng là một `problem`, không phải một ngoại lệ. */

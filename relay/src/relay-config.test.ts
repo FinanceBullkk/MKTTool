@@ -43,13 +43,13 @@ describe("reviewRelayConfig", () => {
   });
 
   it("gom HẾT vấn đề trong một lượt, không dừng ở cái đầu tiên", () => {
-    // Dừng ở lỗi đầu thì người cài phải sửa-chạy-lại bốn vòng cho bốn ô.
-    expect(problemFields({})).toEqual([
-      "deviceId",
-      "serverPublicKey",
-      "vaultKeyOperator",
-      "webOrigin",
-    ]);
+    // Dừng ở lỗi đầu thì người cài phải sửa-chạy-lại một vòng cho mỗi ô.
+    //
+    // `webOrigin` KHÔNG có trong danh sách này, và đó là chủ ý: nó lấy mặc định từ bản build
+    // (`BUILT_IN_WEB_ORIGIN`), file cấu hình chỉ ghi đè. Bắt buộc nó thì một chiếc máy vừa cài
+    // không bao giờ ra khỏi vạch xuất phát — web app cần CORS để cấu hình hộ, mà CORS cần nguồn
+    // tin, mà nguồn tin lại chỉ có sau khi cấu hình đủ. Xem `resolveWebOrigin`.
+    expect(problemFields({})).toEqual(["deviceId", "serverPublicKey", "vaultKeyOperator"]);
   });
 
   it("bắt khóa sai độ dài", () => {

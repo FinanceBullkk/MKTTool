@@ -40,7 +40,42 @@ export interface RunningRelay {
  * Cầu nối **chỉ đọc file cấu hình lúc khởi động**, nên bài nghiệm thu phải tắt/bật lại giữa
  * chừng — đó là lý do hàm này trả về `stop()` thay vì tự dọn.
  */
+/**
+ * Cổng đã có người nghe chưa.
+ *
+ * Phải hỏi **trước khi** spawn, vì vòng chờ bên dưới chỉ biết "có ai trả lời ở cổng đó không" —
+ * nó không phân biệt được `.exe` mình vừa bật với một cầu nối khác đã chạy sẵn trên máy. Bản đầu
+ * của hàm này không hỏi, và hậu quả đo được 06/08/2026: máy đang chạy bản cài thật từ
+ * `Downloads`, nên cả bài nghiệm thu đo nhầm chiếc đó — 9 phép đỏ với những câu chẳng liên quan
+ * gì tới thứ vừa build ("bản 1", "chưa cấu hình xong"), và mất một lúc mới lần ra.
+ */
+async function portAlreadyTaken(): Promise<boolean> {
+  // Chờ một nhịp ngắn trước khi kết luận: bài nghiệm thu có tắt/bật lại giữa chừng, và chiếc vừa
+  // bị `kill` nhả cổng sau vài chục mili giây. Chiếc lạ thì không nhả — nên hạn chờ này phân biệt
+  // được hai ca mà không cần biết PID của ai.
+  const deadline = Date.now() + 3_000;
+
+  while (Date.now() < deadline) {
+    try {
+      await fetch(`${RELAY_ORIGIN}/health`, { signal: AbortSignal.timeout(2_000) });
+    } catch {
+      return false;
+    }
+    await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+  }
+
+  return true;
+}
+
 export async function startRelay(home: string): Promise<RunningRelay> {
+  if (await portAlreadyTaken()) {
+    throw new Error(
+      `Đã có một cầu nối khác đang nghe ở ${RELAY_ORIGIN}. Bài nghiệm thu sẽ đo nhầm chiếc đó ` +
+        `chứ không phải bản vừa build.\n\nTắt nó rồi chạy lại — thường là bản đã cài chạy nền:\n` +
+        `  Get-Process MKTTool-Relay | Stop-Process`,
+    );
+  }
+
   const child: ChildProcess = spawn(EXECUTABLE_FILE, [], {
     env: { ...process.env, RELAY_HOME: home },
     stdio: ["ignore", "pipe", "pipe"],
@@ -78,14 +113,26 @@ export async function startRelay(home: string): Promise<RunningRelay> {
   throw new Error(`Cầu nối không mở cổng sau ${STARTUP_TIMEOUT_MS / 1000}s:\n${log}`);
 }
 
-/** Một lượt gọi xuống cầu nối, trả về JSON đã parse. */
+/**
+ * Một lượt gọi xuống cầu nối, trả về JSON đã parse.
+ *
+ * `origin` khai được vì hai đường mới (`/configure`, `/set-operator-key`) **tự đối chiếu header
+ * đó trong thân hàm** thay vì tin vào CORS — và cách duy nhất để chứng minh phép đối chiếu ấy
+ * hoạt động là gửi thử một nguồn sai. Trình duyệt không cho đặt `Origin`; Node thì cho, nên đây
+ * cũng chính là cảnh mà kẻ tấn công dùng `curl` sẽ dựng ra.
+ */
 export async function relayCall(
   path: string,
   body?: unknown,
+  options: { origin?: string } = {},
 ): Promise<Record<string, unknown>> {
+  const headers: Record<string, string> = {};
+  if (body !== undefined) headers["content-type"] = "application/json";
+  if (options.origin) headers.origin = options.origin;
+
   const response = await fetch(`${RELAY_ORIGIN}${path}`, {
     method: body === undefined ? "GET" : "POST",
-    headers: body === undefined ? undefined : { "content-type": "application/json" },
+    headers,
     body: body === undefined ? undefined : JSON.stringify(body),
   });
 

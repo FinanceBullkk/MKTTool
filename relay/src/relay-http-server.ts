@@ -44,12 +44,15 @@ export type RelayRoute = (
 
 export interface RelayServerOptions {
   /**
-   * Nguồn web được phép gọi vào, hoặc `null` khi cấu hình chưa đủ.
+   * Nguồn web được phép gọi vào, hoặc `null` khi bản build không nung nguồn nào.
+   *
+   * **Hàm, không phải giá trị**: cấu hình đổi được ngay lúc chạy (web app ghi hộ, người dùng dán
+   * khóa), và một giá trị chụp lúc khởi động sẽ trả lời bằng tin cũ cho tới lần tắt bật sau.
    *
    * `null` thì **không** trả header CORS nào — chưa biết ai được phép thì không cho ai cả. Trang
    * trạng thái vẫn mở được bằng cách gõ thẳng địa chỉ, và đó đúng là chỗ nói vì sao đang hỏng.
    */
-  allowedOrigin: string | null;
+  allowedOrigin: () => string | null;
   /** Bảng đường JSON: đường dẫn → hàm xử lý. */
   routes: Partial<Record<string, RelayRoute>>;
   /**
@@ -139,7 +142,7 @@ async function handleRequest(
   options: RelayServerOptions,
 ): Promise<void> {
   const origin = request.headers.origin;
-  const headers = corsHeaders(origin, options.allowedOrigin);
+  const headers = corsHeaders(origin, options.allowedOrigin());
   const path = new URL(request.url ?? "/", `http://${LOOPBACK_HOST}`).pathname;
 
   if (request.method === "OPTIONS") {

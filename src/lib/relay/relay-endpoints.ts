@@ -48,7 +48,47 @@ export const RELAY_PATHS = {
   secret: "/secret",
   /** POST — đổi bí mật dạng trần thành ciphertext vùng operator. */
   encryptForVault: "/encrypt-for-vault",
+  /** POST `{ deviceId, serverPublicKey }` — web app ghi hộ cấu hình sau khi đăng ký máy. */
+  configure: "/configure",
+  /**
+   * POST `{ vaultKeyOperator, multizenToken? }` — **chỉ trang của chính cầu nối gọi được**.
+   *
+   * Tách khỏi `/configure` vì hai đường đi từ hai phía và không bao giờ được gộp: máy chủ biết
+   * `deviceId` nhưng **không** có khóa vùng operator, và ngày nó có thì GĐ3 mất nghĩa.
+   */
+  setOperatorKey: "/set-operator-key",
 } as const;
+
+/**
+ * Nguồn web mà cầu nối tin, **nung vào `.exe` lúc build**.
+ *
+ * ## Vì sao không để người cài dán vào như ba giá trị kia
+ *
+ * Chưa cấu hình thì `allowedOrigin` là `null`, và cầu nối **không trả header CORS nào** — chưa
+ * biết ai được phép thì không cho ai cả. Đúng, nhưng nó khóa luôn đường mà GĐ6 cần: web app
+ * không thể tự cấu hình hộ một chiếc máy mà nó chưa được phép nói chuyện. Con gà và quả trứng.
+ *
+ * Lối ra rẻ nhất là nới CORS trong lúc chưa cấu hình. **Không được** — lúc đó bất kỳ trang web
+ * nào người dùng đang mở cũng trỏ được cầu nối sang máy chủ của nó, và một cầu nối trỏ nhầm là
+ * một **máy giải mã thuê**: nó vẫn giữ `VAULT_KEY_OPERATOR`, nên kẻ cầm được một bản sao lưu rò
+ * rỉ có chỗ để mở từng mật khẩu nick ra.
+ *
+ * Lối ra đúng là nhận ra `webOrigin` **chưa bao giờ là dữ liệu riêng của từng máy** — cả team
+ * dùng chung một địa chỉ. Nung vào bản build thì cầu nối biết tin ai ngay từ giây đầu tiên, và
+ * người cài bớt được một giá trị phải chép.
+ *
+ * Đổi domain thì **không phải build lại**: `webOrigin` trong `relay-config.json` vẫn ghi đè được.
+ * Nung vào chỉ là đổi mặc định từ *"không tin ai"* thành *"tin đúng địa chỉ của team"*.
+ */
+export const BUILT_IN_WEB_ORIGIN = process.env.RELAY_WEB_ORIGIN?.trim() || "http://localhost:3000";
+
+/** Thân của `POST /configure` — hai giá trị mà chỉ máy chủ mới biết. */
+export interface ConfigureRelayRequest {
+  /** `RelayDevice.id` vừa sinh ra lúc đăng ký máy này. */
+  deviceId: string;
+  /** Khóa công khai Ed25519 của máy chủ, hex. */
+  serverPublicKey: string;
+}
 
 /**
  * Hạn giờ cho **mọi** lời gọi ngầm xuống cầu nối. Ràng buộc 2 của spike GĐ0.
@@ -85,7 +125,7 @@ export const RELAY_TIMEOUT_MS = 4_000;
  * tăng bằng tay: tự sinh theo git hash thì nó đổi ở mọi lượt build, và một số đổi liên tục thì
  * cảnh báo "bản cũ" kêu liên tục cho tới lúc không ai còn nhìn.
  */
-export const RELAY_VERSION = 1;
+export const RELAY_VERSION = 2;
 
 /** Những gì `/health` trả về. */
 export interface RelayHealth {
@@ -94,6 +134,24 @@ export interface RelayHealth {
   publicKey: string;
   /** Cầu nối có nối được MultiZen trên cùng máy không. */
   antidetectReady: boolean;
+  /** Cấu hình đã đủ chưa. Web app dùng để vẽ đúng nút thay vì đoán. */
+  configured?: boolean;
+  /**
+   * Nguồn web mà cầu nối này tin — nung vào bản build, ghi đè được bằng file cấu hình.
+   *
+   * Khai ra để chẩn đoán được ca hỏng khó đoán nhất: một bản `.exe` dựng nhầm nguồn thì **mọi**
+   * lời gọi chết theo kiểu CORS, và không câu lỗi nào của trình duyệt chỉ về phía này. Đây không
+   * phải bí mật — nó là địa chỉ công khai của chính web app đang hỏi.
+   */
+  webOrigin?: string;
+  /**
+   * Mã máy mà **chính chiếc máy này** nghĩ là của nó, hoặc `null` khi chưa được cấu hình.
+   *
+   * Không suy ra được từ sổ trên máy chủ: sổ trả lời *"khóa này thuộc máy nào"*, còn câu web app
+   * cần là *"chiếc máy đang ngồi đã biết mình là ai chưa"*. Hai câu lệch nhau đúng vào lúc đáng
+   * quan tâm nhất — máy đã đăng ký nhưng chưa nhận được cấu hình.
+   */
+  deviceId?: string | null;
 }
 
 /** Phản hồi chung của cầu nối cho một lời gọi ngầm. */

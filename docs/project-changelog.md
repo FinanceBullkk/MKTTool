@@ -12,6 +12,40 @@ Dự án chưa phát hành phiên bản (`0.1.0`, dùng nội bộ). Mốc chia 
 
 ---
 
+## 06/08/2026 (khuya, 2) — Cài cầu nối: từ bốn lượt chép tay xuống một cú bấm
+
+Cầu nối **bản 2**. Cài một máy trước đây là chép tay bốn giá trị giữa hai màn hình, sửa JSON, rồi
+tắt bật lại. Ba trong bốn giá trị đó **máy chủ vốn đã biết** — bắt người ta làm người đưa thư là
+ma sát không đổi lấy gì.
+
+- **`/relay-devices` có thẻ "Cài máy này".** Bấm → trình duyệt đọc khóa công khai từ `127.0.0.1`,
+  gửi lên, máy chủ ghi vào sổ rồi trả mã máy về, trình duyệt đẩy ngược xuống cầu nối. Trình duyệt
+  làm người đưa thư ở cả hai chiều — đúng vai nó đã làm với vé.
+- **`webOrigin` nay nung vào `.exe` lúc build**, không còn là ô phải điền. Đây là mảnh gỡ thế bí:
+  cầu nối chưa cấu hình thì `allowedOrigin` là `null` nên **không trả header CORS nào**, tức web
+  app không thể nói chuyện với chính chiếc máy nó cần cấu hình hộ. Nới CORS lúc chưa cấu hình là
+  lối ra sai — lúc đó trang web bất kỳ cũng trỏ được cầu nối sang máy chủ của nó, biến một máy
+  đang giữ `VAULT_KEY_OPERATOR` thành **máy giải mã thuê**. Đổi domain vẫn ghi đè được bằng file
+  cấu hình, không phải build lại.
+- **Hai đường ghi cấu hình, tách hẳn nhau.** `/configure` nhận `deviceId` + `serverPublicKey` từ
+  web app; `/set-operator-key` nhận khóa vùng operator và **chỉ trang của chính cầu nối gọi được**.
+  Khóa đó đi qua trang web là đi qua máy chủ, và GĐ3 mất nghĩa ở đó. Cả hai đều giữ nguyên phần
+  của đường kia khi ghi.
+- **Cả hai tự đối chiếu `Origin` trong thân hàm**, không nhờ CORS. CORS chặn việc *đọc phản hồi*,
+  không chặn request rời đi — một `POST` kiểu "simple request" vẫn tới nơi và tác dụng phụ vẫn xảy ra.
+- **Cấu hình nạp nóng.** Không còn chỗ nào phải tắt bật lại.
+- **`/health` khai thêm `configured`, `deviceId`, `webOrigin`** — đủ để web app vẽ đúng nút, và để
+  chẩn đoán ca một bản `.exe` dựng nhầm nguồn (mọi lời gọi chết theo kiểu CORS, không câu lỗi nào
+  chỉ về phía đó).
+
+> **Ba lỗi bắt được trong lúc làm, cả ba đều thuộc loại hỏng-trong-im-lặng.**
+> (1) Bộ build bọc thừa một lớp dấu nháy nên `.exe` đi tin một nguồn tên là `"https://…"` — kể cả
+> dấu ngoặc. (2) Bộ nghiệm thu `.exe` lặng lẽ đo nhầm một cầu nối khác đang chạy sẵn trên máy; nay
+> nó dừng ngay nếu cổng đã có người. (3) `relay:build` in ra mã băm của gói **đang nằm trên R2**
+> thay vì gói vừa dựng — hai bản khác nhau ra cùng một chuỗi.
+
+---
+
 ## 06/08/2026 (khuya) — Gói cầu nối phát qua R2: `/relay-download` hết là một nút bấm vào ra trang trống
 
 `.exe` cầu nối dựng trên Windows còn ảnh chạy dựng trên Linux, nên nó không thể nằm trong ảnh

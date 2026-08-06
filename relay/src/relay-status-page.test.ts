@@ -9,6 +9,7 @@ function page(overrides: Partial<Parameters<typeof renderStatusPage>[0]> = {}) {
     home: "C:\\MKTTool\\relay",
     problems: [],
     antidetectReady: true,
+    webOrigin: "https://web.example",
     config: { deviceId: "device-abc", webOrigin: "https://web.example", hasMultizenToken: true },
     ...overrides,
   });
