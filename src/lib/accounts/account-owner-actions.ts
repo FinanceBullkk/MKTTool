@@ -1,17 +1,31 @@
 "use server";
 
 /**
- * Phân công nick: ai là người phụ trách nick nào.
+ * Phân công **cụm danh tính**: nick này của ai, và nằm ở chiếc máy nào.
  *
- * ## Chủ nick quyết định đúng MỘT thứ
+ * ## Vì sao hai ô phải đi cùng một lượt
  *
- * Chỉ chủ nick (hoặc ADMIN) lấy được **mật khẩu và mã OTP** của nick đó — xem
- * `requireNickOwner`. Ngoài ra không có gì bị chia: ai cũng vẫn thấy nick, job, tương tác và
- * lịch sử của người khác, và bộ luật vẫn quét toàn bộ đàn nick bất kể của ai.
+ * `Account.antidetectProfileId` là khóa chính của một file SQLite trên **đúng một máy** —
+ * MultiZen không đồng bộ profile giữa các máy. Nên nguyên tắc gốc của dự án
+ * (`1 nick = 1 proxy = 1 vân tay = 1 nhân vật`) dài thêm một đoạn: `= 1 máy = 1 người`.
  *
- * Cố ý như vậy. Luật 8 (đụng độ thread) chỉ có ích khi nó nêu đúng tên nick của đồng nghiệp:
- * "nick `abc` của người khác vừa comment ở thread này". Chia tầm nhìn theo chủ sở hữu là làm
- * luật đó mù đúng vào ca nó sinh ra để bắt — hai nick cùng nhà đụng một thread.
+ * Tách thành hai lần bấm là dựng ra trạng thái nửa vời — nick có chủ mà chưa có máy, hoặc tệ
+ * hơn, nick ghim vào máy của người không còn là chủ. Một form, một transaction, một hàng
+ * `AuditLog` cho mỗi thứ vừa đổi.
+ *
+ * ## Chủ nick quyết định gì, chiếc máy quyết định gì
+ *
+ * | Ô | Quyết định |
+ * |---|---|
+ * | `ownerId` | ai được **xin** bí mật của nick (`requireNickOwner`) |
+ * | `deviceId` | vé bay về **máy nào** (`resolveNickDeviceRecipient`) |
+ *
+ * Hai câu hỏi khác nhau nên hai ô, dù chúng luôn trỏ về cùng một người. Nick Facebook là chỗ
+ * chúng tách hẳn: có chủ để đọc mật khẩu, nhưng không có máy nào vì Fanpage đăng bằng Graph API.
+ *
+ * Ngoài hai việc đó thì không có gì bị chia: ai cũng vẫn thấy nick, job, tương tác và lịch sử
+ * của người khác, và bộ luật vẫn quét toàn bộ đàn nick bất kể của ai. Cố ý như vậy — luật 8
+ * (đụng độ thread) chỉ có ích khi nó nêu đúng tên nick của đồng nghiệp.
  *
  * ## Vì sao `adminAction`
  *
@@ -21,100 +35,137 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import type { ActionResult } from "@/lib/actions/action-result";
-import { AUDIT_ACTIONS } from "@/lib/audit/audit-log-actions";
 import { isEmailAllowed, readEmailAccessList } from "@/lib/auth/allowed-emails";
 import { adminAction } from "@/lib/auth/guarded-action";
 import { prisma } from "@/lib/db/prisma-client";
 import { firstError, formToObject } from "./vault-form-schemas";
+import { describeClusterChange } from "./account-cluster-change";
 
 /**
- * Ô chọn người để trống nghĩa là **gỡ chủ**, nên `ownerId` cố ý nhận cả chuỗi rỗng.
- * Đây cũng là cách duy nhất gỡ chủ một nick, nên nó phải là một giá trị hợp lệ chứ không
- * phải một lỗi nhập liệu.
+ * Cả hai ô cố ý nhận chuỗi rỗng: để trống là **gỡ**, và đó là cách duy nhất gỡ chủ hoặc gỡ
+ * ghim máy. Coi nó là lỗi nhập liệu thì không còn đường nào để gỡ.
  */
-const ownerAssignmentSchema = z.object({
+const clusterAssignmentSchema = z.object({
   accountId: z.string().min(1, "Thiếu nick cần phân công"),
   ownerId: z.string().default(""),
+  deviceId: z.string().default(""),
 });
 
 /**
- * Gán hoặc gỡ chủ của một nick.
+ * Gán (hoặc gỡ) chủ và máy của một nick.
  *
- * Kiểm lại danh sách trắng trước khi gán, dù người đó đã có hàng trong `User`: hàng `User` chỉ
- * chứng minh họ **từng** đăng nhập được, không chứng minh bây giờ vẫn còn trong team. Gán nick
- * cho người đã bị gỡ khỏi `ALLOWED_EMAILS` là dựng ra một nick mà không ai mở được bí mật —
- * chủ danh nghĩa thì bị chặn ở mọi request, còn ADMIN thì tưởng đã giao cho người khác rồi.
+ * Bất biến ép ở đây, vì Postgres không diễn đạt được ràng buộc bắc qua hai bảng mà không cần
+ * trigger: **`deviceId` có giá trị ⟹ máy đó thuộc `ownerId` và chưa bị thu hồi.**
  */
-export const assignAccountOwner = adminAction(async function assignAccountOwner(
+export const assignAccountCluster = adminAction(async function assignAccountCluster(
   actor,
   _prev: ActionResult | null,
   formData: FormData,
 ): Promise<ActionResult> {
-  const parsed = ownerAssignmentSchema.safeParse(formToObject(formData));
+  const parsed = clusterAssignmentSchema.safeParse(formToObject(formData));
   if (!parsed.success) return { ok: false, message: firstError(parsed.error) };
 
-  const { accountId, ownerId } = parsed.data;
+  const { accountId } = parsed.data;
+  const ownerId = parsed.data.ownerId.trim();
+  const deviceId = parsed.data.deviceId.trim();
 
   const account = await prisma.account.findUnique({
     where: { id: accountId },
-    select: { username: true },
+    select: {
+      username: true,
+      ownerId: true,
+      deviceId: true,
+      device: { select: { name: true } },
+    },
   });
   if (!account) return { ok: false, message: "Không tìm thấy nick." };
 
-  const trimmed = ownerId.trim();
-
-  if (trimmed === "") {
-    await prisma.account.update({ where: { id: accountId }, data: { ownerId: null } });
-    await prisma.auditLog.create({
-      data: {
-        accountId,
-        action: AUDIT_ACTIONS.ACCOUNT_OWNER_CLEARED,
-        detail: `${actor.email} gỡ chủ của nick`,
-        actorId: actor.userId,
-      },
-    });
-
-    revalidatePath("/accounts");
-    revalidatePath(`/accounts/${accountId}`);
-    return {
-      ok: true,
-      message:
-        `Đã gỡ chủ của nick "${account.username}". Từ giờ chỉ quản trị viên lấy được mật khẩu ` +
-        `và OTP của nó — nick không có chủ thì OPERATOR nào cũng bị từ chối.`,
-    };
-  }
-
-  const owner = await prisma.user.findUnique({
-    where: { id: trimmed },
-    select: { email: true, name: true },
-  });
-  if (!owner) return { ok: false, message: "Không tìm thấy người dùng này." };
-
-  if (!isEmailAllowed(owner.email, readEmailAccessList())) {
+  // Gỡ chủ là gỡ luôn máy. Nick không có chủ mà vẫn ghim vào máy của ai đó là đúng hàng lệch
+  // mà bất biến ở trên cấm — và để nó tồn tại thì vé vẫn bay về chiếc máy ấy dù sổ nói nick
+  // không thuộc về ai.
+  if (ownerId === "" && deviceId !== "") {
     return {
       ok: false,
-      message:
-        `${owner.email} không còn trong ALLOWED_EMAILS nên không đăng nhập được nữa — gán nick ` +
-        `cho họ thì không ai mở được bí mật của nick đó. Thêm lại vào .env, hoặc chọn người khác.`,
+      message: "Gỡ chủ thì phải gỡ cả máy — nick không có chủ không ghim vào máy của ai được.",
     };
   }
 
-  await prisma.account.update({ where: { id: accountId }, data: { ownerId: trimmed } });
-  await prisma.auditLog.create({
-    data: {
-      accountId,
-      action: AUDIT_ACTIONS.ACCOUNT_OWNER_ASSIGNED,
-      detail: `${actor.email} giao nick cho ${owner.email}`,
-      actorId: actor.userId,
-    },
+  let ownerEmail: string | null = null;
+  if (ownerId !== "") {
+    const owner = await prisma.user.findUnique({
+      where: { id: ownerId },
+      select: { email: true },
+    });
+    if (!owner) return { ok: false, message: "Không tìm thấy người dùng này." };
+
+    // Hàng `User` chỉ chứng minh họ **từng** đăng nhập được, không chứng minh bây giờ vẫn còn
+    // trong team. Gán nick cho người đã bị gỡ khỏi `ALLOWED_EMAILS` là dựng ra một nick mà
+    // không ai mở được bí mật — chủ danh nghĩa thì bị chặn ở mọi request, còn ADMIN thì tưởng
+    // đã giao cho người khác rồi.
+    if (!isEmailAllowed(owner.email, readEmailAccessList())) {
+      return {
+        ok: false,
+        message:
+          `${owner.email} không còn trong ALLOWED_EMAILS nên không đăng nhập được nữa — gán nick ` +
+          `cho họ thì không ai mở được bí mật của nick đó. Thêm lại vào .env, hoặc chọn người khác.`,
+      };
+    }
+    ownerEmail = owner.email;
+  }
+
+  let deviceName: string | null = null;
+  if (deviceId !== "") {
+    const device = await prisma.relayDevice.findUnique({
+      where: { id: deviceId },
+      select: { name: true, revokedAt: true, userId: true, user: { select: { email: true } } },
+    });
+    if (!device) return { ok: false, message: "Không tìm thấy máy này trong sổ cầu nối." };
+
+    if (device.revokedAt) {
+      return {
+        ok: false,
+        message:
+          `Máy "${device.name}" đã bị thu hồi nên không nhận được vé nào nữa. Chọn máy khác, ` +
+          `hoặc để trống ô máy rồi ghim lại sau khi người đó đăng ký máy mới.`,
+      };
+    }
+
+    if (device.userId !== ownerId) {
+      return {
+        ok: false,
+        message:
+          `Máy "${device.name}" là của ${device.user.email}, không phải của người bạn vừa chọn. ` +
+          `Vé được mã hóa cho đúng một máy, nên ghim lệch là phát một tấm vé chắc chắn hỏng.`,
+      };
+    }
+    deviceName = device.name;
+  }
+
+  const change = describeClusterChange({
+    before: { ownerId: account.ownerId, deviceId: account.deviceId },
+    after: { ownerId: ownerId || null, deviceId: deviceId || null },
+    ownerEmail,
+    deviceName,
+    previousDeviceName: account.device?.name ?? null,
   });
+
+  if (change.auditActions.length === 0) {
+    return { ok: true, message: `Không có gì đổi cho nick "${account.username}".` };
+  }
+
+  await prisma.$transaction([
+    prisma.account.update({
+      where: { id: accountId },
+      data: { ownerId: ownerId || null, deviceId: deviceId || null },
+    }),
+    ...change.auditActions.map(({ action, detail }) =>
+      prisma.auditLog.create({
+        data: { accountId, action, detail: `${actor.email} ${detail}`, actorId: actor.userId },
+      }),
+    ),
+  ]);
 
   revalidatePath("/accounts");
   revalidatePath(`/accounts/${accountId}`);
-  return {
-    ok: true,
-    message:
-      `Đã giao nick "${account.username}" cho ${owner.email}. Họ lấy được mật khẩu và OTP của ` +
-      `nick này; người khác thì không, trừ quản trị viên.`,
-  };
+  return { ok: true, message: `Nick "${account.username}": ${change.message}` };
 });

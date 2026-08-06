@@ -105,13 +105,26 @@ export function AccountVaultActionsPanel({
   canLaunch,
   launchBlockedReason,
   relayDevices,
+  nickDeviceName,
 }: {
   accountId: string;
   hasTotp: boolean;
   canLaunch: boolean;
   launchBlockedReason: string;
-  /** Máy chạy cầu nối đang dùng của **người đang xem**. Xem resolveTicketRecipient. */
+  /**
+   * Máy chạy cầu nối đang dùng của **người đang xem**.
+   *
+   * Chỉ còn dùng cho nick **chưa ghim máy** — xem `nickDeviceName`. Nick đã ghim thì máy chủ tự
+   * biết gửi vé đi đâu và không hỏi gì cả.
+   */
   relayDevices: RelayDeviceOption[];
+  /**
+   * Tên chiếc máy đang giữ nick, `null` nếu nick chưa ghim máy nào.
+   *
+   * Có giá trị thì mọi vé bay về đó bất kể ai bấm, nên ô "máy bạn đang ngồi" biến mất: nó chỉ
+   * gợi ra một lựa chọn không tồn tại.
+   */
+  nickDeviceName: string | null;
 }) {
   const [feedback, setFeedback] = useState<Feedback>(null);
   const [busy, setBusy] = useState(false);
@@ -223,8 +236,9 @@ export function AccountVaultActionsPanel({
     setBusy(true);
     setFeedback(null);
     try {
-      const query = deviceId ? `?deviceId=${encodeURIComponent(deviceId)}` : "";
-      const response = await fetch(`/api/accounts/${accountId}/launch${query}`, { method: "POST" });
+      // Không kèm deviceId nữa: vé mở profile bay về máy GIỮ NICK, và máy chủ tra sổ để biết đó
+      // là máy nào. Xem resolveNickDeviceRecipient.
+      const response = await fetch(`/api/accounts/${accountId}/launch`, { method: "POST" });
       const body = (await response.json()) as { ok: boolean; message: string; ticket?: string };
 
       if (!body.ok || !body.ticket) {
@@ -252,7 +266,15 @@ export function AccountVaultActionsPanel({
     <div className="space-y-4">
       {outdatedVersion !== null ? <RelayOutdatedNotice relayVersion={outdatedVersion} /> : null}
 
-      {relayDevices.length === 0 ? (
+      {nickDeviceName !== null ? (
+        <p className="text-sm text-neutral-600 dark:text-neutral-400">
+          Nick này ghim ở máy <strong>{nickDeviceName}</strong> — mọi vé bay về đó, kể cả khi
+          người khác bấm. Đang ngồi máy khác thì công cụ nói thẳng chứ không mở ra một cửa sổ
+          trống.
+        </p>
+      ) : null}
+
+      {nickDeviceName === null && relayDevices.length === 0 ? (
         <p className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-300">
           Máy bạn đang ngồi chưa có trong sổ cầu nối, nên chưa lấy được mật khẩu, mã OTP hay mở
           được profile. Cài cầu nối rồi nhờ quản trị viên ghi khóa công khai của nó vào sổ ở{" "}
@@ -263,7 +285,7 @@ export function AccountVaultActionsPanel({
         </p>
       ) : null}
 
-      {relayDevices.length > 1 ? (
+      {nickDeviceName === null && relayDevices.length > 1 ? (
         <label className="block text-sm">
           <span className="mb-1 block text-xs font-medium text-neutral-600 dark:text-neutral-400">
             Máy bạn đang ngồi

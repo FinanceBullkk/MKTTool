@@ -8,18 +8,30 @@
  * (GĐ5) thì `127.0.0.1` của máy chủ là một máy khác hẳn, cách người vận hành nửa vòng trái đất.
  * Nên việc mở profile phải rời sang cầu nối, và thứ máy chủ gửi đi là một tấm vé.
  *
- * ## Bốn lớp chặn vẫn còn đủ bốn, chỉ đổi chỗ đứng
+ * ## Năm lớp chặn, và chỉ lớp cuối rời khỏi máy chủ
  *
  *  1. Trạng thái nick phải cho phép (CHECKPOINT / SHADOWBANNED / DEAD thì không) — **ở đây**.
  *  2. Proxy phải còn gắn với nick — mở nhầm proxy là mất nick — **ở đây**.
  *  3. Proxy phải CÒN SỐNG và thật sự đổi IP — **ở đây**, vì mật khẩu proxy thuộc vùng khóa máy
  *     chủ nên chính máy chủ mới đi hỏi được. Đây cũng là lớp duy nhất hỏi người ngoài xem nick
  *     sắp lộ ra bằng IP nào.
- *  4. Proxy phải ĐẨY ĐƯỢC sang trình duyệt, đẩy hỏng thì không mở — **chuyển sang cầu nối**
- *     (GĐ4), vì chỉ nó nói chuyện được với MultiZen. Quy tắc không đổi, chỗ thi hành thì đổi.
+ *  4. Nick phải ĐANG GHIM vào một chiếc máy còn dùng được, **và người bấm phải là chủ chiếc máy
+ *     đó** — **ở đây**, xem `resolveNickDeviceRecipient`.
+ *  5. Proxy phải ĐẨY ĐƯỢC sang trình duyệt, đẩy hỏng thì không mở — **ở cầu nối** (GĐ4), vì chỉ
+ *     nó nói chuyện được với MultiZen. Quy tắc không đổi, chỗ thi hành thì đổi.
  *
- * Ba lớp đầu chạy TRƯỚC khi phát vé có chủ ý: vé đã ký là đã ra khỏi tầm với: máy chủ không thu
+ * Bốn lớp đầu chạy TRƯỚC khi phát vé có chủ ý: vé đã ký là đã ra khỏi tầm với: máy chủ không thu
  * hồi được tấm vé nào. Kiểm sau khi ký là kiểm quá muộn.
+ *
+ * ## Lớp 4 thêm vào 07/08/2026, và nó đóng hai lỗ cùng lúc
+ *
+ * Trước đó vé bay về **máy của người đang bấm**. Bấm nút trên nick của đồng nghiệp thì máy chủ
+ * vẫn phát vé, cầu nối bên kia không có profile đó và chỉ báo được một lỗi MultiZen mơ hồ. Tệ
+ * hơn: ruột vé chứa **mật khẩu proxy đã giải mã**, và vé mở profile cố ý không bị đếm hạn nhịp —
+ * nên bất kỳ ai đăng nhập được cũng rút được mật khẩu của cả kho proxy bằng cách bấm nút, dù
+ * `/proxies` không bao giờ hiện mật khẩu ra màn hình.
+ *
+ * Hỏi cuốn sổ *"nick này nằm ở máy nào"* thay vì đoán *"chắc là máy người đang bấm"* đóng cả hai.
  *
  * ## Nhật ký ghi "đã phát vé", không ghi "đã mở"
  *
@@ -36,7 +48,7 @@ import { prisma } from "@/lib/db/prisma-client";
 import { CROSS_ORIGIN_MESSAGE, isSameOrigin } from "@/lib/http/same-origin-guard";
 import { checkProxyLiveness } from "@/lib/proxies/proxy-liveness-check";
 import { issueTicket } from "@/lib/tickets/ticket-issuer";
-import { resolveTicketRecipient } from "@/lib/tickets/ticket-recipient-lookup";
+import { resolveNickDeviceRecipient } from "@/lib/tickets/ticket-recipient-lookup";
 import { TICKET_KINDS } from "@/lib/tickets/ticket-types";
 
 export const runtime = "nodejs";
@@ -52,9 +64,6 @@ export const POST = guardedRoute(async function POST(
   }
 
   const { id } = await context.params;
-
-  // Người có nhiều máy trong sổ phải nói rõ đang ngồi máy nào — xem resolveTicketRecipient.
-  const deviceId = new URL(request.url).searchParams.get("deviceId") ?? undefined;
 
   const account = await prisma.account.findUnique({
     where: { id },
@@ -119,7 +128,7 @@ export const POST = guardedRoute(async function POST(
     );
   }
 
-  const recipient = await resolveTicketRecipient(actor, deviceId);
+  const recipient = await resolveNickDeviceRecipient(actor, id);
   if (!recipient.ok) {
     return NextResponse.json({ ok: false, message: recipient.message }, { status: 409 });
   }

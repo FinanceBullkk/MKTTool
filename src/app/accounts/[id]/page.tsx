@@ -5,7 +5,7 @@ import { ActionForm, SelectField } from "@/components/ui/form-controls";
 import { Card, PageHeading, StatusBadge } from "@/components/ui/page-section";
 import { AccountFormFields } from "@/components/vault/account-form-fields";
 import { AccountVaultForm } from "@/components/vault/account-vault-form";
-import { assignAccountOwner } from "@/lib/accounts/account-owner-actions";
+import { assignAccountCluster } from "@/lib/accounts/account-owner-actions";
 import {
   accountAgeInDays,
   coldStartDaysRemaining,
@@ -35,7 +35,12 @@ export default async function AccountDetailPage({
 
   const account = await prisma.account.findUnique({
     where: { id },
-    include: { persona: true, proxy: true, owner: { select: { email: true } } },
+    include: {
+      persona: true,
+      proxy: true,
+      owner: { select: { email: true } },
+      device: { select: { name: true, revokedAt: true } },
+    },
   });
 
   if (!account) notFound();
@@ -46,23 +51,32 @@ export default async function AccountDetailPage({
   const coldDays = coldStartDaysRemaining(account.coldStartUntil);
   const age = accountAgeInDays(account.platformCreatedAt);
 
-  const [auditLogs, personas, selectableProxies, teamMembers, relayDevices] = await Promise.all([
-    prisma.auditLog.findMany({ where: { accountId: id }, orderBy: { at: "desc" }, take: 20 }),
-    prisma.persona.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
-    // Proxy còn trống CỘNG proxy đang gắn cho chính nick này — thiếu vế sau thì mở form sửa
-    // ra là ô proxy trống rỗng, bấm lưu một phát là đổi mất proxy của nick.
-    prisma.proxy.findMany({
-      where: { OR: [{ account: null }, { account: { id } }] },
-      orderBy: { label: "asc" },
-      select: { id: true, label: true, country: true },
-    }),
-    // Chỉ người ĐÃ đăng nhập ít nhất một lần mới có hàng `User` để gán — xem chú thích ở
-    // thẻ "Phân công nick" bên dưới.
-    prisma.user.findMany({ orderBy: { email: "asc" }, select: { id: true, email: true } }),
-    // Máy chạy cầu nối của NGƯỜI ĐANG XEM, không phải của chủ nick: vé bay về chiếc máy người
-    // bấm nút đang ngồi. Chưa đăng nhập thì không có máy nào, và panel nói rõ thiếu gì.
-    viewer ? listActiveRelayDevices(viewer.userId) : Promise.resolve([]),
-  ]);
+  const [auditLogs, personas, selectableProxies, teamMembers, relayDevices, assignableDevices] =
+    await Promise.all([
+      prisma.auditLog.findMany({ where: { accountId: id }, orderBy: { at: "desc" }, take: 20 }),
+      prisma.persona.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
+      // Proxy còn trống CỘNG proxy đang gắn cho chính nick này — thiếu vế sau thì mở form sửa
+      // ra là ô proxy trống rỗng, bấm lưu một phát là đổi mất proxy của nick.
+      prisma.proxy.findMany({
+        where: { OR: [{ account: null }, { account: { id } }] },
+        orderBy: { label: "asc" },
+        select: { id: true, label: true, country: true },
+      }),
+      // Chỉ người ĐÃ đăng nhập ít nhất một lần mới có hàng `User` để gán — xem chú thích ở
+      // thẻ "Phân công cụm" bên dưới.
+      prisma.user.findMany({ orderBy: { email: "asc" }, select: { id: true, email: true } }),
+      // Máy của NGƯỜI ĐANG XEM — chỉ còn dùng cho nick chưa ghim máy (nick Facebook), vì nick đã
+      // ghim thì máy chủ tự tra sổ. Chưa đăng nhập thì không có máy nào, panel nói rõ thiếu gì.
+      viewer ? listActiveRelayDevices(viewer.userId) : Promise.resolve([]),
+      // Mọi máy còn dùng được, kèm email chủ máy: thẻ phân công phải chọn được máy của BẤT KỲ ai
+      // trong team, không chỉ của người đang xem. Nhãn mang email để nhìn là biết cặp có khớp
+      // không; chặn thật thì nằm ở `assignAccountCluster`, nó từ chối cặp lệch kèm lý do.
+      prisma.relayDevice.findMany({
+        where: { revokedAt: null },
+        orderBy: [{ createdAt: "desc" }],
+        select: { id: true, name: true, user: { select: { email: true } } },
+      }),
+    ]);
 
   const facts: [string, string][] = [
     ["Nền tảng", account.platform],
@@ -82,6 +96,12 @@ export default async function AccountDetailPage({
         : "— chưa phân công (chỉ quản trị viên lấy được mật khẩu và OTP)",
     ],
     ["Profile antidetect", account.antidetectProfileId ?? "— không có (không mở profile được)"],
+    [
+      "Máy giữ profile",
+      account.device
+        ? `${account.device.name}${account.device.revokedAt ? " — ĐÃ THU HỒI, phải gán lại" : ""}`
+        : "— chưa ghim (id profile chỉ có nghĩa trên đúng máy tạo ra nó)",
+    ],
     ["Email gốc", account.emailAddress],
     ["Karma", String(account.karma)],
     ["Tuổi nick", age === null ? "—" : `${age} ngày`],
@@ -122,6 +142,7 @@ export default async function AccountDetailPage({
           canLaunch={presentation.canLaunch}
           launchBlockedReason={presentation.hint}
           relayDevices={relayDevices.map((device) => ({ id: device.id, name: device.name }))}
+          nickDeviceName={account.device?.name ?? null}
         />
       </Card>
 
@@ -145,16 +166,23 @@ export default async function AccountDetailPage({
       {/* Chỉ quản trị viên thấy thẻ này. Ẩn thẻ chỉ là dọn màn hình cho gọn — chặn THẬT nằm ở
           `adminAction` bọc ngoài server action, nên OPERATOR gọi thẳng endpoint vẫn bị từ chối. */}
       {viewer?.role === "ADMIN" ? (
-        <Card title="Phân công nick">
+        <Card title="Phân công cụm">
           <p className="mb-4 text-sm text-neutral-600 dark:text-neutral-400">
-            Người phụ trách là người <strong>duy nhất ngoài quản trị viên</strong> lấy được mật
-            khẩu và mã OTP của nick này. Ngoài chuyện đó thì không có gì bị chia: cả team vẫn
-            thấy nick, job và lịch sử của nhau, và bộ luật vẫn quét toàn bộ đàn nick — luật
+            Hai ô này đi cùng nhau. <strong>Người phụ trách</strong> là người duy nhất ngoài quản
+            trị viên <em>xin</em> được mật khẩu và mã OTP của nick; <strong>máy giữ profile</strong>{" "}
+            quyết định vé bay <em>về đâu</em>. Ngoài hai chuyện đó thì không có gì bị chia: cả team
+            vẫn thấy nick, job và lịch sử của nhau, và bộ luật vẫn quét toàn bộ đàn nick — luật
             chống đụng độ thread phải nêu đúng tên nick của đồng nghiệp thì mới dùng được.
           </p>
           <p className="mb-4 text-sm text-neutral-600 dark:text-neutral-400">
-            Để trống ô là <strong>gỡ chủ</strong>. Nick không có chủ thì chỉ quản trị viên mở
-            được bí mật của nó.
+            Máy phải là máy <strong>của chính người phụ trách</strong>, vì vé được mã hóa cho đúng
+            một máy. Chọn lệch thì công cụ từ chối kèm lý do chứ không lưu. Để trống ô người là{" "}
+            <strong>gỡ chủ</strong>, và gỡ chủ thì gỡ luôn máy.
+          </p>
+          <p className="mb-4 text-sm text-amber-700 dark:text-amber-400">
+            <strong>Đổi sang máy khác:</strong> profile MultiZen không tự đi theo. Export ở máy cũ
+            → import ở máy mới → <strong>xóa bản ở máy cũ</strong>. Bỏ bước cuối là nick sống ở hai
+            máy cùng lúc — một phiên đăng nhập, hai bộ tín hiệu thiết bị.
           </p>
 
           {teamMembers.length === 0 ? (
@@ -165,7 +193,7 @@ export default async function AccountDetailPage({
               họ là ai.
             </p>
           ) : (
-            <ActionForm action={assignAccountOwner} submitLabel="Lưu phân công">
+            <ActionForm action={assignAccountCluster} submitLabel="Lưu phân công">
               <input type="hidden" name="accountId" value={account.id} />
               <SelectField
                 label="Người phụ trách"
@@ -176,6 +204,20 @@ export default async function AccountDetailPage({
                   label: member.email,
                 }))}
                 hint="Chỉ hiện người đã đăng nhập ít nhất một lần."
+              />
+              <SelectField
+                label="Máy giữ profile"
+                name="deviceId"
+                defaultValue={account.deviceId ?? ""}
+                options={assignableDevices.map((device) => ({
+                  value: device.id,
+                  label: `${device.name} — ${device.user.email}`,
+                }))}
+                hint={
+                  assignableDevices.length === 0
+                    ? "Chưa máy nào đăng ký cầu nối. Cài cầu nối và đăng ký máy TRƯỚC khi giao nick."
+                    : "Để trống nếu nick không cần trình duyệt (Fanpage đăng bằng Graph API)."
+                }
               />
             </ActionForm>
           )}
