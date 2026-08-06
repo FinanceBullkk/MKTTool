@@ -67,9 +67,15 @@ async function describeDuplicateKey(publicKey: string): Promise<string | null> {
   // Khóa đã thu hồi mà cho đăng ký lại thì lần thu hồi trước thành vô nghĩa: khóa của một
   // chiếc máy đã mất coi như đã lộ, và cái máy nhặt được nó vẫn giải mã được vé mới.
   if (existing.revokedAt) {
+    // Nói rõ **cách** sinh khóa mới, không chỉ nói là phải sinh. Câu cũ đúng nhưng cụt: người đọc
+    // nó đang đứng trước một chiếc máy không đăng ký được và không có gợi ý nào về việc phải mở
+    // thư mục nào, xóa file nào. Thu hồi nhầm rồi muốn làm lại là ca có thật.
     return (
       `Khóa này đã bị thu hồi (máy "${existing.name}" của ${existing.user.email}) và không ` +
-      `dùng lại được. Sinh cặp khóa MỚI trên máy đó rồi đăng ký khóa mới.`
+      `dùng lại được — khóa của một máy đã gạch tên coi như đã lộ.\n\n` +
+      `Sinh cặp khóa MỚI trên máy đó: tắt cầu nối, xóa file "relay-device-key.json" trong thư ` +
+      `mục dữ liệu của nó (%LOCALAPPDATA%\\MKTTool-Relay), rồi bật lại. Nó tự sinh cặp khóa mới ` +
+      `và đăng ký lại được ngay. File relay-config.json giữ nguyên, không mất khóa vùng operator.`
     );
   }
 

@@ -66,4 +66,12 @@ describe("resolveWebOrigin", () => {
   it("file cấu hình hỏng JSON cũng lùi về bản build", () => {
     expect(resolveWebOrigin(makeHome("{ hỏng"))).toBe(BAKED);
   });
+
+  it("BOM ở đầu file KHÔNG làm hỏng phép đọc", () => {
+    // Trên Windows đây là mặc định chứ không phải ca hiếm: `Set-Content -Encoding utf8` của
+    // PowerShell 5.1 và Notepad đều ghi kèm BOM. Bản đầu của bộ cài dính đúng chuyện này, và
+    // triệu chứng là "không phải JSON hợp lệ" cho một file đúng cú pháp từng dấu phẩy.
+    const home = makeHome(`﻿${JSON.stringify({ webOrigin: "https://moi.example.com" })}`);
+    expect(resolveWebOrigin(home)).toBe("https://moi.example.com");
+  });
 });

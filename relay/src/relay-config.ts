@@ -300,7 +300,7 @@ export function resolveDeviceId(home: string = resolveRelayHome()): string | nul
 /** File cấu hình dưới dạng thô. Chưa có file, hoặc hỏng JSON, đều thành object rỗng. */
 function readRawConfig(home: string): Record<string, unknown> {
   try {
-    const parsed: unknown = JSON.parse(readFileSync(relayFilePath(CONFIG_FILE, home), "utf8"));
+    const parsed: unknown = JSON.parse(readConfigText(relayFilePath(CONFIG_FILE, home)));
     if (typeof parsed === "object" && parsed !== null) return parsed as Record<string, unknown>;
   } catch {
     // Chưa cài xong, hoặc ai đó sửa tay làm hỏng JSON. Cả hai không phải ngoại lệ ở đây.
@@ -309,13 +309,29 @@ function readRawConfig(home: string): Record<string, unknown> {
   return {};
 }
 
+/**
+ * Đọc file cấu hình và **bỏ BOM** nếu có.
+ *
+ * `JSON.parse` nghẹn ngay ký tự `﻿` đầu chuỗi, và câu nó ném ra là *"không phải JSON hợp
+ * lệ"* — cho một file mà mở bằng mắt thì đúng cú pháp từng dấu phẩy. Người đọc câu đó sẽ đi soi
+ * dấu ngoặc, không ai nghĩ tới ba byte vô hình.
+ *
+ * Trên Windows đây không phải ca hiếm mà là **mặc định**: `Set-Content -Encoding utf8` của
+ * PowerShell 5.1 ghi kèm BOM, Notepad lưu UTF-8 cũng kèm BOM. Bản đầu của bộ cài dính đúng chuyện
+ * này và chết ngay ở lượt cài đầu tiên (06/08/2026). Bộ cài đã sửa để ghi không BOM, nhưng file
+ * này là thứ người dùng được mời sửa tay — nên chỗ đọc phải chịu được, không chỉ chỗ ghi.
+ */
+function readConfigText(filePath: string): string {
+  return readFileSync(filePath, "utf8").replace(/^﻿/, "");
+}
+
 /** Đọc file cấu hình rồi soi. File chưa có cũng là một `problem`, không phải một ngoại lệ. */
 export function loadRelayConfig(home: string = resolveRelayHome()): ConfigLoad {
   const filePath = relayFilePath(CONFIG_FILE, home);
 
   let raw: string;
   try {
-    raw = readFileSync(filePath, "utf8");
+    raw = readConfigText(filePath);
   } catch (error) {
     const missing = (error as NodeJS.ErrnoException).code === "ENOENT";
     return {

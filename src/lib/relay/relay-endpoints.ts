@@ -125,7 +125,7 @@ export const RELAY_TIMEOUT_MS = 4_000;
  * tăng bằng tay: tự sinh theo git hash thì nó đổi ở mọi lượt build, và một số đổi liên tục thì
  * cảnh báo "bản cũ" kêu liên tục cho tới lúc không ai còn nhìn.
  */
-export const RELAY_VERSION = 2;
+export const RELAY_VERSION = 4;
 
 /** Những gì `/health` trả về. */
 export interface RelayHealth {

@@ -102,6 +102,17 @@ try {
 }
 
 <#
+Gỡ dấu "tải từ Internet" (Mark-of-the-Web) khỏi bản VỪA CHÉP.
+
+Không gỡ thì Windows hỏi lại ở **mỗi lần chạy**, kể cả lượt tự bật cùng máy — mà lượt đó chạy
+ngầm, nên người dùng chỉ thấy "không có cầu nối" mà không thấy hộp nào để bấm.
+
+Chỉ gỡ trên file đã nằm trong thư mục cài, không đụng file trong Downloads: cái quyết định đây là
+bản của team hay không là mã băm SHA-256 trên trang tải, không phải cái cờ này.
+#>
+Unblock-File -Path $targetExe -ErrorAction SilentlyContinue
+
+<#
 File cấu hình dựng sẵn để người cài chỉ phải **điền**, không phải tự gõ đúng tên từng ô.
 
 **Không ghi đè bản có sẵn.** Ở đường nâng cấp, ghi đè là xóa mất khóa vùng operator của máy này —
@@ -118,7 +129,14 @@ if (Test-Path $configFile) {
         webOrigin = ""
         multizenToken = ""
     }
-    $template | ConvertTo-Json | Set-Content -Path $configFile -Encoding utf8
+    # KHÔNG dùng `Set-Content -Encoding utf8`: trên Windows PowerShell 5.1 nó ghi kèm BOM, và
+    # `JSON.parse` phía cầu nối nghẹn ngay ký tự đầu tiên. Triệu chứng là câu "không phải JSON hợp
+    # lệ" cho một file nhìn bằng mắt thì hoàn toàn đúng cú pháp — đã vấp thật 06/08/2026, ở đúng
+    # lượt cài đầu tiên của bản 2.
+    #
+    # Cầu nối nay cũng tự bỏ BOM khi đọc, nên đây là lớp thứ hai chứ không phải lớp duy nhất:
+    # người dùng mở file bằng Notepad rồi lưu lại là BOM quay về.
+    [IO.File]::WriteAllText($configFile, ($template | ConvertTo-Json), (New-Object Text.UTF8Encoding $false))
 }
 
 Write-Step 4 "Tạo shortcut Startup + desktop"
@@ -128,12 +146,36 @@ foreach ($dir in @($startupDir, $desktopDir)) {
 New-RelayShortcut (Join-Path $startupDir "Cầu nối MKTTool.lnk")
 New-RelayShortcut (Join-Path $desktopDir "Cầu nối MKTTool.lnk")
 
+<#
+Bật thử. **Bước này hỏng KHÔNG phải là cài hỏng.**
+
+Windows chặn chạy file lạ tải từ mạng, và người dùng bấm "Không chạy" là `Start-Process` ném lỗi
+`The operation was canceled by the user`. Bản đầu để lỗi đó rơi ra ngoài, nên `setup.bat` kết
+luận "Cài đặt thất bại" — trong khi ba bước thật (chép file, dựng cấu hình, tạo shortcut) đều đã
+xong từ trước. Câu đó cử người đi cài lại một thứ đã cài đúng. Đã vấp thật 06/08/2026.
+
+Nên bắt lỗi tại chỗ và nói đúng hiện trạng: máy đã cài xong, chỉ là chưa bật được.
+#>
 Write-Step 5 "Bật cầu nối"
-Start-Process -FilePath $targetExe -WorkingDirectory $relayDir -WindowStyle Minimized
-# Cho nó kịp mở cổng trước khi trình duyệt gọi tới, kẻo trang đầu tiên người cài nhìn thấy lại là
-# trang báo không kết nối được.
-Start-Sleep -Seconds 3
-if (-not $env:RELAY_SKIP_BROWSER) { Start-Process $statusUrl }
+$launched = $true
+try {
+    Start-Process -FilePath $targetExe -WorkingDirectory $relayDir -WindowStyle Minimized -ErrorAction Stop
+} catch {
+    $launched = $false
+    Write-Host ""
+    Write-Host "  Đã cài xong, nhưng chưa bật được cầu nối:" -ForegroundColor Yellow
+    Write-Host "    $($_.Exception.Message)"
+    Write-Host "  Thường là Windows hỏi lại vì file tải từ mạng và câu trả lời là Không."
+    Write-Host "  Bấm đúp shortcut ""Cầu nối MKTTool"" ngoài desktop, chọn More info -> Run anyway."
+    Write-Host ""
+}
+
+if ($launched) {
+    # Cho nó kịp mở cổng trước khi trình duyệt gọi tới, kẻo trang đầu tiên người cài nhìn thấy lại
+    # là trang báo không kết nối được.
+    Start-Sleep -Seconds 3
+    if (-not $env:RELAY_SKIP_BROWSER) { Start-Process $statusUrl }
+}
 
 Write-Host ""
 Write-Host "  ───────────────────────────────────────────────────────────────"
