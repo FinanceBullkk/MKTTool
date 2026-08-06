@@ -76,19 +76,24 @@ ENV NODE_ENV=production
 #
 # ## Vì sao lấy từ kho PGDG chứ không dùng `postgresql-client` của Ubuntu
 #
-# Ubuntu Noble cho bản **16**, còn dự án chạy Postgres **17** (CI dùng `postgres:17`, máy dev
-# 17.10). Mà `pg_dump` **từ chối dump từ server có major cao hơn chính nó** — không phải cảnh
-# báo, là từ chối thẳng:
+# Ubuntu Noble cho bản **16**, còn server thì cao hơn hẳn. Mà `pg_dump` **từ chối dump từ server
+# có major cao hơn chính nó** — không phải cảnh báo, là từ chối thẳng:
 #
-#     pg_dump: error: server version: 17.x; pg_dump version: 16.x
+#     pg_dump: error: server version: 18.x; pg_dump version: 16.x
 #
 # Nên bản Ubuntu mặc định trông như đã cài xong nhưng hỏng ở đúng ngày cần tới. Đã đo trong ảnh
 # build ngày 05/08/2026, không phải suy đoán.
 #
-# QUY TẮC KHI NÂNG CẤP: `pg_dump` phải có major **≥** major của server. Nâng Postgres lên 18 thì
-# phải sửa dòng `postgresql-client-17` dưới đây trước, nếu không mọi bản sao lưu im lặng ngừng
-# chạy — cùng họ rủi ro với luật firewall WebRTC ở GĐ6: hỏng mà không ai thấy.
-ARG PG_CLIENT_MAJOR=17
+# ## QUY TẮC: `pg_dump` phải có major ≥ major của SERVER
+#
+# Không phải "bằng bản trên máy dev" — và ngày 06/08/2026 chỗ này vấp thật. Railway cấp
+# `ghcr.io/railwayapp-templates/postgres-ssl:18` trong khi cả ảnh này lẫn máy dev đều ở bản 17,
+# nên `db:backup` chạy trên máy chủ sẽ chết ngay dòng đầu. Đã đổi lên 18 để bám theo server.
+#
+# Đổi bản Postgres của hãng mà quên sửa dòng dưới đây thì **mọi bản sao lưu im lặng ngừng chạy** —
+# kể cả bước tự sao lưu trước khi `vault:rekey` ghi đè credential. Cùng họ rủi ro với luật firewall
+# WebRTC ở GĐ6: hỏng mà không ai thấy, cho tới đúng ngày cần tới bản sao.
+ARG PG_CLIENT_MAJOR=18
 RUN apt-get update \
   && apt-get install --no-install-recommends -y curl ca-certificates \
   && install -d /usr/share/postgresql-common/pgdg \
