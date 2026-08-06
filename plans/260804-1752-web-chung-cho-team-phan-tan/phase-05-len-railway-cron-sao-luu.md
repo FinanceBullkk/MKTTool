@@ -101,10 +101,17 @@ không nói được gì
   không dùng cron của hãng.** Lý do ở [dưới](#vì-sao-bộ-lịch-nằm-trong-app-thay-vì-cron-của-railway)
 - [x] ~~Advisory lock Postgres~~ **bảng `HealthCheckLock`** thay khóa file (05/08/2026) —
   còn nợ phép thử **hai tiến trình thật chạy song song**, làm ở bước 9 khi đã có Railway
-- [x] ~~Sao lưu tự động~~ + script tải bản sao về máy (06/08/2026) — **script xong**:
-  `npm run db:backup:remote` hút từ `PRODUCTION_DATABASE_URL` về máy quản trị, tên file mang dấu
-  `prod`. Phần "tự động" là nút bật trong bảng điều khiển Railway, **cố ý không làm trong app** —
-  xem [dưới](#sao-lưu-hai-nửa-và-vì-sao-nửa-tự-động-không-nằm-trong-app)
+- [x] Sao lưu tự động + script tải bản sao về máy (06/08/2026) — **cả hai xong, và đã nghiệm thu
+  trọn vòng.** `npm run db:backup:remote` hút từ `PRODUCTION_DATABASE_URL` về máy quản trị, tên file
+  mang dấu `prod`. Phần tự động: **app tự `pg_dump` rồi tải lên Cloudflare R2 mỗi đêm**
+  (`BACKUP_DAILY_AT` + bốn biến `R2_*`) — **đổi so với chốt ban đầu**, xem
+  [dưới](#sao-lưu-hai-lớp-và-vì-sao-chốt-app-không-tự-sao-lưu-đã-lật). Nghiệm thu: object
+  `mkttool/2026-08/mkttool-prod-20260806-125954.sql` (35 KB) nạp lại vào database rỗng bằng
+  `psql -f` với `ON_ERROR_STOP=1` → exit 0, **22 hàng trong 6 bảng**, khớp dòng log
+- [x] ~~Bật sao lưu ổ đĩa của Railway~~ — **đã quyết bỏ** (06/08/2026): đòi gói Pro $20/tháng, mà
+  bản sao của Railway nằm **cùng tài khoản với bản gốc** nên không chống được ca tệ nhất (ca đó R2
+  đã phủ). Phần còn hụt — lỡ tay xóa / migration hỏng giữa hai lượt sao lưu đêm — bù bằng nếp tay:
+  chạy `db:backup:remote` ngay trước mỗi deploy có đổi cấu trúc database
 - [ ] Chạy thử một lượt dò thật, kết quả lên `/health` — **chưa được**: kho chưa có proxy quan sát
   viên nào, nên lượt 09:00 ngày 06/08 ghi đúng câu *"bỏ qua vì chưa có proxy quan sát viên"*.
   Đó là hành vi đúng, nhưng chưa phải một lượt dò thật
@@ -191,21 +198,43 @@ Khai `HEALTH_CHECK_DAILY_AT` là **bật**, vắng là **tắt** — và tắt l
 trỏ vào một database thật. Để "tắt" không trở thành "hỏng mà không ai biết", máy chủ production
 thiếu biến này thì khay cảnh báo vận hành nhắc ADMIN, khai sai dạng thì kêu đỏ.
 
-### Sao lưu: hai nửa, và vì sao nửa tự động KHÔNG nằm trong app
+### Sao lưu: hai lớp, và vì sao chốt "app không tự sao lưu" đã lật
 
-Đã có bộ lịch trong app rồi (mục trên), nên thêm một việc `db:backup` hằng đêm nghe như hai dòng
-code. **Không làm** — và lý do nằm ngay trong `Dockerfile`: trong container, `data/backups/` là ổ
-**tạm**, mất sau mỗi lần deploy. Một bản sao lưu chết cùng lúc với thứ nó bảo vệ thì tệ hơn không
-có, vì nó *trông như* có: log nói "đã sao lưu", file có thật, và sự thật chỉ lộ ra vào ngày cần
-khôi phục. Gắn thêm volume để giữ nó lại cũng không cứu được ca đáng lo nhất — hỏng cả dự án
-Railway thì bản sao nằm cùng chỗ với bản gốc.
+**Chốt ban đầu (06/08, sáng):** không cho app tự `db:backup` hằng đêm, vì trong container
+`data/backups/` là ổ **tạm**, mất sau mỗi lần deploy. Một bản sao lưu chết cùng lúc với thứ nó bảo
+vệ thì tệ hơn không có, vì nó *trông như* có: log nói "đã sao lưu", file có thật, và sự thật chỉ lộ
+ra vào ngày cần khôi phục. Gắn thêm volume cũng không cứu được ca đáng lo nhất — hỏng cả dự án
+Railway thì bản sao vẫn nằm cùng chỗ với bản gốc.
 
-Nên hai nửa nằm hai nơi, đúng như phần còn lại của kiến trúc:
+**Đã lật cùng ngày (06/08, chiều):** chẩn đoán trên đúng, kết luận thì sai. Vấn đề không phải *"app
+không nên sao lưu"* mà là *"bản sao không được nằm cùng nhà với bản gốc"* — và hai mệnh đề đó chỉ
+trùng nhau khi đích ghi là ổ đĩa của chính máy chủ. Ghi thẳng lên **Cloudflare R2** thì đích không
+còn là ổ tạm nữa, mọi lập luận trên hết áp dụng, và đổi lại là thứ hai lớp kia không có: **không
+cần một người nhớ**. Cái giá phải trả — một token R2 nằm cùng chỗ với `VAULT_KEY_SERVER` — được thu
+hẹp bằng phạm vi token: đọc-ghi **đúng một bucket**, không phải *apply to all buckets*.
 
-| Nửa | Ai làm | Bảo vệ khỏi |
+Nên hai lớp nằm hai nơi, đúng như phần còn lại của kiến trúc:
+
+| Lớp | Ai làm | Bảo vệ khỏi |
 |---|---|---|
-| Sao lưu ổ đĩa tự động | Railway (nút trong bảng điều khiển) | lỡ tay xóa dữ liệu, migration hỏng |
-| `npm run db:backup:remote` | người quản trị, chạy ở máy mình | mất cả dự án Railway, mất tài khoản |
+| Đẩy lên R2 hằng đêm | **app, tự động** (`BACKUP_DAILY_AT` + 4 biến `R2_*`) | mất cả dự án Railway — và không phụ thuộc trí nhớ của ai |
+| `npm run db:backup:remote` | người quản trị, chạy ở máy mình | mất luôn cả tài khoản Cloudflare lẫn Railway |
+| ~~Sao lưu ổ đĩa Railway~~ | ~~nút trong bảng điều khiển~~ | **đã quyết bỏ 06/08** — xem dưới |
+
+**Vì sao bỏ lớp thứ ba.** Nó đòi gói **Pro** ($20/tháng mỗi workspace) mà dự án đang ở Hobby, nhưng
+giá không phải lý do quyết định: bản sao của Railway nằm **cùng tài khoản với bản gốc**, nên nó
+không chống được ca tệ nhất — mất cả dự án, mất tài khoản — và ca đó R2 đã phủ. Thứ nó thật sự thêm
+vào chỉ là một khe hẹp: **lỡ tay xóa dữ liệu hoặc migration hỏng, xảy ra giữa hai lượt sao lưu
+đêm.** Khe đó bịt bằng một nếp tay chứ không bằng tiền — **chạy `db:backup:remote` ngay trước mỗi
+deploy có đổi cấu trúc database**, vì `prisma migrate deploy` không tự sao lưu và đó đúng là lúc
+rủi ro cao nhất. Nếu sau này nâng Pro vì lý do khác thì bật thêm, nhưng đừng nâng gói **chỉ vì**
+việc này.
+
+Bốn biến `R2_*` phải **đủ cả bốn hoặc rỗng cả bốn**: khai một nửa thì app dừng, vì "chạy một nửa" ở
+đây nghĩa là tin rằng mình có bản sao mà thật ra không. Chữ ký S3 SigV4 tự viết (~160 dòng) thay
+cho AWS SDK — ký sai thì R2 trả `403 SignatureDoesNotMatch` ngay lượt đầu, không có đường hỏng lặng
+lẽ. **Cố ý không tự xóa bản cũ:** ~35 KB một bản, 13 MB một năm, hạn miễn phí 10 GB — dọn dẹp không
+giải quyết vấn đề nào có thật, còn một lỗi trong logic dọn thì âm thầm xóa đúng thứ cần giữ.
 
 Script đã có ba chốt chặn, tất cả đều chống một kiểu bản-sao-nói-dối:
 
@@ -214,7 +243,13 @@ Script đã có ba chốt chặn, tất cả đều chống một kiểu bản-s
 2. **Thiếu `PRODUCTION_DATABASE_URL` thì dừng**, không bao giờ lùi về `DATABASE_URL` — lùi là dựng
    ra một file tên `prod` chứa dữ liệu thử.
 3. **In số hàng dữ liệu**, và nói thẳng khi là 0. `pg_dump` trên database rỗng vẫn cho file `.sql`
-   hợp lệ; `PRODUCTION_DATABASE_URL` trỏ nhầm sang một Postgres mới dựng là ra đúng cảnh đó.
+   hợp lệ; `PRODUCTION_DATABASE_URL` trỏ nhầm sang một Postgres mới dựng là ra đúng cảnh đó. Lượt
+   đêm còn đi xa hơn: dump rỗng thì **không được tải lên** mà ghi là thất bại.
+4. **Trần 10 phút cho `pg_dump`** (thêm 06/08, chiều). Trước đó `runPgDump` chỉ kết thúc khi tiến
+   trình con đóng — tiến trình treo thì Promise không bao giờ giải quyết, và lượt sao lưu đêm im
+   lặng tuyệt đối: không log, không hàng nào ghi vào `ScheduledJobRun`, nhìn từ ngoài **giống hệt
+   "chưa tới giờ hẹn"**. Quá giờ thì `SIGTERM`, chờ 5 giây cho `pg_dump` kịp hủy truy vấn đang mở,
+   rồi `SIGKILL`.
 
 ### Dockerfile — ba chốt đã đóng
 
@@ -277,12 +312,15 @@ lượng lấy một cơ chế hỏng vào ngày nâng cấp là lỗ, đúng ng
 
 ## Success Criteria
 
-- Đẩy một commit lên GitHub → web tự cập nhật, không cần gõ lệnh
-- Cron chạy đúng giờ, `/health` có bản ghi mới, ảnh chụp lưu đúng quy tắc (chỉ giữ khi khác "khỏe")
-- Chạy `npm run health` từ **hai tiến trình cùng lúc** → lượt thứ hai bị từ chối kèm câu nói rõ
+- ✅ Đẩy một commit lên GitHub → web tự cập nhật, không cần gõ lệnh (06/08/2026)
+- 🟡 Cron chạy đúng giờ, `/health` có bản ghi mới, ảnh chụp lưu đúng quy tắc (chỉ giữ khi khác
+  "khỏe") — lịch **đã tự bắn đúng 09:00 giờ team**, nhưng lượt đó ghi *"bỏ qua vì chưa có proxy
+  quan sát viên"*; chưa phải một lượt dò thật
+- ⬜ Chạy `npm run health` từ **hai tiến trình cùng lúc** → lượt thứ hai bị từ chối kèm câu nói rõ
   ai đang giữ và giữ bao lâu rồi. Đúng kể cả khi hai tiến trình ở hai máy khác nhau
-- Deploy được sang một hãng khác (Render/Fly) **chỉ bằng cùng `Dockerfile` đó**, không sửa code
-- Tải được một bản sao lưu về máy và khôi phục thử được vào Postgres cục bộ
+- ⬜ Deploy được sang một hãng khác (Render/Fly) **chỉ bằng cùng `Dockerfile` đó**, không sửa code
+- ✅ Tải được một bản sao lưu về máy và khôi phục thử được vào Postgres cục bộ (06/08/2026) — cả
+  bản do `db:backup:remote` kéo về lẫn object do app tự đẩy lên R2, cùng ra 22 hàng/6 bảng
 
 ## Risk Assessment
 
@@ -298,6 +336,9 @@ lượng lấy một cơ chế hỏng vào ngày nâng cấp là lỗ, đúng ng
 - Máy chủ chỉ giữ khóa **vùng máy chủ**; thêm chốt chặn tự dừng nếu phát hiện khóa operator
 - `DATABASE_URL` dùng mạng nội bộ của Railway, không phơi Postgres ra internet
 - Bản sao lưu chứa ciphertext — cất tách khỏi nơi cất khóa (hai nửa của một thứ)
+- Token R2 nằm cùng chỗ với `VAULT_KEY_SERVER`, nên phạm vi phải hẹp: **đọc-ghi đúng một bucket**,
+  không phải *apply to all buckets* — một token rộng ở đó **mở rộng** thiệt hại của một lần chiếm
+  máy chủ chứ không thu hẹp nó. Bucket để riêng tư, không bật public access
 - Biến môi trường chỉ ADMIN xem được trong bảng điều khiển Railway
 
 ## Next Steps

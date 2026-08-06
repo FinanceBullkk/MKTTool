@@ -45,7 +45,7 @@ Chi tiết ở [plan.md](../plans/260804-1752-web-chung-cho-team-phan-tan/plan.m
 | 2 | [Đăng nhập, vai trò, chủ sở hữu nick](../plans/260804-1752-web-chung-cho-team-phan-tan/phase-02-dang-nhap-vai-tro-chu-so-huu.md) | ✅ Xong | 05/08 | – (hoãn có chủ ý: bộ lọc "nick của tôi", chỉ là tiện nghi hiển thị) |
 | 3 | [Tách hai vùng khóa + vé ký](../plans/260804-1752-web-chung-cho-team-phan-tan/phase-03-tach-hai-vung-khoa-va-ve-ky.md) | ✅ Xong | 06/08 | – |
 | 4 | [Cầu nối trên máy operator](../plans/260804-1752-web-chung-cho-team-phan-tan/phase-04-cau-noi-tren-may-operator.md) | ✅ Xong | 06/08 | Đã nghiệm thu thành công trên máy Windows thứ hai không cài Node. |
-| 5 | [Lên Railway + cron + sao lưu](../plans/260804-1752-web-chung-cho-team-phan-tan/phase-05-len-railway-cron-sao-luu.md) | 🟢 **Web chạy thật, deploy tự động** | 06/08 | Chạy ở `mkttool-web-production.up.railway.app`, đăng nhập Google được, 10 proxy sang đủ, bộ lịch tự bắn đúng 09:00 giờ team, **đẩy commit lên `master` là web tự cập nhật**, và `db:backup:remote` đã hút bản sao về rồi khôi phục thử thành công. Còn: bật sao lưu ổ đĩa Railway, khai proxy quan sát viên, Facebook, `.exe` cầu nối |
+| 5 | [Lên Railway + cron + sao lưu](../plans/260804-1752-web-chung-cho-team-phan-tan/phase-05-len-railway-cron-sao-luu.md) | 🟢 **Web chạy thật, deploy tự động, sao lưu tự rời máy chủ** | 06/08 | Chạy ở `mkttool-web-production.up.railway.app`, đăng nhập Google được, 10 proxy sang đủ, bộ lịch tự bắn đúng 09:00 giờ team, **đẩy commit lên `master` là web tự cập nhật**, và **app tự đẩy bản sao lưu lên Cloudflare R2 mỗi đêm** — đã nghiệm thu trọn vòng (tải object về, khôi phục vào database rỗng, đúng 22 hàng/6 bảng). Còn: khai proxy quan sát viên, Facebook |
 | 6 | Bàn giao team | ⬜ Chưa bắt đầu | – | GĐ4 đã hết chặn. Chờ web chạy thật trên Railway (GĐ5) — không cài máy cho ai trước khi có một địa chỉ để trỏ tới |
 
 **GĐ1 đã đổi nền dữ liệu sang Postgres và đóng hẳn** (05/08/2026): 482/482 test, 4 smoke test và
@@ -139,6 +139,24 @@ nhất nói ra chuyện này là một dòng `console.warn` lúc khởi động:
 Railway thì trôi. Cảnh báo *"cầu nối bản cũ"* của GĐ4 và cảnh báo môi trường của GĐ5 nay chỉ là
 thêm một mục vào khay này.
 
+**GĐ5 — web đã có một địa chỉ để trỏ tới** (06/08/2026). Ba mảnh đóng trong ngày, cả ba cùng một
+lẽ: *thứ cần một người nhớ thì sớm muộn cũng có ngày không ai nhớ.* Web chạy thật trên Railway;
+nối GitHub xong nên đẩy commit lên `master` là web tự cập nhật (trước đó mỗi lần deploy là một
+lượt `railway up` gõ tay, mà lệnh đó thiếu `--service` thì deploy web **đè lên dịch vụ Postgres**);
+và máy chủ tự `pg_dump` rồi tải lên Cloudflare R2 mỗi đêm.
+
+> **Sao lưu nay có hai lớp, cất hai nơi.** Nửa tự động của R2 là **đổi hướng so với chốt hôm
+> trước** — chốt cũ nói app không nên tự sao lưu vì `data/backups/` trong container là ổ tạm. Chẩn
+> đoán đúng, kết luận sai: vấn đề không phải *"app không nên sao lưu"* mà là *"bản sao không được
+> nằm cùng nhà với bản gốc"*. Ghi thẳng lên R2 thì chỗ chứa hết là ổ tạm, và không cần ai nhớ chạy
+> lệnh gì. `npm run db:backup:remote` vẫn còn, làm lớp do người quản trị chủ động kéo về.
+>
+> **Lớp thứ ba — sao lưu ổ đĩa của Railway — đã quyết bỏ** (06/08/2026): nó đòi gói Pro $20/tháng,
+> mà thứ nó thêm vào chỉ là ca *lỡ tay xóa / migration hỏng giữa hai lượt sao lưu đêm*. Bản sao của
+> Railway nằm **cùng tài khoản với bản gốc** nên không chống được ca tệ nhất — đúng ca mà R2 đã
+> phủ. Bù bằng một nếp tay thay vì tiền: **chạy `db:backup:remote` ngay trước mỗi lần deploy có đổi
+> cấu trúc database**, vì `prisma migrate deploy` không tự sao lưu.
+
 ## Đường găng: cái gì đang chặn
 
 | Chặn | Bản chất | Ai gỡ được |
@@ -158,6 +176,7 @@ Danh sách này là ranh giới giữa "code có chạy" và "đã chạy thật
 | Việc | Ngày |
 |---|---|
 | Web chạy thật trên Railway: đăng nhập Google, kho sang đủ, lịch dò tự bắn đúng giờ team | 06/08/2026 |
+| Sao lưu tự động lên R2 đi trọn vòng: app đẩy lên → tải về → khôi phục vào database rỗng, đúng 22 hàng/6 bảng | 06/08/2026 |
 | Mở profile antidetect qua MCP | 02/08/2026 |
 | Đẩy proxy vào profile, IP trong profile khớp proxy | 02/08/2026 |
 | Bộ dò shadowban đọc HTML Reddit thật (bắt được 2 lỗi parser) | 03/08/2026 |

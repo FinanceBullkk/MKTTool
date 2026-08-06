@@ -12,6 +12,71 @@ Dự án chưa phát hành phiên bản (`0.1.0`, dùng nội bộ). Mốc chia 
 
 ---
 
+## 06/08/2026 (tối) — GĐ5: web lên máy chủ thật, deploy tự động, và bản sao lưu tự rời khỏi Railway
+
+Ba mảnh cuối của GĐ5, và cả ba đều đóng cùng một lỗ: **thứ cần một người nhớ thì sớm muộn cũng có
+ngày không ai nhớ.**
+
+- **Web chạy thật ở `mkttool-web-production.up.railway.app`.** Postgres `postgres-ssl:18` có ổ đĩa
+  riêng, kho cũ nạp sang đủ (10 proxy + sổ migration đối chiếu khớp), đăng nhập Google vào được, và
+  danh sách biến môi trường đã soi bằng mắt: đủ 12 biến cần, **không có `VAULT_KEY_OPERATOR`** —
+  tức GĐ3 vẫn còn tác dụng trên máy chủ thật, không chỉ dưới máy dev.
+- **Đẩy commit lên `master` là web tự cập nhật.** Nối bằng
+  `railway service source connect --repo … --service mkttool-web`, tức **đổi nguồn của chính
+  service cũ** chứ không dựng lại — giữ nguyên domain, biến môi trường và redirect URI đã khai.
+  Vướng nửa buổi vì repo thuộc org mà tài khoản chỉ là `member`: cài GitHub App phải là OWNER, và
+  đường CLI chỉ nối được một nửa. Trước đó mỗi lần deploy là một lượt `railway up` gõ tay — mà
+  `railway up` thiếu `--service` thì deploy web **đè lên dịch vụ Postgres**, triệu chứng là một câu
+  lỗi Prisma chỉ về phía mạng.
+- **Máy chủ tự `pg_dump` rồi tải lên Cloudflare R2 mỗi đêm** (`BACKUP_DAILY_AT` + bốn biến `R2_*`).
+  Đây là **đổi hướng so với hôm qua**: chốt cũ nói app không tự sao lưu vì `data/backups/` trong
+  container là ổ tạm. Chốt đó đúng phần chẩn đoán, sai phần kết luận — vấn đề không phải "app
+  không nên sao lưu" mà là "bản sao không được nằm cùng nhà với bản gốc". Ghi thẳng lên R2 thì
+  chỗ chứa không còn là ổ tạm nữa, và không cần ai nhớ chạy lệnh gì.
+  - **Bốn biến `R2_*` phải đủ cả bốn hoặc rỗng cả bốn.** Khai một nửa thì app **dừng**: "chạy một
+    nửa" ở đây nghĩa là tin rằng mình có bản sao mà thật ra không.
+  - **Tự ký S3 SigV4, không kéo AWS SDK về.** Ký sai thì R2 trả `403 SignatureDoesNotMatch` ngay
+    lượt đầu, không có đường hỏng lặng lẽ; đổi lại là ~160 dòng thay cho một cây phụ thuộc.
+  - **Dump rỗng thì KHÔNG được tải lên**, mà ghi là thất bại — vì một bản sao *trông như* thật
+    nguy hiểm hơn không có bản sao nào.
+  - **Trang Hôm nay kêu đỏ trong ba ca**: lượt gần nhất hỏng, bản mới nhất quá 2 ngày tuổi, hoặc
+    bật rồi mà chưa chạy lần nào. Một lịch sao lưu tắt tiếng là một lịch sao lưu không tồn tại.
+- **Đã đi trọn cả vòng, thật.** Object `mkttool/2026-08/mkttool-prod-20260806-125954.sql` (35 KB)
+  nạp lại bằng `psql -f` với `ON_ERROR_STOP=1` vào một database rỗng: exit 0, **22 hàng trong 6
+  bảng**, khớp từng con số với dòng log. Dump từ server 18 đổ vào Postgres 17 dưới máy dev vẫn nạp
+  được. Hai chỗ vấp trong lượt đó: **giờ hẹn đã trôi qua trong ngày thì lịch bắn ngay lúc khởi
+  động** (cơ chế bắt kịp lượt lỡ, cố ý — nên vừa khai đủ biến là có bản đầu tiên luôn), và **bản
+  dump tải từ R2 về rơi vào gốc repo** chứ không vào `data/backups/`, phải thêm luật
+  `mkttool*.sql` vào `.gitignore` trước khi nó lọt vào một commit.
+- **`pg_dump` nay có trần 10 phút.** Trước đó `runPgDump` chỉ kết thúc khi tiến trình con đóng —
+  tiến trình treo (mạng nội bộ đứt giữa chừng) thì Promise **không bao giờ giải quyết**, và lượt
+  sao lưu đêm im lặng tuyệt đối: không log, không hàng nào ghi vào `ScheduledJobRun`, nhìn từ ngoài
+  giống hệt "chưa tới giờ hẹn". Quá giờ thì `SIGTERM`, chờ 5 giây cho `pg_dump` kịp hủy truy vấn
+  đang mở, rồi `SIGKILL`. 10 phút là trần rộng rãi chứ không phải ước lượng sát: bản dump thật hiện
+  nay 35 KB, xong trong vài giây — trần này để phân biệt *chậm bất thường* với *không bao giờ xong*.
+- **Cố ý KHÔNG tự xóa bản cũ trên R2.** Mỗi bản ~35 KB, tức 13 MB một năm, trong khi hạn miễn phí
+  của R2 là 10 GB. Dọn dẹp không giải quyết vấn đề nào có thật, còn một lỗi trong logic dọn thì âm
+  thầm xóa đúng thứ cả tính năng này sinh ra để giữ.
+- **Hai chốt nhỏ, cùng một họ hỏng — cấu hình đúng dưới máy dev, sai trên máy chủ.**
+  `prisma.config.ts` chưa được chép vào image nên bước pre-deploy không chạy được migration; và
+  một lượt tick của bộ lịch từng **trộn giờ giả với giờ máy** — lỗi chỉ CI mới thấy, vì dưới máy
+  dev hai đồng hồ đó tình cờ trùng nhau.
+
+**Kiểm chứng:** `typecheck` + `lint` + **874 test xanh** (87 file) trên CI của `master`, và lượt
+sao lưu R2 đã đi trọn cả năm dòng nghiệm thu ở
+[deployment-guide.md](deployment-guide.md#lớp-tự-động-app-tự-đẩy-bản-sao-lên-r2-mỗi-đêm).
+
+**Sao lưu ổ đĩa của Railway: đã quyết bỏ**, không phải để đó chờ làm. Nó đòi gói Pro $20/tháng mỗi
+workspace, trong khi thứ nó thêm vào chỉ là ca *lỡ tay xóa / migration hỏng giữa hai lượt sao lưu
+đêm* — bản sao của Railway nằm **cùng tài khoản với bản gốc**, tức không chống được ca tệ nhất, đúng
+ca mà R2 đã phủ. Bù bằng nếp tay: **chạy `db:backup:remote` ngay trước mỗi lần deploy có đổi cấu
+trúc database**, vì `prisma migrate deploy` không tự sao lưu.
+
+Còn lại của GĐ5: thử domain với Facebook, và một lượt dò shadowban thật — lượt 09:00 ngày 06/08 ghi
+đúng câu *"bỏ qua vì chưa có proxy quan sát viên"*, hành vi đúng nhưng chưa phải một lượt dò thật.
+
+---
+
 ## 06/08/2026 (chiều) — GĐ5: bộ dò tự chạy hằng ngày, và bản sao lưu kéo được về máy
 
 Hai việc của GĐ5 mà không cần chờ tài khoản Railway. Cả hai đi **khác chốt ban đầu**, và cả hai

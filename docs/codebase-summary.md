@@ -1,6 +1,6 @@
 # Bản đồ mã nguồn
 
-**Cập nhật:** 05/08/2026
+**Cập nhật:** 06/08/2026
 
 Tài liệu dành cho người mới và AI agent định vị nhanh trong codebase — **code nằm ở đâu**.
 Hệ thống chạy ở đâu và phụ thuộc gì thì xem [system-architecture.md](system-architecture.md);
@@ -45,6 +45,9 @@ src/
     ├── audit/                  Tên các loại thao tác ghi vào `AuditLog.action` — gom một chỗ vì
     │                           gõ sai một chữ thì hàng vẫn ghi, chỉ câu truy vấn sau này là hụt
     ├── auth/                   Đăng nhập Google, danh sách email cho phép, gác lối vào, hai vai trò
+    ├── backup/                 Sao lưu tự động hằng đêm lên Cloudflare R2: bộ lịch, client R2,
+    │                           ký S3 SigV4 tự viết (không kéo AWS SDK), và cảnh báo khi bản sao
+    │                           mới nhất quá cũ / lượt gần nhất hỏng / bật rồi mà chưa chạy
     ├── content/                Hằng số loại content, trạng thái job, loại tương tác
     ├── crypto/                 AES-256-GCM cho credential — hai vùng khóa (server / operator),
     │                           registry khai vùng cho từng cột, key loader
@@ -55,10 +58,19 @@ src/
     │                           parser HTML Reddit, đánh giá kết luận, runner, khóa chống chạy chồng,
     │                           và tự gán link cho job từ bài thấy được trên profile
     ├── http/                   Đối chiếu Origin/Host cho route handler trong api/
+    ├── ops-alerts/             Khay cảnh báo vận hành dưới thanh đầu trang: hai vùng khóa chung
+    │                           một khóa, máy chủ còn giữ khóa operator, cầu nối bản cũ, lịch dò
+    │                           / lịch sao lưu khai thiếu hoặc khai sai dạng. Lọc theo vai trò
     ├── platforms/              Gộp họ nền tảng (REDDIT / FACEBOOK)
     ├── proxies/                Kiểm proxy sống, báo cáo băng thông
     ├── queue/                  Server actions: tạo job, đổi trạng thái, ghi tương tác, tóm tắt promo
+    ├── relay/                  Phía web của cầu nối: client gọi xuống `127.0.0.1:47821`, danh sách
+    │                           endpoint dùng chung, gói tải về + mã băm SHA-256, nhắc bản cũ
     ├── rules/                  Bộ luật an toàn — mỗi luật một file (chi tiết bên dưới)
+    ├── schedule/               Bộ lịch chạy-một-lần-mỗi-ngày dùng chung (dò shadowban, sao lưu):
+    │                           giành lượt bằng `updateMany` có điều kiện nên nhiều bản app cùng
+    │                           chạy vẫn chỉ một lượt bắn; mốc nằm trong database nên khởi động
+    │                           lại không mất lượt, và lỡ mấy ngày cũng chỉ chạy bù đúng một lượt
     ├── tickets/                Vé ủy quyền (GĐ3) — khóa ký Ed25519 của máy chủ, khóa X25519 của
     │                           từng máy cầu nối, sổ đăng ký máy, và bộ phát/xác minh vé:
     │                           bọc cho riêng máy nhận → ký → hết hạn 30s → chống dùng lại.
@@ -89,6 +101,11 @@ scripts/
 ├── smoke-test-content-rules.ts   Kiểm chứng Phase 02
 ├── smoke-test-account-health.ts  Kiểm chứng Phase 03 (có phần đọc HTML Reddit thật)
 └── smoke-test-facebook-pages.ts  Kiểm chứng Phase 04 (không cần Meta App)
+relay/                          **Chương trình riêng**, chạy trên máy operator — không phải một
+├── src/                        phần của web app. Nghe `127.0.0.1:47821`, giữ khóa vùng operator,
+├── install-relay.ps1           là chỗ DUY NHẤT trong cả hệ mở được mật khẩu nick. Không có đường
+└── setup.bat                   vào database; có test hình dạng mã nguồn chặn nó import `prisma`,
+                                `next`, React và lớp phân quyền
 plans/                          Kế hoạch triển khai (chỉ đọc, không sửa)
 docs/                           Tài liệu dự án
 Dockerfile                      Ảnh cho môi trường chạy thật (GĐ5) — dựng trên ảnh Playwright
@@ -301,6 +318,7 @@ bằng `isCommunityPlatform()`. Hai đường lệch nhau là luật chặn ở 
 | `npm run db:migrate` | Tạo migration mới (`prisma migrate dev`) — chỉ dùng khi phát triển |
 | `npm run db:studio` | Mở Prisma Studio xem/sửa database (nơi sửa ngưỡng `RuleConfig`) |
 | `npm run db:backup` | Sao lưu database ra `data/backups/` |
+| `npm run db:backup:remote` | Hút bản sao từ **máy chủ thật** về máy này (cần `PRODUCTION_DATABASE_URL`) — tên file mang dấu `prod` để không khôi phục nhầm |
 | `npm run health` | Dò shadowban + đọc karma mọi nick Reddit (đặt lịch chạy hằng ngày) |
 | `npm run vault:smoke` | Kiểm chứng nghiệm thu Phase 01 |
 | `npm run rules:smoke` | Kiểm chứng nghiệm thu Phase 02 |

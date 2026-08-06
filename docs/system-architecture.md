@@ -104,11 +104,11 @@ một mẩu trí nhớ của luật ấy. Lưu **sau** khi chấm luật, để 
 
 | Thứ | Ở đâu | Sao lưu thế nào | Mất thì sao |
 |---|---|---|---|
-| Nick, proxy, content, job, tương tác, nhật ký | Postgres `mkttool_dev` | `npm run db:backup` (`pg_dump`, chạy được khi app đang mở) | Mất toàn bộ lịch sử → bộ luật mù, cho qua bài lẽ ra phải chặn |
+| Nick, proxy, content, job, tương tác, nhật ký | Postgres (`mkttool_dev` dưới máy dev, Postgres của Railway trên máy chủ) | Hai lớp: **app tự đẩy lên Cloudflare R2 mỗi đêm** + `npm run db:backup:remote` (người quản trị kéo về máy mình, và chạy trước mỗi deploy đổi cấu trúc DB). Sao lưu ổ đĩa Railway **cố ý không dùng** — đòi gói Pro, mà bản sao lại nằm cùng tài khoản với bản gốc. Dưới máy dev: `npm run db:backup` | Mất toàn bộ lịch sử → bộ luật mù, cho qua bài lẽ ra phải chặn |
 | Mật khẩu, TOTP secret, token Facebook | cùng database, dạng ciphertext | như trên | – |
 | `VAULT_KEY_SERVER` / `VAULT_KEY_OPERATOR` | `.env` | **Password manager, thủ công** | Mất khóa = mất vĩnh viễn credential của vùng đó. Không có đường khôi phục |
 | Ảnh chụp lúc dò | `data/screenshots/` | không | Chỉ mất bằng chứng hình ảnh; bản ghi kết luận vẫn còn |
-| Bản sao lưu | `data/backups/` | – | – |
+| Bản sao lưu | Bucket R2 (lượt tự động) + `data/backups/` của máy quản trị | – | Bản sao **cố ý không nằm cùng nhà với bản gốc**: trong container `data/backups/` là ổ tạm, mất theo mỗi lần deploy |
 | File khóa lượt dò | `data/health-check.lock` | – | Trạng thái máy đang chạy, không phải dữ liệu dự án |
 
 Toàn bộ `data/` và `.env` đều nằm trong `.gitignore`. Repo **không bao giờ** chứa credential.

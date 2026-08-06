@@ -519,14 +519,24 @@ Mở `https://<domain>` và đi hết danh sách này:
 
 ## Bước 10 — Nếp sao lưu
 
-**Hai nửa, và cần cả hai.**
+**Hai lớp, và cần cả hai:** app tự đẩy lên R2 mỗi đêm (mục dưới cùng), và người quản trị kéo một
+bản về máy mình (mục 2). Lớp thứ nhất chạy đều mà không cần ai nhớ; lớp thứ hai là bản duy nhất
+sống sót nếu mất luôn cả tài khoản Cloudflare.
 
-> ⚠️ **Sao lưu ổ đĩa của Railway đòi gói Pro** ($20/tháng mỗi workspace), Hobby không có. Nhưng
-> đó không phải lý do chính để không trông vào nó: bản sao của Railway **nằm cùng tài khoản với
-> bản gốc**, nên nó không chống được ca tệ nhất — mất cả dự án, hoặc mất tài khoản. Thứ nó thêm
-> vào chỉ là *chạy đều mà không cần ai nhớ*, và nửa thứ ba dưới đây làm đúng việc đó, miễn phí.
+> ⛔ **Sao lưu ổ đĩa của Railway: đã quyết KHÔNG dùng** (06/08/2026). Nó đòi gói **Pro**
+> ($20/tháng mỗi workspace), workspace của dự án đang ở Hobby — mục **Backups** trong Settings của
+> dịch vụ Postgres sẽ chỉ mời nâng gói chứ không cho đặt lịch.
+>
+> Nhưng gói không phải lý do chính. Bản sao của Railway **nằm cùng tài khoản với bản gốc**, nên nó
+> không chống được ca tệ nhất — mất cả dự án, hoặc mất tài khoản. Thứ nó thêm vào chỉ là *chạy đều
+> mà không cần ai nhớ*, và lớp R2 dưới đây đã làm đúng việc đó, miễn phí. Phần duy nhất còn hụt là
+> **lỡ tay xóa dữ liệu / migration hỏng giữa hai lượt sao lưu đêm** — bù bằng một nếp tay, không
+> bằng $20/tháng:
+>
+> **Chạy `npm run db:backup:remote` ngay trước mỗi lần deploy có đổi cấu trúc database.**
+> `prisma migrate deploy` không tự sao lưu, và đó đúng là lúc rủi ro cao nhất.
 
-> ✅ **Nửa thứ hai đã chạy trọn vòng ngày 06/08/2026**, kể cả phần hay bị bỏ: hút bản sao về
+> ✅ **Lớp kéo-về-tay đã chạy trọn vòng ngày 06/08/2026**, kể cả phần hay bị bỏ: hút bản sao về
 > (`mkttool-prod-…sql`, 21 hàng trong 6 bảng), **rồi khôi phục nó vào một Postgres cục bộ rỗng và
 > đối chiếu** — 10 `Proxy`, 1 hàng `ScheduledJobRun` với `outcome = SKIPPED` đúng như bộ lịch ghi
 > trên máy chủ, và `passwordEnc` vẫn dài 59 ký tự tức vẫn là ciphertext.
@@ -534,8 +544,8 @@ Mở `https://<domain>` và đi hết danh sách này:
 > Bước khôi phục thử mới là bước chứng minh. Hút được một file `.sql` chỉ chứng minh `pg_dump`
 > chạy xong.
 
-1. **Railway tự sao lưu ổ đĩa.** Dịch vụ Postgres → **Settings** → **Backups** → bật lịch hằng
-   ngày. Cái này chống lỡ tay xóa dữ liệu và migration hỏng.
+1. ~~**Railway tự sao lưu ổ đĩa**~~ — **bỏ qua, xem khối trên.** Nếu sau này nâng lên Pro vì lý do
+   khác thì bật thêm: Dịch vụ Postgres → **Settings** → **Backups** → lịch hằng ngày.
 2. **Kéo một bản về máy anh.** Thêm vào `.env` **của máy anh** (không phải của máy chủ):
 
 ```
@@ -553,16 +563,16 @@ File ra `data/backups/mkttool-prod-<ngày>-<giờ>.sql`. Dấu `prod` trong tên
 máy dev bị khôi phục nhầm lên máy chủ. Lệnh in ra **số hàng dữ liệu** — số 0 nghĩa là URL trỏ
 nhầm sang một Postgres khác, đừng bỏ qua.
 
-Nửa thứ hai chống thứ nửa thứ nhất không chống được: **mất cả dự án Railway, hoặc mất tài khoản.**
-Bản sao nằm cùng nhà với bản gốc thì không phải bản sao.
+Lớp này chống thứ mà một lớp tự động **nằm trong tay nhà cung cấp** không chống được: **mất cả dự
+án, hoặc mất tài khoản.** Bản sao nằm cùng nhà với bản gốc thì không phải bản sao.
 
 > **Chạy `npm run db:backup:remote` trước mỗi lần deploy có thay đổi cấu trúc database.**
 > `prisma migrate deploy` không tự sao lưu, và đó là lúc rủi ro cao nhất.
 
-### Nửa thứ ba: app tự đẩy bản sao lên R2 mỗi đêm
+### Lớp tự động: app tự đẩy bản sao lên R2 mỗi đêm
 
-Hai nửa trên đều **cần một người nhớ**. Nửa này không: app tự `pg_dump` rồi tải lên Cloudflare R2
-theo giờ hẹn, độc lập với máy của bất kỳ ai.
+Lớp trên **cần một người nhớ**. Lớp này không: app tự `pg_dump` rồi tải lên Cloudflare R2 theo giờ
+hẹn, độc lập với máy của bất kỳ ai — và độc lập với cả gói cước Railway.
 
 **1. Dựng bucket và token ở Cloudflare** (một lần, ~5 phút):
 
@@ -657,17 +667,16 @@ Ba đường, chưa chốt:
 
 Xếp theo thứ tự nên làm.
 
-1. **Xin quyền GitHub App cho org, rồi chuyển từ 5B sang 5A.** Chừng nào còn `railway up` thì
-   tiêu chí *"đẩy một commit lên GitHub → web tự cập nhật"* chưa đạt, và mỗi lượt deploy vẫn là
-   một cơ hội để đè nhầm service.
-2. **Cài PostgreSQL 18 client ở máy quản trị**, rồi chạy thật `npm run db:backup:remote` một lượt.
-   Chưa chạy được lần nào thì nếp sao lưu mới chỉ là chữ trên giấy.
-3. **Bật sao lưu ổ đĩa của Railway** (bước 10, nửa thứ nhất).
-4. **Khai một proxy quan sát viên**, để lượt dò 09:00 hôm sau chạy thật thay vì bỏ qua.
-5. **Phép thử hai tiến trình dò chạy song song.** Chạy `npm run health` ở máy anh (trỏ vào
+1. **Khai một proxy quan sát viên**, để lượt dò 09:00 hôm sau chạy thật thay vì bỏ qua. Đây là
+   việc **duy nhất** đang chặn tiêu chí nghiệm thu còn lại của bộ lịch.
+2. **Phép thử hai tiến trình dò chạy song song.** Chạy `npm run health` ở máy anh (trỏ vào
    `PRODUCTION_DATABASE_URL`) đúng lúc bấm *"Dò cả đàn"* trên web. Lượt thứ hai phải bị từ chối
    kèm câu nói rõ **máy nào**, tiến trình nào đang giữ và giữ bao lâu rồi. Đây là thứ chỉ chứng
    minh được khi khóa đã bắc qua hai máy thật.
-6. **Facebook** (bước 11) và **`.exe` cầu nối** (bước 12) — cả hai đều hoãn được.
+3. **Facebook** (bước 11) — hoãn được, cả app vẫn chạy bình thường thiếu nó.
+
+Đã xong, không còn nợ: nối GitHub (đẩy commit lên `master` là web tự cập nhật),
+`npm run db:backup:remote` đã chạy và đã khôi phục thử, sao lưu tự động lên R2, và `.exe` cầu nối.
+**Sao lưu ổ đĩa của Railway đã quyết bỏ**, không nằm trong danh sách này nữa — xem bước 10.
 7. **Deploy thử sang một hãng khác** (Render/Fly) bằng đúng `Dockerfile` này, không sửa code — tiêu
    chí của QĐ 9, để biết mình chưa bị khóa vào Railway.

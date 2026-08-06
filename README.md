@@ -625,7 +625,8 @@ bài Reddit — xem [Đăng bài](#đăng-bài).
   ciphertext và chỉ kiểm được hình dạng của nó
 - Mọi lần lộ credential / mở profile đều ghi `AuditLog` kèm **ai** đã làm và **máy nào** nhận vé
 - **Mọi server action và route handler đều đòi đăng nhập** — gác nằm ở chữ ký định nghĩa, và
-  có test quét bắt buộc (xem [Hàng rào giờ là đăng nhập](#hàng-rào-giờ-là-đăng-nhập))
+  có test quét bắt buộc (xem
+  [Hàng rào giờ là đăng nhập](#hàng-rào-giờ-là-đăng-nhập-không-còn-là-chỗ-app-lắng-nghe))
 - **Mọi trang cũng đòi đăng nhập** — `src/proxy.ts` chặn trước khi trang kịp hỏi database
 - Route `POST` trong `api/` đối chiếu `Origin` với `Host` — Next tự làm việc này cho server
   action nhưng không làm cho route handler, mà route handler chính là chỗ có nút mở profile
@@ -673,7 +674,7 @@ mà quên gác thì test đỏ ngay chứ không lặng lẽ mở toang một l�
 > production sau một reverse proxy chỉ có HTTP là đăng nhập xong lại quay về màn hình đăng nhập,
 > lặp vô tận mà không có câu lỗi nào.
 
-### Sao lưu — hai nửa, cất hai nơi
+### Sao lưu — hai lớp, cất hai nơi
 
 ```bash
 npm run db:backup            # database của MÁY NÀY  → data/backups/mkttool-<ngày>-<giờ>.sql
@@ -689,11 +690,29 @@ bản cũ**.
 nó **không bao giờ lùi về `DATABASE_URL`**, vì làm vậy là dựng ra một file mang tên `mkttool-prod-…`
 chứa dữ liệu máy dev — bản sao nói dối, và chỉ lộ ra vào ngày cần tới nó.
 
-> **Vì sao máy chủ KHÔNG tự chạy `db:backup` hằng đêm**, dù đã có bộ lịch trong app. Trong
-> container, `data/backups/` là **ổ tạm** — nó biến mất sau mỗi lần deploy. Một bản sao lưu chết
-> cùng lúc với thứ nó bảo vệ thì tệ hơn không có, vì nó *trông như* có. Nên hai nửa nằm hai nơi:
-> **Railway tự sao lưu ổ đĩa** (bật trong bảng điều khiển của dịch vụ Postgres), còn
-> `db:backup:remote` kéo một bản về máy quản trị — nơi không mất theo máy chủ.
+**Lớp không cần ai nhớ: máy chủ tự đẩy bản sao lên Cloudflare R2 mỗi đêm.** Bật bằng
+`BACKUP_DAILY_AT` + bốn biến `R2_*` (cách khai ở
+[deployment-guide.md](docs/deployment-guide.md#lớp-tự-động-app-tự-đẩy-bản-sao-lên-r2-mỗi-đêm)).
+Bốn biến `R2_*` phải **đủ cả bốn hoặc rỗng cả bốn** — khai một nửa thì app dừng, vì "chạy một nửa"
+ở đây nghĩa là tin rằng mình có bản sao mà thật ra không.
+
+> **Sao lưu ghi thẳng lên R2, không ghi vào `data/backups/` của máy chủ.** Trong container thư mục
+> đó là **ổ tạm** — nó biến mất sau mỗi lần deploy, và một bản sao lưu chết cùng lúc với thứ nó bảo
+> vệ thì tệ hơn không có, vì nó *trông như* có. Nguyên tắc chung: **bản sao không được nằm cùng nhà
+> với bản gốc.** Hai lớp nằm hai nơi — R2 (tự động, hằng đêm) và `db:backup:remote` (người quản trị
+> kéo về máy mình).
+
+> **Sao lưu ổ đĩa của Railway: cố ý không dùng.** Nó đòi gói Pro $20/tháng, và bản sao của nó nằm
+> **cùng tài khoản với bản gốc** — tức không chống được ca tệ nhất, đúng ca mà R2 đã phủ. Thứ nó
+> thêm vào chỉ là *lỡ tay xóa / migration hỏng giữa hai lượt sao lưu đêm*, và chỗ đó bù bằng một
+> nếp tay: **chạy `npm run db:backup:remote` ngay trước mỗi lần deploy có đổi cấu trúc database** —
+> `prisma migrate deploy` không tự sao lưu, và đó là lúc rủi ro cao nhất.
+
+Lượt sao lưu đêm **không hỏng lặng lẽ được**: dump rỗng thì không được tải lên mà ghi là thất bại;
+`pg_dump` treo quá 10 phút thì bị giết chứ không chờ vô hạn (một tiến trình treo là kiểu hỏng tệ
+nhất — không log, không dấu vết, nhìn từ ngoài giống hệt "chưa tới giờ hẹn"); và trang **Hôm nay**
+kêu đỏ trong cả ba ca: lượt gần nhất hỏng, bản mới nhất quá 2 ngày tuổi, hoặc bật rồi mà chưa chạy
+lần nào.
 
 Mỗi lượt sao lưu in ra **số hàng dữ liệu và số bảng có dữ liệu**, và nói thẳng khi con số là 0.
 Không thừa: `pg_dump` chạy trên một database **rỗng** vẫn cho ra file `.sql` hợp lệ, đủ cấu trúc
@@ -903,6 +922,8 @@ chuyển xấu từ lúc nào.
 | Dò shadowban đọc Reddit thật | 03/08/2026 | `npm run health:smoke` 17/17, bắt được 2 lỗi parser |
 | Kiểm proxy còn sống qua chính proxy đó | 04/08/2026 | 10/10 proxy Webshare ra đúng IP và đúng quốc gia; nhánh SOCKS5 và nhánh HTTP trên cùng một proxy cho cùng một IP |
 | **Đăng thật lên Fanpage qua Graph API** | **03/08/2026** | Bài lên tường Page nháp; job `POSTED` kèm URL thật, `Interaction` tự ghi, `AuditLog` ghi `FACEBOOK_PAGE_PUBLISHED` |
+| **Web chạy thật trên Railway** | **06/08/2026** | Đăng nhập Google vào được, 10 proxy sang đủ, lịch dò tự bắn đúng 09:00 giờ team, đẩy commit lên `master` là web tự cập nhật |
+| **Sao lưu tự động lên R2 đi trọn vòng** | **06/08/2026** | App đẩy object 35 KB lên R2 → tải về → `psql -f` với `ON_ERROR_STOP=1` vào database rỗng: exit 0, **22 hàng trong 6 bảng**, khớp từng số với dòng log |
 
 Chưa kiểm chứng: đăng bằng nick Reddit thật (Phase 05 chưa làm), và `npm run health` với nick thật
 — chưa nhập proxy quan sát viên nào.
