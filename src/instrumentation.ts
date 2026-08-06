@@ -24,4 +24,7 @@ export async function register(): Promise<void> {
     "./lib/health/daily-health-check-scheduler"
   );
   startDailyHealthCheckScheduler();
+
+  const { startDailyBackupScheduler } = await import("./lib/backup/daily-backup-scheduler");
+  startDailyBackupScheduler();
 }

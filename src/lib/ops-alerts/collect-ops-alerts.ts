@@ -14,6 +14,8 @@ import {
   VAULT_KEY_ENV,
   type VaultKeyEnv,
 } from "../crypto/encryption-key-loader";
+import { DAILY_BACKUP_ENV } from "../backup/daily-backup-config";
+import { readR2Config } from "../backup/r2-client";
 import { DAILY_HEALTH_CHECK_ENV } from "../health/daily-health-check-config";
 import { readDailyScheduleTime } from "../schedule/daily-run-schedule";
 import type { OpsAlert } from "./ops-alert-types";
@@ -110,6 +112,46 @@ export function dailyHealthCheckScheduleAlert(env: VaultKeyEnv = process.env): O
   };
 }
 
+/**
+ * Cảnh báo chưa bật sao lưu ra ngoài Railway.
+ *
+ * Khác cảnh báo ở trang Hôm nay: chỗ đó nói *"nếp sao lưu đang hỏng"* và cần dữ liệu trong kho;
+ * chỗ này nói *"chưa có nếp nào"* và chỉ cần đọc biến môi trường — đúng ranh giới của khay.
+ *
+ * Chỉ ADMIN thấy vì chỉ họ khai được biến, và chỉ ở production vì máy dev cố ý không sao lưu.
+ */
+export function backupNotConfiguredAlert(env: VaultKeyEnv = process.env): OpsAlert | null {
+  if (env.NODE_ENV !== "production") return null;
+
+  try {
+    const scheduled = readDailyScheduleTime(env[DAILY_BACKUP_ENV]) !== null;
+    const r2 = readR2Config(env) !== null;
+    if (scheduled && r2) return null;
+  } catch (error) {
+    return {
+      id: "backup-config-invalid",
+      tone: "red",
+      audience: "ADMIN",
+      message: `Sao lưu ra ngoài Railway KHÔNG chạy vì cấu hình sai: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+      action: `Sửa ${DAILY_BACKUP_ENV} và bốn biến R2_* trong biến môi trường máy chủ rồi khởi động lại.`,
+    };
+  }
+
+  return {
+    id: "backup-not-configured",
+    tone: "amber",
+    audience: "ADMIN",
+    message:
+      "Chưa có bản sao lưu nào nằm ngoài Railway. Sao lưu ổ đĩa của Railway (nếu có) nằm cùng " +
+      "tài khoản với bản gốc, nên nó không chống được ca mất cả dự án hoặc mất tài khoản.",
+    action:
+      `Khai ${DAILY_BACKUP_ENV}="03:00" cùng bốn biến R2_* trong biến môi trường của máy chủ. ` +
+      `Bucket phải để riêng tư, và token R2 chỉ nên có quyền ghi vào đúng bucket đó.`,
+  };
+}
+
 /** Vai trò của người đang xem, theo đúng hai vai trò của `Actor`. */
 export type OpsAlertViewerRole = "ADMIN" | "OPERATOR";
 
@@ -124,9 +166,11 @@ export function collectOpsAlerts(
   role: OpsAlertViewerRole,
   env: VaultKeyEnv = process.env,
 ): OpsAlert[] {
-  const all = [vaultKeySeparationAlert(env), dailyHealthCheckScheduleAlert(env)].filter(
-    (alert): alert is OpsAlert => alert !== null,
-  );
+  const all = [
+    vaultKeySeparationAlert(env),
+    dailyHealthCheckScheduleAlert(env),
+    backupNotConfiguredAlert(env),
+  ].filter((alert): alert is OpsAlert => alert !== null);
 
   return all
     .filter((alert) => alert.audience === "EVERYONE" || role === "ADMIN")

@@ -474,6 +474,11 @@ Mở `https://<domain>` và đi hết danh sách này:
 
 **Hai nửa, và cần cả hai.**
 
+> ⚠️ **Sao lưu ổ đĩa của Railway đòi gói Pro** ($20/tháng mỗi workspace), Hobby không có. Nhưng
+> đó không phải lý do chính để không trông vào nó: bản sao của Railway **nằm cùng tài khoản với
+> bản gốc**, nên nó không chống được ca tệ nhất — mất cả dự án, hoặc mất tài khoản. Thứ nó thêm
+> vào chỉ là *chạy đều mà không cần ai nhớ*, và nửa thứ ba dưới đây làm đúng việc đó, miễn phí.
+
 > ✅ **Nửa thứ hai đã chạy trọn vòng ngày 06/08/2026**, kể cả phần hay bị bỏ: hút bản sao về
 > (`mkttool-prod-…sql`, 21 hàng trong 6 bảng), **rồi khôi phục nó vào một Postgres cục bộ rỗng và
 > đối chiếu** — 10 `Proxy`, 1 hàng `ScheduledJobRun` với `outcome = SKIPPED` đúng như bộ lịch ghi
@@ -506,6 +511,56 @@ Bản sao nằm cùng nhà với bản gốc thì không phải bản sao.
 
 > **Chạy `npm run db:backup:remote` trước mỗi lần deploy có thay đổi cấu trúc database.**
 > `prisma migrate deploy` không tự sao lưu, và đó là lúc rủi ro cao nhất.
+
+### Nửa thứ ba: app tự đẩy bản sao lên R2 mỗi đêm
+
+Hai nửa trên đều **cần một người nhớ**. Nửa này không: app tự `pg_dump` rồi tải lên Cloudflare R2
+theo giờ hẹn, độc lập với máy của bất kỳ ai.
+
+**1. Dựng bucket và token ở Cloudflare** (một lần, ~5 phút):
+
+1. Cloudflare Dashboard → **R2** → **Create bucket**, đặt tên ví dụ `mkttool-backup`. **Để riêng
+   tư** — đừng bật public access.
+2. **R2** → **Manage API Tokens** → **Create API Token**:
+   - Quyền: **Object Read & Write**
+   - Phạm vi: **chỉ bucket vừa tạo**, không phải *Apply to all buckets*
+3. Chép **Access Key ID**, **Secret Access Key**, và **Account ID** (góc phải trang R2).
+
+> Phạm vi token là chỗ đáng chậm lại một phút. Token này nằm trong biến môi trường của app — cùng
+> chỗ với `VAULT_KEY_SERVER`. Một token đọc-ghi-mọi-bucket ở đó **mở rộng** thiệt hại của một lần
+> chiếm máy chủ chứ không thu hẹp nó.
+
+**2. Khai năm biến** vào Variables của dịch vụ web:
+
+```
+BACKUP_DAILY_AT=03:00
+R2_ACCOUNT_ID=<Account ID>
+R2_BUCKET=mkttool-backup
+R2_ACCESS_KEY_ID=<Access Key ID>
+R2_SECRET_ACCESS_KEY=<Secret Access Key>
+```
+
+Đặt giờ đêm để không đụng lượt dò shadowban buổi sáng. **Bốn biến `R2_*` phải khai đủ hoặc bỏ
+trống cả bốn** — khai một nửa thì app dừng kèm thông báo, vì "chạy một nửa" ở đây nghĩa là tin
+rằng mình có bản sao mà thật ra không.
+
+**3. Nghiệm thu**, và đây mới là phần quan trọng:
+
+| Kiểm | Đúng thì thấy gì |
+|---|---|
+| Log máy chủ lúc khởi động | `[sao lưu] Bật: 03:00 mỗi ngày theo Asia/Ho_Chi_Minh, lên R2.` |
+| Sáng hôm sau, log | `[sao lưu] Đã tải lên R2: mkttool/2026-08/… (35 KB, N hàng trong M bảng)` |
+| Bucket R2 | có object đúng tên đó |
+| Trang **Hôm nay** | **không** có dải cảnh báo nào về sao lưu |
+| Tải object đó về rồi `psql -f` vào một database rỗng | ra đúng số hàng — **bản sao chưa thử khôi phục là bản sao chưa biết dùng được không** |
+
+**Nó không hỏng lặng lẽ được.** Ký sai thì R2 trả `403 SignatureDoesNotMatch` ngay lượt đầu; dump
+rỗng thì **không** được tải lên mà bị ghi là thất bại; và trang Hôm nay kêu **đỏ** trong cả ba ca:
+lượt gần nhất hỏng, bản sao mới nhất quá 2 ngày tuổi, hoặc bật rồi mà chưa chạy lần nào.
+
+> **Cố ý KHÔNG tự xóa bản cũ trên R2.** Mỗi bản ~35 KB, tức 13 MB một năm, trong khi hạn miễn phí
+> của R2 là 10 GB — dọn dẹp không giải quyết vấn đề nào có thật, còn một lỗi trong logic dọn thì
+> âm thầm xóa đúng thứ cả tính năng này sinh ra để giữ.
 
 ## Bước 11 — Facebook (làm khi cần đăng Fanpage)
 

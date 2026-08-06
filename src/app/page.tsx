@@ -10,6 +10,8 @@ import {
   coldStartDaysRemaining,
   getStatusPresentation,
 } from "@/lib/accounts/account-status";
+import { evaluateBackupFreshness } from "@/lib/backup/backup-freshness-warning";
+import { readDailyBackupSchedule } from "@/lib/backup/daily-backup-scheduler";
 import { prisma } from "@/lib/db/prisma-client";
 import { loadFacebookTokenWarnings } from "@/lib/facebook/facebook-token-warnings";
 import { loadDuplicatePostedUrls } from "@/lib/queue/duplicate-posted-url-check";
@@ -73,6 +75,17 @@ export default async function OverviewPage() {
     staleCount: healthRows.filter((row) => row.latest !== null && row.stale).length,
   });
 
+  // Một nếp sao lưu hỏng lặng lẽ tệ hơn không có nếp nào: người ta tin là mình đang được bảo vệ,
+  // và điều đó chỉ được kiểm chứng vào đúng ngày mọi thứ khác đã cháy.
+  const backupSchedule = await readDailyBackupSchedule();
+  const backupWarning = evaluateBackupFreshness({
+    enabled: backupSchedule.at !== null && backupSchedule.r2Configured,
+    lastRunAt: backupSchedule.lastRun?.lastRunAt ?? null,
+    lastOutcome: backupSchedule.lastRun?.outcome ?? null,
+    lastDetail: backupSchedule.lastRun?.detail ?? null,
+    now: new Date(),
+  });
+
   const byStatus = new Map<AccountStatus, number>();
   for (const status of ACCOUNT_STATUSES) byStatus.set(status, 0);
   for (const account of accounts) {
@@ -118,6 +131,16 @@ export default async function OverviewPage() {
               </li>
             ))}
           </ul>
+        </AlertBanner>
+      ) : null}
+
+      {/* Đứng ngay sau proxy: mất kho danh tính là mất thứ không mua lại được, và bản sao lưu là
+          thứ duy nhất chặn được ca đó. Kêu ở đây vì hàng trong ScheduledJobRun thì không ai mở ra
+          xem. */}
+      {backupWarning ? (
+        <AlertBanner tone={backupWarning.tone}>
+          <p className="font-medium">Sao lưu ra ngoài Railway</p>
+          <p className="mt-1">{backupWarning.message}</p>
         </AlertBanner>
       ) : null}
 
