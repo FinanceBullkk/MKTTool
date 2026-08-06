@@ -105,12 +105,19 @@ không nói được gì
   `Anh Hao`, Page `BaeJiyeon TFT`, đích đăng tự tạo, kiểm token lúc 16:08: **"Token không có hạn
   (sinh từ user token dài hạn)"** — câu đó chứng minh bước đổi token 60 ngày không bị bỏ, thứ mà
   dừng ở token 2 giờ thì trưa hôm sau ngừng đăng không rõ vì sao.
-  > 🐞 **Lượt kết nối phát hiện một lỗi thật, CHƯA SỬA:** callback dựng địa chỉ quay về từ
-  > `request.url`, mà sau proxy Railway nó ghép thành `https://localhost:3000` — giao thức lấy
+  > 🐞 **Lượt kết nối phát hiện một lỗi thật — đã sửa cùng ngày.** Callback dựng địa chỉ quay về
+  > từ `request.url`, mà sau proxy Railway nó ghép thành `https://localhost:3000` — giao thức lấy
   > từ `x-forwarded-proto`, host lấy từ địa chỉ nội bộ trong container. Người dùng gặp
-  > `ERR_SSL_PROTOCOL_ERROR` dù kết nối **đã lưu xong**. Route `start` đã tránh đúng bẫy này từ
-  > trước (đọc header `Host` + `x-forwarded-proto`) nhưng route `callback` không thừa hưởng.
-  > Sửa: rút phần dựng địa chỉ ra `src/lib/http/` cho cả hai route dùng chung.
+  > `ERR_SSL_PROTOCOL_ERROR` dù kết nối **đã lưu xong**, tức màn hình đỏ cho một việc đã thành
+  > công — và người đọc màn hình đỏ sẽ bấm lại từ đầu.
+  >
+  > Đáng chú ý là dự án **đã đo và ghi lại hành vi này từ 02/08** trong `same-origin-guard.ts`
+  > (*"Next chuẩn hóa `request.url` về host của dev server, luôn `localhost:3000`"*), và route
+  > `start` đã tránh đúng bẫy — chỉ `callback` không thừa hưởng. Bài học nằm trong một file
+  > không ai đọc lại lúc viết file thứ hai.
+  >
+  > **Sửa:** rút ra [request-base-url.ts](../../src/lib/http/request-base-url.ts), cả hai route
+  > dùng chung, kèm 11 test. Nay không còn chỗ nào trong luồng OAuth chạm `request.url` nữa.
 - [ ] Cả team vào vai trò **Tester** — chưa làm, và chưa làm được: app ở chế độ Development nên
   chỉ người có vai trò mới cấp quyền được, nhưng team chưa có tài khoản. Việc này thuộc
   [GĐ6](phase-06-ban-giao-team.md)

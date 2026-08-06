@@ -12,6 +12,7 @@ import { NextResponse } from "next/server";
 import { guardedRoute } from "@/lib/auth/guarded-route";
 import { FacebookConfigError } from "@/lib/facebook/facebook-app-config";
 import { toUserMessage } from "@/lib/facebook/facebook-graph-client";
+import { appUrl } from "@/lib/http/request-base-url";
 import {
   OAUTH_STATE_COOKIE,
   exchangeCodeForToken,
@@ -23,10 +24,14 @@ import { saveConnectionWithPages } from "@/lib/facebook/facebook-token-manager";
 
 export const runtime = "nodejs";
 
+/**
+ * Quay về /facebook kèm kết quả.
+ *
+ * Dựng địa chỉ từ header `Host` chứ không từ `request.url` — xem `request-base-url.ts`. Bản trước
+ * dùng `request.url` và ném người dùng sang `https://localhost:3000` sau khi kết nối ĐÃ lưu xong.
+ */
 function back(request: Request, params: Record<string, string>): NextResponse {
-  const url = new URL("/facebook", request.url);
-  for (const [key, value] of Object.entries(params)) url.searchParams.set(key, value);
-  return NextResponse.redirect(url);
+  return NextResponse.redirect(appUrl(request, "/facebook", params));
 }
 
 /**

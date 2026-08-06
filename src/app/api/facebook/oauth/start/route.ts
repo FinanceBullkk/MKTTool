@@ -12,38 +12,19 @@ import { guardedRoute } from "@/lib/auth/guarded-route";
 import { FacebookConfigError } from "@/lib/facebook/facebook-app-config";
 import { OAUTH_STATE_COOKIE, buildAuthorizeUrl } from "@/lib/facebook/facebook-oauth-flow";
 import { describeRedirectHostMismatch } from "@/lib/facebook/facebook-redirect-host-guard";
+import { appUrl } from "@/lib/http/request-base-url";
 
 export const runtime = "nodejs";
 
 /**
- * Giao thức mà người dùng thật sự đang dùng để mở app.
- *
- * Không đọc được từ `request.url`: sau lớp proxy của Railway (GĐ5), request tới app bằng HTTP
- * nội bộ dù người dùng gõ HTTPS. `x-forwarded-proto` là chỗ lớp proxy ghi lại giao thức gốc.
- *
- * Không có header đó thì đoán theo môi trường, và đoán về phía **an toàn hơn**: production mặc
- * định `https`. Ghép cứng `http://` như bản trước nghĩa là mọi lượt báo lỗi của luồng này đẩy
- * người dùng sang kênh không mã hóa — kèm theo cookie `state` bên dưới.
- */
-function requestProtocol(request: Request): string {
-  const forwarded = request.headers.get("x-forwarded-proto");
-  if (forwarded) return forwarded.split(",")[0].trim();
-  return process.env.NODE_ENV === "production" ? "https" : "http";
-}
-
-/**
  * Quay về /facebook kèm lời báo lỗi.
  *
- * Dựng địa chỉ từ header `Host` chứ không từ `request.url`: Next chuẩn hóa `request.url` về
- * host của dev server, nên dùng nó sẽ ném người dùng sang một địa chỉ khác địa chỉ họ đang
- * mở — đúng thứ nhầm lẫn mà lớp chặn bên dưới sinh ra để dập.
+ * Dựng địa chỉ từ header `Host` chứ không từ `request.url` — xem `request-base-url.ts`. Dùng
+ * `request.url` sẽ ném người dùng sang một địa chỉ khác địa chỉ họ đang mở, đúng thứ nhầm lẫn
+ * mà lớp chặn bên dưới sinh ra để dập.
  */
 function back(request: Request, message: string): NextResponse {
-  const host = request.headers.get("host");
-  const base = host ? `${requestProtocol(request)}://${host}` : request.url;
-  const url = new URL("/facebook", base);
-  url.searchParams.set("error", message);
-  return NextResponse.redirect(url);
+  return NextResponse.redirect(appUrl(request, "/facebook", { error: message }));
 }
 
 export const GET = guardedRoute(async function GET(_actor, request: Request) {
