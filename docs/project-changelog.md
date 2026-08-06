@@ -75,6 +75,15 @@ trúc database**, vì `prisma migrate deploy` không tự sao lưu.
 Còn lại của GĐ5: thử domain với Facebook, và một lượt dò shadowban thật — lượt 09:00 ngày 06/08 ghi
 đúng câu *"bỏ qua vì chưa có proxy quan sát viên"*, hành vi đúng nhưng chưa phải một lượt dò thật.
 
+> **Cập nhật cuối ngày 06/08:** proxy quan sát viên **đã khai và đã kiểm sống** — `Observer1` (US),
+> nút *Kiểm* lúc 15:31 trả về *"proxy sống, IP ra khác IP máy này"*. Vế thứ hai mới là vế đáng
+> giá: proxy sống mà **không** đổi IP thì bộ dò đang nhìn Reddit bằng chính IP nhà, và kết luận
+> trông vẫn hợp lý mà thật ra vô nghĩa — hỏng theo kiểu không ai phát hiện.
+>
+> **Chặn của "một lượt dò thật" vì thế đã đổi người:** không còn là proxy, mà là **nick Reddit
+> trong kho trên máy chủ**. Không có nick thì lượt dò chạy xong và không kết luận được gì. Việc
+> nhập nick nằm ở GĐ6 — tức todo cuối của GĐ5 không tự đóng được trong GĐ5.
+
 ---
 
 ## 06/08/2026 (chiều) — GĐ5: bộ dò tự chạy hằng ngày, và bản sao lưu kéo được về máy

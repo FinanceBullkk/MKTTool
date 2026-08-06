@@ -925,5 +925,8 @@ chuyển xấu từ lúc nào.
 | **Web chạy thật trên Railway** | **06/08/2026** | Đăng nhập Google vào được, 10 proxy sang đủ, lịch dò tự bắn đúng 09:00 giờ team, đẩy commit lên `master` là web tự cập nhật |
 | **Sao lưu tự động lên R2 đi trọn vòng** | **06/08/2026** | App đẩy object 35 KB lên R2 → tải về → `psql -f` với `ON_ERROR_STOP=1` vào database rỗng: exit 0, **22 hàng trong 6 bảng**, khớp từng số với dòng log |
 
-Chưa kiểm chứng: đăng bằng nick Reddit thật (Phase 05 chưa làm), và `npm run health` với nick thật
-— chưa nhập proxy quan sát viên nào.
+| **Proxy quan sát viên sống trên máy chủ thật** | **06/08/2026** | `Observer1` (US), kiểm lúc 15:31 — proxy sống và **IP ra khác IP máy vận hành**, tức bộ dò đã có một con mắt người ngoài thật để nhìn Reddit |
+
+Chưa kiểm chứng: đăng bằng nick Reddit thật (Phase 05 chưa làm), và **một lượt dò với nick thật**.
+Proxy quan sát viên đã có và đã kiểm sống; thứ còn thiếu là nick Reddit trong kho **trên máy chủ**
+— thuộc bước nhập liệu của GĐ6.

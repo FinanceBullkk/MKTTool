@@ -112,9 +112,14 @@ không nói được gì
   bản sao của Railway nằm **cùng tài khoản với bản gốc** nên không chống được ca tệ nhất (ca đó R2
   đã phủ). Phần còn hụt — lỡ tay xóa / migration hỏng giữa hai lượt sao lưu đêm — bù bằng nếp tay:
   chạy `db:backup:remote` ngay trước mỗi deploy có đổi cấu trúc database
-- [ ] Chạy thử một lượt dò thật, kết quả lên `/health` — **chưa được**: kho chưa có proxy quan sát
-  viên nào, nên lượt 09:00 ngày 06/08 ghi đúng câu *"bỏ qua vì chưa có proxy quan sát viên"*.
-  Đó là hành vi đúng, nhưng chưa phải một lượt dò thật
+- [x] **Proxy quan sát viên đã có trên máy chủ thật** (06/08/2026) — `Observer1` (US), nút *Kiểm*
+  lúc 15:31 trả về **proxy sống, IP ra khác IP máy vận hành**. Đó là nửa quan trọng của phép kiểm:
+  proxy sống mà không đổi IP thì bộ dò đang nhìn Reddit bằng chính IP nhà, và kết luận trông vẫn
+  hợp lý mà thật ra vô nghĩa
+- [ ] Chạy thử một lượt dò thật, kết quả lên `/health` — **chặn đã đổi người**. Sáng 06/08 lượt
+  09:00 bỏ qua vì chưa có proxy; nay có proxy rồi thì thứ còn thiếu là **nick Reddit trong kho
+  trên máy chủ**. Không có nick thì lượt dò chạy xong mà không kết luận được gì. Việc nhập nick
+  nằm ở [GĐ6](phase-06-ban-giao-team.md) bước 2 — tức todo này **không tự đóng được trong GĐ5**
 
 ### Bốn cái bẫy của lượt lên máy chủ thật (06/08/2026)
 

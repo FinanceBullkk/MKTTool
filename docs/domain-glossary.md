@@ -184,7 +184,7 @@ Gỡ là quyết định của người.
 ## Câu hỏi chưa có lời giải
 
 - Ngưỡng Jaccard 0.70 lấy theo kinh nghiệm chung, chưa có số liệu thật từ chính đàn nick này.
-  Phase 03 đã xong nên có chỗ để đo, nhưng chưa nhập proxy quan sát viên nào — chưa có số liệu
-  thật để quyết siết hay nới.
+  Phase 03 đã xong nên có chỗ để đo, và proxy quan sát viên đã có trên máy chủ thật từ 06/08/2026
+  — nhưng chưa có nick thật để dò, nên vẫn chưa có số liệu để quyết siết hay nới.
 - Chưa rõ cần thêm luật "cùng IP range" hay không — hiện proxy tĩnh đã ép 1:1, nhưng chưa kiểm
   tra hai proxy có nằm cùng /24 không.

@@ -681,8 +681,11 @@ Biến `RELAY_RELEASE_DIR` vẫn còn, dùng được nếu cần một đườn
 
 Xếp theo thứ tự nên làm.
 
-1. **Khai một proxy quan sát viên**, để lượt dò 09:00 hôm sau chạy thật thay vì bỏ qua. Đây là
-   việc **duy nhất** đang chặn tiêu chí nghiệm thu còn lại của bộ lịch.
+1. ~~**Khai một proxy quan sát viên**~~ **xong 06/08/2026** — `Observer1` (US), kiểm lúc 15:31:
+   proxy sống, IP ra khác IP máy vận hành. Lượt dò 09:00 hôm sau sẽ chạy thật thay vì bỏ qua.
+   **Chặn kế tiếp đã đổi người:** phải có **nick Reddit trong kho trên máy chủ** thì lượt dò mới
+   kết luận được gì — không có nick thì nó chạy xong và không nói được câu nào. Việc nhập nick
+   nằm ở GĐ6.
 2. **Phép thử hai tiến trình dò chạy song song.** Chạy `npm run health` ở máy anh (trỏ vào
    `PRODUCTION_DATABASE_URL`) đúng lúc bấm *"Dò cả đàn"* trên web. Lượt thứ hai phải bị từ chối
    kèm câu nói rõ **máy nào**, tiến trình nào đang giữ và giữ bao lâu rồi. Đây là thứ chỉ chứng

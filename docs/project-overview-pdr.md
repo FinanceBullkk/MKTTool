@@ -130,7 +130,7 @@ thực, không có cách nào đi tắt. Phần mềm xong sớm không giúp g�
 | 0 | Chuẩn bị & kiểm chứng khả thi | 🔄 Chặng B + C đạt 02/08/2026; còn mua proxy/nick + cold-start |
 | 1 | Kho danh tính | ✅ 01/08/2026 |
 | 2 | Hàng đợi content + bộ luật an toàn | ✅ 02/08/2026 |
-| 3 | Theo dõi sức khỏe tài khoản | ✅ 03/08/2026 — bộ dò đọc được Reddit thật; **chưa chạy với nick thật** vì chưa có proxy quan sát viên |
+| 3 | Theo dõi sức khỏe tài khoản | ✅ 03/08/2026 — bộ dò đọc được Reddit thật. Proxy quan sát viên đã có và kiểm sống trên máy chủ (06/08/2026); **vẫn chưa chạy với nick thật** vì kho trên máy chủ chưa có nick Reddit |
 | 4 | Facebook Pages publisher *(độc lập, làm lúc nào cũng được)* | ✅ 03/08/2026 — đã đăng thật lên Fanpage qua Graph API |
 | 5 | Bán tự động đăng Reddit | ⬜ |
 
@@ -141,8 +141,8 @@ thực, không có cách nào đi tắt. Phần mềm xong sớm không giúp g�
 ## Câu hỏi chưa có lời giải
 
 - Ngưỡng luật hiện lấy theo kinh nghiệm chung, chưa có số liệu thật của chính đàn nick này.
-  Phase 03 đã xong nên đã có chỗ để đo, nhưng chưa nhập proxy quan sát viên nào nên chưa có số
-  liệu để quyết siết hay nới.
+  Phase 03 đã xong nên đã có chỗ để đo, và proxy quan sát viên đã sẵn sàng từ 06/08/2026 — nhưng
+  chưa có nick thật để dò nên vẫn chưa có số liệu để quyết siết hay nới.
 - Chưa chốt 2-3 subreddit mục tiêu và luật cụ thể của từng sub (việc của Phase 00 bước 1).
 - Chưa đo được "xếp 15 bài trong 15 phút" vì chưa có người dùng thật chạy quy trình đầy đủ.
 - ~~Mục 2 ghi rõ công cụ phục vụ **1 người**.~~ **Đã có chủ 04/08/2026:**
