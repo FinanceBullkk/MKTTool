@@ -162,8 +162,23 @@ npm run db:backup
 >     pg_dump: error: server version: 18.x; pg_dump version: 17.x
 >
 > Đã vấp thật 06/08/2026, và nó chỉ lộ ra ở bước 10 chứ không phải ở đây: lượt **nạp** chạy được
-> vì `psql` không có ràng buộc đó — nó chỉ gửi SQL dạng chữ. Cài PostgreSQL 18 client trước khi
-> tới bước 10. `Dockerfile` cũng đã đổi sang `postgresql-client-18` cho cùng lý do.
+> vì `psql` không có ràng buộc đó — nó chỉ gửi SQL dạng chữ. `Dockerfile` cũng đã đổi sang
+> `postgresql-client-18` cho cùng lý do.
+>
+> **Cách cài bản 18 mà không đụng vào bản 17 đang có** (không cần quyền admin, gỡ đi chỉ là xóa
+> một thư mục): tải *PostgreSQL 18 Windows x86-64 binaries* — bản `.zip`, **không phải installer**
+> — ở [enterprisedb.com/download-postgresql-binaries](https://www.enterprisedb.com/download-postgresql-binaries),
+> giải nén riêng thư mục `pgsql\bin` (69 file, ~80 MB) ra `C:\Users\<tên>\pgsql18\bin`, rồi đặt nó
+> **lên đầu** PATH của phiên làm việc:
+>
+> ```powershell
+> $env:PATH = "C:\Users\anhha\pgsql18\bin;$env:PATH"
+> ```
+>
+> Phải **lên đầu**, vì bản 17 vẫn còn trong PATH của máy và ai đứng trước thì thắng. Kiểm bằng
+> `pg_dump --version` — phải ra `18.x`. Muốn khỏi gõ lại mỗi lần thì thêm đường dẫn đó vào PATH
+> người dùng bằng hộp thoại *Environment Variables* của Windows; **đừng dùng `setx`**, nó cắt cụt
+> PATH ở 1024 ký tự mà không báo gì.
 
 Xem dòng kết quả — nó in **số hàng dữ liệu**. Phải thấy proxy trong đó, không phải số 0.
 
@@ -442,6 +457,14 @@ Mở `https://<domain>` và đi hết danh sách này:
 
 **Hai nửa, và cần cả hai.**
 
+> ✅ **Nửa thứ hai đã chạy trọn vòng ngày 06/08/2026**, kể cả phần hay bị bỏ: hút bản sao về
+> (`mkttool-prod-…sql`, 21 hàng trong 6 bảng), **rồi khôi phục nó vào một Postgres cục bộ rỗng và
+> đối chiếu** — 10 `Proxy`, 1 hàng `ScheduledJobRun` với `outcome = SKIPPED` đúng như bộ lịch ghi
+> trên máy chủ, và `passwordEnc` vẫn dài 59 ký tự tức vẫn là ciphertext.
+>
+> Bước khôi phục thử mới là bước chứng minh. Hút được một file `.sql` chỉ chứng minh `pg_dump`
+> chạy xong.
+
 1. **Railway tự sao lưu ổ đĩa.** Dịch vụ Postgres → **Settings** → **Backups** → bật lịch hằng
    ngày. Cái này chống lỡ tay xóa dữ liệu và migration hỏng.
 2. **Kéo một bản về máy anh.** Thêm vào `.env` **của máy anh** (không phải của máy chủ):
@@ -451,7 +474,7 @@ PRODUCTION_DATABASE_URL="<DATABASE_PUBLIC_URL>?sslmode=require"
 ```
 
 Nhớ **cài PostgreSQL 18 client trước** — máy dev đang ở bản 17 thì `pg_dump` từ chối dump từ
-server 18, xem cảnh báo ở bước 4. Rồi:
+server 18, xem cách cài ở bước 4. Rồi:
 
 ```bash
 npm run db:backup:remote
