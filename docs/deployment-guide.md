@@ -316,8 +316,21 @@ gặp trục trặc.
 > hướng**: UI chỉ nói `GitHub Repo not found`, nghe như thiếu quyền truy cập, nên cả buổi đi xin
 > owner cấp thêm quyền — trong khi quyền đã đủ từ lâu và chỗ hỏng là vai trò của mình trong org.
 >
-> **Đừng đi xin quyền `admin`. Nối bằng CLI** — lệnh ở khối dưới gọi thẳng API nên không đi qua cái
-> lọc đó. Đây cũng đúng là cách lượt thành công đầu tiên đã nối.
+> **Lối ra là xin quyền `admin` trên repo** — không phải quyền org, không phải cài lại App. Owner
+> mở `https://github.com/<org>/<repo>/settings/access`, đổi role của mình từ Write thành Admin. Ngay
+> sau đó ô Connect Repo hiện repo, ô **Branch** đọc được `master`, và dòng *"Auto deploys when pushed
+> to GitHub"* mới xuất hiện.
+>
+> ⚠️ **Nối bằng CLI đi vòng được qua bộ lọc, nhưng chỉ nối được một nửa — đừng dùng.** Lệnh
+> `railway service source connect` gọi thẳng API nên chạy được khi chưa có `admin`, và nó lừa rất
+> khéo: source hiện đúng tên repo, `deploymentTriggers` có bản ghi đủ `provider/repository/branch`,
+> deploy thủ công từ GitHub chạy ngon. Nhưng **webhook không bao giờ được đăng ký** — phần đó mới là
+> phần đòi quyền quản trị repo. Hệ quả: merge vào `master` rồi ngồi đợi 20 phút không có lượt nào,
+> mà không có thông báo nào nói vì sao. Đã vấp thật 06/08/2026.
+>
+> Railway còn **cache quyền của người dùng**: được cấp `admin` xong lệnh CLI vẫn báo
+> `User does not have access to the repo`. Nối lại bằng **UI** thì Railway đọc lại quyền và thông
+> ngay. Một lý do nữa để dùng UI.
 >
 > Đừng chẩn đoán bằng token CLI. Nhóm query `github*` của API Railway chỉ mở cho phiên trình duyệt;
 > gọi bằng token CLI thì `githubRepos` trả `Not Authorized` còn `githubRepoBranches` trả
@@ -329,13 +342,17 @@ gặp trục trặc.
 > cũng không cho fork thẳng repo private của org, nên còn nhiều bước hơn 5B.
 
 **Đã lỡ dựng service bằng 5B rồi thì KHÔNG phải dựng lại** — đổi nguồn của chính service đó, để
-giữ nguyên domain, biến môi trường và redirect URI đã khai:
+giữ nguyên domain, biến môi trường và redirect URI đã khai. Làm **trong UI**:
+
+> Service → **Settings → Source** → **Connect Repo** → chọn repo → **Branch** = `master`.
+> Xong phải thấy dòng *"Auto deploys when pushed to GitHub"*. **Không thấy dòng đó là chưa nối
+> xong**, dù tên repo đã hiện — đó đúng là trạng thái nửa vời mà đường CLI để lại.
+
+Nối xong, kéo `master` về bằng lệnh này (khác `railway redeploy` trần, vốn dựng lại đúng commit cũ):
 
 ```powershell
-railway service source connect --repo Techieslab-app/MKTTool --branch master --service mkttool-web
+railway redeploy --from-source --service mkttool-web --yes
 ```
-
-Railway dựng deployment trigger và **build ngay một lượt từ `master`**.
 
 > ⚠️ **`source connect` reset Builder về Railpack.** Sau khi chạy, ô `builder` trong API ghi
 > `RAILPACK` chứ không phải `DOCKERFILE`. Thực tế **không sao** — Railway tự nhận `Dockerfile` ở gốc
