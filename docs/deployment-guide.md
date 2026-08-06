@@ -20,6 +20,46 @@ Ba quyết định đã chốt 06/08/2026:
 3. **Dùng lại `TICKET_SIGNING_KEY` hiện tại** — cầu nối trên máy Windows thứ hai đã có khóa công
    khai tương ứng, đổi khóa là phải đi chép lại từng máy.
 
+> ✅ **Đã đi trọn một lượt thật ngày 06/08/2026.** Web chạy ở
+> `https://mkttool-web-production.up.railway.app`, đăng nhập Google được, 10 proxy sang đủ, và bộ
+> lịch bắn đúng 09:00 giờ team. Những chỗ đánh dấu *"đã vấp thật"* bên dưới là lỗi gặp trong
+> chính lượt đó, không phải cảnh báo đề phòng.
+
+---
+
+## ⚠️ Đọc trước: `railway up` ghi đè lên BẤT KỲ service nào đang được chọn
+
+Kể cả service database. Đã vấp thật 06/08/2026: một lượt `railway up` không kèm `--service` đã
+deploy MKTTool **đè lên dịch vụ Postgres**, và service đó chạy Next.js nghe ở cổng 5432.
+
+Thứ làm nó tốn thời gian không phải hậu quả mà là **triệu chứng**: app báo
+
+```
+prisma:error Connection terminated unexpectedly
+```
+
+Câu đó chỉ về phía mạng hoặc phía Prisma — không có chữ nào chỉ về việc database đã bị thay bằng
+một máy chủ web. `DATABASE_URL` vẫn đúng, service vẫn `Online`, Railway vẫn báo *"Deployment
+successful"*. Chỉ khi mở **log của chính dịch vụ Postgres** mới thấy `> next start`.
+
+**Ba thói quen bắt buộc:**
+
+1. **Luôn kèm `--service`**: `railway up --service mkttool-web`. Không bao giờ gõ `railway up` trần.
+2. `railway status` một lượt trước khi đẩy, xem *Linked service* là cái nào.
+3. Sau khi deploy, liếc log của service **database** — nó phải nói
+   `database system is ready to accept connections`.
+
+**Cách sửa nếu đã lỡ** (dữ liệu KHÔNG mất — ổ đĩa vẫn gắn nguyên, app chạy ở `/app` nên không
+chạm vào thư mục dữ liệu của Postgres):
+
+- Dịch vụ Postgres → tab **Deployments** → mục **HISTORY** → dòng có tên ảnh
+  `ghcr.io/railwayapp-templates/postgres-ssl:18` → menu **⋮** → **Redeploy**.
+- Rồi kiểm **Settings → Source** đã về `Docker Image` chưa. Chỉ Redeploy thì bản chạy đúng nhưng
+  **nguồn** của service vẫn là gói code — lần Railway tự khởi động lại là nó đè lên tiếp.
+- ❌ **Đừng** chạy `railway redeploy --service Postgres`: lệnh đó deploy lại bản *mới nhất*, tức
+  dựng lại đúng cái sai.
+- ❌ **Đừng** xóa dịch vụ Postgres để tạo lại. Xóa dịch vụ là xóa ổ đĩa — lúc đó mới mất thật.
+
 ---
 
 ## Bước 1 — Đưa code lên `master` (làm ở máy anh)
@@ -109,11 +149,21 @@ tới dữ liệu, và hai môi trường dùng chung một khóa ký phiên là
 
 **Làm bây giờ, khi Postgres còn rỗng.** Làm sau khi app đã dựng bảng là đụng bảng trùng tên.
 
-Ở máy anh, đảm bảo `pg_dump` và `psql` có trong PATH (`C:\Program Files\PostgreSQL\17\bin`), rồi:
+Ở máy anh, đảm bảo `pg_dump` và `psql` có trong PATH (`C:\Program Files\PostgreSQL\18\bin`), rồi:
 
 ```bash
 npm run db:backup
 ```
+
+> ⚠️ **`pg_dump` phải có major ≥ major của SERVER, không phải bằng bản database ở máy mình.**
+> Railway cấp `postgres-ssl:18`, nên máy dev cài bản 17 là **không sao lưu được từ máy chủ** —
+> `pg_dump` từ chối thẳng, không phải cảnh báo:
+>
+>     pg_dump: error: server version: 18.x; pg_dump version: 17.x
+>
+> Đã vấp thật 06/08/2026, và nó chỉ lộ ra ở bước 10 chứ không phải ở đây: lượt **nạp** chạy được
+> vì `psql` không có ràng buộc đó — nó chỉ gửi SQL dạng chữ. Cài PostgreSQL 18 client trước khi
+> tới bước 10. `Dockerfile` cũng đã đổi sang `postgresql-client-18` cho cùng lý do.
 
 Xem dòng kết quả — nó in **số hàng dữ liệu**. Phải thấy proxy trong đó, không phải số 0.
 
@@ -135,7 +185,7 @@ Chỉ cần dán **đúng một chuỗi**, khối dưới tự tách ra thành c
 
 ```powershell
 cd E:\MKTTool
-$env:PATH = "C:\Program Files\PostgreSQL\17\bin;$env:PATH"
+$env:PATH = "C:\Program Files\PostgreSQL\18\bin;$env:PATH"
 $raw = 'DÁN_CHUỖI_NỐI_VÀO_ĐÂY'
 if ($raw -match '\$\{\{') { throw "Đây là BẢN MẪU của Railway, chưa phải giá trị thật. Lấy ở nút Connect -> Public Network của dịch vụ Postgres." }
 $u = [uri]$raw
@@ -217,7 +267,12 @@ cùng một tài khoản Google.
 > `CREATE EXTENSION` hay `SET SESSION AUTHORIZATION` — những câu lệnh đòi quyền superuser mà
 > Railway không cấp. Đó là nhờ `--no-owner --no-privileges` lúc xuất.
 
-## Bước 5 — Tạo dịch vụ web từ GitHub
+## Bước 5 — Tạo dịch vụ web
+
+Hai đường. **5A là đích phải tới**; 5B là đường tạm khi chưa xin được quyền, và đó chính là đường
+đã đi ngày 06/08/2026.
+
+### 5A — Nối GitHub (đích)
 
 1. Trong cùng dự án Railway: **New** → **GitHub Repo** → chọn `Techieslab-app/MKTTool`.
 2. Cho phép Railway truy cập kho nếu nó hỏi.
@@ -225,6 +280,66 @@ cùng một tài khoản Google.
    - **Source → Branch:** `master`
    - **Build:** Railway tự nhận `Dockerfile` ở gốc kho. Không cần đổi gì.
    - **Deploy → Pre-Deploy Command:** `npx prisma migrate deploy`
+
+> ⚠️ **Repo thuộc org thì phải là OWNER của org mới cài được GitHub App.** Đã vấp thật: tài khoản
+> chỉ là `member` (quyền `push`, không có `admin`), nên Railway **không nhìn thấy repo** trong danh
+> sách và không có cách nào tự cấp.
+>
+> Xin quyền ở https://github.com/apps/railway-app/installations/new — chọn org, GitHub sẽ hiện nút
+> **Request** thay vì Install rồi báo cho owner. Nhắn thẳng cho một owner thì nhanh hơn.
+>
+> **Đừng clone sang repo cá nhân để đi vòng.** Nó chỉ hơn 5B đúng một điểm (thử được vòng
+> *push → tự deploy*, mảnh ít khả năng hỏng nhất), đổi lại nhận ba thứ: hai nguồn sự thật, một bản
+> sao private của org nằm trên tài khoản cá nhân, và thứ nghiệm thu không phải thứ sẽ chạy. GitHub
+> cũng không cho fork thẳng repo private của org, nên còn nhiều bước hơn 5B.
+
+### 5B — Đẩy thẳng từ máy (đường tạm)
+
+Không cần GitHub. Dùng đúng `Dockerfile` này. Mất phần tự deploy — mỗi lần cập nhật phải tự gõ lại.
+
+```powershell
+npm i -g @railway/cli
+```
+
+```powershell
+railway login
+```
+
+```powershell
+railway link
+```
+
+`railway link` hỏi chọn project — chọn **đúng project đang có Postgres**, đừng tạo mới. Rồi tạo
+service **rỗng** trước, để có chỗ khai biến:
+
+```powershell
+railway add --service mkttool-web
+```
+
+Làm tiếp bước 6 và 7 (khai biến, pre-deploy, domain) trên bảng điều khiển, **rồi mới** đẩy code —
+`TEAM_TIMEZONE` được nhúng vào bundle lúc build, nên đẩy trước khi khai biến là phí một lượt build
+mười phút:
+
+```powershell
+railway up --service mkttool-web
+```
+
+Ba thứ phải nhìn khi nó chạy:
+
+| Nhìn | Đúng | Sai thì |
+|---|---|---|
+| Dung lượng đẩy lên | vài MB | vài trăm MB → `.railwayignore` không được đọc, **Ctrl+C ngay**, `.env` đang trên đường đi |
+| Cách build | có chữ `Dockerfile` | thấy `Nixpacks` → nó không tìm ra Dockerfile, ảnh sẽ thiếu Chromium và `pg_dump` |
+| Pre-deploy | `No pending migrations to apply` | báo đang áp 5 migration → nó nhìn nhầm database, **dừng lại** |
+
+`railway up` đẩy **thứ đang nằm trên ổ đĩa**, không phải thứ đã commit — kể cả file sửa dở và
+nhánh đang đứng. Tiện lúc chạy thử, nhưng nhớ: khi chuyển sang 5A thì thứ Railway deploy là
+`master`, và chưa merge thì **web tụt về bản cũ mà không có gì báo**.
+
+`.railwayignore` là thứ giữ `.env` không rời khỏi máy. `.dockerignore` không cứu được ở đây — nó
+lọc lúc *build*, tức sau khi file đã nằm trên máy của hãng rồi.
+
+### Chung cho cả hai đường
 
 > **Vì sao pre-deploy là `prisma migrate deploy` chứ không phải `npm run db:upgrade`.**
 > `db:upgrade` là lệnh cho **máy người dùng**: nó sao lưu trước khi áp, và trong container thì bản
@@ -308,15 +423,20 @@ Vào [Google Cloud Console](https://console.cloud.google.com/) → **APIs & Serv
 
 Mở `https://<domain>` và đi hết danh sách này:
 
-| Kiểm | Đúng thì thấy gì |
-|---|---|
-| Đăng nhập bằng Google | vào được, và **email ngoài `ALLOWED_EMAILS` thì bị chặn** — thử luôn một email lạ |
-| Khay cảnh báo trên đầu trang | **không có dòng nào về khóa.** Có dòng vàng *"máy chủ vẫn giữ VAULT_KEY_OPERATOR"* nghĩa là khai nhầm ở bước 6 |
-| `/proxies` | đủ **10** proxy Webshare — chứng minh bản sao nạp đúng |
-| Bấm **"Kiểm"** một proxy | ra kết luận thật (Sống / Chết / …). Đây là phép thử `VAULT_KEY_SERVER` đúng khóa: sai khóa thì không giải mã được mật khẩu proxy |
-| `/health` → khối *"Lịch dò hằng ngày"* | *"Tự chạy 09:00 mỗi ngày theo giờ team"* |
-| Log của dịch vụ web lúc khởi động | dòng `[lịch dò] Bật: 09:00 mỗi ngày theo Asia/Ho_Chi_Minh.` |
-| `/relay-download` | nói *"chưa có gói"* kèm đường dẫn nó đã tìm. Đúng — `.exe` chưa lên máy chủ, xem bước 12 |
+| Kiểm | Đúng thì thấy gì | 06/08 |
+|---|---|---|
+| Đăng nhập bằng Google | vào được, và **email ngoài `ALLOWED_EMAILS` thì bị chặn** — thử luôn một email lạ | ✅ vào được |
+| Khay cảnh báo trên đầu trang | **không có dòng nào về khóa.** Có dòng vàng *"máy chủ vẫn giữ VAULT_KEY_OPERATOR"* nghĩa là khai nhầm ở bước 6 | – |
+| `/proxies` | đủ **10** proxy Webshare — chứng minh bản sao nạp đúng | ✅ đếm trên database |
+| Bấm **"Kiểm"** một proxy | ra kết luận thật (Sống / Chết / …). Đây là phép thử `VAULT_KEY_SERVER` đúng khóa: sai khóa thì không giải mã được mật khẩu proxy | – |
+| `/health` → khối *"Lịch dò hằng ngày"* | *"Tự chạy 09:00 mỗi ngày theo giờ team"* | – |
+| Log của dịch vụ web lúc khởi động | dòng `[lịch dò] Bật: 09:00 mỗi ngày theo Asia/Ho_Chi_Minh.` | ✅ |
+| `/relay-download` | nói *"chưa có gói"* kèm đường dẫn nó đã tìm. Đúng — `.exe` chưa lên máy chủ, xem bước 12 | – |
+
+> **Bộ lịch đã tự chạy thật lúc 09:02 giờ team ngày 06/08/2026**, và log ghi đúng câu nó phải ghi:
+> *"Bỏ qua: chưa có proxy quan sát viên nào đang bật"*. Câu đó chỉ ra được sau khi bộ lịch đã đọc
+> bảng `ScheduledJobRun`, giành quyền chạy, kiểm khóa chống chạy chồng rồi đếm proxy — bốn truy
+> vấn liên tiếp. Nên nó chứng minh một lượt cả bộ lịch, cả kết nối database, cả múi giờ.
 
 ## Bước 10 — Nếp sao lưu
 
@@ -330,7 +450,8 @@ Mở `https://<domain>` và đi hết danh sách này:
 PRODUCTION_DATABASE_URL="<DATABASE_PUBLIC_URL>?sslmode=require"
 ```
 
-rồi:
+Nhớ **cài PostgreSQL 18 client trước** — máy dev đang ở bản 17 thì `pg_dump` từ chối dump từ
+server 18, xem cảnh báo ở bước 4. Rồi:
 
 ```bash
 npm run db:backup:remote
@@ -378,10 +499,19 @@ Ba đường, chưa chốt:
 
 ## Việc còn nợ sau khi xong
 
-- **Phép thử hai tiến trình dò chạy song song.** Chạy `npm run health` ở máy anh (trỏ vào
-  `PRODUCTION_DATABASE_URL`) đúng lúc bấm *"Dò cả đàn"* trên web. Lượt thứ hai phải bị từ chối
-  kèm câu nói rõ **máy nào**, tiến trình nào đang giữ và giữ bao lâu rồi. Đây là thứ chỉ chứng
-  minh được khi khóa đã bắc qua hai máy thật.
-- **Đưa cả team vào vai trò Tester của Meta App** (nếu dùng Facebook).
-- **Deploy thử sang một hãng khác** (Render/Fly) bằng đúng `Dockerfile` này, không sửa code — tiêu
-  chí của QĐ 9, để biết mình chưa bị khóa vào Railway.
+Xếp theo thứ tự nên làm.
+
+1. **Xin quyền GitHub App cho org, rồi chuyển từ 5B sang 5A.** Chừng nào còn `railway up` thì
+   tiêu chí *"đẩy một commit lên GitHub → web tự cập nhật"* chưa đạt, và mỗi lượt deploy vẫn là
+   một cơ hội để đè nhầm service.
+2. **Cài PostgreSQL 18 client ở máy quản trị**, rồi chạy thật `npm run db:backup:remote` một lượt.
+   Chưa chạy được lần nào thì nếp sao lưu mới chỉ là chữ trên giấy.
+3. **Bật sao lưu ổ đĩa của Railway** (bước 10, nửa thứ nhất).
+4. **Khai một proxy quan sát viên**, để lượt dò 09:00 hôm sau chạy thật thay vì bỏ qua.
+5. **Phép thử hai tiến trình dò chạy song song.** Chạy `npm run health` ở máy anh (trỏ vào
+   `PRODUCTION_DATABASE_URL`) đúng lúc bấm *"Dò cả đàn"* trên web. Lượt thứ hai phải bị từ chối
+   kèm câu nói rõ **máy nào**, tiến trình nào đang giữ và giữ bao lâu rồi. Đây là thứ chỉ chứng
+   minh được khi khóa đã bắc qua hai máy thật.
+6. **Facebook** (bước 11) và **`.exe` cầu nối** (bước 12) — cả hai đều hoãn được.
+7. **Deploy thử sang một hãng khác** (Render/Fly) bằng đúng `Dockerfile` này, không sửa code — tiêu
+   chí của QĐ 9, để biết mình chưa bị khóa vào Railway.
