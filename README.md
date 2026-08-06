@@ -845,6 +845,15 @@ minh lần dò đó không thấy vấn đề. Gỡ là quyết định của ng
 Chỉ nhận proxy **HTTP**: Chromium không xác thực được với SOCKS5, nó bỏ qua user/mật khẩu rồi
 đi tiếp — hoặc hỏng, hoặc tệ hơn là chạy bằng IP nhà mà không ai biết.
 
+> **Mua ở đâu — ràng buộc lúc thay proxy này, đừng bỏ.** Bản đang dùng (`Observer1`, 06/08/2026)
+> là **ISP tĩnh của IProyal**, cố ý **khác nhà cung cấp** với 10 proxy Webshare gắn nick. Mua cùng
+> chỗ với proxy của nick là tự nối con mắt quan sát về đúng cái nguồn nó phải giả vờ không quen:
+> dải IP gần nhau, cùng ASN, cùng dấu vết mua bán. Nó không hỏng ngay, nó chỉ làm lời chứng của bộ
+> dò yếu đi mà không có gì báo.
+>
+> ISP tĩnh có **IP ra trùng IP khai** — bình thường, khác residential xoay vòng (vào cổng chung,
+> ra một IP khác). Thấy hai số trùng nhau ở nút *Kiểm* thì đó không phải lỗi.
+
 Proxy quan sát viên **kiểm được bằng nút "Kiểm"** ngay trong khối đó, dùng chung bộ kiểm với
 proxy thường (xem [Proxy được kiểm trước khi mở](#proxy-được-kiểm-trước-khi-mở)). Nên bấm trước
 mỗi lượt dò quan trọng: proxy này chết thì mọi nick ra kết luận *Không dò được* — trung thực
@@ -925,7 +934,7 @@ chuyển xấu từ lúc nào.
 | **Web chạy thật trên Railway** | **06/08/2026** | Đăng nhập Google vào được, 10 proxy sang đủ, lịch dò tự bắn đúng 09:00 giờ team, đẩy commit lên `master` là web tự cập nhật |
 | **Sao lưu tự động lên R2 đi trọn vòng** | **06/08/2026** | App đẩy object 35 KB lên R2 → tải về → `psql -f` với `ON_ERROR_STOP=1` vào database rỗng: exit 0, **22 hàng trong 6 bảng**, khớp từng số với dòng log |
 
-| **Proxy quan sát viên sống trên máy chủ thật** | **06/08/2026** | `Observer1` (US), kiểm lúc 15:31 — proxy sống và **IP ra khác IP máy vận hành**, tức bộ dò đã có một con mắt người ngoài thật để nhìn Reddit |
+| **Proxy quan sát viên sống trên máy chủ thật** | **06/08/2026** | `Observer1` (US) — **ISP tĩnh của IProyal, khác nhà cung cấp với 10 proxy Webshare của nick**. Kiểm lúc 15:31: proxy sống và **IP ra khác IP máy vận hành**, tức bộ dò đã có một con mắt người ngoài thật để nhìn Reddit |
 
 Chưa kiểm chứng: đăng bằng nick Reddit thật (Phase 05 chưa làm), và **một lượt dò với nick thật**.
 Proxy quan sát viên đã có và đã kiểm sống; thứ còn thiếu là nick Reddit trong kho **trên máy chủ**
