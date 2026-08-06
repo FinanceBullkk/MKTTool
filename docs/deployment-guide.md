@@ -601,6 +601,20 @@ rằng mình có bản sao mà thật ra không.
 | Trang **Hôm nay** | **không** có dải cảnh báo nào về sao lưu |
 | Tải object đó về rồi `psql -f` vào một database rỗng | ra đúng số hàng — **bản sao chưa thử khôi phục là bản sao chưa biết dùng được không** |
 
+> ✅ **Đã đi trọn cả năm dòng trên, thật, ngày 06/08/2026.** Object
+> `mkttool/2026-08/mkttool-prod-20260806-125954.sql` (35 KB) nạp lại bằng `psql -f` với
+> `ON_ERROR_STOP=1` vào một database rỗng: exit 0, **22 hàng trong 6 bảng** — khớp từng con số với
+> dòng log. Nạp được cả khi dump từ server 18 đổ vào Postgres 17 ở máy dev.
+>
+> Hai chỗ đã vấp trong lượt đó:
+>
+> - **Giờ hẹn đã trôi qua trong ngày thì lịch bắn NGAY lúc khởi động**, không đợi hôm sau — đó là cơ
+>   chế bắt kịp lượt lỡ, cố ý. Nên vừa khai đủ 5 biến là bản sao đầu tiên có luôn, không cần đổi giờ
+>   để thử. Mọi lượt tick sau đó trả `ALREADY_DECIDED` và **không in log gì** — im lặng ở đây là
+>   đúng, đừng đọc thành treo.
+> - **Bản dump tải từ R2 về phải nằm ngoài tầm `git add`.** `data/backups/` không phủ nó vì
+>   Cloudflare đặt tên khác và nó rơi vào gốc repo. Đã thêm luật `mkttool*.sql` vào `.gitignore`.
+
 **Nó không hỏng lặng lẽ được.** Ký sai thì R2 trả `403 SignatureDoesNotMatch` ngay lượt đầu; dump
 rỗng thì **không** được tải lên mà bị ghi là thất bại; và trang Hôm nay kêu **đỏ** trong cả ba ca:
 lượt gần nhất hỏng, bản sao mới nhất quá 2 ngày tuổi, hoặc bật rồi mà chưa chạy lần nào.
