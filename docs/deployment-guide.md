@@ -115,20 +115,58 @@ tới dữ liệu, và hai môi trường dùng chung một khóa ký phiên là
 npm run db:backup
 ```
 
-Xem dòng kết quả — nó in **số hàng dữ liệu**. Phải thấy proxy trong đó, không phải số 0. Rồi nạp
-lên Railway bằng `DATABASE_PUBLIC_URL` lấy ở bước 3:
+Xem dòng kết quả — nó in **số hàng dữ liệu**. Phải thấy proxy trong đó, không phải số 0.
 
-```bash
-psql "<DATABASE_PUBLIC_URL>" -f data/backups/mkttool-<ngày>-<giờ>.sql
+Rồi nạp lên Railway. Copy `DATABASE_PUBLIC_URL` ở tab **Variables** của dịch vụ Postgres — **đúng
+một giá trị**, khối dưới tự tách ra thành các biến libpq:
+
+```powershell
+cd E:\MKTTool
+$env:PATH = "C:\Program Files\PostgreSQL\17\bin;$env:PATH"
+$u = [uri]'DÁN_DATABASE_PUBLIC_URL_VÀO_ĐÂY'
+$parts = $u.UserInfo -split ':', 2
+$env:PGHOST     = $u.Host
+$env:PGPORT     = $u.Port
+$env:PGUSER     = $parts[0]
+$env:PGPASSWORD = [uri]::UnescapeDataString($parts[1])
+$env:PGDATABASE = $u.AbsolutePath.TrimStart('/')
+$env:PGSSLMODE  = 'require'
+"Sẽ nạp vào -> $env:PGUSER@$env:PGHOST port $env:PGPORT db $env:PGDATABASE"
+```
+
+Dòng cuối in ra chỗ nó sắp nạp vào — **đọc dòng đó trước khi chạy tiếp**. Host phải là
+`*.proxy.rlwy.net`, port là số 5 chữ số, db là `railway`. Đúng rồi mới nạp:
+
+```powershell
+psql -f data\backups\mkttool-<ngày>-<giờ>.sql
 ```
 
 Bản sao xuất kèm `--no-owner --no-privileges` nên nạp được vào Railway dù tên role khác máy anh.
 
-Đối chiếu ngay, đừng tin dòng "thành công":
+> **Ba cái bẫy ở khối trên, cả ba đều đã sập thật khi làm lần đầu:**
+>
+> - **`${{PGUSER}}` không phải thứ gõ vào terminal.** Đó là cú pháp tham chiếu **của riêng
+>   Railway**, chỉ có nghĩa bên trong ô Variables trên trang của họ. PowerShell đọc `${...}` là
+>   biến của nó và báo lỗi cú pháp.
+> - **Nháy đơn quanh URL, không phải nháy kép.** PowerShell **nuốt `$`** trong nháy kép, nên mật
+>   khẩu chứa `$` bị cắt mất một khúc — và lỗi báo ra là *"xác thực thất bại"*, không hề chỉ về
+>   phía gõ nhầm.
+> - **Đừng nhét URL thẳng vào tham số của `psql`.** Tham số dòng lệnh thì ai đăng nhập trên máy
+>   cũng đọc được (Task Manager, `Get-CimInstance Win32_Process`), mà đó là chìa vào toàn bộ kho
+>   ciphertext. Chính là lý do `src/lib/db/postgres-connection-env.ts` cũng đi đường biến môi
+>   trường. Tiện thể khỏi phải mã hóa `@ / #` thành `%40 %2F %23`.
+>
+> `$env:` chỉ sống trong cửa sổ đó, đóng đi là mất. **Đừng dùng `setx`** — nó giới hạn 1024 ký tự
+> và cắt cụt PATH một cách lặng lẽ.
 
-```bash
-psql "<DATABASE_PUBLIC_URL>" -c "SELECT count(*) FROM \"Proxy\";"
-psql "<DATABASE_PUBLIC_URL>" -c "SELECT count(*) FROM _prisma_migrations;"
+Đối chiếu ngay, đừng tin dòng "thành công". Biến vẫn còn trong cửa sổ đó nên không phải khai lại:
+
+```powershell
+psql -c 'SELECT count(*) FROM "Proxy";'
+```
+
+```powershell
+psql -c 'SELECT count(*) FROM _prisma_migrations;'
 ```
 
 Kho dev **tính tới 06/08/2026** chứa đúng ngần này (đã đếm trên bản dump thật), nên hai con số
