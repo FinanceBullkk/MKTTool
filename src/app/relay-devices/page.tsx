@@ -135,11 +135,12 @@ export default async function RelayDevicesPage() {
         </p>
       </Card>
 
-      {isAdmin ? (
-        <Card title="Cài máy này">
-          <RelayEnrollCard teamMembers={teamMembers} />
-        </Card>
-      ) : null}
+      {/* Hiện cho MỌI vai trò: người ngồi ở máy chính là người cài nó, và bắt họ đợi ADMIN đăng
+          nhập hộ trên máy mình là dựng lại đúng vòng chờ mà nút này sinh ra để dẹp. Ranh giới nằm
+          ở chủ máy — OPERATOR chỉ đăng ký được máy của chính họ. */}
+      <Card title="Cài máy này">
+        <RelayEnrollCard teamMembers={teamMembers} isAdmin={isAdmin} />
+      </Card>
 
       {isAdmin ? (
         <Card title="Đăng ký một máy KHÁC (nhập tay)">

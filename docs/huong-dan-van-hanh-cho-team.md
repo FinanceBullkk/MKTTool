@@ -163,8 +163,8 @@ Mọi việc khác vẫn chạy bình thường khi cầu nối tắt — kể c
 Bước 3 là thứ duy nhất phải gõ tay, và nó phải như vậy: **máy chủ không có khóa đó để gửi xuống** —
 đó là cả điểm của thiết kế. Xin ADMIN qua trình quản lý mật khẩu dùng chung, đừng qua chat.
 
-> Bước 2 chỉ ADMIN bấm được. Đợt bàn giao này ADMIN ngồi cùng máy (hoặc remote desktop), nên
-> không ai phải chờ ai.
+> Bước 2 **ai cũng bấm được** — máy bạn đăng ký sẽ thuộc về chính bạn. Cài hộ người khác thì
+> vẫn phải là ADMIN, và thu hồi máy cũng vậy.
 
 > **Đang chạy bản cũ?** Tải lại ở `/relay-download` rồi chạy `setup.bat` lần nữa. Nó giữ nguyên
 > cấu hình cũ — không phải đăng ký lại máy, không phải xin lại khóa.
@@ -285,7 +285,16 @@ Có hai vai trò:
 | Vai trò | Làm được gì |
 |---|---|
 | **ADMIN** | Mọi thứ, kể cả phân công nick và lấy bí mật của mọi nick |
-| **OPERATOR** | Mọi thứ, **trừ** lấy mật khẩu / OTP của nick không phải mình phụ trách |
+| **OPERATOR** | Mọi thứ, **trừ** ba việc dưới đây |
+
+Ba việc OPERATOR không làm được:
+
+1. Lấy mật khẩu / OTP của nick **không phải mình phụ trách**
+2. Phân công chủ sở hữu nick
+3. **Đăng ký máy cầu nối hộ người khác**, và **thu hồi** máy của bất kỳ ai
+
+Đăng ký **máy của chính mình** thì ai cũng làm được — người ngồi ở máy chính là người cài nó.
+Chủ máy do công cụ ép bằng tài khoản đang đăng nhập, không chọn được người khác.
 
 **Tầm nhìn thì không chia — ai cũng thấy nick, job, tương tác và lịch sử của người khác.** Đây là
 cố ý: luật đụng độ thread phải nêu đúng tên nick của đồng nghiệp thì bạn mới xử lý được. Thứ duy
