@@ -118,13 +118,25 @@ export default async function RelayDownloadPage() {
             máy chủ ngược xuống — không phải chép tay giá trị nào.
           </li>
           <li>
-            Quay lại trang trạng thái của cầu nối và dán <strong>khóa vùng operator</strong> vào ô
-            cuối trang. Đây là thứ duy nhất phải điền tay, và nó phải như vậy:{" "}
-            <strong>máy chủ không có khóa này để gửi xuống</strong>.
+            <strong>Đợi quản trị viên bấm &quot;Cấp khóa&quot;</strong> — không phải làm gì thêm.
+            Thẻ ở <Link href="/relay-devices" className="underline">/relay-devices</Link> tự chuyển
+            xanh khi khóa về tới máy, thường trong vài giây. Bạn <strong>không</strong> cần xin ai
+            một chuỗi nào để dán.
           </li>
         </ol>
         <p className="mt-4 text-xs text-neutral-500">
-          Cả hai bước cấu hình có hiệu lực ngay, không phải tắt bật lại cầu nối.
+          Mọi bước cấu hình có hiệu lực ngay, không phải tắt bật lại cầu nối.
+        </p>
+        <p className="mt-2 text-xs text-neutral-500">
+          {/* Đường bootstrap. Nói ra ở đây vì người cài chiếc máy đầu tiên sẽ đợi mãi một cú bấm
+              không bao giờ tới — lúc đó chưa có cầu nối nào khác để bọc khóa từ đó. */}
+          <strong className="text-neutral-700 dark:text-neutral-300">
+            Trường hợp phải điền tay:
+          </strong>{" "}
+          chiếc máy <strong>đầu tiên</strong> của cả team, và lúc cần dùng ngay mà quản trị viên
+          không online. Khi đó dán <strong>khóa vùng operator</strong> vào ô cuối trang trạng thái
+          của cầu nối. Máy chủ không có khóa này để gửi xuống — nó chỉ chuyển hộ một cái hộp đã
+          khóa mà cầu nối của quản trị viên bọc cho riêng máy bạn.
         </p>
       </Card>
 
