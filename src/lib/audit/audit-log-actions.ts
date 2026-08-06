@@ -40,6 +40,8 @@ export const AUDIT_ACTIONS = {
   // Sổ đăng ký máy chạy cầu nối
   RELAY_DEVICE_REGISTERED: "RELAY_DEVICE_REGISTERED",
   RELAY_DEVICE_REVOKED: "RELAY_DEVICE_REVOKED",
+  /** ADMIN bọc khóa vùng operator cho một máy. Ghi ai cấp, cho máy nào, của ai. */
+  RELAY_OPERATOR_KEY_GRANTED: "RELAY_OPERATOR_KEY_GRANTED",
 
   // Hàng đợi và bộ luật
   RULE_OVERRIDDEN: "RULE_OVERRIDDEN",

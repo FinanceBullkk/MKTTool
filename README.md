@@ -533,15 +533,36 @@ web. Mở profile thì gọi ngầm, không mở tab nào.
 > bình thường — kể cả sửa karma, trạng thái, proxy của nick, vì ba ô bí mật để trống nghĩa là
 > giữ nguyên và form không cần gọi tới cầu nối.
 
-### Đăng ký máy trước khi dùng
+### Cài một máy mới: hai việc, không chép gì
 
-Mỗi máy sinh **cặp khóa riêng của nó** lúc cài (`npm run keys:relay-keygen`), rồi ADMIN ghi khóa
-công khai vào sổ ở `/relay-devices`. Máy chủ mã hóa nội dung vé bằng khóa của đúng máy nhận, nên:
+**Người dùng máy** chạy bộ cài, mở web app **trên chính máy đó**, vào `/relay-devices` bấm
+**"Tìm cầu nối"** rồi **"Đăng ký & cấu hình máy này"**. Xong phần của họ.
+
+**ADMIN** vào `/relay-devices` thấy mục **"Đang chờ cấp khóa"**, bấm **"Cấp khóa"**. Xong.
+
+Khóa tự về máy đó ngay lần sau người dùng mở web app — trang tự cập nhật, không phải tải lại.
+**Không có mã nào để gửi cho nhau**, và không ai phải chép một chuỗi hex nào.
+
+Đường đi của khóa: cầu nối **trên máy ADMIN** bọc `VAULT_KEY_OPERATOR` bằng bắt tay X25519 với
+khóa công khai của đúng máy nhận — cùng cơ chế đang bọc ruột mọi tấm vé. Máy chủ giữ hộ cái hộp
+ấy và **mở không nổi**; trang web chuyển nó đi và cũng mở không nổi. Chỉ chiếc máy nhận, bằng
+khóa riêng chưa từng rời khỏi ổ cứng của nó, mở được.
+
+> ⚠️ **Chiếc máy đầu tiên của cả team phải dán tay.** Lúc đó chưa tồn tại cầu nối nào khác để bọc
+> khóa từ đó. Mở trang trạng thái của cầu nối (`http://127.0.0.1:47821`) và dán `VAULT_KEY_OPERATOR`
+> vào ô cuối trang. Đó cũng là đường thoát khi cần dùng ngay mà ADMIN không online.
+
+Vì hộp khóa bọc cho **đúng một máy**:
 
 - Máy chưa vào sổ **không xin được vé nào** — nút bấm nói thẳng phải đăng ký ở đâu.
+- Thu hồi một máy **trước khi nó kịp lấy hộp** thì khóa không bao giờ tới nơi.
 - Mất laptop thì **thu hồi** máy đó là xong trong vài giây, không phải xoay khóa của cả team.
 - Nhưng thu hồi **không** với tới ciphertext chiếc máy đó đã lấy về trước đó. Máy thật sự mất thì
-  vẫn phải xoay `VAULT_KEY_OPERATOR`.
+  vẫn phải xoay `VAULT_KEY_OPERATOR` — và sau mỗi lượt xoay thì bấm **"Cấp lại khóa"** cho từng máy.
+
+> Cột **Khóa operator** trong sổ nói *"chưa cấp"*, không nói *"chưa có khóa"* — và khác biệt đó là
+> cố ý. Máy lấy khóa bằng cách dán tay thì máy chủ mù hoàn toàn cho tới khi chính chiếc máy ấy mở
+> web app và tự khai. Sổ chỉ khai thứ nó biết chắc.
 
 Người có **hai máy** trong sổ phải chọn máy đang ngồi trước khi bấm — vé mã hóa cho đúng một máy,
 và đoán bừa là phát một tấm vé chắc chắn hỏng. Một máy thì không hỏi.

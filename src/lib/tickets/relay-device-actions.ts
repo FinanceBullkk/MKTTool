@@ -221,3 +221,90 @@ export const revokeRelayDevice = adminAction(async function revokeRelayDevice(
       `VAULT_KEY_OPERATOR (npm run vault:rekey -- --domain=operator).`,
   };
 });
+
+const grantSchema = z.object({
+  deviceId: z.string().min(1, "Thiếu mã máy nhận."),
+  ephemeralPublicKey: z.string().min(1, "Hộp khóa thiếu khóa công khai dùng một lần."),
+  sealed: z.string().min(1, "Hộp khóa rỗng."),
+});
+
+/**
+ * Nhận cái hộp mà cầu nối của ADMIN vừa bọc, giữ hộ cho tới khi máy nhận tới lấy.
+ *
+ * ## Vì sao máy chủ giữ hộ được mà không phá ranh giới của GĐ3
+ *
+ * Ruột hộp là `VAULT_KEY_OPERATOR`, nhưng nó đã được bọc bằng bắt tay X25519 với **khóa công khai
+ * của đúng chiếc máy nhận** (`ticket-sealed-box.ts`). Muốn mở phải có khóa riêng của máy đó, thứ
+ * chưa bao giờ rời khỏi ổ cứng của nó. Máy chủ cầm nguyên cái hộp và vẫn không mở nổi một mật
+ * khẩu nick nào — đúng lời hứa của README.
+ *
+ * ## Vì sao chỉ kiểm hình dạng, không kiểm nội dung
+ *
+ * Cùng lý lẽ với ciphertext bí mật nick: máy chủ **không được** có khả năng đọc, nên thứ duy nhất
+ * nó kiểm được là vỏ. Ruột sai thì máy nhận phát hiện lúc mở và từ chối ghi — và đó là chỗ đúng
+ * để phát hiện, vì chỉ ở đó mới có khóa để mở ra mà nhìn.
+ */
+export const grantOperatorKeyToDevice = adminAction(async function grantOperatorKeyToDevice(
+  actor,
+  _prev: ActionResult | null,
+  formData: FormData,
+): Promise<ActionResult> {
+  const parsed = grantSchema.safeParse(formToObject(formData));
+  if (!parsed.success) return { ok: false, message: firstError(parsed.error) };
+
+  const { deviceId, ephemeralPublicKey, sealed } = parsed.data;
+
+  const device = await prisma.relayDevice.findUnique({
+    where: { id: deviceId },
+    include: { user: { select: { email: true } } },
+  });
+  if (!device) return { ok: false, message: "Không tìm thấy máy này trong sổ." };
+
+  // Máy đã gạch tên thì không cấp. Cấp cho một chiếc máy đã thu hồi là tự tay dựng lại đúng thứ
+  // vừa chặn đi — và tệ hơn, nó không xin được vé nên chẳng ai thấy gì bất thường cho tới lúc
+  // đọc lại sổ.
+  if (device.revokedAt) {
+    return {
+      ok: false,
+      message:
+        `Máy "${device.name}" đã bị thu hồi ${formatFullDateTime(device.revokedAt)}, không cấp ` +
+        `khóa cho nó được. Máy tìm lại được thì cài lại cầu nối để sinh cặp khóa mới.`,
+    };
+  }
+
+  if (!isEmailAllowed(device.user.email, readEmailAccessList())) {
+    return {
+      ok: false,
+      message:
+        `${device.user.email} không còn trong ALLOWED_EMAILS nên máy này không xin được vé nào — ` +
+        `cấp khóa cho nó cũng không dùng được vào việc gì.`,
+    };
+  }
+
+  await prisma.relayDevice.update({
+    where: { id: deviceId },
+    data: {
+      operatorKeyGrant: JSON.stringify({ ephemeralPublicKey, sealed }),
+      operatorKeyGrantedAt: new Date(),
+    },
+  });
+
+  await prisma.auditLog.create({
+    data: {
+      action: AUDIT_ACTIONS.RELAY_OPERATOR_KEY_GRANTED,
+      detail:
+        `${actor.email} cấp khóa vùng operator cho máy "${device.name}" ` +
+        `(${deviceId}) của ${device.user.email}`,
+      actorId: actor.userId,
+    },
+  });
+
+  revalidatePath("/relay-devices");
+
+  return {
+    ok: true,
+    message:
+      `Đã cấp khóa cho máy "${device.name}". Khóa tự về máy đó ngay lần sau ${device.user.email} ` +
+      `mở web app trên nó — không phải gửi gì cho họ.`,
+  };
+});

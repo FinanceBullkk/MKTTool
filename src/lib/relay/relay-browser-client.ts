@@ -48,6 +48,9 @@ import {
   type ConfigureRelayRequest,
   type RelayHealth,
   type RelayReply,
+  type SealOperatorKeyReply,
+  type SealOperatorKeyRequest,
+  type SealedOperatorKeyGrant,
   relayUrl,
 } from "./relay-endpoints";
 
@@ -206,6 +209,33 @@ export function encryptForVault<T extends RelayReply>(
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(secrets),
+  });
+}
+
+/**
+ * Nhờ cầu nối **của người đang bấm** bọc khóa vùng operator cho một máy khác.
+ *
+ * Chỉ ADMIN có nút gọi hàm này, nhưng cầu nối không kiểm điều đó và không cần: thứ nó trả về là
+ * một cái hộp chỉ máy nhận mở được, vô dụng với chính người vừa gọi. Xem `handle-seal-operator-key.ts`.
+ */
+export function sealOperatorKey(
+  recipientPublicKey: string,
+): Promise<RelayOutcome<SealOperatorKeyReply>> {
+  return callRelay<SealOperatorKeyReply>(RELAY_PATHS.sealOperatorKey, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ recipientPublicKey } satisfies SealOperatorKeyRequest),
+  });
+}
+
+/** Đưa hộp khóa xuống cầu nối trên máy đang ngồi để nó tự mở bằng khóa riêng của nó. */
+export function receiveOperatorKey(
+  grant: SealedOperatorKeyGrant,
+): Promise<RelayOutcome<RelayReply>> {
+  return callRelay<RelayReply>(RELAY_PATHS.receiveOperatorKey, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(grant),
   });
 }
 

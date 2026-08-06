@@ -12,6 +12,34 @@ Dự án chưa phát hành phiên bản (`0.1.0`, dùng nội bộ). Mốc chia 
 
 ---
 
+## 06/08/2026 (khuya, 3) — Khóa vùng operator tự về máy, không còn ai phải chép
+
+Cầu nối **bản 5**. Mảnh cuối của luồng cài: `deviceId` và `serverPublicKey` đã tự đi xuống từ hôm
+trước, còn `VAULT_KEY_OPERATOR` thì vẫn phải xin quản trị viên rồi dán tay. Nay nó cũng tự đi.
+
+- **`/relay-devices` có mục "Đang chờ cấp khóa".** Máy vừa đăng ký hiện ở đó; ADMIN bấm **Cấp
+  khóa** một lần là xong. Khóa tự về máy đó ngay lần sau người dùng mở web app — thẻ "Cài máy này"
+  tự hỏi lại mỗi 10 giây và tự chuyển xanh, không phải tải lại trang.
+- **Không còn mã nào để gửi cho nhau.** Cầu nối **trên máy ADMIN** bọc khóa bằng bắt tay X25519 với
+  khóa công khai của đúng máy nhận — dùng lại `sealForDevice`, cùng cơ chế đang bọc ruột mọi tấm
+  vé. Máy chủ giữ hộ cái hộp và mở không nổi; trang web chuyển nó đi và cũng mở không nổi.
+- **Vì sao không phải là "mã mời".** Bản dựng trước đó chở khóa bằng một bí mật đối xứng gửi qua
+  chat, và kéo theo cả một bộ phụ tùng để bù cho chuyện đó: hạn 24 giờ, dùng một lần, một bảng
+  `RelayInvite`, và một endpoint `consume` **không gác được** — vì máy nhận chưa có danh tính lúc
+  đổi mã. Bọc cho khóa công khai của máy nhận thì cả năm thứ đó biến mất cùng lúc: không có bí mật
+  nào đi qua kênh nào, nên không có gì để hết hạn hay để lộ. Bảng `RelayInvite` bị gỡ.
+- **Cầu nối không còn tự gọi ra mạng.** Bản mã mời bắt nó tự đi lấy cấu hình từ máy chủ, trái QĐ 5.
+  Trình duyệt trở lại đúng vai người đưa thư ở cả hai chiều.
+- **Thu hồi mạnh hơn một nấc:** gạch tên một máy **trước khi nó kịp lấy hộp** thì khóa không bao
+  giờ tới nơi. (Vẫn không với tới ciphertext máy đó đã lấy về từ trước — mất máy thật thì vẫn phải
+  xoay `VAULT_KEY_OPERATOR`, rồi bấm **Cấp lại khóa** cho từng máy.)
+- **Cột "Khóa operator" nói *"chưa cấp"*, không nói *"chưa có khóa"*.** Có đường thứ hai để một máy
+  có khóa — dán tay ở trang trạng thái của cầu nối — và máy chủ mù với đường đó cho tới khi chính
+  chiếc máy ấy mở web app và tự khai. Sổ chỉ khai thứ nó biết chắc.
+- **Chiếc máy đầu tiên của cả team vẫn dán tay**, và đó không phải thiếu sót: lúc đó chưa tồn tại
+  cầu nối nào khác để bọc khóa từ đó. Ô dán tay ở lại làm đường bootstrap và làm đường thoát khi
+  ADMIN không online.
+
 ## 06/08/2026 (khuya, 2) — Cài cầu nối: từ bốn lượt chép tay xuống một cú bấm
 
 Cầu nối **bản 2**. Cài một máy trước đây là chép tay bốn giá trị giữa hai màn hình, sửa JSON, rồi

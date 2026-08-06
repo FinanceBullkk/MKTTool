@@ -613,5 +613,31 @@ model RelayDevice {
   /// hơn tài khoản: sổ này là danh sách quyền, không phải dấu vết.)
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  /// `VAULT_KEY_OPERATOR` đã bọc cho **riêng chiếc máy này**, đang nằm chờ nó tới lấy.
+  ///
+  /// Dạng JSON của `SealedPayload` (`{ ephemeralPublicKey, sealed }`) — cùng cơ chế bọc ruột vé,
+  /// xem `ticket-sealed-box.ts`. Máy chủ giữ hộ nhưng **mở không nổi**: muốn mở phải có khóa
+  /// riêng X25519 của đúng chiếc máy này, thứ không bao giờ rời khỏi nó.
+  ///
+  /// Vì sao cột này nằm ở đây chứ không ở một bảng "lời mời" riêng: nó **chỉ có nghĩa với một
+  /// chiếc máy**. Tách ra bảng riêng là dựng lại đúng thứ vừa gỡ bỏ — một tấm vé lơ lửng ai cầm
+  /// cũng dùng được, và kéo theo cả bộ hết hạn / dùng một lần để bù cho chuyện đó.
+  operatorKeyGrant String?
+
+  /// Mốc ADMIN bấm cấp. Giữ lại sau khi máy đã nhận, để sổ trả lời được "cấp lúc nào".
+  operatorKeyGrantedAt DateTime?
+
+  /// Mốc **chính chiếc máy đó tự báo** rằng nó đã có khóa vùng operator. Lúc đó
+  /// `operatorKeyGrant` bị **xóa** — hộp đã tới nơi thì giữ lại chỉ là thêm một thứ để rò nếu
+  /// có ngày bản sao lưu lọt ra ngoài.
+  ///
+  /// Vì sao là "máy tự báo" chứ không phải "đã giao xong": có **hai** đường để một máy có khóa —
+  /// được cấp, và người dùng dán tay ở trang trạng thái của cầu nối (đường bootstrap, và là đường
+  /// duy nhất cho chiếc máy ĐẦU TIÊN, vì lúc đó chưa có cầu nối nào khác để bọc từ đó). Máy chủ
+  /// không thấy được đường thứ hai. Nên cột này ghi đúng thứ nó biết — *"máy đã báo là có"* — chứ
+  /// không suy ra từ việc đã cấp hay chưa. Sổ nói sai về việc một máy đã sẵn sàng hay chưa thì
+  /// tệ hơn là sổ không nói gì.
+  operatorKeyReadyAt DateTime?
+
   @@index([userId])
 }
