@@ -251,6 +251,7 @@ ADMIN_EMAILS=<chép từ .env máy anh>
 GOOGLE_CLIENT_ID=<chép từ .env máy anh>
 GOOGLE_CLIENT_SECRET=<chép từ .env máy anh>
 HEALTH_CHECK_DAILY_AT=09:00
+PORT=3000
 ```
 
 Vài chỗ đáng nói:
@@ -269,9 +270,20 @@ Vài chỗ đáng nói:
 
 ## Bước 7 — Sinh domain, rồi khai nốt `BETTER_AUTH_URL`
 
-1. Dịch vụ web → **Settings** → **Networking** → **Generate Domain**. Nhận được một địa chỉ dạng
-   `mkttool-production-xxxx.up.railway.app`.
-2. Quay lại **Variables**, thêm:
+1. Dịch vụ web → **Settings** → **Networking** → **Generate Domain**. Nó hỏi *"Enter the port your
+   app is listening on"* và điền sẵn gợi ý `8080` — **gõ đè thành `3000`**.
+
+   `Dockerfile` khai `ENV PORT=3000` + `EXPOSE 3000`, và `next start` đọc `process.env.PORT`. Ô
+   này là cổng Railway chuyển tiếp **tới**, nên gõ sai là domain có nhưng vào ra 502 trong khi
+   log ứng dụng **hoàn toàn sạch** — request chưa bao giờ tới được app, nên không có gì để log.
+   Kiểu hỏng này rất tốn thời gian đoán.
+
+   Khai luôn `PORT=3000` trong **Variables** cho chắc: Railway có thể tự bơm một `PORT` khác vào
+   service, và nếu nó bơm `8080` trong khi domain trỏ `3000` thì hỏng đúng như trên. Khai thẳng
+   thì hai đầu chắc chắn khớp, không phải tin vào hành vi mặc định của hãng.
+
+2. Nhận được một địa chỉ dạng `mkttool-production-xxxx.up.railway.app`. Quay lại **Variables**,
+   thêm:
 
 ```
 BETTER_AUTH_URL=https://<domain-vừa-sinh>
