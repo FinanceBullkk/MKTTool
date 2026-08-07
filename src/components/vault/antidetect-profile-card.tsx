@@ -46,12 +46,13 @@ import {
 } from "@/lib/antidetect/profile-fingerprint-plan";
 import {
   describeRelayFailure,
+  describeSlowRelayFailure,
   fetchRelayProfiles,
   sendTicketToRelay,
   type RelayOutcome,
 } from "@/lib/relay/relay-browser-client";
 import {
-  RELAY_CREATE_PROFILE_TIMEOUT_MS,
+  RELAY_PROFILE_WORK_TIMEOUT_MS,
   type RelayFingerprintOptions,
   type RelayProfileSummary,
   type RelayReply,
@@ -63,26 +64,9 @@ const BUTTON_CLASS =
 
 type Feedback = { kind: "ok" | "error"; text: string } | null;
 
-/**
- * Vì sao lượt tạo không trả về id — viết cho **riêng đường tạo profile**.
- *
- * Không dùng thẳng `describeRelayFailure` ở nhánh hết hạn giờ: câu chung của nó khẳng định *"trình
- * duyệt không cho trang này gọi xuống máy"*, suy ra từ giả định *lời gọi vốn nhanh, treo tức là bị
- * chặn*. Giả định đó **không đúng ở đây** — lượt tạo có thể chạy cả phút một cách bình thường, và
- * câu sai kia đã cử người đi bật lại quyền mạng nội bộ trong khi profile đã nằm sẵn bên MultiZen.
- *
- * Nêu cả hai khả năng, rồi để phép dò lại ngay sau đó phân xử: thấy profile nghĩa là nó chỉ chậm,
- * không thấy nghĩa là lời gọi chưa tới nơi.
- */
+/** Cầu nối trả lời được nhưng không kèm id thì chính câu của nó là câu đáng hiện. */
 function moTaNguyenNhan(sent: RelayOutcome<RelayReply>): string {
-  if (sent.status === "ok") return sent.data.message;
-  if (sent.status === "no-permission") {
-    return (
-      "Cầu nối không trả lời trong một phút — có thể nó vẫn đang dựng profile, cũng có thể " +
-      "trình duyệt đang chặn đường xuống máy này."
-    );
-  }
-  return describeRelayFailure(sent);
+  return sent.status === "ok" ? sent.data.message : describeSlowRelayFailure(sent, "dựng profile");
 }
 
 interface RelayState {
@@ -200,7 +184,7 @@ export function AntidetectProfileCard({
       }
 
       // Hạn giờ riêng: lượt này dựng cả một hồ sơ Chromium trên đĩa, không phải một lượt hỏi đáp.
-      const sent = await sendTicketToRelay(issued.ticket, RELAY_CREATE_PROFILE_TIMEOUT_MS);
+      const sent = await sendTicketToRelay(issued.ticket, RELAY_PROFILE_WORK_TIMEOUT_MS);
 
       const traVe = sent.status === "ok" && sent.data.ok ? sent.data : null;
       const idTraVe = (traVe as { profileId?: unknown } | null)?.profileId;

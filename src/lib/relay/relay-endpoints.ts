@@ -146,26 +146,34 @@ export interface ConfigureRelayRequest {
 export const RELAY_TIMEOUT_MS = 4_000;
 
 /**
- * Hạn giờ riêng cho lượt **tạo profile**. Ngoại lệ duy nhất của con số trên, và nó phải là ngoại lệ.
+ * Hạn giờ cho những lời gọi **bắt MultiZen làm việc nặng**: tạo profile, và mở profile.
  *
- * ## Vì sao 4 giây sai ở đúng một chỗ này
+ * ## Vì sao 4 giây sai ở đúng hai chỗ này
  *
- * Con số kia đo *"một lượt gọi trong cùng máy"* — ping, mở profile, bọc bí mật đều xong trong vài
- * chục mili giây (đo 07/08/2026: `GET /profiles` mất 78 ms). Nhưng `create_profile` của MultiZen
- * dựng cả một hồ sơ Chromium trên đĩa và thử proxy trước khi trả lời; nó **vượt 4 giây một cách
- * bình thường**, và càng lâu hơn khi proxy chậm hoặc chết.
+ * Con số kia đo *"một lượt gọi trong cùng máy"* — ping, bọc bí mật, liệt kê profile đều xong trong
+ * vài chục mili giây (đo 07/08/2026: `GET /profiles` mất **78 ms**). Hai việc dưới đây thì không:
  *
- * Đã vấp thật ngay lượt tạo đầu tiên: profile sinh ra đầy đủ bên MultiZen, còn trình duyệt bỏ
- * cuộc ở giây thứ tư rồi hiện câu *"trình duyệt không cho trang này gọi xuống máy của bạn"* — một
- * câu **đoán sai hoàn toàn**, vì suy luận *"hết hạn giờ ⟹ bị luật mạng nội bộ nuốt"* chỉ đúng khi
- * lời gọi vốn nhanh. Hệ quả nặng hơn câu chữ: lượt ghi id vào kho không chạy, để lại một profile
- * mồ côi.
+ * | Việc | MultiZen phải làm gì |
+ * |---|---|
+ * | Tạo profile | dựng cả một hồ sơ Chromium trên đĩa, kèm proxy và vân tay |
+ * | Mở profile | đẩy proxy vào profile, **rồi** bật một cửa sổ Chromium thật |
  *
- * 60 giây: đủ cho một lượt tạo chậm nhất từng đo, vẫn đủ ngắn để không treo giao diện vĩnh viễn
- * khi MultiZen thật sự chết. Kèm theo nó là **đường dò lại** ở `antidetect-profile-card.tsx` —
- * nới hạn giờ chỉ làm ca hỏng hiếm đi, không làm nó biến mất.
+ * Cả hai vượt 4 giây một cách bình thường, và càng lâu hơn khi proxy chậm.
+ *
+ * ## Đã vấp thật 07/08/2026, cả hai lần trên máy thật
+ *
+ * Lượt tạo: profile sinh ra đầy đủ và đúng bên MultiZen, trình duyệt bỏ cuộc ở giây thứ tư. Lượt
+ * mở: cửa sổ Chromium hiện lên bình thường, trình duyệt vẫn báo hỏng. Cả hai lần đều ra câu
+ * *"trình duyệt không cho trang này gọi xuống máy của bạn"* — **đoán sai hoàn toàn**, vì suy luận
+ * *"hết hạn giờ ⟹ bị luật mạng nội bộ nuốt"* chỉ đúng khi lời gọi vốn nhanh.
+ *
+ * Ở lượt tạo, hệ quả còn nặng hơn câu chữ: lượt ghi id vào kho không chạy tới nơi.
+ *
+ * 60 giây: đủ cho lượt chậm nhất từng đo, vẫn đủ ngắn để không treo giao diện vĩnh viễn khi
+ * MultiZen thật sự chết. Kèm theo nó là **đường dò lại** ở `antidetect-profile-card.tsx` — nới hạn
+ * giờ chỉ làm ca hỏng hiếm đi, không làm nó biến mất.
  */
-export const RELAY_CREATE_PROFILE_TIMEOUT_MS = 60_000;
+export const RELAY_PROFILE_WORK_TIMEOUT_MS = 60_000;
 
 /**
  * Phiên bản của bản cầu nối **dựng ra từ cây mã nguồn này**.

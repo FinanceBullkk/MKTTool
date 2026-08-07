@@ -289,3 +289,36 @@ export function describeRelayFailure(
   if (ping && ping.status !== "ok" && ping.status !== "rejected") return ping.message;
   return attempt.message;
 }
+
+/**
+ * Câu giải thích cho những lời gọi **vốn chạy lâu** — tạo profile, mở profile.
+ *
+ * ## Vì sao không dùng chung `describeRelayFailure`
+ *
+ * Câu chung của nó khẳng định *"trình duyệt không cho trang này gọi xuống máy"*, suy ra từ giả
+ * định **lời gọi vốn nhanh, treo tức là bị chặn**. Giả định đó là nền của cả ràng buộc 3 ở đầu
+ * file, và nó đúng — cho ping, cho lượt bọc bí mật, cho lượt liệt kê profile.
+ *
+ * Với hai việc bắt MultiZen dựng hoặc bật một trình duyệt thật thì nó **sai**, và sai theo hướng
+ * tệ nhất: cử người đi bật lại một quyền vốn không hỏng, trong khi việc họ vừa bấm đã xong rồi.
+ * Đã vấp cả hai lần trên máy thật 07/08/2026.
+ *
+ * Nêu cả hai khả năng thay vì khẳng định một cái, và nhắc chỗ nhìn để tự phân xử — cửa sổ vừa mở
+ * ra, hay profile vừa hiện trong MultiZen.
+ */
+export function describeSlowRelayFailure(
+  attempt: RelayOutcome<unknown>,
+  /** Việc cầu nối đang làm, viết tiếp được sau chữ "đang": `"dựng profile"`, `"mở profile"`. */
+  viec: string,
+): string {
+  if (attempt.status === "ok") return "";
+  if (attempt.status === "rejected") return attempt.message;
+
+  if (attempt.status === "no-permission") {
+    return (
+      `Cầu nối không trả lời trong một phút — có thể nó vẫn đang ${viec}, cũng có thể trình duyệt ` +
+      `đang chặn đường xuống máy này.`
+    );
+  }
+  return attempt.message;
+}
