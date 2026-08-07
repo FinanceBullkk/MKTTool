@@ -12,6 +12,31 @@ Dự án chưa phát hành phiên bản (`0.1.0`, dùng nội bộ). Mốc chia 
 
 ---
 
+## 08/08/2026 — Nút "Kiểm" treo vĩnh viễn khi proxy SOCKS5 nhận kết nối rồi im
+
+Tìm ra trong lúc viết test cho `proxy-socks5-tunnel.ts` — module bắt tay SOCKS5 tự viết theo
+RFC 1928, và trước hôm nay **không có một bài test nào chạm tới nó**.
+
+- **Hạn giờ chỉ canh lúc đang nối, không canh lúc đang bắt tay.** `connectSocket` gỡ listener
+  `timeout` ngay khi socket lên. `socket.setTimeout()` vẫn còn nguyên, nhưng Node **không tự đóng
+  socket** khi không ai nghe sự kiện đó — nên một proxy nhận TCP rồi không nói gì làm
+  `openSocks5Tunnel` không bao giờ settle. Không có hạn giờ nào ở ngoài bọc nó: hạn giờ của
+  `readUntilClose` chỉ bắt đầu tính **sau khi** đường hầm đã mở.
+- **Biểu hiện:** nút "Kiểm" quay mãi, không ra kết luận nào. Tệ hơn một câu báo hỏng, vì nó không
+  dẫn tới việc gì cả. Ca thật: proxy quá tải, hoặc middlebox bắt cổng rồi nuốt gói.
+- **Sửa:** giữ listener `timeout` suốt cuộc bắt tay, hết giờ thì `destroy()` kèm `Socks5Error`
+  lý do `unreachable` — proxy không nói nổi một câu trong ngần ấy giây thì không chạy nick được.
+
+15 bài test mới dựng proxy SOCKS5 giả trên `127.0.0.1`, không đụng mạng thật. Phần đáng canh nhất
+là **hai lý do lỗi**, vì chúng dẫn tới hai kết luận trái ngược: `unreachable` → CHẾT → chặn mở
+profile, còn `protocol` → KHÔNG KIỂM ĐƯỢC → vẫn cho mở. Gõ nhầm cổng (SOCKS5 vs HTTP) phải rơi vào
+vế thứ hai, nếu không thì một proxy đang tốt bị đổ oan là đã chết.
+
+Có một bài ghim thẳng ràng buộc bảo mật: gói CONNECT phải mang **tên miền** (`ATYP_DOMAIN`), không
+mang IP — đó là chỗ "DNS phân giải từ xa" thật sự xảy ra.
+
+---
+
 ## 07/08/2026 (6) — Bảng `Persona` gộp thành hai cột trên nick
 
 Bảng nhân vật có `/personas` CRUD, một mục nav, một bước onboarding và một **khóa ngoại bắt buộc**.

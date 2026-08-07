@@ -160,6 +160,28 @@ export async function openSocks5Tunnel(options: Socks5TunnelOptions): Promise<ne
   const reader = createByteReader(socket);
   const hasCredentials = Boolean(options.username);
 
+  /**
+   * Hạn giờ phải canh tiếp SAU khi nối được, không chỉ lúc đang nối.
+   *
+   * `connectSocket` gỡ listener `timeout` của nó ngay khi socket lên — hợp lý cho phần việc của
+   * nó, nhưng `socket.setTimeout()` vẫn còn nguyên và Node **không tự đóng socket** khi không ai
+   * nghe sự kiện đó. Thiếu dòng dưới đây thì một proxy nhận TCP rồi im lặng làm cả hàm này treo
+   * vĩnh viễn: `reader.read()` chờ byte không bao giờ tới, promise không bao giờ settle, và nút
+   * "Kiểm" quay mãi mà không ra câu trả lời nào.
+   *
+   * Đó là ca thật với proxy quá tải và với middlebox bắt cổng. Kết luận `unreachable`: proxy
+   * không nói được một câu nào trong ngần ấy giây thì nó không dùng để chạy nick được.
+   */
+  const onHandshakeTimeout = () => {
+    socket.destroy(
+      new Socks5Error(
+        `proxy nhận kết nối rồi im quá ${options.timeoutMs / 1000} giây`,
+        "unreachable",
+      ),
+    );
+  };
+  socket.on("timeout", onHandshakeTimeout);
+
   try {
     // 1. Chào hỏi: khai các kiểu xác thực mình làm được.
     const methods = hasCredentials ? [AUTH_NONE, AUTH_USERPASS] : [AUTH_NONE];
@@ -222,10 +244,12 @@ export async function openSocks5Tunnel(options: Socks5TunnelOptions): Promise<ne
     await skipBoundAddress((size) => reader.read(size), reply[3] ?? ATYP_IPV4);
 
     reader.release();
+    socket.off("timeout", onHandshakeTimeout);
     socket.setTimeout(0);
     return socket;
   } catch (error) {
     reader.release();
+    socket.off("timeout", onHandshakeTimeout);
     socket.destroy();
     throw error;
   }
