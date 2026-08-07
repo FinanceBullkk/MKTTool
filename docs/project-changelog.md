@@ -12,6 +12,31 @@ Dự án chưa phát hành phiên bản (`0.1.0`, dùng nội bộ). Mốc chia 
 
 ---
 
+## 07/08/2026 (5) — Lượt tạo profile bỏ cuộc ở giây thứ tư, và báo nhầm lý do
+
+Lượt tạo profile đầu tiên trên máy thật: profile sinh ra **đầy đủ và đúng** bên MultiZen
+(`REDDIT — Ok_Swimmer_5542`, proxy `us`, timezone `America/Los_Angeles` — khớp, trong khi hai
+profile dựng tay cùng máy đều lệch), nhưng giao diện hiện *"trình duyệt không cho trang này gọi
+xuống máy của bạn"* và **không ghi id vào kho**.
+
+- **Hạn giờ 4 giây sai ở đúng một chỗ.** `RELAY_TIMEOUT_MS` đo cho ping và mở profile — đo
+  07/08: `GET /profiles` mất **78 ms**. Nhưng `create_profile` dựng cả một hồ sơ Chromium trên đĩa
+  và thử proxy trước khi trả lời; nó vượt 4 giây một cách bình thường. Thêm
+  `RELAY_CREATE_PROFILE_TIMEOUT_MS = 60_000` cho riêng loại vé đó, giữ nguyên 4 giây ở mọi đường
+  khác.
+- **Suy luận "hết hạn giờ ⟹ chưa cấp quyền mạng nội bộ" chỉ đúng khi lời gọi vốn nhanh.** Ở đường
+  tạo profile nó đoán sai và cử người đi bật lại một quyền vốn không hỏng. Đường này nay có câu
+  riêng, nêu cả hai khả năng thay vì khẳng định một cái.
+- **Đường dò lại — đây mới là lớp chống thật.** Không có id trong tay thì tìm profile mang đúng tên
+  `profileNameForNick()` trong `/profiles` rồi ghi vào kho. Nới hạn giờ chỉ làm ca hỏng hiếm đi;
+  cắt ngang giữa *"MultiZen đã dựng xong"* và *"trình duyệt nhận được id"* thì lúc nào cũng có thể
+  xảy ra — hết hạn giờ, đóng tab, mạng chớp. Trùng tên thì **từ chối đoán** và bảo người dùng dọn:
+  chọn bừa là ghi một id có thể sai, còn cái kia thành rác vĩnh viễn không ai biết để dọn.
+
+Hệ quả của lần vấp này: một profile mồ côi phải dọn tay, và nick tương ứng phải bấm tạo lại.
+
+---
+
 ## 07/08/2026 (4) — Luồng nhập nick dựng lại theo đúng thứ tự có thật
 
 Bản (3) thêm nút *"Tạo profile trên máy này"* nhưng không gỡ luật cũ đi kèm, nên nút đó **không bao

@@ -172,6 +172,7 @@ export default async function AccountDetailPage({
           <AntidetectProfileCard
             accountId={account.id}
             username={account.username}
+            platform={account.platform}
             proxyCountry={account.proxy?.country ?? null}
             proxyLabel={account.proxy?.label ?? null}
           />

@@ -15,6 +15,20 @@
  * bản cũ còn chạy ngoài kia rất lâu — một dải đỏ ở đây sẽ là dải đỏ thường trực, và dải đỏ
  * thường trực thì không ai đọc nữa.
  *
+ * ## Lượt tạo có thể XONG mà trình duyệt không biết
+ *
+ * Cầu nối dựng profile bên MultiZen **rồi mới** trả lời, và lượt dựng đó chạy cả phút một cách
+ * bình thường. Bất cứ thứ gì cắt ngang giữa hai việc — hết hạn giờ, đóng tab, mạng nội bộ chớp —
+ * đều để lại một profile **có thật mà kho không biết**.
+ *
+ * Hai lớp chống, và lớp thứ hai mới là lớp thật:
+ *
+ * 1. `RELAY_CREATE_PROFILE_TIMEOUT_MS` — hạn giờ riêng 60 giây thay cho 4 giây mặc định.
+ * 2. **Dò lại `/profiles` theo tên** khi không có id trong tay (`doProfileVuaTao`). Nới hạn giờ chỉ
+ *    làm ca hỏng hiếm đi; đường dò mới là thứ nhặt lại được profile đã lỡ sinh ra.
+ *
+ * Đã vấp thật 07/08/2026, ngay lượt tạo đầu tiên trên máy thật.
+ *
  * ## Vì sao phép chọn vân tay chạy ở TRÌNH DUYỆT
  *
  * Danh mục locale nằm trong MultiZen trên máy này; máy chủ không đọc được. Nên `planProfileFingerprint`
@@ -26,19 +40,50 @@ import {
   recordCreatedProfile,
   requestCreateProfileTicket,
 } from "@/lib/accounts/account-profile-actions";
-import { planProfileFingerprint } from "@/lib/antidetect/profile-fingerprint-plan";
+import {
+  planProfileFingerprint,
+  profileNameForNick,
+} from "@/lib/antidetect/profile-fingerprint-plan";
 import {
   describeRelayFailure,
   fetchRelayProfiles,
   sendTicketToRelay,
+  type RelayOutcome,
 } from "@/lib/relay/relay-browser-client";
-import type { RelayFingerprintOptions, RelayProfileSummary } from "@/lib/relay/relay-endpoints";
+import {
+  RELAY_CREATE_PROFILE_TIMEOUT_MS,
+  type RelayFingerprintOptions,
+  type RelayProfileSummary,
+  type RelayReply,
+} from "@/lib/relay/relay-endpoints";
 
 const BUTTON_CLASS =
   "rounded-md bg-neutral-900 px-3 py-2 text-sm font-medium text-white transition " +
   "hover:bg-neutral-700 disabled:opacity-40 dark:bg-neutral-100 dark:text-neutral-900";
 
 type Feedback = { kind: "ok" | "error"; text: string } | null;
+
+/**
+ * Vì sao lượt tạo không trả về id — viết cho **riêng đường tạo profile**.
+ *
+ * Không dùng thẳng `describeRelayFailure` ở nhánh hết hạn giờ: câu chung của nó khẳng định *"trình
+ * duyệt không cho trang này gọi xuống máy"*, suy ra từ giả định *lời gọi vốn nhanh, treo tức là bị
+ * chặn*. Giả định đó **không đúng ở đây** — lượt tạo có thể chạy cả phút một cách bình thường, và
+ * câu sai kia đã cử người đi bật lại quyền mạng nội bộ trong khi profile đã nằm sẵn bên MultiZen.
+ *
+ * Nêu cả hai khả năng, rồi để phép dò lại ngay sau đó phân xử: thấy profile nghĩa là nó chỉ chậm,
+ * không thấy nghĩa là lời gọi chưa tới nơi.
+ */
+function moTaNguyenNhan(sent: RelayOutcome<RelayReply>): string {
+  if (sent.status === "ok") return sent.data.message;
+  if (sent.status === "no-permission") {
+    return (
+      "Cầu nối không trả lời trong một phút — có thể nó vẫn đang dựng profile, cũng có thể " +
+      "trình duyệt đang chặn đường xuống máy này."
+    );
+  }
+  return describeRelayFailure(sent);
+}
 
 interface RelayState {
   profiles: RelayProfileSummary[];
@@ -48,11 +93,19 @@ interface RelayState {
 export function AntidetectProfileCard({
   accountId,
   username,
+  platform,
   proxyCountry,
   proxyLabel,
 }: {
   accountId: string;
   username: string;
+  /**
+   * Nền tảng của nick — chỉ dùng để **dựng lại đúng tên profile** mà máy chủ đã đặt vào vé.
+   *
+   * Hai bên phải ra cùng một chuỗi thì đường dò lại mới tìm thấy gì; cả hai đều gọi
+   * `profileNameForNick`, không bên nào tự ghép chuỗi.
+   */
+  platform: string;
   /** `Proxy.country` của nick. `null` khi chưa gắn proxy — lúc đó chưa dựng vân tay được. */
   proxyCountry: string | null;
   proxyLabel: string | null;
@@ -89,6 +142,51 @@ export function AntidetectProfileCard({
       ? planProfileFingerprint({ proxyCountry, seedKey: username, options: relay.options })
       : null;
 
+  /**
+   * Dò lại danh sách profile để tìm cái vừa sinh ra, khi lượt gửi vé không trả về id.
+   *
+   * ## Vì sao cần đường này chứ không chỉ cần một hạn giờ dài hơn
+   *
+   * Cầu nối gọi MultiZen dựng profile **rồi mới** trả lời. Bất cứ thứ gì cắt ngang giữa hai việc
+   * đó — hết hạn giờ, đóng tab, mạng nội bộ chớp — đều để lại một profile **đã tồn tại thật mà kho
+   * không biết**. Nới hạn giờ làm ca đó hiếm đi, không làm nó biến mất.
+   *
+   * Dò được là nhờ tên profile **sinh ra có quy tắc** (`profileNameForNick`), nên nó là khóa tra
+   * cứu chứ không phải nhãn cho đẹp.
+   *
+   * ## Vì sao trùng tên thì TỪ CHỐI đoán
+   *
+   * Hai profile cùng tên nghĩa là đã có một lượt tạo hỏng trước đó. Chọn bừa một cái là ghi vào kho
+   * một id có thể không phải cái vừa dựng — và cái còn lại thành rác vĩnh viễn mà không ai biết để
+   * đi dọn. Nói thẳng ra thì người dùng mở MultiZen xóa bớt trong mười giây.
+   */
+  const doProfileVuaTao = useCallback(
+    async (tenMongDoi: string): Promise<{ ok: true; id: string } | { ok: false; text: string }> => {
+      const outcome = await fetchRelayProfiles();
+      if (outcome.status !== "ok") {
+        return {
+          ok: false,
+          text: `Không hỏi lại được danh sách profile để kiểm. ${describeRelayFailure(outcome)}`,
+        };
+      }
+
+      const trung = (outcome.data.profiles ?? []).filter((p) => p.name === tenMongDoi);
+      if (trung.length === 1) return { ok: true, id: trung[0].id };
+
+      return {
+        ok: false,
+        text:
+          trung.length === 0
+            ? `Không thấy profile nào tên "${tenMongDoi}" trên máy này, nên nhiều khả năng lượt ` +
+              `tạo chưa chạy tới nơi. Bấm lại.`
+            : `Có ${trung.length} profile trùng tên "${tenMongDoi}" bên MultiZen — dấu hiệu của ` +
+              `một lượt tạo hỏng trước đó. Công cụ không đoán cái nào là cái đúng: mở MultiZen xóa ` +
+              `bớt, rồi dán id còn lại vào ô "Id profile antidetect" ở thẻ Sửa nick.`,
+      };
+    },
+    [],
+  );
+
   const taoProfile = useCallback(async () => {
     if (!plan?.ok) return;
 
@@ -101,29 +199,24 @@ export function AntidetectProfileCard({
         return;
       }
 
-      const sent = await sendTicketToRelay(issued.ticket);
-      if (sent.status !== "ok" || !sent.data.ok) {
-        setFeedback({
-          kind: "error",
-          text:
-            sent.status === "ok"
-              ? sent.data.message
-              : describeRelayFailure(sent),
-        });
-        return;
-      }
+      // Hạn giờ riêng: lượt này dựng cả một hồ sơ Chromium trên đĩa, không phải một lượt hỏi đáp.
+      const sent = await sendTicketToRelay(issued.ticket, RELAY_CREATE_PROFILE_TIMEOUT_MS);
 
-      const profileId = (sent.data as { profileId?: unknown }).profileId;
-      if (typeof profileId !== "string" || profileId === "") {
-        // Cầu nối báo thành công mà không kèm id: profile có thể đã sinh ra thật bên MultiZen,
-        // nên nói rõ để người dùng đi dọn thay vì bấm lại và tạo thêm cái thứ hai.
-        setFeedback({
-          kind: "error",
-          text:
-            "Cầu nối báo đã tạo nhưng không trả về id profile, nên chưa ghi vào kho được. " +
-            "Mở MultiZen kiểm xem có profile vừa sinh ra không.",
-        });
-        return;
+      const traVe = sent.status === "ok" && sent.data.ok ? sent.data : null;
+      const idTraVe = (traVe as { profileId?: unknown } | null)?.profileId;
+
+      let profileId: string;
+      if (typeof idTraVe === "string" && idTraVe !== "") {
+        profileId = idTraVe;
+      } else {
+        // Không có id trong tay — nhưng profile RẤT CÓ THỂ đã sinh ra thật. Đi dò trước khi kết
+        // luận, thay vì đẩy người dùng đi bấm lại và tạo thêm một cái thứ hai.
+        const do_ = await doProfileVuaTao(profileNameForNick(platform, username));
+        if (!do_.ok) {
+          setFeedback({ kind: "error", text: `${moTaNguyenNhan(sent)} ${do_.text}` });
+          return;
+        }
+        profileId = do_.id;
       }
 
       const recorded = await recordCreatedProfile({
@@ -137,7 +230,7 @@ export function AntidetectProfileCard({
     } finally {
       setBusy(false);
     }
-  }, [accountId, plan]);
+  }, [accountId, doProfileVuaTao, plan, platform, username]);
 
   // Không gọi được cầu nối: không vẽ gì. Ô gõ tay ở thẻ "Sửa nick" vẫn là đường dùng được.
   if (!relay && !relayOld) return null;
