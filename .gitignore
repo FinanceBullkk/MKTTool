@@ -45,6 +45,10 @@ relay/dist/
 # cấu hình Claude Code của riêng từng máy (quyền đã duyệt, không phải của dự án)
 .claude/settings.local.json
 
+# sơ đồ kiến trúc sinh tự động từ mã nguồn + tài liệu. Xem được bằng trình duyệt, dựng lại được
+# bất cứ lúc nào — mà bản đã commit thì im lặng lỗi thời ngay lượt refactor kế tiếp.
+docs/system-diagrams.html
+
 # misc
 .DS_Store
 *.log
