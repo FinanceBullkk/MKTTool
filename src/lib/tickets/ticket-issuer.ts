@@ -23,6 +23,7 @@ import { loadServerSigningKeys } from "./server-signing-key";
 import { sealForDevice } from "./ticket-sealed-box";
 import {
   MIN_RELAY_VERSION,
+  MIN_RELAY_VERSION_BY_KIND,
   TICKET_FORMAT_VERSION,
   TICKET_LIFETIME_MS,
   type SignedTicket,
@@ -51,7 +52,9 @@ export function issueTicket(
 
   const envelope: TicketEnvelope = {
     v: TICKET_FORMAT_VERSION,
-    minRelayVersion: MIN_RELAY_VERSION,
+    // Theo LOẠI vé, không phải một sàn chung: một loại vé mới không được kéo theo việc cầu nối
+    // bản cũ từ chối cả vé mật khẩu lẫn vé mở profile. Xem `MIN_RELAY_VERSION_BY_KIND`.
+    minRelayVersion: MIN_RELAY_VERSION_BY_KIND[payload.kind] ?? MIN_RELAY_VERSION,
     jti: randomUUID(),
     deviceId: recipient.deviceId,
     kind: payload.kind,

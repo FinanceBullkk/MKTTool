@@ -8,12 +8,16 @@
  * lỗ — và quan trọng hơn, không có chỗ nào ở đây để một quyết định phân quyền lệch với quyết
  * định đã ghi ở máy chủ.
  *
- * ## Đường này chỉ nhận vé MỞ PROFILE
+ * ## Đường này chỉ nhận vé THAO TÁC VỚI PROFILE
  *
  * `POST /ticket` là đường **gọi ngầm** (fetch), tức thứ nó làm được phải là việc không có gì
- * hiện ra cho người dùng xem. Vé bí mật đi đường khác hẳn — `/secret`, mở thành một tab do
- * chính cầu nối phục vụ (QĐ 3), để mật khẩu không bao giờ đi vào trang web hosted. Nhận nhầm
- * loại vé ở đây là mở một đường trả mật khẩu qua fetch, đúng thứ QĐ 3 dựng ra để chặn.
+ * hiện ra cho người dùng xem — mở profile, và từ bản 6 là tạo profile. Vé bí mật đi đường khác
+ * hẳn — `/secret`, mở thành một tab do chính cầu nối phục vụ (QĐ 3), để mật khẩu không bao giờ
+ * đi vào trang web hosted. Nhận nhầm loại vé ở đây là mở một đường trả mật khẩu qua fetch, đúng
+ * thứ QĐ 3 dựng ra để chặn.
+ *
+ * Danh sách loại được nhận khai thành hằng số ngay dưới, không rải `if` — thêm một loại vé thao
+ * tác là thêm một dòng, còn vé bí mật thì không có đường nào lọt vào đây bằng cách quên.
  */
 import { TICKET_KINDS } from "../../src/lib/tickets/ticket-types";
 import { TicketRejected, verifyTicket } from "../../src/lib/tickets/ticket-verifier";
@@ -22,6 +26,13 @@ import { AntidetectNotConfiguredError, type RelayAntidetect } from "./relay-anti
 import type { RelayResponseBody } from "./relay-http-server";
 import { TicketPayloadError, reviewTicketPayload } from "./ticket-payload-schema";
 import { launchProfileFromTicket } from "./launch-profile";
+import { createProfileFromTicket } from "./create-profile";
+
+/** Loại vé đường này nhận. Mọi loại khác bị từ chối **trước khi** ruột được mở ra. */
+const LOAI_VE_NHAN_O_DAY: readonly string[] = [
+  TICKET_KINDS.LAUNCH_PROFILE,
+  TICKET_KINDS.CREATE_PROFILE,
+];
 
 /** Thân `POST /ticket` mà `relay-browser-client.ts` gửi lên. */
 function readTicketField(body: string): string {
@@ -80,7 +91,7 @@ export async function handleTicketRequest(
     throw error;
   }
 
-  if (verified.envelope.kind !== TICKET_KINDS.LAUNCH_PROFILE) {
+  if (!LOAI_VE_NHAN_O_DAY.includes(verified.envelope.kind)) {
     return {
       ok: false,
       message:
@@ -96,14 +107,16 @@ export async function handleTicketRequest(
     return { ok: false, message: (error as Error).message };
   }
 
-  if (payload.kind !== TICKET_KINDS.LAUNCH_PROFILE) {
-    // Không tới được: `reviewTicketPayload` soi theo đúng `kind` vừa kiểm ở trên. Có mặt để
+  try {
+    if (payload.kind === TICKET_KINDS.LAUNCH_PROFILE) {
+      return await launchProfileFromTicket(payload, deps.antidetect);
+    }
+    if (payload.kind === TICKET_KINDS.CREATE_PROFILE) {
+      return await createProfileFromTicket(payload, deps.antidetect);
+    }
+    // Không tới được: `reviewTicketPayload` soi theo đúng `kind` đã lọc ở trên. Có mặt để
     // TypeScript thu hẹp kiểu mà không phải ép kiểu — ép kiểu ở đây là bỏ đúng lớp bảo vệ vừa dựng.
     return { ok: false, message: "Ruột vé không khớp loại vé." };
-  }
-
-  try {
-    return await launchProfileFromTicket(payload, deps.antidetect);
   } catch (error) {
     if (error instanceof AntidetectNotConfiguredError) {
       return { ok: false, message: error.message };

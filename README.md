@@ -417,9 +417,35 @@ giao thức upstream chỉ là chặng sau đó.
 > `Europe/London` (tự ghi đè lúc chạy, đúng) còn `navigator.language` vẫn là `sv-SE` — tiếng
 > Thụy Điển trên IP Anh, tín hiệu bất thường rõ ràng.
 >
-> **Quy trình tạo profile:** gắn proxy → tab Fingerprint → bấm **"Match proxy"** → *rồi mới*
-> đăng nhập lần đầu. Đừng đổi ngôn ngữ của profile đang nuôi: nick dùng `sv-SE` suốt 3 tháng rồi
-> đột ngột sang `en-GB` còn đáng ngờ hơn là cứ để lệch.
+> **Đừng đổi ngôn ngữ của profile đang nuôi:** nick dùng `sv-SE` suốt 3 tháng rồi đột ngột sang
+> `en-GB` còn đáng ngờ hơn là cứ để lệch.
+
+### Để công cụ tạo profile, đừng tạo tay
+
+Trang chi tiết một nick chưa có profile có nút **"Tạo profile trên máy này"**. Một lần bấm là
+xong ba việc vốn phải làm tay:
+
+| Việc | Trước | Nay |
+|---|---|---|
+| Dựng profile mang đúng proxy của nick | mở MultiZen, gắn proxy | tự |
+| Căn vân tay theo quốc gia proxy | nhớ bấm **"Match proxy"** | tự — locale, múi giờ và họ thiết bị chọn theo `Proxy.country` |
+| Đưa id profile về kho | chép dãy UUID sang form | tự, **và ghim luôn nick vào máy vừa tạo** |
+
+Nút hiện xem trước trước khi bấm — *"sẽ dựng `en-US` / `America/Denver` / `windows-laptop-amd`"* —
+nên biết được mình sắp tạo gì. Múi giờ chọn **có gieo hạt theo tên nick**, không phải luôn lấy
+cái đầu danh sách: 5 nick trên proxy US mà cùng `America/New_York` là một mối tương quan do chính
+công cụ tạo ra, ngược hẳn với việc mua 10 proxy riêng.
+
+Tạo ở máy nào thì nick thuộc máy đó — profile chỉ tồn tại trên một máy, nên không khai sai được.
+Muốn đổi máy sau đó thì vẫn phải nhờ quản trị viên gán lại cụm.
+
+**Cần cầu nối bản 6 trở lên.** Bản cũ hơn thì thẻ đó nói rõ và bạn dán id bằng tay như trước —
+không có gì hỏng, chỉ là chưa có tiện nghi. Người nhập liệu hộ từ máy khác cũng vậy: máy họ không
+có profile của nick nên đường gõ tay vẫn còn đó.
+
+> **Quy trình tay** (khi tạo trong MultiZen): gắn proxy → tab Fingerprint → bấm **"Match proxy"**
+> → *rồi mới* đăng nhập lần đầu. Bấm nút của MKTTool thì cả ba bước gộp làm một, và MultiZen từ
+> chối tổ hợp vân tay mâu thuẫn nên không có đường tạo ra một profile lệch proxy.
 
 ### Proxy được kiểm trước khi mở
 

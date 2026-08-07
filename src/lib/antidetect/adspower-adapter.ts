@@ -173,4 +173,34 @@ export class AdsPowerAdapter implements AntidetectAdapter {
       return false;
     }
   }
+
+  /**
+   * Ba việc dưới đây **chưa cài đặt cho AdsPower**, và chúng ném lỗi thay vì trả rỗng.
+   *
+   * AdsPower có API tạo profile riêng (`/api/v1/user/create`) với mô hình vân tay khác hẳn
+   * MultiZen — không có khái niệm "nhóm locale" hay "họ thiết bị" tương đương, nên không ánh xạ
+   * thẳng được. Viết bừa một bản ánh xạ chưa ai đo là cách chắc chắn sinh ra vân tay mâu thuẫn.
+   *
+   * Trả mảng rỗng thì giao diện sẽ hiện "máy này chưa có profile nào" — một câu **nói dối**, và
+   * người dùng sẽ đi tạo profile mới trong khi kho của họ đầy. Ném lỗi thì họ đọc được đúng lý do.
+   */
+  private chuaHoTro(viec: string): never {
+    throw new AntidetectError(
+      `${PROVIDER} chưa hỗ trợ ${viec} qua MKTTool. Làm trong app AdsPower rồi dán id profile ` +
+        `vào ô "Id profile antidetect" ở trang chi tiết nick.`,
+      PROVIDER,
+    );
+  }
+
+  async listProfiles(): Promise<never> {
+    return this.chuaHoTro("liệt kê profile");
+  }
+
+  async fingerprintOptions(): Promise<never> {
+    return this.chuaHoTro("đọc danh mục vân tay");
+  }
+
+  async createProfile(): Promise<never> {
+    return this.chuaHoTro("tạo profile");
+  }
 }

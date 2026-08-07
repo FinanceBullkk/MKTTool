@@ -32,6 +32,13 @@ export const AUDIT_ACTIONS = {
   ACCOUNT_DEVICE_UNPINNED: "ACCOUNT_DEVICE_UNPINNED",
   /** Đổi từ máy này sang máy khác — ca đáng soi nhất, xem `assignAccountCluster`. */
   ACCOUNT_DEVICE_MOVED: "ACCOUNT_DEVICE_MOVED",
+  /**
+   * Công cụ tự dựng profile antidetect cho nick, thay vì người dùng chép id vào.
+   *
+   * Loại riêng vì nó là lần đầu MKTTool **sinh ra** một mảnh danh tính chứ không chỉ ghi lại thứ
+   * người ta đã tạo. Ngày cần dựng lại lai lịch một nick, phân biệt được hai chuyện đó là đáng.
+   */
+  ACCOUNT_PROFILE_CREATED: "ACCOUNT_PROFILE_CREATED",
 
   // Bí mật rời kho — nhóm quan trọng nhất của cả bảng
   CREDENTIAL_REVEALED: "CREDENTIAL_REVEALED",

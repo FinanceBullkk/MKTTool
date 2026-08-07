@@ -16,8 +16,11 @@
 import {
   type AntidetectAdapter,
   AntidetectError,
+  type AntidetectProfileSummary,
   type AntidetectProxyConfig,
   AntidetectUnavailableError,
+  type CreateProfileRequest,
+  type FingerprintOptions,
   type LaunchedProfile,
 } from "./antidetect-browser-adapter";
 import {
@@ -35,6 +38,27 @@ const LAUNCH_TOOL_NAMES = ["launch_profile", "launch", "open_profile"];
 const CLOSE_TOOL_NAMES = ["close_profile", "close", "stop_profile"];
 const LIST_TOOL_NAMES = ["list_profiles", "profiles"];
 const UPDATE_TOOL_NAMES = ["update_profile", "edit_profile", "set_profile"];
+const CREATE_TOOL_NAMES = ["create_profile", "new_profile"];
+const FINGERPRINT_OPTION_TOOL_NAMES = ["list_fingerprint_options", "fingerprint_options"];
+
+/**
+ * Đọc thân JSON của một kết quả tool.
+ *
+ * MultiZen trả dữ liệu ở `content[].text` dạng JSON, **không** ở `structuredContent` — đo
+ * 07/08/2026 trên `create_profile` và `list_fingerprint_options`. Đọc nhầm chỗ thì lấy được
+ * `undefined` mà không có lỗi nào, nên hàm này là chỗ duy nhất biết quy ước đó.
+ */
+function parseToolBody(result: McpToolResult): Record<string, unknown> {
+  const text = extractText(result).trim();
+  if (text === "") return {};
+  try {
+    const parsed: unknown = JSON.parse(text);
+    return typeof parsed === "object" && parsed !== null ? (parsed as Record<string, unknown>) : {};
+  } catch {
+    // Bản cũ có thể trả văn xuôi. Không phải lỗi ở đây — chỗ gọi tự quyết thiếu dữ liệu thì nói gì.
+    return {};
+  }
+}
 
 /**
  * Bắt ws://... hoặc http://127.0.0.1:<port> trong phản hồi của tool.
@@ -208,6 +232,103 @@ export class MultizenAdapter implements AntidetectAdapter {
     if (!toolName) return; // không có tool đóng thì bỏ qua, người dùng tự đóng cửa sổ
 
     await this.callToolWithRehandshake(toolName, { profileId, profile_id: profileId });
+  }
+
+  /** Tìm tool theo danh sách tên, hoặc ném lỗi nói rõ server này có tool gì. */
+  private requireTool(candidates: string[], viec: string): string {
+    const name = this.resolveTool(candidates);
+    if (name) return name;
+
+    throw new AntidetectError(
+      `${PROVIDER} không có tool ${viec} nào trong số [${candidates.join(", ")}]. ` +
+        `Tool hiện có: [${this.availableTools.join(", ")}]. Nhiều khả năng MultiZen đang chạy ` +
+        `bản cũ — cập nhật app, hoặc bổ sung tên tool trong multizen-adapter.ts.`,
+      PROVIDER,
+    );
+  }
+
+  async listProfiles(): Promise<AntidetectProfileSummary[]> {
+    await this.ensureInitialized();
+    const toolName = this.requireTool(LIST_TOOL_NAMES, "liệt kê profile");
+
+    const body = parseToolBody(await this.callToolWithRehandshake(toolName, {}));
+    const rows = Array.isArray(body.profiles) ? body.profiles : [];
+
+    return rows
+      .filter((row): row is Record<string, unknown> => typeof row === "object" && row !== null)
+      .filter((row) => typeof row.id === "string" && typeof row.name === "string")
+      .map((row) => ({
+        id: row.id as string,
+        name: row.name as string,
+        isRunning: typeof row.isRunning === "boolean" ? row.isRunning : undefined,
+        proxyCountry: typeof row.proxyCountry === "string" ? row.proxyCountry : undefined,
+        timezone: typeof row.timezone === "string" ? row.timezone : undefined,
+      }));
+  }
+
+  async fingerprintOptions(): Promise<FingerprintOptions> {
+    await this.ensureInitialized();
+    const toolName = this.requireTool(FINGERPRINT_OPTION_TOOL_NAMES, "liệt kê tùy chọn vân tay");
+
+    const body = parseToolBody(await this.callToolWithRehandshake(toolName, {}));
+    return {
+      devices: Array.isArray(body.devices) ? (body.devices as FingerprintOptions["devices"]) : [],
+      locales: Array.isArray(body.locales) ? (body.locales as FingerprintOptions["locales"]) : [],
+    };
+  }
+
+  /**
+   * Tạo profile mới.
+   *
+   * Proxy và vân tay đi cùng lời gọi tạo. MultiZen kiểm tính nhất quán và từ chối tổ hợp mâu
+   * thuẫn — đo 07/08/2026: `localeId: en-US` kèm `timezone: Europe/London` trả về
+   * `INVALID_INPUT` liệt kê đủ bốn timezone hợp lệ. Câu lỗi đó đáng giữ nguyên cho người đọc.
+   */
+  async createProfile(request: CreateProfileRequest): Promise<string> {
+    await this.ensureInitialized();
+    const toolName = this.requireTool(CREATE_TOOL_NAMES, "tạo profile");
+
+    const args: Record<string, unknown> = { name: request.name };
+    if (request.notes) args.notes = request.notes;
+    if (request.tags?.length) args.tags = request.tags;
+    if (request.seed) args.seed = request.seed;
+    if (request.fingerprint) args.fingerprint = request.fingerprint;
+    if (request.proxy) {
+      args.proxy = {
+        type: request.proxy.protocol,
+        host: request.proxy.host,
+        port: request.proxy.port,
+        ...(request.proxy.username ? { username: request.proxy.username } : {}),
+        ...(request.proxy.password ? { password: request.proxy.password } : {}),
+      };
+    }
+
+    let body: Record<string, unknown>;
+    try {
+      body = parseToolBody(await this.callToolWithRehandshake(toolName, args));
+    } catch (cause) {
+      const reason = redact(
+        cause instanceof Error ? cause.message : String(cause),
+        request.proxy?.password,
+      );
+      throw new AntidetectError(
+        `${PROVIDER} không tạo được profile "${request.name}". Lý do: ${reason}`,
+        PROVIDER,
+      );
+    }
+
+    // Không có id thì coi như hỏng, dù tool báo thành công: profile có thể đã sinh ra bên MultiZen
+    // nhưng kho không biết id của nó — một profile mồ côi còn tệ hơn một lần tạo hỏng hẳn.
+    if (typeof body.id !== "string" || body.id === "") {
+      throw new AntidetectError(
+        `${PROVIDER} tạo profile xong nhưng không trả về id, nên không ghi vào kho được. ` +
+          `Mở MultiZen kiểm xem có profile tên "${request.name}" vừa sinh ra không — có thì xóa ` +
+          `đi rồi thử lại, hoặc gắn nó vào nick bằng cách dán id thủ công.`,
+        PROVIDER,
+      );
+    }
+
+    return body.id;
   }
 
   async isRunning(profileId: string): Promise<boolean> {

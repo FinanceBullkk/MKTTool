@@ -31,6 +31,9 @@ export const TICKET_FORMAT_VERSION = 1;
  *
  * Máy chủ tăng số này khi **nội dung** vé đòi hỏi khả năng mà cầu nối cũ không có. Cầu nối tự
  * so với phiên bản của chính nó; nhỏ hơn thì từ chối kèm câu bảo người dùng tải bản mới.
+ *
+ * Đây là **sàn chung** cho mọi loại vé. Loại nào đòi cao hơn thì khai riêng ở
+ * `MIN_RELAY_VERSION_BY_KIND` — đừng nâng số này lên vì một loại vé mới.
  */
 export const MIN_RELAY_VERSION = 1;
 
@@ -50,9 +53,39 @@ export const TICKET_KINDS = {
   OTP: "OTP",
   /** Mở profile antidetect kèm cấu hình proxy dựng sẵn. */
   LAUNCH_PROFILE: "LAUNCH_PROFILE",
+  /** Tạo MỚI một profile antidetect cho nick, kèm proxy và vân tay dựng sẵn. */
+  CREATE_PROFILE: "CREATE_PROFILE",
 } as const;
 
 export type TicketKind = (typeof TICKET_KINDS)[keyof typeof TICKET_KINDS];
+
+/**
+ * Phiên bản cầu nối tối thiểu **theo từng loại vé**.
+ *
+ * ## Vì sao không dùng chung một con số
+ *
+ * Loại vé mới chỉ cầu nối đủ mới mới hiểu. Nếu chỉ có một hằng số chung thì đúng hai lối, và cả
+ * hai đều sai:
+ *
+ * | Lối | Hậu quả |
+ * |---|---|
+ * | Giữ sàn ở `1` | Cầu nối cũ nhận một loại vé nó chưa biết, chết bằng một câu vô nghĩa |
+ * | Nâng sàn lên | **Mọi** vé — mật khẩu, OTP, mở profile — bị cầu nối cũ từ chối. Cả team đứng hình cho tới khi từng người cài lại `.exe` |
+ *
+ * Lối thứ hai đặc biệt tệ vì nó biến một tính năng **thêm vào** thành một lượt ngừng dịch vụ cho
+ * những người còn chưa cần tới nó. Khai theo loại thì bản cũ mất đúng thứ nó không hiểu, còn ba
+ * việc hằng ngày vẫn chạy nguyên.
+ *
+ * Cầu nối không phải đổi gì để hiểu bảng này: nó vốn đã so `envelope.minRelayVersion` với phiên
+ * bản của chính nó, và máy chủ là bên điền số đó vào từng tấm vé.
+ */
+export const MIN_RELAY_VERSION_BY_KIND: Record<TicketKind, number> = {
+  [TICKET_KINDS.CREDENTIAL]: MIN_RELAY_VERSION,
+  [TICKET_KINDS.OTP]: MIN_RELAY_VERSION,
+  [TICKET_KINDS.LAUNCH_PROFILE]: MIN_RELAY_VERSION,
+  /** Cần `create_profile` của MultiZen — có từ bản 6. */
+  [TICKET_KINDS.CREATE_PROFILE]: 6,
+};
 
 /** Bí mật nào của nick đang được hỏi. Khớp tên cột trong `Account`. */
 export type CredentialField = "password" | "emailPassword";
@@ -99,6 +132,36 @@ export type TicketPayload =
         username?: string;
         password?: string;
       };
+    }
+  | {
+      kind: typeof TICKET_KINDS.CREATE_PROFILE;
+      accountId: string;
+      /** Tên profile bên MultiZen. Máy chủ đặt để nó đoán được: `Reddit — anna`. */
+      profileName: string;
+      /** Như `LAUNCH_PROFILE`: mật khẩu proxy thuộc vùng server nên máy chủ mở được. */
+      proxy: {
+        protocol: "http" | "socks5";
+        host: string;
+        port: number;
+        username?: string;
+        password?: string;
+      };
+      /**
+       * Vân tay ở dạng **núm cao cấp**, đúng hình dạng `create_profile` của MultiZen nhận.
+       *
+       * Không tả từng bề mặt (UA, client hints, WebGL): MultiZen tự suy ra một câu chuyện nhất
+       * quán từ mấy núm này, và **từ chối tổ hợp mâu thuẫn** (`INVALID_INPUT`). Đo 07/08/2026:
+       * khai `localeId: en-US` kèm `timezone: Europe/London` thì nó trả lỗi và liệt kê luôn bốn
+       * timezone hợp lệ. Tự ghép bề mặt ở phía mình là bỏ đi lớp bảo vệ đó.
+       */
+      fingerprint: {
+        device: string;
+        localeId: string;
+        timezone: string;
+        screen: { width: number; height: number };
+      };
+      /** Hạt giống nhiễu canvas/audio/WebGL — mỗi nick một giá trị, để hai nick không trùng nhiễu. */
+      seed: string;
     };
 
 /**

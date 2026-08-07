@@ -80,6 +80,46 @@ function reviewProxy(value: unknown): AntidetectProxyConfig {
 }
 
 /**
+ * Vân tay trong vé tạo profile.
+ *
+ * Chỉ kiểm **hình dạng**, không kiểm nội dung: "timezone này có thuộc locale kia không" là câu
+ * MultiZen tự trả lời và trả lời tốt hơn — nó từ chối tổ hợp mâu thuẫn kèm danh sách giá trị hợp
+ * lệ. Dựng thêm một bảng đối chiếu ở đây là dựng một bản sao sẽ mục vào ngày họ thêm locale mới,
+ * và bản mục đó sẽ chặn nhầm những tổ hợp vốn hợp lệ.
+ */
+function reviewFingerprint(value: unknown): {
+  device: string;
+  localeId: string;
+  timezone: string;
+  screen: { width: number; height: number };
+} {
+  const fingerprint = asRecord(value);
+  const screen = asRecord(fingerprint.screen);
+
+  const width = screen.width;
+  const height = screen.height;
+  if (
+    typeof width !== "number" ||
+    typeof height !== "number" ||
+    !Number.isInteger(width) ||
+    !Number.isInteger(height) ||
+    width <= 0 ||
+    height <= 0
+  ) {
+    throw new TicketPayloadError(
+      `Vân tay trong vé khai kích thước màn hình không hợp lệ: ${String(width)}×${String(height)}.`,
+    );
+  }
+
+  return {
+    device: requireString(fingerprint, "device"),
+    localeId: requireString(fingerprint, "localeId"),
+    timezone: requireString(fingerprint, "timezone"),
+    screen: { width, height },
+  };
+}
+
+/**
  * Soi ruột vé theo `kind` lấy từ **bao ngoài đã được ký**.
  *
  * `kind` truyền vào chứ không đọc từ ruột: bao ngoài đã qua chữ ký, còn ruột thì mới ra khỏi
@@ -116,6 +156,16 @@ export function reviewTicketPayload(kind: string, payload: unknown): TicketPaylo
         antidetectProfileId: requireString(source, "antidetectProfileId"),
         proxyLabel: requireString(source, "proxyLabel"),
         proxy: reviewProxy(source.proxy),
+      };
+
+    case TICKET_KINDS.CREATE_PROFILE:
+      return {
+        kind: TICKET_KINDS.CREATE_PROFILE,
+        accountId: requireString(source, "accountId"),
+        profileName: requireString(source, "profileName"),
+        proxy: reviewProxy(source.proxy),
+        fingerprint: reviewFingerprint(source.fingerprint),
+        seed: requireString(source, "seed"),
       };
 
     default:

@@ -1,0 +1,91 @@
+/**
+ * Vé khai phiên bản cầu nối tối thiểu **theo từng loại**.
+ *
+ * ## Vì sao bài này tồn tại
+ *
+ * Cầu nối không có bộ tự cập nhật (QĐ 11), nên bản cũ còn chạy ngoài kia rất lâu. Nếu ai đó
+ * nâng sàn chung lên vì một loại vé mới, thì **mọi** vé — mật khẩu, OTP, mở profile — bị mọi
+ * cầu nối cũ từ chối cùng lúc. Một tính năng thêm vào biến thành một lượt ngừng dịch vụ cho cả
+ * team, kể cả những người chưa cần tới nó.
+ *
+ * Kiểu hỏng đó **không có triệu chứng lúc phát triển**: máy dev luôn chạy cầu nối mới nhất. Nó
+ * chỉ lộ ra sau khi deploy, trên máy người khác. Nên phải có một bài canh cứng ba loại vé cũ.
+ */
+import { generateKeyPairSync } from "node:crypto";
+import { describe, expect, it, vi } from "vitest";
+
+// Khóa ký thật không cần cho bài này — nó chỉ đọc bao ngoài, không xác minh chữ ký. Sinh MỘT lần
+// ở cấp module: `generateKeyPairSync` tốn vài chục ms, và bài này gọi `issueTicket` bốn lượt.
+const KHOA_KY = generateKeyPairSync("ed25519");
+
+vi.mock("./server-signing-key", () => ({ loadServerSigningKeys: () => KHOA_KY }));
+
+const { issueTicket } = await import("./ticket-issuer");
+const { MIN_RELAY_VERSION, MIN_RELAY_VERSION_BY_KIND, TICKET_KINDS } = await import(
+  "./ticket-types"
+);
+const { generateRelayDeviceKeyPair } = await import("./relay-device-key");
+
+const recipient = { deviceId: "device-1", publicKey: generateRelayDeviceKeyPair().publicKeyHex };
+
+/** Đọc `minRelayVersion` từ bao ngoài của một tấm vé đã ký. */
+function minRelayVersionOf(ticket: string): number {
+  const [envelope] = ticket.split(".");
+  return JSON.parse(Buffer.from(envelope, "base64url").toString("utf8")).minRelayVersion;
+}
+
+const PROXY = { protocol: "http" as const, host: "1.2.3.4", port: 8080 };
+
+describe("ba loại vé cũ giữ nguyên sàn", () => {
+  /**
+   * Ba con số này là **giao kèo với mọi `.exe` đang chạy ngoài kia**. Bài đỏ ở đây nghĩa là bản
+   * vừa sửa sẽ làm hỏng cầu nối của cả team — đọc kỹ trước khi sửa cho nó xanh lại.
+   */
+  it.each([
+    [TICKET_KINDS.CREDENTIAL, { kind: TICKET_KINDS.CREDENTIAL, accountId: "a", field: "password" as const, credentialCiphertext: "x" }],
+    [TICKET_KINDS.OTP, { kind: TICKET_KINDS.OTP, accountId: "a", totpSecretCiphertext: "x" }],
+    [
+      TICKET_KINDS.LAUNCH_PROFILE,
+      {
+        kind: TICKET_KINDS.LAUNCH_PROFILE,
+        accountId: "a",
+        antidetectProfileId: "p",
+        proxyLabel: "L",
+        proxy: PROXY,
+      },
+    ],
+  ])("%s vẫn khai %i", (_kind, payload) => {
+    expect(minRelayVersionOf(issueTicket(payload, recipient))).toBe(MIN_RELAY_VERSION);
+  });
+});
+
+describe("loại vé mới khai riêng", () => {
+  it("CREATE_PROFILE đòi cầu nối bản 6", () => {
+    const ticket = issueTicket(
+      {
+        kind: TICKET_KINDS.CREATE_PROFILE,
+        accountId: "a",
+        profileName: "REDDIT — anna",
+        proxy: PROXY,
+        fingerprint: {
+          device: "windows-laptop-amd",
+          localeId: "en-US",
+          timezone: "America/Denver",
+          screen: { width: 1680, height: 1050 },
+        },
+        seed: "mkttool-abc",
+      },
+      recipient,
+    );
+
+    expect(minRelayVersionOf(ticket)).toBe(6);
+    expect(minRelayVersionOf(ticket)).toBeGreaterThan(MIN_RELAY_VERSION);
+  });
+
+  /** Thêm loại vé mà quên khai bảng thì nó âm thầm lấy sàn chung — bài này bắt chuyện đó. */
+  it("mọi loại vé đều có mặt trong bảng", () => {
+    for (const kind of Object.values(TICKET_KINDS)) {
+      expect(MIN_RELAY_VERSION_BY_KIND[kind]).toBeTypeOf("number");
+    }
+  });
+});

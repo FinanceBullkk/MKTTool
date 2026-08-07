@@ -6,6 +6,7 @@ import { Card, PageHeading, StatusBadge } from "@/components/ui/page-section";
 import { AccountFormFields } from "@/components/vault/account-form-fields";
 import { AccountVaultForm } from "@/components/vault/account-vault-form";
 import { AccountReadinessPanel } from "@/components/vault/account-readiness-badge";
+import { AntidetectProfileCard } from "@/components/vault/antidetect-profile-card";
 import { assignAccountCluster } from "@/lib/accounts/account-owner-actions";
 import { describeAccountReadiness } from "@/lib/accounts/account-readiness";
 import {
@@ -253,6 +254,20 @@ export default async function AccountDetailPage({
           )}
         </Card>
       )}
+
+      {/* Chỉ hiện khi nick CHƯA có profile: đã có rồi thì thẻ này không còn việc gì, và một thẻ
+          trống thường trực là thứ mắt học cách bỏ qua. Thẻ tự ẩn nốt nếu cầu nối không gọi được
+          — xem chú thích đầu `antidetect-profile-card.tsx`. */}
+      {account.antidetectProfileId === null ? (
+        <Card title="Profile antidetect">
+          <AntidetectProfileCard
+            accountId={account.id}
+            username={account.username}
+            proxyCountry={account.proxy?.country ?? null}
+            proxyLabel={account.proxy?.label ?? null}
+          />
+        </Card>
+      ) : null}
 
       <Card title="Sửa nick">
         <p className="mb-4 text-sm text-neutral-600 dark:text-neutral-400">

@@ -12,6 +12,46 @@ Dự án chưa phát hành phiên bản (`0.1.0`, dùng nội bộ). Mốc chia 
 
 ---
 
+## 07/08/2026 (3) — Công cụ tự tạo profile antidetect, thay ô gõ tay UUID
+
+Thêm một nick từng đòi ba bước tay, cả ba hỏng lặng lẽ: chép dãy UUID từ MultiZen sang (sai một
+ký tự thì không gì báo tới lần mở profile đầu tiên), **nhớ bấm "Match proxy"**, rồi mới đăng nhập.
+Bước giữa là bước hay bị bỏ — đo 02/08 có profile `sv-SE` chạy trên IP Anh, và tới 07/08 vẫn còn
+`Reddit - Account 01` để `Africa/Johannesburg` trên proxy US.
+
+- **Nút "Tạo profile trên máy này"** ở trang chi tiết nick. Một lần bấm: MultiZen dựng profile
+  mang sẵn proxy của nick cùng vân tay khớp quốc gia proxy, kho ghi id, và **nick được ghim luôn
+  vào máy vừa tạo**. Không ô nào phải gõ, không bước nào phải nhớ.
+- **Ghim máy là phụ phẩm, không phải khai thêm.** Profile chỉ tồn tại trên một máy, nên tạo ở đâu
+  thì nick thuộc về đó — không khai sai được.
+- **"Match proxy" thành code.** Đo MCP của MultiZen 07/08: `create_profile` nhận `proxy` và
+  `fingerprint` ngay lúc tạo, `list_fingerprint_options` trả 72 nhóm locale kèm `country` và các
+  timezone hợp lệ. `Proxy.country` khớp thẳng vào đó. Quan trọng hơn: MultiZen **tự ép tính nhất
+  quán** — khai `en-US` kèm `Europe/London` thì nó trả `INVALID_INPUT` liệt kê luôn bốn timezone
+  đúng. Nên phía mình không dựng bảng đối chiếu song song (bảng đó sẽ mục vào ngày họ thêm locale).
+- **Timezone chọn có gieo hạt, không lấy phần tử đầu.** US có 4 timezone; luôn lấy cái đầu là 5
+  nick trên proxy US cùng mang `America/New_York` — một mối tương quan **do chính công cụ tạo ra**,
+  ngược hẳn với việc đang chi tiền cho 10 proxy riêng. Gieo bằng username nên ổn định: xem trước
+  nói gì thì tạo ra đúng thế.
+- **`MIN_RELAY_VERSION` tách theo LOẠI vé.** Đây là rủi ro lớn nhất của bản này: cầu nối không tự
+  cập nhật, nên nâng một sàn chung vì loại vé mới là làm **mọi** vé — mật khẩu, OTP, mở profile —
+  bị mọi cầu nối cũ từ chối cùng lúc. Ba loại cũ giữ `1`, loại mới khai `6`, và có test canh cứng
+  ba con số đó.
+- **`GET /profiles` ở cầu nối** — không cần vé (tên và id profile không phải bí mật, và máy chủ
+  vốn không nhìn thấy danh sách này để mà cấp phép). Chưa nối được MultiZen thì báo thiếu gì chứ
+  **không** trả mảng rỗng: mảng rỗng nghĩa là "máy này chưa có profile nào", một câu khác hẳn.
+- **Tự ghim chỉ mở cho nick chưa có máy.** Nới ra là một OPERATOR bấm "Tạo profile" để kéo nick
+  của đồng nghiệp về máy mình rồi đọc mật khẩu proxy của nó — đổi máy vẫn chỉ ADMIN làm được.
+- Cầu nối lên **bản 6**. `AdsPowerAdapter` ném lỗi nói rõ chưa hỗ trợ thay vì trả mảng rỗng.
+
+Bốn file test mới (chọn vân tay, phiên bản vé theo loại, `/profiles`, `recordCreatedProfile`).
+1062/1062 xanh.
+
+**Chưa làm:** ô chọn profile mới chỉ **liệt kê** để chép id, chưa gắn được bằng một cú bấm — đường
+tạo mới là đường chính, còn liệt kê chỉ để đối chiếu và để nối lại profile cũ.
+
+---
+
 ## 07/08/2026 (2) — Trang Chuẩn bị, và "nick này dùng được chưa"
 
 Khảo sát UX trước khi bàn giao GĐ6 ([báo cáo](../plans/reports/uxreview-260807-0459-luong-cau-hinh-va-onboarding.md))

@@ -39,12 +39,72 @@ export interface AntidetectProxyConfig {
   password?: string;
 }
 
+/**
+ * Một profile như antidetect browser khai ra.
+ *
+ * Chỉ giữ những trường **mọi** nhà cung cấp đều có, cộng hai trường chẩn đoán (`proxyCountry`,
+ * `timezone`) mà giao diện cần để cảnh báo vân tay lệch proxy. Thiếu thì để trống — đừng bịa.
+ */
+export interface AntidetectProfileSummary {
+  id: string;
+  name: string;
+  isRunning?: boolean;
+  /** Quốc gia của proxy đang gắn, chữ thường (`"us"`). */
+  proxyCountry?: string;
+  /** IANA timezone của vân tay. Lệch với `proxyCountry` là dấu hiệu quên căn proxy. */
+  timezone?: string;
+}
+
+/**
+ * Vân tay ở dạng **núm cao cấp** — không phải từng bề mặt.
+ *
+ * MultiZen tự suy ra UA / client hints / WebGL nhất quán từ mấy núm này và **từ chối tổ hợp mâu
+ * thuẫn**. Tự ghép bề mặt ở phía mình là bỏ đi lớp bảo vệ đó, nên interface cố ý không cho.
+ */
+export interface AntidetectFingerprintSpec {
+  device: string;
+  localeId: string;
+  timezone: string;
+  screen: { width: number; height: number };
+}
+
+export interface CreateProfileRequest {
+  name: string;
+  notes?: string;
+  tags?: string[];
+  proxy?: AntidetectProxyConfig;
+  fingerprint?: AntidetectFingerprintSpec;
+  /** Hạt giống nhiễu canvas/audio/WebGL. Mỗi profile một giá trị. */
+  seed?: string;
+}
+
+/** Danh mục giá trị hợp lệ để dựng vân tay — lấy từ chính nhà cung cấp, không tự bịa bảng. */
+export interface FingerprintOptions {
+  devices: { family: string; label: string; screens: { width: number; height: number }[] }[];
+  locales: { id: string; label: string; country: string; timezones: string[] }[];
+}
+
 export interface AntidetectAdapter {
   /** Tên hiển thị, dùng cho log và thông báo lỗi. */
   readonly providerName: string;
 
   /** Kiểm tra ứng dụng antidetect có đang chạy và nghe API không. */
   isAvailable(): Promise<boolean>;
+
+  /** Mọi profile trên máy này. Dùng cho ô chọn thay vì bắt người dùng chép id bằng tay. */
+  listProfiles(): Promise<AntidetectProfileSummary[]>;
+
+  /** Danh mục họ thiết bị và nhóm locale hợp lệ. */
+  fingerprintOptions(): Promise<FingerprintOptions>;
+
+  /**
+   * Tạo profile mới, trả về id.
+   *
+   * Đặt proxy và vân tay **ngay lúc tạo** chứ không tạo rồi sửa: quy trình đúng của MultiZen là
+   * gắn proxy và căn vân tay TRƯỚC lần đăng nhập đầu tiên, và một lời gọi thì không có khe hở
+   * nào để ai đó mở profile vào giữa hai bước.
+   */
+  createProfile(request: CreateProfileRequest): Promise<string>;
 
   /**
    * Ghi proxy vào profile TRƯỚC khi mở.
