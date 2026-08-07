@@ -1,6 +1,6 @@
 # Bản đồ mã nguồn
 
-**Cập nhật:** 06/08/2026
+**Cập nhật:** 08/08/2026
 
 Tài liệu dành cho người mới và AI agent định vị nhanh trong codebase — **code nằm ở đâu**.
 Hệ thống chạy ở đâu và phụ thuộc gì thì xem [system-architecture.md](system-architecture.md);
@@ -15,7 +15,10 @@ Thuật ngữ tra ở [domain-glossary.md](domain-glossary.md). Cách cài và c
 src/
 ├── app/                        Next.js 16 App Router — trang và API route
 │   ├── layout.tsx              Layout gốc, font, metadata
-│   ├── page.tsx                Dashboard chính
+│   ├── page.tsx                Dashboard chính ("Hôm nay")
+│   ├── overview-alert-stack.tsx  Dải cảnh báo đầu trang Hôm nay — thứ tự mười khối là quyết
+│   │                             định nghiệp vụ (xếp theo mức độ KHÔNG gỡ lại được), nên chúng
+│   │                             nằm cạnh nhau trong một file thay vì mỗi khối một file
 │   ├── accounts/               Danh sách + chi tiết nick
 │   ├── proxies/                Quản lý proxy
 │   ├── targets/                Đích đăng (subreddit, Fanpage…)
@@ -50,6 +53,9 @@ src/
     ├── content/                Hằng số loại content, trạng thái job, loại tương tác
     ├── crypto/                 AES-256-GCM cho credential — hai vùng khóa (server / operator),
     │                           registry khai vùng cho từng cột, key loader
+    ├── dashboard/              Dữ liệu trang "Hôm nay" gom về một `Promise.all` — tách khỏi
+    │                           `app/page.tsx` để hình dạng "mười lăm câu hỏi chạy song song"
+    │                           nhìn thấy được, thay vì rải ra rồi có ngày ai đó await tuần tự
     ├── db/                     Prisma client singleton, sao lưu, chặn xóa khi còn tham chiếu
     ├── facebook/               Graph API: OAuth, token, đăng Fanpage (chi tiết bên dưới)
     ├── format/                 Định dạng ngày tiếng Việt
