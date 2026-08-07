@@ -114,7 +114,9 @@ async function collectAccounts(oldKey: Buffer): Promise<WriteFactory[]> {
 
   return rows.map((row) => {
     const where = `nick "${row.username}"`;
-    const password = decryptOrExplain(row.passwordEnc, oldKey, `mật khẩu ${where}`);
+    // Mật khẩu nick là cột NULLABLE từ 07/08/2026 — nick Reddit đăng nhập bằng Google nên không
+    // có mật khẩu riêng. Dùng nhánh "optional" như TOTP, đừng coi cột rỗng là dữ liệu hỏng.
+    const password = decryptOptionalOrExplain(row.passwordEnc, oldKey, `mật khẩu ${where}`);
     const emailPassword = decryptOrExplain(row.emailPasswordEnc, oldKey, `mật khẩu email ${where}`);
     const totpSecret = decryptOptionalOrExplain(row.totpSecretEnc, oldKey, `TOTP secret ${where}`);
 
@@ -122,7 +124,7 @@ async function collectAccounts(oldKey: Buffer): Promise<WriteFactory[]> {
       prisma.account.update({
         where: { id: row.id },
         data: {
-          passwordEnc: encryptCredential(password, newKey),
+          passwordEnc: encryptOptionalCredential(password, newKey),
           emailPasswordEnc: encryptCredential(emailPassword, newKey),
           totpSecretEnc: encryptOptionalCredential(totpSecret, newKey),
         },

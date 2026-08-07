@@ -1,5 +1,5 @@
 /**
- * "Nick này dùng được chưa" — bảy điều kiện, và chúng KHÁC nhau theo nền tảng.
+ * "Nick này dùng được chưa" — tám điều kiện, và chúng KHÁC nhau theo nền tảng.
  *
  * Phần đáng canh nhất không phải danh sách chặn mà là **ranh giới Reddit / Facebook**: nới ra thì
  * nick Facebook mang ba lỗi vĩnh viễn không sửa được và người đọc học cách phớt lờ cả cột; siết
@@ -18,6 +18,7 @@ function redditNick(overrides: Partial<ReadinessInput> = {}): ReadinessInput {
     coldStartUntil: null,
     personaId: "persona-1",
     antidetectProfileId: "profile-1",
+    firstLoginAt: new Date("2026-08-01T00:00:00.000Z"),
     ownerId: "user-ha",
     proxy: { lastCheckVerdict: "ALIVE" },
     device: { userId: "user-ha", revokedAt: null },
@@ -46,6 +47,7 @@ describe("từng điều kiện thiếu một cái", () => {
     ["chưa gắn proxy", { proxy: null }, "NO_PROXY"],
     ["proxy hỏng", { proxy: { lastCheckVerdict: "DEAD" } }, "PROXY_BROKEN"],
     ["chưa có profile", { antidetectProfileId: null }, "NO_PROFILE"],
+    ["có profile nhưng chưa đăng nhập lần nào", { firstLoginAt: null }, "NOT_LOGGED_IN"],
     ["chưa có chủ", { ownerId: null }, "NO_OWNER"],
     ["chưa ghim máy", { device: null }, "NO_DEVICE"],
   ] as [string, Partial<ReadinessInput>, string][])("%s", (_name, overrides, code) => {
@@ -56,6 +58,17 @@ describe("từng điều kiện thiếu một cái", () => {
     // Mọi chặn đều phải nói được việc phải làm tiếp — cảnh báo không kèm đường đi tiếp là
     // cảnh báo bị phớt lờ.
     expect(result.blockers.every((blocker) => blocker.fix.length > 20)).toBe(true);
+  });
+
+  /**
+   * Chưa có profile thì chưa có chỗ nào để đăng nhập vào — hai dòng cùng lúc là bắt người đọc tự
+   * suy ra thứ tự giữa chúng. Đây là lý do hai nhánh nối bằng `else if` chứ không rời nhau.
+   */
+  it("chưa có profile thì KHÔNG báo kèm 'chưa đăng nhập'", () => {
+    const codes = codesOf(redditNick({ antidetectProfileId: null, firstLoginAt: null }));
+
+    expect(codes).toContain("NO_PROFILE");
+    expect(codes).not.toContain("NOT_LOGGED_IN");
   });
 
   it("proxy 'chưa kiểm lần nào' KHÔNG bị coi là hỏng", () => {
@@ -126,6 +139,16 @@ describe("nick Facebook — ranh giới quan trọng nhất", () => {
 
   it("proxy đã khai mà hỏng thì vẫn báo hỏng", () => {
     expect(codesOf(fbNick({ proxy: { lastCheckVerdict: "DEAD" } }))).toEqual(["PROXY_BROKEN"]);
+  });
+
+  /**
+   * Fanpage đăng bằng Graph API với token chính thức — không ai "đăng nhập vào profile" cả, nên
+   * mốc đó vĩnh viễn rỗng. Đòi nó là dựng thêm một lỗi thứ tư không bao giờ sửa được.
+   */
+  it("KHÔNG đòi mốc đăng nhập lần đầu, kể cả khi đã khai profile", () => {
+    const codes = codesOf(fbNick({ antidetectProfileId: "profile-fb", firstLoginAt: null }));
+
+    expect(codes).toEqual(["NO_DEVICE"]);
   });
 });
 

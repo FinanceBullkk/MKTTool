@@ -3,7 +3,7 @@
  *
  * ## Vì sao cần một hàm riêng cho câu hỏi này
  *
- * Điều kiện dùng được một nick nằm rải ở bảy cột thuộc bốn bảng. Trước khi có file này, người
+ * Điều kiện dùng được một nick nằm rải ở tám cột thuộc bốn bảng. Trước khi có file này, người
  * dùng phải tự ghép chúng từ bảng "Thông tin" 15 dòng ở trang chi tiết — và trang danh sách thì
  * không nói gì cả. Kết quả là *"bấm nút mới biết"*, đúng kiểu hỏng mà cả dự án tránh ở chỗ khác
  * (proxy "chưa kiểm lần nào" không hiện như đang khỏe; bộ dò "không dò được" không báo là "khỏe").
@@ -15,11 +15,15 @@
  *
  * Nick Reddit phải lén: mỗi nick một proxy, một vân tay, một máy. Fanpage đăng bằng Graph API có
  * token chính thức — không mở trình duyệt, không proxy, không profile, nên **không có máy nào để
- * ghim**. Đòi đủ bảy điều kiện cho nick Facebook là bịa ra ba lỗi vĩnh viễn không sửa được, và
+ * ghim**. Đòi đủ tám điều kiện cho nick Facebook là bịa ra bốn lỗi vĩnh viễn không sửa được, và
  * người đọc sẽ học cách phớt lờ cả cột.
  *
- * Ranh giới này đã có sẵn ở `validatePlatformIdentityFields()` và ở `launch/route.ts`; file này
+ * Ranh giới này đã có sẵn ở `validatePlatformAccountFields()` và ở `launch/route.ts`; file này
  * đọc cùng một ranh giới chứ không dựng ranh giới mới.
+ *
+ * Từ 07/08/2026, file này còn gánh thêm một điều kiện mà **chỉ** nó chấm được: `NOT_LOGGED_IN`.
+ * Hai lớp gác kia không nhìn thấy nó — form thì chấm lúc nhập, còn `launch/route.ts` thì phải
+ * cho mở profile chính vì người ta đang định vào đó đăng nhập lần đầu.
  */
 import { platformFamily } from "@/lib/platforms/platform-family";
 import { PROBLEM_VERDICTS } from "@/lib/proxies/proxy-liveness-verdict";
@@ -33,6 +37,7 @@ export type ReadinessBlockerCode =
   | "NO_PROXY"
   | "PROXY_BROKEN"
   | "NO_PROFILE"
+  | "NOT_LOGGED_IN"
   | "NO_OWNER"
   | "NO_DEVICE"
   | "DEVICE_REVOKED"
@@ -71,6 +76,8 @@ export interface ReadinessInput {
   coldStartUntil: Date | null;
   personaId: string | null;
   antidetectProfileId: string | null;
+  /** `Account.firstLoginAt` — xem blocker `NOT_LOGGED_IN`. */
+  firstLoginAt: Date | null;
   ownerId: string | null;
   proxy: { lastCheckVerdict: string | null } | null;
   device: { userId: string; revokedAt: Date | null } | null;
@@ -139,7 +146,23 @@ export function describeAccountReadiness(input: ReadinessInput): AccountReadines
     blockers.push({
       code: "NO_PROFILE",
       label: "chưa có profile antidetect",
-      fix: "Tạo profile trong MultiZen rồi dán id của nó vào thẻ Sửa nick.",
+      fix:
+        'Bấm "Tạo profile trên máy này" ở trang chi tiết nick — công cụ dựng profile mang sẵn ' +
+        "proxy và vân tay khớp quốc gia, rồi ghim nick vào chính máy đó.",
+    });
+  } else if (browserNick && !input.firstLoginAt) {
+    // Profile có rồi nhưng chưa ai đăng nhập. Trạng thái này CHỈ tồn tại từ 07/08/2026: trước đó
+    // id profile được dán vào sau khi đã đăng nhập tay xong, nên hai việc trùng nhau. Nút "Tạo
+    // profile" đẻ ra một trình duyệt trắng tinh — có proxy, có vân tay, không một cookie nào.
+    //
+    // `else if` chứ không phải điều kiện rời: chưa có profile thì chưa có gì để đăng nhập vào, và
+    // hiện hai dòng cùng lúc là bắt người đọc tự suy ra thứ tự giữa chúng.
+    blockers.push({
+      code: "NOT_LOGGED_IN",
+      label: "chưa đăng nhập lần nào",
+      fix:
+        "Mở profile, đăng nhập nick vào đó, rồi bấm \"Đã đăng nhập được\" ở thẻ Đăng nhập lần " +
+        "đầu. Làm ngay đầu cold-start — đăng nhập lần đầu là lúc hay bị đòi xác minh nhất.",
     });
   }
 

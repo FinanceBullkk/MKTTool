@@ -39,6 +39,14 @@ export const AUDIT_ACTIONS = {
    * người ta đã tạo. Ngày cần dựng lại lai lịch một nick, phân biệt được hai chuyện đó là đáng.
    */
   ACCOUNT_PROFILE_CREATED: "ACCOUNT_PROFILE_CREATED",
+  /**
+   * Lần đầu có người đăng nhập được nick vào profile của nó — xem `Account.firstLoginAt`.
+   *
+   * Đáng một loại riêng vì đây là mốc **nick bắt đầu tồn tại thật**: trước nó, cái profile chỉ là
+   * một trình duyệt rỗng mang proxy. Ngày một nick chết sớm, khoảng cách giữa hàng này và
+   * `ACCOUNT_PROFILE_CREATED` là thứ nói được nick đã nằm không bao lâu trước khi ai đó chạm vào.
+   */
+  ACCOUNT_FIRST_LOGIN: "ACCOUNT_FIRST_LOGIN",
 
   // Bí mật rời kho — nhóm quan trọng nhất của cả bảng
   CREDENTIAL_REVEALED: "CREDENTIAL_REVEALED",

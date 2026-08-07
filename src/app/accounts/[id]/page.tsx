@@ -7,6 +7,7 @@ import { AccountFormFields } from "@/components/vault/account-form-fields";
 import { AccountVaultForm } from "@/components/vault/account-vault-form";
 import { AccountReadinessPanel } from "@/components/vault/account-readiness-badge";
 import { AntidetectProfileCard } from "@/components/vault/antidetect-profile-card";
+import { FirstLoginCard } from "@/components/vault/first-login-card";
 import { assignAccountCluster } from "@/lib/accounts/account-owner-actions";
 import { describeAccountReadiness } from "@/lib/accounts/account-readiness";
 import {
@@ -20,6 +21,7 @@ import { updateAccount } from "@/lib/accounts/vault-update-actions";
 import { readActor } from "@/lib/auth/require-actor";
 import { prisma } from "@/lib/db/prisma-client";
 import { formatFullDate, formatFullDateTime } from "@/lib/format/vietnamese-date-format";
+import { platformFamily } from "@/lib/platforms/platform-family";
 import { listActiveRelayDevices } from "@/lib/tickets/ticket-recipient-lookup";
 import { AccountVaultActionsPanel } from "./account-vault-actions-panel";
 
@@ -54,6 +56,12 @@ export default async function AccountDetailPage({
   const coldDays = coldStartDaysRemaining(account.coldStartUntil);
   const age = accountAgeInDays(account.platformCreatedAt);
   const readiness = describeAccountReadiness(account);
+
+  // Nick mở bằng trình duyệt thật (Reddit) thì mới có profile để đăng nhập vào, và mới đăng nhập
+  // bằng tài khoản Google. Fanpage đăng qua Graph API — không profile, không đăng nhập lần đầu.
+  // Dùng lại `platformFamily` chứ không so chuỗi tại chỗ: ranh giới này đã có một chủ.
+  const browserNick = platformFamily(account.platform) === "REDDIT";
+  const usesGoogleLogin = browserNick;
 
   const [auditLogs, personas, selectableProxies, teamMembers, relayDevices, assignableDevices] =
     await Promise.all([
@@ -101,6 +109,14 @@ export default async function AccountDetailPage({
     ],
     ["Profile antidetect", account.antidetectProfileId ?? "— không có (không mở profile được)"],
     [
+      "Đăng nhập lần đầu",
+      account.firstLoginAt
+        ? formatFullDateTime(account.firstLoginAt)
+        : browserNick && account.antidetectProfileId
+          ? "— chưa (profile đang trống, chưa có phiên đăng nhập nào)"
+          : "—",
+    ],
+    [
       "Máy giữ profile",
       account.device
         ? `${account.device.name}${account.device.revokedAt ? " — ĐÃ THU HỒI, phải gán lại" : ""}`
@@ -144,10 +160,34 @@ export default async function AccountDetailPage({
           này không vẽ gì — một dải xanh "mọi thứ ổn" trên mỗi trang là thứ mắt học cách bỏ qua. */}
       <AccountReadinessPanel readiness={readiness} />
 
+      {/* ── Việc tiếp theo ─────────────────────────────────────────────────────
+          Hai thẻ dưới đây là chặng 2 và chặng 3 của luồng nhập một nick, và **không bao giờ hiện
+          cùng lúc**: chưa có profile thì chưa có chỗ nào để đăng nhập vào.
+
+          Đứng ngay dưới dải Sẵn sàng, tức TRÊN thẻ Thao tác, vì với một nick chưa xong cấu hình
+          thì bốn cái nút kia đều báo lỗi — thứ người ta cần trước là việc phải làm, không phải
+          những nút chưa dùng được. Nick đã xong thì cả hai thẻ biến mất và Thao tác lên đầu. */}
+      {account.antidetectProfileId === null ? (
+        <Card title="Việc tiếp theo — dựng profile antidetect">
+          <AntidetectProfileCard
+            accountId={account.id}
+            username={account.username}
+            proxyCountry={account.proxy?.country ?? null}
+            proxyLabel={account.proxy?.label ?? null}
+          />
+        </Card>
+      ) : browserNick && account.firstLoginAt === null ? (
+        <Card title="Việc tiếp theo — đăng nhập lần đầu">
+          <FirstLoginCard accountId={account.id} usesGoogleLogin={usesGoogleLogin} />
+        </Card>
+      ) : null}
+
       <Card title="Thao tác">
         <AccountVaultActionsPanel
           accountId={account.id}
           hasTotp={account.totpSecretEnc !== null}
+          hasOwnPassword={account.passwordEnc !== null}
+          usesGoogleLogin={usesGoogleLogin}
           canLaunch={presentation.canLaunch}
           launchBlockedReason={presentation.hint}
           relayDevices={relayDevices.map((device) => ({ id: device.id, name: device.name }))}
@@ -255,20 +295,6 @@ export default async function AccountDetailPage({
         </Card>
       )}
 
-      {/* Chỉ hiện khi nick CHƯA có profile: đã có rồi thì thẻ này không còn việc gì, và một thẻ
-          trống thường trực là thứ mắt học cách bỏ qua. Thẻ tự ẩn nốt nếu cầu nối không gọi được
-          — xem chú thích đầu `antidetect-profile-card.tsx`. */}
-      {account.antidetectProfileId === null ? (
-        <Card title="Profile antidetect">
-          <AntidetectProfileCard
-            accountId={account.id}
-            username={account.username}
-            proxyCountry={account.proxy?.country ?? null}
-            proxyLabel={account.proxy?.label ?? null}
-          />
-        </Card>
-      ) : null}
-
       <Card title="Sửa nick">
         <p className="mb-4 text-sm text-neutral-600 dark:text-neutral-400">
           Karma, trạng thái và cold-start là đầu vào của luật 1, 2 và 3 — sửa xong là mọi job
@@ -284,6 +310,7 @@ export default async function AccountDetailPage({
               label: `${proxy.label} — ${proxy.country}`,
             }))}
             defaults={account}
+            platform={account.platform}
           />
         </AccountVaultForm>
       </Card>

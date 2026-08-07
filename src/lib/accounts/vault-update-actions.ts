@@ -38,7 +38,7 @@ import {
   personaUpdateSchema,
   proxyUpdateSchema,
   targetUpdateSchema,
-  validatePlatformIdentityFields,
+  validatePlatformAccountFields,
 } from "./vault-form-schemas";
 
 export const updatePersona = guardedAction(async function updatePersona(
@@ -159,7 +159,9 @@ export const updateAccount = guardedAction(async function updateAccount(
     await requireNickOwner(actor, id);
   }
 
-  const identityError = validatePlatformIdentityFields(existing.platform, data);
+  // `creating: false` — ô bí mật để trống ở đường này nghĩa là *giữ nguyên*, không phải *không có*,
+  // nên luật "Facebook phải có mật khẩu nick" không chấm được ở đây. Luật của Reddit thì vẫn áp.
+  const identityError = validatePlatformAccountFields(existing.platform, data, { creating: false });
   if (identityError) return { ok: false, message: identityError };
 
   try {

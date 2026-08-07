@@ -54,6 +54,8 @@ export function SelectField({
   required,
   defaultValue,
   hint,
+  disabled,
+  onChange,
 }: {
   label: string;
   name: string;
@@ -61,6 +63,14 @@ export function SelectField({
   required?: boolean;
   defaultValue?: string;
   hint?: string;
+  /** Ô bị khóa **không được gửi lên** cùng form — xem `Field`. */
+  disabled?: boolean;
+  /**
+   * Báo giá trị vừa đổi. Ô vẫn **không được điều khiển** (`defaultValue`, không `value`) — đây chỉ
+   * là cái tai cho những form phải vẽ lại phần khác theo lựa chọn này, ví dụ form nick ẩn ô mật
+   * khẩu khi chọn nền tảng Reddit. Chuyển sang controlled thì mọi chỗ gọi khác phải giữ state hộ.
+   */
+  onChange?: (value: string) => void;
 }) {
   return (
     <label className="block">
@@ -68,7 +78,14 @@ export function SelectField({
         {label}
         {required ? <span className="text-red-600"> *</span> : null}
       </span>
-      <select className={FIELD_CLASS} name={name} required={required} defaultValue={defaultValue}>
+      <select
+        className={FIELD_CLASS}
+        name={name}
+        required={required}
+        defaultValue={defaultValue}
+        disabled={disabled}
+        onChange={(event) => onChange?.(event.target.value)}
+      >
         <option value="">— chọn —</option>
         {options.map((option) => (
           <option key={option.value} value={option.value}>

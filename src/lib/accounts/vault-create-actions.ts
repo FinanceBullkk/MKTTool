@@ -96,7 +96,23 @@ export const createProxy = adminAction(async function createProxy(
 });
 
 /**
- * Thêm nick.
+ * Thêm nick — **chặng 1** của luồng nhập một nick, không phải cả luồng.
+ *
+ * Hàng sinh ra ở đây cố ý còn thiếu hai thứ, và cả hai chỉ có được ở chặng sau:
+ *
+ * | Thiếu | Điền ở đâu |
+ * |---|---|
+ * | `antidetectProfileId` + `deviceId` | nút "Tạo profile trên máy này" ở trang chi tiết |
+ * | `firstLoginAt` | nút "Đã đăng nhập được", sau khi đăng nhập thật trong profile |
+ *
+ * Bản ghi nick **chính là** trạng thái của luồng nhập; `describeAccountReadiness()` đọc nó rồi
+ * nói ra việc còn lại. Không có state tạm nào phải giữ giữa các chặng — onboarding một nick kéo
+ * dài qua nhiều lượt ngồi (chờ MultiZen, chờ mã Google), và state tạm là thứ mất khi đóng tab.
+ *
+ * **Người tạo là chủ nick** (từ 07/08/2026). Trước đó nick sinh ra vô chủ, mà `requireNickOwner()`
+ * chặn OPERATOR trên nick vô chủ — nên chính người vừa khai nick cũng không bấm được nút tạo
+ * profile cho tới khi quản trị viên gán chủ. Hai lượt qua lại cho mỗi nick, không đổi lại gì:
+ * người tạo vừa tự tay gõ chính những bí mật đó vào form một phút trước.
  *
  * **Ba cột bí mật đi vào đây đã ở dạng ciphertext** — cầu nối trên máy người dùng bọc chúng
  * trước khi form gửi lên (xem `account-vault-form.tsx`). Máy chủ không mã hóa, vì nó không giữ
@@ -108,14 +124,19 @@ export const createProxy = adminAction(async function createProxy(
  * `relay-endpoints.ts` và GĐ4 bước 7.
  */
 export const createAccount = guardedAction(async function createAccount(
-  _actor,
+  actor,
   _prev: ActionResult | null,
   formData: FormData,
 ): Promise<ActionResult> {
   const parsed = accountCreateSchema.safeParse(formToObject(formData));
   if (!parsed.success) return { ok: false, message: firstError(parsed.error) };
 
-  const { totpSecretEnc, ...rest } = parsed.data;
+  const { totpSecretEnc, passwordEnc, ownerId, ...rest } = parsed.data;
+
+  // Chỉ ADMIN giao được nick cho người khác. OPERATOR gửi lên id nào cũng thành id của chính họ:
+  // không phải để phòng kẻ tấn công mà để form khỏi phải là bên giữ luật — ô đó ở phía họ vốn là
+  // ô chỉ đọc, và một ô chỉ đọc là thứ sửa được bằng devtools trong ba giây.
+  const owner = actor.role === "ADMIN" ? ownerId?.trim() || null : actor.userId;
 
   try {
     await prisma.account.create({
@@ -125,7 +146,11 @@ export const createAccount = guardedAction(async function createAccount(
         // trùng nhau, nên nick Facebook thứ hai sẽ ăn lỗi trùng ràng buộc mà không hiểu vì sao.
         antidetectProfileId: rest.antidetectProfileId?.trim() || null,
         proxyId: rest.proxyId?.trim() || null,
+        // Nick Reddit đăng nhập bằng Google nên không có mật khẩu riêng — `validatePlatformAccountFields`
+        // đã chặn trường hợp gửi lên một chuỗi, ở đây chỉ còn việc ghi NULL thay vì chuỗi rỗng.
+        passwordEnc: passwordEnc ?? null,
         totpSecretEnc: totpSecretEnc ?? null,
+        ownerId: owner,
       },
     });
   } catch (error) {
@@ -144,7 +169,14 @@ export const createAccount = guardedAction(async function createAccount(
   }
 
   revalidatePath("/accounts");
-  return { ok: true, message: `Đã thêm nick "${parsed.data.username}".` };
+  // Nói ngay việc tiếp theo. Nick vừa tạo CHƯA dùng được, và không nói ra thì người ta đóng tab
+  // rồi tưởng đã xong — cột "Sẵn sàng" ở trang danh sách là chỗ họ sẽ không nhìn tới.
+  return {
+    ok: true,
+    message:
+      `Đã thêm nick "${parsed.data.username}". Mở trang chi tiết của nó để dựng profile ` +
+      `antidetect — nick chưa có profile thì chưa mở được trình duyệt riêng.`,
+  };
 });
 
 export const createTarget = guardedAction(async function createTarget(

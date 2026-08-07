@@ -85,9 +85,13 @@ async function run() {
 
   // 1. Round-trip giải mã
   const stored = await prisma.account.findUniqueOrThrow({ where: { id: account.id } });
+  // Cột nullable từ 07/08/2026 (nick Reddit đăng nhập bằng Google nên không có mật khẩu riêng).
+  // Nick của bài smoke này vừa được ghi kèm mật khẩu ở ngay trên, nên rỗng ở đây là hỏng thật —
+  // để chuỗi rỗng đi tiếp thì hai phép kiểm dưới tự đỏ, đúng như mong muốn.
+  const storedPassword = stored.passwordEnc ?? "";
   check(
     "giải mã mật khẩu trả về đúng chuỗi gốc",
-    decryptCredential(stored.passwordEnc, operatorKey) === PLAINTEXT_PASSWORD,
+    decryptCredential(storedPassword, operatorKey) === PLAINTEXT_PASSWORD,
   );
 
   // 1b. Hai vùng khóa thật sự tách (GĐ3).
@@ -103,7 +107,7 @@ async function run() {
   } else {
     let serverKeyOpenedIt = true;
     try {
-      decryptCredential(stored.passwordEnc, serverKey);
+      decryptCredential(storedPassword, serverKey);
     } catch {
       serverKeyOpenedIt = false;
     }

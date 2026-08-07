@@ -233,22 +233,46 @@ model Account {
 
   // credential — tất cả đều mã hóa, và tất cả đều thuộc vùng operator: không luồng nghiệp vụ
   // nào trên máy chủ cần tới chúng, nên máy chủ không giữ khóa mở được.
-  passwordEnc      String // vault:operator
-  emailAddress     String // email gốc mua kèm nick
-  emailPasswordEnc String // vault:operator
-  totpSecretEnc    String? // vault:operator
 
-  /// Liên kết 1:1 — BẮT BUỘC với nick Reddit, bỏ trống được với nick Facebook.
+  /// Mật khẩu của chính nick — `null` với nick đăng nhập bằng tài khoản khác.
+  ///
+  /// Nick Reddit của team đăng nhập bằng nút *Continue with Google*, tức **không tồn tại** một
+  /// mật khẩu Reddit nào. Cột này từng là `NOT NULL`, nên người nhập buộc phải bịa một chuỗi cho
+  /// qua ràng buộc — rồi chính chuỗi giả đó nằm lại trong kho, đi vào bản sao lưu, và phải được
+  /// canh giữ y như một bí mật thật mà không đổi lại thứ gì. Cùng lớp sai với việc ép nick
+  /// Facebook khai proxy (xem `antidetectProfileId` dưới đây).
+  ///
+  /// Luật "nền tảng nào thì bắt buộc" nằm ở `validatePlatformAccountFields()`. Giao diện đọc
+  /// thẳng cột này chứ không đoán theo nền tảng: nút *"Chép mật khẩu nick"* hiện khi và chỉ khi
+  /// cột có giá trị, nên một nick lỡ lưu mật khẩu thật vẫn lấy lại được mà nick mới thì không
+  /// bao giờ hiện một nút phát ra chuỗi rỗng.
+  passwordEnc String? // vault:operator
+
+  /// Email gốc mua kèm nick. Với nick Reddit đây **chính là tài khoản Google** dùng để đăng nhập.
+  emailAddress String
+
+  /// Mật khẩu của `emailAddress`. Với nick Reddit đây là mật khẩu Google — thứ thật sự mở được nick.
+  emailPasswordEnc String // vault:operator
+
+  /// Mã 2 lớp dạng base32. Với nick Reddit đây là 2FA của **tài khoản Google**, không phải của Reddit.
+  totpSecretEnc String? // vault:operator
+
+  /// Liên kết 1:1 — điền ở CHẶNG 2 của luồng nhập nick, không phải lúc khai.
   ///
   /// Reddit phải lén: mỗi nick một vân tay, một IP, không được để lộ là cùng chủ. Fanpage thì
   /// đăng bằng Graph API có token chính thức — không mở trình duyệt, không giả vân tay, không
-  /// đi qua proxy. Ép hai trường này cho nick Facebook là bắt đốt một proxy thật và bịa một id
-  /// profile chỉ để thỏa ràng buộc, rồi chính dữ liệu giả đó nằm lại trong kho.
+  /// đi qua proxy. Ép trường này cho nick Facebook là bắt bịa một id chỉ để thỏa ràng buộc, rồi
+  /// chính dữ liệu giả đó nằm lại trong kho.
+  ///
+  /// **Không còn là điều kiện để TẠO nick, kể cả với Reddit** (đổi 07/08/2026). Id profile chỉ
+  /// có được sau khi bấm nút "Tạo profile trên máy này" ở trang chi tiết — mà trang đó cần nick
+  /// tồn tại trước. Ép lúc tạo là dựng một vòng luẩn quẩn không lối ra. Nay điều kiện đó chấm ở
+  /// `describeAccountReadiness()` (cột "Sẵn sàng") và thi hành ở `launch/route.ts`, tức chuyển
+  /// từ *chặn lúc nhập* sang *chấm điểm sẵn sàng*.
   ///
   /// `@unique` trên cột nullable vẫn chặn hai nick dùng chung một proxy (Postgres cho phép
   /// nhiều NULL nhưng chỉ một giá trị thật — giống hệt SQLite trước đây, nên đổi nền dữ liệu
   /// KHÔNG nới lỏng ràng buộc này), nên nguyên tắc 1 nick = 1 proxy vẫn nguyên cho Reddit.
-  /// Chỗ ép "Reddit thì không được trống" nằm ở validatePlatformIdentityFields().
   antidetectProfileId String? @unique // id profile bên MultiZen/AdsPower
   personaId           String
   proxyId             String? @unique // @unique ép quan hệ 1:1, chặn 2 nick chung IP
@@ -258,6 +282,30 @@ model Account {
   quarantineReason String?
   karma            Int       @default(0) // Reddit
   coldStartUntil   DateTime? // trước mốc này chỉ được đọc, cấm đăng
+
+  /// Lần đầu có người đăng nhập được nick vào profile antidetect của nó.
+  ///
+  /// ## Vì sao cột này phải tồn tại
+  ///
+  /// Trước 07/08/2026 hai việc *"có profile"* và *"đã đăng nhập"* dính làm một: người ta tự dựng
+  /// profile trong MultiZen, đăng nhập ngay trong đó, **rồi mới** chép id sang MKTTool. Nên
+  /// `antidetectProfileId != null` hàm ý nick đã dùng được.
+  ///
+  /// Nút "Tạo profile trên máy này" đảo ngược thứ tự đó — nó sinh ra một profile **rỗng**: có
+  /// proxy, có vân tay, chưa một cookie nào. Không có cột này thì cột "Sẵn sàng" sẽ khoe màu xanh
+  /// cho một nick chưa ai đăng nhập lần nào, và chuyện đó chỉ lộ ra vào đúng hôm ai đó ngồi xuống
+  /// định đăng bài. Đúng lớp hỏng mà cả dự án tránh ở chỗ khác ("chưa kiểm lần nào" ≠ "khỏe").
+  ///
+  /// ## Đây là LỜI KHAI, không phải phép đo
+  ///
+  /// Ghi khi người dùng bấm "Đã đăng nhập được", giống `karma` và `platformCreatedAt`. Quên bấm
+  /// thì nick báo đỏ oan — đổi lại nút nằm ngay trong thẻ chứa nút "Mở profile", nên người bấm
+  /// chính là người vừa đăng nhập xong. Đo thật thì phải hỏi MultiZen xem profile có cookie phiên
+  /// Reddit không, tức thêm một đường ở cầu nối và một lượt cả team cài lại — chưa đáng.
+  ///
+  /// Migration lấp `firstLoginAt = createdAt` cho nick đã có `antidetectProfileId` lúc chạy, đúng
+  /// theo định nghĩa cũ ở trên. Không lấp thì cả đàn nick đang chạy báo đỏ cùng lúc.
+  firstLoginAt DateTime?
 
   // nguồn gốc nick — dùng để đánh giá rủi ro và kiểm tra điều kiện subreddit
   platformCreatedAt DateTime? // ngày tạo nick trên nền tảng (tuổi nick)
