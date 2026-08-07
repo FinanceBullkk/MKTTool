@@ -107,6 +107,22 @@ export const requestCredentialTicket = guardedAction(async function requestCrede
   });
   if (!account) return { ok: false, message: "Không tìm thấy nick." };
 
+  // Cột rỗng là thứ máy chủ VẪN kiểm được dù không đọc nổi nội dung — cùng lý do với nhánh TOTP
+  // ở `requestOtpTicket`. Nick Reddit đăng nhập bằng Google nên `passwordEnc` là NULL với mọi nick
+  // tạo sau 07/08/2026; phát một tấm vé rỗng ra thì người dùng mở tab lên chỉ để đọc một khoảng
+  // trắng, và tưởng cầu nối hỏng.
+  const ciphertext = field === "password" ? account.passwordEnc : account.emailPasswordEnc;
+  if (!ciphertext) {
+    return {
+      ok: false,
+      message:
+        field === "password"
+          ? `Nick "${account.username}" không có mật khẩu riêng — nó đăng nhập bằng tài khoản ` +
+            `Google, nên thứ mở được nó là nút "Mật khẩu Google".`
+          : `Nick "${account.username}" chưa lưu mật khẩu email.`,
+    };
+  }
+
   const recipient = await pickRecipient(actor, accountId, account.deviceId, deviceId);
   if (!recipient.ok) return { ok: false, message: recipient.message };
 
@@ -116,7 +132,7 @@ export const requestCredentialTicket = guardedAction(async function requestCrede
       accountId,
       field,
       // Nguyên văn cột trong database. Máy chủ chuyển tiếp chứ không mở — nó không có khóa.
-      credentialCiphertext: field === "password" ? account.passwordEnc : account.emailPasswordEnc,
+      credentialCiphertext: ciphertext,
     },
     recipient.recipient,
   );

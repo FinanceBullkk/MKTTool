@@ -65,6 +65,7 @@ export async function loadSetupChecklist(): Promise<SetupChecklist> {
           coldStartUntil: true,
           personaId: true,
           antidetectProfileId: true,
+          firstLoginAt: true,
           ownerId: true,
           proxy: { select: { lastCheckVerdict: true } },
           device: { select: { userId: true, revokedAt: true } },

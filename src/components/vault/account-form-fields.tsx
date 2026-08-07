@@ -1,29 +1,45 @@
+"use client";
+
 /**
  * Ô nhập của nick, dùng chung cho form thêm mới và form sửa.
  *
- * Ba ô bí mật (mật khẩu nick, mật khẩu email, TOTP secret) chỉ bắt buộc lúc thêm mới; lúc
- * sửa thì để trống là giữ nguyên. Chúng không bao giờ được đổ ngược ra màn hình — xem
- * account-vault-actions-panel.tsx — nên form sửa không có cách nào hiện giá trị cũ.
+ * ## Vì sao file này là client component
  *
- * Ba ô đó là `VaultSecretField` chứ không phải `Field`: giá trị của chúng phải được cầu nối bọc
+ * Form phải vẽ lại theo **nền tảng đang chọn**: nick Reddit đăng nhập bằng tài khoản Google nên
+ * không có mật khẩu riêng, và ba ô còn lại đổi tên gọi cho đúng thứ chúng đang giữ. Bản trước ghi
+ * *"form không biết nền tảng lúc đang gõ"* nên để mọi ô mở và đẩy hết luật xuống server — nhưng
+ * "không biết" chỉ đúng khi không ai chịu giữ state, còn ô nền tảng thì nằm ngay trên cùng.
+ *
+ * Luật vẫn chấm ở server (`validatePlatformAccountFields`). Ẩn/hiện ở đây là để **đừng hỏi** thứ
+ * không tồn tại, không phải để canh cửa.
+ *
+ * ## Ba ô bí mật
+ *
+ * Chỉ bắt buộc lúc thêm mới; lúc sửa thì để trống là giữ nguyên. Chúng không bao giờ được đổ
+ * ngược ra màn hình — xem account-vault-actions-panel.tsx — nên form sửa không có cách nào hiện
+ * giá trị cũ. Chúng là `VaultSecretField` chứ không phải `Field`: giá trị phải được cầu nối bọc
  * trước khi rời máy này, nên chúng bị khóa cho tới khi JavaScript sẵn sàng làm việc đó. Cả form
  * cũng phải là `AccountVaultForm`, không phải `ActionForm`.
  *
  * `platform` cố định sau khi tạo, cùng lý do với đích đăng: đổi nó là làm hỏng mọi job cũ.
  */
+import { useState } from "react";
 import { Field, SelectField } from "@/components/ui/form-controls";
 import { ACCOUNT_STATUSES, getStatusPresentation } from "@/lib/accounts/account-status";
 import { localDayKey } from "@/lib/format/vietnamese-date-format";
 import { VaultSecretField } from "./vault-secret-field";
 
-/**
- * Hai ô này bắt buộc với Reddit, bỏ trống được với Facebook — nhưng form không biết nền tảng
- * lúc đang gõ (ô nền tảng nằm ngay trên, và lúc sửa thì không có ô đó). Nên thay vì bật/tắt
- * `required` theo nền tảng, ô để mở và luật chấm ở server: bỏ trống cho nick Reddit thì thông
- * báo nói thẳng thiếu gì. Xem validatePlatformIdentityFields().
- */
-const OPTIONAL_FOR_FACEBOOK_HINT =
+const PROXY_HINT_TAIL =
   "Bắt buộc với nick Reddit. Nick Facebook bỏ trống được — Fanpage đăng bằng Graph API, không mở trình duyệt.";
+
+/**
+ * Ô mã 2 lớp trước đây chỉ nói *"chuỗi base32 khi bật 2FA"* — đúng nhưng vô dụng với người chưa
+ * từng nghe tới nó, và kết quả là kho **không có lấy một nick nào lưu mã này** (đo 07/08/2026).
+ * Gợi ý phải trả lời được *lấy nó ở đâu*, không chỉ *nó bắt buộc hay không*.
+ */
+const TOTP_HINT_REDDIT =
+  'Bật "Xác minh 2 bước" cho tài khoản Google → chọn Ứng dụng xác thực → chuỗi chữ+số hiện cạnh ' +
+  "mã QR. Có nó thì bấm Lấy OTP ngay trên máy, khỏi mò điện thoại. Chưa bật 2 lớp thì để trống.";
 
 export interface AccountDefaults {
   username: string;
@@ -45,6 +61,13 @@ export interface SelectOption {
   label: string;
 }
 
+/** Người đang mở form — quyết định ô "Người phụ trách" là ô chọn hay chỉ đọc. */
+export interface FormViewer {
+  userId: string;
+  email: string;
+  isAdmin: boolean;
+}
+
 /** `<input type="date">` chỉ nhận đúng dạng YYYY-MM-DD, và phải là ngày theo giờ máy. */
 function dateInputValue(date: Date | null | undefined): string | undefined {
   return date ? localDayKey(date) : undefined;
@@ -60,6 +83,9 @@ export function AccountFormFields({
   proxies,
   defaults,
   defaultColdStartUntil,
+  platform,
+  viewer,
+  teamMembers,
 }: {
   personas: SelectOption[];
   /** Lúc sửa phải gồm cả proxy đang gắn cho chính nick này, không chỉ proxy còn trống. */
@@ -73,8 +99,18 @@ export function AccountFormFields({
    * — React sẽ kêu, và tệ hơn là nó im lặng lấy giá trị của máy người dùng thay vì giờ team.
    */
   defaultColdStartUntil?: string;
+  /** Nền tảng của bản ghi đang sửa. Form tạo không truyền — người dùng tự chọn. */
+  platform?: string;
+  /** Chỉ form **tạo** truyền hai ô dưới đây; form sửa đổi chủ ở thẻ Phân công cụm. */
+  viewer?: FormViewer;
+  teamMembers?: { id: string; email: string }[];
 }) {
   const editing = defaults !== undefined;
+
+  // Nick Reddit là chuyện thường ngày của công cụ này, nên nó là mặc định — đỡ một cú bấm ở mọi
+  // lượt nhập. Người thêm nick Facebook thấy ngay là form đổi hình dạng khi chọn.
+  const [chosenPlatform, setChosenPlatform] = useState(platform ?? "REDDIT");
+  const reddit = chosenPlatform === "REDDIT";
 
   return (
     <>
@@ -83,6 +119,8 @@ export function AccountFormFields({
           label="Nền tảng"
           name="platform"
           required
+          defaultValue="REDDIT"
+          onChange={setChosenPlatform}
           options={[
             { value: "REDDIT", label: "Reddit" },
             { value: "FACEBOOK", label: "Facebook" },
@@ -90,43 +128,69 @@ export function AccountFormFields({
         />
       )}
       <Field label="Username" name="username" required defaultValue={defaults?.username} />
-      <VaultSecretField
-        label="Mật khẩu nick"
-        name="password"
-        type="password"
-        required={!editing}
-        hint={editing ? "Để trống là giữ nguyên" : undefined}
-      />
+
+      {/* Nick Reddit KHÔNG có mật khẩu riêng — nó đăng nhập bằng nút "Continue with Google". Ô này
+          từng bắt buộc cho mọi nền tảng, nên người nhập phải bịa một chuỗi, và chuỗi giả đó nằm
+          lại trong kho phải được canh giữ y như bí mật thật. Xem `validatePlatformAccountFields`. */}
+      {reddit ? null : (
+        <VaultSecretField
+          label="Mật khẩu nick"
+          name="password"
+          type="password"
+          required={!editing}
+          hint={editing ? "Để trống là giữ nguyên" : undefined}
+        />
+      )}
+
       <Field
-        label="Email gốc"
+        label={reddit ? "Email Google" : "Email gốc"}
         name="emailAddress"
         type="email"
         required
         defaultValue={defaults?.emailAddress}
-        hint="Không có email gốc thì đừng mua nick — người bán lấy lại được"
+        hint={
+          reddit
+            ? "Tài khoản Google dùng để đăng nhập Reddit. Không có nó thì đừng mua nick — người bán lấy lại được"
+            : "Không có email gốc thì đừng mua nick — người bán lấy lại được"
+        }
       />
       <VaultSecretField
-        label="Mật khẩu email"
+        label={reddit ? "Mật khẩu Google" : "Mật khẩu email"}
         name="emailPassword"
         type="password"
         required={!editing}
-        hint={editing ? "Để trống là giữ nguyên" : undefined}
+        hint={
+          editing
+            ? "Để trống là giữ nguyên"
+            : reddit
+              ? "Đây mới là thứ mở được nick Reddit"
+              : undefined
+        }
       />
       <VaultSecretField
-        label="TOTP secret"
+        label={reddit ? "Mã 2 lớp của Google" : "TOTP secret"}
         name="totpSecret"
         hint={
           editing
             ? "Để trống là giữ nguyên. Gõ secret mới để thay. Cầu nối kiểm base32 trước khi bọc."
-            : "Chuỗi base32 khi bật 2FA. Để trống nếu chưa bật."
+            : reddit
+              ? TOTP_HINT_REDDIT
+              : "Chuỗi base32 khi bật 2FA. Để trống nếu chưa bật."
         }
       />
-      <Field
-        label="Id profile antidetect"
-        name="antidetectProfileId"
-        defaultValue={defaults?.antidetectProfileId ?? undefined}
-        hint={OPTIONAL_FOR_FACEBOOK_HINT}
-      />
+
+      {/* Chỉ còn ở form SỬA, và chỉ còn là đường lùi. Đường chính là nút "Tạo profile trên máy
+          này" ở trang chi tiết — bắt điền id lúc tạo là dựng một vòng luẩn quẩn, vì id chỉ có
+          được sau khi nick đã tồn tại. */}
+      {editing ? (
+        <Field
+          label="Id profile antidetect"
+          name="antidetectProfileId"
+          defaultValue={defaults?.antidetectProfileId ?? undefined}
+          hint="Thường do nút Tạo profile tự điền. Gõ tay khi dựng profile trong MultiZen từ máy khác."
+        />
+      ) : null}
+
       <SelectField
         label="Nhân vật"
         name="personaId"
@@ -140,14 +204,41 @@ export function AccountFormFields({
         defaultValue={defaults?.proxyId ?? undefined}
         hint={
           editing
-            ? `${OPTIONAL_FOR_FACEBOOK_HINT} Chỉ hiện proxy còn trống và proxy đang gắn cho nick này.`
-            : `${OPTIONAL_FOR_FACEBOOK_HINT} ${proxies.length} proxy chưa gắn nick.`
+            ? `${PROXY_HINT_TAIL} Chỉ hiện proxy còn trống và proxy đang gắn cho nick này.`
+            : `${PROXY_HINT_TAIL} ${proxies.length} proxy chưa gắn nick.`
         }
         options={[
           { value: "", label: "— không gắn (chỉ nick Facebook) —" },
           ...proxies.map((proxy) => ({ value: proxy.id, label: proxy.label })),
         ]}
       />
+
+      {/* Chỉ ở form TẠO. Đổi chủ về sau là việc của thẻ Phân công cụm, chỗ duy nhất biết đối
+          chiếu chủ với máy giữ profile. Ô này tồn tại vì nick sinh ra vô chủ thì chính người vừa
+          khai nó cũng không bấm được nút Tạo profile — `requireNickOwner` chặn. */}
+      {!editing && viewer ? (
+        viewer.isAdmin ? (
+          <SelectField
+            label="Người phụ trách"
+            name="ownerId"
+            defaultValue={viewer.userId}
+            hint="Chỉ hiện người đã đăng nhập ít nhất một lần. Người này sẽ là người dựng profile trên máy của họ."
+            options={(teamMembers ?? []).map((member) => ({
+              value: member.id,
+              label: member.email,
+            }))}
+          />
+        ) : (
+          <Field
+            label="Người phụ trách"
+            name="ownerIdDisplay"
+            defaultValue={viewer.email}
+            disabled
+            hint="Nick bạn thêm là nick của bạn. Quản trị viên chuyển sang người khác được ở thẻ Phân công cụm."
+          />
+        )
+      ) : null}
+
       {/* Ô vận hành, chỉ có nghĩa cho nick đã sống một thời gian — nick mới luôn là COLD_START,
           và schema tạo đã mặc định đúng giá trị đó. Xem `accountCreateBase`. */}
       {editing ? (

@@ -2,9 +2,12 @@
  * Schema của mọi form trong kho danh tính, dùng chung cho cả thêm mới lẫn sửa.
  *
  * Tách khỏi các file `"use server"` vì hai lẽ: ở đó mọi thứ export ra đều thành endpoint HTTP,
- * và vì đây chính là chỗ create/update dễ trôi khỏi nhau nhất — nhập mới bắt buộc nhập mật khẩu
- * còn sửa thì để trống là giữ nguyên, nhưng MỌI luật còn lại phải giống hệt. Khai hai lần là
- * sớm muộn cũng có một ô bị siết ở đường này mà lỏng ở đường kia.
+ * và vì đây chính là chỗ create/update dễ trôi khỏi nhau nhất — ô bí mật để trống lúc nhập mới
+ * nghĩa là *không có*, còn lúc sửa nghĩa là *giữ nguyên*, nhưng MỌI luật còn lại phải giống hệt.
+ * Khai hai lần là sớm muộn cũng có một ô bị siết ở đường này mà lỏng ở đường kia.
+ *
+ * Đúng một luật được phép lệch giữa hai đường, và nó đi qua cờ `creating` của
+ * `validatePlatformAccountFields()` chứ không qua hai bản sao — xem chú thích ở đó.
  */
 import { z } from "zod";
 import { CONTENT_TYPES } from "@/lib/content/content-types";
@@ -149,7 +152,13 @@ const accountShape = {
    */
   username: z.string().trim().min(1, "Username không được để trống"),
   emailAddress: z.string().email("Email gốc không hợp lệ"),
-  // Bắt buộc hay không tùy nền tảng — xem validatePlatformIdentityFields() ngay dưới.
+  /**
+   * Luôn tùy chọn ở cả hai đường, kể cả với nick Reddit.
+   *
+   * Ô này chỉ còn là **đường lùi**: dán tay cho máy chạy cầu nối bản cũ, hoặc cho người nhập liệu
+   * hộ từ một chiếc máy không có profile. Đường chính là nút "Tạo profile trên máy này" ở trang
+   * chi tiết nick. Xem `validatePlatformAccountFields()` về chuyện vì sao nó rời khỏi luật.
+   */
   antidetectProfileId: optionalText,
   personaId: z.string().min(1, "Chọn nhân vật"),
   proxyId: optionalText,
@@ -163,38 +172,80 @@ const accountShape = {
 };
 
 /**
- * Proxy và profile antidetect: Reddit bắt buộc, Facebook không.
+ * Những gì luật theo nền tảng cần nhìn. Rời khỏi model Prisma để test khỏi dựng database.
+ */
+export interface PlatformAccountFields {
+  proxyId?: string | null;
+  /** Ciphertext mật khẩu **của chính nick** — không phải mật khẩu email/Google. */
+  passwordEnc?: string | null;
+}
+
+/**
+ * Hai luật khác nhau theo nền tảng, gom về một chỗ.
  *
- * Nick Reddit phải lén — thiếu proxy là nick đi bằng IP nhà, thiếu profile antidetect là không
- * mở nổi trình duyệt riêng cho nó. Fanpage đăng bằng Graph API với token chính thức: không mở
- * trình duyệt, không giả vân tay, không qua proxy. Ép hai trường đó là bắt người dùng đốt một
- * proxy thật và bịa một id chỉ để thỏa ràng buộc.
+ * | | Proxy | Mật khẩu nick |
+ * |---|---|---|
+ * | REDDIT | bắt buộc | phải **trống** |
+ * | FACEBOOK | không đòi | bắt buộc (lúc tạo) |
+ *
+ * **Proxy:** nick Reddit phải lén, thiếu proxy là nick đi bằng IP nhà. Fanpage đăng bằng Graph API
+ * với token chính thức — không mở trình duyệt, không giả vân tay, không qua proxy — nên ép nó khai
+ * proxy là bắt người dùng đốt một proxy thật chỉ để thỏa ràng buộc.
+ *
+ * **Mật khẩu nick:** nick Reddit của team đăng nhập bằng nút *Continue with Google*, tức **không
+ * tồn tại** một mật khẩu Reddit nào; thứ mở được nick là mật khẩu Google, nằm ở `emailPasswordEnc`.
+ * Bắt buộc ô đó là bắt bịa một chuỗi, rồi chuỗi giả nằm lại trong kho và phải được canh giữ y như
+ * bí mật thật. Nên với Reddit, có giá trị mới là **sai** — không phải thiếu giá trị.
+ *
+ * ## `antidetectProfileId` KHÔNG còn ở đây (07/08/2026)
+ *
+ * Nó từng là điều kiện bắt buộc của nick Reddit. Nhưng id profile chỉ có được sau khi bấm nút
+ * "Tạo profile trên máy này" ở **trang chi tiết**, mà trang đó cần nick tồn tại trước — ép lúc tạo
+ * là dựng một vòng luẩn quẩn không lối ra. Điều kiện ấy nay chấm ở `describeAccountReadiness()`
+ * (cột "Sẵn sàng") và thi hành ở `launch/route.ts`: chuyển từ *chặn lúc nhập* sang *chấm điểm sẵn
+ * sàng*, không nới lỏng gì trên thực tế.
  *
  * Hàm thuần, và là nguồn sự thật DUY NHẤT cho luật này — cả đường tạo lẫn đường sửa đều gọi nó.
  * Khai hai lần là sớm muộn có một đường bị siết còn đường kia lỏng, đúng cái bẫy mà chú thích
  * đầu file này nói tới.
  */
-export function validatePlatformIdentityFields(
+export function validatePlatformAccountFields(
   platform: string,
-  values: { antidetectProfileId?: string | null; proxyId?: string | null },
+  values: PlatformAccountFields,
+  /**
+   * `false` = đường **sửa**, nơi ô để trống nghĩa là *giữ nguyên giá trị cũ*.
+   *
+   * Chỉ một luật lệ thuộc vào cờ này: "Facebook phải có mật khẩu nick" không chấm được lúc sửa,
+   * vì ô trống ở đó không phải là thiếu. Luật của Reddit thì áp cho cả hai đường — gửi lên một
+   * mật khẩu cho nick Reddit là sai ở mọi ngữ cảnh.
+   */
+  options: { creating: boolean },
 ): string | null {
-  if (platform !== "REDDIT") return null;
-  if (!values.antidetectProfileId?.trim()) {
-    return "Nick Reddit bắt buộc có id profile antidetect — thiếu nó thì không mở được profile riêng.";
+  if (platform === "REDDIT") {
+    if (values.passwordEnc?.trim()) {
+      return (
+        "Nick Reddit đăng nhập bằng tài khoản Google nên không có mật khẩu riêng — " +
+        'thứ mở được nick nằm ở ô "Mật khẩu Google".'
+      );
+    }
+    if (!values.proxyId?.trim()) {
+      return "Nick Reddit bắt buộc gắn một proxy — thiếu nó là nick chạy bằng IP nhà.";
+    }
+    return null;
   }
-  if (!values.proxyId?.trim()) {
-    return "Nick Reddit bắt buộc gắn một proxy — thiếu nó là nick chạy bằng IP nhà.";
+
+  if (options.creating && !values.passwordEnc?.trim()) {
+    return "Nick Facebook phải có mật khẩu nick.";
   }
   return null;
 }
 
 /** Gắn luật trên vào một schema zod, để lỗi hiện ra cùng chỗ với mọi lỗi form khác. */
-function withPlatformIdentityCheck<T extends z.ZodTypeAny>(schema: T, platform: string) {
+function withPlatformAccountCheck<T extends z.ZodTypeAny>(schema: T, platform: string) {
   return schema.superRefine((value, ctx) => {
-    const message = validatePlatformIdentityFields(
-      platform,
-      value as { antidetectProfileId?: string; proxyId?: string },
-    );
+    const message = validatePlatformAccountFields(platform, value as PlatformAccountFields, {
+      creating: false,
+    });
     if (message) ctx.addIssue({ code: "custom", message, path: ["proxyId"] });
   });
 }
@@ -212,13 +263,28 @@ const accountCreateBase = z.object({
    * `default` chứ không bỏ hẳn khỏi schema: form **sửa** vẫn gửi ô này lên và vẫn phải đổi được.
    */
   status: z.enum(ACCOUNT_STATUSES).default("COLD_START"),
-  passwordEnc: encryptedCredential("Mật khẩu nick"),
+  /**
+   * Tùy chọn ở tầng schema, bắt buộc-theo-nền-tảng ở `validatePlatformAccountFields`.
+   *
+   * Không đánh dấu `required` ngay đây được: nick Reddit **phải** để trống ô này, nên một luật
+   * cứng ở tầng schema sẽ chặn đúng trường hợp thường gặp nhất.
+   */
+  passwordEnc: optionalEncryptedCredential("Mật khẩu nick"),
   emailPasswordEnc: encryptedCredential("Mật khẩu email"),
   totpSecretEnc: optionalEncryptedCredential("TOTP secret"),
+  /**
+   * Người phụ trách, đặt ngay lúc tạo — **chỉ có ở đường tạo**.
+   *
+   * Đổi chủ về sau vẫn là việc của `assignAccountCluster()`, chỗ duy nhất biết đối chiếu chủ với
+   * máy. Ô này chỉ quyết định giá trị ban đầu, và nó tồn tại vì `requireNickOwner()` chặn
+   * OPERATOR trên nick vô chủ: nick sinh ra không chủ thì chính người vừa khai nó cũng không bấm
+   * được nút "Tạo profile", phải chờ quản trị viên gán rồi mới đi tiếp được.
+   */
+  ownerId: optionalText,
 });
 
 export const accountCreateSchema = accountCreateBase.superRefine((value, ctx) => {
-  const message = validatePlatformIdentityFields(value.platform, value);
+  const message = validatePlatformAccountFields(value.platform, value, { creating: true });
   if (message) ctx.addIssue({ code: "custom", message, path: ["proxyId"] });
 });
 
@@ -237,7 +303,7 @@ export const accountUpdateSchema = z.object({
 });
 
 export function accountUpdateSchemaFor(platform: string) {
-  return withPlatformIdentityCheck(accountUpdateSchema, platform);
+  return withPlatformAccountCheck(accountUpdateSchema, platform);
 }
 
 // ─── Đích đăng ───────────────────────────────────────────────────────────────

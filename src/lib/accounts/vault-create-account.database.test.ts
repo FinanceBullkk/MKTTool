@@ -41,7 +41,11 @@ const { createAccount } = await import("./vault-create-actions");
 const bocNhuCauNoi = (plaintext: string) =>
   encryptCredential(plaintext, loadVaultKey("operator"));
 
+const ADMIN_ID = "user-1";
+const NAM_ID = "user-nam";
+
 let personaId: string;
+let proxyId: string;
 /**
  * Ciphertext bọc sẵn từ `beforeEach`, lúc khóa còn trong môi trường.
  *
@@ -77,15 +81,39 @@ beforeEach(async () => {
   await prisma.auditLog.deleteMany();
   await prisma.account.deleteMany();
   await prisma.persona.deleteMany();
+  await prisma.proxy.deleteMany();
+  await prisma.user.deleteMany();
 
-  const persona = await prisma.persona.create({
-    data: {
-      name: "Nhân vật thử",
-      voice: "điềm đạm",
-      contentAngle: "self-hosting",
-    },
-  });
+  const [persona, proxy] = await Promise.all([
+    prisma.persona.create({
+      data: {
+        name: "Nhân vật thử",
+        voice: "điềm đạm",
+        contentAngle: "self-hosting",
+      },
+    }),
+    // Nick Reddit bắt buộc gắn proxy — luật đó KHÔNG đổi trong bản này, và còn quan trọng hơn
+    // trước: vân tay của profile được căn theo `Proxy.country`.
+    prisma.proxy.create({
+      data: {
+        label: "proxy-thu",
+        host: "1.2.3.4",
+        port: 9100,
+        username: "u",
+        passwordEnc: encryptCredential("p", loadVaultKey("server")),
+        country: "US",
+        protocol: "http",
+      },
+    }),
+    prisma.user.createMany({
+      data: [
+        { id: ADMIN_ID, name: "Quản trị", email: "admin@mkttool.local", updatedAt: new Date() },
+        { id: NAM_ID, name: "Nam", email: "nam@mkttool.local", updatedAt: new Date() },
+      ],
+    }),
+  ]);
   personaId = persona.id;
+  proxyId = proxy.id;
 });
 
 afterAll(async () => {
@@ -105,7 +133,7 @@ describe("vùng khóa của nick vừa tạo", () => {
     const account = await prisma.account.findFirstOrThrow();
     const operatorKey = loadVaultKey("operator");
 
-    expect(decryptCredential(account.passwordEnc, operatorKey)).toBe(
+    expect(decryptCredential(account.passwordEnc ?? "",operatorKey)).toBe(
       "mat-khau-nick",
     );
     expect(decryptCredential(account.emailPasswordEnc, operatorKey)).toBe(
@@ -117,7 +145,7 @@ describe("vùng khóa của nick vừa tạo", () => {
 
     // Khóa vùng máy chủ KHÔNG được mở nổi cột nào trong ba cột trên.
     expect(() =>
-      decryptCredential(account.passwordEnc, loadVaultKey("server")),
+      decryptCredential(account.passwordEnc ?? "",loadVaultKey("server")),
     ).toThrow();
     expect(() =>
       decryptCredential(account.emailPasswordEnc, loadVaultKey("server")),
@@ -146,6 +174,83 @@ describe("vùng khóa của nick vừa tạo", () => {
 
     expect(result.ok).toBe(true);
     expect(await prisma.account.count()).toBe(1);
+  });
+});
+
+/**
+ * Luồng nhập một nick chia làm nhiều chặng, và đường tạo chỉ là chặng 1.
+ *
+ * Trước 07/08/2026 nó không phải vậy: form đòi đủ `antidetectProfileId` mới cho lưu, trong khi id
+ * đó chỉ có được ở trang chi tiết của một nick **đã tồn tại**. Vòng luẩn quẩn đó làm nút "Tạo
+ * profile trên máy này" thành nút không bao giờ hiện ra với nick Reddit tạo qua form.
+ */
+describe("chặng 1 — khai nick, chưa cần profile", () => {
+  const redditForm = (overrides: Record<string, string> = {}) =>
+    createForm({
+      platform: "REDDIT",
+      username: "anna",
+      proxyId,
+      passwordEnc: "", // nick Reddit đăng nhập bằng Google — không có mật khẩu riêng
+      ...overrides,
+    });
+
+  it("nick Reddit tạo được khi CHƯA có id profile", async () => {
+    const result = await createAccount(null, redditForm());
+
+    expect(result.ok).toBe(true);
+    const account = await prisma.account.findFirstOrThrow();
+    expect(account.antidetectProfileId).toBeNull();
+    // Câu báo phải chỉ ra việc tiếp theo: nick này chưa dùng được, và người vừa lưu sẽ đóng tab
+    // nếu không ai nói gì.
+    expect(result.message).toContain("profile");
+  });
+
+  it("nick Reddit KHÔNG lưu mật khẩu nick — cột để NULL, không phải chuỗi rỗng", async () => {
+    await createAccount(null, redditForm());
+
+    const account = await prisma.account.findFirstOrThrow();
+    expect(account.passwordEnc).toBeNull();
+  });
+
+  it("nick Reddit gửi kèm mật khẩu nick thì bị từ chối", async () => {
+    const result = await createAccount(null, redditForm({ passwordEnc: bocMatKhau }));
+
+    expect(result.ok).toBe(false);
+    expect(result.message).toContain("Google");
+    expect(await prisma.account.count()).toBe(0);
+  });
+
+  it("nick mới chưa đăng nhập lần nào — mốc để trống", async () => {
+    await createAccount(null, redditForm());
+
+    const account = await prisma.account.findFirstOrThrow();
+    expect(account.firstLoginAt).toBeNull();
+  });
+});
+
+/**
+ * Chủ nick đặt ngay lúc tạo, vì `requireNickOwner()` chặn OPERATOR trên nick vô chủ — nick sinh ra
+ * không chủ thì chính người vừa khai nó cũng không bấm được nút tạo profile.
+ *
+ * Phiên trong file này là **ADMIN**, tức nhánh được phép giao cho người khác.
+ */
+describe("chủ nick đặt ngay lúc tạo", () => {
+  it("ADMIN giao được cho người khác ngay từ form", async () => {
+    const result = await createAccount(
+      null,
+      createForm({ platform: "REDDIT", proxyId, passwordEnc: "", ownerId: NAM_ID }),
+    );
+
+    expect(result.ok).toBe(true);
+    const account = await prisma.account.findFirstOrThrow();
+    expect(account.ownerId).toBe(NAM_ID);
+  });
+
+  it("ADMIN để trống ô chủ thì nick vô chủ — không tự gán về mình", async () => {
+    await createAccount(null, createForm({ platform: "REDDIT", proxyId, passwordEnc: "" }));
+
+    const account = await prisma.account.findFirstOrThrow();
+    expect(account.ownerId).toBeNull();
   });
 });
 

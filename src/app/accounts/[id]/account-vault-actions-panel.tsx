@@ -102,6 +102,8 @@ export interface RelayDeviceOption {
 export function AccountVaultActionsPanel({
   accountId,
   hasTotp,
+  hasOwnPassword,
+  usesGoogleLogin,
   canLaunch,
   launchBlockedReason,
   relayDevices,
@@ -109,6 +111,16 @@ export function AccountVaultActionsPanel({
 }: {
   accountId: string;
   hasTotp: boolean;
+  /**
+   * `Account.passwordEnc` có giá trị không.
+   *
+   * Đọc thẳng cột chứ **không** suy theo nền tảng: nick Reddit đăng nhập bằng Google nên cột này
+   * là NULL với mọi nick tạo sau 07/08/2026, nhưng một nick cũ lỡ lưu mật khẩu thật thì vẫn phải
+   * lấy lại được. Suy theo nền tảng là khóa mất đường tới một bí mật đang nằm trong kho.
+   */
+  hasOwnPassword: boolean;
+  /** Đổi tên nút cho đúng thứ nó phát ra: mật khẩu Google, không phải "mật khẩu email" chung chung. */
+  usesGoogleLogin: boolean;
   canLaunch: boolean;
   launchBlockedReason: string;
   /**
@@ -309,19 +321,24 @@ export function AccountVaultActionsPanel({
       ) : null}
 
       <div className="flex flex-wrap gap-2">
-        <button
-          type="button"
-          className={BUTTON_CLASS}
-          disabled={busy}
-          onClick={() =>
-            openSecretTab(
-              () => requestCredentialTicket(accountId, "password", deviceId || undefined),
-              "mật khẩu nick",
-            )
-          }
-        >
-          Mật khẩu nick
-        </button>
+        {/* Ẩn hẳn thay vì khóa lại: một nút xám thường trực gợi ra rằng nick này *đáng lẽ* có mật
+            khẩu riêng và ai đó quên nhập. Nick đăng nhập bằng Google thì không có, và sẽ không
+            bao giờ có. */}
+        {hasOwnPassword ? (
+          <button
+            type="button"
+            className={BUTTON_CLASS}
+            disabled={busy}
+            onClick={() =>
+              openSecretTab(
+                () => requestCredentialTicket(accountId, "password", deviceId || undefined),
+                "mật khẩu nick",
+              )
+            }
+          >
+            Mật khẩu nick
+          </button>
+        ) : null}
         <button
           type="button"
           className={BUTTON_CLASS}
@@ -329,11 +346,11 @@ export function AccountVaultActionsPanel({
           onClick={() =>
             openSecretTab(
               () => requestCredentialTicket(accountId, "emailPassword", deviceId || undefined),
-              "mật khẩu email",
+              usesGoogleLogin ? "mật khẩu Google" : "mật khẩu email",
             )
           }
         >
-          Mật khẩu email
+          {usesGoogleLogin ? "Mật khẩu Google" : "Mật khẩu email"}
         </button>
         <button
           type="button"

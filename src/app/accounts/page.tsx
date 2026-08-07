@@ -11,6 +11,7 @@ import { AccountReadinessCell } from "@/components/vault/account-readiness-badge
 import { AccountVaultForm } from "@/components/vault/account-vault-form";
 import { describeAccountReadiness } from "@/lib/accounts/account-readiness";
 import { createAccount } from "@/lib/accounts/vault-create-actions";
+import { readActor } from "@/lib/auth/require-actor";
 import {
   accountAgeInDays,
   coldStartDaysRemaining,
@@ -22,7 +23,9 @@ import { prisma } from "@/lib/db/prisma-client";
 export const dynamic = "force-dynamic";
 
 export default async function AccountsPage() {
-  const [accounts, personas, freeProxies] = await Promise.all([
+  const viewer = await readActor();
+
+  const [accounts, personas, freeProxies, teamMembers] = await Promise.all([
     prisma.account.findMany({
       include: {
         persona: true,
@@ -34,6 +37,10 @@ export default async function AccountsPage() {
     prisma.persona.findMany({ orderBy: { name: "asc" } }),
     // Chỉ hiện proxy chưa gắn nick — ràng buộc 1:1 nằm ở DB, đây chỉ là để UI đỡ gây nhầm.
     prisma.proxy.findMany({ where: { account: null }, orderBy: { label: "asc" } }),
+    // Chỉ ADMIN cần danh sách này (giao nick cho người khác ngay lúc tạo), nhưng truy vấn vẫn
+    // chạy cho mọi người: một lượt đọc bảng vài dòng rẻ hơn một nhánh `if` phải nhớ đồng bộ với
+    // nhánh render bên dưới.
+    prisma.user.findMany({ orderBy: { email: "asc" }, select: { id: true, email: true } }),
   ]);
 
   // Nick có vấn đề đẩy lên đầu.
@@ -133,6 +140,12 @@ export default async function AccountsPage() {
                 label: `${proxy.label} — ${proxy.country}`,
               }))}
               defaultColdStartUntil={defaultColdStartUntil}
+              viewer={
+                viewer
+                  ? { userId: viewer.userId, email: viewer.email, isAdmin: viewer.role === "ADMIN" }
+                  : undefined
+              }
+              teamMembers={teamMembers}
             />
           </AccountVaultForm>
         )}

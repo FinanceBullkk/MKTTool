@@ -373,8 +373,21 @@ Ba chỗ giữ cho việc nới này không nới quá tay:
 | Chỗ | Việc |
 |---|---|
 | `@unique` trên cột nullable | Postgres cho nhiều NULL nhưng chỉ một giá trị thật (giống hệt SQLite trước đây), nên **1 nick = 1 proxy vẫn nguyên** cho Reddit |
-| `validatePlatformIdentityFields()` ở `vault-form-schemas.ts` | Hàm thuần, nguồn sự thật DUY NHẤT cho luật "Reddit bắt buộc". Cả `createAccount` lẫn `updateAccount` gọi nó |
+| `validatePlatformAccountFields()` ở `vault-form-schemas.ts` | Hàm thuần, nguồn sự thật DUY NHẤT cho luật theo nền tảng. Cả `createAccount` lẫn `updateAccount` gọi nó |
 | Route `api/accounts/[id]/launch` | Thiếu proxy hoặc profile thì từ chối mở kèm lý do, không mở profile trần bằng IP nhà |
+
+**`antidetectProfileId` đã RỜI khỏi hàm luật đó — 07/08/2026.** Nó từng là điều kiện bắt buộc của
+nick Reddit, nhưng id profile chỉ có được sau khi bấm nút *"Tạo profile trên máy này"* ở trang chi
+tiết, mà trang đó cần nick tồn tại trước. Vòng luẩn quẩn ấy làm nút mới **không bao giờ hiện ra**
+cho nick Reddit tạo qua form. Nay điều kiện chấm ở `describeAccountReadiness()` và thi hành ở
+`launch/route.ts`: chuyển từ *chặn lúc nhập* sang *chấm điểm sẵn sàng*, không nới lỏng gì thật sự.
+
+**Hàm đó nay còn gánh luật mật khẩu, và luật này chạy NGƯỢC.** Nick Reddit đăng nhập bằng
+*Continue with Google* nên **không tồn tại** mật khẩu Reddit: với Reddit, `passwordEnc` *có* giá
+trị mới là sai. `Account.passwordEnc` thành nullable cùng ngày, và migration dọn sạch những chuỗi
+bịa ra hồi cột còn `NOT NULL` — một bí mật giả vẫn phải canh giữ như bí mật thật mà không đổi lại
+gì. Giao diện đọc **thẳng cột** (`passwordEnc !== null`) chứ không suy theo nền tảng, để một nick
+cũ lỡ lưu mật khẩu thật vẫn lấy lại được.
 
 Hai cái bẫy đã vấp và đã có test canh:
 

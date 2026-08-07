@@ -274,8 +274,8 @@ describe("ô bí mật để trống là giữ nguyên", () => {
 
     const after = await prisma.account.findUniqueOrThrow({ where: { id: seeded.accountId } });
     expect(after.passwordEnc).toBe(boc);
-    expect(decryptAsOperator(after.passwordEnc)).toBe("mat-khau-nick-moi");
-    expect(() => decryptCredential(after.passwordEnc, loadVaultKey("server"))).toThrow();
+    expect(decryptAsOperator(after.passwordEnc ?? "")).toBe("mat-khau-nick-moi");
+    expect(() => decryptCredential(after.passwordEnc ?? "", loadVaultKey("server"))).toThrow();
   });
 
   /**
@@ -440,12 +440,23 @@ describe("proxy + profile antidetect theo nền tảng", () => {
     expect(after.proxyId).toBe(seeded.proxyId);
   });
 
-  it("nick Reddit xóa trắng profile antidetect cũng bị chặn", async () => {
+  /**
+   * Đảo chiều so với bản trước (07/08/2026), và đây là chỗ ghi lại vì sao.
+   *
+   * Id profile chỉ có được sau khi bấm nút "Tạo profile trên máy này" ở trang chi tiết — mà trang
+   * đó cần nick tồn tại trước. Ép nó ở đường form là dựng một vòng luẩn quẩn: không tạo nổi nick
+   * Reddit nào, nên nút kia không bao giờ hiện ra.
+   *
+   * Không nới lỏng gì trên thực tế: `describeAccountReadiness()` báo `NO_PROFILE` ở cột "Sẵn sàng",
+   * và `launch/route.ts` vẫn từ chối mở nick thiếu profile. Chỉ đổi chỗ chấm, từ *chặn lúc nhập*
+   * sang *chấm điểm sẵn sàng*. Xóa trắng ô này còn là cách duy nhất để dựng lại một profile hỏng.
+   */
+  it("nick Reddit xóa trắng profile antidetect thì CHO QUA — không còn là luật của form", async () => {
     const result = await updateAccount(null, accountForm(seeded, { antidetectProfileId: "" }));
 
-    expect(result.ok).toBe(false);
+    expect(result.ok).toBe(true);
     const after = await prisma.account.findUniqueOrThrow({ where: { id: seeded.accountId } });
-    expect(after.antidetectProfileId).toBe("profile-anna");
+    expect(after.antidetectProfileId).toBeNull();
   });
 });
 

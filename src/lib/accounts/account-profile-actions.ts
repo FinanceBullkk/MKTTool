@@ -55,6 +55,9 @@ export interface IssuedCreateProfileTicket {
  *
  * Máy nhận là **máy người đang bấm** (`resolveTicketRecipient`), không phải máy giữ nick — nick
  * chưa có máy nào, và chính lượt này sẽ quyết định nó thuộc về đâu.
+ *
+ * Chính vì thế người bấm phải là **chủ nick**: lượt này ghim nick vào máy họ, và một nick ghim ở
+ * máy người khác là nick mà chủ nó không mở nổi.
  */
 export const requestCreateProfileTicket = guardedAction(async function requestCreateProfileTicket(
   actor,
@@ -71,9 +74,26 @@ export const requestCreateProfileTicket = guardedAction(async function requestCr
 
   const account = await prisma.account.findUnique({
     where: { id: accountId },
-    select: { username: true, platform: true, antidetectProfileId: true, proxy: true },
+    select: { username: true, platform: true, ownerId: true, antidetectProfileId: true, proxy: true },
   });
   if (!account) return { ok: false, message: "Không tìm thấy nick." };
+
+  // Chặn ở ĐÂY chứ không chỉ ở lượt ghi kết quả, dù `recordCreatedProfile` cũng kiểm điều này.
+  //
+  // `requireNickOwner` cho ADMIN đi qua mọi nick, nên một ADMIN bấm hộ nick của đồng nghiệp sẽ
+  // được cấp vé, cầu nối dựng profile thật bên MultiZen, RỒI lượt ghi mới từ chối — để lại một
+  // profile mồ côi mà không ai biết phải đi dọn. Từ chối trước khi phát vé thì không có gì sinh ra.
+  if (account.ownerId !== actor.userId) {
+    return {
+      ok: false,
+      message:
+        account.ownerId === null
+          ? `Nick "${account.username}" chưa có người phụ trách. Gán chủ ở thẻ Phân công cụm ` +
+            `trước — profile phải nằm trên máy của chủ nick.`
+          : `Nick "${account.username}" do người khác phụ trách. Profile chỉ tồn tại trên đúng ` +
+            `một máy, nên phải chính họ bấm nút này trên máy của họ.`,
+    };
+  }
 
   if (account.antidetectProfileId) {
     return {
@@ -135,15 +155,18 @@ const recordSchema = z.object({
 /**
  * Ghi profile vừa tạo vào kho, **và ghim nick vào chiếc máy vừa tạo nó**.
  *
- * ## Bốn phép kiểm, và điều 3 là ranh giới an toàn
+ * ## Năm phép kiểm, và điều 3 với điều 4 là hai ranh giới an toàn
  *
  * Ghim máy quyết định vé bay về đâu. Nếu tự ghim được cả khi nick **đã** thuộc máy khác thì một
  * OPERATOR chỉ cần tạo một profile mới là kéo được nick của đồng nghiệp về máy mình — rồi đọc
- * mật khẩu proxy của nó qua vé mở profile. Nên tự ghim chỉ mở cho nick **chưa có máy nào**; đổi
- * máy vẫn là việc của ADMIN ở thẻ Phân công cụm.
+ * mật khẩu proxy của nó qua vé mở profile (điều 4). Nên tự ghim chỉ mở cho nick **chưa có máy
+ * nào**; đổi máy vẫn là việc của ADMIN ở thẻ Phân công cụm.
+ *
+ * Điều 3 canh hướng ngược lại và chỉ chạm tới ADMIN: ghim nick của người khác vào máy của mình.
+ * Không phải chuyện chiếm đoạt — chỉ là một profile nằm sai máy, tức nick mà chủ nó không mở nổi.
  *
  * `profileId` do trình duyệt khai và **có thể khai bừa** — chấp nhận được, vì hôm nay giá trị đó
- * vốn do người dùng gõ tay vào form. Ba điều còn lại thì máy chủ tự kiểm, không tin lời ai.
+ * vốn do người dùng gõ tay vào form. Bốn điều còn lại thì máy chủ tự kiểm, không tin lời ai.
  */
 export const recordCreatedProfile = guardedAction(async function recordCreatedProfile(
   actor,
@@ -160,7 +183,12 @@ export const recordCreatedProfile = guardedAction(async function recordCreatedPr
   const [account, device, trung] = await Promise.all([
     prisma.account.findUnique({
       where: { id: accountId },
-      select: { username: true, deviceId: true, device: { select: { name: true } } },
+      select: {
+        username: true,
+        ownerId: true,
+        deviceId: true,
+        device: { select: { name: true } },
+      },
     }),
     prisma.relayDevice.findUnique({
       where: { id: deviceId },
@@ -183,7 +211,28 @@ export const recordCreatedProfile = guardedAction(async function recordCreatedPr
     };
   }
 
-  // 3. Nick chưa thuộc máy nào khác — xem chú thích trên.
+  // 3. Máy phải thuộc CHỦ NICK, không chỉ thuộc người đang bấm.
+  //
+  // Hai câu đó lệch nhau đúng ở một chỗ: ADMIN. `requireNickOwner` cho ADMIN đi qua mọi nick, nên
+  // không có phép kiểm này thì một ADMIN nhập liệu hộ sẽ ghim nick của đồng nghiệp vào máy của
+  // chính mình — profile nằm ở máy ADMIN trong khi người phải dùng nick ngồi máy khác, và bất biến
+  // `deviceId != null ⟹ device.userId == ownerId` (xem `assignAccountCluster`) vỡ ngay lúc ghi.
+  //
+  // Nói cho gọn: profile phải do chính chủ nick tạo, trên máy của họ. Không có cách hiểu nào khác —
+  // profile chỉ tồn tại trên một máy, và đó phải là máy của người sẽ mở nó hằng ngày.
+  if (account.ownerId !== device.userId) {
+    return {
+      ok: false,
+      message:
+        account.ownerId === null
+          ? `Nick "${account.username}" chưa có người phụ trách. Gán chủ ở thẻ Phân công cụm ` +
+            `trước — máy giữ profile phải là máy của chủ nick.`
+          : `Nick "${account.username}" do người khác phụ trách, nên profile của nó phải được tạo ` +
+            `trên máy của người đó. Nhờ chính họ bấm nút này.`,
+    };
+  }
+
+  // 4. Nick chưa thuộc máy nào khác — xem chú thích trên.
   if (account.deviceId && account.deviceId !== deviceId) {
     return {
       ok: false,
@@ -194,7 +243,7 @@ export const recordCreatedProfile = guardedAction(async function recordCreatedPr
     };
   }
 
-  // 4. Profile chưa thuộc nick nào KHÁC. `@unique` đã ép, nhưng báo trước thì câu lỗi đọc được.
+  // 5. Profile chưa thuộc nick nào KHÁC. `@unique` đã ép, nhưng báo trước thì câu lỗi đọc được.
   //
   // Loại trừ chính nick này: ghi lại đúng cặp cũ phải là một lượt không-làm-gì thành công, chứ
   // không phải một câu từ chối khó hiểu. Trình duyệt gọi lại sau khi mất mạng giữa chừng là

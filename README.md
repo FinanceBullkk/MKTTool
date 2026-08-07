@@ -175,23 +175,57 @@ còn dở, và bước tiếp theo phải làm gì. Không cần nhớ thứ t�
 2. **Proxy** (`/proxies`) — mua proxy TRƯỚC khi mua nick
 3. **Proxy quan sát viên** (`/proxies`) — con mắt người ngoài của bộ dò shadowban
 4. **Tài khoản** (`/accounts`) — gắn nhân vật + proxy; cold-start 14 ngày điền sẵn
-5. **Phân công cụm** (trang chi tiết nick) — giao nick cho ai, **trên máy nào**
-6. **Đích đăng** (`/targets`) — subreddit kèm luật thật của sub đó
-7. **Content** (`/content`) — bài team viết; phải nằm ở đây thì bộ luật mới so trùng được
-8. **Hàng đợi** (`/queue`) — xếp lịch đăng, bộ luật chấm trước khi cho lưu
+5. **Đích đăng** (`/targets`) — subreddit kèm luật thật của sub đó
+6. **Content** (`/content`) — bài team viết; phải nằm ở đây thì bộ luật mới so trùng được
+7. **Hàng đợi** (`/queue`) — xếp lịch đăng, bộ luật chấm trước khi cho lưu
 
-Riêng Fanpage không phải nhập tay ở bước 6: kết nối ở `/facebook` là công cụ tự tạo đích đăng.
+Riêng Fanpage không phải nhập tay ở bước 5: kết nối ở `/facebook` là công cụ tự tạo đích đăng.
 
-> **Bước 0 đứng trước là có lý do.** Nick chưa ghim vào máy nào thì không mở được profile và
-> không lấy được bí mật — xem [Nick ghim vào một máy](#nick-ghim-vào-một-máy). Đăng ký máy sau
-> khi đã nhập cả đàn nick nghĩa là phải quay lại gán tay từng cụm, đúng lúc không ai còn nhớ
-> profile nào nằm ở máy nào.
+> **Bước 0 đứng trước là có lý do.** Profile antidetect của nick được dựng trên **máy của người
+> phụ trách**, nên máy đó phải có mặt trong sổ trước — xem
+> [Nick ghim vào một máy](#nick-ghim-vào-một-máy).
+
+### Một nick Reddit đi qua ba chặng, không phải một form
+
+Bước 4 ở trên chỉ là chặng đầu. Hai chặng còn lại nằm ở **trang chi tiết nick**, và mỗi chặng tự
+hiện ra khi tới lượt:
+
+| Chặng | Làm ở đâu | Xong thì có gì |
+|---|---|---|
+| 1. **Khai nick** | `/accounts` → *Thêm nick* | nhân vật, proxy, bí mật, và **người phụ trách** |
+| 2. **Dựng profile** | thẻ *Việc tiếp theo — dựng profile antidetect* | profile mang sẵn proxy + vân tay, nick **tự ghim vào máy vừa tạo** |
+| 3. **Đăng nhập lần đầu** | thẻ *Việc tiếp theo — đăng nhập lần đầu* | nick thật sự dùng được |
+
+Không phải nhớ thứ tự: cột **Sẵn sàng** nói còn thiếu gì, và trang chi tiết chỉ hiện đúng một thẻ
+"việc tiếp theo" tại một thời điểm.
+
+**Chặng 3 tồn tại vì nút tạo profile sinh ra một trình duyệt trắng** — có proxy, có vân tay, chưa
+một cookie nào. Mở nó lên, đăng nhập nick vào đó, rồi bấm **"Đã đăng nhập được"**. Làm ngay đầu
+cold-start: đăng nhập lần đầu từ một IP lạ là lúc hay bị đòi xác minh nhất, và lúc đang vội đăng
+bài là lúc người ta làm ẩu.
+
+### Nick Reddit đăng nhập bằng Google
+
+Nick Reddit của team **không có mật khẩu Reddit** — chúng đăng nhập bằng nút *Continue with
+Google*. Nên form thêm nick không hỏi ô đó, và ba ô liên quan mang đúng tên:
+
+| Ô | Là gì |
+|---|---|
+| **Email Google** | tài khoản Google dùng để đăng nhập Reddit |
+| **Mật khẩu Google** | thứ **thật sự** mở được nick |
+| **Mã 2 lớp của Google** | tùy chọn, xem ngay dưới |
+
+**Mã 2 lớp lấy ở đâu:** bật *Xác minh 2 bước* cho tài khoản Google → chọn **Ứng dụng xác thực** →
+chuỗi chữ+số hiện cạnh mã QR. Dán chuỗi đó vào là bấm **Lấy OTP** ngay trên máy đang mở profile,
+khỏi mò điện thoại. Chưa bật 2 lớp thì để trống — ô này không bắt buộc.
+
+Nick **Facebook** thì ngược lại: vẫn có mật khẩu nick và vẫn bắt buộc.
 
 ### Nick này đã dùng được chưa
 
-Một nick Reddit cần đủ **bảy** điều kiện: nhân vật, proxy, proxy còn sống, id profile antidetect,
-chủ, máy, và hết cold-start. Nick Facebook chỉ cần chủ — Fanpage đăng bằng Graph API nên không có
-proxy, profile hay máy nào để đòi.
+Một nick Reddit cần đủ **tám** điều kiện: nhân vật, proxy, proxy còn sống, id profile antidetect,
+**đã đăng nhập lần đầu**, chủ, máy, và hết cold-start. Nick Facebook chỉ cần chủ — Fanpage đăng
+bằng Graph API nên không có proxy, profile hay máy nào để đòi.
 
 Không phải tự ghép bảy thứ đó bằng mắt: cột **Sẵn sàng** ở `/accounts` nói ngay, và trang chi tiết
 nick hiện một khối liệt kê từng việc còn thiếu kèm chỗ sửa. Ba màu, ba nghĩa khác nhau:
@@ -422,8 +456,9 @@ giao thức upstream chỉ là chặng sau đó.
 
 ### Để công cụ tạo profile, đừng tạo tay
 
-Trang chi tiết một nick chưa có profile có nút **"Tạo profile trên máy này"**. Một lần bấm là
-xong ba việc vốn phải làm tay:
+Trang chi tiết một nick chưa có profile có nút **"Tạo profile trên máy này"**. Người bấm phải là
+**chủ nick**, và bấm trên **máy của chính họ** — profile chỉ tồn tại trên một máy, nên một profile
+dựng nhầm chỗ là một nick mà chủ nó không mở nổi. Một lần bấm là xong ba việc vốn phải làm tay:
 
 | Việc | Trước | Nay |
 |---|---|---|
@@ -444,8 +479,13 @@ không có gì hỏng, chỉ là chưa có tiện nghi. Người nhập liệu h
 có profile của nick nên đường gõ tay vẫn còn đó.
 
 > **Quy trình tay** (khi tạo trong MultiZen): gắn proxy → tab Fingerprint → bấm **"Match proxy"**
-> → *rồi mới* đăng nhập lần đầu. Bấm nút của MKTTool thì cả ba bước gộp làm một, và MultiZen từ
-> chối tổ hợp vân tay mâu thuẫn nên không có đường tạo ra một profile lệch proxy.
+> → *rồi mới* đăng nhập lần đầu. Bấm nút của MKTTool thì **hai bước đầu** gộp làm một, và MultiZen
+> từ chối tổ hợp vân tay mâu thuẫn nên không có đường tạo ra một profile lệch proxy.
+
+**Bước đăng nhập thì vẫn là việc của người.** Profile vừa dựng là một trình duyệt trắng — thẻ
+*"Việc tiếp theo — đăng nhập lần đầu"* hiện ngay sau đó và không tắt cho tới khi có người bấm
+**"Đã đăng nhập được"**. Cột **Sẵn sàng** báo đỏ *"chưa đăng nhập lần nào"* suốt khoảng đó, cố ý:
+một nick khoe màu xanh mà chưa ai đăng nhập là lời nói dối chỉ lộ ra vào hôm định đăng bài.
 
 ### Proxy được kiểm trước khi mở
 

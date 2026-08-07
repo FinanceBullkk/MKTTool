@@ -12,6 +12,54 @@ Dự án chưa phát hành phiên bản (`0.1.0`, dùng nội bộ). Mốc chia 
 
 ---
 
+## 07/08/2026 (4) — Luồng nhập nick dựng lại theo đúng thứ tự có thật
+
+Bản (3) thêm nút *"Tạo profile trên máy này"* nhưng không gỡ luật cũ đi kèm, nên nút đó **không bao
+giờ hiện ra**: form đòi `antidetectProfileId` mới cho tạo nick, trong khi id ấy chỉ có được ở trang
+chi tiết của một nick **đã tồn tại**. Vòng luẩn quẩn lộ ra ngay lượt thêm nick đầu tiên.
+
+Lần này sửa cả ba chỗ mô hình đang nói sai về thực tế, không chỉ vá cái vòng đó.
+
+- **Nick đi qua ba chặng, và bản ghi nick CHÍNH LÀ trạng thái của luồng.** Khai nick → dựng profile
+  → đăng nhập lần đầu. Không dựng wizard có state tạm: onboarding một nick kéo dài qua nhiều lượt
+  ngồi (chờ MultiZen, chờ mã Google), và state tạm là thứ mất khi đóng tab. Trang chi tiết hiện
+  đúng **một** thẻ *"Việc tiếp theo"* tại một thời điểm, ngay dưới dải Sẵn sàng và **trên** thẻ
+  Thao tác — nick chưa xong cấu hình thì bốn cái nút kia đều báo lỗi.
+- **`antidetectProfileId` rời khỏi luật form.** Chuyển từ *chặn lúc nhập* sang *chấm điểm sẵn sàng*
+  (`describeAccountReadiness` + `launch/route.ts` vốn đã canh). Ô gõ tay còn ở form **sửa** — đường
+  lùi cho máy chạy cầu nối bản cũ và cho người nhập liệu hộ từ máy khác.
+- **Nick Reddit không có mật khẩu riêng.** Chúng đăng nhập bằng *Continue with Google*, nên cột
+  `NOT NULL` cũ buộc người nhập **bịa một chuỗi** — rồi bí mật giả đó nằm lại trong kho, vào bản sao
+  lưu, và phải canh giữ y như bí mật thật. `passwordEnc` thành nullable; migration dọn sạch giá trị
+  cũ của mọi nick Reddit (**một chiều** — máy chủ không giải mã được). Form đổi nhãn theo nền tảng:
+  *Email Google* / *Mật khẩu Google* / *Mã 2 lớp của Google*.
+- **Ô mã 2 lớp nói nó là cái gì.** Kho không có lấy một nick nào lưu mã này, vì gợi ý cũ (*"chuỗi
+  base32 khi bật 2FA"*) đúng mà vô dụng với người chưa nghe tới nó. Gợi ý mới trả lời *lấy ở đâu*.
+- **Mốc `firstLoginAt` + blocker `NOT_LOGGED_IN`.** Nút tạo profile sinh ra trình duyệt **trắng
+  tinh**, nên *"có profile"* không còn hàm ý *"dùng được"* như hồi người ta tự dựng profile rồi mới
+  chép id sang. Không có mốc này thì cột Sẵn sàng khoe xanh cho nick chưa ai đăng nhập, và chuyện
+  chỉ lộ ra vào hôm định đăng bài. Là **lời khai của người**, như `karma` — nút nằm ngay trong thẻ
+  chứa nút Mở profile. Migration lấp `firstLoginAt = createdAt` cho nick đã có profile, đúng theo
+  định nghĩa cũ; không lấp thì cả đàn nick báo đỏ cùng lúc.
+- **Người tạo là chủ nick.** `requireNickOwner` chặn OPERATOR trên nick vô chủ, nên trước đây chính
+  người vừa khai nick cũng không bấm được nút tạo profile — phải chờ ADMIN gán, hai lượt qua lại mỗi
+  nick. Không mở rộng quyền thật: họ vừa tự tay gõ chính những bí mật đó vào form. ADMIN nhập hộ thì
+  chọn người khác ngay trong form.
+- **Phép kiểm thứ 5 ở `recordCreatedProfile`: máy phải thuộc CHỦ NICK.** Chỉ ADMIN chạm tới được
+  (`requireNickOwner` cho ADMIN qua mọi nick) — không có nó, ADMIN nhập hộ sẽ ghim nick của đồng
+  nghiệp vào máy mình, tức nick mà chủ nó không mở nổi, và bất biến `device.userId == ownerId` vỡ.
+  Chặn cả ở lượt **phát vé**, không chỉ lượt ghi: từ chối sau khi cầu nối đã dựng profile là để lại
+  một profile mồ côi bên MultiZen.
+- **Nút "Mật khẩu nick" hiện theo cột, không theo nền tảng** — `passwordEnc !== null`. Nick cũ lỡ
+  lưu mật khẩu thật vẫn lấy lại được, nick mới không bao giờ hiện một nút phát ra chuỗi rỗng.
+
+**Không đụng định dạng vé.** `TICKET_FORMAT_VERSION` và `MIN_RELAY_VERSION_BY_KIND` giữ nguyên, nên
+**không phải phát hành lại cầu nối** — bản 6 vừa cài là đủ.
+
+1080/1080 xanh, lint sạch.
+
+---
+
 ## 07/08/2026 (3) — Công cụ tự tạo profile antidetect, thay ô gõ tay UUID
 
 Thêm một nick từng đòi ba bước tay, cả ba hỏng lặng lẽ: chép dãy UUID từ MultiZen sang (sai một

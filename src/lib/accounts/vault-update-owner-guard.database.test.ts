@@ -115,7 +115,7 @@ describe("nick của người khác", () => {
     expect(result.message).toContain("người khác phụ trách");
 
     const after = await prisma.account.findUniqueOrThrow({ where: { id: accountId } });
-    expect(decryptAsOperator(after.passwordEnc)).toBe("mat-khau-cu");
+    expect(decryptAsOperator(after.passwordEnc ?? "")).toBe("mat-khau-cu");
   });
 
   it("từ chối ghi đè mật khẩu email và TOTP secret", async () => {
@@ -169,7 +169,7 @@ describe("nick của chính mình", () => {
 
     expect(result.ok).toBe(true);
     const after = await prisma.account.findUniqueOrThrow({ where: { id: accountId } });
-    expect(decryptAsOperator(after.passwordEnc)).toBe("mat-khau-moi");
+    expect(decryptAsOperator(after.passwordEnc ?? "")).toBe("mat-khau-moi");
   });
 });
 
