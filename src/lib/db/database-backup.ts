@@ -96,6 +96,49 @@ export async function dumpDatabaseTo(
  */
 const PG_DUMP_TIMEOUT_MS = 10 * 60 * 1000;
 
+/**
+ * Lệnh `pg_dump` sẽ chạy. Mặc định lấy trên PATH; `PG_DUMP_PATH` ghi đè để trỏ tới một bản khác.
+ *
+ * ## Vì sao cần đường ghi đè
+ *
+ * `pg_dump` **từ chối dump từ server có major cao hơn chính nó**, và từ chối bằng một câu chỉ nói
+ * hai con số chứ không nói phải làm gì:
+ *
+ *     pg_dump: error: aborting because of server version mismatch
+ *     pg_dump: detail: server version: 18.4; pg_dump version: 17.10
+ *
+ * Đây không phải giả thiết: đúng ca đó xảy ra 08/08/2026 khi Railway đã ở Postgres 18 còn máy dev
+ * vẫn cài client 17 — `npm run db:backup:remote` gãy, mà đó chính là bước phải chạy **trước mỗi
+ * lần deploy có đổi cấu trúc database**. Nếp an toàn hỏng đúng lúc cần nó nhất.
+ *
+ * Container thì không dính (Dockerfile ghim `PG_CLIENT_MAJOR` theo bản của hãng), nên chỉ đường
+ * kéo về tay từ máy quản trị viên mới cần biến này. Một dòng trong `.env` rẻ hơn nhiều so với
+ * việc gỡ cài đặt Postgres 17 khỏi máy đang dùng:
+ *
+ *     PG_DUMP_PATH="C:\\Program Files\\PostgreSQL\\18\\bin\\pg_dump.exe"
+ */
+const PG_DUMP_COMMAND = process.env.PG_DUMP_PATH?.trim() || "pg_dump";
+
+/**
+ * Nhận ra lời từ chối vì lệch phiên bản, để đổi nó thành câu nói được phải làm gì.
+ *
+ * Nguyên văn của Postgres nêu đúng hai con số rồi thôi. Người đọc nó lúc đang vội deploy cần biết
+ * *"cài client mới hơn, hoặc trỏ PG_DUMP_PATH sang đó"* — chứ không cần học lại luật tương thích
+ * của pg_dump.
+ */
+function describePgDumpFailure(code: number | null, stderr: string): string {
+  const goc = stderr.trim();
+  if (/server version mismatch/i.test(goc)) {
+    return (
+      `pg_dump trên máy này cũ hơn database đang nối tới nên nó từ chối dump.\n${goc}\n\n` +
+      "Cách xử: cài Postgres client có major ≥ major của server, rồi khai đường dẫn tới nó " +
+      'trong .env — ví dụ PG_DUMP_PATH="C:\\Program Files\\PostgreSQL\\18\\bin\\pg_dump.exe". ' +
+      "Không cần gỡ bản cũ đang dùng cho database dưới máy."
+    );
+  }
+  return `pg_dump dừng với mã ${code}.${goc ? `\n${goc}` : ""}`;
+}
+
 /** Khoảng chờ sau `SIGTERM` trước khi `SIGKILL`, để `pg_dump` kịp hủy truy vấn đang mở. */
 const PG_DUMP_KILL_GRACE_MS = 5_000;
 
@@ -111,7 +154,7 @@ function runPgDump(
 ): Promise<void> {
   return new Promise((resolve, reject) => {
     const child = spawn(
-      "pg_dump",
+      PG_DUMP_COMMAND,
       ["--file", filePath, "--format=plain", "--no-owner", "--no-privileges"],
       { env: { ...process.env, ...toolEnv }, shell: false },
     );
@@ -157,8 +200,12 @@ function runPgDump(
         reject(
           cause.code === "ENOENT"
             ? new Error(
-                "Không tìm thấy lệnh pg_dump. Thêm thư mục bin của Postgres vào PATH " +
-                  '(mặc định trên Windows: "C:\\Program Files\\PostgreSQL\\17\\bin") rồi mở lại terminal.',
+                `Không chạy được lệnh ${PG_DUMP_COMMAND}. ` +
+                  (process.env.PG_DUMP_PATH
+                    ? "PG_DUMP_PATH trong .env đang trỏ vào một đường dẫn không tồn tại."
+                    : "Thêm thư mục bin của Postgres vào PATH " +
+                      '(mặc định trên Windows: "C:\\Program Files\\PostgreSQL\\17\\bin") ' +
+                      "rồi mở lại terminal."),
               )
             : cause,
         ),
@@ -172,7 +219,7 @@ function runPgDump(
           resolve();
           return;
         }
-        reject(new Error(`pg_dump dừng với mã ${code}.${stderr ? `\n${stderr.trim()}` : ""}`));
+        reject(new Error(describePgDumpFailure(code, stderr)));
       });
     });
   });
