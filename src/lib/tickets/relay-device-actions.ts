@@ -180,6 +180,16 @@ export const registerRelayDevice = adminAction(async function registerRelayDevic
  * Không xóa hàng, chỉ đóng dấu ngày: hàng còn đó thì khóa còn bị `@unique` chặn đăng ký lại,
  * và câu hỏi "chiếc máy mất hôm ấy bị chặn từ lúc nào" còn chỗ để trả lời. Xóa hàng là mất cả
  * hai thứ cùng lúc.
+ *
+ * ## Nick đang ghim vào máy này bị gỡ ghim, và việc thu hồi KHÔNG bị chặn vì chúng
+ *
+ * Chỗ khác trong dự án chặn xóa khi còn thứ trỏ tới (xóa proxy, xóa nick). Ở đây thì ngược lại,
+ * và cố ý: thu hồi là đường **khẩn cấp** — laptop vừa mất, và mỗi giây chần chừ là chiếc máy đó
+ * còn xin được vé. Bắt người ta đi gỡ ghim từng nick trước là đặt thủ tục lên trước thiệt hại.
+ *
+ * Gỡ ghim nằm trong **cùng một transaction** với dấu thu hồi: hai lượt ghi rời nhau thì một lượt
+ * hỏng giữa chừng để lại nick ghim vào một chiếc máy đã chết, và triệu chứng là "bấm mở profile
+ * không ra gì" chứ không phải một câu lỗi đọc được.
  */
 export const revokeRelayDevice = adminAction(async function revokeRelayDevice(
   actor,
@@ -199,26 +209,37 @@ export const revokeRelayDevice = adminAction(async function revokeRelayDevice(
     };
   }
 
-  await prisma.relayDevice.update({
-    where: { id: deviceId },
-    data: { revokedAt: new Date() },
-  });
-
-  await prisma.auditLog.create({
-    data: {
-      action: AUDIT_ACTIONS.RELAY_DEVICE_REVOKED,
-      detail: `${actor.email} thu hồi máy "${device.name}" của ${device.user.email} (${deviceId})`,
-      actorId: actor.userId,
-    },
-  });
+  const [, unpinned] = await prisma.$transaction([
+    prisma.relayDevice.update({
+      where: { id: deviceId },
+      data: { revokedAt: new Date() },
+    }),
+    prisma.account.updateMany({
+      where: { deviceId },
+      data: { deviceId: null },
+    }),
+    prisma.auditLog.create({
+      data: {
+        action: AUDIT_ACTIONS.RELAY_DEVICE_REVOKED,
+        detail: `${actor.email} thu hồi máy "${device.name}" của ${device.user.email} (${deviceId})`,
+        actorId: actor.userId,
+      },
+    }),
+  ]);
 
   revalidatePath(RELAY_DEVICES_PATH);
+  revalidatePath("/accounts");
   return {
     ok: true,
     message:
-      `Đã thu hồi máy "${device.name}" — nó không nhận được vé mới nữa. Nhưng bí mật mà máy đó ` +
-      `đã lấy về trước đây vẫn nằm trên ổ cứng của nó: nếu máy thật sự mất, hãy xoay ` +
-      `VAULT_KEY_OPERATOR (npm run vault:rekey -- --domain=operator).`,
+      `Đã thu hồi máy "${device.name}" — nó không nhận được vé mới nữa. ` +
+      (unpinned.count > 0
+        ? `${unpinned.count} nick đang ghim ở máy đó vừa bị gỡ ghim: gán cụm cho chúng sang máy ` +
+          `khác ở trang chi tiết từng nick, trước đó thì không mở profile và không lấy được bí ` +
+          `mật của chúng. `
+        : "") +
+      `Bí mật mà máy đó đã lấy về trước đây vẫn nằm trên ổ cứng của nó: nếu máy thật sự mất, ` +
+      `hãy xoay VAULT_KEY_OPERATOR (npm run vault:rekey -- --domain=operator).`,
   };
 });
 

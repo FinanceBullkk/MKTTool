@@ -59,11 +59,20 @@ export function AccountFormFields({
   personas,
   proxies,
   defaults,
+  defaultColdStartUntil,
 }: {
   personas: SelectOption[];
   /** Lúc sửa phải gồm cả proxy đang gắn cho chính nick này, không chỉ proxy còn trống. */
   proxies: SelectOption[];
   defaults?: AccountDefaults;
+  /**
+   * Ngày cold-start điền sẵn cho form **tạo mới**, dạng `YYYY-MM-DD`.
+   *
+   * Tính ở server rồi truyền xuống chứ không tính tại chỗ: component này nằm trong cây client,
+   * nên `new Date()` ở đây cho ra hai giá trị khác nhau giữa lượt render server và lượt hydrate
+   * — React sẽ kêu, và tệ hơn là nó im lặng lấy giá trị của máy người dùng thay vì giờ team.
+   */
+  defaultColdStartUntil?: string;
 }) {
   const editing = defaults !== undefined;
 
@@ -139,13 +148,17 @@ export function AccountFormFields({
           ...proxies.map((proxy) => ({ value: proxy.id, label: proxy.label })),
         ]}
       />
-      <SelectField
-        label="Trạng thái"
-        name="status"
-        required
-        defaultValue={defaults?.status ?? "COLD_START"}
-        options={STATUS_OPTIONS}
-      />
+      {/* Ô vận hành, chỉ có nghĩa cho nick đã sống một thời gian — nick mới luôn là COLD_START,
+          và schema tạo đã mặc định đúng giá trị đó. Xem `accountCreateBase`. */}
+      {editing ? (
+        <SelectField
+          label="Trạng thái"
+          name="status"
+          required
+          defaultValue={defaults?.status}
+          options={STATUS_OPTIONS}
+        />
+      ) : null}
       <Field
         label="Karma"
         name="karma"
@@ -157,8 +170,14 @@ export function AccountFormFields({
         label="Cold-start tới ngày"
         name="coldStartUntil"
         type="date"
-        defaultValue={dateInputValue(defaults?.coldStartUntil)}
-        hint="Mua nick về thì đặt 14 ngày sau"
+        // Mốc 14 ngày là quy ước cố định của dự án, lặp lại ở mọi nick — điền sẵn thay vì bắt
+        // mỗi người tự cộng. Sửa được, và để trống được nếu nick đã qua cold-start từ lâu.
+        defaultValue={dateInputValue(defaults?.coldStartUntil) ?? defaultColdStartUntil}
+        hint={
+          editing
+            ? "Trước mốc này nick chỉ được đọc, cấm đăng"
+            : "Điền sẵn 14 ngày kể từ hôm nay — mốc chuẩn cho nick vừa mua"
+        }
       />
       <Field
         label="Ngày tạo nick trên nền tảng"

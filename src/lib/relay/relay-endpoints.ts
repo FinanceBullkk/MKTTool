@@ -42,8 +42,16 @@ export const RELAY_ORIGIN = `http://127.0.0.1:${RELAY_PORT}`;
 export const RELAY_PATHS = {
   /** GET — cầu nối còn sống không, bản mấy, khóa công khai của máy này. */
   health: "/health",
-  /** POST `{ ticket }` — vé mở profile. */
+  /** POST `{ ticket }` — vé thao tác với profile: mở, và từ bản 6 là tạo. */
   ticket: "/ticket",
+  /**
+   * GET — liệt kê profile antidetect **trên máy này**.
+   *
+   * Không cần vé, và đó là chủ ý: tên với id profile không phải bí mật, còn danh sách thì máy chủ
+   * vốn không nhìn thấy nên không có gì để nó cho phép hay từ chối. Lớp gác vẫn là CORS
+   * `webOrigin` như `/health` — chỉ web app của team gọi được.
+   */
+  profiles: "/profiles",
   /** Mở tab, vé nằm ở fragment — trang hiện mật khẩu / OTP. */
   secret: "/secret",
   /** POST — đổi bí mật dạng trần thành ciphertext vùng operator. */
@@ -159,7 +167,40 @@ export const RELAY_TIMEOUT_MS = 4_000;
  * tăng bằng tay: tự sinh theo git hash thì nó đổi ở mọi lượt build, và một số đổi liên tục thì
  * cảnh báo "bản cũ" kêu liên tục cho tới lúc không ai còn nhìn.
  */
-export const RELAY_VERSION = 5;
+export const RELAY_VERSION = 6;
+
+/**
+ * Một profile antidetect như cầu nối khai ra ở `GET /profiles`.
+ *
+ * Khai lại ở file hợp đồng này thay vì import từ `antidetect/` với cùng lý do như
+ * `SealedOperatorKeyGrant`: đây là thứ **trình duyệt** cầm, và kéo cây phụ thuộc của máy chủ vào
+ * bundle client là cái giá không cần trả cho năm cái trường.
+ */
+export interface RelayProfileSummary {
+  id: string;
+  name: string;
+  isRunning?: boolean;
+  /** Quốc gia proxy đang gắn, chữ thường. Lệch với `timezone` là dấu hiệu quên căn proxy. */
+  proxyCountry?: string;
+  timezone?: string;
+}
+
+/**
+ * Danh mục giá trị hợp lệ để dựng vân tay, lấy từ chính MultiZen.
+ *
+ * **Không** phải bảng cứng viết trong code: bảng cứng mục đúng vào ngày họ thêm một locale, và
+ * lúc đó nó sẽ chặn nhầm những tổ hợp vốn hợp lệ.
+ */
+export interface RelayFingerprintOptions {
+  devices: { family: string; label: string; screens: { width: number; height: number }[] }[];
+  locales: { id: string; label: string; country: string; timezones: string[] }[];
+}
+
+/** Những gì `GET /profiles` trả về — danh sách profile CỘNG danh mục để dựng cái mới. */
+export interface RelayProfilesReply extends RelayReply {
+  profiles?: RelayProfileSummary[];
+  fingerprintOptions?: RelayFingerprintOptions;
+}
 
 /** Những gì `/health` trả về. */
 export interface RelayHealth {

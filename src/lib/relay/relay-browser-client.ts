@@ -47,6 +47,7 @@ import {
   RELAY_VERSION,
   type ConfigureRelayRequest,
   type RelayHealth,
+  type RelayProfilesReply,
   type RelayReply,
   type SealOperatorKeyReply,
   type SealOperatorKeyRequest,
@@ -176,6 +177,17 @@ export function pingRelay(): Promise<RelayOutcome<RelayHealth & RelayReply>> {
 }
 
 /** Đưa một tấm vé mở profile xuống cầu nối. */
+/**
+ * Danh sách profile trên máy này, kèm danh mục để dựng cái mới.
+ *
+ * Cầu nối bản cũ không có đường này nên sẽ trả 404 → `rejected`. Chỗ gọi phải coi đó là **bình
+ * thường** và lùi về ô gõ tay, không phải một lỗi để kêu lên: người dùng chưa cài lại `.exe` thì
+ * cũng chưa mất gì, chỉ là chưa có tiện nghi mới.
+ */
+export function fetchRelayProfiles(): Promise<RelayOutcome<RelayProfilesReply>> {
+  return callRelay<RelayProfilesReply>(RELAY_PATHS.profiles);
+}
+
 export function sendTicketToRelay(ticket: string): Promise<RelayOutcome<RelayReply>> {
   return callRelay<RelayReply>(RELAY_PATHS.ticket, {
     method: "POST",

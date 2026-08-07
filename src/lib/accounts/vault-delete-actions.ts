@@ -11,7 +11,7 @@
  */
 import { revalidatePath } from "next/cache";
 import type { ActionResult } from "@/lib/actions/action-result";
-import { guardedAction } from "@/lib/auth/guarded-action";
+import { adminAction, guardedAction } from "@/lib/auth/guarded-action";
 import { prisma } from "@/lib/db/prisma-client";
 import { describeUnexpectedDbError } from "@/lib/db/prisma-error-helpers";
 import { blockDeleteWhenReferenced } from "@/lib/db/reference-guard";
@@ -43,7 +43,18 @@ export const deletePersona = guardedAction(async function deletePersona(
   return { ok: true, message: `Đã xóa nhân vật "${persona.name}".` };
 });
 
-export const deleteProxy = guardedAction(async function deleteProxy(
+/**
+ * Chỉ ADMIN.
+ *
+ * Proxy là **dữ liệu đã trả tiền và không mua lại được bản cũ**: mật khẩu proxy không nằm ở đâu
+ * khác ngoài cột `passwordEnc` của hàng này. Xóa nhầm một dòng là mất đúng thứ đó — nhà cung cấp
+ * cấp lại IP khác, và nick gắn với IP cũ thì coi như đổi chỗ ở.
+ *
+ * Lớp chặn "còn nick gắn thì không xóa" bên dưới vẫn giữ nguyên; hai lớp không thay nhau được.
+ * Lớp đó chặn xóa nhầm proxy ĐANG DÙNG, còn `adminAction` chặn cả ca xóa một proxy chưa gắn ai —
+ * proxy dự phòng vừa mua tháng trước cũng là tiền.
+ */
+export const deleteProxy = adminAction(async function deleteProxy(
   _actor,
   proxyId: string,
 ): Promise<ActionResult> {

@@ -28,13 +28,22 @@ vi.mock("next/cache", () => ({ revalidatePath: () => {} }));
  * `ADMIN` để `requireNickOwner` (còn nguyên bản thật nhờ `importOriginal`) cho qua sớm: ở đây
  * đang kiểm sửa/xóa, không kiểm phân quyền chủ nick.
  */
+const TEST_ADMIN = { userId: "test-actor", email: "test@mkttool.local", role: "ADMIN" as const };
+
+/**
+ * Thay cả `requireAdmin`, không chỉ `requireActor`.
+ *
+ * Từ 07/08/2026 các đường ghi kho proxy là `adminAction` (mật khẩu proxy không có bản thứ hai
+ * ở đâu cả), mà `adminAction` gọi thẳng `requireAdmin` — và lời gọi `requireActor` nội bộ bên
+ * trong nó không đi qua bản mock này. Thiếu dòng dưới thì test chết ở `headers()`.
+ *
+ * Ranh giới vai trò của kho proxy được chứng minh ở `proxy-writes-are-admin-only.database.test.ts`,
+ * nơi mock đặt ở tầng nguồn danh tính nên `requireAdmin` thật vẫn chạy.
+ */
 vi.mock("@/lib/auth/require-actor", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/auth/require-actor")>()),
-  requireActor: async () => ({
-    userId: "test-actor",
-    email: "test@mkttool.local",
-    role: "ADMIN" as const,
-  }),
+  requireActor: async () => TEST_ADMIN,
+  requireAdmin: async () => TEST_ADMIN,
 }));
 
 // Hai khóa KHÁC NHAU, cố ý: nếu chỗ nào mã hóa cột vùng operator bằng khóa vùng server thì

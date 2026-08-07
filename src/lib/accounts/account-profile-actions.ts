@@ -1,0 +1,237 @@
+"use server";
+
+/**
+ * Tạo profile antidetect cho một nick — phần chạy trên **máy chủ**.
+ *
+ * Hai nửa, và ranh giới giữa chúng là điểm chính của cả file:
+ *
+ * | Nửa | Ai làm | Vì sao |
+ * |---|---|---|
+ * | Phát vé kèm proxy đã giải mã | máy chủ (`requestCreateProfileTicket`) | mật khẩu proxy thuộc vùng khóa máy chủ |
+ * | Gọi MultiZen, sinh profile | cầu nối trên máy operator | profile chỉ tồn tại trên một máy |
+ * | Ghi id vừa sinh về kho | máy chủ (`recordCreatedProfile`) | kho là của máy chủ |
+ *
+ * ## Vì sao vân tay do TRÌNH DUYỆT tính rồi gửi lên
+ *
+ * Danh mục locale/thiết bị nằm ở MultiZen trên máy operator — máy chủ không đọc được. Nên phép
+ * chọn chạy ở trình duyệt (`planProfileFingerprint`, hàm thuần), và máy chủ chỉ bọc nó vào vé.
+ *
+ * Máy chủ **không** kiểm "locale này có khớp quốc gia proxy không", và đó là quyết định chứ
+ * không phải thiếu sót: nó không có danh mục để đối chiếu, MultiZen đã tự từ chối tổ hợp mâu
+ * thuẫn, và người gọi là đồng nghiệp đã đăng nhập — người muốn dựng một profile lệch thì mở
+ * thẳng MultiZen ra làm còn nhanh hơn. Việc của lớp này là chặn **tai nạn**, không phải chặn
+ * người trong nhà.
+ */
+import { revalidatePath } from "next/cache";
+import { z } from "zod";
+import type { ActionResult } from "@/lib/actions/action-result";
+import { ProxyConfigError, buildProxyConfig } from "@/lib/antidetect/proxy-config-builder";
+import { profileNameForNick } from "@/lib/antidetect/profile-fingerprint-plan";
+import { AUDIT_ACTIONS } from "@/lib/audit/audit-log-actions";
+import { guardedAction } from "@/lib/auth/guarded-action";
+import { requireNickOwner } from "@/lib/auth/require-actor";
+import { prisma } from "@/lib/db/prisma-client";
+import { issueTicket } from "@/lib/tickets/ticket-issuer";
+import { resolveTicketRecipient } from "@/lib/tickets/ticket-recipient-lookup";
+import { TICKET_KINDS, type SignedTicket } from "@/lib/tickets/ticket-types";
+
+/** Hình dạng vân tay trình duyệt gửi lên. Chỉ kiểm hình dạng — xem chú thích đầu file. */
+const fingerprintSchema = z.object({
+  device: z.string().min(1),
+  localeId: z.string().min(1),
+  timezone: z.string().min(1),
+  screen: z.object({ width: z.number().int().positive(), height: z.number().int().positive() }),
+});
+
+export interface IssuedCreateProfileTicket {
+  ticket: SignedTicket;
+  deviceName: string;
+  /** Máy nhận vé — trình duyệt gửi lại ở bước ghi kết quả để máy chủ đối chiếu. */
+  deviceId: string;
+}
+
+/**
+ * Phát vé tạo profile.
+ *
+ * Máy nhận là **máy người đang bấm** (`resolveTicketRecipient`), không phải máy giữ nick — nick
+ * chưa có máy nào, và chính lượt này sẽ quyết định nó thuộc về đâu.
+ */
+export const requestCreateProfileTicket = guardedAction(async function requestCreateProfileTicket(
+  actor,
+  accountId: string,
+  fingerprint: unknown,
+  deviceId?: string,
+): Promise<IssuedCreateProfileTicket | ActionResult> {
+  await requireNickOwner(actor, accountId);
+
+  const parsed = fingerprintSchema.safeParse(fingerprint);
+  if (!parsed.success) {
+    return { ok: false, message: "Bộ vân tay gửi lên không hợp lệ. Tải lại trang rồi thử lại." };
+  }
+
+  const account = await prisma.account.findUnique({
+    where: { id: accountId },
+    select: { username: true, platform: true, antidetectProfileId: true, proxy: true },
+  });
+  if (!account) return { ok: false, message: "Không tìm thấy nick." };
+
+  if (account.antidetectProfileId) {
+    return {
+      ok: false,
+      message:
+        `Nick này đã có profile (${account.antidetectProfileId}). Tạo thêm là để lại một profile ` +
+        `mồ côi bên MultiZen — xóa id cũ ở thẻ "Sửa nick" trước nếu thật sự muốn dựng lại.`,
+    };
+  }
+
+  if (!account.proxy) {
+    return {
+      ok: false,
+      message:
+        "Nick chưa gắn proxy nên chưa biết dựng vân tay theo quốc gia nào. Gắn proxy ở thẻ " +
+        '"Sửa nick" trước — profile tạo ra sẽ mang sẵn proxy đó.',
+    };
+  }
+
+  const recipient = await resolveTicketRecipient(actor, deviceId);
+  if (!recipient.ok) return { ok: false, message: recipient.message };
+
+  let ticket: SignedTicket;
+  try {
+    ticket = issueTicket(
+      {
+        kind: TICKET_KINDS.CREATE_PROFILE,
+        accountId,
+        profileName: profileNameForNick(account.platform, account.username),
+        proxy: buildProxyConfig(account.proxy),
+        fingerprint: parsed.data,
+        seed: `mkttool-${accountId}`,
+      },
+      recipient.recipient,
+    );
+  } catch (error) {
+    return {
+      ok: false,
+      message:
+        error instanceof ProxyConfigError
+          ? error.message
+          : "Không dựng được vé tạo profile. Xem log của máy chủ.",
+    };
+  }
+
+  return {
+    ticket,
+    deviceName: recipient.recipient.deviceName,
+    deviceId: recipient.recipient.deviceId,
+  };
+});
+
+const recordSchema = z.object({
+  accountId: z.string().min(1),
+  profileId: z.string().min(1),
+  deviceId: z.string().min(1),
+});
+
+/**
+ * Ghi profile vừa tạo vào kho, **và ghim nick vào chiếc máy vừa tạo nó**.
+ *
+ * ## Bốn phép kiểm, và điều 3 là ranh giới an toàn
+ *
+ * Ghim máy quyết định vé bay về đâu. Nếu tự ghim được cả khi nick **đã** thuộc máy khác thì một
+ * OPERATOR chỉ cần tạo một profile mới là kéo được nick của đồng nghiệp về máy mình — rồi đọc
+ * mật khẩu proxy của nó qua vé mở profile. Nên tự ghim chỉ mở cho nick **chưa có máy nào**; đổi
+ * máy vẫn là việc của ADMIN ở thẻ Phân công cụm.
+ *
+ * `profileId` do trình duyệt khai và **có thể khai bừa** — chấp nhận được, vì hôm nay giá trị đó
+ * vốn do người dùng gõ tay vào form. Ba điều còn lại thì máy chủ tự kiểm, không tin lời ai.
+ */
+export const recordCreatedProfile = guardedAction(async function recordCreatedProfile(
+  actor,
+  input: unknown,
+): Promise<ActionResult> {
+  const parsed = recordSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, message: "Thiếu dữ liệu để ghi profile vừa tạo." };
+
+  const { accountId, profileId, deviceId } = parsed.data;
+
+  // 1. Nick này có phải của bạn không.
+  await requireNickOwner(actor, accountId);
+
+  const [account, device, trung] = await Promise.all([
+    prisma.account.findUnique({
+      where: { id: accountId },
+      select: { username: true, deviceId: true, device: { select: { name: true } } },
+    }),
+    prisma.relayDevice.findUnique({
+      where: { id: deviceId },
+      select: { name: true, userId: true, revokedAt: true },
+    }),
+    prisma.account.findUnique({
+      where: { antidetectProfileId: profileId },
+      select: { id: true, username: true },
+    }),
+  ]);
+
+  if (!account) return { ok: false, message: "Không tìm thấy nick." };
+
+  // 2. Máy nhận có phải máy của bạn, và còn dùng được không.
+  if (!device || device.revokedAt || device.userId !== actor.userId) {
+    return {
+      ok: false,
+      message:
+        "Máy vừa tạo profile không phải máy của bạn, hoặc đã bị thu hồi. Tải lại trang rồi thử lại.",
+    };
+  }
+
+  // 3. Nick chưa thuộc máy nào khác — xem chú thích trên.
+  if (account.deviceId && account.deviceId !== deviceId) {
+    return {
+      ok: false,
+      message:
+        `Nick "${account.username}" đang ghim ở máy "${account.device?.name}". Chuyển sang máy ` +
+        `khác là việc của quản trị viên, ở thẻ Phân công cụm — profile vừa tạo bên MultiZen nên ` +
+        `xóa đi để khỏi bỏ lại một profile mồ côi.`,
+    };
+  }
+
+  // 4. Profile chưa thuộc nick nào KHÁC. `@unique` đã ép, nhưng báo trước thì câu lỗi đọc được.
+  //
+  // Loại trừ chính nick này: ghi lại đúng cặp cũ phải là một lượt không-làm-gì thành công, chứ
+  // không phải một câu từ chối khó hiểu. Trình duyệt gọi lại sau khi mất mạng giữa chừng là
+  // chuyện thường, và lúc đó profile đã sinh ra thật rồi.
+  if (trung && trung.id !== accountId) {
+    return { ok: false, message: `Profile này đã gắn với nick "${trung.username}".` };
+  }
+
+  await prisma.$transaction([
+    prisma.account.update({
+      where: { id: accountId },
+      data: { antidetectProfileId: profileId, deviceId },
+    }),
+    prisma.auditLog.create({
+      data: {
+        accountId,
+        action: AUDIT_ACTIONS.ACCOUNT_PROFILE_CREATED,
+        detail: `${actor.email} tạo profile ${profileId} trên máy "${device.name}"`,
+        actorId: actor.userId,
+      },
+    }),
+    prisma.auditLog.create({
+      data: {
+        accountId,
+        action: AUDIT_ACTIONS.ACCOUNT_DEVICE_PINNED,
+        detail: `${actor.email} ghim nick vào máy "${device.name}" khi tạo profile`,
+        actorId: actor.userId,
+      },
+    }),
+  ]);
+
+  revalidatePath("/accounts");
+  revalidatePath(`/accounts/${accountId}`);
+  return {
+    ok: true,
+    message:
+      `Đã gắn profile vào nick "${account.username}" và ghim nick vào máy "${device.name}". ` +
+      `Mở profile rồi đăng nhập nick lần đầu ngay trong đó.`,
+  };
+});

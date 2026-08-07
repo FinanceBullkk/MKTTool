@@ -275,11 +275,34 @@ model Account {
   /// xử lý được.
   ownerId String?
 
+  /// Chiếc máy đang giữ profile antidetect của nick này.
+  ///
+  /// `antidetectProfileId` ở trên là **khóa chính của một file SQLite trên đúng một máy** —
+  /// MultiZen không đồng bộ profile giữa các máy (đo 07/08/2026: không cloud sync, không
+  /// account, không license server; sync chỉ nằm ở roadmap của họ). Nên id profile là một
+  /// con số vô nghĩa nếu không nói kèm nó nằm ở máy nào, và ô này là vế thứ hai đó.
+  ///
+  /// Vé mở profile và vé bí mật đều bay tới chiếc máy khai ở đây, KHÔNG bay tới máy của
+  /// người đang bấm nút — xem `resolveNickDeviceRecipient()`. Đó là chỗ ràng buộc này thi hành.
+  ///
+  /// Nullable vì hai lý do khác nhau: nick Facebook không cần profile lẫn máy (Fanpage đăng
+  /// bằng Graph API), và nick vừa nhập chưa gán cụm vẫn phải tồn tại được.
+  ///
+  /// `SetNull` giống `ownerId`: xóa một người thì máy của họ mất theo (`RelayDevice` cascade),
+  /// và nick chỉ **mất ghim** chứ không bị xóa. Nick là tài sản, đăng ký máy là quyền —
+  /// mất quyền không được phép kéo theo tài sản.
+  ///
+  /// Bất biến do `assignAccountCluster()` ép: ô này có giá trị ⟹ `device.userId == ownerId`
+  /// và máy chưa bị thu hồi. Postgres không diễn đạt được ràng buộc bắc qua hai bảng mà không
+  /// cần trigger, nên khay cảnh báo vận hành soi lại hàng lệch.
+  deviceId String?
+
   lastActionAt DateTime?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
   owner        User?         @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+  device       RelayDevice?  @relation(fields: [deviceId], references: [id], onDelete: SetNull)
   persona      Persona       @relation(fields: [personaId], references: [id])
   proxy        Proxy?        @relation(fields: [proxyId], references: [id])
   jobs         PostJob[]
@@ -293,6 +316,7 @@ model Account {
   @@unique([platform, username])
   @@index([status])
   @@index([ownerId])
+  @@index([deviceId])
 }
 
 /// Đích đăng bài: subreddit hoặc Facebook group/page.
@@ -612,6 +636,14 @@ model RelayDevice {
   /// không còn thì máy của họ cũng không nhận vé nữa. (Khác `AuditLog`, vốn phải sống lâu
   /// hơn tài khoản: sổ này là danh sách quyền, không phải dấu vết.)
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Nick đang ghim vào máy này — xem `Account.deviceId`.
+  ///
+  /// Thu hồi máy **không bị chặn** bởi danh sách này: mất laptop là đường khẩn cấp, và bắt
+  /// người ta gỡ ghim từng nick trước khi chặn được một chiếc máy đã mất là đặt thủ tục lên
+  /// trước thiệt hại. `revokeRelayDevice()` gỡ ghim cả loạt trong cùng transaction rồi nói rõ
+  /// mấy nick vừa mất ghim.
+  accounts Account[]
 
   /// `VAULT_KEY_OPERATOR` đã bọc cho **riêng chiếc máy này**, đang nằm chờ nó tới lấy.
   ///

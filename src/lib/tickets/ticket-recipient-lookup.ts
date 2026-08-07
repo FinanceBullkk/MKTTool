@@ -38,10 +38,14 @@ export type RecipientLookup =
   | { ok: false; message: string };
 
 /**
- * Tìm máy nhận cho một tấm vé.
+ * Tìm máy nhận theo **người đang bấm**.
  *
  * `deviceId` chỉ cần khai khi người đó có **nhiều hơn một** máy đang dùng — lúc đó máy chủ
  * không đoán được họ đang ngồi ở đâu, và đoán bừa là phát một tấm vé chắc chắn hỏng.
+ *
+ * Từ 07/08/2026 đây **không còn là đường chính**: nick có ghim máy thì đi qua
+ * `resolveNickDeviceRecipient` bên dưới. Hàm này còn lại cho nick **không có máy nào** — nick
+ * Facebook chẳng hạn, vốn đăng bằng Graph API nên không có profile antidetect để ghim.
  */
 export async function resolveTicketRecipient(
   actor: Actor,
@@ -86,6 +90,87 @@ export async function resolveTicketRecipient(
   }
 
   return { ok: true, recipient: toRecipient(devices[0]) };
+}
+
+/**
+ * Tìm máy nhận cho một nick **đã ghim máy** — vé bay tới chiếc máy giữ nick, không tới máy của
+ * người đang bấm.
+ *
+ * ## Vì sao đảo chiều so với `resolveTicketRecipient`
+ *
+ * `Account.antidetectProfileId` là khóa chính của một file SQLite trên đúng một máy: MultiZen
+ * không đồng bộ profile. Nên "máy của người đang bấm" là một câu trả lời **đoán**, và nó sai
+ * mỗi khi người bấm không phải chủ nick — cầu nối bên kia không có profile đó và chỉ báo được
+ * một lỗi mơ hồ. Hỏi thẳng cuốn sổ thì câu trả lời là sự thật, và ca hỏng nói được nguyên nhân.
+ *
+ * Mật khẩu nick cũng đi đường này: nó được gõ vào chính profile ấy, tức chỉ có nghĩa ở đúng
+ * chiếc máy ấy. Phụ phẩm là mật khẩu proxy trong ruột vé `LAUNCH_PROFILE` chỉ tới được chiếc
+ * máy vốn đã phải biết nó, thay vì tới máy của bất cứ ai bấm nút.
+ *
+ * ## ADMIN KHÔNG có ngoại lệ ở đây
+ *
+ * Khác `requireNickOwner`, vốn cho ADMIN qua để còn đường khôi phục. Ở đây ngoại lệ là vô
+ * nghĩa: vé bọc mật mã cho khóa của máy kia, nên ADMIN có phát được cũng không mở nổi. Cho qua
+ * chỉ tạo ra một tấm vé chắc chắn hỏng cộng một hàng nhật ký nói dối.
+ *
+ * Đường khôi phục của ADMIN là **gán lại cụm** sang máy của mình — một thao tác có tên, có
+ * `AuditLog`, chứ không phải một tác dụng phụ của nút copy mật khẩu.
+ */
+export async function resolveNickDeviceRecipient(
+  actor: Actor,
+  accountId: string,
+): Promise<RecipientLookup> {
+  const account = await prisma.account.findUnique({
+    where: { id: accountId },
+    select: {
+      username: true,
+      device: {
+        select: {
+          id: true,
+          name: true,
+          publicKey: true,
+          revokedAt: true,
+          userId: true,
+          user: { select: { email: true } },
+        },
+      },
+    },
+  });
+
+  if (!account) return { ok: false, message: "Không tìm thấy nick." };
+
+  const { device } = account;
+
+  if (!device) {
+    return {
+      ok: false,
+      message:
+        `Nick "${account.username}" chưa được ghim vào máy nào, nên không biết gửi vé đi đâu. ` +
+        `Nhờ quản trị viên gán cụm ở trang chi tiết nick — chọn cả người phụ trách lẫn máy giữ ` +
+        `profile của nick.`,
+    };
+  }
+
+  if (device.revokedAt) {
+    return {
+      ok: false,
+      message:
+        `Máy "${device.name}" đang giữ nick "${account.username}" đã bị thu hồi, nên nó không ` +
+        `nhận được vé nào nữa. Nhờ quản trị viên gán cụm sang một máy khác.`,
+    };
+  }
+
+  if (device.userId !== actor.userId) {
+    return {
+      ok: false,
+      message:
+        `Nick "${account.username}" nằm ở máy "${device.name}" của ${device.user.email} — vé ` +
+        `được mã hóa cho đúng chiếc máy đó nên bấm ở đây không mở được gì. Cần chuyển sang máy ` +
+        `khác thì nhờ quản trị viên gán lại cụm.`,
+    };
+  }
+
+  return { ok: true, recipient: toRecipient(device) };
 }
 
 function toRecipient(device: { id: string; name: string; publicKey: string }): ResolvedRecipient {

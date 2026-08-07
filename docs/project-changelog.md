@@ -12,6 +12,133 @@ Dự án chưa phát hành phiên bản (`0.1.0`, dùng nội bộ). Mốc chia 
 
 ---
 
+## 07/08/2026 (3) — Công cụ tự tạo profile antidetect, thay ô gõ tay UUID
+
+Thêm một nick từng đòi ba bước tay, cả ba hỏng lặng lẽ: chép dãy UUID từ MultiZen sang (sai một
+ký tự thì không gì báo tới lần mở profile đầu tiên), **nhớ bấm "Match proxy"**, rồi mới đăng nhập.
+Bước giữa là bước hay bị bỏ — đo 02/08 có profile `sv-SE` chạy trên IP Anh, và tới 07/08 vẫn còn
+`Reddit - Account 01` để `Africa/Johannesburg` trên proxy US.
+
+- **Nút "Tạo profile trên máy này"** ở trang chi tiết nick. Một lần bấm: MultiZen dựng profile
+  mang sẵn proxy của nick cùng vân tay khớp quốc gia proxy, kho ghi id, và **nick được ghim luôn
+  vào máy vừa tạo**. Không ô nào phải gõ, không bước nào phải nhớ.
+- **Ghim máy là phụ phẩm, không phải khai thêm.** Profile chỉ tồn tại trên một máy, nên tạo ở đâu
+  thì nick thuộc về đó — không khai sai được.
+- **"Match proxy" thành code.** Đo MCP của MultiZen 07/08: `create_profile` nhận `proxy` và
+  `fingerprint` ngay lúc tạo, `list_fingerprint_options` trả 72 nhóm locale kèm `country` và các
+  timezone hợp lệ. `Proxy.country` khớp thẳng vào đó. Quan trọng hơn: MultiZen **tự ép tính nhất
+  quán** — khai `en-US` kèm `Europe/London` thì nó trả `INVALID_INPUT` liệt kê luôn bốn timezone
+  đúng. Nên phía mình không dựng bảng đối chiếu song song (bảng đó sẽ mục vào ngày họ thêm locale).
+- **Timezone chọn có gieo hạt, không lấy phần tử đầu.** US có 4 timezone; luôn lấy cái đầu là 5
+  nick trên proxy US cùng mang `America/New_York` — một mối tương quan **do chính công cụ tạo ra**,
+  ngược hẳn với việc đang chi tiền cho 10 proxy riêng. Gieo bằng username nên ổn định: xem trước
+  nói gì thì tạo ra đúng thế.
+- **`MIN_RELAY_VERSION` tách theo LOẠI vé.** Đây là rủi ro lớn nhất của bản này: cầu nối không tự
+  cập nhật, nên nâng một sàn chung vì loại vé mới là làm **mọi** vé — mật khẩu, OTP, mở profile —
+  bị mọi cầu nối cũ từ chối cùng lúc. Ba loại cũ giữ `1`, loại mới khai `6`, và có test canh cứng
+  ba con số đó.
+- **`GET /profiles` ở cầu nối** — không cần vé (tên và id profile không phải bí mật, và máy chủ
+  vốn không nhìn thấy danh sách này để mà cấp phép). Chưa nối được MultiZen thì báo thiếu gì chứ
+  **không** trả mảng rỗng: mảng rỗng nghĩa là "máy này chưa có profile nào", một câu khác hẳn.
+- **Tự ghim chỉ mở cho nick chưa có máy.** Nới ra là một OPERATOR bấm "Tạo profile" để kéo nick
+  của đồng nghiệp về máy mình rồi đọc mật khẩu proxy của nó — đổi máy vẫn chỉ ADMIN làm được.
+- Cầu nối lên **bản 6**. `AdsPowerAdapter` ném lỗi nói rõ chưa hỗ trợ thay vì trả mảng rỗng.
+
+Bốn file test mới (chọn vân tay, phiên bản vé theo loại, `/profiles`, `recordCreatedProfile`).
+1062/1062 xanh.
+
+**Chưa làm:** ô chọn profile mới chỉ **liệt kê** để chép id, chưa gắn được bằng một cú bấm — đường
+tạo mới là đường chính, còn liệt kê chỉ để đối chiếu và để nối lại profile cũ.
+
+---
+
+## 07/08/2026 (2) — Trang Chuẩn bị, và "nick này dùng được chưa"
+
+Khảo sát UX trước khi bàn giao GĐ6 ([báo cáo](../plans/reports/uxreview-260807-0459-luong-cau-hinh-va-onboarding.md))
+tìm ra ba chỗ gãy nặng, cả ba đều thuộc luồng **dựng kho và cấu hình**, không phải luồng vận hành
+hằng ngày.
+
+- **Trang `/setup` "Chuẩn bị"** — checklist 9 bước, mỗi bước **đọc trạng thái thật từ kho**
+  (`3 nhân vật` / `chưa có proxy nào` / `1/2 nick đã gán chủ và máy`) kèm nút đi thẳng, và
+  highlight bước phải làm tiếp. Trước đó hướng dẫn duy nhất trong cả app là một dòng chữ xám nằm
+  trong thẻ *Sức khỏe đàn nick* — sai chỗ, không link, nêu 3 trên 8 bước, và **biến mất ngay khi
+  có nick đầu tiên**, đúng lúc còn 5 bước chưa làm. Thứ tự đầy đủ chỉ có trong README.
+- **`describeAccountReadiness()`** — một hàm thuần trả lời "nick này thiếu gì", ba chỗ đọc: cột
+  **Sẵn sàng** ở `/accounts`, khối liệt kê ở đầu trang chi tiết nick, và dải cảnh báo trang Hôm
+  nay. Trước đó bảy điều kiện nằm rải ở bốn bảng và người dùng phải tự ghép từ bảng Thông tin 15
+  dòng — trang danh sách thì không nói gì cả.
+- **Phân biệt "chờ" với "thiếu".** Cold-start là chặn loại *chờ*: không ai phải làm gì. Gộp chung
+  với "chưa gắn proxy" thì một nick đang cold-start đúng lịch trông y hệt một nick quên gắn proxy.
+- **Ranh giới Reddit / Facebook nằm trong phép chấm.** Nick Facebook không proxy, không profile,
+  không máy vẫn là *Sẵn sàng* — Fanpage đăng bằng Graph API. Đòi đủ bảy điều kiện là bịa ra ba lỗi
+  vĩnh viễn không sửa được, và người đọc sẽ học cách phớt lờ cả cột.
+- **Thẻ Phân công cụm hiện dạng CHỈ ĐỌC với OPERATOR** thay vì biến mất. Đây là nợ do chính bản
+  trước tạo ra: họ tạo xong nick, bấm "Mở profile", nhận câu *"chưa ghim vào máy nào"* — và trên
+  màn hình của họ không có gì nói chỗ đó ở đâu hay ai làm được.
+- **Nav tách `Cài đặt` khỏi `Kho`.** Hai nhóm khác nhau về *thời điểm* chứ không phải chủ đề: kho
+  sửa hằng tuần, cài đặt đụng lúc dựng lần đầu. Cầu nối từng nằm cạnh Content, trong khi với người
+  mới nó là việc số 0.
+- **Form thêm nick bớt hai ô.** `Trạng thái` bỏ hẳn khỏi form tạo (nick mới luôn `COLD_START`, để
+  `default` trong schema), và `Cold-start tới ngày` **điền sẵn +14 ngày** thay vì bắt tự cộng.
+- Thẻ *"Đang chờ cấp khóa"* ở `/relay-devices` từng render **phía trên** `PageHeading` — thứ tự
+  đọc bị lộn. Nay nằm dưới tiêu đề.
+
+Hai file test mới (18 bài cho phép chấm sẵn sàng, 10 bài cho checklist). 1017/1017 xanh.
+
+**Chưa làm, có lý do:** ô **chọn** profile antidetect thay ô gõ tay UUID. Nó cần một endpoint mới
+ở cầu nối để liệt kê profile, mà cầu nối **không tự cập nhật** — máy chạy bản cũ vẫn phải gõ tay,
+nên phải giữ cả hai đường. Việc riêng, không ghép vào lượt này.
+
+---
+
+## 07/08/2026 — Nick ghim vào một máy, và kho proxy về tay ADMIN
+
+Chuẩn bị cho GĐ6 (bàn giao 5-6 người). Mô hình phân quyền trước đó viết cho **một** người vận
+hành cả đàn: chỉ có 4 việc chỉ-ADMIN-làm-được, còn xóa nick và xóa proxy thì ai cũng làm được.
+
+**Gốc của vấn đề là một ô còn thiếu.** `Account.antidetectProfileId` là khóa chính của một file
+SQLite trên **đúng một máy** — MultiZen không đồng bộ profile, không có tài khoản, không có
+license server (đo trên máy thật 07/08; per-profile cloud sync và team workspace mới ở roadmap của
+họ). Nhưng database lưu nó như giá trị toàn cục, nên route mở profile phải đoán *"máy của người
+đang bấm"*, và đoán đó sai mỗi khi người bấm không phải chủ nick.
+
+- **`Account.deviceId → RelayDevice`, và vé bay về máy GIỮ NICK.** Máy nhận suy ra từ nick chứ
+  không từ người bấm (`resolveNickDeviceRecipient`). Áp cho cả vé mở profile lẫn vé bí mật; nick
+  không có máy (Facebook) vẫn đi đường cũ.
+- **Ba lỗ đóng cùng lúc.** (1) Bấm "Mở profile" trên nick người khác từng phát được vé rồi chết ở
+  cầu nối bằng một lỗi MultiZen mơ hồ. (2) Ruột vé `LAUNCH_PROFILE` chứa **mật khẩu proxy đã giải
+  mã** và vé mở profile cố ý không bị đếm hạn nhịp — nên ai đăng nhập được cũng rút được mật khẩu
+  cả kho proxy bằng cách bấm nút, dù `/proxies` không bao giờ hiện chúng. (3) Nút "Mở profile" ở
+  thẻ nhắc việc gọi `/launch` không kèm `deviceId` nên hỏng với người có hai máy.
+- **ADMIN không có ngoại lệ ở nút mở profile.** Ngược `requireNickOwner`, và không phải vì siết
+  chặt hơn: vé bọc mật mã cho khóa của máy kia nên phát được cũng không mở nổi. Đường khôi phục là
+  gán lại cụm — một thao tác có tên, có `AuditLog`.
+- **"Phân công nick" thành "Phân công cụm".** `assignAccountOwner` → `assignAccountCluster`, gán
+  người **và** máy trong một form, một transaction. Ép bất biến `deviceId có giá trị ⟹
+  device.userId == ownerId và máy chưa thu hồi` — Postgres không ép được ràng buộc bắc qua hai
+  bảng nếu không có trigger.
+- **Đổi máy ghi `ACCOUNT_DEVICE_MOVED` riêng**, kèm nhắc `export → import → xóa bản ở máy cũ`.
+  Cảnh báo chứ không chặn: chuyển hẳn rồi xóa bản cũ là chuyện người thật vẫn làm; thứ giết nick
+  là xoay vòng hai máy và quên xóa bản cũ, cả hai đều ngoài tầm với của database.
+- **Thu hồi máy gỡ ghim nick của nó** trong cùng transaction, **không bị chặn** — mất laptop là
+  đường khẩn cấp, thủ tục không được đặt trước thiệt hại. Câu trả về nói rõ mấy nick vừa mất ghim,
+  và `/relay-devices` hiện số nick đang ghim ngay dưới tên máy.
+- **Hai dải cảnh báo mới ở trang Hôm nay:** nick ghim lệch (đỏ) và nick có profile mà chưa ghim
+  máy (vàng). Đặt ở đây chứ không ở khay vận hành vì khay hiện trên mọi trang nên nó cấm truy vấn
+  database — đúng ranh giới `collect-ops-alerts.ts` đã vạch.
+- **Kho proxy chỉ ADMIN ghi được:** `createProxy` / `updateProxy` / `deleteProxy` /
+  `measureOneProxySpeed` → `adminAction`. Mật khẩu proxy không có bản thứ hai ở đâu ngoài kho, và
+  nút đo tốc độ đốt 1 MB quota trả tiền mỗi lượt. Nút **Kiểm** vẫn để mở: vài KB, và cần bấm đúng
+  lúc đang gấp.
+
+Làm trước bước nhập liệu của GĐ6 vì kho nick trên máy chủ còn rỗng — migration không cần gán tay
+cụm nào. Thứ tự nhập liệu đổi theo: **đăng ký máy cầu nối là bước 0**.
+
+5 file test mới (bảng chuyển trạng thái cụm, bất biến khi gán, bốn lối ra của bộ tìm máy nhận,
+thu hồi máy gỡ ghim, ranh giới ADMIN của kho proxy). 999/999 xanh.
+
+---
+
 ## 06/08/2026 (khuya, 3) — Khóa vùng operator tự về máy, không còn ai phải chép
 
 Cầu nối **bản 5**. Mảnh cuối của luồng cài: `deviceId` và `serverPublicKey` đã tự đi xuống từ hôm

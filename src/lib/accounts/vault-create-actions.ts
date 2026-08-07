@@ -10,7 +10,7 @@
  */
 import { revalidatePath } from "next/cache";
 import type { ActionResult } from "@/lib/actions/action-result";
-import { guardedAction } from "@/lib/auth/guarded-action";
+import { adminAction, guardedAction } from "@/lib/auth/guarded-action";
 import { encryptCredential } from "@/lib/crypto/credential-encryption";
 import { loadVaultKey } from "@/lib/crypto/encryption-key-loader";
 import { prisma } from "@/lib/db/prisma-client";
@@ -55,7 +55,14 @@ export const createPersona = guardedAction(async function createPersona(
   return { ok: true, message: `Đã tạo nhân vật "${parsed.data.name}".` };
 });
 
-export const createProxy = guardedAction(async function createProxy(
+/**
+ * Chỉ ADMIN — xem chú thích ở `deleteProxy`.
+ *
+ * Thêm proxy cũng vào tay ADMIN dù nó không xóa gì: kho proxy chỉ có nghĩa khi một người chịu
+ * trách nhiệm cả nó. Ai cũng thêm được thì sẽ có proxy trùng dải, trùng nhà cung cấp với proxy
+ * quan sát viên, hoặc nhập nhầm giao thức — những thứ không báo lỗi ngay mà làm yếu đi âm thầm.
+ */
+export const createProxy = adminAction(async function createProxy(
   _actor,
   _prev: ActionResult | null,
   formData: FormData,

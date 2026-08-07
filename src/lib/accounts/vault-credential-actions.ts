@@ -11,13 +11,23 @@
  * database, bọc lại cho đúng chiếc máy sẽ dùng, ký tên, rồi đưa cho trình duyệt mang đi. Nó
  * không đọc được thứ nó vừa phát, và trình duyệt cũng không.
  *
- * Ba lớp chặn giữ nguyên, không lớp nào bị lược đi vì đổi cơ chế:
+ * Bốn lớp chặn, không lớp nào bị lược đi vì đổi cơ chế:
  *
  * | Lớp | Câu hỏi |
  * |---|---|
  * | `guardedAction` | đã đăng nhập chưa, còn trong `ALLOWED_EMAILS` không |
  * | `requireNickOwner` | nick này có phải của bạn không |
  * | `checkTicketRateLimit` | có phải bạn đang rút cả kho trong một phút không |
+ * | `resolveNickDeviceRecipient` | bạn có đang ngồi đúng chiếc máy giữ nick này không |
+ *
+ * ## Lớp thứ tư: vé đi tới máy GIỮ NICK, không tới máy người bấm
+ *
+ * Thêm 07/08/2026. Mật khẩu nick được gõ vào profile antidetect, mà profile chỉ tồn tại trên
+ * đúng một máy (MultiZen không đồng bộ). Gửi mật khẩu tới một chiếc máy không có profile đó là
+ * gửi tới nơi không dùng được nó — và mở rộng vùng mà bí mật từng đi qua mà chẳng đổi lấy gì.
+ *
+ * Nick **không có máy nào** thì lùi về `resolveTicketRecipient`: nick Facebook không có profile
+ * antidetect để ghim (Fanpage đăng bằng Graph API), nhưng mật khẩu của nó vẫn phải lấy được.
  *
  * ## `AuditLog` ghi lúc PHÁT VÉ, và đó là mốc đúng
  *
@@ -32,11 +42,14 @@
 import type { ActionResult } from "@/lib/actions/action-result";
 import { AUDIT_ACTIONS } from "@/lib/audit/audit-log-actions";
 import { guardedAction } from "@/lib/auth/guarded-action";
-import { requireNickOwner } from "@/lib/auth/require-actor";
+import { type Actor, requireNickOwner } from "@/lib/auth/require-actor";
 import { prisma } from "@/lib/db/prisma-client";
 import { issueTicket } from "@/lib/tickets/ticket-issuer";
 import { checkTicketRateLimit } from "@/lib/tickets/ticket-rate-limit";
-import { resolveTicketRecipient } from "@/lib/tickets/ticket-recipient-lookup";
+import {
+  resolveNickDeviceRecipient,
+  resolveTicketRecipient,
+} from "@/lib/tickets/ticket-recipient-lookup";
 import { TICKET_KINDS, type CredentialField, type SignedTicket } from "@/lib/tickets/ticket-types";
 
 /**
@@ -49,6 +62,23 @@ import { TICKET_KINDS, type CredentialField, type SignedTicket } from "@/lib/tic
 export interface IssuedTicket {
   ticket: SignedTicket;
   deviceName: string;
+}
+
+/**
+ * Chọn máy nhận: nick đã ghim máy thì gửi tới đúng máy đó, chưa ghim thì hỏi người đang bấm.
+ *
+ * Không export — file này là `"use server"`, nên mỗi export là một endpoint POST mà người lạ
+ * gọi thẳng được. Hàm phụ thì phải ở lại trong nhà.
+ */
+function pickRecipient(
+  actor: Actor,
+  accountId: string,
+  nickDeviceId: string | null,
+  fallbackDeviceId?: string,
+) {
+  return nickDeviceId === null
+    ? resolveTicketRecipient(actor, fallbackDeviceId)
+    : resolveNickDeviceRecipient(actor, accountId);
 }
 
 /**
@@ -73,11 +103,11 @@ export const requestCredentialTicket = guardedAction(async function requestCrede
 
   const account = await prisma.account.findUnique({
     where: { id: accountId },
-    select: { username: true, passwordEnc: true, emailPasswordEnc: true },
+    select: { username: true, passwordEnc: true, emailPasswordEnc: true, deviceId: true },
   });
   if (!account) return { ok: false, message: "Không tìm thấy nick." };
 
-  const recipient = await resolveTicketRecipient(actor, deviceId);
+  const recipient = await pickRecipient(actor, accountId, account.deviceId, deviceId);
   if (!recipient.ok) return { ok: false, message: recipient.message };
 
   const ticket = issueTicket(
@@ -116,7 +146,7 @@ export const requestOtpTicket = guardedAction(async function requestOtpTicket(
 
   const account = await prisma.account.findUnique({
     where: { id: accountId },
-    select: { totpSecretEnc: true },
+    select: { totpSecretEnc: true, deviceId: true },
   });
   if (!account) return { ok: false, message: "Không tìm thấy nick." };
 
@@ -124,7 +154,7 @@ export const requestOtpTicket = guardedAction(async function requestOtpTicket(
   // thì người dùng đợi một tab mở ra chỉ để đọc "nick này chưa có 2FA".
   if (!account.totpSecretEnc) return { ok: false, message: "Nick này chưa lưu TOTP secret." };
 
-  const recipient = await resolveTicketRecipient(actor, deviceId);
+  const recipient = await pickRecipient(actor, accountId, account.deviceId, deviceId);
   if (!recipient.ok) return { ok: false, message: recipient.message };
 
   const ticket = issueTicket(

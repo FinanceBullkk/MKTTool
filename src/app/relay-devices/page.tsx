@@ -32,7 +32,12 @@ export default async function RelayDevicesPage() {
       // Máy còn dùng lên trước, mới nhất lên đầu: danh sách này được mở ra chủ yếu vào hai lúc
       // — vừa cài xong một máy, và vừa mất một máy. Cả hai đều tìm hàng ở gần đầu.
       orderBy: [{ revokedAt: "asc" }, { createdAt: "desc" }],
-      include: { user: { select: { email: true } } },
+      include: {
+        user: { select: { email: true } },
+        // Thu hồi máy gỡ ghim mọi nick của nó, nên con số này là thứ người sắp bấm "Thu hồi"
+        // cần thấy TRƯỚC khi bấm — không phải đọc trong câu báo sau khi việc đã xong.
+        _count: { select: { accounts: true } },
+      },
     }),
     // Chỉ người ĐÃ đăng nhập ít nhất một lần mới có hàng `User` để chọn.
     prisma.user.findMany({ orderBy: { email: "asc" }, select: { id: true, email: true } }),
@@ -88,6 +93,14 @@ export default async function RelayDevicesPage() {
 
   return (
     <>
+      <PageHeading
+        title="Máy chạy cầu nối"
+        description="Mỗi máy có cặp khóa riêng. Máy chủ mã hóa nội dung vé bằng khóa công khai của đúng máy nhận, nên trình duyệt chỉ là người đưa thư — nó chuyển vé đi nhưng không đọc được gì bên trong."
+      />
+
+      {/* Thẻ này đứng ngay dưới tiêu đề chứ không đứng TRÊN nó (sửa 07/08/2026): một thẻ nổi phía
+          trên tiêu đề trang làm thứ tự đọc bị lộn. Vẫn ở gần đầu vì với ADMIN đây là việc cần bấm
+          ngay — máy đang chờ khóa là máy chưa làm được gì cả. */}
       {isAdmin && awaitingKey.length > 0 ? (
         <Card title={`Đang chờ cấp khóa — ${awaitingKey.length} máy`}>
           <p className="mb-4 text-sm text-neutral-600 dark:text-neutral-400">
@@ -119,11 +132,6 @@ export default async function RelayDevicesPage() {
         </Card>
       ) : null}
 
-      <PageHeading
-        title="Máy chạy cầu nối"
-        description="Mỗi máy có cặp khóa riêng. Máy chủ mã hóa nội dung vé bằng khóa công khai của đúng máy nhận, nên trình duyệt chỉ là người đưa thư — nó chuyển vé đi nhưng không đọc được gì bên trong."
-      />
-
       <Card title={`Sổ đăng ký — ${active} máy đang dùng, ${devices.length - active} đã thu hồi`}>
         {devices.length === 0 ? (
           <EmptyState>
@@ -146,7 +154,14 @@ export default async function RelayDevicesPage() {
           >
             {devices.map((device) => (
               <tr key={device.id} className={device.revokedAt ? "text-neutral-400" : undefined}>
-                <td className="py-2 pr-4 font-medium">{device.name}</td>
+                <td className="py-2 pr-4 font-medium">
+                  {device.name}
+                  {!device.revokedAt && device._count.accounts > 0 ? (
+                    <span className="mt-1 block text-xs font-normal text-neutral-500">
+                      {device._count.accounts} nick đang ghim — thu hồi là gỡ ghim hết
+                    </span>
+                  ) : null}
+                </td>
                 <td className="py-2 pr-4">
                   {device.user.email}
                   {!device.revokedAt && !canStillSignIn(device.user.email) ? (

@@ -1,9 +1,23 @@
 # Cấp khóa operator theo máy — bỏ mã mời
 
-**Trạng thái:** code xong, chờ nghiệm thu trên máy thật · **Nhánh:** `fix/bo-cai-cau-noi-bom-va-smartscreen`
+**Trạng thái:** ✅ XONG — đã nghiệm thu trên máy thật · **Nhánh:** `fix/bo-cai-cau-noi-bom-va-smartscreen`
 
 Cả 3 phase đã làm. `npm run typecheck` + `npm run lint` sạch, **967/967 test xanh** (+23).
-Chưa nghiệm thu được đường hai máy: tới 06/08/2026 chưa có máy nào ngoài máy admin chạy cầu nối.
+Đã lên production: PR #17 (`d2f19e5`) và PR #18 (`8f6592f`, sửa hướng dẫn cài đã lỗi thời).
+Cầu nối bản 5 đã phát hành, SHA-256 gói `123528c5…0f15f`.
+
+**Nghiệm thu đầu-cuối 07/08/2026 01:27.** Máy `MSI` (`anhhao9a2.xt@gmail.com`) nhận được khóa
+sau đúng một cú bấm *Cấp khóa* từ máy admin — hàng chờ tụt 3 → 2, cột đổi sang *"máy đã báo có
+khóa"*, hộp bị xóa khỏi database. Cả năm chặng chạy thật qua mạng thật giữa hai máy thật.
+
+## Vấp phải trên đường, đã ghi lại
+
+- **Gói dựng đầu tiên nung `http://localhost:3000`** vì `RELAY_WEB_ORIGIN` chưa từng được khai ở
+  đâu. Gói đó bị cài lên máy admin và nút *Cấp khóa* bị từ chối, không câu lỗi nào chỉ về nguyên
+  nhân. Đã khai biến vào `.env` + `.env.example` kèm giải thích. Bộ đóng gói vốn đã in cảnh báo —
+  bài học là **phải đọc dòng đó trước khi publish**.
+- **`db:backup:remote` ở máy dev hỏng**: production Postgres 18, client máy dev 17. Sao lưu tự
+  động lên R2 vẫn chạy (container cài client 18). Chưa sửa — xem "Còn treo".
 
 ## Vì sao
 

@@ -167,14 +167,43 @@ proxy, không cần tài khoản nào, và kiểm tra được phần lớn ch�
 
 ## Thứ tự nhập liệu
 
+**Mở `/setup` là thấy đúng danh sách này kèm trạng thái thật của kho** — bước nào xong, bước nào
+còn dở, và bước tiếp theo phải làm gì. Không cần nhớ thứ tự dưới đây.
+
+0. **Máy chạy cầu nối** (`/relay-devices`) — cài cầu nối và đăng ký máy của từng người
 1. **Nhân vật** (`/personas`) — mỗi nick một giọng, một mảng nội dung
 2. **Proxy** (`/proxies`) — mua proxy TRƯỚC khi mua nick
-3. **Tài khoản** (`/accounts`) — gắn nhân vật + proxy, đặt cold-start 14 ngày
-4. **Đích đăng** (`/targets`) — subreddit kèm luật thật của sub đó
-5. **Content** (`/content`) — bài team viết; phải nằm ở đây thì bộ luật mới so trùng được
-6. **Hàng đợi** (`/queue`) — xếp lịch đăng, bộ luật chấm trước khi cho lưu
+3. **Proxy quan sát viên** (`/proxies`) — con mắt người ngoài của bộ dò shadowban
+4. **Tài khoản** (`/accounts`) — gắn nhân vật + proxy; cold-start 14 ngày điền sẵn
+5. **Phân công cụm** (trang chi tiết nick) — giao nick cho ai, **trên máy nào**
+6. **Đích đăng** (`/targets`) — subreddit kèm luật thật của sub đó
+7. **Content** (`/content`) — bài team viết; phải nằm ở đây thì bộ luật mới so trùng được
+8. **Hàng đợi** (`/queue`) — xếp lịch đăng, bộ luật chấm trước khi cho lưu
 
-Riêng Fanpage không phải nhập tay ở bước 4: kết nối ở `/facebook` là công cụ tự tạo đích đăng.
+Riêng Fanpage không phải nhập tay ở bước 6: kết nối ở `/facebook` là công cụ tự tạo đích đăng.
+
+> **Bước 0 đứng trước là có lý do.** Nick chưa ghim vào máy nào thì không mở được profile và
+> không lấy được bí mật — xem [Nick ghim vào một máy](#nick-ghim-vào-một-máy). Đăng ký máy sau
+> khi đã nhập cả đàn nick nghĩa là phải quay lại gán tay từng cụm, đúng lúc không ai còn nhớ
+> profile nào nằm ở máy nào.
+
+### Nick này đã dùng được chưa
+
+Một nick Reddit cần đủ **bảy** điều kiện: nhân vật, proxy, proxy còn sống, id profile antidetect,
+chủ, máy, và hết cold-start. Nick Facebook chỉ cần chủ — Fanpage đăng bằng Graph API nên không có
+proxy, profile hay máy nào để đòi.
+
+Không phải tự ghép bảy thứ đó bằng mắt: cột **Sẵn sàng** ở `/accounts` nói ngay, và trang chi tiết
+nick hiện một khối liệt kê từng việc còn thiếu kèm chỗ sửa. Ba màu, ba nghĩa khác nhau:
+
+| Màu | Nghĩa |
+|---|---|
+| 🟢 Sẵn sàng | dùng được ngay |
+| 🟡 Đang chờ | không ai phải làm gì, chỉ chờ hết cold-start |
+| 🔴 Chưa dùng được | có người phải làm gì đó |
+
+Phân biệt **chờ** với **thiếu** là chủ ý: gộp chung thì một nick đang cold-start đúng lịch trông
+y hệt một nick quên gắn proxy.
 
 ### Sửa và xóa
 
@@ -388,9 +417,35 @@ giao thức upstream chỉ là chặng sau đó.
 > `Europe/London` (tự ghi đè lúc chạy, đúng) còn `navigator.language` vẫn là `sv-SE` — tiếng
 > Thụy Điển trên IP Anh, tín hiệu bất thường rõ ràng.
 >
-> **Quy trình tạo profile:** gắn proxy → tab Fingerprint → bấm **"Match proxy"** → *rồi mới*
-> đăng nhập lần đầu. Đừng đổi ngôn ngữ của profile đang nuôi: nick dùng `sv-SE` suốt 3 tháng rồi
-> đột ngột sang `en-GB` còn đáng ngờ hơn là cứ để lệch.
+> **Đừng đổi ngôn ngữ của profile đang nuôi:** nick dùng `sv-SE` suốt 3 tháng rồi đột ngột sang
+> `en-GB` còn đáng ngờ hơn là cứ để lệch.
+
+### Để công cụ tạo profile, đừng tạo tay
+
+Trang chi tiết một nick chưa có profile có nút **"Tạo profile trên máy này"**. Một lần bấm là
+xong ba việc vốn phải làm tay:
+
+| Việc | Trước | Nay |
+|---|---|---|
+| Dựng profile mang đúng proxy của nick | mở MultiZen, gắn proxy | tự |
+| Căn vân tay theo quốc gia proxy | nhớ bấm **"Match proxy"** | tự — locale, múi giờ và họ thiết bị chọn theo `Proxy.country` |
+| Đưa id profile về kho | chép dãy UUID sang form | tự, **và ghim luôn nick vào máy vừa tạo** |
+
+Nút hiện xem trước trước khi bấm — *"sẽ dựng `en-US` / `America/Denver` / `windows-laptop-amd`"* —
+nên biết được mình sắp tạo gì. Múi giờ chọn **có gieo hạt theo tên nick**, không phải luôn lấy
+cái đầu danh sách: 5 nick trên proxy US mà cùng `America/New_York` là một mối tương quan do chính
+công cụ tạo ra, ngược hẳn với việc mua 10 proxy riêng.
+
+Tạo ở máy nào thì nick thuộc máy đó — profile chỉ tồn tại trên một máy, nên không khai sai được.
+Muốn đổi máy sau đó thì vẫn phải nhờ quản trị viên gán lại cụm.
+
+**Cần cầu nối bản 6 trở lên.** Bản cũ hơn thì thẻ đó nói rõ và bạn dán id bằng tay như trước —
+không có gì hỏng, chỉ là chưa có tiện nghi. Người nhập liệu hộ từ máy khác cũng vậy: máy họ không
+có profile của nick nên đường gõ tay vẫn còn đó.
+
+> **Quy trình tay** (khi tạo trong MultiZen): gắn proxy → tab Fingerprint → bấm **"Match proxy"**
+> → *rồi mới* đăng nhập lần đầu. Bấm nút của MKTTool thì cả ba bước gộp làm một, và MultiZen từ
+> chối tổ hợp vân tay mâu thuẫn nên không có đường tạo ra một profile lệch proxy.
 
 ### Proxy được kiểm trước khi mở
 
@@ -496,13 +551,20 @@ không có đăng nhập. Cùng nguyên tắc với `TEAM_TIMEZONE`.
 
 | Vai trò | Làm được gì |
 |---|---|
-| **ADMIN** | mọi thứ, kể cả phân công nick và lấy bí mật của mọi nick |
-| **OPERATOR** | mọi thứ, **trừ** lấy mật khẩu / OTP của nick không phải mình phụ trách |
+| **ADMIN** | mọi thứ: phân công cụm, đăng ký/thu hồi máy, cấp khóa operator, và **giữ kho proxy** |
+| **OPERATOR** | mọi thứ, **trừ** bốn việc trên và **trừ** bí mật của nick không phải mình phụ trách |
 
-**Tầm nhìn thì không chia.** Ai cũng thấy nick, job, tương tác và lịch sử của người khác — cố ý:
-luật đụng độ thread phải nêu đúng tên nick của đồng nghiệp thì người đọc mới xử lý được. Thứ duy
-nhất bị chia là **bí mật của nick**, và chặn nằm ở tầng dữ liệu chứ không phải ẩn nút trên giao diện:
-máy chủ từ chối **phát vé** cho nick không phải của bạn, kèm câu nói rõ nick đó do ai phụ trách.
+**Tầm nhìn thì không chia.** Ai cũng thấy nick, job, tương tác, lịch sử và cả kho proxy của người
+khác — cố ý: luật đụng độ thread phải nêu đúng tên nick của đồng nghiệp thì người đọc mới xử lý
+được. Thứ bị chia là **quyền ghi** và **bí mật của nick**, và chặn nằm ở tầng dữ liệu chứ không
+phải ẩn nút trên giao diện: máy chủ từ chối **phát vé** cho nick không phải của bạn, kèm câu nói
+rõ nick đó do ai phụ trách.
+
+**Kho proxy chỉ ADMIN sửa được** (thêm / sửa / xóa / đo tốc độ). Mật khẩu proxy không có bản thứ
+hai ở đâu ngoài kho này, nên xóa nhầm một dòng là mất tiền thật — nhà cung cấp cấp lại thì ra IP
+khác, và nick gắn IP cũ coi như đổi chỗ ở. Nút **Kiểm** thì ai cũng bấm được: nó tốn vài KB và là
+thứ cần bấm đúng lúc đang gấp. Nút **Đo tốc độ** đốt 1 MB quota trả tiền mỗi lượt nên đi theo
+nhóm ADMIN.
 
 > **Gỡ người khỏi team:** xóa email khỏi `ALLOWED_EMAILS` rồi khởi động lại. Có hiệu lực ngay,
 > kể cả người đó đang mở sẵn tab — danh sách được kiểm ở **mọi request**, không phải chỉ lúc
@@ -572,8 +634,69 @@ và đoán bừa là phát một tấm vé chắc chắn hỏng. Một máy thì
 Nó không chặn người ngoài — hai lớp gác đã làm việc đó. Nó chặn **một phiên bị trộm**: không có
 hạn thì "rút sạch bí mật của mọi nick" là chuyện của vài giây, và `AuditLog` chỉ ghi lại để đọc
 sau khi mọi thứ đã xong. Có hạn thì nó thành chuyện của nhiều phút — đủ để một người nhận ra tab
-của mình đang tự bấm nút. Vé mở profile không bị đếm: ruột nó là cấu hình proxy, thứ vào
-`/proxies` là xem được.
+của mình đang tự bấm nút. Vé mở profile không bị đếm — nhưng từ 07/08/2026 nó không còn là lối
+rút mật khẩu proxy nữa, vì vé chỉ tới được đúng chiếc máy giữ nick. Xem mục dưới.
+
+## Nick ghim vào một máy
+
+Nguyên tắc gốc `1 nick = 1 proxy = 1 vân tay = 1 nhân vật` dài thêm một đoạn: **`= 1 máy = 1
+người`**. Và database ép nó, y như cách nó đang ép `1 nick = 1 proxy`.
+
+Lý do là địa lý của một con số. `antidetectProfileId` là **khóa chính của một file SQLite trên
+đúng một máy** — MultiZen không đồng bộ profile giữa các máy, không có tài khoản, không có
+license server (đo 07/08/2026; per-profile cloud sync và team workspace mới chỉ nằm ở roadmap của
+họ). Nên id profile là một con số vô nghĩa nếu không nói kèm nó nằm ở máy nào.
+
+| Ô | Trả lời câu hỏi |
+|---|---|
+| **Người phụ trách** | ai được **xin** mật khẩu / OTP của nick |
+| **Máy giữ profile** | vé bay **về đâu** |
+
+Hai ô gán cùng một lượt ở thẻ **"Phân công cụm"** trong trang chi tiết nick, và chỉ ADMIN gán
+được. Máy phải là máy **của chính người phụ trách** — công cụ từ chối cặp lệch kèm lý do chứ
+không lưu.
+
+**Vé đi tới máy giữ nick, không tới máy người bấm.** Đó là toàn bộ thay đổi, và nó đóng ba chỗ:
+
+| Trước | Nay |
+|---|---|
+| Bấm "Mở profile" trên nick người khác vẫn phát được vé, cầu nối bên kia báo một lỗi MultiZen mơ hồ | Từ chối kèm đúng tên máy và email chủ máy |
+| Ruột vé chứa mật khẩu proxy đã giải mã → ai đăng nhập được cũng rút được cả kho bằng cách bấm nút | Mật khẩu proxy chỉ tới chiếc máy vốn đã phải biết nó |
+| Nút "Mở profile" ở thẻ nhắc việc hỏng với người có hai máy (không có ô chọn máy) | Máy chủ tự tra sổ, không hỏi gì |
+
+**ADMIN không có ngoại lệ ở nút mở profile**, khác với đường lấy bí mật. Không phải vì siết chặt
+hơn mà vì ngoại lệ ở đó vô nghĩa: vé bọc mật mã cho khóa của máy kia, nên phát được cũng không mở
+nổi. Đường khôi phục của ADMIN là **gán lại cụm** — một thao tác có tên, có `AuditLog`.
+
+### Đổi máy: ba bước, và bước thứ ba là bước hay bị bỏ
+
+Profile MultiZen **không tự đi theo**. Export ở máy cũ → import ở máy mới → **xóa bản ở máy cũ**.
+
+Công cụ cảnh báo chứ không chặn, vì chuyển hẳn sang máy mới rồi xóa bản cũ là chuyện người thật
+vẫn làm. Thứ giết nick là hai ca khác:
+
+| Ca | Vì sao |
+|---|---|
+| **Xoay vòng** giữa hai máy đều đặn | Nick ba tháng chỉ ở một thiết bị mà giờ nhảy qua lại — cùng họ tín hiệu với `sv-SE` trên IP Anh |
+| **Cùng lúc ở hai máy** (quên xóa bản cũ) | Một phiên đăng nhập, hai bộ tín hiệu thiết bị, request đan xen. Và hai người có thể cùng đăng một bài mà bộ dò không phân biệt được |
+
+Cả hai đều nằm ngoài tầm với của database, nên chỗ can thiệp là câu chữ cộng dấu vết: mỗi lần đổi
+máy ghi `ACCOUNT_DEVICE_MOVED`, đủ để sau này dựng lại *"nick này từng ở máy nào, từ ngày nào"*.
+
+**Thu hồi máy không bị chặn bởi nick đang ghim** — mất laptop là đường khẩn cấp, và bắt gỡ ghim
+từng nick trước là đặt thủ tục lên trước thiệt hại. Nó gỡ ghim cả loạt trong cùng transaction rồi
+nói rõ mấy nick vừa mất ghim. Sổ ở `/relay-devices` hiện số nick đang ghim ngay dưới tên máy, để
+người sắp bấm biết mình đang làm gì.
+
+Nick ghim lệch, hoặc có profile mà chưa ghim máy nào, đều nổi lên thành dải cảnh báo ở trang
+**Hôm nay** — không phải bấm nút mới biết.
+
+> **VPS thay laptop được, nhưng đừng dùng chung một VPS cho cả team.** Sổ `RelayDevice` không
+> quan tâm máy là sắt hay ảo nên một VPS đăng ký y hệt một laptop. Nhưng một VPS chung là gom cả
+> đàn nick về đúng một nền phần cứng thật — ngược hẳn với việc đang chi tiền cho 10 proxy riêng.
+> Thêm nữa: Windows desktop chỉ cho một phiên RDP tại một thời điểm, và MultiZen **không có chế
+> độ headless**. Dùng VPS thì phải đo vân tay trước khi đưa nick thật lên: VPS không có GPU thật
+> nên Chromium render bằng phần mềm, và cái tên GPU được giả sẽ mâu thuẫn với thứ đo được.
 
 ## Facebook
 

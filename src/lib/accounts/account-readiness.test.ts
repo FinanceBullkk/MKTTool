@@ -1,0 +1,167 @@
+/**
+ * "Nick này dùng được chưa" — bảy điều kiện, và chúng KHÁC nhau theo nền tảng.
+ *
+ * Phần đáng canh nhất không phải danh sách chặn mà là **ranh giới Reddit / Facebook**: nới ra thì
+ * nick Facebook mang ba lỗi vĩnh viễn không sửa được và người đọc học cách phớt lờ cả cột; siết
+ * vào thì nick Reddit thiếu proxy vẫn hiện "Sẵn sàng", tức là nói dối đúng chỗ tốn tiền nhất.
+ */
+import { describe, expect, it } from "vitest";
+import { describeAccountReadiness, type ReadinessInput } from "./account-readiness";
+
+const NOW = new Date("2026-08-07T00:00:00.000Z");
+
+/** Nick Reddit đủ điều kiện. Mỗi bài chỉ ghi đè đúng thứ nó muốn hỏng. */
+function redditNick(overrides: Partial<ReadinessInput> = {}): ReadinessInput {
+  return {
+    platform: "REDDIT",
+    status: "ALIVE",
+    coldStartUntil: null,
+    personaId: "persona-1",
+    antidetectProfileId: "profile-1",
+    ownerId: "user-ha",
+    proxy: { lastCheckVerdict: "ALIVE" },
+    device: { userId: "user-ha", revokedAt: null },
+    now: NOW,
+    ...overrides,
+  };
+}
+
+const codesOf = (input: ReadinessInput) =>
+  describeAccountReadiness(input).blockers.map((blocker) => blocker.code);
+
+describe("nick Reddit đủ điều kiện", () => {
+  it("không còn chặn nào", () => {
+    const result = describeAccountReadiness(redditNick());
+
+    expect(result.ready).toBe(true);
+    expect(result.waiting).toBe(false);
+    expect(result.blockers).toEqual([]);
+    expect(result.summary).toBe("Sẵn sàng");
+  });
+});
+
+describe("từng điều kiện thiếu một cái", () => {
+  it.each([
+    ["chưa có nhân vật", { personaId: null }, "NO_PERSONA"],
+    ["chưa gắn proxy", { proxy: null }, "NO_PROXY"],
+    ["proxy hỏng", { proxy: { lastCheckVerdict: "DEAD" } }, "PROXY_BROKEN"],
+    ["chưa có profile", { antidetectProfileId: null }, "NO_PROFILE"],
+    ["chưa có chủ", { ownerId: null }, "NO_OWNER"],
+    ["chưa ghim máy", { device: null }, "NO_DEVICE"],
+  ] as [string, Partial<ReadinessInput>, string][])("%s", (_name, overrides, code) => {
+    const result = describeAccountReadiness(redditNick(overrides));
+
+    expect(result.ready).toBe(false);
+    expect(result.blockers.map((blocker) => blocker.code)).toContain(code);
+    // Mọi chặn đều phải nói được việc phải làm tiếp — cảnh báo không kèm đường đi tiếp là
+    // cảnh báo bị phớt lờ.
+    expect(result.blockers.every((blocker) => blocker.fix.length > 20)).toBe(true);
+  });
+
+  it("proxy 'chưa kiểm lần nào' KHÔNG bị coi là hỏng", () => {
+    // Cùng nguyên tắc với /proxies: chưa kiểm ≠ hỏng, và cũng ≠ khỏe. Ở đây nó không chặn, vì
+    // thứ chặn thật là lần kiểm nói proxy chết — chưa kiểm thì `launch/route.ts` vẫn kiểm lúc bấm.
+    expect(codesOf(redditNick({ proxy: { lastCheckVerdict: null } }))).toEqual([]);
+  });
+});
+
+describe("máy và chủ phải khớp", () => {
+  it("máy đã thu hồi là chặn riêng, không lẫn với chưa ghim", () => {
+    const result = describeAccountReadiness(
+      redditNick({ device: { userId: "user-ha", revokedAt: NOW } }),
+    );
+
+    expect(result.blockers.map((blocker) => blocker.code)).toEqual(["DEVICE_REVOKED"]);
+  });
+
+  it("máy của người khác là cụm lệch", () => {
+    const result = describeAccountReadiness(
+      redditNick({ device: { userId: "user-nam", revokedAt: null } }),
+    );
+
+    expect(result.blockers.map((blocker) => blocker.code)).toEqual(["CLUSTER_DRIFT"]);
+  });
+
+  /** Nick không chủ mà có máy: đã bị `assignAccountCluster` chặn, nhưng cột vẫn phải đọc được. */
+  it("không chủ thì báo thiếu chủ, không báo lệch", () => {
+    const codes = codesOf(redditNick({ ownerId: null }));
+
+    expect(codes).toContain("NO_OWNER");
+    expect(codes).not.toContain("CLUSTER_DRIFT");
+  });
+});
+
+describe("nick Facebook — ranh giới quan trọng nhất", () => {
+  const fbNick = (overrides: Partial<ReadinessInput> = {}): ReadinessInput =>
+    redditNick({
+      platform: "FACEBOOK",
+      proxy: null,
+      antidetectProfileId: null,
+      device: null,
+      ...overrides,
+    });
+
+  /**
+   * Fanpage đăng bằng Graph API: không mở trình duyệt, không proxy, không profile, nên không có
+   * máy nào để ghim. Đòi đủ là bịa ra ba lỗi vĩnh viễn không sửa được.
+   */
+  it("không proxy, không profile, không máy vẫn là SẴN SÀNG", () => {
+    const result = describeAccountReadiness(fbNick());
+
+    expect(result.ready).toBe(true);
+    expect(result.blockers).toEqual([]);
+  });
+
+  it("vẫn phải có chủ — bí mật nick nào cũng cần người phụ trách", () => {
+    expect(codesOf(fbNick({ ownerId: null }))).toEqual(["NO_OWNER"]);
+  });
+
+  /**
+   * Khai một nửa là trạng thái tệ nhất: có id profile mà kho không biết nó nằm ở máy nào. Lúc đó
+   * ranh giới "Facebook thì miễn" phải tắt.
+   */
+  it("nhưng KHAI profile antidetect rồi thì phải ghim máy", () => {
+    expect(codesOf(fbNick({ antidetectProfileId: "profile-fb" }))).toEqual(["NO_DEVICE"]);
+  });
+
+  it("proxy đã khai mà hỏng thì vẫn báo hỏng", () => {
+    expect(codesOf(fbNick({ proxy: { lastCheckVerdict: "DEAD" } }))).toEqual(["PROXY_BROKEN"]);
+  });
+});
+
+describe("chờ khác với thiếu", () => {
+  /**
+   * Cold-start là ca duy nhất "chưa trọn vẹn nhưng không ai phải làm gì". Gộp nó với "chưa có
+   * proxy" là nói sai: một cái cần người hành động, một cái chỉ cần thời gian trôi.
+   */
+  it("cold-start là chặn loại CHỜ, không phải thiếu", () => {
+    const result = describeAccountReadiness(
+      redditNick({
+        status: "COLD_START",
+        coldStartUntil: new Date("2026-08-14T00:00:00.000Z"),
+      }),
+    );
+
+    expect(result.ready).toBe(false);
+    expect(result.waiting).toBe(true);
+    expect(result.summary).toContain("cold-start còn 7 ngày");
+  });
+
+  it("cold-start CỘNG thiếu proxy thì không còn là chờ nữa", () => {
+    const result = describeAccountReadiness(
+      redditNick({
+        status: "COLD_START",
+        coldStartUntil: new Date("2026-08-14T00:00:00.000Z"),
+        proxy: null,
+      }),
+    );
+
+    expect(result.waiting).toBe(false);
+    // Câu tóm tắt nêu thứ phải LÀM, không nêu thứ phải chờ.
+    expect(result.summary).toBe("chưa gắn proxy");
+  });
+
+  it("nick đã chết thì chặn ngay từ trạng thái", () => {
+    expect(codesOf(redditNick({ status: "DEAD" }))).toContain("STATUS");
+  });
+});

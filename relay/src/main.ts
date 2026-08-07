@@ -30,6 +30,7 @@ import { handleReceiveOperatorKey } from "./handle-receive-operator-key";
 import { handleSealOperatorKey } from "./handle-seal-operator-key";
 import { handleSecretReveal } from "./handle-secret";
 import { handleSetOperatorKey } from "./handle-set-operator-key";
+import { handleProfilesRequest } from "./handle-profiles";
 import { handleTicketRequest } from "./handle-ticket";
 import { RelayAntidetect } from "./relay-antidetect";
 import {
@@ -187,6 +188,9 @@ async function main(): Promise<void> {
           antidetect: state.antidetect,
           notConfiguredMessage: notConfiguredMessage(),
         }),
+      // Không cần vé, và không cần cả `identity`: đường này chỉ đọc danh sách profile của chính
+      // máy đang chạy — xem chú thích đầu `handle-profiles.ts`.
+      [RELAY_PATHS.profiles]: () => handleProfilesRequest(state.antidetect),
       [SECRET_REVEAL_PATH]: (_request, body) =>
         handleSecretReveal(body, {
           identity: state.identity,

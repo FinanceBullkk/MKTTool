@@ -58,6 +58,12 @@ function fakeAdapter(overrides: Partial<AntidetectAdapter> = {}) {
     },
     closeProfile: async () => {},
     isRunning: async () => true,
+    listProfiles: async () => [],
+    fingerprintOptions: async () => ({ devices: [], locales: [] }),
+    createProfile: async () => {
+      calls.push("createProfile");
+      return "profile-vua-tao";
+    },
     ...overrides,
   };
   return { adapter, calls };
