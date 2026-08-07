@@ -35,38 +35,10 @@ import {
   firstError,
   formToObject,
   normalizeCheckbox,
-  personaUpdateSchema,
   proxyUpdateSchema,
   targetUpdateSchema,
   validatePlatformAccountFields,
 } from "./vault-form-schemas";
-
-export const updatePersona = guardedAction(async function updatePersona(
-  _actor,
-  _prev: ActionResult | null,
-  formData: FormData,
-): Promise<ActionResult> {
-  const parsed = personaUpdateSchema.safeParse(formToObject(formData));
-  if (!parsed.success) return { ok: false, message: firstError(parsed.error) };
-
-  const { id, ...data } = parsed.data;
-
-  try {
-    await prisma.persona.update({ where: { id }, data });
-  } catch (error) {
-    if (isUniqueConstraintError(error)) {
-      return { ok: false, message: `Tên nhân vật "${data.name}" đã tồn tại.` };
-    }
-    return {
-      ok: false,
-      message: describeUnexpectedDbError(error, "sửa nhân vật"),
-    };
-  }
-
-  revalidatePath("/personas");
-  revalidatePath(`/personas/${id}`);
-  return { ok: true, message: `Đã lưu nhân vật "${data.name}".` };
-});
 
 /** Chỉ ADMIN — cùng lý lẽ với `deleteProxy`: sửa nhầm host/port là mất một proxy đang chạy. */
 export const updateProxy = adminAction(async function updateProxy(
@@ -173,6 +145,10 @@ export const updateAccount = guardedAction(async function updateAccount(
         // thì gỡ proxy khỏi một nick Facebook sẽ im lặng không có tác dụng gì.
         antidetectProfileId: data.antidetectProfileId?.trim() || null,
         proxyId: data.proxyId?.trim() || null,
+        // Cùng lý do: xóa trắng ô giọng phải thật sự xóa, không thì nick giữ mãi một làn viết
+        // mà người dùng tưởng đã bỏ.
+        voice: data.voice?.trim() || null,
+        contentAngle: data.contentAngle?.trim() || null,
         // Gỡ cách ly thì lý do cách ly phải đi theo. Để lại là dựng ra một màn hình tự mâu
         // thuẫn: nhãn "Khỏe" nằm ngay trên hộp đỏ "dừng đăng ngay" — xem isQuarantinedStatus().
         quarantineReason: isQuarantinedStatus(data.status)

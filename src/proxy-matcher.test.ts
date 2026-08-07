@@ -29,7 +29,6 @@ describe("matcher của proxy.ts", () => {
     "/health",
     "/facebook",
     "/targets",
-    "/personas",
   ])("gác %s", (pathname) => {
     expect(
       isGuarded(pathname),

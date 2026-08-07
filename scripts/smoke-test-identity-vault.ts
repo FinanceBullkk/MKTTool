@@ -44,13 +44,9 @@ async function cleanup() {
   await prisma.auditLog.deleteMany({ where: { detail: { startsWith: PREFIX } } });
   await prisma.account.deleteMany({ where: { username: { startsWith: PREFIX } } });
   await prisma.proxy.deleteMany({ where: { label: { startsWith: PREFIX } } });
-  await prisma.persona.deleteMany({ where: { name: { startsWith: PREFIX } } });
 }
 
 async function run() {
-  const persona = await prisma.persona.create({
-    data: { name: `${PREFIX}persona`, voice: "test", contentAngle: "test" },
-  });
 
   const [proxyA, proxyB] = await Promise.all(
     [1, 2].map((n) =>
@@ -77,7 +73,6 @@ async function run() {
       emailPasswordEnc: encryptCredential("email-pass", operatorKey),
       totpSecretEnc: encryptCredential(TOTP_SECRET, operatorKey),
       antidetectProfileId: `${PREFIX}profile`,
-      personaId: persona.id,
       proxyId: proxyA.id,
       status: "ALIVE",
     },
@@ -154,7 +149,6 @@ async function run() {
   check("DB chặn 2 nick dùng chung 1 proxy", await createFails({
     username: `${PREFIX}dup-proxy`,
     antidetectProfileId: `${PREFIX}profile-other`,
-    personaId: persona.id,
     proxyId: proxyA.id, // đã gắn nick khác
   }));
 
@@ -163,7 +157,6 @@ async function run() {
   check("DB chặn 2 nick dùng chung 1 profile antidetect", await createFails({
     username: `${PREFIX}dup-profile`,
     antidetectProfileId: stored.antidetectProfileId ?? `${PREFIX}profile`, // trùng profile
-    personaId: persona.id,
     proxyId: proxyB.id,
   }));
 
@@ -180,7 +173,6 @@ async function run() {
       passwordEnc: encryptCredential("x", operatorKey),
       emailAddress: "fb1@example.com",
       emailPasswordEnc: encryptCredential("x", operatorKey),
-      personaId: persona.id,
       status: "ALIVE",
       // KHÔNG khai antidetectProfileId lẫn proxyId — đó chính là điều đang nghiệm thu.
     },
@@ -197,7 +189,6 @@ async function run() {
       passwordEnc: encryptCredential("x", operatorKey),
       emailAddress: "fb2@example.com",
       emailPasswordEnc: encryptCredential("x", operatorKey),
-      personaId: persona.id,
       status: "ALIVE",
     },
   }).catch(() => null);
@@ -206,7 +197,6 @@ async function run() {
   check("nhưng vẫn chặn 2 nick dùng chung 1 proxy thật", await createFails({
     username: `${PREFIX}fb-dup-proxy`,
     antidetectProfileId: null,
-    personaId: persona.id,
     proxyId: proxyA.id, // đã gắn nick khác
   }));
 }
@@ -215,7 +205,6 @@ async function run() {
 async function createFails(data: {
   username: string;
   antidetectProfileId: string | null;
-  personaId: string;
   proxyId: string | null;
 }): Promise<boolean> {
   try {

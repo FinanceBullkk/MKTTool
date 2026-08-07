@@ -39,7 +39,6 @@ const { revokeRelayDevice } = await import("./relay-device-actions");
 
 let deviceId: string;
 let deviceKhac: string;
-let personaId: string;
 
 async function pinNick(username: string, pinnedTo: string): Promise<string> {
   const account = await prisma.account.create({
@@ -49,7 +48,6 @@ async function pinNick(username: string, pinnedTo: string): Promise<string> {
       passwordEnc: encryptCredential("mat-khau", loadVaultKey("operator")),
       emailAddress: `${username}@example.test`,
       emailPasswordEnc: encryptCredential("mat-khau-email", loadVaultKey("operator")),
-      personaId,
       status: "ALIVE",
       ownerId: HA_ID,
       deviceId: pinnedTo,
@@ -62,7 +60,6 @@ beforeEach(async () => {
   await prisma.auditLog.deleteMany();
   await prisma.account.deleteMany();
   await prisma.relayDevice.deleteMany();
-  await prisma.persona.deleteMany();
   await prisma.user.deleteMany();
 
   await prisma.user.createMany({
@@ -83,10 +80,6 @@ beforeEach(async () => {
   deviceId = mat.id;
   deviceKhac = con.id;
 
-  const persona = await prisma.persona.create({
-    data: { name: "Nhân vật thử", voice: "điềm đạm", contentAngle: "self-hosting" },
-  });
-  personaId = persona.id;
 });
 
 afterAll(async () => {

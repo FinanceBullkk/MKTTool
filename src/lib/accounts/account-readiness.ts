@@ -33,7 +33,7 @@ import { coldStartDaysRemaining, getStatusPresentation } from "./account-status"
 export type ReadinessBlockerCode =
   | "STATUS"
   | "COLD_START"
-  | "NO_PERSONA"
+  | "NO_VOICE"
   | "NO_PROXY"
   | "PROXY_BROKEN"
   | "NO_PROFILE"
@@ -74,7 +74,8 @@ export interface ReadinessInput {
   platform: string;
   status: string;
   coldStartUntil: Date | null;
-  personaId: string | null;
+  /** `Account.voice` — xem blocker `NO_VOICE`. */
+  voice: string | null;
   antidetectProfileId: string | null;
   /** `Account.firstLoginAt` — xem blocker `NOT_LOGGED_IN`. */
   firstLoginAt: Date | null;
@@ -119,11 +120,18 @@ export function describeAccountReadiness(input: ReadinessInput): AccountReadines
   }
 
   // ── Danh tính ──────────────────────────────────────────────────────────────
-  if (!input.personaId) {
+  //
+  // Bộ luật KHÔNG đọc cột này — luật 7 so trùng văn bản thật (`rule-content-similarity.ts`). Nên
+  // câu gợi ý dưới đây phải nói đúng việc nó làm: nhắc làn viết cho người sắp ngồi xuống viết,
+  // trước khi họ viết. Hứa rằng "máy canh giọng hộ" là dạy người dùng tin vào một lớp gác không
+  // tồn tại.
+  if (!input.voice) {
     blockers.push({
-      code: "NO_PERSONA",
-      label: "chưa có nhân vật",
-      fix: "Gán nhân vật ở thẻ Sửa nick — bộ luật trùng nội dung đọc giọng của nhân vật.",
+      code: "NO_VOICE",
+      label: "chưa ghi giọng viết",
+      fix:
+        "Ghi giọng và mảng nội dung ở thẻ Sửa nick. Máy chỉ canh trùng chữ lúc bấm đăng — " +
+        "giọng là phần bạn tự giữ, và giữ trước khi viết thì đỡ phải viết lại.",
     });
   }
 

@@ -21,14 +21,10 @@ async function clearAll() {
   await prisma.contentItem.deleteMany();
   await prisma.account.deleteMany();
   await prisma.proxy.deleteMany();
-  await prisma.persona.deleteMany();
   await prisma.platformTarget.deleteMany();
 }
 
 async function seed() {
-  const persona = await prisma.persona.create({
-    data: { name: "nhac-viec-persona", voice: "giọng", contentAngle: "mảng" },
-  });
 
   const proxy = await prisma.proxy.create({
     data: {
@@ -48,7 +44,6 @@ async function seed() {
       passwordEnc: "x",
       emailAddress: "a@example.com",
       emailPasswordEnc: "x",
-      personaId: persona.id,
       proxyId: proxy.id,
       antidetectProfileId: "profile-nhac-viec",
       status: "ALIVE",

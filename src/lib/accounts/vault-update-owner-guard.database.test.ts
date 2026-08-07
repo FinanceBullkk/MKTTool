@@ -43,7 +43,6 @@ const decryptAsOperator = (encoded: string) =>
   decryptCredential(encoded, loadVaultKey("operator"));
 
 let accountId: string;
-let personaId: string;
 
 /** Form sửa nick — mọi trường bắt buộc, cộng thêm phần ghi đè tùy bài. */
 function updateForm(overrides: Record<string, string> = {}): FormData {
@@ -52,7 +51,6 @@ function updateForm(overrides: Record<string, string> = {}): FormData {
     id: accountId,
     username: "anna",
     emailAddress: "anna@example.test",
-    personaId,
     status: "ALIVE",
     karma: "500",
     antidetectProfileId: "profile-anna",
@@ -65,7 +63,6 @@ function updateForm(overrides: Record<string, string> = {}): FormData {
 beforeEach(async () => {
   await prisma.auditLog.deleteMany();
   await prisma.account.deleteMany();
-  await prisma.persona.deleteMany();
   await prisma.user.deleteMany();
 
   await prisma.user.createMany({
@@ -75,10 +72,6 @@ beforeEach(async () => {
     ],
   });
 
-  const persona = await prisma.persona.create({
-    data: { name: "Nhân vật thử", voice: "điềm đạm", contentAngle: "self-hosting" },
-  });
-  personaId = persona.id;
 
   const account = await prisma.account.create({
     data: {
@@ -87,7 +80,6 @@ beforeEach(async () => {
       passwordEnc: encryptForOperator("mat-khau-cu"),
       emailAddress: "anna@example.test",
       emailPasswordEnc: encryptForOperator("mat-khau-email-cu"),
-      personaId: persona.id,
       status: "ALIVE",
       karma: 500,
       ownerId: OWNER_ID,

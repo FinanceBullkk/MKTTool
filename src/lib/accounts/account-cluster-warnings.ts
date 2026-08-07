@@ -50,7 +50,7 @@ export async function loadClusterWarnings(): Promise<ClusterWarnings> {
       platform: true,
       status: true,
       coldStartUntil: true,
-      personaId: true,
+      voice: true,
       antidetectProfileId: true,
       firstLoginAt: true,
       ownerId: true,

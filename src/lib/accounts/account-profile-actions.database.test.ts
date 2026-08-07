@@ -59,7 +59,6 @@ let mayCuaHa: string;
 let mayCuaNam: string;
 let mayDaThuHoi: string;
 let mayCuaAdmin: string;
-let personaId: string;
 
 let nextPort = 9000;
 
@@ -83,7 +82,6 @@ async function seedNick(username: string, cluster: { ownerId?: string; deviceId?
       passwordEnc: encryptCredential("mat-khau", loadVaultKey("operator")),
       emailAddress: `${username}@example.test`,
       emailPasswordEnc: encryptCredential("mat-khau-email", loadVaultKey("operator")),
-      personaId,
       proxyId: proxy.id,
       status: "ALIVE",
       ownerId: HA_ID,
@@ -100,7 +98,6 @@ beforeEach(async () => {
   await prisma.account.deleteMany();
   await prisma.proxy.deleteMany();
   await prisma.relayDevice.deleteMany();
-  await prisma.persona.deleteMany();
   await prisma.user.deleteMany();
 
   await prisma.user.createMany({
@@ -137,10 +134,6 @@ beforeEach(async () => {
   mayDaThuHoi = daMat.id;
   mayCuaAdmin = mayAdmin.id;
 
-  const persona = await prisma.persona.create({
-    data: { name: "Nhân vật thử", voice: "điềm đạm", contentAngle: "self-hosting" },
-  });
-  personaId = persona.id;
 
   accountId = await seedNick("anna");
 });

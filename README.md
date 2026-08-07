@@ -16,7 +16,7 @@ kiến trúc, bản đồ code, quy ước, nhật ký thay đổi) nằm ở [d
 Không phải bot farm. Là "tủ hồ sơ + bảng điều khiển" cho **một** bạn MKT vận hành 5-8 nick Reddit
 và 1-3 Fanpage. Team tự viết content, công cụ lo phần danh tính và an toàn.
 
-Nguyên tắc bất di bất dịch: **1 nick = 1 proxy tĩnh = 1 vân tay = 1 nhân vật.**
+Nguyên tắc bất di bất dịch: **1 nick = 1 proxy tĩnh = 1 vân tay.**
 Ràng buộc này do database ép, không lách được.
 
 > Nguyên tắc trên là **cho nick Reddit**. Nick Facebook quản trị Fanpage thì bỏ trống proxy và
@@ -171,15 +171,14 @@ proxy, không cần tài khoản nào, và kiểm tra được phần lớn ch�
 còn dở, và bước tiếp theo phải làm gì. Không cần nhớ thứ tự dưới đây.
 
 0. **Máy chạy cầu nối** (`/relay-devices`) — cài cầu nối và đăng ký máy của từng người
-1. **Nhân vật** (`/personas`) — mỗi nick một giọng, một mảng nội dung
-2. **Proxy** (`/proxies`) — mua proxy TRƯỚC khi mua nick
-3. **Proxy quan sát viên** (`/proxies`) — con mắt người ngoài của bộ dò shadowban
-4. **Tài khoản** (`/accounts`) — gắn nhân vật + proxy; cold-start 14 ngày điền sẵn
-5. **Đích đăng** (`/targets`) — subreddit kèm luật thật của sub đó
-6. **Content** (`/content`) — bài team viết; phải nằm ở đây thì bộ luật mới so trùng được
-7. **Hàng đợi** (`/queue`) — xếp lịch đăng, bộ luật chấm trước khi cho lưu
+1. **Proxy** (`/proxies`) — mua proxy TRƯỚC khi mua nick
+2. **Proxy quan sát viên** (`/proxies`) — con mắt người ngoài của bộ dò shadowban
+3. **Tài khoản** (`/accounts`) — gắn proxy, ghi giọng viết; cold-start 14 ngày điền sẵn
+4. **Đích đăng** (`/targets`) — subreddit kèm luật thật của sub đó
+5. **Content** (`/content`) — bài team viết; phải nằm ở đây thì bộ luật mới so trùng được
+6. **Hàng đợi** (`/queue`) — xếp lịch đăng, bộ luật chấm trước khi cho lưu
 
-Riêng Fanpage không phải nhập tay ở bước 5: kết nối ở `/facebook` là công cụ tự tạo đích đăng.
+Riêng Fanpage không phải nhập tay ở bước 4: kết nối ở `/facebook` là công cụ tự tạo đích đăng.
 
 > **Bước 0 đứng trước là có lý do.** Profile antidetect của nick được dựng trên **máy của người
 > phụ trách**, nên máy đó phải có mặt trong sổ trước — xem
@@ -187,12 +186,12 @@ Riêng Fanpage không phải nhập tay ở bước 5: kết nối ở `/faceboo
 
 ### Một nick Reddit đi qua ba chặng, không phải một form
 
-Bước 4 ở trên chỉ là chặng đầu. Hai chặng còn lại nằm ở **trang chi tiết nick**, và mỗi chặng tự
+Bước 3 ở trên chỉ là chặng đầu. Hai chặng còn lại nằm ở **trang chi tiết nick**, và mỗi chặng tự
 hiện ra khi tới lượt:
 
 | Chặng | Làm ở đâu | Xong thì có gì |
 |---|---|---|
-| 1. **Khai nick** | `/accounts` → *Thêm nick* | nhân vật, proxy, bí mật, và **người phụ trách** |
+| 1. **Khai nick** | `/accounts` → *Thêm nick* | proxy, giọng viết, bí mật, và **người phụ trách** |
 | 2. **Dựng profile** | thẻ *Việc tiếp theo — dựng profile antidetect* | profile mang sẵn proxy + vân tay, nick **tự ghim vào máy vừa tạo** |
 | 3. **Đăng nhập lần đầu** | thẻ *Việc tiếp theo — đăng nhập lần đầu* | nick thật sự dùng được |
 
@@ -223,11 +222,11 @@ Nick **Facebook** thì ngược lại: vẫn có mật khẩu nick và vẫn b�
 
 ### Nick này đã dùng được chưa
 
-Một nick Reddit cần đủ **tám** điều kiện: nhân vật, proxy, proxy còn sống, id profile antidetect,
-**đã đăng nhập lần đầu**, chủ, máy, và hết cold-start. Nick Facebook chỉ cần chủ — Fanpage đăng
-bằng Graph API nên không có proxy, profile hay máy nào để đòi.
+Một nick Reddit cần đủ **tám** điều kiện: giọng viết, proxy, proxy còn sống, id profile antidetect,
+**đã đăng nhập lần đầu**, chủ, máy, và hết cold-start. Nick Facebook chỉ cần chủ và giọng viết —
+Fanpage đăng bằng Graph API nên không có proxy, profile hay máy nào để đòi.
 
-Không phải tự ghép bảy thứ đó bằng mắt: cột **Sẵn sàng** ở `/accounts` nói ngay, và trang chi tiết
+Không phải tự ghép tám thứ đó bằng mắt: cột **Sẵn sàng** ở `/accounts` nói ngay, và trang chi tiết
 nick hiện một khối liệt kê từng việc còn thiếu kèm chỗ sửa. Ba màu, ba nghĩa khác nhau:
 
 | Màu | Nghĩa |
@@ -377,7 +376,7 @@ src/
 │   ├── health/              bảng sức khỏe, lịch sử dò, biểu đồ karma
 │   ├── login/               màn hình đăng nhập Google
 │   ├── relay-devices/       sổ đăng ký máy chạy cầu nối (ADMIN đăng ký / thu hồi)
-│   ├── personas/ proxies/ targets/  danh sách + trang chi tiết để sửa/xóa
+│   ├── proxies/ targets/    danh sách + trang chi tiết để sửa/xóa
 │   └── api/
 │       ├── accounts/[id]/launch/   mở profile antidetect
 │       ├── facebook/oauth/         start + callback của luồng OAuth
@@ -679,7 +678,7 @@ rút mật khẩu proxy nữa, vì vé chỉ tới được đúng chiếc máy 
 
 ## Nick ghim vào một máy
 
-Nguyên tắc gốc `1 nick = 1 proxy = 1 vân tay = 1 nhân vật` dài thêm một đoạn: **`= 1 máy = 1
+Nguyên tắc gốc `1 nick = 1 proxy = 1 vân tay` dài thêm một đoạn: **`= 1 máy = 1
 người`**. Và database ép nó, y như cách nó đang ép `1 nick = 1 proxy`.
 
 Lý do là địa lý của một con số. `antidetectProfileId` là **khóa chính của một file SQLite trên

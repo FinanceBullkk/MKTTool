@@ -7,7 +7,7 @@
  *
  * `Account.antidetectProfileId` là khóa chính của một file SQLite trên **đúng một máy** —
  * MultiZen không đồng bộ profile giữa các máy. Nên nguyên tắc gốc của dự án
- * (`1 nick = 1 proxy = 1 vân tay = 1 nhân vật`) dài thêm một đoạn: `= 1 máy = 1 người`.
+ * (`1 nick = 1 proxy = 1 vân tay`) dài thêm một đoạn: `= 1 máy = 1 người`.
  *
  * Tách thành hai lần bấm là dựng ra trạng thái nửa vời — nick có chủ mà chưa có máy, hoặc tệ
  * hơn, nick ghim vào máy của người không còn là chủ. Một form, một transaction, một hàng

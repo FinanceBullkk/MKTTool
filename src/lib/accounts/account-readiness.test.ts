@@ -16,7 +16,7 @@ function redditNick(overrides: Partial<ReadinessInput> = {}): ReadinessInput {
     platform: "REDDIT",
     status: "ALIVE",
     coldStartUntil: null,
-    personaId: "persona-1",
+    voice: "điềm đạm",
     antidetectProfileId: "profile-1",
     firstLoginAt: new Date("2026-08-01T00:00:00.000Z"),
     ownerId: "user-ha",
@@ -43,7 +43,7 @@ describe("nick Reddit đủ điều kiện", () => {
 
 describe("từng điều kiện thiếu một cái", () => {
   it.each([
-    ["chưa có nhân vật", { personaId: null }, "NO_PERSONA"],
+    ["chưa ghi giọng viết", { voice: null }, "NO_VOICE"],
     ["chưa gắn proxy", { proxy: null }, "NO_PROXY"],
     ["proxy hỏng", { proxy: { lastCheckVerdict: "DEAD" } }, "PROXY_BROKEN"],
     ["chưa có profile", { antidetectProfileId: null }, "NO_PROFILE"],

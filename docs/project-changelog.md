@@ -12,6 +12,36 @@ Dự án chưa phát hành phiên bản (`0.1.0`, dùng nội bộ). Mốc chia 
 
 ---
 
+## 07/08/2026 (6) — Bảng `Persona` gộp thành hai cột trên nick
+
+Bảng nhân vật có `/personas` CRUD, một mục nav, một bước onboarding và một **khóa ngoại bắt buộc**.
+Đổi lại: hai dòng chữ hiển thị ở trang chi tiết nick. Không một đường code nào ngoài phần hiển thị
+đọc tới nó — **kể cả bộ luật**. Luật 7 so trùng văn bản thật, xét mọi nick cùng họ nền tảng, và
+chưa bao giờ đọc giọng của nhân vật (`rule-content-similarity.ts`).
+
+- **Giọng viết vẫn đáng giữ, chỗ đứng của nó thì không.** Nó là cú hích *trước khi viết*: người ôm
+  mười nick mà không có gì nhắc làn sẽ viết cả mười bài bằng giọng tự nhiên của mình, rồi bị luật 7
+  chặn ở phút cuối — mất trắng công viết. Luật 7 là tấm lưới *sau khi viết*. Hai thứ bù nhau. Nên
+  giọng chuyển thành `Account.voice` + `Account.contentAngle`, nhập ngay trong form nick.
+- **Bắt buộc là thứ bị bỏ.** Khóa ngoại `NOT NULL` nghĩa là kho chưa có nhân vật nào thì **không
+  thêm nổi một nick** — một cánh cửa khóa ngay đầu luồng nhập. Hai cột mới nullable; thiếu thì
+  `describeAccountReadiness()` báo `NO_VOICE` (thay `NO_PERSONA`, vốn không bao giờ bắn được vì cột
+  cũ `NOT NULL`). Đúng khuôn đã làm với `antidetectProfileId` hôm trước: chuyển từ *chặn lúc nhập*
+  sang *chấm điểm sẵn sàng*.
+- **Hai câu gợi ý đang nói dối được sửa.** `account-readiness.ts` và `setup-checklist.ts` đều viết
+  *"bộ luật trùng nội dung đọc giọng của nhân vật"* — sai, và trái với chú thích trong
+  `schema.prisma` lẫn `domain-glossary.md`. Người đọc câu đó sẽ tin có một lớp gác tự động canh
+  trùng giọng; thực tế máy chỉ canh trùng **chữ**. Câu mới nói đúng việc nó làm.
+- **Migration `20260807200000` chép giọng về từng nick rồi bỏ bảng.** `Persona.notes` không có cột
+  tương ứng nên **mất** — file migration ghi sẵn câu `SELECT` để đọc ra trước khi chạy. Sao lưu
+  bằng `npm run db:backup` trước.
+
+Dọn theo: `/personas` (2 trang + `persona-form-fields.tsx`), mục nav, ô đếm ở trang Hôm nay, bước
+onboarding "Tạo nhân vật", 3 action CRUD, và fixture persona ở 14 file test + 4 smoke script — số
+file test phải đẻ một persona chỉ để thỏa khóa ngoại chính là cái giá mà bảng đó vẫn đang thu.
+
+---
+
 ## 07/08/2026 (5) — Hai nút profile bỏ cuộc ở giây thứ tư, và báo nhầm lý do
 
 Nghiệm thu trên máy thật: cả **tạo profile** lẫn **mở profile** đều chạy đúng bên MultiZen —

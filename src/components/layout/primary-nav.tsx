@@ -28,7 +28,6 @@ const DAILY_ITEMS = [
 
 const STORE_ITEMS = [
   { href: "/accounts", label: "Nick" },
-  { href: "/personas", label: "Nhân vật" },
   { href: "/proxies", label: "Proxy" },
   { href: "/targets", label: "Đích đăng" },
   { href: "/content", label: "Content" },

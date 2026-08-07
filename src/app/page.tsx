@@ -28,7 +28,6 @@ export const dynamic = "force-dynamic";
 export default async function OverviewPage() {
   const [
     accounts,
-    personaCount,
     proxyCount,
     targetCount,
     contentCount,
@@ -47,7 +46,6 @@ export default async function OverviewPage() {
       prisma.account.findMany({
         select: { id: true, username: true, status: true, coldStartUntil: true },
       }),
-      prisma.persona.count(),
       prisma.proxy.count(),
       prisma.platformTarget.count(),
       prisma.contentItem.count(),
@@ -104,7 +102,6 @@ export default async function OverviewPage() {
     { label: "Chờ đăng", value: pendingJobCount, href: "/queue?status=PENDING" },
     { label: "Content", value: contentCount, href: "/content" },
     { label: "Tài khoản", value: accounts.length, href: "/accounts" },
-    { label: "Nhân vật", value: personaCount, href: "/personas" },
     { label: "Proxy", value: proxyCount, href: "/proxies" },
     { label: "Đích đăng", value: targetCount, href: "/targets" },
   ];
@@ -365,7 +362,7 @@ export default async function OverviewPage() {
       <Card title="Sức khỏe đàn nick">
         {accounts.length === 0 ? (
           <p className="text-sm text-neutral-500">
-            Chưa có nick nào. Thứ tự làm: tạo nhân vật → thêm proxy → thêm nick.
+            Chưa có nick nào. Thứ tự làm: thêm proxy → thêm nick.
           </p>
         ) : (
           <>

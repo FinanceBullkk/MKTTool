@@ -35,15 +35,11 @@ async function clearAll() {
   await prisma.contentItem.deleteMany();
   await prisma.account.deleteMany();
   await prisma.proxy.deleteMany();
-  await prisma.persona.deleteMany();
   await prisma.platformTarget.deleteMany();
   await prisma.auditLog.deleteMany();
 }
 
 async function seed(): Promise<Seeded> {
-  const persona = await prisma.persona.create({
-    data: { name: "gan-persona", voice: "điềm đạm", contentAngle: "gaming" },
-  });
   const proxy = await prisma.proxy.create({
     data: {
       label: "gan-proxy",
@@ -62,7 +58,6 @@ async function seed(): Promise<Seeded> {
       emailAddress: "gan@example.test",
       emailPasswordEnc: "x",
       antidetectProfileId: "profile-gan",
-      personaId: persona.id,
       proxyId: proxy.id,
       status: "ALIVE",
       karma: 5000,

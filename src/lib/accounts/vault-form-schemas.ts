@@ -94,18 +94,6 @@ export function normalizeCheckbox(raw: Record<string, unknown>, name: string): v
   raw[name] = raw[name] === "on" || raw[name] === "true";
 }
 
-// ─── Nhân vật ────────────────────────────────────────────────────────────────
-
-const personaShape = {
-  name: z.string().min(1, "Tên nhân vật không được để trống"),
-  voice: z.string().min(1, "Mô tả giọng điệu không được để trống"),
-  contentAngle: z.string().min(1, "Mảng nội dung không được để trống"),
-  notes: optionalText,
-};
-
-export const personaCreateSchema = z.object(personaShape);
-export const personaUpdateSchema = z.object({ ...personaShape, id: requiredId });
-
 // ─── Proxy ───────────────────────────────────────────────────────────────────
 
 const proxyShape = {
@@ -160,7 +148,16 @@ const accountShape = {
    * chi tiết nick. Xem `validatePlatformAccountFields()` về chuyện vì sao nó rời khỏi luật.
    */
   antidetectProfileId: optionalText,
-  personaId: z.string().min(1, "Chọn nhân vật"),
+  /**
+   * Giọng viết và mảng nội dung — tùy chọn ở cả hai đường, cùng lý do với `antidetectProfileId`.
+   *
+   * Chúng từng là một khóa ngoại bắt buộc trỏ sang bảng `Persona`. Bắt buộc ở đây nghĩa là kho
+   * chưa có nhân vật nào thì không thêm nổi một nick — một cánh cửa khóa ngay đầu luồng nhập, đổi
+   * lại hai dòng chữ mà không đường code nào đọc. Thiếu giọng nay chấm ở
+   * `describeAccountReadiness()` (`NO_VOICE`) chứ không chặn lúc nhập.
+   */
+  voice: optionalText,
+  contentAngle: optionalText,
   proxyId: optionalText,
   status: z.enum(ACCOUNT_STATUSES),
   karma: z.coerce.number().int().min(0).default(0),

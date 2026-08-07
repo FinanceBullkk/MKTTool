@@ -61,7 +61,6 @@ beforeEach(async () => {
   await prisma.auditLog.deleteMany();
   await prisma.account.deleteMany();
   await prisma.relayDevice.deleteMany();
-  await prisma.persona.deleteMany();
   await prisma.user.deleteMany();
 
   await prisma.user.createMany({
@@ -90,9 +89,6 @@ beforeEach(async () => {
   ]);
   [mayCuaHa, mayCuaNam, mayDaThuHoi] = devices.map((device) => device.id);
 
-  const persona = await prisma.persona.create({
-    data: { name: "Nhân vật thử", voice: "điềm đạm", contentAngle: "self-hosting" },
-  });
 
   const account = await prisma.account.create({
     data: {
@@ -101,7 +97,6 @@ beforeEach(async () => {
       passwordEnc: encryptCredential("mat-khau", loadVaultKey("operator")),
       emailAddress: "anna@example.test",
       emailPasswordEnc: encryptCredential("mat-khau-email", loadVaultKey("operator")),
-      personaId: persona.id,
       antidetectProfileId: "profile-anna",
       status: "ALIVE",
     },

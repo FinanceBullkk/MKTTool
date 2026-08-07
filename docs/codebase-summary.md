@@ -17,7 +17,6 @@ src/
 │   ├── layout.tsx              Layout gốc, font, metadata
 │   ├── page.tsx                Dashboard chính
 │   ├── accounts/               Danh sách + chi tiết nick
-│   ├── personas/               Quản lý nhân vật
 │   ├── proxies/                Quản lý proxy
 │   ├── targets/                Đích đăng (subreddit, Fanpage…)
 │   ├── content/                Kho content team viết
@@ -121,11 +120,10 @@ Dockerfile                      Ảnh cho môi trường chạy thật (GĐ5) �
 
 | Model | Ý nghĩa | Ràng buộc đáng chú ý |
 |---|---|---|
-| `Persona` | Nhân vật: giọng điệu + mảng nội dung | `name @unique` |
 | `Proxy` | Proxy tĩnh gắn 1:1 với nick | `label @unique`; `@@unique([host, port, username])`; `type` = cách mua (STATIC_ISP/MOBILE), `protocol` = giao thức mạng (http/socks5) — hai thứ khác nhau |
 | `ObserverProxy` | Proxy dò shadowban, KHÔNG được dùng đăng nhập | `label @unique`. Tách hẳn khỏi `Proxy` chứ không thêm cờ: bản ghi nằm ở bảng này thì **không có đường nào** gắn vào nick |
 | `HealthCheck` | Một lần dò sức khỏe nick từ góc nhìn người ngoài | Giữ cả `visiblePosts` lẫn `expectedPosts`, không chỉ giữ kết luận — khi Reddit đổi HTML thì hai số này là thứ duy nhất cho biết bộ dò sai từ lúc nào. Không parse được **phải** là `ERROR`, tuyệt đối không phải `HEALTHY` |
-| `Account` | Nick Reddit/Facebook | `antidetectProfileId @unique` và `proxyId @unique` — ép 1 nick : 1 profile : 1 proxy. Cả hai **nullable**: bắt buộc với Reddit, bỏ trống được với Facebook (xem mục riêng bên dưới); `@@unique([platform, username])` |
+| `Account` | Nick Reddit/Facebook | `antidetectProfileId @unique` và `proxyId @unique` — ép 1 nick : 1 profile : 1 proxy. Cả hai **nullable**: bắt buộc với Reddit, bỏ trống được với Facebook (xem mục riêng bên dưới); `@@unique([platform, username])`. `voice` + `contentAngle` là ghi chú làn viết cho người soạn bài — bộ luật KHÔNG đọc, thiếu thì `NO_VOICE` |
 | `PlatformTarget` | Đích đăng: sub/page/group kèm luật riêng | `@@unique([platform, name])` |
 | `ContentItem` | Bài do team viết | `type`: VALUE hoặc PROMO |
 | `PostJob` | Một lần đăng đã xếp lịch | `ruleVerdicts`: JSON kết quả luật tại lúc tạo; `overrideReason`: bắt buộc nếu ghi đè |
@@ -139,7 +137,7 @@ Dockerfile                      Ảnh cho môi trường chạy thật (GĐ5) �
 | `HealthCheckLock` | Khóa chặn hai lượt dò sức khỏe chạy chồng nhau | Tối đa MỘT hàng — `key @id` là thứ ép điều đó, cùng vai trò với cờ `wx` của bản khóa file cũ. `token` để `release()` chỉ xóa khóa của chính mình. Quá 30 phút thì coi là mồ côi và giành được |
 | `RelayDevice` | Một máy chạy cầu nối đã được ADMIN cho vào sổ | `publicKey @unique` (X25519, hex chữ thường) — cùng một khóa nằm hai hàng thì thu hồi một hàng vẫn còn hàng kia sống. `revokedAt` là mốc thời gian chứ không phải cờ, và thu hồi là **một chiều** |
 
-Quan hệ chính: `Account` → `Persona` (n:1), `Account` → `Proxy` (1:1), `PostJob` → `Account` + `PlatformTarget` + `ContentItem`, `Interaction` → `Account` + `PlatformTarget`, `FacebookPage` → `FacebookConnection` (n:1) + `PlatformTarget` (1:1).
+Quan hệ chính: `Account` → `Proxy` (1:1), `PostJob` → `Account` + `PlatformTarget` + `ContentItem`, `Interaction` → `Account` + `PlatformTarget`, `FacebookPage` → `FacebookConnection` (n:1) + `PlatformTarget` (1:1).
 
 **Không có model nào cho việc tự đăng Facebook Group, và sẽ không có** — Meta gỡ
 `publish_to_groups` từ 04/2024. Bài group là `PostJob` với đích FACEBOOK_GROUP như mọi bài khác,

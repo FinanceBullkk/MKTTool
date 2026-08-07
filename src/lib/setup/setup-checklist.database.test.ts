@@ -30,7 +30,6 @@ async function stateOf(id: string) {
 let nextProxyPort = 8080;
 
 async function seedNick(fields: { username: string; ownerId?: string; deviceId?: string }) {
-  const persona = await prisma.persona.findFirst();
   const proxy = await prisma.proxy.create({
     data: {
       label: `proxy-${fields.username}`,
@@ -50,7 +49,8 @@ async function seedNick(fields: { username: string; ownerId?: string; deviceId?:
       passwordEnc: encryptCredential("mat-khau", loadVaultKey("operator")),
       emailAddress: `${fields.username}@example.test`,
       emailPasswordEnc: encryptCredential("mat-khau-email", loadVaultKey("operator")),
-      personaId: persona!.id,
+      voice: "điềm đạm",
+      contentAngle: "self-hosting",
       proxyId: proxy.id,
       antidetectProfileId: `profile-${fields.username}`,
       status: "ALIVE",
@@ -69,7 +69,6 @@ beforeEach(async () => {
   await prisma.proxy.deleteMany();
   await prisma.observerProxy.deleteMany();
   await prisma.relayDevice.deleteMany();
-  await prisma.persona.deleteMany();
   await prisma.user.deleteMany();
 });
 
@@ -99,7 +98,7 @@ describe("kho rỗng", () => {
 });
 
 describe("bước xong dần theo kho", () => {
-  it("thêm máy rồi thì bước tiếp theo nhảy sang nhân vật", async () => {
+  it("thêm máy rồi thì bước tiếp theo nhảy sang proxy", async () => {
     await prisma.user.create({
       data: { id: HA_ID, name: "Hà", email: "ha@mkttool.local", updatedAt: new Date() },
     });
@@ -110,7 +109,7 @@ describe("bước xong dần theo kho", () => {
     const checklist = await loadSetupChecklist();
 
     expect(checklist.steps.find((step) => step.id === "relay")?.state).toBe("done");
-    expect(checklist.nextStepId).toBe("personas");
+    expect(checklist.nextStepId).toBe("proxies");
   });
 
   it("máy đã thu hồi KHÔNG tính là đã cài", async () => {
@@ -150,9 +149,6 @@ describe("bước phân công cụm", () => {
   beforeEach(async () => {
     await prisma.user.create({
       data: { id: HA_ID, name: "Hà", email: "ha@mkttool.local", updatedAt: new Date() },
-    });
-    await prisma.persona.create({
-      data: { name: "Nhân vật thử", voice: "điềm đạm", contentAngle: "self-hosting" },
     });
   });
 
