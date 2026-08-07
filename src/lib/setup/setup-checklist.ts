@@ -29,7 +29,7 @@ export interface SetupStep {
   id: string;
   title: string;
   state: SetupStepState;
-  /** Sự thật đọc từ kho: "3 nhân vật", "chưa có proxy nào". */
+  /** Sự thật đọc từ kho: "3 proxy trong kho", "chưa có nick nào". */
   status: string;
   /** Vì sao bước này đứng ở đây. Một câu, không phải đoạn văn. */
   why: string;
@@ -51,10 +51,9 @@ function plural(count: number, unit: string, empty: string): string {
 }
 
 export async function loadSetupChecklist(): Promise<SetupChecklist> {
-  const [devices, personas, proxies, observerProxies, accounts, targets, contentCount, jobCount] =
+  const [devices, proxies, observerProxies, accounts, targets, contentCount, jobCount] =
     await Promise.all([
       prisma.relayDevice.count({ where: { revokedAt: null } }),
-      prisma.persona.count(),
       prisma.proxy.count(),
       prisma.observerProxy.count({ where: { active: true } }),
       prisma.account.findMany({
@@ -63,7 +62,7 @@ export async function loadSetupChecklist(): Promise<SetupChecklist> {
           platform: true,
           status: true,
           coldStartUntil: true,
-          personaId: true,
+          voice: true,
           antidetectProfileId: true,
           firstLoginAt: true,
           ownerId: true,
@@ -94,15 +93,6 @@ export async function loadSetupChecklist(): Promise<SetupChecklist> {
       linkLabel: "Mở sổ đăng ký máy",
     },
     {
-      id: "personas",
-      title: "Tạo nhân vật",
-      state: personas > 0 ? "done" : "todo",
-      status: plural(personas, "nhân vật", "chưa có nhân vật nào"),
-      why: "Mỗi nick một giọng, một mảng nội dung. Bộ luật trùng nội dung đọc giọng của nhân vật.",
-      href: "/personas",
-      linkLabel: "Tạo nhân vật",
-    },
-    {
       id: "proxies",
       title: "Mua và nhập proxy",
       state: proxies > 0 ? "done" : "todo",
@@ -127,7 +117,7 @@ export async function loadSetupChecklist(): Promise<SetupChecklist> {
       title: "Nhập nick",
       state: accounts.length > 0 ? "done" : "todo",
       status: plural(accounts.length, "nick trong kho", "chưa có nick nào"),
-      why: "Gắn nhân vật và proxy cho từng nick, đặt cold-start 14 ngày.",
+      why: "Gắn proxy, ghi giọng viết cho từng nick, đặt cold-start 14 ngày.",
       href: "/accounts",
       linkLabel: "Thêm nick",
     },

@@ -44,7 +44,6 @@ async function clearAll() {
   await prisma.contentItem.deleteMany();
   await prisma.account.deleteMany();
   await prisma.proxy.deleteMany();
-  await prisma.persona.deleteMany();
   await prisma.platformTarget.deleteMany();
   await prisma.auditLog.deleteMany();
   await prisma.user.deleteMany();
@@ -52,9 +51,6 @@ async function clearAll() {
 
 /** Hai người dùng, mỗi người một nick, cùng một đích đăng. */
 async function seedTwoOwners(): Promise<TwoOwners> {
-  const persona = await prisma.persona.create({
-    data: { name: "owner-persona", voice: "điềm đạm", contentAngle: "self-hosting" },
-  });
   const target = await prisma.platformTarget.create({
     data: { platform: "REDDIT", name: "r/nhap", url: "https://reddit.com/r/nhap" },
   });
@@ -76,7 +72,6 @@ async function seedTwoOwners(): Promise<TwoOwners> {
         emailAddress: `${slug}@example.test`,
         emailPasswordEnc: "x",
         antidetectProfileId: `profile-${slug}`,
-        personaId: persona.id,
         ownerId: user.id,
         status: "ALIVE",
         karma: 5000,

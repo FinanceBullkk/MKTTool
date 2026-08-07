@@ -1,6 +1,6 @@
 # Từ điển thuật ngữ nghiệp vụ
 
-**Cập nhật:** 03/08/2026
+**Cập nhật:** 08/08/2026
 
 Bộ luật an toàn là tri thức nghiệp vụ được mã hóa thành code. Tài liệu này giải thích
 từng khái niệm để 6 tháng nữa vẫn hiểu vì sao ngưỡng Jaccard là 0.70 chứ không phải 0.85.
@@ -16,7 +16,7 @@ Tra cứu thêm: [mục lục tài liệu](README.md) · [tài liệu sản ph�
 | Thuật ngữ | Định nghĩa | Vì sao quan trọng | Nơi xuất hiện |
 |---|---|---|---|
 | **Nick / tài khoản** | Một tài khoản trên Reddit hoặc Facebook. Đơn vị gắn 1:1 với proxy và vân tay. | Toàn bộ bộ luật xoay quanh việc giữ mỗi nick "sạch". | `prisma/schema.prisma` → model `Account` |
-| **Nhân vật (persona)** | Giọng điệu + mảng nội dung gắn với nick. Một nhân vật có thể có nick ở nhiều nền tảng. | Giữ mỗi nick nói một giọng riêng — nhiều nick viết giống nhau là tự khai cùng một người. **Lưu ý:** bộ luật hiện KHÔNG dùng persona; luật 7 so trùng theo họ nền tảng và xét mọi nick. | `schema.prisma` → `Persona`; `src/app/personas/` |
+| **Giọng viết + mảng nội dung** | Hai câu ghi chú trên chính nick: nó nói kiểu gì, nó viết về cái gì. | Cú hích **trước khi viết**: người ôm mười nick mà không có gì nhắc làn thì viết cả mười bài bằng giọng tự nhiên của mình, rồi bị luật 7 chặn ở phút cuối. **Lưu ý:** bộ luật KHÔNG đọc hai cột này — luật 7 so trùng văn bản thật, xét mọi nick cùng họ nền tảng. Thiếu thì `describeAccountReadiness()` báo `NO_VOICE`. | `schema.prisma` → `Account.voice`, `Account.contentAngle` |
 | **Vân tay (fingerprint)** | Tổ hợp đặc điểm trình duyệt (canvas, WebGL, font, timezone…) dùng để nhận diện thiết bị. | Hai nick chung vân tay = cùng một người = shadowban. | Do antidetect browser quản lý, MKTTool chỉ lưu `antidetectProfileId` |
 | **Antidetect browser** | Ứng dụng tạo nhiều profile trình duyệt, mỗi profile một vân tay khác nhau. Hiện dùng MultiZen. | Là lớp cách ly phần cứng giữa các nick. | `src/lib/antidetect/` |
 | **Profile** | Một instance trình duyệt bên antidetect browser, gắn 1:1 với nick qua `antidetectProfileId @unique`. | Ép bằng ràng buộc DB — hai nick chung profile là không thể. | `schema.prisma` → `Account.antidetectProfileId` |
@@ -85,6 +85,30 @@ Tra cứu thêm: [mục lục tài liệu](README.md) · [tài liệu sản ph�
 | **Long-lived token** | Token 60 ngày, đổi từ token ngắn hạn 2 giờ bằng `grant_type=fb_exchange_token`. | Bỏ bước đổi này thì trưa hôm sau công cụ ngừng đăng mà không rõ vì sao. Page token sinh từ long-lived token thì **không có hạn**. | `facebook-oauth-flow.ts` → `exchangeForLongLivedToken()` |
 | **`publish_to_groups`** | Quyền cho phép tự đăng vào Facebook Group. **Meta xóa khỏi mọi phiên bản Graph API từ 04/2024.** | Group bắt buộc đăng tay. Mọi tool nhận làm được đều đang lái trình duyệt giả người dùng — đúng hành vi khiến nick chết. | Ghi rõ lý do ở `schema.prisma`, `facebook-publish-action.ts`, trang `/facebook` |
 | **Chế độ Development (Meta App)** | Trạng thái mặc định của app mới tạo, chưa qua App Review. | **Đủ dùng** để đăng lên Page do chính mình quản trị — không phải nộp hồ sơ duyệt. Chỉ xin đúng 3 quyền, xin thừa là tự chuốc App Review. | `facebook-app-config.ts` → `REQUIRED_SCOPES` |
+
+---
+
+## Bảo mật & nhiều người dùng chung
+
+Từ vựng của bước biến công cụ một máy thành web chung cho 5-6 người ở 5-6 nơi. Câu hỏi nền của cả
+nhóm này: **chiếm được máy chủ thì lấy được gì?** Đáp án phải là *không một mật khẩu nick nào*.
+
+| Thuật ngữ | Định nghĩa | Vì sao quan trọng | Nơi xuất hiện |
+|---|---|---|---|
+| **Hai vùng khóa** | Kho credential mã hóa bằng **hai** khóa rời: `VAULT_KEY_SERVER` (mật khẩu proxy, token Facebook) và `VAULT_KEY_OPERATOR` (mật khẩu, email, TOTP của nick). | Đích đến là khóa operator **không nằm trên máy chủ**. Một khóa thì chiếm được máy chủ là mở được cả kho; hai khóa thì phần đắt nhất — kho danh tính — vẫn đóng. Vùng của từng cột khai ngay trong `schema.prisma` bằng `vault:server` / `vault:operator`, và có test đọc thẳng schema nên khai thiếu là đỏ. | `src/lib/crypto/encrypted-field-registry.ts`; `npm run vault:rekey -- --domain=…` |
+| **Cầu nối (relay)** | Chương trình nhỏ chạy nền trên **máy của người vận hành**, nghe ở `127.0.0.1:47821`. Nó giữ `VAULT_KEY_OPERATOR` và là chỗ duy nhất mở được bí mật nick. | Đây là thứ làm hai vùng khóa có tác dụng thật. Máy chủ kiểm phiên, kiểm chủ nick, ghi nhật ký; **mở ciphertext, hiện mật khẩu, đẩy proxy, mở trình duyệt** là việc của cầu nối. | `relay/src/`; `src/lib/relay/`; `RELAY_PORT` |
+| **Vé (ticket)** | Chuỗi đã mã hóa cho **riêng một chiếc máy**, sống 30 giây, tiêu được đúng một lần. Trình duyệt chỉ chuyển tay, không đọc được gì bên trong. | Là hình thức duy nhất máy chủ còn đưa được thứ gì cho ai. Mở devtools lúc bấm nút thì tấm vé là tất cả những gì thấy được. Bốn loại: lấy credential, lấy OTP, mở profile, tạo profile. | `src/lib/tickets/`; `TICKET_LIFETIME_MS`, `TICKET_KINDS` |
+| **Bọc vé (sealed box)** | Ruột vé mã hóa cho đúng máy nhận: cặp khóa dùng một lần cho mỗi vé → X25519 → HKDF → AES-256-GCM. | Máy chủ giữ hộ cái hộp mà **mở không nổi**. Cũng là cơ chế chuyển `VAULT_KEY_OPERATOR` sang máy mới mà không ai phải chép một chuỗi hex nào. | `ticket-sealed-box.ts` |
+| **Khóa ký vé (Ed25519)** | Cặp khóa của máy chủ, ký phủ lên cả bao ngoài lẫn ruột đã bọc. Khóa công khai **suy ra từ** khóa riêng, không khai riêng — không có đường sinh ra một cặp lệch. | Chữ ký là lời bảo chứng *"vé này do máy chủ phát sau khi đã kiểm phiên và kiểm chủ nick"*. Cầu nối xác minh chữ ký **trước khi** giải mã bất cứ thứ gì. | `TICKET_SIGNING_KEY`; `keys:server-keygen`, `keys:server-pubkey` |
+| **Chống dùng lại vé (replay guard)** | Sổ vé đã tiêu, nằm ở **cầu nối** chứ không phải máy chủ. | Cầu nối không nối mạng để hỏi ai, và máy chủ cũng không biết — nó phát vé rồi thôi. Cầu nối khởi động lại thì sổ mất, nhưng mọi vé phát trước đó cũng đã hết hạn. | `ticket-replay-guard.ts` |
+| **Số phiên bản trên vé** | Mỗi vé mang hai số phiên bản, `verifyTicket` kiểm ngay sau chữ ký. | Cầu nối bản cũ phải nói được *"bản quá cũ, tải lại"* thay vì chết mơ hồ ở bước giải mã. | `MIN_RELAY_VERSION_BY_KIND` |
+| **Sổ đăng ký máy** | Danh sách máy chạy cầu nối, mỗi máy khai một khóa công khai X25519. Cả team đọc được, ADMIN đăng ký / thu hồi. | Máy chưa vào sổ **không xin được vé nào**. Khóa công khai lộ cũng không mất gì, còn giấu đi thì không ai tự trả lời được *"máy tôi vào sổ chưa?"*. | `schema.prisma` → `RelayDevice`; trang `/relay-devices` |
+| **Thu hồi máy** | Đánh dấu một máy là mất/không tin nữa. Một chiều. | **Chặn vé mới, KHÔNG với tới ciphertext chiếc máy đó đã lấy về từ trước** — thứ đang nằm trên ổ cứng chiếc laptop đã mất. Mất máy thật thì thu hồi xong vẫn phải xoay `VAULT_KEY_OPERATOR`. Ranh giới này có test canh. | `RelayDevice.revokedAt` |
+| **Cấp khóa operator** | ADMIN bấm một nút, cầu nối trên máy ADMIN bọc `VAULT_KEY_OPERATOR` cho đúng máy nhận; máy chủ giữ hộ tới khi máy đó mở web app. | Không có mã nào để gửi cho nhau. Sổ ghi *"chưa cấp"* chứ không ghi *"chưa có khóa"* — máy dán khóa bằng tay thì máy chủ mù cho tới khi chính nó khai. | `RelayDevice.operatorKeyGrant`, `operatorKeyReadyAt` |
+| **Ghim nick vào máy** | Mỗi nick thuộc về đúng một máy. `Account.deviceId` quyết định vé bay về đâu — **không phải người đang bấm nút**. | Profile antidetect chỉ tồn tại trên một máy, nên một nick mở được ở máy khác là chuyện không có thật. Nút tạo profile tự ghim luôn nick vào máy vừa tạo. ADMIN cũng không có ngoại lệ ở nút mở profile. | `Account.deviceId`; `ticket-recipient-lookup.ts` |
+| **ADMIN / OPERATOR** | Hai vai trò. ADMIN: phân công cụm, đăng ký/thu hồi máy, cấp khóa, **giữ kho proxy**. OPERATOR: mọi thứ còn lại, trừ bí mật của nick không phải mình phụ trách. | **Tầm nhìn không chia** — ai cũng thấy nick và job của người khác, vì luật đụng độ thread phải nêu đúng tên nick đồng nghiệp thì người đọc mới xử lý được. Thứ bị chia là **quyền ghi** và **bí mật nick**, và chặn nằm ở tầng phát vé chứ không phải ẩn nút. | `ALLOWED_EMAILS`, `ADMIN_EMAILS`; `src/lib/auth/require-actor.ts` |
+| **Sẵn sàng (readiness)** | Phép chấm *"nick này dùng được chưa"*. Reddit đòi tám điều kiện, Facebook chỉ hai. Ba màu: 🟢 sẵn sàng, 🟡 đang chờ, 🔴 chưa dùng được. | Phân biệt **chờ** với **thiếu** là chủ ý: gộp chung thì một nick đang cold-start đúng lịch trông y hệt một nick quên gắn proxy. | `src/lib/accounts/account-readiness.ts` → `ReadinessBlockerCode` |
+| **Đăng nhập lần đầu** | Chặng 3 của luồng nhập nick: mở profile vừa dựng, đăng nhập nick vào đó, rồi bấm *"Đã đăng nhập được"*. | Nút tạo profile sinh ra một **trình duyệt trắng** — có proxy, có vân tay, chưa một cookie nào. Một nick khoe màu xanh mà chưa ai đăng nhập là lời nói dối chỉ lộ ra vào hôm định đăng bài. | `Account.firstLoginAt`; blocker `NOT_LOGGED_IN` |
 
 ---
 

@@ -37,11 +37,10 @@ async function clearAll() {
   await prisma.contentItem.deleteMany();
   await prisma.account.deleteMany();
   await prisma.proxy.deleteMany();
-  await prisma.persona.deleteMany();
   await prisma.platformTarget.deleteMany();
 }
 
-async function createAccount(username: string, personaId: string): Promise<string> {
+async function createAccount(username: string): Promise<string> {
   const proxy = await prisma.proxy.create({
     data: {
       label: `proxy-${username}`,
@@ -61,7 +60,6 @@ async function createAccount(username: string, personaId: string): Promise<strin
       emailAddress: `${username}@example.test`,
       emailPasswordEnc: "v1.aa.bb.cc",
       antidetectProfileId: `profile-${username}`,
-      personaId,
       proxyId: proxy.id,
       status: "ALIVE",
     },
@@ -71,10 +69,6 @@ async function createAccount(username: string, personaId: string): Promise<strin
 }
 
 async function seed(): Promise<Seeded> {
-  const persona = await prisma.persona.create({
-    data: { name: "Nhân vật thử", voice: "điềm đạm", contentAngle: "self-hosting" },
-  });
-
   const target = (name: string, platform: string) =>
     prisma.platformTarget.create({
       data: { platform, name, url: `https://example.test/${name}` },
@@ -98,8 +92,8 @@ async function seed(): Promise<Seeded> {
   ]);
 
   return {
-    anna: await createAccount("u_anna", persona.id),
-    binh: await createAccount("u_binh", persona.id),
+    anna: await createAccount("u_anna"),
+    binh: await createAccount("u_binh"),
     reddit1: reddit1.id,
     reddit2: reddit2.id,
     fanpage: fanpage.id,

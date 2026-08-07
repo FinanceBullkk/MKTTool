@@ -30,7 +30,6 @@ const admin: Actor = { userId: ADMIN_ID, email: "admin@mkttool.local", role: "AD
 
 const KHOA_CONG_KHAI_CUA_HA = "a".repeat(64);
 
-let personaId: string;
 let mayCuaHa: string;
 let mayDaThuHoi: string;
 
@@ -43,7 +42,6 @@ async function createNick(cluster: { ownerId?: string; deviceId?: string }): Pro
       passwordEnc: encryptCredential("mat-khau", loadVaultKey("operator")),
       emailAddress: "nick@example.test",
       emailPasswordEnc: encryptCredential("mat-khau-email", loadVaultKey("operator")),
-      personaId,
       status: "ALIVE",
       ...cluster,
     },
@@ -55,7 +53,6 @@ beforeEach(async () => {
   await prisma.auditLog.deleteMany();
   await prisma.account.deleteMany();
   await prisma.relayDevice.deleteMany();
-  await prisma.persona.deleteMany();
   await prisma.user.deleteMany();
 
   await prisma.user.createMany({
@@ -82,10 +79,6 @@ beforeEach(async () => {
   mayCuaHa = dell.id;
   mayDaThuHoi = daMat.id;
 
-  const persona = await prisma.persona.create({
-    data: { name: "Nhân vật thử", voice: "điềm đạm", contentAngle: "self-hosting" },
-  });
-  personaId = persona.id;
 });
 
 afterAll(async () => {

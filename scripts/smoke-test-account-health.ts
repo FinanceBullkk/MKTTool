@@ -58,13 +58,9 @@ async function cleanup() {
 
   await prisma.account.deleteMany({ where: { username: { startsWith: PREFIX } } });
   await prisma.proxy.deleteMany({ where: { label: { startsWith: PREFIX } } });
-  await prisma.persona.deleteMany({ where: { name: { startsWith: PREFIX } } });
 }
 
 async function seedAccount(): Promise<{ id: string; username: string; status: string }> {
-  const persona = await prisma.persona.create({
-    data: { name: `${PREFIX}nhan vat`, voice: "thân mật", contentAngle: "self-hosting" },
-  });
   // Địa chỉ dựng từ mốc thời gian: bảng Proxy có ràng buộc duy nhất (host, port, username),
   // và địa chỉ giả "đẹp" kiểu 10.0.0.1:8080 rất dễ đụng rác của smoke test khác.
   const unique = Date.now() % 100_000;
@@ -88,7 +84,6 @@ async function seedAccount(): Promise<{ id: string; username: string; status: st
       emailAddress: "smoke@example.com",
       emailPasswordEnc: encryptCredential("mat-khau-gia", loadVaultKey("operator")),
       antidetectProfileId: `${PREFIX}profile`,
-      personaId: persona.id,
       proxyId: proxy.id,
       status: "ALIVE",
       karma: 100,

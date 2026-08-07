@@ -12,6 +12,87 @@ Dự án chưa phát hành phiên bản (`0.1.0`, dùng nội bộ). Mốc chia 
 
 ---
 
+## 08/08/2026 — Nút "Kiểm" treo vĩnh viễn khi proxy SOCKS5 nhận kết nối rồi im
+
+Tìm ra trong lúc viết test cho `proxy-socks5-tunnel.ts` — module bắt tay SOCKS5 tự viết theo
+RFC 1928, và trước hôm nay **không có một bài test nào chạm tới nó**.
+
+- **Hạn giờ chỉ canh lúc đang nối, không canh lúc đang bắt tay.** `connectSocket` gỡ listener
+  `timeout` ngay khi socket lên. `socket.setTimeout()` vẫn còn nguyên, nhưng Node **không tự đóng
+  socket** khi không ai nghe sự kiện đó — nên một proxy nhận TCP rồi không nói gì làm
+  `openSocks5Tunnel` không bao giờ settle. Không có hạn giờ nào ở ngoài bọc nó: hạn giờ của
+  `readUntilClose` chỉ bắt đầu tính **sau khi** đường hầm đã mở.
+- **Biểu hiện:** nút "Kiểm" quay mãi, không ra kết luận nào. Tệ hơn một câu báo hỏng, vì nó không
+  dẫn tới việc gì cả. Ca thật: proxy quá tải, hoặc middlebox bắt cổng rồi nuốt gói.
+- **Sửa:** giữ listener `timeout` suốt cuộc bắt tay, hết giờ thì `destroy()` kèm `Socks5Error`
+  lý do `unreachable` — proxy không nói nổi một câu trong ngần ấy giây thì không chạy nick được.
+
+15 bài test mới dựng proxy SOCKS5 giả trên `127.0.0.1`, không đụng mạng thật. Phần đáng canh nhất
+là **hai lý do lỗi**, vì chúng dẫn tới hai kết luận trái ngược: `unreachable` → CHẾT → chặn mở
+profile, còn `protocol` → KHÔNG KIỂM ĐƯỢC → vẫn cho mở. Gõ nhầm cổng (SOCKS5 vs HTTP) phải rơi vào
+vế thứ hai, nếu không thì một proxy đang tốt bị đổ oan là đã chết.
+
+Có một bài ghim thẳng ràng buộc bảo mật: gói CONNECT phải mang **tên miền** (`ATYP_DOMAIN`), không
+mang IP — đó là chỗ "DNS phân giải từ xa" thật sự xảy ra.
+
+---
+
+## 07/08/2026 (6) — Bảng `Persona` gộp thành hai cột trên nick
+
+Bảng nhân vật có `/personas` CRUD, một mục nav, một bước onboarding và một **khóa ngoại bắt buộc**.
+Đổi lại: hai dòng chữ hiển thị ở trang chi tiết nick. Không một đường code nào ngoài phần hiển thị
+đọc tới nó — **kể cả bộ luật**. Luật 7 so trùng văn bản thật, xét mọi nick cùng họ nền tảng, và
+chưa bao giờ đọc giọng của nhân vật (`rule-content-similarity.ts`).
+
+- **Giọng viết vẫn đáng giữ, chỗ đứng của nó thì không.** Nó là cú hích *trước khi viết*: người ôm
+  mười nick mà không có gì nhắc làn sẽ viết cả mười bài bằng giọng tự nhiên của mình, rồi bị luật 7
+  chặn ở phút cuối — mất trắng công viết. Luật 7 là tấm lưới *sau khi viết*. Hai thứ bù nhau. Nên
+  giọng chuyển thành `Account.voice` + `Account.contentAngle`, nhập ngay trong form nick.
+- **Bắt buộc là thứ bị bỏ.** Khóa ngoại `NOT NULL` nghĩa là kho chưa có nhân vật nào thì **không
+  thêm nổi một nick** — một cánh cửa khóa ngay đầu luồng nhập. Hai cột mới nullable; thiếu thì
+  `describeAccountReadiness()` báo `NO_VOICE` (thay `NO_PERSONA`, vốn không bao giờ bắn được vì cột
+  cũ `NOT NULL`). Đúng khuôn đã làm với `antidetectProfileId` hôm trước: chuyển từ *chặn lúc nhập*
+  sang *chấm điểm sẵn sàng*.
+- **Hai câu gợi ý đang nói dối được sửa.** `account-readiness.ts` và `setup-checklist.ts` đều viết
+  *"bộ luật trùng nội dung đọc giọng của nhân vật"* — sai, và trái với chú thích trong
+  `schema.prisma` lẫn `domain-glossary.md`. Người đọc câu đó sẽ tin có một lớp gác tự động canh
+  trùng giọng; thực tế máy chỉ canh trùng **chữ**. Câu mới nói đúng việc nó làm.
+- **Migration `20260807200000` chép giọng về từng nick rồi bỏ bảng.** `Persona.notes` không có cột
+  tương ứng nên **mất** — file migration ghi sẵn câu `SELECT` để đọc ra trước khi chạy. Sao lưu
+  bằng `npm run db:backup` trước.
+
+Dọn theo: `/personas` (2 trang + `persona-form-fields.tsx`), mục nav, ô đếm ở trang Hôm nay, bước
+onboarding "Tạo nhân vật", 3 action CRUD, và fixture persona ở 14 file test + 4 smoke script — số
+file test phải đẻ một persona chỉ để thỏa khóa ngoại chính là cái giá mà bảng đó vẫn đang thu.
+
+---
+
+## 07/08/2026 (5) — Hai nút profile bỏ cuộc ở giây thứ tư, và báo nhầm lý do
+
+Nghiệm thu trên máy thật: cả **tạo profile** lẫn **mở profile** đều chạy đúng bên MultiZen —
+profile `REDDIT — Ok_Swimmer_5542` sinh ra với proxy `us` và timezone `America/Los_Angeles` khớp
+nhau (trong khi hai profile dựng tay cùng máy đều lệch), rồi mở lên hiện `running` bình thường.
+Nhưng cả hai lần, màn hình đều báo *"trình duyệt không cho trang này gọi xuống máy của bạn"*.
+
+- **Hạn giờ 4 giây sai ở đúng hai chỗ.** `RELAY_TIMEOUT_MS` đo cho ping, bọc bí mật, liệt kê
+  profile — đo 07/08: `GET /profiles` mất **78 ms**. Nhưng tạo profile dựng cả một hồ sơ Chromium
+  trên đĩa, còn mở profile thì đẩy proxy **rồi** bật một cửa sổ Chromium thật. Cả hai vượt 4 giây
+  một cách bình thường. Thêm `RELAY_PROFILE_WORK_TIMEOUT_MS = 60_000` cho riêng hai đường đó, giữ
+  nguyên 4 giây ở mọi đường khác — nới đại trà là bắt người dùng ngồi nhìn nút xám một phút mỗi
+  lần cầu nối thật sự chết.
+- **Suy luận "hết hạn giờ ⟹ chưa cấp quyền mạng nội bộ" chỉ đúng khi lời gọi vốn nhanh.** Nó là
+  nền của ràng buộc 3 và vẫn đúng ở mọi đường khác; ở hai đường này nó đoán sai và cử người đi bật
+  lại một quyền vốn không hỏng. `describeSlowRelayFailure()` nêu cả hai khả năng rồi nhắc chỗ nhìn
+  để tự phân xử — cửa sổ vừa mở ra, hay profile vừa hiện trong MultiZen. Đường mở profile còn
+  **không giục bấm lại**: bấm lại là mở hai cửa sổ cùng một nick.
+- **Đường dò lại — lớp chống thật của đường tạo.** Không có id trong tay thì tìm profile mang đúng
+  tên `profileNameForNick()` trong `/profiles` rồi ghi vào kho. Nới hạn giờ chỉ làm ca hỏng hiếm
+  đi; cắt ngang giữa *"MultiZen đã dựng xong"* và *"trình duyệt nhận được id"* thì lúc nào cũng có
+  thể xảy ra — hết hạn giờ, đóng tab, mạng chớp. Trùng tên thì **từ chối đoán** và bảo người dùng
+  dọn: chọn bừa là ghi một id có thể sai, còn cái kia thành rác không ai biết để dọn.
+
+---
+
 ## 07/08/2026 (4) — Luồng nhập nick dựng lại theo đúng thứ tự có thật
 
 Bản (3) thêm nút *"Tạo profile trên máy này"* nhưng không gỡ luật cũ đi kèm, nên nút đó **không bao

@@ -21,21 +21,6 @@ datasource db {
   provider = "postgresql"
 }
 
-/// Nhân vật: giọng điệu + mảng nội dung. Một nhân vật có thể có nick ở nhiều nền tảng.
-/// Tách khỏi Account để mỗi nick giữ được một giọng riêng — nhiều nick viết giống nhau
-/// là tự khai cùng một người vận hành.
-/// Lưu ý: bộ luật Phase 02 KHÔNG dùng persona. Luật so trùng nội dung xét theo họ nền tảng
-/// và duyệt qua mọi nick, xem src/lib/rules/rule-content-similarity.ts.
-model Persona {
-  id           String    @id @default(cuid())
-  name         String    @unique
-  voice        String
-  contentAngle String
-  notes        String?
-  createdAt    DateTime  @default(now())
-  accounts     Account[]
-}
-
 /// Proxy tĩnh, gắn 1:1 với một nick. KHÔNG dùng loại xoay IP, KHÔNG tính theo GB.
 model Proxy {
   id          String   @id @default(cuid())
@@ -274,7 +259,6 @@ model Account {
   /// nhiều NULL nhưng chỉ một giá trị thật — giống hệt SQLite trước đây, nên đổi nền dữ liệu
   /// KHÔNG nới lỏng ràng buộc này), nên nguyên tắc 1 nick = 1 proxy vẫn nguyên cho Reddit.
   antidetectProfileId String? @unique // id profile bên MultiZen/AdsPower
-  personaId           String
   proxyId             String? @unique // @unique ép quan hệ 1:1, chặn 2 nick chung IP
 
   // trạng thái vận hành
@@ -311,6 +295,31 @@ model Account {
   platformCreatedAt DateTime? // ngày tạo nick trên nền tảng (tuổi nick)
   purchasedAt       DateTime?
   purchaseNote      String? // nguồn mua, giá, quốc gia gốc
+
+  /// Giọng viết và mảng nội dung của nick — hai câu ghi chú cho **người sắp ngồi xuống viết**.
+  ///
+  /// ## Đây là cú hích TRƯỚC khi viết, không phải một phép chặn
+  ///
+  /// Luật 7 (`rule-content-similarity.ts`) so trùng **văn bản thật**, xét mọi nick trong cùng họ
+  /// nền tảng, và KHÔNG đọc hai cột này — đừng viết chú thích nào nói ngược lại. Nó là tấm lưới
+  /// sau khi viết. Hai cột này đứng ở đầu kia: người ôm mười nick mà không có gì nhắc làn thì sẽ
+  /// viết cả mười bài bằng đúng giọng tự nhiên của mình, rồi bị luật 7 chặn ở phút cuối — mất
+  /// trắng công viết. Hai thứ bù nhau chứ không thừa nhau.
+  ///
+  /// ## Vì sao là hai cột chứ không phải bảng `Persona` riêng (đổi 07/08/2026)
+  ///
+  /// Từng có bảng đó, với `/personas` CRUD, một mục nav, một bước onboarding, và một khóa ngoại
+  /// **bắt buộc**. Đổi lại: hai dòng chữ hiển thị ở trang chi tiết nick. Không một dòng code nào
+  /// ngoài phần hiển thị đọc tới nó — kể cả bộ luật. Cái giá thì có thật: chưa tạo nhân vật là
+  /// không thêm nổi một nick, và mọi test dựng database phải đẻ một persona chỉ để thỏa khóa ngoại.
+  ///
+  /// Lý do duy nhất để tách bảng là dùng chung một nhân vật cho nick ở nhiều nền tảng. Ở quy mô
+  /// 5-10 nick Reddit + 2-3 nick Facebook, cái đó không đáng một bảng.
+  ///
+  /// Nullable, và thiếu thì `describeAccountReadiness()` báo `NO_VOICE` — cùng khuôn với
+  /// `antidetectProfileId`: chuyển từ *chặn lúc nhập* sang *chấm điểm sẵn sàng*.
+  voice        String?
+  contentAngle String?
 
   /// Người phụ trách nick này. Chỉ chủ (hoặc ADMIN) lấy được mật khẩu / OTP của nó.
   ///
@@ -351,7 +360,6 @@ model Account {
 
   owner        User?         @relation(fields: [ownerId], references: [id], onDelete: SetNull)
   device       RelayDevice?  @relation(fields: [deviceId], references: [id], onDelete: SetNull)
-  persona      Persona       @relation(fields: [personaId], references: [id])
   proxy        Proxy?        @relation(fields: [proxyId], references: [id])
   jobs         PostJob[]
   interactions Interaction[]

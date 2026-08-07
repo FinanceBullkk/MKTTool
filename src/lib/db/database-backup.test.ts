@@ -86,3 +86,48 @@ describe("dumpDatabaseTo — trần thời gian", () => {
     await expect(done).rejects.toThrow(/connection to server failed/);
   });
 });
+
+describe("dumpDatabaseTo — pg_dump cũ hơn server", () => {
+  /**
+   * Ca đã xảy ra thật 08/08/2026: Railway lên Postgres 18, máy dev còn client 17, và
+   * `npm run db:backup:remote` gãy — đúng bước phải chạy TRƯỚC mỗi lần deploy đổi cấu trúc
+   * database. Nguyên văn của Postgres nêu hai con số rồi thôi, không nói phải làm gì.
+   */
+  const LOI_LECH_BAN =
+    "pg_dump: error: aborting because of server version mismatch\n" +
+    "pg_dump: detail: server version: 18.4 (Debian 18.4-1.pgdg13+1); pg_dump version: 17.10";
+
+  it("giữ nguyên văn của Postgres và nói thêm phải làm gì", async () => {
+    const child = fakeChild();
+    spawnMock.mockReturnValue(child);
+
+    const done = dumpDatabaseTo(scratchPath("lech-ban"), SOURCE, TIMEOUT_MS);
+    child.stderr.emit("data", Buffer.from(LOI_LECH_BAN));
+    child.emit("close", 1);
+
+    const error = await done.catch((e: Error) => e);
+    const message = (error as Error).message;
+
+    // Hai con số vẫn phải còn: người đọc cần biết chính xác server nào và client nào.
+    expect(message).toContain("server version: 18.4");
+    expect(message).toContain("pg_dump version: 17.10");
+    // ...và câu chỉ đường, thứ nguyên văn của Postgres không có.
+    expect(message).toContain("PG_DUMP_PATH");
+    expect(message).toMatch(/major ≥ major của server/);
+  });
+
+  it("lỗi thường thì KHÔNG bị gắn nhầm câu chỉ đường về phiên bản", async () => {
+    // Gợi ý sai chỗ đắt hơn không gợi ý: nó cử người đi cài Postgres mới trong khi thứ hỏng là
+    // đường mạng tới database.
+    const child = fakeChild();
+    spawnMock.mockReturnValue(child);
+
+    const done = dumpDatabaseTo(scratchPath("loi-thuong"), SOURCE, TIMEOUT_MS);
+    child.stderr.emit("data", Buffer.from("pg_dump: error: connection to server failed"));
+    child.emit("close", 1);
+
+    const message = ((await done.catch((e: Error) => e)) as Error).message;
+    expect(message).not.toContain("PG_DUMP_PATH");
+    expect(message).toContain("mã 1");
+  });
+});

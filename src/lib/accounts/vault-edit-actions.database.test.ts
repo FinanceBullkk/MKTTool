@@ -62,9 +62,7 @@ const encryptForOperator = (plaintext: string) =>
   encryptCredential(plaintext, loadVaultKey("operator"));
 const decryptAsOperator = (encoded: string) =>
   decryptCredential(encoded, loadVaultKey("operator"));
-const { deleteAccount, deletePersona, deleteProxy, deleteTarget } = await import(
-  "./vault-delete-actions"
-);
+const { deleteAccount, deleteProxy, deleteTarget } = await import("./vault-delete-actions");
 const { updateAccount, updateProxy, updateTarget } = await import("./vault-update-actions");
 const { deleteContentItem, updateContentItem } = await import(
   "@/lib/content/content-item-actions"
@@ -73,7 +71,6 @@ const { deleteContentItem, updateContentItem } = await import(
 const SCHEDULED_AT = new Date("2026-09-10T09:00:00+07:00");
 
 interface Seeded {
-  personaId: string;
   proxyId: string;
   accountId: string;
   targetId: string;
@@ -87,16 +84,12 @@ async function clearAll() {
   await prisma.contentItem.deleteMany();
   await prisma.account.deleteMany();
   await prisma.proxy.deleteMany();
-  await prisma.persona.deleteMany();
   await prisma.platformTarget.deleteMany();
   await prisma.auditLog.deleteMany();
 }
 
 /** Một nick khỏe, một sub dễ tính, một bài hữu ích đã xếp lịch và đang PENDING. */
 async function seed(): Promise<Seeded> {
-  const persona = await prisma.persona.create({
-    data: { name: "Nhân vật thử", voice: "điềm đạm", contentAngle: "self-hosting" },
-  });
   const proxy = await prisma.proxy.create({
     data: {
       label: "proxy-thu",
@@ -117,7 +110,8 @@ async function seed(): Promise<Seeded> {
       emailPasswordEnc: encryptForOperator("mat-khau-email-cu"),
       totpSecretEnc: encryptForOperator("JBSWY3DPEHPK3PXP"),
       antidetectProfileId: "profile-anna",
-      personaId: persona.id,
+      voice: "điềm đạm",
+      contentAngle: "self-hosting",
       proxyId: proxy.id,
       status: "ALIVE",
       karma: 500,
@@ -140,7 +134,6 @@ async function seed(): Promise<Seeded> {
   });
 
   return {
-    personaId: persona.id,
     proxyId: proxy.id,
     accountId: account.id,
     targetId: target.id,
@@ -162,7 +155,6 @@ function accountForm(seeded: Seeded, overrides: Record<string, string> = {}): Fo
     username: "anna",
     emailAddress: "anna@example.test",
     antidetectProfileId: "profile-anna",
-    personaId: seeded.personaId,
     proxyId: seeded.proxyId,
     status: "ALIVE",
     karma: "500",
@@ -359,7 +351,6 @@ describe("proxy + profile antidetect theo nền tảng", () => {
         passwordEnc: encryptForOperator("mk"),
         emailAddress: "fb@example.test",
         emailPasswordEnc: encryptForOperator("mk"),
-        personaId: seeded.personaId,
         antidetectProfileId: "profile-cu",
         proxyId: null,
         status: "ALIVE",
@@ -385,7 +376,6 @@ describe("proxy + profile antidetect theo nền tảng", () => {
         passwordEnc: encryptForOperator("mk"),
         emailAddress: "fb2@example.test",
         emailPasswordEnc: encryptForOperator("mk"),
-        personaId: seeded.personaId,
         proxyId: proxy.id,
         status: "ALIVE",
       },
@@ -398,7 +388,6 @@ describe("proxy + profile antidetect theo nền tảng", () => {
         username: "trang-fb-2",
         emailAddress: "fb2@example.test",
         antidetectProfileId: "",
-        personaId: seeded.personaId,
         proxyId: "",
         status: "ALIVE",
         karma: "0",
@@ -420,7 +409,6 @@ describe("proxy + profile antidetect theo nền tảng", () => {
         username: "trang-fb",
         emailAddress: "fb@example.test",
         antidetectProfileId: "",
-        personaId: seeded.personaId,
         proxyId: seeded.proxyId, // proxy đang gắn nick Reddit "anna"
         status: "ALIVE",
         karma: "0",
@@ -525,14 +513,6 @@ describe("sửa xong thì chấm lại job đang chờ", () => {
 });
 
 describe("xóa bị chặn khi còn dữ liệu trỏ tới", () => {
-  it("nhân vật còn nick thì không xóa được", async () => {
-    const result = await deletePersona(seeded.personaId);
-
-    expect(result.ok).toBe(false);
-    expect(result.message).toContain("1 nick");
-    expect(await prisma.persona.count()).toBe(1);
-  });
-
   it("proxy đang gắn nick thì không xóa được", async () => {
     const result = await deleteProxy(seeded.proxyId);
 
@@ -571,9 +551,8 @@ describe("xóa bị chặn khi còn dữ liệu trỏ tới", () => {
     expect((await deleteContentItem(seeded.contentId)).ok).toBe(true);
     expect((await deleteTarget(seeded.targetId)).ok).toBe(true);
     expect((await deleteAccount(seeded.accountId)).ok).toBe(true);
-    // Nick đi rồi thì proxy và nhân vật mới hết bị trỏ tới.
+    // Nick đi rồi thì proxy mới hết bị trỏ tới.
     expect((await deleteProxy(seeded.proxyId)).ok).toBe(true);
-    expect((await deletePersona(seeded.personaId)).ok).toBe(true);
 
     expect(await prisma.account.count()).toBe(0);
     expect(await prisma.proxy.count()).toBe(0);

@@ -25,16 +25,14 @@ export const dynamic = "force-dynamic";
 export default async function AccountsPage() {
   const viewer = await readActor();
 
-  const [accounts, personas, freeProxies, teamMembers] = await Promise.all([
+  const [accounts, freeProxies, teamMembers] = await Promise.all([
     prisma.account.findMany({
       include: {
-        persona: true,
         proxy: true,
         device: { select: { userId: true, revokedAt: true } },
       },
       orderBy: [{ platform: "asc" }, { username: "asc" }],
     }),
-    prisma.persona.findMany({ orderBy: { name: "asc" } }),
     // Chỉ hiện proxy chưa gắn nick — ràng buộc 1:1 nằm ở DB, đây chỉ là để UI đỡ gây nhầm.
     prisma.proxy.findMany({ where: { account: null }, orderBy: { label: "asc" } }),
     // Chỉ ADMIN cần danh sách này (giao nick cho người khác ngay lúc tạo), nhưng truy vấn vẫn
@@ -48,14 +46,14 @@ export default async function AccountsPage() {
     (a, b) => getStatusPresentation(a.status).severity - getStatusPresentation(b.status).severity,
   );
 
-  const canCreate = personas.length > 0 && freeProxies.length > 0;
+  const canCreate = freeProxies.length > 0;
   const defaultColdStartUntil = defaultColdStartDayKey();
 
   return (
     <>
       <PageHeading
         title="Tài khoản"
-        description="Một nick = một proxy = một vân tay = một nhân vật. Ràng buộc này do database ép, không thể lách."
+        description="Một nick = một proxy = một vân tay. Ràng buộc này do database ép, không thể lách."
       />
 
       <Card title={`Danh sách — ${accounts.length} nick`}>
@@ -68,7 +66,7 @@ export default async function AccountsPage() {
               "Sẵn sàng",
               "Nền tảng",
               "Trạng thái",
-              "Nhân vật",
+              "Giọng viết",
               "Proxy",
               "Karma",
               "Tuổi nick",
@@ -102,7 +100,7 @@ export default async function AccountsPage() {
                     ) : null}
                   </td>
                   <td className="py-2 pr-4 text-neutral-600 dark:text-neutral-400">
-                    {account.persona.name}
+                    {account.voice ?? "—"}
                   </td>
                   <td className="py-2 pr-4 font-mono text-xs text-neutral-600 dark:text-neutral-400">
                     {account.proxy ? `${account.proxy.label} (${account.proxy.country})` : "—"}
@@ -119,22 +117,14 @@ export default async function AccountsPage() {
       <Card title="Thêm nick">
         {!canCreate ? (
           <EmptyState>
-            Cần có ít nhất 1 nhân vật và 1 proxy chưa gắn nick trước đã.{" "}
-            {personas.length === 0 ? (
-              <Link href="/personas" className="underline">
-                Tạo nhân vật
-              </Link>
-            ) : null}{" "}
-            {freeProxies.length === 0 ? (
-              <Link href="/proxies" className="underline">
-                Thêm proxy
-              </Link>
-            ) : null}
+            Cần có ít nhất 1 proxy chưa gắn nick trước đã.{" "}
+            <Link href="/proxies" className="underline">
+              Thêm proxy
+            </Link>
           </EmptyState>
         ) : (
           <AccountVaultForm action={createAccount} submitLabel="Thêm nick">
             <AccountFormFields
-              personas={personas.map((persona) => ({ id: persona.id, label: persona.name }))}
               proxies={freeProxies.map((proxy) => ({
                 id: proxy.id,
                 label: `${proxy.label} — ${proxy.country}`,

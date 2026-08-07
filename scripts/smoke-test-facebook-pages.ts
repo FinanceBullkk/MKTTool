@@ -38,7 +38,6 @@ async function cleanup() {
   await prisma.contentItem.deleteMany({ where: { authorName: { startsWith: PREFIX } } });
   await prisma.account.deleteMany({ where: { username: { startsWith: PREFIX } } });
   await prisma.proxy.deleteMany({ where: { label: { startsWith: PREFIX } } });
-  await prisma.persona.deleteMany({ where: { name: { startsWith: PREFIX } } });
   await prisma.platformTarget.deleteMany({ where: { name: { startsWith: PREFIX } } });
 }
 
@@ -107,9 +106,6 @@ async function run() {
   check("Page chưa kết nối thì báo rõ", missingMessage.includes("Chưa kết nối"), missingMessage);
 
   // 6. Nhắc việc group: job FACEBOOK_GROUP đến giờ phải hiện ra trên tổng quan.
-  const persona = await prisma.persona.create({
-    data: { name: `${PREFIX}persona`, voice: "test", contentAngle: "test" },
-  });
   const proxy = await prisma.proxy.create({
     data: {
       label: `${PREFIX}proxy`,
@@ -128,7 +124,6 @@ async function run() {
       emailAddress: "smoke@example.com",
       emailPasswordEnc: "x",
       antidetectProfileId: `${PREFIX}profile`,
-      personaId: persona.id,
       proxyId: proxy.id,
       status: "ALIVE",
     },

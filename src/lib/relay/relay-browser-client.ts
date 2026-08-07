@@ -101,6 +101,11 @@ const NO_PERMISSION_MESSAGE =
 async function callRelay<T extends RelayReply>(
   path: (typeof RELAY_PATHS)[keyof typeof RELAY_PATHS],
   init?: RequestInit,
+  /**
+   * Hạn giờ riêng cho lời gọi này. Mặc định `RELAY_TIMEOUT_MS`, và **hầu hết chỗ gọi phải giữ
+   * mặc định** — xem `RELAY_CREATE_PROFILE_TIMEOUT_MS` về ngoại lệ duy nhất và vì sao nó tồn tại.
+   */
+  timeoutMs: number = RELAY_TIMEOUT_MS,
 ): Promise<RelayOutcome<T>> {
   let response: Response;
   try {
@@ -108,7 +113,7 @@ async function callRelay<T extends RelayReply>(
       ...init,
       // Cầu nối không dùng cookie, và gửi kèm là mở thêm diện tích tấn công không đổi lại gì.
       credentials: "omit",
-      signal: AbortSignal.timeout(RELAY_TIMEOUT_MS),
+      signal: AbortSignal.timeout(timeoutMs),
     });
   } catch (error) {
     const aborted = error instanceof DOMException && error.name === "TimeoutError";
@@ -188,12 +193,26 @@ export function fetchRelayProfiles(): Promise<RelayOutcome<RelayProfilesReply>> 
   return callRelay<RelayProfilesReply>(RELAY_PATHS.profiles);
 }
 
-export function sendTicketToRelay(ticket: string): Promise<RelayOutcome<RelayReply>> {
-  return callRelay<RelayReply>(RELAY_PATHS.ticket, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ ticket }),
-  });
+/**
+ * Đưa một tấm vé thao tác profile xuống cầu nối.
+ *
+ * `timeoutMs` chỉ khai khi loại vé đó **vốn chạy lâu** — hôm nay là đúng vé tạo profile. Vé mở
+ * profile và vé bí mật giữ mặc định: chúng xong trong vài chục mili giây, và một hạn giờ dài ở đó
+ * chỉ làm người dùng ngồi nhìn nút xám lâu hơn trước khi đọc được câu lỗi.
+ */
+export function sendTicketToRelay(
+  ticket: string,
+  timeoutMs?: number,
+): Promise<RelayOutcome<RelayReply>> {
+  return callRelay<RelayReply>(
+    RELAY_PATHS.ticket,
+    {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ ticket }),
+    },
+    timeoutMs,
+  );
 }
 
 /**
@@ -268,5 +287,38 @@ export function describeRelayFailure(
   // Ping biết rõ hơn thì nghe ping: nó là lời gọi mang kích hoạt người dùng, nên nó mới là lời
   // gọi làm hộp xin quyền hiện ra hay không.
   if (ping && ping.status !== "ok" && ping.status !== "rejected") return ping.message;
+  return attempt.message;
+}
+
+/**
+ * Câu giải thích cho những lời gọi **vốn chạy lâu** — tạo profile, mở profile.
+ *
+ * ## Vì sao không dùng chung `describeRelayFailure`
+ *
+ * Câu chung của nó khẳng định *"trình duyệt không cho trang này gọi xuống máy"*, suy ra từ giả
+ * định **lời gọi vốn nhanh, treo tức là bị chặn**. Giả định đó là nền của cả ràng buộc 3 ở đầu
+ * file, và nó đúng — cho ping, cho lượt bọc bí mật, cho lượt liệt kê profile.
+ *
+ * Với hai việc bắt MultiZen dựng hoặc bật một trình duyệt thật thì nó **sai**, và sai theo hướng
+ * tệ nhất: cử người đi bật lại một quyền vốn không hỏng, trong khi việc họ vừa bấm đã xong rồi.
+ * Đã vấp cả hai lần trên máy thật 07/08/2026.
+ *
+ * Nêu cả hai khả năng thay vì khẳng định một cái, và nhắc chỗ nhìn để tự phân xử — cửa sổ vừa mở
+ * ra, hay profile vừa hiện trong MultiZen.
+ */
+export function describeSlowRelayFailure(
+  attempt: RelayOutcome<unknown>,
+  /** Việc cầu nối đang làm, viết tiếp được sau chữ "đang": `"dựng profile"`, `"mở profile"`. */
+  viec: string,
+): string {
+  if (attempt.status === "ok") return "";
+  if (attempt.status === "rejected") return attempt.message;
+
+  if (attempt.status === "no-permission") {
+    return (
+      `Cầu nối không trả lời trong một phút — có thể nó vẫn đang ${viec}, cũng có thể trình duyệt ` +
+      `đang chặn đường xuống máy này.`
+    );
+  }
   return attempt.message;
 }

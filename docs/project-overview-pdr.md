@@ -81,7 +81,7 @@ Nếu sau này có ai đề xuất thêm một trong các mục trên, đây là
 
 ## 6. Nguyên tắc bất di bất dịch
 
-> **1 nick = 1 proxy tĩnh = 1 vân tay = 1 nhân vật.**
+> **1 nick = 1 proxy tĩnh = 1 vân tay.**
 
 Ràng buộc này do **database ép** (`Account.proxyId` và `Account.antidetectProfileId` đều `@unique`),
 không phải quy ước mềm. Có vội cũng không lách được.

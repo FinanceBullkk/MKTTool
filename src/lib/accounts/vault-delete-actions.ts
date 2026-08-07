@@ -16,33 +16,6 @@ import { prisma } from "@/lib/db/prisma-client";
 import { describeUnexpectedDbError } from "@/lib/db/prisma-error-helpers";
 import { blockDeleteWhenReferenced } from "@/lib/db/reference-guard";
 
-export const deletePersona = guardedAction(async function deletePersona(
-  _actor,
-  personaId: string,
-): Promise<ActionResult> {
-  const persona = await prisma.persona.findUnique({
-    where: { id: personaId },
-    include: { _count: { select: { accounts: true } } },
-  });
-  if (!persona) return { ok: false, message: "Không tìm thấy nhân vật." };
-
-  const blocked = blockDeleteWhenReferenced(
-    `nhân vật "${persona.name}"`,
-    [{ label: "nick", count: persona._count.accounts }],
-    "Gỡ nhân vật khỏi các nick đó trước, hoặc giữ nguyên — nhân vật không dùng nữa cũng vô hại.",
-  );
-  if (blocked) return { ok: false, message: blocked.message };
-
-  try {
-    await prisma.persona.delete({ where: { id: personaId } });
-  } catch (error) {
-    return { ok: false, message: describeUnexpectedDbError(error, "xóa nhân vật") };
-  }
-
-  revalidatePath("/personas");
-  return { ok: true, message: `Đã xóa nhân vật "${persona.name}".` };
-});
-
 /**
  * Chỉ ADMIN.
  *

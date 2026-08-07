@@ -37,7 +37,6 @@ async function cleanup() {
   await prisma.contentItem.deleteMany({ where: { authorName: { startsWith: PREFIX } } });
   await prisma.account.deleteMany({ where: { username: { startsWith: PREFIX } } });
   await prisma.proxy.deleteMany({ where: { label: { startsWith: PREFIX } } });
-  await prisma.persona.deleteMany({ where: { name: { startsWith: PREFIX } } });
   await prisma.platformTarget.deleteMany({ where: { name: { startsWith: PREFIX } } });
 }
 
@@ -48,7 +47,7 @@ async function cleanup() {
  * việc ĐÃ KIỂM CHỨNG là người ngoài còn nhìn thấy nick, chứ không chỉ là chưa có tin xấu.
  * Thiếu nó thì luật 10 cảnh báo "chưa dò lần nào" và mọi phép thử ở đây đều lẫn thêm một WARN.
  */
-async function createAccount(suffix: string, proxyId: string, personaId: string) {
+async function createAccount(suffix: string, proxyId: string) {
   const account = await prisma.account.create({
     data: {
       platform: "REDDIT",
@@ -57,7 +56,6 @@ async function createAccount(suffix: string, proxyId: string, personaId: string)
       emailAddress: `${suffix}@example.com`,
       emailPasswordEnc: "x",
       antidetectProfileId: `${PREFIX}profile-${suffix}`,
-      personaId,
       proxyId,
       status: "ALIVE",
       karma: 5000,
@@ -104,9 +102,6 @@ function ruleLevel(evaluation: RuleEvaluation, ruleId: string) {
 }
 
 async function run() {
-  const persona = await prisma.persona.create({
-    data: { name: `${PREFIX}persona`, voice: "test", contentAngle: "test" },
-  });
 
   const [proxyA, proxyB] = await Promise.all(
     [1, 2].map((index) =>
@@ -123,8 +118,8 @@ async function run() {
     ),
   );
 
-  const accountA = await createAccount("nick-a", proxyA.id, persona.id);
-  const accountB = await createAccount("nick-b", proxyB.id, persona.id);
+  const accountA = await createAccount("nick-a", proxyA.id);
+  const accountB = await createAccount("nick-b", proxyB.id);
 
   const target = await prisma.platformTarget.create({
     data: {

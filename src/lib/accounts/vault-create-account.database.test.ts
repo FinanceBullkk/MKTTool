@@ -44,7 +44,6 @@ const bocNhuCauNoi = (plaintext: string) =>
 const ADMIN_ID = "user-1";
 const NAM_ID = "user-nam";
 
-let personaId: string;
 let proxyId: string;
 /**
  * Ciphertext bọc sẵn từ `beforeEach`, lúc khóa còn trong môi trường.
@@ -61,7 +60,6 @@ function createForm(overrides: Record<string, string> = {}): FormData {
     platform: "FACEBOOK",
     username: "nick-moi",
     emailAddress: "nick@example.test",
-    personaId,
     status: "COLD_START",
     karma: "0",
     passwordEnc: bocMatKhau,
@@ -80,18 +78,10 @@ beforeEach(async () => {
 
   await prisma.auditLog.deleteMany();
   await prisma.account.deleteMany();
-  await prisma.persona.deleteMany();
   await prisma.proxy.deleteMany();
   await prisma.user.deleteMany();
 
-  const [persona, proxy] = await Promise.all([
-    prisma.persona.create({
-      data: {
-        name: "Nhân vật thử",
-        voice: "điềm đạm",
-        contentAngle: "self-hosting",
-      },
-    }),
+  const [proxy] = await Promise.all([
     // Nick Reddit bắt buộc gắn proxy — luật đó KHÔNG đổi trong bản này, và còn quan trọng hơn
     // trước: vân tay của profile được căn theo `Proxy.country`.
     prisma.proxy.create({
@@ -112,7 +102,6 @@ beforeEach(async () => {
       ],
     }),
   ]);
-  personaId = persona.id;
   proxyId = proxy.id;
 });
 

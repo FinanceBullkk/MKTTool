@@ -544,6 +544,40 @@ sống sót nếu mất luôn cả tài khoản Cloudflare.
 > Bước khôi phục thử mới là bước chứng minh. Hút được một file `.sql` chỉ chứng minh `pg_dump`
 > chạy xong.
 
+### Sự cố: `aborting because of server version mismatch`
+
+```
+pg_dump: error: aborting because of server version mismatch
+pg_dump: detail: server version: 18.4; pg_dump version: 17.10
+```
+
+`pg_dump` **từ chối dump từ server có major cao hơn chính nó**. Gặp câu này nghĩa là Railway đã
+nâng bản Postgres còn máy anh vẫn cài client cũ — và nó làm gãy đúng bước phải chạy trước mỗi lần
+deploy đổi cấu trúc database. Vấp thật ngày 08/08/2026.
+
+Máy chủ **không dính** lỗi này: `Dockerfile` ghim `PG_CLIENT_MAJOR` theo bản của hãng, nên lượt tự
+sao lưu lên R2 mỗi đêm vẫn chạy. Chỉ đường kéo về tay từ máy quản trị viên mới gãy.
+
+**Cách xử lâu dài** — cài client mới rồi khai đường dẫn vào `.env`. Không cần gỡ bản cũ đang phục
+vụ database dưới máy:
+
+```
+PG_DUMP_PATH="C:\Program Files\PostgreSQL\18\bin\pg_dump.exe"
+```
+
+**Cách xử ngay khi chưa kịp cài** — mượn `pg_dump` từ một container, cần Docker đang chạy:
+
+```bash
+docker run --rm -e PGURL="$PRODUCTION_DATABASE_URL" -v "//e/MKTTool/data/backups:/out" postgres:18-alpine sh -c 'pg_dump "$PGURL" --file /out/mkttool-prod-thucong.sql --format=plain --no-owner --no-privileges'
+```
+
+Đổi `18` cho khớp major của server, và đổi đường dẫn ổ đĩa cho khớp máy. Cờ giống hệt cờ script
+dùng, nên file ra là tương đương.
+
+> Nghiệm thu file vừa hút: nó phải kết thúc bằng dòng `-- PostgreSQL database dump complete`.
+> Thiếu dòng đó là dump đứt giữa chừng — mà file dở dang vẫn mở ra đọc được bình thường, nên
+> không nhìn dòng cuối thì không có gì báo.
+
 1. ~~**Railway tự sao lưu ổ đĩa**~~ — **bỏ qua, xem khối trên.** Nếu sau này nâng lên Pro vì lý do
    khác thì bật thêm: Dịch vụ Postgres → **Settings** → **Backups** → lịch hằng ngày.
 2. **Kéo một bản về máy anh.** Thêm vào `.env` **của máy anh** (không phải của máy chủ):

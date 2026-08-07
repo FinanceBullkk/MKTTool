@@ -1,7 +1,7 @@
 "use server";
 
 /**
- * Thêm mới bản ghi vào kho danh tính: nhân vật, proxy, nick, đích đăng.
+ * Thêm mới bản ghi vào kho danh tính: proxy, nick, đích đăng.
  *
  * Mọi credential đi qua đây đều được mã hóa TRƯỚC khi chạm vào database.
  *
@@ -23,37 +23,9 @@ import {
   firstError,
   formToObject,
   normalizeCheckbox,
-  personaCreateSchema,
   proxyCreateSchema,
   targetCreateSchema,
 } from "./vault-form-schemas";
-
-export const createPersona = guardedAction(async function createPersona(
-  _actor,
-  _prev: ActionResult | null,
-  formData: FormData,
-): Promise<ActionResult> {
-  const parsed = personaCreateSchema.safeParse(formToObject(formData));
-  if (!parsed.success) return { ok: false, message: firstError(parsed.error) };
-
-  try {
-    await prisma.persona.create({ data: parsed.data });
-  } catch (error) {
-    if (!isUniqueConstraintError(error)) {
-      return {
-        ok: false,
-        message: describeUnexpectedDbError(error, "tạo nhân vật"),
-      };
-    }
-    return {
-      ok: false,
-      message: `Tên nhân vật "${parsed.data.name}" đã tồn tại.`,
-    };
-  }
-
-  revalidatePath("/personas");
-  return { ok: true, message: `Đã tạo nhân vật "${parsed.data.name}".` };
-});
 
 /**
  * Chỉ ADMIN — xem chú thích ở `deleteProxy`.

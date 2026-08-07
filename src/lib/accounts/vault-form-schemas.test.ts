@@ -94,7 +94,6 @@ const CIPHERTEXT = "v1.AQEBAQEBAQEBAQEB.4G1OxOuMekYYp6mys6sG8w.AIik0-U";
 const BASE_FORM = {
   username: "nick-1",
   emailAddress: "a@example.com",
-  personaId: "persona-1",
   status: "ALIVE",
   karma: "0",
   emailPasswordEnc: CIPHERTEXT,

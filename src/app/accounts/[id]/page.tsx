@@ -41,7 +41,6 @@ export default async function AccountDetailPage({
   const account = await prisma.account.findUnique({
     where: { id },
     include: {
-      persona: true,
       proxy: true,
       owner: { select: { email: true } },
       device: { select: { name: true, revokedAt: true, userId: true } },
@@ -63,10 +62,9 @@ export default async function AccountDetailPage({
   const browserNick = platformFamily(account.platform) === "REDDIT";
   const usesGoogleLogin = browserNick;
 
-  const [auditLogs, personas, selectableProxies, teamMembers, relayDevices, assignableDevices] =
+  const [auditLogs, selectableProxies, teamMembers, relayDevices, assignableDevices] =
     await Promise.all([
       prisma.auditLog.findMany({ where: { accountId: id }, orderBy: { at: "desc" }, take: 20 }),
-      prisma.persona.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
       // Proxy còn trống CỘNG proxy đang gắn cho chính nick này — thiếu vế sau thì mở form sửa
       // ra là ô proxy trống rỗng, bấm lưu một phát là đổi mất proxy của nick.
       prisma.proxy.findMany({
@@ -92,8 +90,8 @@ export default async function AccountDetailPage({
 
   const facts: [string, string][] = [
     ["Nền tảng", account.platform],
-    ["Nhân vật", `${account.persona.name} — ${account.persona.voice}`],
-    ["Mảng nội dung", account.persona.contentAngle],
+    ["Giọng viết", account.voice ?? "— chưa ghi"],
+    ["Mảng nội dung", account.contentAngle ?? "— chưa ghi"],
     [
       "Proxy",
       account.proxy
@@ -172,6 +170,7 @@ export default async function AccountDetailPage({
           <AntidetectProfileCard
             accountId={account.id}
             username={account.username}
+            platform={account.platform}
             proxyCountry={account.proxy?.country ?? null}
             proxyLabel={account.proxy?.label ?? null}
           />
@@ -304,7 +303,6 @@ export default async function AccountDetailPage({
         <AccountVaultForm action={updateAccount} submitLabel="Lưu">
           <input type="hidden" name="id" value={account.id} />
           <AccountFormFields
-            personas={personas.map((persona) => ({ id: persona.id, label: persona.name }))}
             proxies={selectableProxies.map((proxy) => ({
               id: proxy.id,
               label: `${proxy.label} — ${proxy.country}`,

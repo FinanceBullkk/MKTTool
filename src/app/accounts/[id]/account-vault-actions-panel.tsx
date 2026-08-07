@@ -28,6 +28,13 @@
  * Hai chỗ ngược nhau vì hai việc cần hai thứ khác nhau: mở profile **cần** quyền đó, còn lấy mật
  * khẩu thì không — ping ở đây chỉ để phân biệt "cầu nối chưa chạy" với "đang chạy". Xem chú thích
  * ngay tại chỗ gọi.
+ *
+ * ## Mở profile chạy LÂU, và hạn giờ mặc định không hợp với nó
+ *
+ * Cầu nối phải đẩy proxy vào profile rồi bật một cửa sổ Chromium thật — hai lượt làm việc nặng.
+ * Với hạn giờ 4 giây mặc định, trang này bỏ cuộc trong khi cửa sổ vẫn đang mở ra, rồi báo *"trình
+ * duyệt không cho trang này gọi xuống máy"*. Đã vấp thật 07/08/2026: profile hiện `running` bên
+ * MultiZen trong lúc màn hình báo hỏng. Xem `RELAY_PROFILE_WORK_TIMEOUT_MS`.
  */
 import { useState } from "react";
 import {
@@ -37,12 +44,13 @@ import {
 import { RelayOutdatedNotice } from "@/components/relay/relay-outdated-notice";
 import {
   describeRelayFailure,
+  describeSlowRelayFailure,
   outdatedRelayVersion,
   pingRelay,
   sendTicketToRelay,
   type RelayOutcome,
 } from "@/lib/relay/relay-browser-client";
-import { relaySecretUrl } from "@/lib/relay/relay-endpoints";
+import { RELAY_PROFILE_WORK_TIMEOUT_MS, relaySecretUrl } from "@/lib/relay/relay-endpoints";
 
 type Feedback = { kind: "ok" | "error"; text: string } | null;
 
@@ -258,7 +266,9 @@ export function AccountVaultActionsPanel({
         return;
       }
 
-      const sent = await sendTicketToRelay(body.ticket);
+      // Hạn giờ dài: cầu nối phải đẩy proxy vào profile RỒI bật một cửa sổ Chromium thật — hai
+      // lượt làm việc nặng, không phải một lượt hỏi đáp. Xem `RELAY_PROFILE_WORK_TIMEOUT_MS`.
+      const sent = await sendTicketToRelay(body.ticket, RELAY_PROFILE_WORK_TIMEOUT_MS);
       noteRelayVersion(sent);
 
       if (sent.status === "ok") {
@@ -266,7 +276,18 @@ export function AccountVaultActionsPanel({
         return;
       }
 
-      setFeedback({ kind: "error", text: describeRelayFailure(sent, await ping) });
+      // Hết hạn giờ ở đây KHÔNG có nghĩa profile chưa mở: đã vấp thật 07/08/2026 — cửa sổ Chromium
+      // hiện lên bình thường trong khi trang này báo hỏng. Nên câu chữ phải nhắc chỗ nhìn để tự
+      // phân xử, và tuyệt đối không giục bấm lại (bấm lại là mở hai cửa sổ cùng một nick).
+      const health = await ping;
+      setFeedback({
+        kind: "error",
+        text:
+          sent.status === "no-permission"
+            ? `${describeSlowRelayFailure(sent, "mở profile")} Nhìn màn hình xem có cửa sổ trình ` +
+              `duyệt mới hiện ra không trước khi bấm lại.`
+            : describeRelayFailure(sent, health),
+      });
     } catch {
       setFeedback({ kind: "error", text: "Không gọi được API phát vé mở profile." });
     } finally {

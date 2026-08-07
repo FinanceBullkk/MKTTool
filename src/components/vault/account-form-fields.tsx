@@ -45,7 +45,8 @@ export interface AccountDefaults {
   username: string;
   emailAddress: string;
   antidetectProfileId: string | null;
-  personaId: string;
+  voice: string | null;
+  contentAngle: string | null;
   proxyId: string | null;
   status: string;
   karma: number;
@@ -79,7 +80,6 @@ const STATUS_OPTIONS = ACCOUNT_STATUSES.map((status) => ({
 }));
 
 export function AccountFormFields({
-  personas,
   proxies,
   defaults,
   defaultColdStartUntil,
@@ -87,7 +87,6 @@ export function AccountFormFields({
   viewer,
   teamMembers,
 }: {
-  personas: SelectOption[];
   /** Lúc sửa phải gồm cả proxy đang gắn cho chính nick này, không chỉ proxy còn trống. */
   proxies: SelectOption[];
   defaults?: AccountDefaults;
@@ -191,13 +190,22 @@ export function AccountFormFields({
         />
       ) : null}
 
-      <SelectField
-        label="Nhân vật"
-        name="personaId"
-        required
-        defaultValue={defaults?.personaId}
-        options={personas.map((persona) => ({ value: persona.id, label: persona.label }))}
+      {/* Hai ô ghi chú cho NGƯỜI SẮP NGỒI XUỐNG VIẾT, không phải đầu vào của bộ luật. Luật 7 so
+          trùng văn bản thật lúc bấm đăng; hai ô này đứng ở đầu kia của việc — nhắc làn viết trước
+          khi viết, để đỡ phải viết lại. Không bắt buộc: thiếu thì cột "Sẵn sàng" nhắc (NO_VOICE). */}
+      <Field
+        label="Giọng viết"
+        name="voice"
+        defaultValue={defaults?.voice ?? undefined}
+        hint="Nick này nói kiểu gì. Ví dụ: điềm đạm, hay dẫn số liệu, ít dùng emoji."
       />
+      <Field
+        label="Mảng nội dung"
+        name="contentAngle"
+        defaultValue={defaults?.contentAngle ?? undefined}
+        hint="Nick này viết về cái gì. Ví dụ: self-hosting, phần cứng cũ giá rẻ."
+      />
+
       <SelectField
         label="Proxy"
         name="proxyId"
