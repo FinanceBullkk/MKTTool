@@ -12,6 +12,135 @@ Dự án chưa phát hành phiên bản (`0.1.0`, dùng nội bộ). Mốc chia 
 
 ---
 
+## 10/08/2026 (6) — W01 checkpoint approved; W02 clean break deferred
+
+The project owner accepted the verified MKB-W01 Windows result as a stable local checkpoint. W01
+will not be widened with internal protocol renames after verification.
+
+MKTTool has no operational deployment or production compatibility obligation yet, so the next
+Windows slice may make a deliberate clean break before pilot use. MKB-W02 is deferred for a later
+session and may rename internal MultiZen package, preload, MCP, and adapter surfaces; assign a
+dedicated port; and remove inert legacy settings and fallbacks. Upstream license attribution remains
+mandatory, and the full MKTTool-to-browser lifecycle must pass again. This entry records a scope
+decision only; no W02 implementation has started.
+
+---
+
+## 10/08/2026 (5) — MKB-W01 Windows product isolation verified
+
+The project owner authorized a bounded Windows-first implementation slice while the Apple Silicon
+half of MKB-00 remains open:
+
+- Rebranded the technical Windows product identity to `MKT Browser`, application ID
+  `com.mkttool.browser`, executable `MKTBrowser.exe`, and fixed data root
+  `%LOCALAPPDATA%\MKTTool\MKTBrowser\`.
+- Preserved the disposable `--user-data-dir` test override and added no code that scans, reads,
+  copies, moves, or deletes the legacy `%APPDATA%\MultiZen` store.
+- Verified a packaged launch with a temporary `LOCALAPPDATA` and no `--user-data-dir`: starting
+  without a canonical product directory, the app created `MKTTool\MKTBrowser` itself and placed the
+  MCP token and profile database there, while all 3,059 legacy-tree files retained pre-test write
+  times.
+- Removed `electron-updater`, update timers/events/IPC/UI, MultiZen release URLs, publish scripts and
+  provider, and tag-triggered release creation. The remaining workflow is a manual read-only Windows
+  directory build.
+- Removed the opt-in upstream heartbeat from startup, onboarding, Settings, and runtime so it cannot
+  contact `ping.getmultizen.com`; also removed the unwired upstream telemetry-ingest service and its
+  deployment snippets.
+- Retained `@multizen/*`, `window.multizen`, MCP port/tool names, profile IDs, and archive format as
+  deliberate compatibility surfaces; no MKTTool server, ticket, or database change was required.
+- Passed product-identity tests 4/4, full typecheck/build, packaged-bundle inspection, and the current
+  MKTTool adapter lifecycle with 22 tools, 19 device options, 72 locales, fail-closed invalid proxy,
+  create/apply/launch/close/delete, and final disposable profile count 0.
+- Produced an x64 `MKTBrowser.exe` of 188,614,144 bytes with SHA-256
+  `16462e535593b0ee572bf32069bee514774f6a7be1cda2f8329ff1a1efc60022`; its PE product name and
+  file description are `MKT Browser`, and its original filename is `MKTBrowser.exe`.
+
+MKB-W01 does **not** close MKB-00 or MKB-01. The upstream-derived icon and `0.3.1` version remain,
+and Apple Silicon verification, Electron upgrade/hardening, the copy-only importer, installer,
+signing, internal update/rollback channel, and pilot approval are still open. The fork records W01
+as a local checkpoint; no tag or push was made.
+
+---
+
+## 10/08/2026 (4) — MKB-00 Windows baseline verified; Apple Silicon gate remains open
+
+MKB-00 has moved from planning into evidence-backed execution without rebranding or changing the
+upstream product:
+
+- Created the separate `E:\MKTBrowser` checkout from official MultiZen `v0.3.1`, pinned commit
+  `83c6898b2de3de1122b5fea88008fbbaa4677bff` and the immutable `yarn.lock` hash, retained a
+  fetch-only upstream remote, and made no commit or push.
+- Built the unmodified Windows x64 source, verified the x64 packaged executable, exercised the
+  authenticated 22-tool MCP server, and passed list/fingerprint/create/update/launch/close using
+  disposable profiles only.
+- Exercised the same lifecycle through MKTTool's current `MultizenAdapter`; running state changed
+  correctly, all disposable profiles were deleted, and the focused Relay/adapter fail-closed suite
+  passed 27/27.
+- Separated the MIT MultiZen application license from CloakBrowser's proprietary Binary License.
+  The engine may be used only as an unmodified internal dependency from official channels under the
+  applicable version/subscription terms; it must not be bundled or redistributed.
+- Recorded Electron 33 as end-of-life and preserved the upgrade, independent updater, signing, and
+  notarization work for later release gates.
+
+MKB-00 is **not complete**: no real Apple Silicon Mac was available, no native arm64 build or engine
+was run, and no operational disposable proxy was used. The fork contains a source/license/engine
+inventory plus an exact Apple Silicon verification runbook. MKB-01 and rebranding remain gated.
+
+---
+
+## 10/08/2026 (3) — English becomes the project artifact language
+
+All new or materially revised source comments, UI/error copy, documentation, plans, tests,
+scripts, installers, release text, and commit messages must now be written in English. Direct
+conversation with the project owner may remain in Vietnamese.
+
+Existing Vietnamese files are legacy rather than a template for new work. Actively maintained
+documents should be translated when materially revised, while historical records must not be
+rewritten solely to make their language appear current. The active MKT Browser specification must
+be translated before MKB-00 begins.
+
+---
+
+## 10/08/2026 (2) — Chuyển MKT Browser sang Mac-first, giữ UX/UI MultiZen
+
+Thông tin vận hành mới: đa số người dùng desktop của team dùng Mac. Điều chỉnh kế hoạch trước khi
+code để macOS không trở thành một bản port phụ làm sau:
+
+- macOS Apple Silicon là nền tảng chính; Windows x64 vẫn là nhánh hỗ trợ/kiểm hồi quy. Intel Mac chỉ
+  thêm nếu kiểm kê có máy thật cần dùng.
+- V1 giữ layout, component và interaction pattern của MultiZen. Chỉ rebrand tối thiểu, thêm managed
+  badge/trạng thái khóa/câu lỗi; redesign tách thành MKB-06 sau dữ liệu sử dụng thật.
+- Cầu nối hiện tại là SEA `.exe` + PowerShell + Startup Windows, nên Mac cần nhánh phát hành thật:
+  helper riêng, LaunchAgent, Keychain, DMG Developer ID + notarization và test native arm64.
+- Nhân viên Mac không phải cài Homebrew, chạy `xattr` hoặc mở Terminal. Một lượt tải phải cài được
+  cả MKT Browser và Cầu nối nhưng vẫn giữ chúng là hai tiến trình/hai ranh giới tin cậy.
+- Roadmap kỹ thuật đổi từ 4-6 thành 5-8 tuần; pilot dùng hai Mac và một Windows kiểm hồi quy trước
+  khi một nick thật cold-start 14 ngày trên Mac.
+
+Thiết kế đã cập nhật tại [plan MKT Browser](../plans/260810-0244-mkt-browser-noi-bo/plan.md).
+
+---
+
+## 10/08/2026 (1) — Chốt fork MKT Browser, giữ Web và Cầu nối
+
+Chốt thêm một luồng sản phẩm: fork lớp ứng dụng MultiZen thành **MKT Browser** dành riêng cho
+MKTTool. Đây chưa phải một tính năng đã triển khai; thay đổi trong ngày là quyết định phạm vi và
+bản thiết kế thi công.
+
+- MKT Browser là repo desktop riêng, giữ MCP tương thích trước rồi mới thêm managed mode.
+- Web vẫn kiểm quyền/phát vé; Cầu nối vẫn giữ khóa operator, xác minh và chống dùng lại vé; app
+  Electron không nhận các trách nhiệm đó.
+- V1 không tự fork Chromium, không cloud sync profile/cookie và không bundle binary engine theo
+  quán tính. App, protocol, schema dữ liệu và engine có version/release gate riêng.
+- Roadmap mới MKB-00 → MKB-05 bao phủ build baseline, managed mode, bộ cài/update/rollback và
+  pilot trước nick thật. MultiZen được giữ một release làm đường lui.
+- Sửa hai mô tả kiến trúc đã lệch code: production gọi provider qua Cầu nối đang gắn cứng
+  `MultizenAdapter`, và máy chủ chỉ phát vé mở profile chứ không gọi adapter trực tiếp.
+
+Thiết kế đầy đủ: [plan MKT Browser](../plans/260810-0244-mkt-browser-noi-bo/plan.md).
+
+---
+
 ## 08/08/2026 — Nút "Kiểm" treo vĩnh viễn khi proxy SOCKS5 nhận kết nối rồi im
 
 Tìm ra trong lúc viết test cho `proxy-socks5-tunnel.ts` — module bắt tay SOCKS5 tự viết theo

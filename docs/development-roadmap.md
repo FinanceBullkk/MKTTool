@@ -1,21 +1,34 @@
 # Lộ trình phát triển
 
-**Cập nhật:** 06/08/2026
+**Cập nhật:** 10/08/2026
 
-Đây là **nguồn duy nhất về trạng thái** của dự án. Bản thiết kế chi tiết từng giai đoạn ở
-[plans/](../plans/260801-2030-multi-account-posting-console/plan.md); vì sao làm ở
+Đây là **nguồn duy nhất về trạng thái** của dự án. Chi tiết thi công nằm ở
+[plan công cụ gốc](../plans/260801-2030-multi-account-posting-console/plan.md),
+[plan Web chung](../plans/260804-1752-web-chung-cho-team-phan-tan/plan.md) và
+[plan MKT Browser](../plans/260810-0244-mkt-browser-noi-bo/plan.md); vì sao làm ở
 [project-overview-pdr.md](project-overview-pdr.md).
 
-Dự án đang chạy **hai luồng song song**:
+Dự án đang chạy **ba luồng song song**:
 
 | Luồng | Là gì | Trạng thái |
 |---|---|---|
 | **A — Công cụ** | 5 giai đoạn gốc: kho danh tính → hàng đợi → sức khỏe → Facebook → tự đăng Reddit | GĐ1-4 xong, GĐ0 kẹt ở tiền + cold-start, GĐ5 chưa bắt đầu |
 | **B — Web chung** | Biến app một máy thành web chung cho 5-6 người ở 5-6 nơi | **GĐ0-4 xong 06/08**, GĐ5 web **đã chạy thật trên Railway** cùng ngày |
+| **C — MKT Browser** | Fork the MultiZen desktop layer; macOS is primary while Web, Relay, and upstream UX/UI remain intact in v1 | **MKB-00 remains open; MKB-W01 Windows isolation verified; MKB-W02 clean break deferred**; Apple Silicon gate open; [plan](../plans/260810-0244-mkt-browser-noi-bo/plan.md) |
 
 Luồng B sinh ra sau khi chốt bàn giao cho team — xem
 [plan web chung](../plans/260804-1752-web-chung-cho-team-phan-tan/plan.md). Nó **không thay thế**
 luồng A: tự đăng Reddit vẫn nằm ở luồng A và vẫn chờ nick thật.
+
+Stream C replaces MultiZen at the **desktop execution layer**; it does not replace Web, the database,
+the rule engine, or Relay. The first build must preserve the current MCP contract and prove
+compatibility before managed mode, installers, and updates. **macOS Apple Silicon is primary**;
+Windows x64 remains a regression platform, and Intel Mac support is added only if device inventory
+shows a real need. V1 does not redesign MultiZen or develop a Chromium engine.
+
+> **Language rule — 10 August 2026:** all new or materially revised project artifacts and product
+> copy must be in English. Direct conversation with the project owner may remain in Vietnamese.
+> Translate the active MKT Browser specification before MKB-00; historical records remain intact.
 
 ---
 
@@ -47,6 +60,62 @@ Chi tiết ở [plan.md](../plans/260804-1752-web-chung-cho-team-phan-tan/plan.m
 | 4 | [Cầu nối trên máy operator](../plans/260804-1752-web-chung-cho-team-phan-tan/phase-04-cau-noi-tren-may-operator.md) | ✅ Xong | 06/08 | Đã nghiệm thu thành công trên máy Windows thứ hai không cài Node. |
 | 5 | [Lên Railway + cron + sao lưu](../plans/260804-1752-web-chung-cho-team-phan-tan/phase-05-len-railway-cron-sao-luu.md) | 🟢 **Web chạy thật, deploy tự động, sao lưu tự rời máy chủ** | 06/08 | Chạy ở `mkttool-web-production.up.railway.app`, đăng nhập Google được, 10 proxy sang đủ, bộ lịch tự bắn đúng 09:00 giờ team, **đẩy commit lên `master` là web tự cập nhật**, và **app tự đẩy bản sao lưu lên Cloudflare R2 mỗi đêm** — đã nghiệm thu trọn vòng (tải object về, khôi phục vào database rỗng, đúng 22 hàng/6 bảng). **Proxy quan sát viên đã có và kiểm sống** (`Observer1`, US, 15:31), và **Facebook đã nối Fanpage thật trên máy chủ** (16:08 — Meta chấp nhận domain `*.up.railway.app`, không phải mua tên miền). Còn lại đúng một việc, và nó **không tự đóng được trong GĐ5**: một lượt dò thật — chờ **nick Reddit trong kho máy chủ**, tức chờ bước nhập liệu của GĐ6 |
 | 6 | Bàn giao team | 🟡 Đang chuẩn bị | 07/08 | Hết chặn kỹ thuật: web đã có địa chỉ (GĐ5) và **gói cầu nối đã có đường phát** (`npm run relay:publish` → R2 → `/relay-download`). **07/08 siết xong phân quyền cho nhiều người dùng chung** — nick ghim vào một máy, vé bay về máy giữ nick, kho proxy về tay ADMIN (làm trước bước nhập liệu vì kho nick còn rỗng nên không phải gán tay cụm nào). Còn lại là việc quy trình: nhập dữ liệu, cài 1-2 máy Reddit, đào tạo |
+
+## Stream C — Internal MKT Browser
+
+Architecture, flows, license gates, acceptance, and rollback are defined in the
+[MKT Browser plan](../plans/260810-0244-mkt-browser-noi-bo/plan.md). The fork belongs in a separate
+repository. MKTTool retains only the consuming contract, Relay, and release page.
+
+| # | Phase | Status | Exit gate |
+|---|---|---|---|
+| MKB-00 | Platform, source, license, and engine | 🟡 In progress | Upstream and engine run natively on Mac arm64; Windows x64 retains its baseline |
+| MKB-W01 | Windows-only product isolation (authorized exception) | ✅ Verified 10 August | Independent Windows identity/data root; upstream updater/heartbeat/publishing absent; current MCP adapter remains green |
+| MKB-W02 | Windows internal clean break | ⬜ Deferred until after W01 | Dedicated port and MKT Browser-only internal contract; no legacy fallback required before operational use |
+| MKB-01 | Cross-platform compatibility and product identity | 🟡 Windows subset only | Independent data path/updater; compatible MCP and unchanged MultiZen UX/UI; Mac + Windows CI |
+| MKB-02 | Managed mode | ⬜ Not started | Idempotent create, atomic launch, and dangerous actions locked with upstream components |
+| MKB-03 | Relay, installer, and updates | ⬜ Not started | Signed/notarized Mac DMG plus Keychain/LaunchAgent helper; signed Windows installer; snapshot/rollback |
+| MKB-04 | Technical pilot and one canary account | ⬜ Not started | Two Macs plus one Windows regression device remain green for seven days; one Mac account completes a 14-day cold start |
+| MKB-05 | Team rollout | ⬜ Not started | Canary completes cold start; MKT Browser becomes default; MultiZen remains for one rollback release |
+| MKB-06 | Custom UX/UI | ⏸ Deferred beyond v1 | Begin only from observed usage feedback; does not block MKB-00 through MKB-05 |
+
+**MKB-00 evidence, 10 August 2026:** Official MultiZen `v0.3.1` is pinned at
+`83c6898b2de3de1122b5fea88008fbbaa4677bff` in the separate `E:\MKTBrowser` checkout. The
+unmodified Windows x64 build, the 22-tool MCP contract, and MKTTool's current adapter passed with
+disposable profiles; focused fail-closed tests passed 27/27. The CloakBrowser binary is approved
+only conditionally for unmodified internal use through official downloads and must not be bundled or
+redistributed. MKB-00 remains in progress because Apple Silicon, a real disposable proxy, and the
+exact Mac engine/license decision are unverified. Evidence and the Mac runbook live in
+`E:\MKTBrowser\docs`.
+
+**MKB-W01 evidence, 10 August 2026:** The project owner authorized a bounded Windows-first
+exception while MKB-00 remains open. The fork now builds as `MKTBrowser.exe` with application ID
+`com.mkttool.browser` and fixed Windows data root
+`%LOCALAPPDATA%\MKTTool\MKTBrowser\`. It does not discover or migrate the legacy MultiZen store.
+The upstream updater, manual update IPC, heartbeat, publish scripts/provider, and tag-triggered
+release workflow were removed or quarantined. Product identity tests passed 4/4, full typecheck and
+build passed, a packaged launch without `--user-data-dir` wrote only to the temporary canonical
+product root, and the current MKTTool adapter again passed the 22-tool disposable
+list/fingerprint/create/fail-closed proxy/apply/launch/close/delete sequence. This completes only
+the Windows technical slice: the inherited icon, independent runtime/version contract, Electron
+upgrade, copy-only importer, signing, installer, approved updates, and all Apple Silicon evidence
+remain open.
+
+**MKB-W02 decision, 10 August 2026:** MKTTool has no operational deployment yet, so no production
+client or real profile depends on the retained internal MultiZen compatibility names. The owner
+froze W01 as the verified checkpoint and deferred the clean break to a separate W02 slice. That
+slice may rename internal package/preload/MCP/adapter surfaces, assign a dedicated port, and remove
+legacy settings and fallbacks. It must preserve upstream license attribution and rerun the complete
+MKTTool-to-browser lifecycle before it can pass.
+
+The current technical estimate is **five to eight weeks** because the Relay is currently tied to a
+Windows `.exe`, PowerShell, and Startup, while macOS requires a native helper, Keychain, LaunchAgent,
+Developer ID, and notarization. Retaining the MultiZen UX/UI keeps a separate design project off this
+critical path.
+
+**There is no database migration in the compatibility phase.** `antidetectProfileId`, `deviceId`,
+and `proxyId` are sufficient to replace the provider. Add provider or version data to Postgres only
+if the pilot demonstrates that ADMIN users genuinely need to track devices while they are offline.
 
 **GĐ1 đã đổi nền dữ liệu sang Postgres và đóng hẳn** (05/08/2026): 482/482 test, 4 smoke test và
 `npm run db:backup` đều xanh trên Postgres. Ràng buộc 1 nick = 1 proxy vẫn do database ép.
