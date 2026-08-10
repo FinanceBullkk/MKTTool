@@ -1,4 +1,4 @@
-<#
+﻿<#
 Cài cầu nối MKTTool lên một máy operator.
 
 Chép `.exe` vào thư mục người dùng, dựng sẵn file cấu hình rỗng, tạo shortcut Startup + desktop,

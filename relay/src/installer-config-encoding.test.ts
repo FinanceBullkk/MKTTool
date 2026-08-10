@@ -70,3 +70,15 @@ describe("bộ cài ghi relay-config.json", () => {
     expect(INSTALLER).toMatch(/if\s*\(\s*Test-Path\s+\$configFile\s*\)/);
   });
 });
+
+describe("the installer script file itself", () => {
+  it("keeps its own UTF-8 byte order mark", () => {
+    // The mirror image of the bug above, on the same file: Windows PowerShell 5.1 reads a BOM-less
+    // .ps1 in the machine ANSI code page. The installer still installs correctly, so nothing turns
+    // red — only every non-ASCII line the operator reads becomes mojibake, on the one screen they
+    // have. The packaging script guards this as well, but that guard fires only when someone
+    // packages a release. The W02 rename dropped the mark and stayed green through a full suite
+    // run (10 August 2026), which is exactly why the check belongs here too.
+    expect(SOURCE.charCodeAt(0)).toBe(0xfeff);
+  });
+});
