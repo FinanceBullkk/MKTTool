@@ -8,13 +8,14 @@ Repo này có 12+ file tài liệu. Đừng đọc hết. Tra theo câu hỏi b�
 |---|---|
 | **Dùng công cụ hằng ngày** (không cài gì, không sửa code) | [huong-dan-van-hanh-cho-team.md](huong-dan-van-hanh-cho-team.md) — cẩm nang cho người dùng cuối |
 | Cài và chạy công cụ, dùng từng màn hình | [../README.md](../README.md) — cẩm nang vận hành, đọc trước tiên |
+| Set up and develop on a Mac | [macos-development-setup.md](macos-development-setup.md) — only what differs from the README |
 | Dự án giải quyết vấn đề gì, cho ai, không làm gì | [project-overview-pdr.md](project-overview-pdr.md) |
 | "Shadowban", "cold-start", "proxy quan sát viên" nghĩa là gì | [domain-glossary.md](domain-glossary.md) |
 | Làm tới đâu rồi, tiếp theo làm gì, cái gì đang chặn | [development-roadmap.md](development-roadmap.md) |
 | Đã đổi những gì, ngày nào | [project-changelog.md](project-changelog.md) |
 | Đưa web lên máy chủ thật (Railway) | [deployment-guide.md](deployment-guide.md) |
 | Hệ thống chạy ở đâu, phụ thuộc cái gì, hỏng thì hỏng thế nào | [system-architecture.md](system-architecture.md) |
-| MKT Browser contract, verified Windows slices, and remaining Mac-first work | [plan MKT Browser](../plans/260810-0244-mkt-browser-noi-bo/plan.md) |
+| MKT Browser contract, verified Windows slices, and what v1 still owes | [plan MKT Browser](../plans/260810-0244-mkt-browser-noi-bo/plan.md) |
 | Code nằm ở đâu, luồng nào gọi file nào | [codebase-summary.md](codebase-summary.md) |
 | Quy ước viết code, test, commit trước khi đóng góp | [code-standards.md](code-standards.md) |
 
@@ -41,10 +42,11 @@ mỗi giai đoạn một file, kèm yêu cầu, kiến trúc, các bước, tiê
 hoạch" bổ sung sau. Không viết lại lịch sử ở đó. Trạng thái mới nhất luôn ở
 [development-roadmap.md](development-roadmap.md).
 
-Nhánh desktop mới có bản thiết kế riêng tại
-[plans/260810-0244-mkt-browser-noi-bo/](../plans/260810-0244-mkt-browser-noi-bo/plan.md): kiến trúc
-mục tiêu Mac-first, hợp đồng MCP, flow cài/tạo/mở/chuyển máy/cập nhật, roadmap MKB-00 → MKB-05 và
-MKB-06 dành riêng cho redesign sau này.
+The desktop branch has its own specification at
+[plans/260810-0244-mkt-browser-noi-bo/](../plans/260810-0244-mkt-browser-noi-bo/plan.md): target
+architecture, the MCP contract, the install/create/launch/transfer/update flows, and the MKB-00 →
+MKB-05 roadmap. Since 10 August 2026 v1 commits to **Windows x64 only**; MKB-06 holds the later
+redesign and MKB-07 holds macOS Apple Silicon.
 
 ## Báo cáo rà soát & kiểm chứng
 
