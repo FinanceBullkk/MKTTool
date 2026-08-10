@@ -74,8 +74,8 @@ export function handleSetOperatorKey(
     patch.vaultKeyOperator = key;
   }
 
-  const token = typeof raw.multizenToken === "string" ? raw.multizenToken.trim() : "";
-  if (token !== "") patch.multizenToken = token;
+  const token = typeof raw.mktBrowserToken === "string" ? raw.mktBrowserToken.trim() : "";
+  if (token !== "") patch.mktBrowserToken = token;
 
   if (Object.keys(patch).length === 0) {
     return { ok: false, message: "Chưa điền gì cả." };

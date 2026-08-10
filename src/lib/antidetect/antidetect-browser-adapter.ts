@@ -1,9 +1,9 @@
 /**
  * Giao diện chung cho antidetect browser.
  *
- * Lý do tách interface: câu hỏi "Playwright có nối được MultiZen không?" chưa có
- * lời giải (xem Phase 00). Nếu câu trả lời là không, đổi sang AdsPower chỉ tốn
- * một dòng cấu hình chứ không phải viết lại toàn bộ.
+ * This interface is separate because whether Playwright can connect to MKT Browser remains
+ * unresolved (see Phase 00). If it cannot, switching to AdsPower should require one configuration
+ * change instead of a full rewrite.
  *
  * Mọi cài đặt phải bảo đảm: profile mở ra dùng ĐÚNG proxy đã gắn với nick.
  * Mở nhầm proxy là mất nick.
@@ -14,9 +14,9 @@ export interface LaunchedProfile {
    * Endpoint CDP để Playwright gắn vào bằng `chromium.connectOverCDP(...)`.
    * Có thể là `http://127.0.0.1:<port>` hoặc `ws://...`.
    *
-   * KHÔNG BẮT BUỘC. MultiZen lái trình duyệt bằng chính tool MCP của nó
-   * (navigate/click/type/extract/screenshot) và không phơi CDP ra ngoài — vẫn mở
-   * profile hoàn toàn bình thường. Chỉ AdsPower mới trả về endpoint này.
+   * OPTIONAL. MKT Browser drives the browser through its own MCP tools
+   * (navigate/click/type/extract/screenshot) without exposing CDP, while still launching profiles
+   * normally. Only AdsPower returns this endpoint.
    */
   cdpEndpoint?: string;
   /** Id profile phía antidetect browser. */
@@ -58,8 +58,9 @@ export interface AntidetectProfileSummary {
 /**
  * Vân tay ở dạng **núm cao cấp** — không phải từng bề mặt.
  *
- * MultiZen tự suy ra UA / client hints / WebGL nhất quán từ mấy núm này và **từ chối tổ hợp mâu
- * thuẫn**. Tự ghép bề mặt ở phía mình là bỏ đi lớp bảo vệ đó, nên interface cố ý không cho.
+ * MKT Browser derives consistent UA, client hints, and WebGL values from these controls and
+ * **rejects inconsistent combinations**. Constructing individual surfaces here would bypass that
+ * protection, so this interface deliberately does not allow it.
  */
 export interface AntidetectFingerprintSpec {
   device: string;
@@ -100,9 +101,9 @@ export interface AntidetectAdapter {
   /**
    * Tạo profile mới, trả về id.
    *
-   * Đặt proxy và vân tay **ngay lúc tạo** chứ không tạo rồi sửa: quy trình đúng của MultiZen là
-   * gắn proxy và căn vân tay TRƯỚC lần đăng nhập đầu tiên, và một lời gọi thì không có khe hở
-   * nào để ai đó mở profile vào giữa hai bước.
+   * Set the proxy and fingerprint **during creation**, not by creating and then editing. The correct
+   * MKT Browser workflow applies the proxy and aligns the fingerprint BEFORE the first sign-in, and
+   * one call leaves no gap in which someone could open the profile between those operations.
    */
   createProfile(request: CreateProfileRequest): Promise<string>;
 
@@ -140,8 +141,8 @@ export class AntidetectError extends Error {
 export class AntidetectUnavailableError extends AntidetectError {
   constructor(provider: string, endpoint: string, options?: { cause?: unknown }) {
     super(
-      `Không kết nối được tới ${provider} tại ${endpoint}. ` +
-        `Kiểm tra ứng dụng đã mở chưa và cổng có đúng không.`,
+      `Could not connect to ${provider} at ${endpoint}. ` +
+        `Make sure the application is running and the loopback endpoint is correct.`,
       provider,
       options,
     );

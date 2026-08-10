@@ -9,23 +9,28 @@ afterEach(() => {
 });
 
 describe("antidetect-adapter-factory", () => {
-  it("mặc định dùng MultiZen", () => {
+  it("uses MKT Browser by default", () => {
     delete process.env.ANTIDETECT_PROVIDER;
-    expect(createAntidetectAdapter().providerName).toBe("MultiZen");
+    expect(createAntidetectAdapter().providerName).toBe("MKT Browser");
   });
 
-  it("chuyển sang AdsPower khi đổi biến môi trường", () => {
+  it("uses AdsPower when explicitly configured", () => {
     process.env.ANTIDETECT_PROVIDER = "adspower";
     expect(createAntidetectAdapter().providerName).toBe("AdsPower");
   });
 
-  it("không phân biệt hoa thường", () => {
+  it("normalizes provider case", () => {
     process.env.ANTIDETECT_PROVIDER = "AdsPower";
     expect(createAntidetectAdapter().providerName).toBe("AdsPower");
   });
 
-  it("báo lỗi rõ ràng với giá trị lạ", () => {
+  it("rejects the retired MultiZen provider without a fallback", () => {
+    process.env.ANTIDETECT_PROVIDER = "multizen";
+    expect(() => createAntidetectAdapter()).toThrow(/invalid/);
+  });
+
+  it("rejects an unknown provider", () => {
     process.env.ANTIDETECT_PROVIDER = "gologin";
-    expect(() => createAntidetectAdapter()).toThrow(/không hợp lệ/);
+    expect(() => createAntidetectAdapter()).toThrow(/invalid/);
   });
 });

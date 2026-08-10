@@ -1,4 +1,4 @@
-﻿<#
+<#
 Cài cầu nối MKTTool lên một máy operator.
 
 Chép `.exe` vào thư mục người dùng, dựng sẵn file cấu hình rỗng, tạo shortcut Startup + desktop,
@@ -127,7 +127,8 @@ if (Test-Path $configFile) {
         serverPublicKey = ""
         vaultKeyOperator = ""
         webOrigin = ""
-        multizenToken = ""
+        mktBrowserToken = ""
+        mktBrowserUrl = ""
     }
     # KHÔNG dùng `Set-Content -Encoding utf8`: trên Windows PowerShell 5.1 nó ghi kèm BOM, và
     # `JSON.parse` phía cầu nối nghẹn ngay ký tự đầu tiên. Triệu chứng là câu "không phải JSON hợp

@@ -102,12 +102,15 @@ describe("handleConfigure", () => {
   it("GIỮ NGUYÊN khóa vùng operator đã có", () => {
     // Đây là tính chất sống còn: máy chủ không có khóa này, nên đạp mất nó nghĩa là người dùng
     // phải đi xin lại quản trị viên.
-    const home = makeHome({ vaultKeyOperator: "b".repeat(64), multizenToken: "mz-token" });
+    const home = makeHome({
+      vaultKeyOperator: "b".repeat(64),
+      mktBrowserToken: "test-browser-token",
+    });
     call(home, { deviceId: DEVICE_ID, serverPublicKey: SERVER_KEY });
 
     expect(readConfig(home)).toMatchObject({
       vaultKeyOperator: "b".repeat(64),
-      multizenToken: "mz-token",
+      mktBrowserToken: "test-browser-token",
       deviceId: DEVICE_ID,
     });
   });

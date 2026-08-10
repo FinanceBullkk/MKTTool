@@ -2,12 +2,13 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { loadRelayConfig, reviewRelayConfig } from "./relay-config";
+import { MKT_BROWSER_DEFAULT_MCP_URL } from "../../src/lib/antidetect/mkt-browser-contract";
+import { CONFIG_TEMPLATE, loadRelayConfig, reviewRelayConfig } from "./relay-config";
 import { CONFIG_FILE } from "./relay-home";
 
 const HEX_64 = "a".repeat(64);
 
-/** Cấu hình đủ và đúng — mỗi test làm hỏng đúng một ô của nó. */
+/** A complete valid config that each test changes in one focused way. */
 function validConfig(overrides: Record<string, unknown> = {}) {
   return {
     deviceId: "cm4xdevice0001",
@@ -18,24 +19,67 @@ function validConfig(overrides: Record<string, unknown> = {}) {
   };
 }
 
-/** Các trường đang có vấn đề, để so sánh gọn. */
+/** Return only invalid field names for concise assertions. */
 function problemFields(parsed: unknown): string[] {
   const result = reviewRelayConfig(parsed);
   return result.ok ? [] : result.problems.map((problem) => problem.field);
 }
 
 describe("reviewRelayConfig", () => {
-  it("nhận cấu hình đủ và chuẩn hóa nguồn web", () => {
+  it("uses the owned MKT Browser loopback origin in the installer template", () => {
+    expect(CONFIG_TEMPLATE.mktBrowserUrl).toBe(MKT_BROWSER_DEFAULT_MCP_URL);
+  });
+
+  it("normalizes an explicit MKT Browser loopback origin override", () => {
+    const result = reviewRelayConfig(
+      validConfig({ mktBrowserUrl: "http://localhost:49001/", mktBrowserToken: "test-token" }),
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.config.mktBrowserUrl).toBe("http://localhost:49001");
+    expect(result.config.mktBrowserToken).toBe("test-token");
+  });
+
+  it.each([
+    "https://127.0.0.1:47822",
+    "http://192.0.2.10:47822",
+    "http://127.0.0.1:47822/mcp",
+  ])("rejects a non-contract MKT Browser origin: %s", (mktBrowserUrl) => {
+    expect(problemFields(validConfig({ mktBrowserUrl }))).toEqual(["mktBrowserUrl"]);
+  });
+
+  it.each([47823, null, true, {}])(
+    "rejects a non-string MKT Browser origin override: %j",
+    (mktBrowserUrl) => {
+      expect(problemFields(validConfig({ mktBrowserUrl }))).toEqual(["mktBrowserUrl"]);
+    },
+  );
+
+  it("does not read retired MultiZen configuration as a fallback", () => {
+    const result = reviewRelayConfig(
+      validConfig({ multizenToken: "retired-token", multizenUrl: "http://127.0.0.1:7777" }),
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.config.mktBrowserToken).toBeUndefined();
+    expect(result.config.mktBrowserUrl).toBeUndefined();
+    expect(result.config).not.toHaveProperty("multizenToken");
+    expect(result.config).not.toHaveProperty("multizenUrl");
+  });
+
+  it("accepts a complete config and normalizes the web origin", () => {
     const result = reviewRelayConfig(validConfig({ webOrigin: "https://mkttool.example.com/" }));
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    // `Access-Control-Allow-Origin` so nguyên văn với header `Origin`, mà header đó không có
-    // dấu `/` cuối. Không chuẩn hóa là mọi lời gọi hỏng theo kiểu CORS.
+    // Access-Control-Allow-Origin is compared verbatim with the Origin header, which has no
+    // trailing slash. Without normalization every call would fail through CORS.
     expect(result.config.webOrigin).toBe("https://mkttool.example.com");
   });
 
-  it("hạ chữ thường hai khóa hex — dán từ chỗ viết hoa vẫn phải dùng được", () => {
+  it("lowercases both hex keys so uppercase pasted values remain valid", () => {
     const result = reviewRelayConfig(
       validConfig({ serverPublicKey: HEX_64.toUpperCase(), vaultKeyOperator: "B".repeat(64) }),
     );
@@ -46,20 +90,18 @@ describe("reviewRelayConfig", () => {
     expect(result.config.vaultKeyOperator).toBe("b".repeat(64));
   });
 
-  it("gom HẾT vấn đề trong một lượt, không dừng ở cái đầu tiên", () => {
-    // Dừng ở lỗi đầu thì người cài phải sửa-chạy-lại một vòng cho mỗi ô.
+  it("collects every problem in one pass instead of stopping at the first", () => {
+    // Stopping at the first issue forces an install-fix-restart loop for every field.
     //
-    // `webOrigin` KHÔNG có trong danh sách này, và đó là chủ ý: nó lấy mặc định từ bản build
-    // (`BUILT_IN_WEB_ORIGIN`), file cấu hình chỉ ghi đè. Bắt buộc nó thì một chiếc máy vừa cài
-    // không bao giờ ra khỏi vạch xuất phát — web app cần CORS để cấu hình hộ, mà CORS cần nguồn
-    // tin, mà nguồn tin lại chỉ có sau khi cấu hình đủ. Xem `resolveWebOrigin`.
+    // webOrigin is intentionally absent: the build supplies BUILT_IN_WEB_ORIGIN and the file only
+    // overrides it. Requiring the file value would deadlock a fresh device because remote setup
+    // needs CORS before the config is complete. See resolveWebOrigin.
     expect(problemFields({})).toEqual(["deviceId", "serverPublicKey", "vaultKeyOperator"]);
   });
 
-  it("BOM ở đầu file KHÔNG bị đọc thành JSON hỏng", () => {
-    // Ca này chết ở lượt cài đầu tiên của bản 2 (06/08/2026): bộ cài ghi kèm BOM, cầu nối báo
-    // "không phải JSON hợp lệ", và người đọc câu đó đi soi dấu phẩy chứ không nghĩ tới ba byte
-    // vô hình. Nay chỗ ĐỌC chịu được, không chỉ chỗ ghi — file này là thứ người dùng sửa tay.
+  it("accepts a BOM at the start of the JSON file", () => {
+    // Relay v2 initially wrote a BOM on 06 August 2026. The reader must tolerate it because users
+    // can edit this file even though the installer now writes UTF-8 without a BOM.
     const home = mkdtempSync(path.join(tmpdir(), "mkttool-bom-"));
     try {
       writeFileSync(
@@ -73,33 +115,33 @@ describe("reviewRelayConfig", () => {
     }
   });
 
-  it("bắt khóa sai độ dài", () => {
+  it("rejects a key with the wrong length", () => {
     expect(problemFields(validConfig({ vaultKeyOperator: "abc" }))).toEqual(["vaultKeyOperator"]);
   });
 
-  it("bắt khóa đúng độ dài nhưng không phải hex", () => {
+  it("rejects a key with the right length but non-hex characters", () => {
     expect(problemFields(validConfig({ serverPublicKey: "z".repeat(64) }))).toEqual([
       "serverPublicKey",
     ]);
   });
 
-  it("từ chối webOrigin kèm đường dẫn", () => {
-    // Dán nguyên địa chỉ đang mở trên thanh địa chỉ là lỗi tự nhiên nhất của cả file này.
+  it("rejects a webOrigin that includes a path", () => {
+    // Pasting the complete browser address is the most likely operator mistake for this field.
     expect(problemFields(validConfig({ webOrigin: "https://mkttool.example.com/accounts" }))).toEqual(
       ["webOrigin"],
     );
   });
 
-  it("từ chối webOrigin không phải địa chỉ", () => {
+  it("rejects a webOrigin that is not a URL", () => {
     expect(problemFields(validConfig({ webOrigin: "mkttool.example.com" }))).toEqual(["webOrigin"]);
   });
 
-  it("khoảng trắng thừa quanh giá trị không tính là đã điền", () => {
+  it("does not treat whitespace-only values as configured", () => {
     expect(problemFields(validConfig({ deviceId: "   " }))).toEqual(["deviceId"]);
   });
 
-  it("file không phải object thì báo ở mức file, không đổ lỗi cho từng trường", () => {
-    const result = reviewRelayConfig("một chuỗi");
+  it("reports a non-object input at file level instead of blaming each field", () => {
+    const result = reviewRelayConfig("a string");
 
     expect(result.ok).toBe(false);
     if (result.ok) return;
@@ -107,7 +149,7 @@ describe("reviewRelayConfig", () => {
     expect(result.problems[0].field).toBe("file");
   });
 
-  it("mọi câu báo đều nói được phải làm gì, không chỉ nói đang sai", () => {
+  it("makes every configuration problem actionable", () => {
     const result = reviewRelayConfig({});
 
     expect(result.ok).toBe(false);

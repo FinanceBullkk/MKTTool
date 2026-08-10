@@ -5,10 +5,11 @@
  *
  * ## Vì sao có một thẻ riêng cho một việc không có nút bấm nào của riêng nó
  *
- * Nút "Tạo profile trên máy này" sinh ra một trình duyệt **trắng tinh** — có proxy, có vân tay,
- * chưa một cookie nào. Trước đây chuyện này không tồn tại: người ta tự dựng profile trong MultiZen
- * và đăng nhập ngay trong đó, rồi mới chép id sang MKTTool, nên *"có profile"* và *"đã đăng nhập"*
- * là một. Giờ chúng tách ra, và khoảng giữa là một trạng thái trông y hệt trạng thái đã xong.
+ * The "Create profile on this machine" button creates a **clean** browser with a proxy and
+ * fingerprint but no cookies. Previously this state did not exist: operators created profiles
+ * manually in MKT Browser, signed in there, and only then copied the ID into MKTTool, so
+ * *"has a profile"* and *"has signed in"* were the same state. They are now separate, and the state
+ * between them looks deceptively complete.
  *
  * Thẻ này lấp đúng khoảng đó: nói ra việc phải làm, và nhận lấy lời khai khi làm xong.
  *

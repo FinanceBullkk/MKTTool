@@ -89,21 +89,21 @@ describe("handleSetOperatorKey", () => {
     expect(call(home, { vaultKeyOperator: "z".repeat(64) }).result.ok).toBe(false);
   });
 
-  it("để trống cả hai ô thì nói thẳng, không báo 'đã lưu'", () => {
+  it("reports that both fields are empty instead of claiming they were saved", () => {
     const home = makeHome();
-    const { result, onConfigured } = call(home, { vaultKeyOperator: "", multizenToken: "" });
+    const { result, onConfigured } = call(home, { vaultKeyOperator: "", mktBrowserToken: "" });
 
     expect(result.ok).toBe(false);
     expect(onConfigured).not.toHaveBeenCalled();
   });
 
-  it("lưu được riêng token MultiZen mà không đụng khóa", () => {
+  it("saves only the MKT Browser token without changing the operator key", () => {
     const home = makeHome({ vaultKeyOperator: OPERATOR_KEY });
-    call(home, { multizenToken: "mz-token" });
+    call(home, { mktBrowserToken: "test-browser-token" });
 
     expect(readConfig(home)).toMatchObject({
       vaultKeyOperator: OPERATOR_KEY,
-      multizenToken: "mz-token",
+      mktBrowserToken: "test-browser-token",
     });
   });
 });

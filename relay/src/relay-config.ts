@@ -20,6 +20,10 @@
  */
 import { readFileSync, writeFileSync } from "node:fs";
 import { BUILT_IN_WEB_ORIGIN } from "../../src/lib/relay/relay-endpoints";
+import {
+  MKT_BROWSER_DEFAULT_MCP_URL,
+  resolveMktBrowserMcpUrl,
+} from "../../src/lib/antidetect/mkt-browser-contract";
 import { CONFIG_FILE, relayFilePath, resolveRelayHome } from "./relay-home";
 
 /** Cấu hình đã kiểm xong, sẵn sàng dùng. */
@@ -33,12 +37,12 @@ export interface RelayConfig {
   /** Nguồn web được phép gọi xuống — CORS khai đúng một nguồn, không bao giờ `*`. */
   webOrigin: string;
   /**
-   * Token MCP của MultiZen trên chính máy này. **Tùy chọn** — xem `relay-antidetect.ts`:
-   * chỉ việc mở profile cần nó, còn lấy mật khẩu và OTP thì không.
+   * MKT Browser MCP token on this device. Optional because only profile actions need it;
+   * credential and OTP retrieval do not.
    */
-  multizenToken?: string;
-  /** Địa chỉ MCP của MultiZen. Bỏ trống là dùng `127.0.0.1:7777`, thứ MultiZen công bố. */
-  multizenUrl?: string;
+  mktBrowserToken?: string;
+  /** Optional loopback MCP origin override. */
+  mktBrowserUrl?: string;
 }
 
 /** Một ô cấu hình chưa đúng, kèm câu nói rõ phải làm gì. */
@@ -68,7 +72,8 @@ export const CONFIG_TEMPLATE = {
   deviceId: "<web app tự điền khi bấm \"Đăng ký máy này\">",
   serverPublicKey: "<web app tự điền>",
   vaultKeyOperator: "<64 ký tự hex — dán ở ngay trang này, ô bên dưới>",
-  multizenToken: "<chỉ cần nếu máy này mở profile: MultiZen → MCP → Connect an agent>",
+  mktBrowserToken: "<required only for profile actions: MKT Browser → MCP → Connect an agent>",
+  mktBrowserUrl: MKT_BROWSER_DEFAULT_MCP_URL,
 };
 
 /**
@@ -185,6 +190,27 @@ export function reviewRelayConfig(parsed: unknown): ConfigLoad {
   const originProblem = reviewWebOrigin(webOrigin);
   if (originProblem) problems.push(originProblem);
 
+  let mktBrowserUrl: string | undefined;
+  if (raw.mktBrowserUrl !== undefined) {
+    if (typeof raw.mktBrowserUrl !== "string") {
+      problems.push({
+        field: "mktBrowserUrl",
+        message:
+          '"mktBrowserUrl" must be an HTTP loopback origin string, for example ' +
+          MKT_BROWSER_DEFAULT_MCP_URL,
+      });
+    } else if (raw.mktBrowserUrl.trim() !== "") {
+      try {
+        mktBrowserUrl = resolveMktBrowserMcpUrl(raw.mktBrowserUrl);
+      } catch (error) {
+        problems.push({
+          field: "mktBrowserUrl",
+          message: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+  }
+
   if (problems.length > 0) return { ok: false, problems };
 
   return {
@@ -194,17 +220,17 @@ export function reviewRelayConfig(parsed: unknown): ConfigLoad {
       serverPublicKey: String(raw.serverPublicKey).trim().toLowerCase(),
       vaultKeyOperator: String(raw.vaultKeyOperator).trim().toLowerCase(),
       webOrigin: normalizeOrigin(webOrigin),
-      ...optionalString(raw.multizenToken, "multizenToken"),
-      ...optionalString(raw.multizenUrl, "multizenUrl"),
+      ...optionalString(raw.mktBrowserToken, "mktBrowserToken"),
+      ...(mktBrowserUrl ? { mktBrowserUrl } : {}),
     },
   };
 }
 
 /**
- * Ô tùy chọn: có thì lấy, không có thì **không đặt trường** thay vì đặt chuỗi rỗng.
+ * Include an optional field only when it contains a non-empty string.
  *
- * Chuỗi rỗng đi tiếp sẽ được các lớp dưới coi là "đã cấu hình" — token rỗng gửi lên MultiZen ra
- * lỗi 401, và câu người dùng nhận được sẽ nói về token sai thay vì token chưa điền.
+ * Passing an empty token would look configured to lower layers and produce a misleading 401
+ * instead of the correct missing-token guidance.
  */
 function optionalString(value: unknown, field: string): Record<string, string> {
   if (typeof value !== "string" || value.trim() === "") return {};

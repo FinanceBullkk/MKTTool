@@ -3,22 +3,22 @@
  *
  * ## Vì sao việc này phải nằm ở cầu nối
  *
- * Profile chỉ tồn tại trên **một chiếc máy** — MultiZen không đồng bộ giữa các máy, và `id` của
- * nó là khóa chính của một file SQLite cạnh app. Máy chủ ở xa không tạo được, cũng không nhìn
- * thấy. Nên chỗ duy nhất tạo được là chương trình chạy trên chính chiếc máy sẽ dùng profile đó.
+ * A profile exists on **one machine only** — MKT Browser does not sync profiles between machines,
+ * and its `id` is the primary key of a SQLite file beside the app. A remote server can neither
+ * create nor inspect it, so creation must happen on the machine that will use the profile.
  *
  * Phụ phẩm đáng giá: **tạo profile ở đâu thì nick thuộc về máy đó**. Không phải khai thêm, không
  * khai sai được.
  *
  * ## Proxy và vân tay đi CÙNG lời gọi tạo
  *
- * Quy trình đúng của MultiZen là `gắn proxy → căn vân tay theo proxy → rồi mới đăng nhập lần
- * đầu`, và bước giữa là bước hay bị quên (đo 02/08/2026: profile `sv-SE` chạy trên IP Anh).
- * Gộp vào một lời gọi thì thứ tự đó không còn là thứ phải nhớ, và cũng không còn khe hở để ai đó
- * mở profile vào giữa hai bước.
+ * The correct MKT Browser workflow is `attach proxy → align fingerprint with proxy → perform the
+ * first login`, and the middle step is easy to miss (observed 02/08/2026: an `sv-SE` profile on a
+ * UK IP). A single call enforces that order and leaves no opportunity to launch the profile
+ * between the two configuration steps.
  *
- * MultiZen tự kiểm tính nhất quán và từ chối tổ hợp mâu thuẫn (`INVALID_INPUT`) — câu lỗi của nó
- * còn liệt kê giá trị hợp lệ, nên ta chuyển nguyên văn cho người đọc thay vì viết lại.
+ * MKT Browser validates consistency and rejects contradictory combinations (`INVALID_INPUT`). Its
+ * error lists the valid values, so pass that message through instead of rewriting it.
  */
 import { AntidetectError } from "../../src/lib/antidetect/antidetect-browser-adapter";
 import { TICKET_KINDS, type TicketPayload } from "../../src/lib/tickets/ticket-types";
@@ -45,8 +45,8 @@ export async function createProfileFromTicket(
       seed: payload.seed,
     });
   } catch (error) {
-    // "Tạo hỏng" rất hay là triệu chứng đầu tiên của việc MultiZen vừa tắt — quên kết quả dò đã
-    // nhớ để lần hỏi sau nói đúng hiện trạng, giống hệt nhánh mở profile.
+    // A failed create is often the first sign that MKT Browser just stopped. Discard the cached
+    // probe so the next check reports the current state, just like the launch path does.
     antidetect.forgetProbe();
     return { ok: false, message: `Không tạo được profile. ${describe(error)}` };
   }

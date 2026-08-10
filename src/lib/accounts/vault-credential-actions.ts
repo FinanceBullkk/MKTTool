@@ -22,9 +22,10 @@
  *
  * ## Lớp thứ tư: vé đi tới máy GIỮ NICK, không tới máy người bấm
  *
- * Thêm 07/08/2026. Mật khẩu nick được gõ vào profile antidetect, mà profile chỉ tồn tại trên
- * đúng một máy (MultiZen không đồng bộ). Gửi mật khẩu tới một chiếc máy không có profile đó là
- * gửi tới nơi không dùng được nó — và mở rộng vùng mà bí mật từng đi qua mà chẳng đổi lấy gì.
+ * Added on 2026-08-07. The account password is entered into its antidetect profile, which exists on
+ * exactly one machine because MKT Browser does not synchronize profiles. Sending the password to a
+ * machine without that profile sends it somewhere it cannot be used and needlessly expands the
+ * secret's exposure boundary.
  *
  * Nick **không có máy nào** thì lùi về `resolveTicketRecipient`: nick Facebook không có profile
  * antidetect để ghim (Fanpage đăng bằng Graph API), nhưng mật khẩu của nó vẫn phải lấy được.

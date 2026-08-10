@@ -136,7 +136,7 @@ describe("handleTicketRequest — vé mở profile", () => {
     const { identity, recipient } = relaySetup();
     const { adapter, calls } = fakeAdapter({
       applyProxy: async () => {
-        throw new AntidetectError("MultiZen từ chối cấu hình proxy", "Giả");
+        throw new AntidetectError("MKT Browser rejected the proxy configuration", "Test");
       },
     });
 
@@ -269,7 +269,7 @@ describe("handleTicketRequest — vé mở profile", () => {
     expect(result.message).toContain("127.0.0.1:47821");
   });
 
-  it("thiếu token MultiZen thì nói rõ lấy token ở đâu, không đổ tại vé", async () => {
+  it("explains where to get a missing MKT Browser token instead of blaming the ticket", async () => {
     const { identity, recipient } = relaySetup();
 
     const result = await handleTicketRequest(requestBody(issueTicket(launchPayload(), recipient)), {

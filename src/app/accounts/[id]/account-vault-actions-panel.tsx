@@ -31,10 +31,11 @@
  *
  * ## Mở profile chạy LÂU, và hạn giờ mặc định không hợp với nó
  *
- * Cầu nối phải đẩy proxy vào profile rồi bật một cửa sổ Chromium thật — hai lượt làm việc nặng.
- * Với hạn giờ 4 giây mặc định, trang này bỏ cuộc trong khi cửa sổ vẫn đang mở ra, rồi báo *"trình
- * duyệt không cho trang này gọi xuống máy"*. Đã vấp thật 07/08/2026: profile hiện `running` bên
- * MultiZen trong lúc màn hình báo hỏng. Xem `RELAY_PROFILE_WORK_TIMEOUT_MS`.
+ * The Relay must apply the proxy to the profile and then open a real Chromium window, both of
+ * which are expensive operations. With the default four-second timeout, this page gives up while
+ * the window is still opening and reports that the browser blocked access to the local machine.
+ * This happened on 2026-08-07: the MKT Browser profile was `running` while the UI reported a
+ * failure. See `RELAY_PROFILE_WORK_TIMEOUT_MS`.
  */
 import { useState } from "react";
 import {

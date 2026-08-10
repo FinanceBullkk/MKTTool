@@ -177,9 +177,10 @@ export class AdsPowerAdapter implements AntidetectAdapter {
   /**
    * Ba việc dưới đây **chưa cài đặt cho AdsPower**, và chúng ném lỗi thay vì trả rỗng.
    *
-   * AdsPower có API tạo profile riêng (`/api/v1/user/create`) với mô hình vân tay khác hẳn
-   * MultiZen — không có khái niệm "nhóm locale" hay "họ thiết bị" tương đương, nên không ánh xạ
-   * thẳng được. Viết bừa một bản ánh xạ chưa ai đo là cách chắc chắn sinh ra vân tay mâu thuẫn.
+   * AdsPower has its own profile-creation API (`/api/v1/user/create`) and a fingerprint model that
+   * differs fundamentally from MKT Browser. It has no equivalent concepts for "locale group" or
+   * "device family", so a direct mapping is unavailable. Inventing an unverified mapping would
+   * reliably produce inconsistent fingerprints.
    *
    * Trả mảng rỗng thì giao diện sẽ hiện "máy này chưa có profile nào" — một câu **nói dối**, và
    * người dùng sẽ đi tạo profile mới trong khi kho của họ đầy. Ném lỗi thì họ đọc được đúng lý do.

@@ -1,10 +1,10 @@
 /**
  * `GET /profiles` — và cái đáng canh là **cách nó hỏng**, không phải cách nó chạy.
  *
- * Trả mảng rỗng khi MultiZen chưa nối được là nói *"máy này chưa có profile nào"* — một câu khác
- * hẳn sự thật, và nó dẫn người đọc đi tạo profile mới trong khi kho của họ đang đầy. Đây đúng
- * họ hỏng mà cả dự án tránh ở chỗ khác: "chưa kiểm" không được hiện như "còn sống", "không dò
- * được" không được báo thành "khỏe".
+ * Returning an empty array when MKT Browser is unreachable says *"this machine has no profiles"*,
+ * which is not true and can send the operator toward creating duplicates. Preserve the same
+ * fail-closed distinction used elsewhere: "not checked" is not "alive", and "unreachable" is not
+ * "healthy".
  */
 import { describe, expect, it } from "vitest";
 import type { AntidetectAdapter } from "../../src/lib/antidetect/antidetect-browser-adapter";
@@ -58,19 +58,19 @@ describe("đường thuận", () => {
     expect(result.fingerprintOptions).toEqual(OPTIONS);
   });
 
-  it("kho rỗng thì nói rõ là NỐI ĐƯỢC mà chưa có profile", async () => {
+  it("makes clear that MKT Browser is reachable when the profile list is empty", async () => {
     const { antidetect } = fakeAntidetect(fakeAdapter({ listProfiles: async () => [] }));
 
     const result = await handleProfilesRequest(antidetect);
 
     expect(result.ok).toBe(true);
-    expect(result.message).toContain("nối được");
+    expect(result.message).toContain("is reachable");
     expect(result.profiles).toEqual([]);
   });
 });
 
 describe("cách nó hỏng", () => {
-  it("chưa cấu hình MultiZen: ok=false kèm câu chỉ chỗ lấy token, KHÔNG phải mảng rỗng", async () => {
+  it("returns ok=false with token guidance, not an empty array, when MKT Browser is not configured", async () => {
     const { antidetect } = fakeAntidetect(null);
 
     const result = await handleProfilesRequest(antidetect);
@@ -80,11 +80,11 @@ describe("cách nó hỏng", () => {
     expect(result.message).toContain("token");
   });
 
-  it("MultiZen tắt giữa chừng: báo hỏng và QUÊN kết quả dò đã nhớ", async () => {
+  it("reports failure and forgets the cached probe when MKT Browser stops", async () => {
     const { antidetect, forgotten } = fakeAntidetect(
       fakeAdapter({
         listProfiles: async () => {
-          throw new AntidetectError("Không kết nối được tới MultiZen.", "MultiZen");
+          throw new AntidetectError("Could not connect to MKT Browser.", "MKT Browser");
         },
       }),
     );
@@ -92,7 +92,7 @@ describe("cách nó hỏng", () => {
     const result = await handleProfilesRequest(antidetect);
 
     expect(result.ok).toBe(false);
-    expect(result.message).toContain("MultiZen");
+    expect(result.message).toContain("MKT Browser");
     // Không quên thì `/health` còn trả lời bằng tin cũ tới 30 giây — đủ lâu để người dùng bấm
     // tiếp một nút nữa rồi nhận một câu lỗi khác hẳn cho cùng một nguyên nhân.
     expect(forgotten).toHaveLength(1);
@@ -102,7 +102,7 @@ describe("cách nó hỏng", () => {
     const { antidetect } = fakeAntidetect(
       fakeAdapter({
         fingerprintOptions: async () => {
-          throw new AntidetectError("Tool lạ.", "MultiZen");
+          throw new AntidetectError("Unknown tool.", "MKT Browser");
         },
       }),
     );

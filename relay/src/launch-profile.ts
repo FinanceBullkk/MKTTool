@@ -12,9 +12,9 @@
  *
  * ## Vì sao câu trả lời nhắc tên proxy
  *
- * Người bấm nút không nhìn thấy gì ngoài một dòng chữ — profile mở ra ở cửa sổ khác. Nhắc đúng
- * nhãn proxy vừa đẩy là cách duy nhất họ đối chiếu được "đúng nick, đúng IP" mà không phải mở
- * cài đặt MultiZen ra dò.
+ * The operator sees only one status line because the profile opens in another window. Naming the
+ * proxy that was just applied lets them confirm "right nick, right IP" without inspecting MKT
+ * Browser settings.
  */
 import { AntidetectError } from "../../src/lib/antidetect/antidetect-browser-adapter";
 import { TICKET_KINDS, type TicketPayload } from "../../src/lib/tickets/ticket-types";
@@ -33,8 +33,8 @@ export async function launchProfileFromTicket(
   try {
     await adapter.applyProxy(payload.antidetectProfileId, payload.proxy);
   } catch (error) {
-    // Hỏng ở bước đẩy proxy thì DỪNG. Quên kết quả kiểm MultiZen đã nhớ, vì "đẩy proxy hỏng"
-    // rất hay là triệu chứng đầu tiên của việc MultiZen vừa tắt.
+    // STOP when applying the proxy fails. Forget the cached MKT Browser probe because a failed
+    // proxy update is often the first sign that MKT Browser just stopped.
     antidetect.forgetProbe();
     return {
       ok: false,

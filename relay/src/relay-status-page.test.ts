@@ -10,7 +10,7 @@ function page(overrides: Partial<Parameters<typeof renderStatusPage>[0]> = {}) {
     problems: [],
     antidetectReady: true,
     webOrigin: "https://web.example",
-    config: { deviceId: "device-abc", webOrigin: "https://web.example", hasMultizenToken: true },
+    config: { deviceId: "device-abc", webOrigin: "https://web.example", hasMktBrowserToken: true },
     ...overrides,
   });
 }
@@ -39,21 +39,21 @@ describe("trang trạng thái của cầu nối", () => {
     expect(html).toContain("serverPublicKey");
   });
 
-  it('chưa điền token thì nói đúng thế, KHÔNG nói "không nối được MultiZen"', () => {
-    // Hai câu đó dẫn người đọc đi hai hướng khác hẳn nhau: một bên là điền vào file cấu hình,
-    // bên kia là đi mở ứng dụng MultiZen lên.
+  it('reports an unconfigured token instead of saying "cannot connect to MKT Browser"', () => {
+    // Those messages lead to different actions: one means updating the config file, while the
+    // other means opening MKT Browser.
     const html = page({ antidetectReady: null });
 
-    expect(html).toContain("chưa điền");
-    expect(html).not.toContain("KHÔNG nối được");
+    expect(html).toContain("not configured");
+    expect(html).not.toContain("Cannot connect");
   });
 
-  it("nói rõ khi chưa điền token MultiZen", () => {
+  it("explains that profiles cannot be launched without an MKT Browser token", () => {
     const html = page({
-      config: { deviceId: "d", webOrigin: "https://w.example", hasMultizenToken: false },
+      config: { deviceId: "d", webOrigin: "https://w.example", hasMktBrowserToken: false },
     });
 
-    expect(html).toContain("chưa mở được profile");
+    expect(html).toContain("cannot launch profiles");
   });
 
   it("thoát HTML trong dữ liệu — đường dẫn và mã máy là dữ liệu, không phải mã", () => {
@@ -61,7 +61,7 @@ describe("trang trạng thái của cầu nối", () => {
       config: {
         deviceId: '<img src=x onerror="alert(1)">',
         webOrigin: "https://w.example",
-        hasMultizenToken: true,
+        hasMktBrowserToken: true,
       },
     });
 

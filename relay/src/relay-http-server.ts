@@ -165,8 +165,8 @@ async function handleRequest(
       "content-security-policy":
         "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'",
     });
-    // Dựng trang được phép `await`: trang trạng thái hỏi MultiZen ngay lúc vẽ, để câu nó in ra
-    // là hiện trạng chứ không phải thứ nhớ từ lần nào đó trước.
+    // Page rendering may `await`: the status page probes MKT Browser while rendering so it shows
+    // current state instead of a previously cached result.
     response.end(await page());
     return;
   }

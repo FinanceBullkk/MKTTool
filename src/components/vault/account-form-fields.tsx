@@ -186,7 +186,7 @@ export function AccountFormFields({
           label="Id profile antidetect"
           name="antidetectProfileId"
           defaultValue={defaults?.antidetectProfileId ?? undefined}
-          hint="Thường do nút Tạo profile tự điền. Gõ tay khi dựng profile trong MultiZen từ máy khác."
+          hint="Usually filled automatically by Create profile. Enter it manually when the profile was created in MKT Browser on another machine."
         />
       ) : null}
 
