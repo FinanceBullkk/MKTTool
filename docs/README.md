@@ -1,6 +1,6 @@
 # Tài liệu MKTTool — bắt đầu từ đâu
 
-**Cập nhật:** 06/08/2026
+**Cập nhật:** 10/08/2026
 
 Repo này có 12+ file tài liệu. Đừng đọc hết. Tra theo câu hỏi bạn đang có:
 
@@ -14,6 +14,7 @@ Repo này có 12+ file tài liệu. Đừng đọc hết. Tra theo câu hỏi b�
 | Đã đổi những gì, ngày nào | [project-changelog.md](project-changelog.md) |
 | Đưa web lên máy chủ thật (Railway) | [deployment-guide.md](deployment-guide.md) |
 | Hệ thống chạy ở đâu, phụ thuộc cái gì, hỏng thì hỏng thế nào | [system-architecture.md](system-architecture.md) |
+| MKT Browser contract, verified Windows slices, and remaining Mac-first work | [plan MKT Browser](../plans/260810-0244-mkt-browser-noi-bo/plan.md) |
 | Code nằm ở đâu, luồng nào gọi file nào | [codebase-summary.md](codebase-summary.md) |
 | Quy ước viết code, test, commit trước khi đóng góp | [code-standards.md](code-standards.md) |
 
@@ -40,6 +41,11 @@ mỗi giai đoạn một file, kèm yêu cầu, kiến trúc, các bước, tiê
 hoạch" bổ sung sau. Không viết lại lịch sử ở đó. Trạng thái mới nhất luôn ở
 [development-roadmap.md](development-roadmap.md).
 
+Nhánh desktop mới có bản thiết kế riêng tại
+[plans/260810-0244-mkt-browser-noi-bo/](../plans/260810-0244-mkt-browser-noi-bo/plan.md): kiến trúc
+mục tiêu Mac-first, hợp đồng MCP, flow cài/tạo/mở/chuyển máy/cập nhật, roadmap MKB-00 → MKB-05 và
+MKB-06 dành riêng cho redesign sau này.
+
 ## Báo cáo rà soát & kiểm chứng
 
 Bằng chứng cho các tuyên bố "đã chạy thật" — không phải tài liệu thiết kế:
@@ -50,6 +56,7 @@ Bằng chứng cho các tuyên bố "đã chạy thật" — không phải tài 
 | [security review](../plans/reports/security-review-260803-0443-phase-03-va-toan-he-thong.md) | Rà soát bảo mật Phase 03 + toàn hệ thống |
 | [code review toàn codebase](../plans/reports/code-review-260803-0303-toan-bo-codebase.md) | Rà soát chất lượng mã, 03/08/2026 |
 | [Chặng C — đẩy proxy](../plans/reports/chang-c-260802-1443-proxy-push-verification.md) | Đo thật: proxy vào đúng profile, phát hiện rò WebRTC |
+| [MKB-W02 Windows internal clean break](../../MKTBrowser/docs/mkb-w02-windows-internal-clean-break.md) | Owned desktop/consumer contract, packaged scan, port independence, and disposable lifecycle evidence |
 | [Phản biện đánh giá rủi ro](../plans/reports/review-260801-1951-gemini-risk-assessment-critique.md) | Phản biện bản phân tích rủi ro cũ — nguồn gốc của quyết định xoay hướng |
 
 ## Tài liệu bản cũ

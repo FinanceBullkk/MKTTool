@@ -1,6 +1,6 @@
 # Bản đồ mã nguồn
 
-**Cập nhật:** 08/08/2026
+**Cập nhật:** 10/08/2026
 
 Tài liệu dành cho người mới và AI agent định vị nhanh trong codebase — **code nằm ở đâu**.
 Hệ thống chạy ở đâu và phụ thuộc gì thì xem [system-architecture.md](system-architecture.md);
@@ -43,7 +43,8 @@ src/
 └── lib/
     ├── accounts/               Server actions + quy tắc trạng thái nick
     ├── actions/                Kiểu ActionResult dùng chung cho mọi server action
-    ├── antidetect/             Adapter MultiZen / AdsPower (đổi bằng 1 dòng .env)
+    ├── antidetect/             `MktBrowserAdapter`, owned MCP client/contract, and AdsPower adapter;
+    │                           production runs through Relay with no legacy provider fallback
     ├── audit/                  Tên các loại thao tác ghi vào `AuditLog.action` — gom một chỗ vì
     │                           gõ sai một chữ thì hàng vẫn ghi, chỉ câu truy vấn sau này là hụt
     ├── auth/                   Đăng nhập Google, danh sách email cho phép, gác lối vào, hai vai trò
@@ -190,24 +191,26 @@ biến mất. Khác biệt duy nhất giữa hai nền tảng là số ô nhập
 
 ```
 Bấm "Mở profile" → POST /api/accounts/[id]/launch
-  1. Chặn theo trạng thái nick    → account-status.ts (canLaunch)
-  2. Dựng cấu hình proxy          → antidetect/proxy-config-builder.ts (giải mã passwordEnc)
-  3. ĐẨY proxy vào profile        → adapter.applyProxy()   ← hỏng thì DỪNG, không mở
-  4. Mở profile                   → adapter.launchProfile()
-  5. Ghi AuditLog PROFILE_LAUNCHED kèm nhãn proxy + giao thức
+  1. Máy chủ chặn trạng thái nick, thiếu profile/proxy và proxy chết
+  2. Máy chủ tìm đúng máy giữ nick, dựng cấu hình proxy và phát vé đã ký + mã hóa
+  3. Trình duyệt chuyển vé xuống Cầu nối tại 127.0.0.1:47821
+  4. Cầu nối xác minh chữ ký, người nhận, hạn vé và chống dùng lại
+  5. Cầu nối ĐẨY proxy vào profile → adapter.applyProxy()   ← hỏng thì DỪNG, không mở
+  6. Cầu nối mở profile            → adapter.launchProfile()
+  7. Máy chủ chỉ ghi PROFILE_LAUNCH_TICKET_ISSUED — nó không biết cửa sổ đã mở thật hay chưa
 ```
 
-Thứ tự 3 trước 4 là bắt buộc: đổi proxy sau khi profile đã mở thì phiên đang chạy vẫn đi bằng
-IP cũ. Đẩy thất bại mà vẫn mở là mở bằng IP nhà — nên mọi đường thất bại ở bước 2/3 đều chặn hẳn.
+Thứ tự 5 trước 6 là bắt buộc: đổi proxy sau khi profile đã mở thì phiên đang chạy vẫn đi bằng
+IP cũ. Đẩy thất bại mà vẫn mở là mở bằng IP nhà — nên mọi đường thất bại đều chặn hẳn.
 
 | Provider | Đẩy proxy bằng |
 |---|---|
-| MultiZen | tool MCP `update_profile`, field `proxy: { type: http\|socks5, host, port, username?, password? }` |
+| MKT Browser | authenticated MCP tool `update_profile` on default port `47822`, field `proxy: { type: http\|socks5, host, port, username?, password? }` |
 | AdsPower | `POST /api/v1/user/update` với `user_proxy_config.proxy_soft = "other"`; adapter tự giãn 1,1s/lời gọi cho khỏi vượt hạn mức 1 req/s |
 
-Mật khẩu proxy dạng trần chỉ tồn tại trong `proxy-config-builder.ts` và lời gọi adapter. Thông
-báo lỗi của cả hai adapter đều che mật khẩu trước khi trả về — API của provider hay vọng lại
-nguyên tham số đã gửi.
+Mật khẩu proxy dạng trần đi đúng một đường có kiểm soát:
+`proxy-config-builder.ts` → ruột vé đã bọc cho đúng máy → Cầu nối → lời gọi adapter. Thông báo lỗi
+của adapter che mật khẩu trước khi trả về — API của provider hay vọng lại nguyên tham số đã gửi.
 
 ---
 

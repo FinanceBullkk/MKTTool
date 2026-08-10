@@ -14,15 +14,16 @@ Dự án đang chạy **ba luồng song song**:
 |---|---|---|
 | **A — Công cụ** | 5 giai đoạn gốc: kho danh tính → hàng đợi → sức khỏe → Facebook → tự đăng Reddit | GĐ1-4 xong, GĐ0 kẹt ở tiền + cold-start, GĐ5 chưa bắt đầu |
 | **B — Web chung** | Biến app một máy thành web chung cho 5-6 người ở 5-6 nơi | **GĐ0-4 xong 06/08**, GĐ5 web **đã chạy thật trên Railway** cùng ngày |
-| **C — MKT Browser** | Fork the MultiZen desktop layer; macOS is primary while Web, Relay, and upstream UX/UI remain intact in v1 | **MKB-00 remains open; MKB-W01 Windows isolation verified; MKB-W02 clean break deferred**; Apple Silicon gate open; [plan](../plans/260810-0244-mkt-browser-noi-bo/plan.md) |
+| **C — MKT Browser** | Fork the MultiZen desktop layer; macOS is primary while Web, Relay, and upstream UX/UI remain intact in v1 | **MKB-00 remains open; MKB-W01 Windows isolation and MKB-W02 internal clean break verified**; Apple Silicon gate open; [plan](../plans/260810-0244-mkt-browser-noi-bo/plan.md) |
 
 Luồng B sinh ra sau khi chốt bàn giao cho team — xem
 [plan web chung](../plans/260804-1752-web-chung-cho-team-phan-tan/plan.md). Nó **không thay thế**
 luồng A: tự đăng Reddit vẫn nằm ở luồng A và vẫn chờ nick thật.
 
 Stream C replaces MultiZen at the **desktop execution layer**; it does not replace Web, the database,
-the rule engine, or Relay. The first build must preserve the current MCP contract and prove
-compatibility before managed mode, installers, and updates. **macOS Apple Silicon is primary**;
+the rule engine, or Relay. W01 proved compatible behavior, then W02 deliberately moved the active
+first-party package/preload/MCP/consumer identities to an owned contract before operational use.
+**macOS Apple Silicon is primary**;
 Windows x64 remains a regression platform, and Intel Mac support is added only if device inventory
 shows a real need. V1 does not redesign MultiZen or develop a Chromium engine.
 
@@ -39,7 +40,7 @@ shows a real need. V1 does not redesign MultiZen or develop a Chromium engine.
 | 0 | [Chuẩn bị & kiểm chứng khả thi](../plans/260801-2030-multi-account-posting-console/phase-00-preparation-and-feasibility-check.md) | 🟡 Đang chạy | Kiểm chứng xong 02/08 | Mua proxy + nick, chạy 14 ngày cold-start |
 | 1 | [Kho danh tính](../plans/260801-2030-multi-account-posting-console/phase-01-identity-vault.md) | ✅ Xong | 01/08 | – |
 | 2 | [Hàng đợi content + Bộ luật an toàn](../plans/260801-2030-multi-account-posting-console/phase-02-content-queue-and-safety-rules.md) | ✅ Xong | 02/08 | – |
-| 3 | [Theo dõi sức khỏe tài khoản](../plans/260801-2030-multi-account-posting-console/phase-03-account-health-monitor.md) | ✅ Xong | 03/08 | Chưa chạy với proxy quan sát viên + nick Reddit thật |
+| 3 | [Theo dõi sức khỏe tài khoản](../plans/260801-2030-multi-account-posting-console/phase-03-account-health-monitor.md) | ✅ Xong | 03/08 | Proxy quan sát viên đã sẵn sàng; chưa chạy với nick Reddit thật |
 | 4 | [Facebook Pages publisher](../plans/260801-2030-multi-account-posting-console/phase-04-facebook-pages-publisher.md) | ✅ Xong | 03/08 | – (đã đăng thật lên Fanpage) |
 | 5 | [Bán tự động đăng Reddit](../plans/260801-2030-multi-account-posting-console/phase-05-reddit-posting-automation.md) | ⬜ Chưa bắt đầu | – | Chờ Phase 00-03 chạy ổn 2 tuần với thao tác tay |
 
@@ -71,12 +72,12 @@ repository. MKTTool retains only the consuming contract, Relay, and release page
 |---|---|---|---|
 | MKB-00 | Platform, source, license, and engine | 🟡 In progress | Upstream and engine run natively on Mac arm64; Windows x64 retains its baseline |
 | MKB-W01 | Windows-only product isolation (authorized exception) | ✅ Verified 10 August | Independent Windows identity/data root; upstream updater/heartbeat/publishing absent; current MCP adapter remains green |
-| MKB-W02 | Windows internal clean break | ⬜ Deferred until after W01 | Dedicated port and MKT Browser-only internal contract; no legacy fallback required before operational use |
-| MKB-01 | Cross-platform compatibility and product identity | 🟡 Windows subset only | Independent data path/updater; compatible MCP and unchanged MultiZen UX/UI; Mac + Windows CI |
+| MKB-W02 | Windows internal clean break | ✅ Verified 10 August | Dedicated port `47822`, MKT Browser-only internal contract, no legacy fallback, packaged lifecycle through updated MKTTool consumer |
+| MKB-01 | Cross-platform compatibility and product identity | 🟡 Windows subset only | Independent data path/updater; stable MKT Browser MCP and upstream-derived UX/UI behavior; Mac + Windows CI |
 | MKB-02 | Managed mode | ⬜ Not started | Idempotent create, atomic launch, and dangerous actions locked with upstream components |
 | MKB-03 | Relay, installer, and updates | ⬜ Not started | Signed/notarized Mac DMG plus Keychain/LaunchAgent helper; signed Windows installer; snapshot/rollback |
 | MKB-04 | Technical pilot and one canary account | ⬜ Not started | Two Macs plus one Windows regression device remain green for seven days; one Mac account completes a 14-day cold start |
-| MKB-05 | Team rollout | ⬜ Not started | Canary completes cold start; MKT Browser becomes default; MultiZen remains for one rollback release |
+| MKB-05 | Team rollout | ⬜ Not started | Canary completes cold start; MKT Browser becomes default; rollback uses only the frozen W01 checkpoint and never restores a MultiZen adapter fallback |
 | MKB-06 | Custom UX/UI | ⏸ Deferred beyond v1 | Begin only from observed usage feedback; does not block MKB-00 through MKB-05 |
 
 **MKB-00 evidence, 10 August 2026:** Official MultiZen `v0.3.1` is pinned at
@@ -101,12 +102,16 @@ the Windows technical slice: the inherited icon, independent runtime/version con
 upgrade, copy-only importer, signing, installer, approved updates, and all Apple Silicon evidence
 remain open.
 
-**MKB-W02 decision, 10 August 2026:** MKTTool has no operational deployment yet, so no production
-client or real profile depends on the retained internal MultiZen compatibility names. The owner
-froze W01 as the verified checkpoint and deferred the clean break to a separate W02 slice. That
-slice may rename internal package/preload/MCP/adapter surfaces, assign a dedicated port, and remove
-legacy settings and fallbacks. It must preserve upstream license attribution and rerun the complete
-MKTTool-to-browser lifecycle before it can pass.
+**MKB-W02 evidence, 10 August 2026:** The clean break is verified across both sibling repositories.
+Active first-party identities now use `@mktbrowser/*`, `window.mktBrowser`, `mkt-browser`, and
+`MktBrowser*`; the desktop default is configurable port `47822`; MKTTool and Relay use the new
+client/config names with no MultiZen fallback. Browser contract tests passed 8/8, focused
+MKTTool/Relay tests passed 98/98, the full MKTTool suite passed 1,120/1,120, and both typechecks and
+Windows builds passed. With a disposable listener occupying `7777`, the packaged app completed
+initialize/tools-list/list/fingerprint/create/fail-closed proxy/update/launch/close/delete through
+the updated MKTTool consumer and ended with zero profiles. The real MKT Browser root stayed absent
+and all 3,497 legacy-tree metadata records stayed unchanged. See
+[MKB-W02 Windows evidence](../../MKTBrowser/docs/mkb-w02-windows-internal-clean-break.md).
 
 The current technical estimate is **five to eight weeks** because the Relay is currently tied to a
 Windows `.exe`, PowerShell, and Startup, while macOS requires a native helper, Keychain, LaunchAgent,
@@ -230,12 +235,16 @@ và máy chủ tự `pg_dump` rồi tải lên Cloudflare R2 mỗi đêm.
 
 | Chặn | Bản chất | Ai gỡ được |
 |---|---|---|
+| **MKB-00: engine Mac arm64 + build baseline** | Cổng mới do quyết định Mac-first; chưa được dùng nick thật để debug | Người phát triển + người duyệt điều khoản/chi phí |
+| **Apple Developer ID + notarization** | Không có thì nhân viên Mac gặp Gatekeeper hoặc phải mở Terminal, trái flow đã chốt | Người quyết tài khoản/ngân sách |
+| **Chứng thư ký Windows** | Vẫn cần cho các máy Windows kiểm hồi quy/team | Người quyết ngân sách |
 | **Mua proxy tĩnh + nick** | Tiền (3-8 triệu một lần) | Người quyết ngân sách |
 | **14 ngày cold-start** | Đồng hồ thật, không rút ngắn | Không ai — chỉ chờ |
-| **Mua proxy quan sát viên** | Tiền, 1 IP riêng, không đăng nhập nick nào | Người quyết ngân sách |
 
-Mỗi ngày chưa mua nick là một ngày lùi ngày đăng bài đầu tiên. Phase 05 không nên bắt đầu trước
-khi ba chặn trên gỡ xong — tự động hóa lên nick chưa qua cold-start là cách giết nick nhanh nhất.
+Mua nick/proxy, chọn subreddit và chuẩn bị content có thể chạy song song với fork. Sau MKB-04 chỉ
+đăng nhập một nick thăm dò; cả cụm đợi nick đó đi hết cold-start để không đem một lỗi desktop nhân
+ra nhiều nick. Phase 05 vẫn không bắt đầu trước M3 — tự động hóa lên nick chưa qua cold-start là
+cách giết nick nhanh nhất.
 
 ## Đã kiểm chứng bằng thực tế
 
@@ -258,6 +267,9 @@ proxy quan sát viên.
 
 | Mốc | Điều kiện đạt |
 |---|---|
+| **M0B — Fork tương thích** | Mac arm64 build native từ nguồn ghim và mở profile đúng proxy; Windows x64 giữ baseline |
+| **M0C — Desktop pilot** | DMG notarized + managed mode + rollback xanh trên hai Mac và một Windows kiểm hồi quy trong 7 ngày |
+| **M0D — Nick thăm dò** | Một nick ít quan trọng đi hết 14 ngày cold-start trên Mac, không sai IP/profile |
 | **M1 — Kho danh tính có nick thật** | 8 nick Reddit + 3 nick FB đã nhập, mỗi nick một proxy tĩnh, cold-start đang chạy |
 | **M2 — Bài đầu tiên lên Reddit** | Hết cold-start, xếp lịch qua hàng đợi, bộ luật cho qua, đăng tay thành công |
 | **M3 — Vận hành đều 2 tuần** | 15-20 bài/ngày, không nick nào bị ẩn, `npm run health` chạy hằng ngày |
@@ -278,10 +290,17 @@ proxy quan sát viên.
 | **Content không đủ** | 3 người viết không nuôi nổi nhiều nick | Đã hạ quy mô xuống 5-8 nick |
 | **Reddit mod là người thật** | Không có giải pháp kỹ thuật | Phụ thuộc chất lượng nội dung, không phụ thuộc công cụ |
 | **Cold-start chưa chạy** | Đường găng thật, code đã đi trước khá xa | Không có cách nào ngoài mua nick sớm |
+| **Fork trôi xa upstream** | Tự gánh bản vá Electron/MCP/profile migration | Repo riêng, module `mkt-*`, upstream SHA và contract test mỗi lần nhập bản vá |
+| **Engine và app khác license** | MIT của MultiZen không tự cấp quyền phân phối binary engine | Gate license riêng, không bundle engine theo quán tính, SBOM/NOTICE mỗi release |
+| **Mac chỉ “mở được” nhưng không đủ dùng** | Rosetta, Gatekeeper, helper, Keychain hoặc WebRTC có thể lệch hành vi thật | arm64 native + notarization + hai máy Mac pilot; không cho nhân viên chạy `xattr` |
+| **Hai OS trôi khác nhau** | Cầu nối hiện chỉ đóng gói Windows | Lõi chung, adapter OS mỏng, CI contract/mật mã trên Mac và Windows |
+| **Redesign làm chậm fork** | UI riêng không giải quyết rủi ro profile/proxy | Giữ UX/UI MultiZen trong v1; MKB-06 để sau dữ liệu sử dụng thật |
 | **Reddit đổi giao diện** | Bộ dò đọc HTML `old.reddit.com` sẽ hỏng | Hỏng thì báo "Không dò được", không bao giờ báo "khỏe"; `npm run health:smoke` đối chiếu Reddit thật |
 
-Rủi ro **"MultiZen chưa kiểm chứng"** đã đóng ngày 02/08/2026: mở profile được, đẩy proxy tự động
-được, IP khớp. Adapter AdsPower vẫn giữ (không tốn gì) nhưng không còn là phương án dự phòng bắt buộc.
+The original MultiZen feasibility risk closed on 02/08/2026. W01 and W02 now verify the Windows
+technical fork, owned contract, port independence, and disposable consumer lifecycle, but they do
+not prove pilot readiness. Runtime fallback has been removed; rollback is the frozen W01 checkpoint
+and independently installed upstream application, not a dual-name adapter path.
 
 ## Ngân sách
 
@@ -290,7 +309,7 @@ Rủi ro **"MultiZen chưa kiểm chứng"** đã đóng ngày 02/08/2026: mở 
 | Nick Reddit cổ (8 cái) | 2-5 triệu | – |
 | Nick FB (3 cái) | 1-3 triệu | – |
 | Proxy tĩnh (11 IP) | – | ~700k |
-| Antidetect browser (MultiZen) | 0đ | 0đ |
+| MKT Browser + engine ngoài | **Chưa chốt** — Apple Developer + chứng thư ký Windows | **Chưa chốt** — engine mới nhất có thể cần subscription |
 | Máy chạy | dùng máy sẵn có | 0đ |
 | Thay nick hao hụt | – | ~500k-1tr |
-| **Tổng** | **3-8 triệu** | **~1,2-1,7 triệu** |
+| **Tổng** | **3-8 triệu + chi phí fork/ký chưa chốt** | **~1,2-1,7 triệu + engine nếu có** |

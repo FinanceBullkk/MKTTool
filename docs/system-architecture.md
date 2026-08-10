@@ -1,6 +1,6 @@
 # Kiến trúc hệ thống
 
-**Cập nhật:** 06/08/2026
+**Cập nhật:** 10/08/2026
 
 Tài liệu này trả lời: hệ thống **chạy ở đâu**, **tin ai**, **phụ thuộc gì**, và **hỏng thì hỏng
 thế nào**. Code nằm ở đâu thì tra [codebase-summary.md](codebase-summary.md); thuật ngữ tra
@@ -21,13 +21,13 @@ flowchart LR
         GraphAPI["Graph API"]
         FB["Facebook Fanpage"]
         Config["data/ (ảnh chụp, sao lưu)<br/>.env (VAULT_KEY_SERVER + TICKET_SIGNING_KEY)"]
-        
+
         NextJS --> DB
         DB --> Playwright
         Playwright --> ProxyQuanSat
         DB --> GraphAPI
         GraphAPI --> FB
-        
+
         style Config fill:#f9f9f9,stroke:#333,stroke-dasharray: 5 5
     end
 
@@ -35,13 +35,13 @@ flowchart LR
         direction TB
         Browser["Trình duyệt<br/>(Đăng nhập Google)"]
         Relay["Cầu nối (Relay .exe)<br/>(chứa VAULT_KEY_OPERATOR)"]
-        MultiZen["MultiZen"]
+        MktBrowser["MKT Browser<br/>MCP 127.0.0.1:47822"]
         ProxyTinh["Proxy tĩnh"]
         Reddit["Reddit"]
 
         Browser -- "chuyển vé qua<br/>127.0.0.1:47821" --> Relay
-        Relay --> MultiZen
-        MultiZen --> ProxyTinh
+        Relay --> MktBrowser
+        MktBrowser --> ProxyTinh
         ProxyTinh --> Reddit
     end
 
@@ -50,9 +50,14 @@ flowchart LR
 
 **Mô hình phân tán (Team nhiều người).**
 - **Máy chủ** chạy trên mạng thật (Railway/VPS bằng Docker), lo tính toán, bộ luật, dò shadowban, đăng Fanpage và quản lý toàn bộ dữ liệu chung.
-- **Máy bàn** của nhân viên chạy Trình duyệt và **Cầu nối (Relay)** để mở trình duyệt ẩn danh (MultiZen) và giải mã mật khẩu nick nội bộ.
+- **Operator device:** runs the normal browser, **Relay**, and MKT Browser. Relay decrypts operator secrets and calls the authenticated MKT Browser MCP endpoint; the current Relay package remains Windows-only while the target architecture is Mac-first.
 
 Ba đường ra internet đi qua **ba IP khác nhau và không được lẫn**: nick đi bằng proxy tĩnh của chính nó (từ máy bàn), bộ dò đi bằng proxy quan sát viên (từ máy chủ), Graph API đi bằng IP máy chủ. Lẫn đường nào cũng phá đúng thứ nó đang bảo vệ.
+
+> **Current W02 boundary:** production Relay constructs `MktBrowserAdapter` and calls the owned
+> contract on loopback port `47822` by default. The path remains
+> `Web → Relay → authenticated MCP → MKT Browser`; operator keys stay in Relay and profiles/cookies
+> stay on the operator device. There is no MultiZen provider or configuration fallback.
 
 ## 2. Vòng đời một bài đăng — và vòng phản hồi nuôi bộ luật
 
@@ -110,6 +115,7 @@ một mẩu trí nhớ của luật ấy. Lưu **sau** khi chấm luật, để 
 | Ảnh chụp lúc dò | `data/screenshots/` | không | Chỉ mất bằng chứng hình ảnh; bản ghi kết luận vẫn còn |
 | Bản sao lưu | Bucket R2 (lượt tự động) + `data/backups/` của máy quản trị | – | Bản sao **cố ý không nằm cùng nhà với bản gốc**: trong container `data/backups/` là ổ tạm, mất theo mỗi lần deploy |
 | File khóa lượt dò | `data/health-check.lock` | – | Trạng thái máy đang chạy, không phải dữ liệu dự án |
+| Profile/cookie/vân tay của nick | Kho cục bộ của app antidetect trên đúng máy operator; target ở Application Support trên Mac hoặc LocalAppData trên Windows | Hiện chưa có sao lưu tập trung; plan MKT Browser chỉ cho export mã hóa và import có kiểm soát | Mất máy có thể mất phiên đăng nhập/profile; thu hồi vé không xóa từ xa dữ liệu đã nằm trên ổ đĩa |
 
 Toàn bộ `data/` và `.env` đều nằm trong `.gitignore`. Repo **không bao giờ** chứa credential.
 
@@ -117,7 +123,7 @@ Toàn bộ `data/` và `.env` đều nằm trong `.gitignore`. Repo **không bao
 
 | Phụ thuộc | Dùng để | Hỏng thì biểu hiện | Xử lý đã cài sẵn |
 |---|---|---|---|
-| **MultiZen** (MCP cục bộ) | Mở profile antidetect, đẩy proxy | HTTP 401 (thiếu bearer token), hoặc app khởi động lại giữa chừng | Bắt tay lại tự động; đẩy proxy hỏng thì **không mở profile** |
+| **MKT Browser** (authenticated local MCP, default `127.0.0.1:47822`) | Open browser profiles and apply their static proxies | HTTP 401/403, desktop app stopped, contract/engine/CPU mismatch | One transport re-handshake is allowed; proxy/tool failures remain fail-closed. Mac arm64, runtime capability reporting, engine pinning, and rollback remain future gates |
 | **Proxy tĩnh** (nhà cung cấp) | Đường ra của từng nick | Đẩy vào profile vẫn "thành công" dù proxy đã chết | Không tự phát hiện được — phải mở `ipinfo.io` kiểm IP sau mỗi lần mở profile mới |
 | **Proxy quan sát viên** | Dò shadowban | Chưa nhập thì `npm run health` dừng ngay từ đầu | Cố ý dừng: dò bằng IP nhà còn tệ hơn không dò |
 | **HTML `old.reddit.com`** | Nguồn dữ liệu dò shadowban + karma | Reddit đổi giao diện → parser hỏng | Hỏng thì kết luận **`ERROR` ("Không dò được")**, tuyệt đối không bao giờ là `HEALTHY`. `npm run health:smoke` đối chiếu Reddit thật |
@@ -136,9 +142,11 @@ Toàn bộ việc hỏi database gom ở `rule-context-builder.ts`. Thêm luật
 dòng trong `rules-engine.ts`. Test được không cần database. Đây là lý do phần giá trị nhất của
 dự án cũng là phần dễ sửa nhất.
 
-**2. Antidetect browser nằm sau một interface.** `AntidetectBrowserAdapter` có hai cài đặt
-(MultiZen, AdsPower), đổi bằng một dòng `.env`. Không có lời gọi MultiZen nào rò ra ngoài
-`lib/antidetect/`.
+**2. The browser-profile runtime sits behind `AntidetectAdapter`.** MKTTool retains the MKT Browser
+and AdsPower implementations for server/test selection, while production profile actions go through
+Relay. Relay deliberately constructs `MktBrowserAdapter`, reads `mktBrowserToken`, and uses
+`mktBrowserUrl` only as an explicit loopback override. It does not inspect retired provider or
+configuration names.
 
 **3. Ràng buộc nghiệp vụ ép ở tầng database, không ở tầng UI.** `antidetectProfileId @unique`,
 `proxyId @unique`, `@@unique([platform, username])` — quy tắc "1 nick = 1 proxy = 1 vân tay"
@@ -160,8 +168,9 @@ phần dễ thay đổi nhất (file luật) giữ thứ hay đổi nhất (kinh
 | Proxy tĩnh tính theo IP | Proxy dân cư tính theo GB | Bản cũ ước tính ~5,4 triệu/tháng tiền băng thông; IP đổi liên tục còn phá ràng buộc 1 nick : 1 IP |
 | Playwright cho bộ dò | Dò qua chính antidetect browser | Dò phải đi bằng IP khác và phiên sạch. Dùng lại profile của nick là tự nhìn mình trong gương |
 
-Chi tiết bối cảnh từng quyết định ở [project-overview-pdr.md](project-overview-pdr.md) và
-[plan.md](../plans/260801-2030-multi-account-posting-console/plan.md).
+Chi tiết bối cảnh từng quyết định ở [project-overview-pdr.md](project-overview-pdr.md),
+[plan gốc](../plans/260801-2030-multi-account-posting-console/plan.md) và
+[plan MKT Browser](../plans/260810-0244-mkt-browser-noi-bo/plan.md).
 
 ## 8. Đường lớn lên nếu quy mô đổi
 

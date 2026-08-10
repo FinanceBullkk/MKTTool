@@ -1,9 +1,11 @@
 # MKTTool — Tài liệu sản phẩm
 
-**Cập nhật:** 03/08/2026 · **Trạng thái:** [development-roadmap.md](development-roadmap.md)
+**Cập nhật:** 10/08/2026 · **Trạng thái:** [development-roadmap.md](development-roadmap.md)
 
 Tài liệu này trả lời "vì sao" và "phạm vi tới đâu". Chi tiết thi công nằm ở
-[plans/260801-2030-multi-account-posting-console/](../plans/260801-2030-multi-account-posting-console/plan.md).
+[plan công cụ gốc](../plans/260801-2030-multi-account-posting-console/plan.md),
+[plan Web chung](../plans/260804-1752-web-chung-cho-team-phan-tan/plan.md) và
+[plan MKT Browser](../plans/260810-0244-mkt-browser-noi-bo/plan.md).
 Thuật ngữ tra ở [domain-glossary.md](domain-glossary.md); mục lục tài liệu ở [docs/README.md](README.md).
 
 ---
@@ -69,22 +71,33 @@ Nếu sau này có ai đề xuất thêm một trong các mục trên, đây là
 5. ~~**SQLite + Prisma**, không Postgres/Redis. Một người dùng, một máy.~~
    **Đổi 04/08/2026: Postgres + Prisma.** Quyết định gốc đúng với giả định "một người dùng,
    một máy"; giả định đó hết hiệu lực khi chốt bàn giao cho 5-6 người ở 5-6 nơi. Vẫn không Redis.
-6. **Điều khiển trình duyệt của NICK qua MCP của MultiZen, không dùng Playwright.**
-   Kiểm chứng 02/08/2026: MultiZen không phơi endpoint CDP ra ngoài mà phơi thẳng bộ tool
-   (`navigate`, `click`, `type`, `extract`, `screenshot`). Đường này còn tốt hơn vì có sẵn
-   *human handoff* (người vào tay khi gặp 2FA/captcha) và mô phỏng hành vi người ở tầng CDP.
+6. **Control account browsers through local MCP, not Playwright.** MultiZen proved the behavior on
+   02/08/2026; W01 preserved it as a rollback checkpoint, and W02 moved active first-party package,
+   preload, MCP, adapter, and configuration identities to the owned **MKT Browser** contract on
+   configurable default port `47822`. Profiles/cookies stay off the server, and v1 does not fork
+   Chromium — see
+   [kế hoạch MKT Browser](../plans/260810-0244-mkt-browser-noi-bo/plan.md).
 7. **Nhưng bộ dò shadowban thì dùng Playwright trực tiếp** (Phase 03) — hai việc trái ngược
    nhau nên đi hai đường. Đăng bài cần *giả làm người có danh tính*; dò shadowban cần *đúng là
    một người lạ vô danh*: chưa đăng nhập, IP khác hẳn, không vân tay nào của nick. Mở nó bằng
    chính profile antidetect của nick là tự nhìn mình trong gương rồi kết luận người ngoài cũng
    thấy vậy.
+8. **MKT Browser không thay Cầu nối.** Có thể phát chung một bộ cài, nhưng Cầu nối tiếp tục giữ
+   khóa operator, xác minh vé và chống dùng lại; ứng dụng Electron chỉ giữ/chạy profile.
+9. **macOS là nền tảng chính của MKT Browser.** Apple Silicon phải chạy native, có DMG ký/notarize,
+   Cầu nối dùng helper + Keychain + LaunchAgent và nhân viên không phải mở Terminal. Windows x64
+   vẫn được regression/hỗ trợ. V1 giữ UX/UI MultiZen; redesign để sau khi có phản hồi dùng thật.
+10. **English is the only language for project artifacts from 10 August 2026 onward.** This
+    includes code comments, UI and error copy, documentation, plans, tests, installers, release
+    notes, and commit messages. Direct conversation with the project owner may remain Vietnamese.
 
 ## 6. Nguyên tắc bất di bất dịch
 
-> **1 nick = 1 proxy tĩnh = 1 vân tay.**
+> **Mỗi nick Reddit có đúng 1 proxy tĩnh, 1 vân tay/profile, 1 máy giữ và 1 người phụ trách.**
 
-Ràng buộc này do **database ép** (`Account.proxyId` và `Account.antidetectProfileId` đều `@unique`),
-không phải quy ước mềm. Có vội cũng không lách được.
+Database ép hai nick không thể dùng chung proxy/profile (`Account.proxyId` và
+`Account.antidetectProfileId` đều `@unique`). Quan hệ chủ nick/máy giữ được kiểm lại ở các action
+và trước lúc phát vé; một người hoặc một máy vẫn có thể phụ trách nhiều nick.
 
 ## 7. Tiêu chí thành công
 
@@ -104,9 +117,9 @@ không phải quy ước mềm. Có vội cũng không lách được.
 | Nick Reddit cổ (8) | 2-5 triệu | – |
 | Nick Facebook (3) | 1-3 triệu | – |
 | Proxy tĩnh (11 IP) | – | ~700k |
-| Antidetect browser | 0đ (MultiZen, MIT) | 0đ |
+| MKT Browser + engine ngoài | Chưa chốt — Apple Developer + chứng thư ký Windows | Chưa chốt — engine mới nhất có thể cần subscription |
 | Thay nick hao hụt | – | ~500k-1tr |
-| **Tổng** | **3-8 triệu** | **~1,2-1,7 triệu** |
+| **Tổng** | **3-8 triệu + chi phí fork/ký chưa chốt** | **~1,2-1,7 triệu + engine nếu có** |
 
 **Thời gian — không rút ngắn được**
 
@@ -128,6 +141,7 @@ thực, không có cách nào đi tắt. Phần mềm xong sớm không giúp g�
 | # | Giai đoạn | Trạng thái |
 |---|---|---|
 | 0 | Chuẩn bị & kiểm chứng khả thi | 🔄 Chặng B + C đạt 02/08/2026; còn mua proxy/nick + cold-start |
+| 0B | Internal MKT Browser | 🟡 Windows W01/W02 verified; Mac-first MKB-00/MKB-01 gates remain open; retain upstream UX/UI in v1 |
 | 1 | Kho danh tính | ✅ 01/08/2026 |
 | 2 | Hàng đợi content + bộ luật an toàn | ✅ 02/08/2026 |
 | 3 | Theo dõi sức khỏe tài khoản | ✅ 03/08/2026 — bộ dò đọc được Reddit thật. Proxy quan sát viên đã có và kiểm sống trên máy chủ (06/08/2026); **vẫn chưa chạy với nick thật** vì kho trên máy chủ chưa có nick Reddit |
@@ -145,6 +159,6 @@ thực, không có cách nào đi tắt. Phần mềm xong sớm không giúp g�
   chưa có nick thật để dò nên vẫn chưa có số liệu để quyết siết hay nới.
 - Chưa chốt 2-3 subreddit mục tiêu và luật cụ thể của từng sub (việc của Phase 00 bước 1).
 - Chưa đo được "xếp 15 bài trong 15 phút" vì chưa có người dùng thật chạy quy trình đầy đủ.
-- ~~Mục 2 ghi rõ công cụ phục vụ **1 người**.~~ **Đã có chủ 04/08/2026:**
-  [plan web chung](../plans/260804-1752-web-chung-cho-team-phan-tan/plan.md) nhận đúng việc này.
-  Đổi sang DB dùng chung đã xong; đăng nhập + phân quyền + tách hai vùng khóa còn ở phía trước.
+- ~~Mục 2 ghi rõ công cụ phục vụ **1 người**.~~ Web chung, đăng nhập, phân quyền, hai vùng khóa và
+  Cầu nối đã hoàn tất; phần desktop riêng cho team nay đi theo
+  [plan MKT Browser](../plans/260810-0244-mkt-browser-noi-bo/plan.md).

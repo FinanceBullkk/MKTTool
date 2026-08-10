@@ -1,6 +1,6 @@
 # Từ điển thuật ngữ nghiệp vụ
 
-**Cập nhật:** 08/08/2026
+**Updated:** 10/08/2026
 
 Bộ luật an toàn là tri thức nghiệp vụ được mã hóa thành code. Tài liệu này giải thích
 từng khái niệm để 6 tháng nữa vẫn hiểu vì sao ngưỡng Jaccard là 0.70 chứ không phải 0.85.
@@ -18,7 +18,9 @@ Tra cứu thêm: [mục lục tài liệu](README.md) · [tài liệu sản ph�
 | **Nick / tài khoản** | Một tài khoản trên Reddit hoặc Facebook. Đơn vị gắn 1:1 với proxy và vân tay. | Toàn bộ bộ luật xoay quanh việc giữ mỗi nick "sạch". | `prisma/schema.prisma` → model `Account` |
 | **Giọng viết + mảng nội dung** | Hai câu ghi chú trên chính nick: nó nói kiểu gì, nó viết về cái gì. | Cú hích **trước khi viết**: người ôm mười nick mà không có gì nhắc làn thì viết cả mười bài bằng giọng tự nhiên của mình, rồi bị luật 7 chặn ở phút cuối. **Lưu ý:** bộ luật KHÔNG đọc hai cột này — luật 7 so trùng văn bản thật, xét mọi nick cùng họ nền tảng. Thiếu thì `describeAccountReadiness()` báo `NO_VOICE`. | `schema.prisma` → `Account.voice`, `Account.contentAngle` |
 | **Vân tay (fingerprint)** | Tổ hợp đặc điểm trình duyệt (canvas, WebGL, font, timezone…) dùng để nhận diện thiết bị. | Hai nick chung vân tay = cùng một người = shadowban. | Do antidetect browser quản lý, MKTTool chỉ lưu `antidetectProfileId` |
-| **Antidetect browser** | Ứng dụng tạo nhiều profile trình duyệt, mỗi profile một vân tay khác nhau. Hiện dùng MultiZen. | Là lớp cách ly phần cứng giữa các nick. | `src/lib/antidetect/` |
+| **Antidetect browser** | A desktop application that gives each account an isolated browser profile and fingerprint. MKT Browser is the production Relay target; AdsPower remains a secondary adapter. | It is the hardware/browser isolation layer between accounts. | `src/lib/antidetect/` |
+| **MKT Browser** | The separate MultiZen-derived desktop fork for MKTTool. W02 owns its first-party package/preload/MCP contract on configurable default port `47822`; macOS remains the primary target and v1 retains upstream UX/UI. | It removes upstream runtime identity coupling before managed mode without claiming ownership of the separately licensed engine. | `plans/260810-0244-mkt-browser-noi-bo/plan.md` |
+| **Browser engine** | The Chromium-derived binary that actually runs sites, separate from the MKT Browser application layer. | MIT application source does not grant engine redistribution rights; app and engine require separate version/license approval. | MKT Browser `ChromiumBootstrap`; MKB-00 evidence |
 | **Profile** | Một instance trình duyệt bên antidetect browser, gắn 1:1 với nick qua `antidetectProfileId @unique`. | Ép bằng ràng buộc DB — hai nick chung profile là không thể. | `schema.prisma` → `Account.antidetectProfileId` |
 | **Cụm nick** | Tập hợp mọi nick do cùng một người vận hành (tức toàn bộ nick trong database). | Bộ luật coi mọi nick trong DB là "của mình" khi kiểm tra đụng độ. | Ngầm định trong `rule-context-queries.ts` |
 | **Email gốc** | Email đi kèm lúc mua nick, dùng để khôi phục mật khẩu. Mã hóa trước khi lưu. | Mất email = mất quyền khôi phục nick. | `Account.emailAddress`, `Account.emailPasswordEnc` |
@@ -35,7 +37,7 @@ Tra cứu thêm: [mục lục tài liệu](README.md) · [tài liệu sản ph�
 | **Proxy quan sát viên (observer proxy)** | Proxy riêng, TUYỆT ĐỐI không đăng nhập nick nào. Dùng để dò shadowban từ góc nhìn người ngoài. | Phải dùng IP khác, nếu không nền tảng thấy cùng IP vừa đăng vừa kiểm tra. | `schema.prisma` → `ObserverProxy` |
 | **Dải /24** | 256 IP liền kề chia sẻ 24 bit đầu. | Hai nick dùng IP cùng /24 vẫn có thể bị gắn cờ — nên mua proxy từ nhiều /24 khác nhau. | Kinh nghiệm vận hành, chưa có code ép |
 | **ASN** | Autonomous System Number — định danh nhà cung cấp mạng. | Nền tảng check ASN để phân biệt IP dân dụng vs datacenter. | Chưa kiểm tra tự động |
-| **SOCKS5 bridge** | Đường hầm SOCKS5 để DNS phân giải từ xa (qua proxy, không qua máy cục bộ). | Nếu DNS phân giải tại chỗ, nền tảng thấy DNS không khớp IP → nghi ngờ. | MultiZen `create_profile`/`update_profile` hỗ trợ sẵn |
+| **SOCKS5 bridge** | Đường hầm SOCKS5 để DNS phân giải từ xa (qua proxy, không qua máy cục bộ). | Nếu DNS phân giải tại chỗ, nền tảng thấy DNS không khớp IP → nghi ngờ. | Provider desktop `create_profile`/`update_profile` |
 
 ## Vòng đời nick
 
@@ -76,10 +78,10 @@ Tra cứu thêm: [mục lục tài liệu](README.md) · [tài liệu sản ph�
 
 | Thuật ngữ | Định nghĩa | Vì sao quan trọng | Nơi xuất hiện |
 |---|---|---|---|
-| **MCP** | Model Context Protocol — giao thức JSON-RPC 2.0 để gọi tool trên server. MultiZen phơi 22 tool qua MCP. | Phase 05 dùng tool MCP để lái trình duyệt thay vì Playwright (vì MultiZen không phơi CDP). | `src/lib/antidetect/multizen-mcp-client.ts` |
-| **CDP** | Chrome DevTools Protocol — giao thức điều khiển Chromium ở tầng thấp. | MultiZen **không phơi** CDP ra ngoài. AdsPower thì có. | `antidetect-browser-adapter.ts` → `cdpEndpoint?` (optional) |
-| **Human handoff** | Khi bot gặp 2FA/captcha, dừng lại để người bước vào xử lý tay. | MultiZen hỗ trợ sẵn (profile mở, người thao tác trực tiếp). Không tự giải captcha. | Tính năng của MultiZen, tham chiếu ở `project-overview-pdr.md` |
-| **Behavioral injection** | MultiZen mô phỏng hành vi người ở tầng CDP (di chuột, cuộn trang, delay ngẫu nhiên). | Giảm khả năng bị nhận diện là bot. | Tính năng nội tại của MultiZen |
+| **MCP** | Model Context Protocol used by Relay to call authenticated desktop tools over loopback. The W02 endpoint defaults to `127.0.0.1:47822/mcp`. | It separates Web from app/engine details while preserving human handoff on the operator device. | `mkt-browser-mcp-client.ts`; `mkt-browser-contract.ts` |
+| **CDP** | Chrome DevTools Protocol, the lower-level Chromium control protocol. | MKT Browser does not expose a required external CDP endpoint; AdsPower may return one. | `antidetect-browser-adapter.ts` → optional `cdpEndpoint` |
+| **Human handoff** | Stop at 2FA/CAPTCHA so a person can continue in the correct profile. | MKT Browser must preserve this boundary and never solve CAPTCHA automatically. | `project-overview-pdr.md`; MKT Browser plan |
+| **Behavioral injection** | Browser-engine behavior such as human-like movement, scrolling, and randomized delay inherited from the upstream runtime. | It reduces obvious automation signals but does not replace posting-safety rules or human review. | MKT Browser runtime |
 | **Graph API** | API chính thức của Meta. Đường đăng Fanpage **duy nhất** được dùng ở đây: miễn phí, hợp lệ, không bao giờ bị khóa vì vi phạm chính sách tự động hóa. | Khác hẳn Reddit — Reddit không có đường API dùng được nên phải qua trình duyệt. | `src/lib/facebook/facebook-graph-client.ts` |
 | **User token / Page token** | OAuth trả về *user token* của nick cá nhân; từ nó lấy ra *Page token* cho từng Fanpage. Page token là thứ dùng để đăng. | **Page token thừa hưởng tuổi thọ của user token sinh ra nó** — đây là quan hệ quyết định toàn bộ thiết kế `FacebookConnection` → `FacebookPage`. | `facebook-oauth-flow.ts`; `schema.prisma` |
 | **Long-lived token** | Token 60 ngày, đổi từ token ngắn hạn 2 giờ bằng `grant_type=fb_exchange_token`. | Bỏ bước đổi này thì trưa hôm sau công cụ ngừng đăng mà không rõ vì sao. Page token sinh từ long-lived token thì **không có hạn**. | `facebook-oauth-flow.ts` → `exchangeForLongLivedToken()` |

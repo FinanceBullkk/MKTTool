@@ -12,6 +12,33 @@ Dự án chưa phát hành phiên bản (`0.1.0`, dùng nội bộ). Mốc chia 
 
 ---
 
+## 10/08/2026 (7) — MKB-W02 internal clean break verified
+
+Completed the coordinated clean break across the separate MKT Browser and MKTTool repositories:
+
+- Active first-party identities now use `@mktbrowser/*`, `window.mktBrowser`, `mkt-browser`,
+  `MktBrowser*`, and MKT Browser-owned configuration keys. MKTTool and Relay have no MultiZen
+  adapter/provider/config fallback.
+- MKT Browser now uses configurable default loopback port `47822`; MKTTool uses
+  `MKT_BROWSER_MCP_URL` and Relay uses `mktBrowserUrl` for explicit loopback overrides.
+- Removed inert updater/usage fields and obsolete compatibility branches while preserving upstream
+  attribution, Git history, profile/archive formats, and the separate engine-license boundary.
+  Provider-echoed proxy host and credential values are redacted from consumer errors.
+- Passed MKT Browser contract tests 8/8, focused MKTTool/Relay tests 98/98, full MKTTool tests
+  1,120/1,120, both typechecks, ESLint, and both Windows/production builds.
+- With port `7777` occupied by a disposable listener, the packaged app completed the full lifecycle
+  through the updated MKTTool consumer and ended with zero disposable profiles. The 3,497-entry
+  legacy tree and real MKT Browser root were unchanged, and all test processes, ports, and roots
+  were removed.
+
+The x64 executable remains 188,614,144 bytes and now has SHA-256
+`27c27443385f4ecdbc0187772934adb5d1718169d7c387d41b3718ef72ba2b18`. W02 is technical-only;
+Apple Silicon, signing, installer/update/rollback, the missing packaged root MIT license, and blank
+PE copyright remain open gates. Full evidence:
+[MKB-W02 Windows internal clean break](../../MKTBrowser/docs/mkb-w02-windows-internal-clean-break.md).
+
+---
+
 ## 10/08/2026 (6) — W01 checkpoint approved; W02 clean break deferred
 
 The project owner accepted the verified MKB-W01 Windows result as a stable local checkpoint. W01

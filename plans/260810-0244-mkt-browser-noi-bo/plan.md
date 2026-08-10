@@ -2,7 +2,7 @@
 
 **Direction approved:** 10 August 2026
 
-**Status:** MKB-00 open · MKB-W01 Windows isolation verified · MKB-W02 clean break deferred · Apple Silicon gate still open · macOS is the primary platform · retain the MultiZen UX/UI in v1
+**Status:** MKB-00 open · MKB-W01 Windows isolation verified · MKB-W02 internal clean break verified · Apple Silicon gate still open · macOS is the primary platform · retain the MultiZen UX/UI in v1
 
 **Status source:** [development-roadmap.md](../../docs/development-roadmap.md)
 
@@ -30,12 +30,13 @@
 > rollout. Evidence is in
 > [MKB-W01 Windows product isolation](../../../MKTBrowser/docs/mkb-w01-windows-product-isolation.md).
 
-> **W01 checkpoint and W02 deferral (10 August 2026):** The project owner accepted W01 as the
-> stable Windows isolation checkpoint. MKTTool has no operational deployment yet, so no production
-> client or real profile requires backward compatibility with the retained internal MultiZen names.
-> Do not reopen W01. A later MKB-W02 may rename internal package/preload/MCP/adapter surfaces,
-> assign a dedicated port, and remove legacy settings and fallbacks. It must retain upstream license
-> attribution and rerun the complete MKTTool-to-browser lifecycle before passing.
+> **MKB-W02 verified (10 August 2026):** W01 remains the immutable Windows isolation checkpoint.
+> W02 now owns the active first-party package, preload, MCP, adapter, and configuration identities,
+> uses configurable default port `47822`, and removes the legacy fallback and inert settings. The
+> packaged lifecycle passed through the updated MKTTool consumer while `7777` was independently
+> occupied. Upstream attribution, history, profile/archive formats, and engine boundaries remain
+> unchanged. See
+> [MKB-W02 Windows evidence](../../../MKTBrowser/docs/mkb-w02-windows-internal-clean-break.md).
 
 ## One-line decision
 
@@ -181,7 +182,7 @@ flowchart LR
   subgraph Operator["OPERATOR DEVICE"]
     Normal["Chrome/Edge\nopens MKTTool"]
     Relay["Relay\n127.0.0.1:47821"]
-    Browser["MKT Browser\nMCP 127.0.0.1:7777"]
+    Browser["MKT Browser\nMCP 127.0.0.1:47822"]
     Store[("Local profile store\nSQLite + user-data-dir")]
     Engine["Approved Chromium engine"]
     Proxy["Account static proxy"]
@@ -596,9 +597,9 @@ This is a legal and operational gate, not legal advice.
 
 | Slice | Code area | Change |
 |---|---|---|
-| Provider identification | `relay/src/relay-config.ts`, `relay/src/relay-antidetect.ts` | Add provider `mkt-browser`; retain `multizen` as temporary rollback |
+| Provider identification | `relay/src/relay-config.ts`, `relay/src/relay-antidetect.ts` | W02 complete: use `mkt-browser` only; rollback is the frozen W01 checkpoint, not a runtime provider fallback |
 | Cross-platform Relay | build/release + `relay/src/relay-home.ts` | Separate Windows-only behavior from the core; macOS helper/LaunchAgent + Keychain, Windows per-user autostart + secure store |
-| MCP contract | `src/lib/antidetect/` | Extract a common MCP client from MultiZen naming; read runtime and capabilities |
+| MCP contract | `src/lib/antidetect/` | W02 complete: owned client/adapter/contract names and port; runtime capability reporting remains future work |
 | Health | `src/lib/relay/relay-endpoints.ts`, `relay/src/main.ts` | Return provider/app/engine/contract versions without sensitive tokens or paths |
 | Idempotent create | profile actions + adapter | Send `accountId`/`requestId` and reconcile by external reference |
 | Atomic launch | `relay/src/launch-profile.ts` | Prefer the atomic capability and retain the old path for a bounded transition window |
@@ -607,9 +608,10 @@ This is a legal and operational gate, not legal advice.
 | Fork UI | MultiZen renderer | Retain upstream layout and components; add only rebranding, managed badge, and minimal locked states |
 | Release | download page + R2 | Serve the correct notarized `.dmg` or Windows installer by OS/architecture with a compatibility manifest |
 
-Only after every device has moved to MKT Browser and the rollback window has ended should the
-MultiZen fallback names and tools be considered for removal. Do not remove the escape path in the
-same release that introduces the fork.
+The pre-operational W02 owner decision supersedes the original dual-provider transition proposal.
+No real device depended on the old internal names, so the active runtime fallback was removed in
+W02. Rollback remains the frozen W01 source/artifact checkpoint and the independently installed
+upstream application; do not reintroduce silent dual-name behavior.
 
 ## 12. Implementation roadmap
 
@@ -637,7 +639,7 @@ estimate and cannot be shortened.
 
 **Gate:** The build is reproducible and a test profile opens through the correct proxy on Apple
 Silicon; Windows retains its baseline. The original ordering prohibited rebranding before this
-gate; the Windows-first exception above now permits only the completed MKB-W01 isolation slice.
+gate; the authorized Windows exception now contains the completed MKB-W01 and MKB-W02 slices only.
 
 ### MKB-01 — Cross-platform compatibility and product identity (3–5 days)
 
@@ -659,7 +661,7 @@ gate; the Windows-first exception above now permits only the completed MKB-W01 i
 **Gate:** The current MKTTool build opens a profile in MKT Browser on both macOS and Windows without
 server changes, and the upstream interface has not been rewritten.
 
-### MKB-W02 — Windows internal clean break (deferred)
+### MKB-W02 — Windows internal clean break (verified 10 August 2026)
 
 **Work:**
 
@@ -671,9 +673,11 @@ server changes, and the upstream interface has not been rewritten.
   required before operational use.
 - Preserve upstream history, MIT notices, engine license boundaries, and source attribution.
 
-**Gate:** The clean contract has no MultiZen fallback, both repositories pass their focused and
-type checks, and the packaged Windows application completes the full disposable
-list/create/proxy/launch/close/delete lifecycle through the updated MKTTool consumer.
+**Gate result:** Passed. The clean contract has no MultiZen fallback, both repositories pass their
+focused and full relevant checks, and the packaged Windows application completed the disposable
+initialize/tools-list/list/fingerprint/create/fail-closed proxy/update/launch/close/delete lifecycle
+through the updated MKTTool consumer. The artifact remains technical-only; distribution gates are
+recorded in the W02 evidence linked above.
 
 ### MKB-02 — MKTTool-managed mode (5–8 days)
 
@@ -734,8 +738,9 @@ before wider real-account rollout.
 - Make MKT Browser the default and import the real fleet only after the canary completes cold start.
 - Implement and rehearse the transfer lock and recipient-encrypted export/import with a test profile.
 - Train operators through the Web flow; do not train them to edit managed profiles in the desktop app.
-- Retain the MultiZen adapter for one release as rollback.
-- Only after the stability window should the old MultiZen guidance be retired.
+- Retain the frozen W01 checkpoint and tested export/import procedure for one rollback window; do
+  not restore the removed MultiZen adapter fallback.
+- Retire old upstream operating guidance only after the stability window.
 
 ### MKB-06 — Custom UX/UI (deferred; outside v1)
 
