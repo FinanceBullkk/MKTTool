@@ -12,6 +12,28 @@ Dự án chưa phát hành phiên bản (`0.1.0`, dùng nội bộ). Mốc chia 
 
 ---
 
+## 10/08/2026 (8) — Relay installer lost its BOM in the W02 rename
+
+The W02 slice saved `relay/install-relay.ps1` without its UTF-8 byte order mark while the file still
+held 986 non-ASCII characters. Windows PowerShell 5.1 reads a BOM-less `.ps1` in the machine ANSI
+code page, so the installer keeps installing correctly and only the text turns unreadable — on the
+single screen the person doing the install actually reads. The file bytes were already valid UTF-8,
+so restoring the mark changed nothing else.
+
+The packaging script had guarded this since the installer was written, but that guard runs only when
+someone packages a release, so the regression passed the full 1,120-test suite untouched. The same
+check now sits in the installer encoding tests beside the BOM bug on the config file that script
+writes.
+
+The W02 verification never ran the Relay packaging pipeline, so the packaged `.exe` and `.zip` on
+disk still dated from 07/08 and predated the clean break entirely. Rebuilt from current source: the
+bundle now carries `MKT_BROWSER_DEFAULT_MCP_PORT = 47822` with no MultiZen marker, and
+`npm run relay:verify` passed all 24 checks against the new executable, including ticket signing,
+decryption, replay rejection, and expiry. The download archive is 32.6 MB with SHA-256
+`a2433fba8271b7fc204dec636e92d6d5093b382f6ef7f2f7560a5f467844c094`; it is not published.
+
+---
+
 ## 10/08/2026 (7) — MKB-W02 internal clean break verified
 
 Completed the coordinated clean break across the separate MKT Browser and MKTTool repositories:

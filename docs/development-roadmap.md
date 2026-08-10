@@ -113,6 +113,15 @@ the updated MKTTool consumer and ended with zero profiles. The real MKT Browser 
 and all 3,497 legacy-tree metadata records stayed unchanged. See
 [MKB-W02 Windows evidence](../../MKTBrowser/docs/mkb-w02-windows-internal-clean-break.md).
 
+**W02 coverage gap, closed the same day:** that run never exercised the MKTTool Relay packaging
+pipeline, and one regression was hiding there. The slice had saved `relay/install-relay.ps1` without
+its UTF-8 byte order mark while the file still held Vietnamese text, which makes Windows PowerShell
+5.1 read the installer in the machine ANSI code page and show an operator mojibake on the one screen
+they read. It survived the full green suite because only the packaging script guarded it. The mark
+is restored, the same check now lives in the installer encoding tests, and the repackaged Relay
+executable passed its 24-check acceptance carrying the W02 contract and port `47822`. Treat a green
+test suite as evidence about the code paths it runs, not about release packaging.
+
 The current technical estimate is **five to eight weeks** because the Relay is currently tied to a
 Windows `.exe`, PowerShell, and Startup, while macOS requires a native helper, Keychain, LaunchAgent,
 Developer ID, and notarization. Retaining the MultiZen UX/UI keeps a separate design project off this
