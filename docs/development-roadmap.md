@@ -14,7 +14,7 @@ Dự án đang chạy **ba luồng song song**:
 |---|---|---|
 | **A — Công cụ** | 5 giai đoạn gốc: kho danh tính → hàng đợi → sức khỏe → Facebook → tự đăng Reddit | GĐ1-4 xong, GĐ0 kẹt ở tiền + cold-start, GĐ5 chưa bắt đầu |
 | **B — Web chung** | Biến app một máy thành web chung cho 5-6 người ở 5-6 nơi | **GĐ0-4 xong 06/08**, GĐ5 web **đã chạy thật trên Railway** cùng ngày |
-| **C — MKT Browser** | Fork the MultiZen desktop layer; macOS is primary while Web, Relay, and upstream UX/UI remain intact in v1 | **MKB-00 remains open; MKB-W01 Windows isolation and MKB-W02 internal clean break verified**; Apple Silicon gate open; [plan](../plans/260810-0244-mkt-browser-noi-bo/plan.md) |
+| **C — MKT Browser** | Fork the MultiZen desktop layer; Windows-only in v1 while Web, Relay, and upstream UX/UI remain intact | **MKB-00 remains open on the correct-proxy test; MKB-W01 and MKB-W02 verified**; macOS deferred to MKB-07; [plan](../plans/260810-0244-mkt-browser-noi-bo/plan.md) |
 
 Luồng B sinh ra sau khi chốt bàn giao cho team — xem
 [plan web chung](../plans/260804-1752-web-chung-cho-team-phan-tan/plan.md). Nó **không thay thế**
@@ -23,9 +23,13 @@ luồng A: tự đăng Reddit vẫn nằm ở luồng A và vẫn chờ nick th�
 Stream C replaces MultiZen at the **desktop execution layer**; it does not replace Web, the database,
 the rule engine, or Relay. W01 proved compatible behavior, then W02 deliberately moved the active
 first-party package/preload/MCP/consumer identities to an owned contract before operational use.
-**macOS Apple Silicon is primary**;
-Windows x64 remains a regression platform, and Intel Mac support is added only if device inventory
-shows a real need. V1 does not redesign MultiZen or develop a Chromium engine.
+**Platform decision, 10 August 2026:** v1 commits to **Windows x64 only**; macOS Apple Silicon moves
+to MKB-07 after v1. Mac hardware is available, so this is a priority choice rather than a hardware
+constraint: the Windows slice is already verified end to end, while macOS still needs Apple Developer
+enrollment, notarization, a LaunchAgent helper, and Keychain storage, none of which is started or
+owned, and no operator workflow depends on macOS today. The control against paying for this twice is
+that the Relay keeps a shared core with thin OS adapters, so MKB-07 adds a platform instead of
+reopening one. V1 does not redesign MultiZen or develop a Chromium engine.
 
 > **Language rule — 10 August 2026:** all new or materially revised project artifacts and product
 > copy must be in English. Direct conversation with the project owner may remain in Vietnamese.
@@ -70,24 +74,27 @@ repository. MKTTool retains only the consuming contract, Relay, and release page
 
 | # | Phase | Status | Exit gate |
 |---|---|---|---|
-| MKB-00 | Platform, source, license, and engine | 🟡 In progress | Upstream and engine run natively on Mac arm64; Windows x64 retains its baseline |
+| MKB-00 | Source, license, and engine | 🟡 In progress | A Windows build opens a test profile through a **real working proxy** with a verified exit IP; engine approved for Windows x64 |
 | MKB-W01 | Windows-only product isolation (authorized exception) | ✅ Verified 10 August | Independent Windows identity/data root; upstream updater/heartbeat/publishing absent; current MCP adapter remains green |
 | MKB-W02 | Windows internal clean break | ✅ Verified 10 August | Dedicated port `47822`, MKT Browser-only internal contract, no legacy fallback, packaged lifecycle through updated MKTTool consumer |
-| MKB-01 | Cross-platform compatibility and product identity | 🟡 Windows subset only | Independent data path/updater; stable MKT Browser MCP and upstream-derived UX/UI behavior; Mac + Windows CI |
+| MKB-01 | Windows compatibility and product identity | 🟡 Mostly done via W01/W02 | Copy-only importer, visual baselines, `get_runtime_info`, and the W01/W02 guards running in Windows CI |
+| MKB-01E | Electron upgrade and renderer hardening | ⬜ Not started | Off end-of-life Electron 33 with native modules rebuilt; sandbox/CSP/IPC allowlist; fingerprint delta reviewed deliberately |
 | MKB-02 | Managed mode | ⬜ Not started | Idempotent create, atomic launch, and dangerous actions locked with upstream components |
-| MKB-03 | Relay, installer, and updates | ⬜ Not started | Signed/notarized Mac DMG plus Keychain/LaunchAgent helper; signed Windows installer; snapshot/rollback |
-| MKB-04 | Technical pilot and one canary account | ⬜ Not started | Two Macs plus one Windows regression device remain green for seven days; one Mac account completes a 14-day cold start |
+| MKB-03 | Windows installer, Relay packaging, and updates | ⬜ Not started | One signed Windows installer, Relay discovers the MCP token automatically, snapshot/rollback, OS behavior behind thin adapters |
+| MKB-04 | Technical pilot and one canary account | ⬜ Not started | Two Windows devices remain green for seven days; one account completes a 14-day cold start |
 | MKB-05 | Team rollout | ⬜ Not started | Canary completes cold start; MKT Browser becomes default; rollback uses only the frozen W01 checkpoint and never restores a MultiZen adapter fallback |
 | MKB-06 | Custom UX/UI | ⏸ Deferred beyond v1 | Begin only from observed usage feedback; does not block MKB-00 through MKB-05 |
+| MKB-07 | macOS Apple Silicon | ⏸ Deferred beyond v1 | Native arm64 build, engine approved for macOS, signed/notarized DMG, LaunchAgent + Keychain, macOS added to the CI matrix |
 
 **MKB-00 evidence, 10 August 2026:** Official MultiZen `v0.3.1` is pinned at
 `83c6898b2de3de1122b5fea88008fbbaa4677bff` in the separate `E:\MKTBrowser` checkout. The
 unmodified Windows x64 build, the 22-tool MCP contract, and MKTTool's current adapter passed with
 disposable profiles; focused fail-closed tests passed 27/27. The CloakBrowser binary is approved
 only conditionally for unmodified internal use through official downloads and must not be bundled or
-redistributed. MKB-00 remains in progress because Apple Silicon, a real disposable proxy, and the
-exact Mac engine/license decision are unverified. Evidence and the Mac runbook live in
-`E:\MKTBrowser\docs`.
+redistributed. MKB-00 now remains in progress for one reason only: no profile has been launched
+through a **real working proxy** with a verified exit IP. W01 and W02 proved the fail-closed guard
+against a deliberately invalid proxy, which is the opposite case. The Apple Silicon half left this
+gate on 10 August and belongs to MKB-07. Evidence and the Mac runbook live in `E:\MKTBrowser\docs`.
 
 **MKB-W01 evidence, 10 August 2026:** The project owner authorized a bounded Windows-first
 exception while MKB-00 remains open. The fork now builds as `MKTBrowser.exe` with application ID
@@ -122,10 +129,15 @@ is restored, the same check now lives in the installer encoding tests, and the r
 executable passed its 24-check acceptance carrying the W02 contract and port `47822`. Treat a green
 test suite as evidence about the code paths it runs, not about release packaging.
 
-The current technical estimate is **five to eight weeks** because the Relay is currently tied to a
-Windows `.exe`, PowerShell, and Startup, while macOS requires a native helper, Keychain, LaunchAgent,
-Developer ID, and notarization. Retaining the MultiZen UX/UI keeps a separate design project off this
-critical path.
+The current technical estimate is **three to five weeks**, down from five to eight after macOS left
+v1: the Relay stays on the Windows `.exe`, PowerShell, and Startup path it already uses, and no
+native helper, Keychain, LaunchAgent, Developer ID, or notarization work is in scope. Retaining the
+MultiZen UX/UI keeps a separate design project off this critical path.
+
+Two items carry most of the remaining uncertainty and are tracked as their own slices rather than as
+bullets: the Electron 33 upgrade with native module rebuilds (MKB-01E) and the signed installer with
+updates and rollback (MKB-03). W02 already met the small version of the first when a
+`better-sqlite3` rebuild failed under Node 24.
 
 **There is no database migration in the compatibility phase.** `antidetectProfileId`, `deviceId`,
 and `proxyId` are sufficient to replace the provider. Add provider or version data to Postgres only
@@ -244,9 +256,8 @@ và máy chủ tự `pg_dump` rồi tải lên Cloudflare R2 mỗi đêm.
 
 | Chặn | Bản chất | Ai gỡ được |
 |---|---|---|
-| **MKB-00: engine Mac arm64 + build baseline** | Cổng mới do quyết định Mac-first; chưa được dùng nick thật để debug | Người phát triển + người duyệt điều khoản/chi phí |
-| **Apple Developer ID + notarization** | Không có thì nhân viên Mac gặp Gatekeeper hoặc phải mở Terminal, trái flow đã chốt | Người quyết tài khoản/ngân sách |
-| **Chứng thư ký Windows** | Vẫn cần cho các máy Windows kiểm hồi quy/team | Người quyết ngân sách |
+| **MKB-00: một proxy thật để thử đường chạy đúng** | Mới chỉ chứng minh chặn-khi-hỏng, chưa chứng minh chạy-khi-đúng; cần một proxy dùng được và một lượt đối chiếu IP ra | Người phát triển + người duyệt chi phí proxy |
+| **Chứng thư ký Windows** | Không có thì mọi máy team đều gặp SmartScreen ở lần chạy đầu | Người quyết ngân sách |
 | **Mua proxy tĩnh + nick** | Tiền (3-8 triệu một lần) | Người quyết ngân sách |
 | **14 ngày cold-start** | Đồng hồ thật, không rút ngắn | Không ai — chỉ chờ |
 
@@ -276,9 +287,9 @@ proxy quan sát viên.
 
 | Mốc | Điều kiện đạt |
 |---|---|
-| **M0B — Fork tương thích** | Mac arm64 build native từ nguồn ghim và mở profile đúng proxy; Windows x64 giữ baseline |
-| **M0C — Desktop pilot** | DMG notarized + managed mode + rollback xanh trên hai Mac và một Windows kiểm hồi quy trong 7 ngày |
-| **M0D — Nick thăm dò** | Một nick ít quan trọng đi hết 14 ngày cold-start trên Mac, không sai IP/profile |
+| **M0B — Fork tương thích** | Windows build từ nguồn ghim mở được profile qua **proxy thật**, IP ra khớp |
+| **M0C — Desktop pilot** | Bộ cài Windows đã ký + managed mode + rollback xanh trên hai máy Windows trong 7 ngày |
+| **M0D — Nick thăm dò** | Một nick ít quan trọng đi hết 14 ngày cold-start, không sai IP/profile |
 | **M1 — Kho danh tính có nick thật** | 8 nick Reddit + 3 nick FB đã nhập, mỗi nick một proxy tĩnh, cold-start đang chạy |
 | **M2 — Bài đầu tiên lên Reddit** | Hết cold-start, xếp lịch qua hàng đợi, bộ luật cho qua, đăng tay thành công |
 | **M3 — Vận hành đều 2 tuần** | 15-20 bài/ngày, không nick nào bị ẩn, `npm run health` chạy hằng ngày |
@@ -301,8 +312,8 @@ proxy quan sát viên.
 | **Cold-start chưa chạy** | Đường găng thật, code đã đi trước khá xa | Không có cách nào ngoài mua nick sớm |
 | **Fork trôi xa upstream** | Tự gánh bản vá Electron/MCP/profile migration | Repo riêng, module `mkt-*`, upstream SHA và contract test mỗi lần nhập bản vá |
 | **Engine và app khác license** | MIT của MultiZen không tự cấp quyền phân phối binary engine | Gate license riêng, không bundle engine theo quán tính, SBOM/NOTICE mỗi release |
-| **Mac chỉ “mở được” nhưng không đủ dùng** | Rosetta, Gatekeeper, helper, Keychain hoặc WebRTC có thể lệch hành vi thật | arm64 native + notarization + hai máy Mac pilot; không cho nhân viên chạy `xattr` |
-| **Hai OS trôi khác nhau** | Cầu nối hiện chỉ đóng gói Windows | Lõi chung, adapter OS mỏng, CI contract/mật mã trên Mac và Windows |
+| **Hoãn macOS làm Windows ăn sâu vào lõi** | Viết thẳng hành vi Windows vào lõi thì MKB-07 phải mổ lại chứ không phải cắm thêm | Lõi chung + adapter OS mỏng cho path/autostart/kho khóa; test contract và mật mã đánh vào lõi |
+| **Đến MKB-07 mới biết Mac vướng** | Rosetta, Gatekeeper, helper, Keychain hoặc WebRTC có thể lệch hành vi thật, và lúc đó team đã quen bản Windows | arm64 native là cổng cứng, notarization, hai máy Mac pilot; không cho nhân viên chạy `xattr` |
 | **Redesign làm chậm fork** | UI riêng không giải quyết rủi ro profile/proxy | Giữ UX/UI MultiZen trong v1; MKB-06 để sau dữ liệu sử dụng thật |
 | **Reddit đổi giao diện** | Bộ dò đọc HTML `old.reddit.com` sẽ hỏng | Hỏng thì báo "Không dò được", không bao giờ báo "khỏe"; `npm run health:smoke` đối chiếu Reddit thật |
 

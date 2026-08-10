@@ -84,9 +84,12 @@ Nếu sau này có ai đề xuất thêm một trong các mục trên, đây là
    thấy vậy.
 8. **MKT Browser không thay Cầu nối.** Có thể phát chung một bộ cài, nhưng Cầu nối tiếp tục giữ
    khóa operator, xác minh vé và chống dùng lại; ứng dụng Electron chỉ giữ/chạy profile.
-9. **macOS là nền tảng chính của MKT Browser.** Apple Silicon phải chạy native, có DMG ký/notarize,
-   Cầu nối dùng helper + Keychain + LaunchAgent và nhân viên không phải mở Terminal. Windows x64
-   vẫn được regression/hỗ trợ. V1 giữ UX/UI MultiZen; redesign để sau khi có phản hồi dùng thật.
+9. **Windows x64 is the only platform MKT Browser v1 commits to (decided 10 August 2026).** macOS
+   Apple Silicon — native arm64, a signed and notarized DMG, and the Relay as a LaunchAgent helper
+   with Keychain storage — moves to MKB-07 after v1. Mac hardware exists, so this is a priority
+   choice, not a hardware limit. The Relay keeps a shared core behind thin OS adapters so adding
+   macOS later does not reopen the core. V1 retains the MultiZen UX/UI; redesign waits for real
+   usage feedback.
 10. **English is the only language for project artifacts from 10 August 2026 onward.** This
     includes code comments, UI and error copy, documentation, plans, tests, installers, release
     notes, and commit messages. Direct conversation with the project owner may remain Vietnamese.

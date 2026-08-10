@@ -2,7 +2,7 @@
 
 **Direction approved:** 10 August 2026
 
-**Status:** MKB-00 open · MKB-W01 Windows isolation verified · MKB-W02 internal clean break verified · Apple Silicon gate still open · macOS is the primary platform · retain the MultiZen UX/UI in v1
+**Status:** MKB-00 open · MKB-W01 Windows isolation verified · MKB-W02 internal clean break verified · Windows x64 is the primary platform for v1 · macOS Apple Silicon moves to MKB-07 after v1 · retain the MultiZen UX/UI in v1
 
 **Status source:** [development-roadmap.md](../../docs/development-roadmap.md)
 
@@ -16,8 +16,10 @@
 > **MKB-00 evidence (10 August 2026):** Official MultiZen `v0.3.1` is pinned at
 > `83c6898b2de3de1122b5fea88008fbbaa4677bff` in the separate `E:\MKTBrowser` checkout. The
 > unmodified Windows x64 build, direct MCP contract, and current MKTTool adapter passed with only
-> disposable profiles; failed proxy application remained fail-closed. MKB-00 is not complete
-> because no real Apple Silicon build/runtime or correct-proxy test has been performed. See the
+> disposable profiles; failed proxy application remained fail-closed. MKB-00 is not complete: the
+> correct-proxy test is still missing. The Apple Silicon half left this gate under the 10 August
+> platform decision below and now belongs to MKB-07, where the verification runbook still applies.
+> See the
 > [source/license/engine inventory](../../../MKTBrowser/docs/mkb-00-source-license-engine-inventory.md)
 > and [Apple Silicon verification runbook](../../../MKTBrowser/docs/mkb-00-apple-silicon-verification.md).
 
@@ -38,11 +40,20 @@
 > unchanged. See
 > [MKB-W02 Windows evidence](../../../MKTBrowser/docs/mkb-w02-windows-internal-clean-break.md).
 
+> **Platform decision (10 August 2026, supersedes the original macOS-first ordering):** v1 commits
+> to **Windows x64 only**. macOS Apple Silicon moves out of v1 into MKB-07. This is a priority
+> choice, not a hardware constraint: Mac machines are available, but the Windows technical slice is
+> already verified end to end through W01, W02, and the repackaged Relay, while the macOS half still
+> needs Apple Developer enrollment, notarization, a LaunchAgent helper, and Keychain storage, none of
+> which is started or owned. No operator workflow depends on macOS today. The cost of this choice is
+> that macOS evidence stays at zero for longer; the control is that the Relay and desktop code keep a
+> shared core plus thin OS adapters, so MKB-07 adds a platform instead of reopening the core.
+
 ## One-line decision
 
 Fork MultiZen into a dedicated desktop application provisionally named **MKT Browser**, with
-**macOS Apple Silicon** as the primary platform and **Windows x64** as a supported platform, while
-keeping **MKTTool Web** and the **Relay** as independent components. The first version owns only
+**Windows x64** as the only committed platform for v1 and **macOS Apple Silicon** as the first
+post-v1 platform, while keeping **MKTTool Web** and the **Relay** as independent components. The first version owns only
 the application layer, operating workflow, and integrations. It does not fork Chromium, centralize
 profiles or cookies on the server, or spend the critical path redesigning the MultiZen interface.
 
@@ -103,8 +114,7 @@ that are difficult to use. It is not on the fork's critical path.
 
 ### What operators see
 
-- One signed installer for the current operating system: a notarized `.dmg` on macOS and a signed
-  installer on Windows.
+- One signed Windows installer. macOS receives its notarized `.dmg` in MKB-07, after v1.
 - A status page that clearly reports Relay, MKT Browser, engine, proxy, and version status.
 - **Create profile on this device** creates exactly one profile, applies the proxy and fingerprint,
   and pins the account to the device.
@@ -141,10 +151,10 @@ that are difficult to use. It is not on the fork's critical path.
 ### Included in v1
 
 - Fork the MultiZen desktop application into a separate repository.
-- Make macOS Apple Silicon (`arm64`) the primary platform and Windows x64 a concurrently supported
-  platform.
-- Include Intel Mac only if the real device inventory demonstrates a user requirement; Linux is not
-  on the critical path.
+- Make Windows x64 the primary and only committed platform.
+- Keep the Relay and desktop code as a shared core plus thin OS adapters for paths, autostart, and
+  secure storage, so macOS can be added in MKB-07 without reopening the core.
+- Intel Mac and Linux are not on the critical path.
 - Retain the MultiZen UX/UI with only minimal rebranding and required managed-profile states and
   locks.
 - Keep MCP on loopback and retain compatibility with the tools MKTTool already calls.
@@ -158,6 +168,9 @@ that are difficult to use. It is not on the fork's critical path.
 ### Excluded from v1
 
 - Do not build or modify a Chromium antidetect binary.
+- Do not ship, sign, or notarize a macOS artifact in v1, and do not buy Apple Developer access for
+  it yet. Do not hardcode Windows assumptions into the shared core either; that is what makes MKB-07
+  affordable.
 - Do not redesign the UX/UI or create a custom design system in v1.
 - Do not redistribute an engine binary unless its license permits redistribution.
 - Do not cloud-sync profiles or cookies to MKTTool Web.
@@ -349,7 +362,7 @@ sequenceDiagram
   participant R as Relay
   participant W as MKTTool Web
 
-  Operator->>Setup: Run signed .dmg/installer
+  Operator->>Setup: Run the signed installer
   Setup->>MB: Install app and register per-user startup
   MB->>MB: Generate MCP token in a user-only location
   Setup->>R: Install separate Relay helper and autostart it
@@ -360,13 +373,13 @@ sequenceDiagram
   R-->>Operator: Report four layers: Relay · MKT Browser · engine · configuration
 ```
 
-The team macOS release must be a native Apple Silicon application signed with Developer ID and
-notarized. The Relay runs as a separate helper or LaunchAgent even when distributed in the same
-package. Operators must not need Homebrew, `xattr`, or Terminal. Windows uses a signed installer and
-per-user autostart.
+The v1 team release is a signed Windows installer with per-user autostart. The Relay runs as a
+separate process even when it ships in the same package. The macOS release — a native Apple Silicon
+application signed with Developer ID, notarized, with the Relay as a LaunchAgent helper and no
+Homebrew, `xattr`, or Terminal requirement — is specified in MKB-07 and is not a v1 deliverable.
 
 During technical development, the app and Relay may be separate artifacts for diagnostics. Do not
-hand them to the team until each operating system has **one download and one installation flow**. If
+hand them to the team until Windows has **one download and one installation flow**. If
 the engine license prohibits bundling, the installer or app downloads it from the official source and
 verifies its signature or checksum; the operator does not perform those steps manually.
 
@@ -456,6 +469,13 @@ V1 uses a controlled manual flow:
 
 Do not implement two-way sync. If the old device is lost before export, the system can revoke new
 tickets but cannot promise to recover or remotely erase sessions already stored on that disk.
+
+The recovery play for that day must be decided in advance rather than improvised: revoke the device so
+it receives no further ticket, rotate the operator-domain key and every credential that device could
+decrypt, unpin the account so it can be pinned to a replacement device, and accept that the identity
+needs a fresh first login there with the cold-start risk that implies. Decide before the pilot whether
+an identity that loses its profile is re-logged in or retired. That is a calm decision now and a
+panicked one later.
 
 ### 8.6 Import existing MultiZen profiles
 
@@ -569,9 +589,9 @@ employee installation experience:
 
 - [MultiZen — macOS installation and cross-platform CI](https://github.com/multizenteam/multizen-browser)
 
-V1 needs separate artifacts by `os + arch`: macOS `arm64` and Windows `x64` are mandatory; macOS
-`x64` is conditional on real inventory. Native dependencies and the engine must match the architecture;
-running through Rosetta does not count as native compatibility.
+V1 needs exactly one artifact: Windows `x64`. macOS `arm64` artifacts belong to MKB-07, where native
+dependencies and the engine must match the architecture and running through Rosetta does not count as
+native compatibility. Intel Mac stays conditional on real inventory even then.
 
 Upstream currently declares Electron 33. The official schedule says that line reached end of support
 on 29 April 2025. Moving to an Electron line supported at release time is a release gate, not optional
@@ -598,7 +618,7 @@ This is a legal and operational gate, not legal advice.
 | Slice | Code area | Change |
 |---|---|---|
 | Provider identification | `relay/src/relay-config.ts`, `relay/src/relay-antidetect.ts` | W02 complete: use `mkt-browser` only; rollback is the frozen W01 checkpoint, not a runtime provider fallback |
-| Cross-platform Relay | build/release + `relay/src/relay-home.ts` | Separate Windows-only behavior from the core; macOS helper/LaunchAgent + Keychain, Windows per-user autostart + secure store |
+| Relay core and OS seam | build/release + `relay/src/relay-home.ts` | Keep Windows behavior behind adapters over a shared core: Windows per-user autostart + secure store now, macOS helper/LaunchAgent + Keychain at MKB-07 |
 | MCP contract | `src/lib/antidetect/` | W02 complete: owned client/adapter/contract names and port; runtime capability reporting remains future work |
 | Health | `src/lib/relay/relay-endpoints.ts`, `relay/src/main.ts` | Return provider/app/engine/contract versions without sensitive tokens or paths |
 | Idempotent create | profile actions + adapter | Send `accountId`/`requestId` and reconcile by external reference |
@@ -606,7 +626,7 @@ This is a legal and operational gate, not legal advice.
 | Device transfer (MKB-05) | Prisma + ticket route + Relay | Add a `ProfileTransfer` lock and recipient-encrypted export/import; the server stores no bundle |
 | Web UI | profile card + Relay page | Show the actual provider and actionable errors/versions without redesign |
 | Fork UI | MultiZen renderer | Retain upstream layout and components; add only rebranding, managed badge, and minimal locked states |
-| Release | download page + R2 | Serve the correct notarized `.dmg` or Windows installer by OS/architecture with a compatibility manifest |
+| Release | download page + R2 | Serve the signed Windows installer with a compatibility manifest; add further OS/architecture entries at MKB-07 |
 
 The pre-operational W02 owner decision supersedes the original dual-provider transition proposal.
 No real device depended on the old internal names, so the active runtime fallback was removed in
@@ -615,51 +635,81 @@ upstream application; do not reintroduce silent dual-name behavior.
 
 ## 12. Implementation roadmap
 
-The estimates below express relative size rather than hard calendar commitments. The first goal is
-to move one test profile through the full flow on Apple Silicon within at most two working weeks so
-the fork does not become an open-ended project. With macOS primary, Windows concurrently supported,
-and no redesign, a technical build ready for pilot is estimated at **five to eight weeks**. That does
-not include developing an engine, which is out of scope. Full rollout to real accounts also waits for
-one canary account to complete its **14-day cold start**; that elapsed time is outside the coding
-estimate and cannot be shortened.
+The estimates below express relative size rather than hard calendar commitments. With Windows as the
+only committed platform and no redesign, a technical build ready for pilot is estimated at **three to
+five weeks**. The anti-open-ended guard is that MKB-02 must be reachable within two working weeks; if
+it is not, stop and reassess rather than extending.
 
-### MKB-00 — Platform, source, license, and engine gate (2–4 days)
+Two items inside that range carry most of the uncertainty and deserve to be tracked as their own
+slices rather than as bullets inside a phase: moving off end-of-life Electron 33 on a fork with native
+modules, and the signed Windows installer with controlled updates and rollback. W02 already met the
+smaller version of the first problem when a native `better-sqlite3` rebuild failed under Node 24 and
+had to fall back to a checksum-verified Node 22.
 
-**Work:**
+The estimate excludes developing an engine, which is out of scope, and excludes macOS, which is
+MKB-07. Full rollout to real accounts also waits for one canary account to complete its **14-day cold
+start**; that elapsed time is outside the coding estimate and cannot be shortened.
 
-- Create a separate fork repository, retain the upstream remote, and preserve all NOTICE files.
-- Pin the first tag or commit and record both the lockfile and source SHA.
-- Inventory operator devices: Mac model, chip, macOS version, and Windows device count. Do not assume
-  Intel support when no real user needs it.
-- Approve an experimental and operational engine for macOS arm64 and Windows x64; confirm artifacts,
-  licenses, and a lawful download path for each architecture.
-- Build the unmodified source on one Apple Silicon Mac and one Windows x64 device before changing the
-  product name or UX/UI.
-- Run list/create/update/launch/close through the current MKTTool adapter on both operating systems.
+### MKB-00 — Source, license, and engine gate (1–2 days remaining)
 
-**Gate:** The build is reproducible and a test profile opens through the correct proxy on Apple
-Silicon; Windows retains its baseline. The original ordering prohibited rebranding before this
-gate; the authorized Windows exception now contains the completed MKB-W01 and MKB-W02 slices only.
+**Already done:** the separate fork repository with the upstream remote and NOTICE files intact, the
+pinned source SHA and lockfile, the unmodified Windows x64 build, and the list/create/update/launch/
+close contract run through the MKTTool adapter.
 
-### MKB-01 — Cross-platform compatibility and product identity (3–5 days)
+**Work remaining:**
 
-**Work:**
+- Approve an experimental and operational engine for Windows x64; confirm artifacts, licenses, and a
+  lawful download path.
+- Inventory operator devices: the Windows device count, plus the available Mac models and chips
+  recorded for MKB-07 planning only.
+- Run one profile through create → apply a **real working proxy** → launch → verify the exit IP →
+  close. W01 and W02 only proved fail-closed behavior against a deliberately invalid proxy, which
+  demonstrates the guard rather than the working path.
 
-- Change product/app identifiers, icon, display name, and release channel.
-- Set an independent data directory per OS and implement a copy-only importer from MultiZen before
-  changing defaults.
+**Gate:** A reproducible Windows build opens a test profile through the correct proxy with a verified
+exit IP. Apple Silicon evidence is no longer part of this gate; it moves to MKB-07. The completed
+MKB-W01 and MKB-W02 slices remain the Windows identity work that the original ordering had placed
+after this gate.
+
+### MKB-01 — Windows compatibility and product identity (2–3 days remaining)
+
+**Already done in MKB-W01 and MKB-W02:** product and application identifiers, icon, display name, the
+fixed Windows data root, the owned MCP contract on a dedicated port, removal of the upstream
+heartbeat, updater, and publish path, and the preserved compatible MCP tool set.
+
+**Work remaining:**
+
+- Implement the copy-only importer from MultiZen before changing any default.
 - Retain MultiZen's layout, components, and interaction patterns; do not redesign.
 - Capture visual baselines for primary screens so changes outside approved rebranding and managed
   states require explicit review.
-- Preserve the compatible MCP tool set.
 - Add `get_runtime_info`, contract versioning, and stable error codes.
-- Disable or remove the upstream heartbeat; the updater must no longer point to MultiZen releases.
-- Move off end-of-life Electron 33; enforce renderer sandboxing, CSP, and an IPC allowlist. The
-  renderer must not read tokens or profile files directly.
-- Build a macOS arm64 and Windows x64 CI matrix; native modules must match each architecture.
+- Add a Windows x64 CI job running the W01/W02 guards, typecheck, and the packaged contract test on
+  every change. Keep the job definition OS-parameterised so MKB-07 adds a matrix entry rather than a
+  rewrite.
 
-**Gate:** The current MKTTool build opens a profile in MKT Browser on both macOS and Windows without
-server changes, and the upstream interface has not been rewritten.
+**Gate:** MKTTool opens a profile in MKT Browser on a clean Windows device without server changes, the
+upstream interface has not been rewritten, and the guards run in CI instead of by hand.
+
+### MKB-01E — Electron upgrade and renderer hardening (4–7 days, its own slice)
+
+Upstream declares Electron 33, whose line reached end of support on 29 April 2025. This is separated
+from MKB-01 because it is the one item in the compatibility phase that can fail for reasons unrelated
+to the product: native module rebuilds, packaging differences, and Chromium changes that move the
+measured fingerprint. W02 already met the small version of this when a native `better-sqlite3` rebuild
+failed under Node 24.
+
+**Work:**
+
+- Move to an Electron line supported at release time and rebuild native modules, `better-sqlite3`
+  first.
+- Enforce renderer sandboxing, context isolation, CSP, and an IPC allowlist. The renderer must not
+  read tokens or profile files directly.
+- Measure the fingerprint on the same profile and seed before and after the upgrade.
+
+**Gate:** The packaged application passes the full contract and lifecycle run on the new Electron
+line, and the fingerprint delta is reviewed and accepted deliberately rather than discovered during a
+pilot.
 
 ### MKB-W02 — Windows internal clean break (verified 10 August 2026)
 
@@ -694,36 +744,38 @@ recorded in the W02 evidence linked above.
 
 **Gate:** Retrying after a timeout does not create a second profile and every error path fails closed.
 
-### MKB-03 — Cross-platform Relay, installer, and updater (7–10 days)
+### MKB-03 — Windows installer, Relay packaging, and updater (6–9 days)
 
 **Work:**
 
 - Add a four-layer status page: Relay, MKT Browser, engine, and profile/proxy.
-- macOS: native arm64 signed and notarized `.dmg`; separate Relay helper through LaunchAgent; secrets
-  in Keychain; no Terminal, Homebrew, or `xattr` requirement.
-- Windows: signed installer, per-user autostart, and a secure store for sensitive keys.
-- Add digital signatures, notarization, checksums, SBOMs, and compatibility manifests by OS/arch.
+- One signed Windows installer carrying both processes, with per-user autostart and a secure store
+  for sensitive keys.
+- Let the Relay discover the MKT Browser MCP token from the OS data area so operators stop copying it
+  by hand. This is the single most visible remaining piece of manual setup.
+- Add digital signatures, checksums, SBOMs, and a compatibility manifest.
 - Refuse updates while profiles are open, snapshot before changes, and retain one rollback version.
-- Separate build, path, autostart, and secure-store adapters from the shared Relay core; test the same
-  contract and cryptography on both operating systems.
-- Test WebRTC leak behavior separately on each OS; do not copy the Windows Firewall workaround to
-  macOS and call it complete.
+- Keep path, autostart, and secure-store behavior behind thin adapters over a shared Relay core, and
+  test the contract and cryptography against the core. The adapters are the seam MKB-07 plugs into;
+  writing Windows behavior into the core is what would make macOS expensive later.
+- Test WebRTC leak behavior on Windows, and record the Windows Firewall workaround as
+  Windows-specific rather than as the general solution.
 - Add proxy, DNS, WebRTC, and fingerprint checks using a dedicated test profile.
 
-**Gate:** A clean Mac and a clean Windows device without Node or MultiZen install through one download
-and remain ready after reboot. Mac users do not open Terminal and Gatekeeper does not report an
-unidentified application.
+**Gate:** A clean Windows device without Node or MultiZen installs through one download, reaches ready
+status from on-screen guidance alone, and stays ready after reboot.
 
 ### MKB-04 — Technical pilot and one canary account (7 days + 14-day cold start)
 
 **Work:**
 
-- Test first on two Mac operator devices or test profiles, including at least one Apple Silicon model
-  representative of the team, then use one Windows device for regression.
+- Test on two Windows operator devices representative of the team, using test profiles only.
 - Upgrade and roll back the app while retaining cookies, profile ID, and seed.
 - Measure proxy exit IP, DNS, timezone, locale, WebRTC UDP, and fingerprint across repeated launches.
-- Only after seven technically clean days, create **one** low-value real account profile on a Mac and
-  begin cold start; do not expand to the fleet.
+  Record the observed values as the baseline; drift thresholds are defined here, from real
+  measurements, rather than guessed in advance.
+- Only after seven technically clean days, create **one** low-value real account profile and begin
+  cold start; do not expand to the fleet.
 - Rehearse a lost-device incident: revoke, rotate required keys or credentials, and confirm that no
   remote-wipe claim is made.
 
@@ -749,12 +801,35 @@ before wider real-account rollout.
   profile contract.
 - This phase must not leak into or block MKB-00 through MKB-05.
 
+### MKB-07 — macOS Apple Silicon (after v1)
+
+Everything the 10 August 2026 platform decision moved out of v1 lives here. Mac hardware is already
+available, so this phase is gated on scheduling, ownership, and Apple enrollment rather than on
+machines.
+
+**Work:**
+
+- Build the pinned source natively on Apple Silicon and run the full contract and lifecycle test.
+- Approve the engine for macOS arm64: artifact, license, and a lawful download path per architecture.
+- Native arm64 signed and notarized `.dmg`, the Relay as a LaunchAgent helper, secrets in Keychain,
+  and no Terminal, Homebrew, or `xattr` requirement.
+- Add the macOS entry to the CI matrix; native modules must match the architecture.
+- Test WebRTC leak behavior independently on macOS rather than carrying the Windows Firewall
+  workaround over and calling it done.
+- Re-run the proxy, DNS, fingerprint, and cookie matrix on two Macs.
+
+**Gate:** A clean Mac installs through one download without Terminal, Gatekeeper does not report an
+unidentified application, and a test profile opens through the correct proxy natively without Rosetta.
+
+**Prerequisites outside code:** Apple Developer enrollment and a Developer ID certificate. Do not buy
+them during v1; buy them when this phase is scheduled.
+
 ## 13. Relationship to the current critical path
 
 ```mermaid
 flowchart LR
-  F["MKB-00/01\nMac primary + Windows regression"] --> M["MKB-02/03\nManaged mode + OS installers"]
-  M --> P["MKB-04\nSeven-day Mac pilot"]
+  F["MKB-00/01/01E\nWindows baseline + Electron upgrade"] --> M["MKB-02/03\nManaged mode + Windows installer"]
+  M --> P["MKB-04\nSeven-day Windows pilot"]
   P --> R0["One canary account\n14-day cold start"]
   R0 --> T["MKB-05\nTeam rollout"]
   T --> R1["M1\nImport real account fleet"]
@@ -763,6 +838,7 @@ flowchart LR
   R2 --> R3["M3\nTwo weeks of steady operation"]
   R3 --> A["Phase 05\nSemi-automated Reddit posting"]
   T -.-> U["MKB-06\nRedesign after UX evidence"]
+  T -.-> MAC["MKB-07\nmacOS Apple Silicon"]
 ```
 
 MKB-00 and MKB-01 are time-boxed. If the fork cannot open a test profile within the defined gate,
@@ -782,12 +858,12 @@ is now part of the critical path and must be reported honestly rather than treat
 | Idempotency | Disconnect after desktop create completes; retry returns the same profile ID |
 | Proxy | Bad token, dead proxy, wrong protocol, and proxy change while running never cause a misconfigured launch |
 | Fingerprint | Seed, canvas, WebGL, UA, timezone, and locale remain stable across restart and an approved update |
-| Platform | App and engine run natively on Apple Silicon without Rosetta; Windows x64 regression remains green |
-| Network | Correct exit IP, remote DNS, no unexpected ICE `srflx`; leak mitigation verified independently per OS |
+| Platform | App and engine run natively on Windows x64; macOS arm64 is verified in MKB-07, not in v1 |
+| Network | Correct exit IP, remote DNS, no unexpected ICE `srflx`; leak mitigation verified on Windows, and independently again in MKB-07 |
 | Data | Cookies, localStorage, IndexedDB, extensions, and profile ID survive restart, update, and rollback |
 | Isolation | Two profiles share no cookies, user-data-dir, proxy bridge, or seed |
 | Security | MCP is loopback + bearer only; renderer cannot read operator keys; Keychain/secure store restricts process access; logs contain no proxy password or token |
-| Installation | Clean Mac without Terminal/Homebrew/`xattr`; clean Windows; standard user and one download per OS |
+| Installation | Clean Windows device, standard user, one download, ready from on-screen guidance alone |
 | Recovery | Failed update, failed database migration, interrupted engine download, lost device, and duplicate import |
 
 Do not claim “antidetect passed” because one scanner reports a high score. Acceptance depends on
@@ -803,9 +879,9 @@ profile never opens with the wrong proxy.
 | Renaming makes profiles appear to disappear | Copy-only import, stable IDs, migration manifests, and preserved source directory until acceptance |
 | Automatic engine update changes fingerprint | Pin versions, use staged pilots, and prohibit daily auto-update |
 | Electron UI compromise exposes files | Context isolation, sandbox and IPC allowlist, and no arbitrary renderer filesystem access |
-| Mac “works” but is not native or stable | Make arm64 a hard gate and test native modules and engine; Rosetta is not acceptance |
-| Gatekeeper or helper forces operators into Terminal | Developer ID, notarization, and LaunchAgent tests on a clean Mac |
-| Behavior drifts between operating systems | Shared Relay core, thin OS adapters, and contract and cryptography CI on macOS and Windows |
+| Deferring macOS bakes Windows assumptions into the core | Path, autostart, and secure storage stay behind thin adapters; contract and cryptography tests run against the shared core so MKB-07 adds a platform instead of reopening one |
+| macOS later “works” but is not native or stable | MKB-07 keeps arm64 native as a hard gate and tests native modules and engine; Rosetta is not acceptance |
+| Gatekeeper or helper forces operators into Terminal | Developer ID, notarization, and LaunchAgent tests on a clean Mac, at MKB-07 |
 | Redesign increases upstream drift | Retain MultiZen UX/UI in v1 and move redesign to MKB-06 |
 | Web times out after profile creation | Unique external reference, request ID, and reconciliation |
 | Open profile retains old proxy | Atomic launch rejects or requires close and restart; never no-op |
@@ -817,23 +893,22 @@ profile never opens with the wrong proxy.
 
 V1 is complete only when all conditions hold:
 
-1. The fork builds natively from documented instructions on clean Apple Silicon Mac and Windows x64
-   devices.
+1. The fork builds natively from documented instructions on a clean Windows x64 device.
 2. License, NOTICE, SBOM, and engine acquisition have been approved.
-3. The macOS `.dmg` is signed and notarized, the Windows installer is signed, and the updater no
-   longer targets upstream.
+3. The Windows installer is signed and the updater no longer targets upstream.
 4. The Relay discovers MKT Browser automatically; operators never copy an MCP token.
 5. Idempotent profile creation and atomic profile launch have tests.
 6. MKTTool displays the actual provider, app, and engine versions with actionable errors.
 7. Import and rollback retain IDs and sessions, never delete source automatically, and the tested
    device-transfer flow never allows two active copies.
-8. The proxy, DNS, WebRTC, fingerprint, and cookie matrix is green on at least two Macs and one
-   Windows regression device.
-9. A test profile runs for seven days and one real account on Mac completes a 14-day cold start
-   without a technical incident.
-10. A Mac operator installs without Terminal; documentation no longer requires manual MultiZen
-    administration.
+8. The proxy, DNS, WebRTC, fingerprint, and cookie matrix is green on at least two Windows devices.
+9. A test profile runs for seven days and one real account completes a 14-day cold start without a
+   technical incident.
+10. An operator installs from one download without touching a command line, and documentation no
+    longer requires manual MultiZen administration.
 11. MultiZen UX/UI remains intact in v1; every redesign belongs to MKB-06 and does not block release.
+12. macOS is absent from v1 by decision, and the shared Relay core carries no Windows-only assumption
+    that MKB-07 would have to undo.
 
 ## 17. Decisions required outside code
 
@@ -841,11 +916,11 @@ V1 is complete only when all conditions hold:
 |---|---|---|
 | Product name | `MKT Browser` | Before MKB-01 |
 | Operational engine | External binary downloaded from its official source after license approval | Before MKB-00 closes |
-| Mac scope | Apple Silicon required; Intel only when real inventory requires it | Before MKB-00 closes |
-| Apple Developer | Account, Developer ID certificate, and notarization access | Before MKB-03 |
+| macOS scope | Deferred to MKB-07; Apple Silicon only, Intel only if inventory requires it | Decided 10 August 2026 |
+| Apple Developer | Account, Developer ID certificate, and notarization access | Before MKB-07; do not buy during v1 |
 | Windows code-signing certificate | Buy a code-signing certificate for the organization or individual internal publisher | Before MKB-03 |
 | Release channel | R2 plus authenticated MKTTool download page; artifacts exclude restricted engines | Before MKB-03 |
-| Pilot devices | Two representative Macs plus one Windows regression device | Before MKB-04 |
+| Pilot devices | Two representative Windows devices | Before MKB-04 |
 | UX/UI | Retain MultiZen in v1; redesign only in MKB-06 | Approved 10 August 2026 |
 
 No decision in this table permits weakening the security invariants or adding automation excluded by

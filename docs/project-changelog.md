@@ -12,6 +12,40 @@ Dự án chưa phát hành phiên bản (`0.1.0`, dùng nội bộ). Mốc chia 
 
 ---
 
+## 10/08/2026 (9) — Platform decision: Windows only in v1, macOS moves to MKB-07
+
+The fork was planned macOS-first. After two Windows slices and zero Apple Silicon evidence, the owner
+inverted the ordering: **v1 commits to Windows x64 only**, and macOS Apple Silicon becomes MKB-07
+after v1.
+
+This is a priority choice, not a hardware constraint. Mac machines are available. The reasons on
+record are that the Windows slice is already verified end to end through W01, W02, and the repackaged
+Relay, that the macOS half still needs Apple Developer enrollment, notarization, a LaunchAgent helper,
+and Keychain storage — none started or owned — and that no operator workflow depends on macOS today.
+
+What changes:
+
+- MKB-00 loses its Apple Silicon half and now has exactly one open item: launch a profile through a
+  **real working proxy** and verify the exit IP. W01 and W02 only proved the fail-closed guard against
+  a deliberately invalid proxy, which is the opposite case.
+- The technical estimate drops from **five to eight weeks** to **three to five**, because no native
+  helper, Keychain, LaunchAgent, Developer ID, or notarization work remains in scope.
+- The Electron 33 upgrade becomes its own slice, **MKB-01E**, instead of a bullet inside MKB-01. It is
+  the item most able to fail for reasons unrelated to the product; W02 already met the small version
+  when a `better-sqlite3` rebuild failed under Node 24.
+- Pilot devices, the acceptance matrix, and the definition of done move to two Windows devices.
+- Apple Developer access is explicitly **not** to be bought during v1.
+
+The control against paying twice: the Relay keeps a shared core with thin OS adapters for paths,
+autostart, and secure storage, so MKB-07 adds a platform rather than reopening one. A new definition
+of done item states that directly, and the risk table now names "deferring macOS bakes Windows
+assumptions into the core" as the thing to watch.
+
+Also recorded while rewriting: an explicit recovery play for a lost or dead operator device, which
+the plan previously left to improvisation.
+
+---
+
 ## 10/08/2026 (8) — Relay installer lost its BOM in the W02 rename
 
 The W02 slice saved `relay/install-relay.ps1` without its UTF-8 byte order mark while the file still
