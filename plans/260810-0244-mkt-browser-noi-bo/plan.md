@@ -807,8 +807,8 @@ This is a legal and operational gate, not legal advice.
 |---|---|---|
 | Provider identification | `relay/src/relay-config.ts`, `relay/src/relay-antidetect.ts` | W02 complete: use `mkt-browser` only; rollback is the frozen W01 checkpoint, not a runtime provider fallback |
 | Relay core and OS seam | build/release + `relay/src/relay-home.ts` | Keep Windows behavior behind adapters over a shared core: Windows per-user autostart + secure store now, macOS helper/LaunchAgent + Keychain at MKB-07 |
-| MCP contract | `src/lib/antidetect/` | W02 complete: owned client/adapter/contract names and port; runtime capability reporting remains future work |
-| Health | `src/lib/relay/relay-endpoints.ts`, `relay/src/main.ts` | Return current-device provider/app/engine/contract health without sensitive tokens or paths; historical enrollment alone never means `Ready` |
+| MCP contract | `src/lib/antidetect/` | W02 complete: owned client/adapter/contract names and port. Runtime capability reporting landed 11 August: `get_runtime_info`, supported-contract-version list, and stable error codes carried through to the adapter |
+| Health | `src/lib/relay/relay-endpoints.ts`, `relay/src/main.ts` | Relay health returns current-device provider/app/engine/contract state with no token, path, or proxy endpoint (11 August). Rendering it on the Web setup surface, and the rule that historical enrollment alone never means `Ready`, remain MKB-03 |
 | Idempotent create | profile actions + adapter | Send `accountId`/`requestId` and reconcile by external reference |
 | Atomic launch | `relay/src/launch-profile.ts` | Prefer the atomic capability and retain the old path for a bounded transition window |
 | Operation correlation | ticket issuer + Relay client + managed contract | Carry ticket `jti` as `operationId`; preserve create `requestId`; return sanitized stage, code, duration, and versions without adding a remote callback |
@@ -866,7 +866,9 @@ heartbeat, updater, and publish path, and the preserved compatible MCP tool set.
 - Retain MultiZen's layout, components, and interaction patterns; do not redesign.
 - Capture visual baselines for primary screens so changes outside approved rebranding and managed
   states require explicit review.
-- Add `get_runtime_info`, contract versioning, and stable error codes.
+- ~~Add `get_runtime_info`, contract versioning, and stable error codes.~~ Done 11 August 2026:
+  the desktop reports provider/app/contract/schema/engine/capabilities, every rejection carries a
+  stable code, and MKTTool decides compatibility from the report instead of assuming.
 - Add a Windows x64 CI job running the W01/W02 guards, typecheck, and the packaged contract test on
   every change. Keep the job definition OS-parameterised so MKB-07 adds a matrix entry rather than a
   rewrite.

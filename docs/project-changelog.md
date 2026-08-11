@@ -12,6 +12,45 @@ Dự án chưa phát hành phiên bản (`0.1.0`, dùng nội bộ). Mốc chia 
 
 ---
 
+## 11/08/2026 (5) — MKT Browser reports itself, and failures carry codes
+
+Closed the runtime-contract part of MKB-01 across both repositories. MKT Browser now answers
+`get_runtime_info` with its provider, app version, contract version, profile schema version, live
+engine state, and implemented capabilities. Capabilities list only what exists — managed mode stays
+unadvertised until MKB-02 builds it — and the engine reports a version only when one is actually
+installed, so "still downloading" no longer looks like "installed and healthy".
+
+Every tool rejection now carries a stable machine-readable code (`ENGINE_UNAVAILABLE`,
+`PROXY_REJECTED`, `PROFILE_NOT_FOUND`, `PROFILE_NOT_RUNNING`, `FORBIDDEN`, `INVALID_INPUT`,
+`UNKNOWN_TOOL`, `INTERNAL_ERROR`). The desktop derives the code from one taxonomy instead of a
+ternary chain, and raises `PROXY_REJECTED` when the local proxy bridge cannot start — the fail-closed
+rule now has its own code rather than hiding inside a generic internal error.
+
+MKTTool consumes the report instead of assuming. A build that predates the tool answers `null` and
+is treated as **incompatible**, not as fine; a partial report counts as no report; a newer contract
+version is refused rather than assumed safe. Relay health carries provider, app version, contract
+version, engine state, and capabilities for the current PC, with no token, path, or proxy endpoint in
+the payload. Relay also translates a known failure code into fixed operator guidance and only falls
+back to the readable message for an older build, so an internal engine or bridge sentence no longer
+reaches whoever clicked Launch.
+
+Evidence: fork typecheck 6/6 projects, fork guards 8/8, new fork contract tests 5/5, MKTTool
+typecheck, MKTTool suite 1136/1136, ESLint clean on the changed files. No database migration, no
+ticket-shape change, no server change.
+
+**A false green was found and closed while doing this.** The fork's `yarn typecheck` used
+`yarn workspaces foreach`, but `nmHoistingLimits: workspaces` hides the root-only `typescript`
+dependency from every workspace, so `tsc` was not found anywhere while the outer command still
+exited 0. It had been reporting success without checking a single file, and the 11/08 (1) entry
+recorded a passing fork typecheck on that basis. The script now calls `tsc` per project and was
+verified against a deliberately broken file: it exits non-zero and names the error. Treat any
+green from a wrapper command as evidence only after seeing it fail on purpose once.
+
+MKB-01 still has three items: the copy-only MultiZen importer, visual baselines for the primary
+screens, and running the W01/W02 guards in Windows CI instead of by hand.
+
+---
+
 ## 11/08/2026 (4) — Windows onboarding becomes a hard product gate
 
 Reviewed the active MKT Browser plan against the current Windows Relay download, device enrollment,
@@ -122,6 +161,11 @@ retained the verified W02 SHA-256
 `MKT Browser`, x64 packaging completed, desktop guards passed 8/8, focused MKTTool consumer tests
 passed 50/50, both repository typechecks passed, and the packaged Relay verification passed. The
 executable remains unsigned and therefore stays an owner-led technical-demo artifact only.
+
+> **Correction, 11/08/2026 (5):** the fork half of "both repository typechecks passed" was a false
+> green. `yarn typecheck` there checked nothing and still exited 0. The claim was withdrawn and the
+> script repaired the same day; the fork was then typechecked for real and passed. See the entry
+> below.
 
 ---
 
