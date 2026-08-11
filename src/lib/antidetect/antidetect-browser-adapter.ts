@@ -21,6 +21,26 @@ export interface LaunchedProfile {
   cdpEndpoint?: string;
   /** Id profile phía antidetect browser. */
   profileId: string;
+  diagnostic?: AntidetectOperationDiagnostic;
+}
+
+export interface AntidetectOperationDiagnostic {
+  operationId: string;
+  requestId?: string;
+  stage: string;
+  code?: string;
+  durationMs: number;
+  runtime: {
+    appVersion: string;
+    contractVersion: number;
+    profileSchemaVersion: number;
+    engine: { kind: string; version: string | null; status: string };
+  };
+}
+
+export interface CreatedProfile {
+  profileId: string;
+  diagnostic?: AntidetectOperationDiagnostic;
 }
 
 /**
@@ -77,6 +97,17 @@ export interface CreateProfileRequest {
   fingerprint?: AntidetectFingerprintSpec;
   /** Hạt giống nhiễu canvas/audio/WebGL. Mỗi profile một giá trị. */
   seed?: string;
+  /** Stable MKTTool ownership key used to reconcile retries. */
+  externalRef?: string;
+  /** Stable idempotency key retained across new ticket attempts. */
+  requestId?: string;
+  /** Ticket jti for this one Web -> Relay -> MKT Browser attempt. */
+  operationId?: string;
+}
+
+export interface AntidetectOperationContext {
+  operationId: string;
+  requestId?: string;
 }
 
 /** Danh mục giá trị hợp lệ để dựng vân tay — lấy từ chính nhà cung cấp, không tự bịa bảng. */
@@ -105,7 +136,7 @@ export interface AntidetectAdapter {
    * MKT Browser workflow applies the proxy and aligns the fingerprint BEFORE the first sign-in, and
    * one call leaves no gap in which someone could open the profile between those operations.
    */
-  createProfile(request: CreateProfileRequest): Promise<string>;
+  createProfile(request: CreateProfileRequest): Promise<CreatedProfile>;
 
   /**
    * Ghi proxy vào profile TRƯỚC khi mở.
@@ -124,6 +155,7 @@ export interface AntidetectAdapter {
   launchProfileWithProxy?(
     profileId: string,
     proxy: AntidetectProxyConfig,
+    operation?: AntidetectOperationContext,
   ): Promise<LaunchedProfile>;
 
   /** Mở profile, trả về endpoint CDP. */
@@ -146,12 +178,15 @@ export class AntidetectError extends Error {
   constructor(
     message: string,
     readonly provider: string,
-    options?: { cause?: unknown; code?: string },
+    options?: { cause?: unknown; code?: string; diagnostic?: AntidetectOperationDiagnostic },
   ) {
     super(message, options);
     this.name = "AntidetectError";
     this.code = options?.code;
+    this.diagnostic = options?.diagnostic;
   }
+
+  readonly diagnostic?: AntidetectOperationDiagnostic;
 }
 
 export class AntidetectUnavailableError extends AntidetectError {

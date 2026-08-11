@@ -109,10 +109,10 @@ export async function handleTicketRequest(
 
   try {
     if (payload.kind === TICKET_KINDS.LAUNCH_PROFILE) {
-      return await launchProfileFromTicket(payload, deps.antidetect);
+      return await launchProfileFromTicket(payload, deps.antidetect, verified.envelope.jti);
     }
     if (payload.kind === TICKET_KINDS.CREATE_PROFILE) {
-      return await createProfileFromTicket(payload, deps.antidetect);
+      return await createProfileFromTicket(payload, deps.antidetect, verified.envelope.jti);
     }
     // Không tới được: `reviewTicketPayload` soi theo đúng `kind` đã lọc ở trên. Có mặt để
     // TypeScript thu hẹp kiểu mà không phải ép kiểu — ép kiểu ở đây là bỏ đúng lớp bảo vệ vừa dựng.

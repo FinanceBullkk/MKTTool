@@ -82,9 +82,10 @@ export type TicketKind = (typeof TICKET_KINDS)[keyof typeof TICKET_KINDS];
 export const MIN_RELAY_VERSION_BY_KIND: Record<TicketKind, number> = {
   [TICKET_KINDS.CREDENTIAL]: MIN_RELAY_VERSION,
   [TICKET_KINDS.OTP]: MIN_RELAY_VERSION,
-  [TICKET_KINDS.LAUNCH_PROFILE]: MIN_RELAY_VERSION,
-  /** Requires MKT Browser `create_profile`, available since version 6. */
-  [TICKET_KINDS.CREATE_PROFILE]: 6,
+  /** Requires managed launch correlation and the v3 MKT Browser contract. */
+  [TICKET_KINDS.LAUNCH_PROFILE]: 7,
+  /** Requires managed create correlation and the v3 MKT Browser contract. */
+  [TICKET_KINDS.CREATE_PROFILE]: 7,
 };
 
 /** Bí mật nào của nick đang được hỏi. Khớp tên cột trong `Account`. */
@@ -136,6 +137,8 @@ export type TicketPayload =
   | {
       kind: typeof TICKET_KINDS.CREATE_PROFILE;
       accountId: string;
+      /** Retry-stable idempotency key; a new ticket jti keeps this value. */
+      requestId: string;
       /** MKT Browser profile name. The server makes it predictable via `profileNameForNick`. */
       profileName: string;
       /** Như `LAUNCH_PROFILE`: mật khẩu proxy thuộc vùng server nên máy chủ mở được. */

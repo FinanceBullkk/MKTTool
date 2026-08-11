@@ -3,10 +3,12 @@
 import {
   type AntidetectAdapter,
   AntidetectError,
+  type AntidetectOperationDiagnostic,
   type AntidetectProfileSummary,
   type AntidetectProxyConfig,
   AntidetectUnavailableError,
   type CreateProfileRequest,
+  type CreatedProfile,
   type FingerprintOptions,
   type LaunchedProfile,
 } from "./antidetect-browser-adapter";
@@ -48,12 +50,64 @@ function launchedProfileFromResult(
   profileId: string,
   result: McpToolResult,
 ): LaunchedProfile {
+  const body = parseToolBody(result);
+  const diagnostic = parseOperationDiagnostic(body.diagnostic);
   const responseText = [extractText(result), JSON.stringify(result.structuredContent ?? {})].join(
     "\n",
   );
   return {
     cdpEndpoint: responseText.match(CDP_ENDPOINT_PATTERN)?.[0],
     profileId,
+    ...(diagnostic ? { diagnostic } : {}),
+  };
+}
+
+function parseOperationDiagnostic(value: unknown): AntidetectOperationDiagnostic | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const diagnostic = value as Record<string, unknown>;
+  const runtime = diagnostic.runtime;
+  if (
+    typeof diagnostic.operationId !== "string" ||
+    typeof diagnostic.stage !== "string" ||
+    typeof diagnostic.durationMs !== "number" ||
+    !runtime ||
+    typeof runtime !== "object"
+  ) {
+    return undefined;
+  }
+
+  const runtimeRecord = runtime as Record<string, unknown>;
+  const engine = runtimeRecord.engine;
+  if (
+    typeof runtimeRecord.appVersion !== "string" ||
+    typeof runtimeRecord.contractVersion !== "number" ||
+    typeof runtimeRecord.profileSchemaVersion !== "number" ||
+    !engine ||
+    typeof engine !== "object"
+  ) {
+    return undefined;
+  }
+  const engineRecord = engine as Record<string, unknown>;
+  if (typeof engineRecord.kind !== "string" || typeof engineRecord.status !== "string") {
+    return undefined;
+  }
+
+  return {
+    operationId: diagnostic.operationId,
+    ...(typeof diagnostic.requestId === "string" ? { requestId: diagnostic.requestId } : {}),
+    stage: diagnostic.stage,
+    ...(typeof diagnostic.code === "string" ? { code: diagnostic.code } : {}),
+    durationMs: diagnostic.durationMs,
+    runtime: {
+      appVersion: runtimeRecord.appVersion,
+      contractVersion: runtimeRecord.contractVersion,
+      profileSchemaVersion: runtimeRecord.profileSchemaVersion,
+      engine: {
+        kind: engineRecord.kind,
+        version: typeof engineRecord.version === "string" ? engineRecord.version : null,
+        status: engineRecord.status,
+      },
+    },
   };
 }
 
@@ -126,6 +180,30 @@ function redactProxyDetails(text: string, proxy?: AntidetectProxyConfig): string
 /** The desktop's stable failure code, when the build that answered was new enough to send one. */
 function errorCodeOf(cause: unknown): string | undefined {
   return cause instanceof McpToolError ? cause.code : undefined;
+}
+
+function errorDiagnosticOf(cause: unknown): AntidetectOperationDiagnostic | undefined {
+  return cause instanceof McpToolError ? parseOperationDiagnostic(cause.diagnostic) : undefined;
+}
+
+function requireCorrelatedDiagnostic(
+  diagnostic: AntidetectOperationDiagnostic | undefined,
+  operationId: string | undefined,
+  requestId?: string,
+): AntidetectOperationDiagnostic | undefined {
+  if (!operationId) return diagnostic;
+  if (
+    !diagnostic ||
+    diagnostic.operationId !== operationId ||
+    (requestId !== undefined && diagnostic.requestId !== requestId)
+  ) {
+    throw new AntidetectError(
+      `${MKT_BROWSER_PROVIDER_NAME} returned an uncorrelated operation diagnostic.`,
+      MKT_BROWSER_PROVIDER_NAME,
+      { code: "INTERNAL_ERROR" },
+    );
+  }
+  return diagnostic;
 }
 
 export class MktBrowserAdapter implements AntidetectAdapter {
@@ -234,6 +312,7 @@ export class MktBrowserAdapter implements AntidetectAdapter {
   async launchProfileWithProxy(
     profileId: string,
     proxy: AntidetectProxyConfig,
+    operation?: { operationId: string; requestId?: string },
   ): Promise<LaunchedProfile> {
     await this.ensureInitialized();
     if (!this.availableTools.includes(TOOLS.atomicLaunch)) {
@@ -246,6 +325,7 @@ export class MktBrowserAdapter implements AntidetectAdapter {
       result = await this.callToolWithRehandshake(TOOLS.atomicLaunch, {
         profile_id: profileId,
         proxy: proxyPayload(proxy),
+        ...(operation ? { operation_id: operation.operationId } : {}),
       });
     } catch (cause) {
       const reason = redactProxyDetails(
@@ -256,11 +336,17 @@ export class MktBrowserAdapter implements AntidetectAdapter {
         `${this.providerName} could not safely launch profile "${profileId}" with its assigned proxy. ` +
           `Reason: ${reason}`,
         this.providerName,
-        { cause, code: errorCodeOf(cause) },
+        { cause, code: errorCodeOf(cause), diagnostic: errorDiagnosticOf(cause) },
       );
     }
 
-    return launchedProfileFromResult(profileId, result);
+    const launched = launchedProfileFromResult(profileId, result);
+    launched.diagnostic = requireCorrelatedDiagnostic(
+      launched.diagnostic,
+      operation?.operationId,
+      operation?.requestId,
+    );
+    return launched;
   }
 
   async launchProfile(profileId: string): Promise<LaunchedProfile> {
@@ -316,13 +402,16 @@ export class MktBrowserAdapter implements AntidetectAdapter {
     };
   }
 
-  async createProfile(request: CreateProfileRequest): Promise<string> {
+  async createProfile(request: CreateProfileRequest): Promise<CreatedProfile> {
     await this.ensureInitialized();
     const toolName = this.requireTool(TOOLS.create, "profile creation");
     const args: Record<string, unknown> = { name: request.name };
     if (request.notes) args.notes = request.notes;
     if (request.tags?.length) args.tags = request.tags;
     if (request.seed) args.seed = request.seed;
+    if (request.externalRef) args.external_ref = request.externalRef;
+    if (request.requestId) args.request_id = request.requestId;
+    if (request.operationId) args.operation_id = request.operationId;
     if (request.fingerprint) args.fingerprint = request.fingerprint;
     if (request.proxy) {
       args.proxy = proxyPayload(request.proxy);
@@ -339,7 +428,7 @@ export class MktBrowserAdapter implements AntidetectAdapter {
       throw new AntidetectError(
         `${this.providerName} could not create profile "${request.name}". Reason: ${reason}`,
         this.providerName,
-        { cause, code: errorCodeOf(cause) },
+        { cause, code: errorCodeOf(cause), diagnostic: errorDiagnosticOf(cause) },
       );
     }
 
@@ -350,7 +439,12 @@ export class MktBrowserAdapter implements AntidetectAdapter {
         this.providerName,
       );
     }
-    return body.id;
+    const diagnostic = requireCorrelatedDiagnostic(
+      parseOperationDiagnostic(body.diagnostic),
+      request.operationId,
+      request.requestId,
+    );
+    return { profileId: body.id, ...(diagnostic ? { diagnostic } : {}) };
   }
 
   async isRunning(profileId: string): Promise<boolean> {

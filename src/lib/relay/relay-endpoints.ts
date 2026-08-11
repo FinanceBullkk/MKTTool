@@ -198,7 +198,7 @@ export const RELAY_PROFILE_WORK_TIMEOUT_MS = 60_000;
  * tăng bằng tay: tự sinh theo git hash thì nó đổi ở mọi lượt build, và một số đổi liên tục thì
  * cảnh báo "bản cũ" kêu liên tục cho tới lúc không ai còn nhìn.
  */
-export const RELAY_VERSION = 6;
+export const RELAY_VERSION = 7;
 
 /**
  * Một profile antidetect như cầu nối khai ra ở `GET /profiles`.
@@ -233,6 +233,31 @@ export interface RelayProfilesReply extends RelayReply {
   fingerprintOptions?: RelayFingerprintOptions;
 }
 
+export interface RelayBrowserHealth {
+  ready: boolean;
+  provider: string | null;
+  appVersion: string | null;
+  contractVersion: number | null;
+  contractCompatible: boolean;
+  contractProblem: string;
+  engine: { kind: string; version: string | null; status: string } | null;
+  capabilities: string[];
+}
+
+export interface RelayOperationDiagnostic {
+  operationId: string;
+  requestId?: string;
+  stage: string;
+  code?: string;
+  durationMs: number;
+  runtime: {
+    appVersion: string;
+    contractVersion: number;
+    profileSchemaVersion: number;
+    engine: { kind: string; version: string | null; status: string };
+  } | null;
+}
+
 /** Những gì `/health` trả về. */
 export interface RelayHealth {
   relayVersion: number;
@@ -240,6 +265,8 @@ export interface RelayHealth {
   publicKey: string;
   /** Whether the Relay can connect to MKT Browser on the same machine. */
   antidetectReady: boolean;
+  /** Live metadata-only state reported by MKT Browser on this exact PC. */
+  browser: RelayBrowserHealth;
   /** Cấu hình đã đủ chưa. Web app dùng để vẽ đúng nút thay vì đoán. */
   configured?: boolean;
   /**
@@ -266,6 +293,8 @@ export interface RelayReply {
   message: string;
   /** Cầu nối gửi kèm phiên bản trong **mọi** phản hồi — QĐ 11. */
   relayVersion: number;
+  /** Present for accepted profile operations; never contains tickets, proxy data, or secrets. */
+  diagnostic?: RelayOperationDiagnostic;
 }
 
 /** Thân của `POST /encrypt-for-vault`: bí mật dạng trần, chỉ đi trong cùng một máy. */

@@ -505,11 +505,11 @@ async function main(): Promise<void> {
       throw new Error("The disposable MKT Browser root was not empty at startup.");
     }
 
-    profileId = await adapter.createProfile({
+    profileId = (await adapter.createProfile({
       name: `MKB-00 disposable ${Date.now()}`,
       notes: "Disposable correct-proxy verification. No account data.",
       tags: ["mkb-00", "disposable"],
-    });
+    })).profileId;
     await adapter.applyProxy(profileId, proxy);
     await adapter.launchProfile(profileId);
     await waitForRunningState(adapter, profileId, true);

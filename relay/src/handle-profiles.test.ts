@@ -27,7 +27,7 @@ function fakeAdapter(overrides: Partial<AntidetectAdapter> = {}): AntidetectAdap
     isRunning: async () => true,
     listProfiles: async () => [{ id: "p1", name: "REDDIT — anna", proxyCountry: "us" }],
     fingerprintOptions: async () => OPTIONS,
-    createProfile: async () => "p-moi",
+    createProfile: async () => ({ profileId: "p-moi" }),
     ...overrides,
   };
 }
@@ -40,6 +40,7 @@ function fakeAntidetect(adapter: AntidetectAdapter | null) {
       return adapter;
     },
     isReady: async () => adapter !== null,
+    requireOperationalRuntime: async () => ({}) as never,
     forgetProbe: () => forgotten.push(true),
   } as unknown as RelayAntidetect;
   return { antidetect, forgotten };

@@ -57,13 +57,19 @@ import {
   type RelayFingerprintOptions,
   type RelayProfileSummary,
   type RelayReply,
+  type RelayOperationDiagnostic,
 } from "@/lib/relay/relay-endpoints";
+import { RelayOperationDiagnosticDetails } from "@/components/relay/relay-operation-diagnostic-details";
 
 const BUTTON_CLASS =
   "rounded-md bg-neutral-900 px-3 py-2 text-sm font-medium text-white transition " +
   "hover:bg-neutral-700 disabled:opacity-40 dark:bg-neutral-100 dark:text-neutral-900";
 
-type Feedback = { kind: "ok" | "error"; text: string } | null;
+type Feedback = {
+  kind: "ok" | "error";
+  text: string;
+  diagnostic?: RelayOperationDiagnostic;
+} | null;
 
 /** Cầu nối trả lời được nhưng không kèm id thì chính câu của nó là câu đáng hiện. */
 function moTaNguyenNhan(sent: RelayOutcome<RelayReply>): string {
@@ -212,7 +218,14 @@ export function AntidetectProfileCard({
         profileId,
         deviceId: issued.deviceId,
       });
-      setFeedback({ kind: recorded.ok ? "ok" : "error", text: recorded.message });
+      setFeedback({
+        kind: recorded.ok ? "ok" : "error",
+        text: recorded.message,
+        diagnostic:
+          sent.status === "ok" || sent.status === "rejected"
+            ? sent.data?.diagnostic
+            : undefined,
+      });
     } catch {
       setFeedback({ kind: "error", text: "Không gọi được máy chủ. Tải lại trang rồi thử lại." });
     } finally {
@@ -288,15 +301,18 @@ export function AntidetectProfileCard({
       ) : null}
 
       {feedback ? (
-        <p
-          className={
-            feedback.kind === "ok"
-              ? "text-sm text-emerald-700 dark:text-emerald-400"
-              : "text-sm text-red-700 dark:text-red-400"
-          }
-        >
-          {feedback.text}
-        </p>
+        <div className="space-y-2">
+          <p
+            className={
+              feedback.kind === "ok"
+                ? "text-sm text-emerald-700 dark:text-emerald-400"
+                : "text-sm text-red-700 dark:text-red-400"
+            }
+          >
+            {feedback.text}
+          </p>
+          <RelayOperationDiagnosticDetails diagnostic={feedback.diagnostic} />
+        </div>
       ) : null}
     </div>
   );

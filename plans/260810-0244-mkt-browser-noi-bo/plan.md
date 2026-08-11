@@ -2,7 +2,7 @@
 
 **Direction approved:** 10 August 2026
 
-**Status:** MKB-00 verified 11 August 2026 · MKB-W01 Windows isolation verified · MKB-W02 internal clean break verified · MKB-01 and MKB-01E verified 11 August 2026 · MKB-02 in progress with idempotent create, the Relay endpoint inventory, Windows MCP-token discovery, and atomic launch verified · Windows x64 is the primary platform for v1 · macOS Apple Silicon moves to MKB-07 after v1 · retain the MultiZen UX/UI in v1 · zero-confusion Windows onboarding is a hard MKB-03 gate
+**Status:** MKB-00 verified 11 August 2026 · MKB-W01 Windows isolation verified · MKB-W02 internal clean break verified · MKB-01 and MKB-01E verified 11 August 2026 · MKB-02 managed mode verified 12 August 2026 · MKB-03 Windows onboarding/installer is next · Windows x64 is the primary platform for v1 · macOS Apple Silicon moves to MKB-07 after v1 · retain the MultiZen UX/UI in v1 · zero-confusion Windows onboarding is a hard MKB-03 gate
 
 **Status source:** [development-roadmap.md](../../docs/development-roadmap.md)
 
@@ -353,19 +353,20 @@ runtime-exposed surface and fails when a new or renamed operation is unclassifie
 routes, and capability combinations are denied rather than inheriting access from a broad middleware
 allowlist.
 
-Current contract-version `2` checkpoint. Full managed-control locking remains pending, so
-`managed-profile-v1` is not advertised yet:
+Current contract-version `3` checkpoint after the completed MKB-02 gate:
 
 ```json
 {
   "provider": "mkt-browser",
   "appVersion": "0.1.0",
-  "contractVersion": 2,
+  "contractVersion": 3,
   "profileSchemaVersion": 2,
   "engine": { "kind": "approved-external", "version": "..." },
   "capabilities": [
     "idempotent-create-v1",
-    "atomic-launch-v1"
+    "atomic-launch-v1",
+    "managed-profile-v1",
+    "operation-diagnostics-v1"
   ]
 }
 ```
@@ -713,6 +714,18 @@ sequenceDiagram
 - A new ticket kind declares its own `MIN_RELAY_VERSION_BY_KIND`. Do not raise minimum versions for
   existing tickets when their shape has not changed.
 
+  **Recorded exception — MKB-02, 12 August 2026.** `LAUNCH_PROFILE` was raised from the base floor to
+  Relay `7` even though its payload shape did not change. The rule targets payload compatibility, but
+  the floor also guards the *behaviour* a Relay must implement, and MKB-02 replaced non-atomic launch
+  with atomic managed launch plus operation correlation. A Relay `6` parses the identical payload and
+  then performs the sequence this gate exists to forbid, so accepting it would be worse than refusing
+  it. The exception was affordable only because no operator device is enrolled yet: the change was
+  made before MKB-03 distribution and before the MKB-04 pilot, so its blast radius was zero. The rule
+  regains full force once any device is operational — from that point a behavioural change must ship
+  as a new ticket kind or a capability negotiated through `get_runtime_info`, not as a floor raise on
+  an existing kind. `CREATE_PROFILE` moved to `7` in the same slice, but its payload did gain
+  `requestId`, so it is an ordinary shape change rather than part of this exception.
+
 The original Phase 05 plan predates the Railway deployment and is a historical record. Implementation
 must use this flow and the living roadmap as the current sources of truth; automation and CDP must not
 move back to the server.
@@ -808,7 +821,7 @@ This is a legal and operational gate, not legal advice.
 | Provider identification | `relay/src/relay-config.ts`, `relay/src/relay-antidetect.ts` | W02 complete: use `mkt-browser` only; rollback is the frozen W01 checkpoint, not a runtime provider fallback |
 | Relay core and OS seam | build/release + `relay/src/relay-home.ts` | Keep Windows behavior behind adapters over a shared core: Windows per-user autostart + secure store now, macOS helper/LaunchAgent + Keychain at MKB-07 |
 | MCP contract | `src/lib/antidetect/` | W02 complete: owned client/adapter/contract names and port. Runtime capability reporting landed 11 August: `get_runtime_info`, supported-contract-version list, and stable error codes carried through to the adapter |
-| Health | `src/lib/relay/relay-endpoints.ts`, `relay/src/main.ts` | Relay health returns current-device provider/app/engine/contract state with no token, path, or proxy endpoint (11 August). Rendering it on the Web setup surface, and the rule that historical enrollment alone never means `Ready`, remain MKB-03 |
+| Health | `src/lib/relay/relay-endpoints.ts`, `relay/src/main.ts` | Completed in MKB-02: Relay health returns current-device provider/app/engine/contract/capability state with no token, path, or proxy endpoint; the Web setup surface renders it, and historical enrollment alone never means `Ready`. MKB-03 owns the guided onboarding state machine and recovery flow |
 | Idempotent create | profile actions + adapter | Send `accountId`/`requestId` and reconcile by external reference |
 | Atomic launch | `relay/src/launch-profile.ts` | Completed 12 August: prefer contract-v2 atomic launch; retain the old path only when the tool is absent and never after an atomic rejection |
 | Operation correlation | ticket issuer + Relay client + managed contract | Carry ticket `jti` as `operationId`; preserve create `requestId`; return sanitized stage, code, duration, and versions without adding a remote callback |
@@ -831,8 +844,8 @@ The estimates below express relative size rather than hard calendar commitments.
 only committed platform and no redesign, a technical build ready for pilot is estimated at **four to
 seven weeks**. The 11 August onboarding review made previously implicit work explicit: current-device
 readiness, ADMIN-only bootstrap, expiring one-use grants, legacy secret migration, and transactional
-component updates. The anti-open-ended guard is that MKB-02 must be reachable within two working
-weeks; if it is not, stop and reassess rather than extending.
+component updates. The anti-open-ended guard required MKB-02 within two working weeks; that gate was
+met on 12 August 2026.
 
 Two items inside that range carry most of the uncertainty and deserve to be tracked as their own
 slices rather than as bullets inside a phase: moving off end-of-life Electron 33 on a fork with native
@@ -870,7 +883,7 @@ heartbeat, updater, and publish path, and the preserved compatible MCP tool set.
   a database profile whose source directory is missing aborts the staged import before publication.
 - Retain MultiZen's layout, components, and interaction patterns; do not redesign.
 - Five primary-screen visual baselines are checked in under
-  `E:\MKTBrowser\assets\images\mkb-01-visual-baselines\`; the capture script drives the packaged
+  `E:\MKTWorkspace\MKTBrowser\assets\images\mkb-01-visual-baselines\`; the capture script drives the packaged
   renderer through loopback DevTools with disposable data.
 - `get_runtime_info`, contract versioning, and stable error codes were completed 11 August 2026:
   the desktop reports provider/app/contract/schema/engine/capabilities, every rejection carries a
@@ -933,29 +946,36 @@ initialize/tools-list/list/fingerprint/create/fail-closed proxy/update/launch/cl
 through the updated MKTTool consumer. The artifact remains technical-only; distribution gates are
 recorded in the W02 evidence linked above.
 
-### MKB-02 — MKTTool-managed mode (in progress; four slices verified through 12 August 2026)
+### MKB-02 — MKTTool-managed mode (completed 12 August 2026)
 
-**Progress checkpoint:** Deterministic/idempotent managed profile creation is verified. Retrying the
-same request returns the existing profile without creating a duplicate; a conflicting request is
-rejected. Contract version `2` advertises `idempotent-create-v1` and `atomic-launch-v1`, while full
-`managed-profile-v1` remains absent. `launch_managed_profile` persists and reads back the requested
-proxy before launch, returns an existing session only when its active proxy matches, and rejects a
-mismatched running session without modification or relaunch. A per-profile lock serializes
-concurrent requests so no other proxy can replace the verified value before launch. MKB-02 tests
-passed 12/12. This closes
-the creation and atomic-launch slices, not the phase gate. The Relay endpoint inventory is also
-verified: every owned JSON endpoint declares one HTTP method and one reviewed capability class,
-contract additions cannot omit that classification, and wrong methods stop at the HTTP frame before
-a handler runs. Relay tests passed 149/149, with
-typecheck and lint green. Relay also discovers the validated token from the owned Windows MKT
-Browser data root on every access, so enabling MKT Browser after Relay startup requires no restart.
-The status page no longer asks an ordinary operator to copy a token; the config field remains only as
-a development override. The expanded Relay suite passed 156/156.
+**Gate result:** Passed. Contract version `3` advertises `idempotent-create-v1`,
+`atomic-launch-v1`, `managed-profile-v1`, and `operation-diagnostics-v1`. Retrying the same create
+request returns the existing profile; a conflicting request fails. Atomic launch persists and reads
+back the assigned proxy, serializes concurrent launch attempts, returns a running session only when
+its active proxy matches, and otherwise fails without mutation or fallback.
 
-The current package also passed Node guards 2/2, W02 8/8, MKB-01 9/9, MKB-01E 6/6, Windows
-packaging guards 3/3, typecheck, lint, the full Windows build, packaged verification, and
-`git diff --check`. Packaged cleanup left no new MKT Browser or Chrome PID and restored workspace
-links. The packaging path retries `rcedit` only for transient `Unable to commit changes` failures.
+Ticket `jti` remains the `operationId` through Relay and MKT Browser, while create keeps its stable
+`requestId`. Responses carry only stage, code, duration, and app/contract/schema/engine versions;
+correlation mismatches fail closed. Diagnostics, activity summaries, and MCP proxy summaries exclude
+tickets, proxy endpoints/credentials, cookies, page content, fingerprint seeds, and external
+references.
+
+The token discovered from the owned Windows data root is profile-management only. Page-read,
+page-control, cookie, and raw-CDP tools are hidden from `tools/list` and rejected from `tools/call`;
+the build issues no page-control token. Managed profiles cannot be directly launched, deleted,
+exported, or have proxy/fingerprint changed through ordinary UI, command-palette, IPC, or MCP paths.
+Atomic managed launch is the only permitted proxy mutation path.
+
+Relay v7 is required for both managed create and launch. Relay reports live Browser/app/engine/
+contract/capability health for the current PC and blocks profile list/create/launch until all required
+managed capabilities are operational. Historical enrollment alone does not render `Ready`; the Web
+surface shows an actionable repair state with expandable support detail.
+
+Verification passed: Node guards 2/2, W02 8/8, MKB-01 8/8, MKB-01E 7/7, MKB-02 18/18, Windows
+packaging guards 3/3, MKT Browser typecheck/build/packaged lifecycle, MKTTool focused managed-flow
+tests 8 files/80 tests, full suite, typecheck, ESLint, and production build. The current unsigned
+Windows executable SHA-256 is
+`238d5d6fd5e373b052c484ceab90698f6dc295205a59be6573f9928b01db4f42`.
 
 **Work:**
 
@@ -963,36 +983,36 @@ links. The packaging path retries `rcedit` only for transient `Unable to commit 
   rejection.
 - Completed atomic-launch slice: persist and read back the proxy before launch; return a matching
   running session; reject a running session with a different proxy without mutation or fallback.
-- Propagate ticket `jti` as `operationId`, retain `requestId` for create idempotency, and return
+- Completed: propagate ticket `jti` as `operationId`, retain `requestId` for create idempotency, and return
   sanitized stage/error-code/version diagnostics across Web, Relay, and MKT Browser without a remote
   Relay callback or new server table.
-- Lock proxy, fingerprint, and delete controls for managed profiles using upstream components and
+- Completed: lock proxy, fingerprint, delete, export, and direct-launch controls for managed profiles using upstream components and
   styles; do not redraw screens.
-- Enforce capability separation in contract tests: the profile-management token cannot call page
+- Completed: enforce capability separation in contract tests: the profile-management token cannot call page
   control, and any unclassified tool is denied by default.
 - Completed Relay slice: classify every owned JSON endpoint, enforce its declared HTTP method before
   handler execution, and fail typecheck when a contract path is omitted from the inventory.
-- Extend the same exposure inventory into the cross-repository contract. A new tool or token
+- Completed: extend the same exposure inventory into the cross-repository contract. A new tool or token
   capability without an explicit guard remains inaccessible and fails CI.
 - Completed Relay slice: discover the validated MCP token on demand from the owned Windows data area,
   retain a development override, and remove ordinary operator token copy/paste.
-- Return provider, app, engine, and capabilities in Relay health.
-- Add cross-repository contract tests.
+- Completed: return provider, app, engine, contract, and capabilities in Relay health and evaluate readiness from the current PC.
+- Completed: add cross-repository contract and packaged lifecycle tests.
 
 **Gate:** Retrying after a timeout does not create a second profile; every accepted attempt returns the
 same `operationId` through each local layer with a structured failing stage; unclassified tools remain
 inaccessible; and every error path fails closed.
 
-**Gate status:** Open. Correlated operation/stage diagnostics, token capability separation,
-managed-control locking, current-device health, and remaining cross-repository contract coverage
-remain required.
+**Gate status:** Closed 12 August 2026. The generic archive importer remains available for
+unmanaged/legacy data, but managed export is blocked; MKB-05 still owns the controlled device-transfer
+lock and recipient-encrypted bundle required before moving a real managed identity.
 
 ### MKB-03 — Windows onboarding, installer, and controlled updates (10–15 days)
 
-**Entry dependencies:** MKB-01E is green, so final packaging/signing can build on the supported
-Electron line. MKB-02 has delivered MCP-token discovery and atomic managed launch, and still owns
-runtime/capability health plus default-deny local operations; MKB-03 consumes those contracts
-rather than building a second status or authorization path.
+**Entry dependencies:** MKB-01E and MKB-02 are green. Final packaging/signing can build on the
+supported Electron line, managed contract, current-device health evaluator, and default-deny local
+operations. MKB-03 consumes those contracts rather than building a second status or authorization
+path.
 
 **MKB-03A — guided current-PC onboarding and secure enrollment:**
 
@@ -1277,8 +1297,8 @@ the product scope.
 ## 18. 9Router pattern review (11 August 2026)
 
 The review compared the full MKT Browser plan and current MKTTool trust boundaries with 9Router. It
-does not create another phase or dependency. Useful patterns are absorbed into completed MKB-01E,
-the in-progress MKB-02 slices, and planned MKB-03; incompatible patterns are recorded here so the
+does not create another phase or dependency. Useful patterns were absorbed into completed MKB-01E,
+the then-in-progress MKB-02 slices, and planned MKB-03; incompatible patterns are recorded here so the
 shared word “Relay” does not blur two different architectures.
 
 | Pattern | Decision | Reason and placement |

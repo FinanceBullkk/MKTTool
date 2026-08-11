@@ -162,6 +162,7 @@ export function reviewTicketPayload(kind: string, payload: unknown): TicketPaylo
       return {
         kind: TICKET_KINDS.CREATE_PROFILE,
         accountId: requireString(source, "accountId"),
+        requestId: requireString(source, "requestId"),
         profileName: requireString(source, "profileName"),
         proxy: reviewProxy(source.proxy),
         fingerprint: reviewFingerprint(source.fingerprint),

@@ -40,6 +40,7 @@ export class McpToolError extends McpClientError {
      * message whenever it is present.
      */
     readonly code?: string,
+    readonly diagnostic?: unknown,
   ) {
     super(message);
     this.name = "McpToolError";
@@ -51,17 +52,28 @@ export class McpToolError extends McpClientError {
  * `{"error":{"code":…,"message":…}}`; anything else is a legacy or non-conforming build.
  */
 export function extractErrorCode(result: McpToolResult): string | undefined {
+  return parseErrorBody(result).code;
+}
+
+export function extractErrorDiagnostic(result: McpToolResult): unknown {
+  return parseErrorBody(result).diagnostic;
+}
+
+function parseErrorBody(result: McpToolResult): { code?: string; diagnostic?: unknown } {
   const text = extractText(result).trim();
-  if (text === "") return undefined;
+  if (text === "") return {};
   try {
     const parsed: unknown = JSON.parse(text);
-    if (!parsed || typeof parsed !== "object") return undefined;
+    if (!parsed || typeof parsed !== "object") return {};
     const error = (parsed as { error?: unknown }).error;
-    if (!error || typeof error !== "object") return undefined;
+    if (!error || typeof error !== "object") return {};
     const code = (error as { code?: unknown }).code;
-    return typeof code === "string" && code !== "" ? code : undefined;
+    return {
+      ...(typeof code === "string" && code !== "" ? { code } : {}),
+      diagnostic: (parsed as { diagnostic?: unknown }).diagnostic,
+    };
   } catch {
-    return undefined;
+    return {};
   }
 }
 
@@ -159,6 +171,7 @@ export class MktBrowserMcpClient {
       throw new McpToolError(
         `Tool "${name}" failed: ${extractText(result)}`,
         extractErrorCode(result),
+        extractErrorDiagnostic(result),
       );
     }
     return result;

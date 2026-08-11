@@ -13,6 +13,8 @@ import { AntidetectError } from "../../src/lib/antidetect/antidetect-browser-ada
 import { TICKET_KINDS, type TicketPayload } from "../../src/lib/tickets/ticket-types";
 import type { RelayAntidetect } from "./relay-antidetect";
 import type { RelayResponseBody } from "./relay-http-server";
+import type { RelayOperationDiagnostic } from "../../src/lib/relay/relay-endpoints";
+import { relayOperationDiagnostic } from "./operation-diagnostics";
 
 /** Narrow the ticket union once so callers never cast launch payloads. */
 type LaunchPayload = Extract<TicketPayload, { kind: typeof TICKET_KINDS.LAUNCH_PROFILE }>;
@@ -20,12 +22,28 @@ type LaunchPayload = Extract<TicketPayload, { kind: typeof TICKET_KINDS.LAUNCH_P
 export async function launchProfileFromTicket(
   payload: LaunchPayload,
   antidetect: RelayAntidetect,
+  operationId: string,
 ): Promise<RelayResponseBody> {
+  const startedAt = Date.now();
+  try {
+    await antidetect.requireOperationalRuntime();
+  } catch (error) {
+    return {
+      ok: false,
+      message: error instanceof Error ? error.message : String(error),
+      diagnostic: relayOperationDiagnostic({ operationId, startedAt, stage: "browser-health" }),
+    };
+  }
   const adapter = antidetect.getAdapter();
 
   if (adapter.launchProfileWithProxy) {
+    let launched;
     try {
-      await adapter.launchProfileWithProxy(payload.antidetectProfileId, payload.proxy);
+      launched = await adapter.launchProfileWithProxy(
+        payload.antidetectProfileId,
+        payload.proxy,
+        { operationId },
+      );
     } catch (error) {
       antidetect.forgetProbe();
       return {
@@ -33,10 +51,25 @@ export async function launchProfileFromTicket(
         message:
           `Could not safely open the profile with proxy "${payload.proxyLabel}". ` +
           `${describe(error)}`,
+        diagnostic: relayOperationDiagnostic({
+          operationId,
+          startedAt,
+          stage: "launch-profile",
+          code: error instanceof AntidetectError ? error.code : undefined,
+          browser: error instanceof AntidetectError ? error.diagnostic : undefined,
+        }),
       };
     }
 
-    return launchSuccess(payload.proxyLabel);
+    return launchSuccess(
+      payload.proxyLabel,
+      relayOperationDiagnostic({
+        operationId,
+        startedAt,
+        stage: "complete",
+        browser: launched.diagnostic,
+      }),
+    );
   }
 
   try {
@@ -63,13 +96,17 @@ export async function launchProfileFromTicket(
     };
   }
 
-  return launchSuccess(payload.proxyLabel);
+  return launchSuccess(
+    payload.proxyLabel,
+    relayOperationDiagnostic({ operationId, startedAt, stage: "complete" }),
+  );
 }
 
-function launchSuccess(proxyLabel: string): RelayResponseBody {
+function launchSuccess(proxyLabel: string, diagnostic: RelayOperationDiagnostic): RelayResponseBody {
   return {
     ok: true,
     message: `Opened the profile with proxy "${proxyLabel}". The browser window is on this PC.`,
+    diagnostic,
   };
 }
 

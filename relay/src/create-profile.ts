@@ -24,6 +24,7 @@ import { AntidetectError } from "../../src/lib/antidetect/antidetect-browser-ada
 import { TICKET_KINDS, type TicketPayload } from "../../src/lib/tickets/ticket-types";
 import type { RelayAntidetect } from "./relay-antidetect";
 import type { RelayResponseBody } from "./relay-http-server";
+import { relayOperationDiagnostic } from "./operation-diagnostics";
 
 /** Ruột vé tạo profile — thu hẹp từ union để chỗ gọi không phải ép kiểu. */
 type CreatePayload = Extract<TicketPayload, { kind: typeof TICKET_KINDS.CREATE_PROFILE }>;
@@ -31,29 +32,66 @@ type CreatePayload = Extract<TicketPayload, { kind: typeof TICKET_KINDS.CREATE_P
 export async function createProfileFromTicket(
   payload: CreatePayload,
   antidetect: RelayAntidetect,
+  operationId: string,
 ): Promise<RelayResponseBody> {
+  const startedAt = Date.now();
+  try {
+    await antidetect.requireOperationalRuntime();
+  } catch (error) {
+    return {
+      ok: false,
+      message: error instanceof Error ? error.message : String(error),
+      diagnostic: relayOperationDiagnostic({
+        operationId,
+        requestId: payload.requestId,
+        startedAt,
+        stage: "browser-health",
+      }),
+    };
+  }
   const adapter = antidetect.getAdapter();
 
-  let profileId: string;
+  let created;
   try {
-    profileId = await adapter.createProfile({
+    created = await adapter.createProfile({
       name: payload.profileName,
-      notes: `Tạo bởi MKTTool cho nick ${payload.accountId}.`,
+      notes: `Created by MKTTool for account ${payload.accountId}.`,
       tags: ["mkttool"],
       proxy: payload.proxy,
       fingerprint: payload.fingerprint,
       seed: payload.seed,
+      externalRef: payload.accountId,
+      requestId: payload.requestId,
+      operationId,
     });
   } catch (error) {
     // A failed create is often the first sign that MKT Browser just stopped. Discard the cached
     // probe so the next check reports the current state, just like the launch path does.
     antidetect.forgetProbe();
-    return { ok: false, message: `Không tạo được profile. ${describe(error)}` };
+    return {
+      ok: false,
+      message: `Could not create the profile. ${describe(error)}`,
+      diagnostic: relayOperationDiagnostic({
+        operationId,
+        requestId: payload.requestId,
+        startedAt,
+        stage: "create-profile",
+        code: error instanceof AntidetectError ? error.code : undefined,
+        browser: error instanceof AntidetectError ? error.diagnostic : undefined,
+      }),
+    };
   }
 
   return {
     ok: true,
-    profileId,
+    profileId: created.profileId,
+    diagnostic: relayOperationDiagnostic({
+      operationId,
+      requestId: payload.requestId,
+      startedAt,
+      stage: "complete",
+      browser: created.diagnostic,
+    }),
     message:
       `Đã tạo profile "${payload.profileName}" với proxy và vân tay ` +
       `${payload.fingerprint.localeId} / ${payload.fingerprint.timezone}. ` +

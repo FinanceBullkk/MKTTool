@@ -374,8 +374,75 @@ describe("MktBrowserAdapter profile operations", () => {
       devices: [{ family: "windows-laptop-amd" }],
       locales: [{ id: "en-US" }],
     });
-    await expect(adapter.createProfile({ name: "Disposable" })).resolves.toBe(PROFILE_ID);
+    await expect(adapter.createProfile({ name: "Disposable" })).resolves.toEqual({
+      profileId: PROFILE_ID,
+    });
     await expect(adapter.isRunning(PROFILE_ID)).resolves.toBe(true);
+  });
+
+  it("passes managed correlation fields and accepts only the matching diagnostic", async () => {
+    const diagnostic = {
+      operationId: "operation-1",
+      requestId: "request-1",
+      stage: "complete",
+      durationMs: 12,
+      runtime: {
+        appVersion: "0.3.1",
+        contractVersion: 3,
+        profileSchemaVersion: 2,
+        engine: { kind: "cft", version: "148.0.0.0", status: "ready" },
+      },
+    };
+    const calls = installFakeMcpServer({
+      toolBodies: { create_profile: { id: PROFILE_ID, diagnostic } },
+    });
+    const adapter = new MktBrowserAdapter(MKT_BROWSER_DEFAULT_MCP_URL, "t");
+
+    await expect(
+      adapter.createProfile({
+        name: "Managed",
+        externalRef: "account-1",
+        requestId: "request-1",
+        operationId: "operation-1",
+      }),
+    ).resolves.toEqual({ profileId: PROFILE_ID, diagnostic });
+    expect(argsOf(calls, "create_profile")).toMatchObject({
+      external_ref: "account-1",
+      request_id: "request-1",
+      operation_id: "operation-1",
+    });
+  });
+
+  it("fails closed when MKT Browser returns an uncorrelated diagnostic", async () => {
+    installFakeMcpServer({
+      toolBodies: {
+        create_profile: {
+          id: PROFILE_ID,
+          diagnostic: {
+            operationId: "wrong-operation",
+            requestId: "request-1",
+            stage: "complete",
+            durationMs: 1,
+            runtime: {
+              appVersion: "0.3.1",
+              contractVersion: 3,
+              profileSchemaVersion: 2,
+              engine: { kind: "cft", version: null, status: "ready" },
+            },
+          },
+        },
+      },
+    });
+    const adapter = new MktBrowserAdapter(MKT_BROWSER_DEFAULT_MCP_URL, "t");
+
+    await expect(
+      adapter.createProfile({
+        name: "Managed",
+        externalRef: "account-1",
+        requestId: "request-1",
+        operationId: "operation-1",
+      }),
+    ).rejects.toMatchObject({ code: "INTERNAL_ERROR" });
   });
 });
 

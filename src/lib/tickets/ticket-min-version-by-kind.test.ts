@@ -36,14 +36,21 @@ function minRelayVersionOf(ticket: string): number {
 
 const PROXY = { protocol: "http" as const, host: "1.2.3.4", port: 8080 };
 
-describe("ba loại vé cũ giữ nguyên sàn", () => {
+describe("unrelated ticket kinds keep the base Relay floor", () => {
   /**
-   * Ba con số này là **giao kèo với mọi `.exe` đang chạy ngoài kia**. Bài đỏ ở đây nghĩa là bản
-   * vừa sửa sẽ làm hỏng cầu nối của cả team — đọc kỹ trước khi sửa cho nó xanh lại.
+   * Credential and OTP delivery do not depend on the managed-browser contract. Raising their floor
+   * would create an unrelated outage for installed Relay versions.
    */
   it.each([
     [TICKET_KINDS.CREDENTIAL, { kind: TICKET_KINDS.CREDENTIAL, accountId: "a", field: "password" as const, credentialCiphertext: "x" }],
     [TICKET_KINDS.OTP, { kind: TICKET_KINDS.OTP, accountId: "a", totpSecretCiphertext: "x" }],
+  ])("%s keeps the base floor", (_kind, payload) => {
+    expect(minRelayVersionOf(issueTicket(payload, recipient))).toBe(MIN_RELAY_VERSION);
+  });
+});
+
+describe("managed profile operations require Relay version 7", () => {
+  it.each([
     [
       TICKET_KINDS.LAUNCH_PROFILE,
       {
@@ -54,17 +61,12 @@ describe("ba loại vé cũ giữ nguyên sàn", () => {
         proxy: PROXY,
       },
     ],
-  ])("%s vẫn khai %i", (_kind, payload) => {
-    expect(minRelayVersionOf(issueTicket(payload, recipient))).toBe(MIN_RELAY_VERSION);
-  });
-});
-
-describe("loại vé mới khai riêng", () => {
-  it("CREATE_PROFILE đòi cầu nối bản 6", () => {
-    const ticket = issueTicket(
+    [
+      TICKET_KINDS.CREATE_PROFILE,
       {
         kind: TICKET_KINDS.CREATE_PROFILE,
         accountId: "a",
+        requestId: "create-profile:a",
         profileName: "REDDIT — anna",
         proxy: PROXY,
         fingerprint: {
@@ -75,10 +77,14 @@ describe("loại vé mới khai riêng", () => {
         },
         seed: "mkttool-abc",
       },
+    ],
+  ])("%s requires correlated managed-operation support", (_kind, payload) => {
+    const ticket = issueTicket(
+      payload,
       recipient,
     );
 
-    expect(minRelayVersionOf(ticket)).toBe(6);
+    expect(minRelayVersionOf(ticket)).toBe(7);
     expect(minRelayVersionOf(ticket)).toBeGreaterThan(MIN_RELAY_VERSION);
   });
 

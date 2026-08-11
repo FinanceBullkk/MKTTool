@@ -47,12 +47,13 @@ function antidetectThatFails(
     isRunning: async () => true,
     listProfiles: async () => [],
     fingerprintOptions: async () => ({ devices: [], locales: [] }),
-    createProfile: async () => "profile-1",
+    createProfile: async () => ({ profileId: "profile-1" }),
   };
 
   return {
     getAdapter: () => adapter,
     isReady: async () => true,
+    requireOperationalRuntime: async () => ({}) as never,
     forgetProbe: () => {},
   } as unknown as RelayAntidetect;
 }
@@ -62,7 +63,11 @@ describe("launchProfileFromTicket error copy", () => {
     const error = new AntidetectError(INTERNAL_SENTENCE, "MKT Browser", {
       code: "PROXY_REJECTED",
     });
-    const result = await launchProfileFromTicket(payload(), antidetectThatFails("applyProxy", error));
+    const result = await launchProfileFromTicket(
+      payload(),
+      antidetectThatFails("applyProxy", error),
+      "operation-1",
+    );
 
     expect(result.ok).toBe(false);
     expect(result.message).toContain("account proxy");
@@ -78,6 +83,7 @@ describe("launchProfileFromTicket error copy", () => {
     const result = await launchProfileFromTicket(
       payload(),
       antidetectThatFails("launchProfile", error),
+      "operation-2",
     );
 
     expect(result.ok).toBe(false);
@@ -90,6 +96,7 @@ describe("launchProfileFromTicket error copy", () => {
     const result = await launchProfileFromTicket(
       payload(),
       antidetectThatFails("launchProfile", error),
+      "operation-3",
     );
 
     expect(result.ok).toBe(false);
@@ -103,6 +110,7 @@ describe("launchProfileFromTicket error copy", () => {
     const result = await launchProfileFromTicket(
       payload(),
       antidetectThatFails("launchProfile", error),
+      "operation-4",
     );
 
     expect(result.ok).toBe(false);
@@ -121,7 +129,8 @@ describe("launchProfileFromTicket error copy", () => {
     const result = await launchProfileFromTicket(payload(), {
       getAdapter: () => adapter,
       forgetProbe: () => {},
-    } as unknown as RelayAntidetect);
+      requireOperationalRuntime: async () => ({}) as never,
+    } as unknown as RelayAntidetect, "operation-5");
 
     expect(result.ok).toBe(false);
     expect(result.message).toContain("already running with a different proxy");

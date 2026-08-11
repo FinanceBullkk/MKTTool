@@ -124,6 +124,7 @@ export const requestCreateProfileTicket = guardedAction(async function requestCr
       {
         kind: TICKET_KINDS.CREATE_PROFILE,
         accountId,
+        requestId: `create-profile:${accountId}`,
         profileName: profileNameForNick(account.platform, account.username),
         proxy: buildProxyConfig(account.proxy),
         fingerprint: parsed.data,

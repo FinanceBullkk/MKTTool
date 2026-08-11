@@ -43,6 +43,30 @@ function launchPayload() {
   } as const;
 }
 
+function createPayload() {
+  return {
+    kind: TICKET_KINDS.CREATE_PROFILE,
+    accountId: "acc-1",
+    requestId: "create-profile:acc-1",
+    profileName: "REDDIT - anna",
+    proxy: PROXY,
+    fingerprint: {
+      device: "windows-laptop-amd",
+      localeId: "en-US",
+      timezone: "America/Denver",
+      screen: { width: 1680, height: 1050 },
+    },
+    seed: "mkttool-acc-1",
+  } as const;
+}
+
+function operationIdOf(ticket: string): string {
+  const envelope = JSON.parse(Buffer.from(ticket.split(".")[0]!, "base64url").toString("utf8")) as {
+    jti: string;
+  };
+  return envelope.jti;
+}
+
 /** Adapter giả, ghi lại thứ tự các lời gọi — thứ tự chính là thứ luật "đẩy hỏng thì không mở" nói. */
 function fakeAdapter(overrides: Partial<AntidetectAdapter> = {}) {
   const calls: string[] = [];
@@ -62,7 +86,7 @@ function fakeAdapter(overrides: Partial<AntidetectAdapter> = {}) {
     fingerprintOptions: async () => ({ devices: [], locales: [] }),
     createProfile: async () => {
       calls.push("createProfile");
-      return "profile-vua-tao";
+      return { profileId: "profile-vua-tao" };
     },
     ...overrides,
   };
@@ -76,6 +100,7 @@ function fakeAntidetect(adapter: AntidetectAdapter | null): RelayAntidetect {
       return adapter;
     },
     isReady: async () => adapter !== null,
+    requireOperationalRuntime: async () => ({}) as never,
     forgetProbe: () => {},
   } as unknown as RelayAntidetect;
 }
@@ -314,5 +339,39 @@ describe("handleTicketRequest — vé mở profile", () => {
     });
 
     expect(result.message).toContain("ticket");
+  });
+});
+
+describe("handleTicketRequest - managed create correlation", () => {
+  it("keeps ticket jti as operationId and the stable create requestId", async () => {
+    const { identity, recipient } = relaySetup();
+    let received: Record<string, unknown> | undefined;
+    const { adapter } = fakeAdapter({
+      createProfile: async (request) => {
+        received = request as unknown as Record<string, unknown>;
+        return { profileId: "profile-vua-tao" };
+      },
+    });
+    const ticket = issueTicket(createPayload(), recipient);
+
+    const result = await handleTicketRequest(requestBody(ticket), {
+      identity,
+      antidetect: fakeAntidetect(adapter),
+      notConfiguredMessage: "not configured",
+    });
+
+    expect(result.ok).toBe(true);
+    expect(received).toMatchObject({
+      externalRef: "acc-1",
+      requestId: "create-profile:acc-1",
+      operationId: operationIdOf(ticket),
+    });
+    expect(result.diagnostic).toMatchObject({
+      operationId: operationIdOf(ticket),
+      requestId: "create-profile:acc-1",
+      stage: "complete",
+    });
+    expect(JSON.stringify(result.diagnostic)).not.toContain(PROXY.host);
+    expect(JSON.stringify(result.diagnostic)).not.toContain(PROXY.password);
   });
 });

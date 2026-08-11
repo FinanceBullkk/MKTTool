@@ -16,7 +16,11 @@
  * unreachable" and could send the operator toward creating duplicates in an existing vault.
  */
 import { AntidetectError } from "../../src/lib/antidetect/antidetect-browser-adapter";
-import { AntidetectNotConfiguredError, type RelayAntidetect } from "./relay-antidetect";
+import {
+  AntidetectNotConfiguredError,
+  AntidetectRuntimeNotReadyError,
+  type RelayAntidetect,
+} from "./relay-antidetect";
 import type { RelayResponseBody } from "./relay-http-server";
 
 export async function handleProfilesRequest(
@@ -24,9 +28,13 @@ export async function handleProfilesRequest(
 ): Promise<RelayResponseBody> {
   let adapter;
   try {
+    await antidetect.requireOperationalRuntime();
     adapter = antidetect.getAdapter();
   } catch (error) {
-    if (error instanceof AntidetectNotConfiguredError) {
+    if (
+      error instanceof AntidetectNotConfiguredError ||
+      error instanceof AntidetectRuntimeNotReadyError
+    ) {
       return { ok: false, message: error.message };
     }
     throw error;

@@ -80,11 +80,11 @@ async function main(): Promise<void> {
   );
 
   try {
-    profileId = await adapter.createProfile({
+    profileId = (await adapter.createProfile({
       name: `MKT Browser W02 disposable ${Date.now()}`,
       notes: "Disposable MKB-W02 verification profile. Safe to delete.",
       tags: ["mkb-w02", "disposable"],
-    });
+    })).profileId;
     console.log("Disposable profile creation passed.");
 
     let invalidProxyRejected = false;

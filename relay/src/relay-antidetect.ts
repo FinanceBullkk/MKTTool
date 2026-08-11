@@ -8,6 +8,8 @@ import {
   resolveMktBrowserMcpUrl,
 } from "../../src/lib/antidetect/mkt-browser-contract";
 import type { RelayConfig } from "./relay-config";
+import type { RelayBrowserHealth } from "../../src/lib/relay/relay-endpoints";
+import { currentDeviceBrowserReadiness } from "../../src/lib/relay/current-device-browser-health";
 import {
   resolveMktBrowserToken,
   type MktBrowserTokenSource,
@@ -23,17 +25,7 @@ const PROBE_TTL_MS = 30_000;
  * chưa có `get_runtime_info` thì mọi trường phiên bản là `null` và `contractCompatible` là `false`
  * — máy cũ phải hiện ra là máy cũ, không được lẫn vào nhóm bình thường.
  */
-export interface AntidetectRuntimeHealth {
-  ready: boolean;
-  provider: string | null;
-  appVersion: string | null;
-  contractVersion: number | null;
-  contractCompatible: boolean;
-  /** Câu tiếng Anh mô tả chỗ lệch, rỗng khi khớp. */
-  contractProblem: string;
-  engine: { kind: string; version: string | null; status: string } | null;
-  capabilities: string[];
-}
+export type AntidetectRuntimeHealth = RelayBrowserHealth;
 
 export class AntidetectNotConfiguredError extends Error {
   constructor() {
@@ -42,6 +34,13 @@ export class AntidetectNotConfiguredError extends Error {
         'For development only, set "mktBrowserToken" in relay-config.json.',
     );
     this.name = "AntidetectNotConfiguredError";
+  }
+}
+
+export class AntidetectRuntimeNotReadyError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "AntidetectRuntimeNotReadyError";
   }
 }
 
@@ -133,7 +132,8 @@ export class RelayAntidetect {
 
     const compatibility = describeMktBrowserCompatibility(info);
     return {
-      ready: await this.isReady(),
+      // A successful runtime tool call is fresher evidence than the short availability cache.
+      ready: info !== null ? true : await this.isReady(),
       provider: info?.provider ?? null,
       appVersion: info?.appVersion ?? null,
       contractVersion: info?.contractVersion ?? null,
@@ -142,6 +142,13 @@ export class RelayAntidetect {
       engine: info?.engine ?? null,
       capabilities: info?.capabilities ?? [],
     };
+  }
+
+  async requireOperationalRuntime(): Promise<AntidetectRuntimeHealth> {
+    const health = await this.describeRuntime();
+    const readiness = currentDeviceBrowserReadiness(health);
+    if (!readiness.ready) throw new AntidetectRuntimeNotReadyError(readiness.message);
+    return health;
   }
 
   private getMktBrowserAdapter(): MktBrowserAdapter {
