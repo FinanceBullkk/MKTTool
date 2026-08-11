@@ -37,7 +37,8 @@
     "relay:build": "tsx --env-file=.env scripts/build-relay-executable.ts",
     "relay:publish": "tsx --env-file=.env scripts/publish-relay-release.ts",
     "relay:verify": "tsx scripts/smoke-test-relay-executable.ts",
-    "mkt-browser:smoke": "tsx scripts/smoke-test-mkt-browser-contract.ts"
+    "mkt-browser:smoke": "tsx scripts/smoke-test-mkt-browser-contract.ts",
+    "mkt-browser:proxy-smoke": "tsx scripts/smoke-test-mkt-browser-correct-proxy.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.9.1",
