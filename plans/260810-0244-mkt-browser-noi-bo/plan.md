@@ -2,7 +2,7 @@
 
 **Direction approved:** 10 August 2026
 
-**Status:** MKB-00 verified 11 August 2026 · MKB-W01 Windows isolation verified · MKB-W02 internal clean break verified · Windows x64 is the primary platform for v1 · macOS Apple Silicon moves to MKB-07 after v1 · retain the MultiZen UX/UI in v1 · zero-confusion Windows onboarding is a hard MKB-03 gate
+**Status:** MKB-00 verified 11 August 2026 · MKB-W01 Windows isolation verified · MKB-W02 internal clean break verified · MKB-01 and MKB-01E verified 11 August 2026 · MKB-02 in progress with the idempotent-create slice verified · Windows x64 is the primary platform for v1 · macOS Apple Silicon moves to MKB-07 after v1 · retain the MultiZen UX/UI in v1 · zero-confusion Windows onboarding is a hard MKB-03 gate
 
 **Status source:** [development-roadmap.md](../../docs/development-roadmap.md)
 
@@ -353,7 +353,8 @@ runtime-exposed surface and fails when a new or renamed operation is unclassifie
 routes, and capability combinations are denied rather than inheriting access from a broad middleware
 allowlist.
 
-Example capability response:
+Target capability response after MKB-02 closes. The current checkpoint advertises only
+`idempotent-create-v1`:
 
 ```json
 {
@@ -854,29 +855,36 @@ profiles, processes, handoff files, or disposable roots. The engine is condition
 unmodified internal use through its official download path and remains excluded from redistribution.
 Apple Silicon evidence belongs to MKB-07.
 
-### MKB-01 — Windows compatibility and product identity (2–3 days remaining)
+### MKB-01 — Windows compatibility and product identity (completed 11 August 2026)
 
 **Already done in MKB-W01 and MKB-W02:** product and application identifiers, icon, display name, the
 fixed Windows data root, the owned MCP contract on a dedicated port, removal of the upstream
 heartbeat, updater, and publish path, and the preserved compatible MCP tool set.
 
-**Work remaining:**
+**Completed:**
 
-- Implement the copy-only importer from MultiZen before changing any default.
+- A first normal launch with no MKT Browser profile database offers to copy the legacy MultiZen
+  profile database, profile directories, and shared extension store. The source is opened read-only,
+  copied profile paths are rewritten under the product root, the legacy MCP token/settings are not
+  copied, and disposable `--user-data-dir` launches skip discovery.
+- A corrupt legacy database returns an unreadable state so the operator can start fresh or quit;
+  a database profile whose source directory is missing aborts the staged import before publication.
 - Retain MultiZen's layout, components, and interaction patterns; do not redesign.
-- Capture visual baselines for primary screens so changes outside approved rebranding and managed
-  states require explicit review.
-- ~~Add `get_runtime_info`, contract versioning, and stable error codes.~~ Done 11 August 2026:
+- Five primary-screen visual baselines are checked in under
+  `E:\MKTBrowser\assets\images\mkb-01-visual-baselines\`; the capture script drives the packaged
+  renderer through loopback DevTools with disposable data.
+- `get_runtime_info`, contract versioning, and stable error codes were completed 11 August 2026:
   the desktop reports provider/app/contract/schema/engine/capabilities, every rejection carries a
   stable code, and MKTTool decides compatibility from the report instead of assuming.
-- Add a Windows x64 CI job running the W01/W02 guards, typecheck, and the packaged contract test on
-  every change. Keep the job definition OS-parameterised so MKB-07 adds a matrix entry rather than a
-  rewrite.
+- The OS-parameterised Windows x64 workflow runs on every push and pull request: W01/W02 guards,
+  MKB-01 tests, typecheck, directory package build, and `get_runtime_info` against the packaged
+  executable. MKB-07 can add a matrix entry rather than rewrite the job.
 
-**Gate:** MKTTool opens a profile in MKT Browser on a clean Windows device without server changes, the
-upstream interface has not been rewritten, and the guards run in CI instead of by hand.
+**Gate passed:** MKTTool opens a profile in MKT Browser on a clean Windows device without server
+changes; the upstream interface remains intact; the copy-only importer preserves its source; five
+baselines record the primary screens; and the guards plus packaged runtime contract run in CI.
 
-### MKB-01E — Electron upgrade and renderer hardening (4–7 days, its own slice)
+### MKB-01E — Electron upgrade and renderer hardening (verified 11 August 2026)
 
 Upstream declares Electron 33, whose line reached end of support on 29 April 2025. This is separated
 from MKB-01 because it is the one item in the compatibility phase that can fail for reasons unrelated
@@ -894,9 +902,19 @@ failed under Node 24.
   handlers. A newly exposed operation without an explicit capability class fails the build.
 - Measure the fingerprint on the same profile and seed before and after the upgrade.
 
-**Gate:** The packaged application passes the full contract and lifecycle run on the new Electron
-line, and the fingerprint delta is reviewed and accepted deliberately rather than discovered during a
-pilot.
+**Gate result:** Passed. The packaged application runs Electron `42.8.1` with modules ABI `146` and
+`better-sqlite3` `12.11.1`. The renderer is sandboxed with context isolation, Node integration
+disabled, web security, a restrictive CSP, denied popup creation, and denied top-level navigation.
+Preload/main IPC and MCP tools use default-deny classified inventories; non-primary-renderer IPC
+senders and unknown tools are rejected. Node guards passed 2/2, MKB-01E passed 6/6, MKB-01 passed
+9/9, W02 passed 8/8, and typecheck, lint, the Windows directory build, script syntax, and packaged
+runtime/lifecycle verification passed. The packaged verifier proves list/create/update persistence,
+invalid proxy input rejection, real system Chrome launch, process-confirmed close, delete, final
+profile cleanup, application exit, and disposable-root removal. Fingerprint cleanup failures now
+fail the measurement command; the earlier fixed-seed configured and observed fingerprints remained
+identical across the upgrade, and all five visual baselines retained layout, copy, resources, and
+preload behavior. Current executable SHA-256:
+`7634f689920fb0c5a5a1e8e45aaa98b6eb7d96e9abcf97a9ee926c543dc0a662`. The package remains unsigned.
 
 ### MKB-W02 — Windows internal clean break (verified 10 August 2026)
 
@@ -916,11 +934,23 @@ initialize/tools-list/list/fingerprint/create/fail-closed proxy/update/launch/cl
 through the updated MKTTool consumer. The artifact remains technical-only; distribution gates are
 recorded in the W02 evidence linked above.
 
-### MKB-02 — MKTTool-managed mode (5–8 days)
+### MKB-02 — MKTTool-managed mode (in progress; first slice verified 11 August 2026)
+
+**Progress checkpoint:** Deterministic/idempotent managed profile creation is verified. Retrying the
+same request returns the existing profile without creating a duplicate; a conflicting request is
+rejected. The runtime advertises `idempotent-create-v1`, while `managed-profile-v1` and
+`atomic-launch-v1` remain absent. MKB-02 tests passed 4/4. This closes only the creation slice, not the
+phase gate.
+
+The current package also passed Node guards 2/2, W02 8/8, MKB-01 9/9, MKB-01E 6/6, Windows
+packaging guards 3/3, typecheck, lint, the full Windows build, packaged verification, and
+`git diff --check`. Packaged cleanup left no new MKT Browser or Chrome PID and restored workspace
+links. The packaging path retries `rcedit` only for transient `Unable to commit changes` failures.
 
 **Work:**
 
-- Add `externalRef` metadata, idempotent create, and post-timeout reconciliation.
+- Completed first slice: deterministic/idempotent managed creation, same-profile retry, and conflict
+  rejection.
 - Add atomic launch and reject a running session with a different proxy.
 - Propagate ticket `jti` as `operationId`, retain `requestId` for create idempotency, and return
   sanitized stage/error-code/version diagnostics across Web, Relay, and MKT Browser without a remote
@@ -940,10 +970,14 @@ recorded in the W02 evidence linked above.
 same `operationId` through each local layer with a structured failing stage; unclassified tools remain
 inaccessible; and every error path fails closed.
 
+**Gate status:** Open. Atomic launch, correlated operation/stage diagnostics, Relay capability
+enforcement, MCP-token discovery, managed-control locking, and cross-repository contract coverage
+remain required.
+
 ### MKB-03 — Windows onboarding, installer, and controlled updates (10–15 days)
 
-**Entry dependencies:** MKB-01E must be green before final packaging/signing so the team installer
-does not freeze an end-of-life Electron line. MKB-02 owns MCP-token discovery, runtime/capability
+**Entry dependencies:** MKB-01E is green, so final packaging/signing can build on the supported
+Electron line. MKB-02 owns MCP-token discovery, runtime/capability
 health, atomic managed launch, and default-deny local operations; MKB-03 consumes those contracts
 rather than building a second status or authorization path.
 
@@ -1230,9 +1264,9 @@ the product scope.
 ## 18. 9Router pattern review (11 August 2026)
 
 The review compared the full MKT Browser plan and current MKTTool trust boundaries with 9Router. It
-does not create another phase or dependency. Useful patterns are absorbed into the existing
-MKB-01E/MKB-02/MKB-03 slices; incompatible patterns are recorded here so the shared word “Relay” does
-not blur two different architectures.
+does not create another phase or dependency. Useful patterns are absorbed into completed MKB-01E,
+the in-progress MKB-02 slices, and planned MKB-03; incompatible patterns are recorded here so the
+shared word “Relay” does not blur two different architectures.
 
 | Pattern | Decision | Reason and placement |
 |---|---|---|

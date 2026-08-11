@@ -14,7 +14,7 @@ Dự án đang chạy **ba luồng song song**:
 |---|---|---|
 | **A — Công cụ** | 5 giai đoạn gốc: kho danh tính → hàng đợi → sức khỏe → Facebook → tự đăng Reddit | GĐ1-4 xong, GĐ0 kẹt ở tiền + cold-start, GĐ5 chưa bắt đầu |
 | **B — Web chung** | Biến app một máy thành web chung cho 5-6 người ở 5-6 nơi | **GĐ0-4 xong 06/08**, GĐ5 web **đã chạy thật trên Railway** cùng ngày |
-| **C — MKT Browser** | Fork the MultiZen desktop layer; Windows-only in v1 while Web, Relay, and upstream UX/UI remain intact | **MKB-00, MKB-W01, and MKB-W02 verified on Windows x64**; macOS deferred to MKB-07; [plan](../plans/260810-0244-mkt-browser-noi-bo/plan.md) |
+| **C — MKT Browser** | Fork the MultiZen desktop layer; Windows-only in v1 while Web, Relay, and upstream UX/UI remain intact | **MKB-00, MKB-W01, MKB-W02, MKB-01, and MKB-01E verified on Windows x64; MKB-02 in progress**; macOS deferred to MKB-07; [plan](../plans/260810-0244-mkt-browser-noi-bo/plan.md) |
 
 Luồng B sinh ra sau khi chốt bàn giao cho team — xem
 [plan web chung](../plans/260804-1752-web-chung-cho-team-phan-tan/plan.md). Nó **không thay thế**
@@ -46,12 +46,18 @@ Relay/MCP vocabulary, keys, tokens, ports, paths, archives, checksums, localhost
 The first-device secret bootstrap remains a separate ADMIN-only local ceremony.
 
 The Windows technical package was regenerated on 11 August at
-`E:\MKTBrowser\apps\desktop\release\win-unpacked\MKTBrowser.exe`; SHA-256 remains
-`27c27443385f4ecdbc0187772934adb5d1718169d7c387d41b3718ef72ba2b18`, matching the verified W02
-artifact. Desktop guards passed 8/8, focused MKTTool consumer tests passed 50/50, both repository
-typechecks passed, and the packaged Relay verification passed. The executable is still unsigned,
-so this is owner-led demo evidence, not distribution or pilot approval. A disposable profile also
-passed the independently cross-checked correct-proxy lifecycle and left no profile or process behind.
+`E:\MKTBrowser\apps\desktop\release\win-unpacked\MKTBrowser.exe`; its current SHA-256 is
+`7634f689920fb0c5a5a1e8e45aaa98b6eb7d96e9abcf97a9ee926c543dc0a662`. Node guards passed 2/2,
+W02 passed 8/8, MKB-01 passed 9/9, MKB-01E passed 6/6, the first MKB-02 slice passed 4/4, and
+Windows packaging guards passed 3/3. Typecheck, lint, the full Windows build, packaged verification,
+and `git diff --check` also passed. The packaged verifier proves `update_profile` persistence,
+`INVALID_INPUT` rejection for an invalid proxy, real Chrome launch/close, profile deletion, clean
+application/profile cleanup with no new MKT Browser or Chrome PID left behind, and restoration of
+workspace links. Packaging now retries `rcedit` only for the transient `Unable to commit changes`
+failure; every other edit failure stops immediately. The executable is still unsigned and the MKT
+Browser changes remain uncommitted, so this is technical checkpoint evidence, not a pushed release,
+distribution approval, or pilot approval. The earlier dedicated-proxy exit-IP match remains separate
+real-proxy evidence.
 
 > **Language rule — 10 August 2026:** all new or materially revised project artifacts and product
 > copy must be in English. Direct conversation with the project owner may remain in Vietnamese.
@@ -86,7 +92,7 @@ Chi tiết ở [plan.md](../plans/260804-1752-web-chung-cho-team-phan-tan/plan.m
 | 3 | [Tách hai vùng khóa + vé ký](../plans/260804-1752-web-chung-cho-team-phan-tan/phase-03-tach-hai-vung-khoa-va-ve-ky.md) | ✅ Xong | 06/08 | – |
 | 4 | [Cầu nối trên máy operator](../plans/260804-1752-web-chung-cho-team-phan-tan/phase-04-cau-noi-tren-may-operator.md) | ✅ Xong | 06/08 | Đã nghiệm thu thành công trên máy Windows thứ hai không cài Node. |
 | 5 | [Lên Railway + cron + sao lưu](../plans/260804-1752-web-chung-cho-team-phan-tan/phase-05-len-railway-cron-sao-luu.md) | 🟢 **Web chạy thật, deploy tự động, sao lưu tự rời máy chủ** | 06/08 | Chạy ở `mkttool-web-production.up.railway.app`, đăng nhập Google được, 10 proxy sang đủ, bộ lịch tự bắn đúng 09:00 giờ team, **đẩy commit lên `master` là web tự cập nhật**, và **app tự đẩy bản sao lưu lên Cloudflare R2 mỗi đêm** — đã nghiệm thu trọn vòng (tải object về, khôi phục vào database rỗng, đúng 22 hàng/6 bảng). **Proxy quan sát viên đã có và kiểm sống** (`Observer1`, US, 15:31), và **Facebook đã nối Fanpage thật trên máy chủ** (16:08 — Meta chấp nhận domain `*.up.railway.app`, không phải mua tên miền). Còn lại đúng một việc, và nó **không tự đóng được trong GĐ5**: một lượt dò thật — chờ **nick Reddit trong kho máy chủ**, tức chờ bước nhập liệu của GĐ6 |
-| 6 | Team handoff | 🟡 Web/Facebook ready; Reddit desktop blocked | 11/08 | Railway, authentication, authorization, backups, and the technical Relay release path are ready, so Web-only/Facebook handoff and an owner-led disposable-profile demo may proceed. Reddit team self-installation and real-account handoff remain blocked by MKB-01E/MKB-02/MKB-03, then the MKB-04 pilot/canary gates. Do not give ordinary operators the current Relay ZIP and Browser directory; data entry and training follow the relevant gate. |
+| 6 | Team handoff | 🟡 Web/Facebook ready; Reddit desktop blocked | 11/08 | Railway, authentication, authorization, backups, and the technical Relay release path are ready, so Web-only/Facebook handoff and an owner-led disposable-profile demo may proceed. Reddit team self-installation and real-account handoff remain blocked by MKB-02/MKB-03, then the MKB-04 pilot/canary gates. Do not give ordinary operators the current Relay ZIP and Browser directory; data entry and training follow the relevant gate. |
 
 ## Stream C — Internal MKT Browser
 
@@ -99,9 +105,9 @@ repository. MKTTool retains only the consuming contract, Relay, and release page
 | MKB-00 | Source, license, and engine | ✅ Verified 11 August | A Windows build opened a disposable profile through a **real working proxy**; its observed exit IP matched an independent proxy probe; engine conditionally approved for unmodified internal use on Windows x64 |
 | MKB-W01 | Windows-only product isolation (authorized exception) | ✅ Verified 10 August | Independent Windows identity/data root; upstream updater/heartbeat/publishing absent; current MCP adapter remains green |
 | MKB-W02 | Windows internal clean break | ✅ Verified 10 August | Dedicated port `47822`, MKT Browser-only internal contract, no legacy fallback, packaged lifecycle through updated MKTTool consumer |
-| MKB-01 | Windows compatibility and product identity | 🟡 Runtime contract done 11/08; three items left | Copy-only importer, visual baselines, and the W01/W02 guards running in Windows CI |
-| MKB-01E | Electron upgrade and renderer hardening | ⬜ Not started | Off end-of-life Electron 33 with native modules rebuilt; sandbox/CSP/IPC allowlist; fingerprint delta reviewed deliberately |
-| MKB-02 | Managed mode | ⬜ Not started | Idempotent create, atomic launch, correlated stage/error results, default-deny tool capabilities, and dangerous actions locked with upstream components |
+| MKB-01 | Windows compatibility and product identity | ✅ Verified 11 August | Copy-only first-launch importer preserves the MultiZen source; five primary-screen baselines captured; Windows CI runs W01/W02 guards, typecheck, package build, and packaged runtime-contract verification on every push/PR |
+| MKB-01E | Electron upgrade and renderer hardening | ✅ Verified 11 August | Electron 42.8.1 / ABI 146 package; native module rebuild; sandbox/CSP/default-deny IPC and MCP inventories; fixed-seed fingerprint unchanged and five visual baselines accepted |
+| MKB-02 | Managed mode | 🟡 In progress — first slice verified 11 August | Deterministic/idempotent managed profile creation and conflict rejection are verified under `idempotent-create-v1`; `managed-profile-v1`, `atomic-launch-v1`, correlated stage/error results, Relay coverage, and locked dangerous actions remain open |
 | MKB-03 | Windows onboarding, installer, and controlled updates | ⬜ Not started | One signed secretless installer; current-PC `Waiting`/`Ready` flow with no technical setup; ADMIN-only bootstrap and recipient-sealed grants; secure-store migration; coordinated-set update/rollback behind thin OS adapters |
 | MKB-04 | Technical pilot and one canary account | ⬜ Not started | An unfamiliar operator completes setup with zero developer intervention; two Windows devices remain green for seven days; one account completes a 14-day cold start |
 | MKB-05 | Team rollout | ⬜ Not started | Canary completes cold start; MKT Browser becomes default; rollback uses only the frozen W01 checkpoint and never restores a MultiZen adapter fallback |
@@ -153,16 +159,61 @@ is restored, the same check now lives in the installer encoding tests, and the r
 executable passed its 24-check acceptance carrying the W02 contract and port `47822`. Treat a green
 test suite as evidence about the code paths it runs, not about release packaging.
 
+**MKB-01 evidence, completed 11 August 2026:** A fresh normal Windows launch now detects a legacy
+MultiZen profile database only when the MKT Browser profile database does not exist, then offers a
+copy or a fresh start. The copy uses a read-only SQLite backup, copies profile and shared-extension
+directories, rewrites only the copied profile paths, excludes the legacy MCP token/settings, and
+never writes or deletes the source. Disposable `--user-data-dir` launches skip discovery. Importer
+and runtime tests passed 9/9; W01/W02 guards passed 8/8; typecheck passed. Corrupt legacy databases
+now produce an unreadable discovery state so the operator may choose `Start fresh` or quit; a database
+row whose profile directory is missing aborts the staged import before the MKT Browser store is
+published. Five primary-screen PNG baselines were captured from the packaged app. The Windows
+workflow now runs on every push and pull
+request with an OS-parameterised matrix, builds the directory package, and calls `get_runtime_info`
+through the packaged executable. That package check exposed two release-only defects and closed
+both: an empty PE copyright argument that broke `rcedit`, and a native ABI rebuild that previously
+left source tests using the Electron binary. Packaging now restores every development copy in a
+`finally` block, while the packaged copy retains the Electron ABI. MKB-01 is complete and supplied
+the compatibility baseline used by MKB-01E.
+
+**MKB-01E evidence, completed 11 August 2026:** The Windows package moved from end-of-life Electron
+33 to pinned Electron `42.8.1` with modules ABI `146`, `better-sqlite3` `12.11.1`, electron-vite 5,
+and electron-builder 26. The renderer now runs with sandboxing, context isolation, Node integration
+disabled, web security enabled, a restrictive CSP, denied popup creation, and denied top-level
+renderer navigation. Every preload/main IPC invoke and pushed event belongs to a classified
+inventory and rejects non-primary-renderer senders; every exposed MCP tool has an explicit class,
+and unknown or unclassified tools fail closed. The packaging path bundles first-party workspaces,
+uses a sandbox-compatible CommonJS preload, restores source Node-ABI binaries in `finally`, and
+reports the live packaged engine as `cloakbrowser / 146.0.7680.177.5 / ready`.
+
+Verification passed: Node guards 2/2, MKB-01E 6/6, MKB-01 9/9, W02 8/8, typecheck, lint, Windows
+directory build, packaged runtime/lifecycle verification, and script syntax checks. Fingerprint
+cleanup failures now fail the measurement instead of being swallowed. The packaged lifecycle uses a
+scoped system Chrome fixture to prove update persistence, invalid proxy input rejection, real launch,
+close, delete, application exit, and clean process/temp-root removal without weakening normal launch
+flags. The fixed-seed configured and observed fingerprints remained byte-for-byte equivalent across
+the Electron upgrade, and the five Electron 42 primary-screen baselines retained layout, text,
+resources, and preload behavior. The current executable SHA-256 is
+`7634f689920fb0c5a5a1e8e45aaa98b6eb7d96e9abcf97a9ee926c543dc0a662` and it remains unsigned.
+
+**MKB-02 progress, 11 August 2026:** The first managed-mode slice is verified, not the full phase.
+Deterministic/idempotent profile creation returns the existing profile on retry instead of creating a
+duplicate, and rejects a conflicting request. The runtime advertises `idempotent-create-v1` only;
+`managed-profile-v1` and `atomic-launch-v1` remain deliberately absent. MKB-02 tests passed 4/4 and
+the current package passed the full verification set listed above. Atomic launch, cross-layer
+operation/stage diagnostics, Relay capability enforcement, MCP-token discovery, and managed-control
+locking still have to pass before the MKB-02 gate can close.
+
 The current technical estimate is **four to seven weeks**, still below the former five-to-eight-week
 dual-platform range because macOS remains out of v1. The 11 August onboarding review made previously
 implicit Windows work explicit: current-device readiness, ADMIN-only bootstrap, expiring one-use
 recipient grants, legacy secret migration, and transactional Relay/Browser/engine updates. Retaining
 the MultiZen UX/UI still keeps a separate design project off this critical path.
 
-Two items carry most of the remaining uncertainty and are tracked as their own slices rather than as
-bullets: the Electron 33 upgrade with native module rebuilds (MKB-01E) and the guided, signed Windows
-installer with secure enrollment and coordinated updates/rollback (MKB-03). W02 already met the small
-version of the first when a `better-sqlite3` rebuild failed under Node 24.
+The Electron/native-module uncertainty is now retired by MKB-01E. The guided, signed Windows
+installer with secure enrollment and coordinated updates/rollback (MKB-03) carries most of the
+remaining delivery uncertainty; MKB-02 must first provide the managed, idempotent local contract it
+consumes.
 
 **There is no database migration in the compatibility phase.** `antidetectProfileId`, `deviceId`,
 and `proxyId` are sufficient to replace the provider. Add provider or version data to Postgres only
@@ -172,9 +223,10 @@ one-use secure enrollment; that is not a runtime-inventory table and stores no p
 
 **9Router pattern audit, 11 August 2026:** the useful overlap does not justify a second Relay
 architecture or a new phase. Capability discovery, four-layer health, signed updates, and rollback
-were already in MKB-01/MKB-03. MKB-01E/MKB-02 now also require a default-deny inventory of exposed
-MCP/IPC/Relay operations and metadata-only `operationId`/stage/error correlation across the local
-chain. Edge forwarding, public tunnels, dynamic proxy pools, and identity fallback are rejected
+were already in MKB-01/MKB-03. MKB-01E now inventories the desktop MCP/IPC surface; MKB-02 must
+extend the default-deny inventory across Relay operations and add metadata-only
+`operationId`/stage/error correlation across the local chain. Edge forwarding, public tunnels,
+dynamic proxy pools, and identity fallback are rejected
 because Relay remains loopback-only and every Reddit identity stays bound to one static proxy,
 profile, device, and owner. Persistent server-side outcome receipts, offline device inventory, and a
 circuit-breaker dashboard remain pilot-gated; none added a v1 database migration or changed the
@@ -294,7 +346,7 @@ và máy chủ tự `pg_dump` rồi tải lên Cloudflare R2 mỗi đêm.
 
 | Blocker | Nature | Owner |
 |---|---|---|
-| **MKB-01E + MKB-02** | Supported Electron, renderer hardening, managed idempotent/atomic profile flow, and current-device health must pass before final release packaging | Engineering |
+| **MKB-02 managed mode** | The deterministic/idempotent create slice passed, but atomic launch, cross-layer diagnostics, Relay capability enforcement, MCP-token discovery, managed-control locking, and current-device health still block final release packaging | Engineering |
 | **MKB-03 zero-confusion Windows onboarding** | One signed installer, secure device enrollment, protected secret migration, and coordinated update/rollback are not implemented | Engineering + certificate budget owner |
 | **MKB-04 pilot and canary** | An unfamiliar-operator setup test, two-device seven-day pilot, then one 14-day canary cold start are elapsed evidence gates | Engineering + responsible operator + time |
 | **Windows code-signing certificate** | Without an approved publisher and clean-device acceptance, team installation still hits an unsafe warning/bypass path | Budget owner |

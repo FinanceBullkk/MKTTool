@@ -12,6 +12,113 @@ Dự án chưa phát hành phiên bản (`0.1.0`, dùng nội bộ). Mốc chia 
 
 ---
 
+## 11/08/2026 (9) — MKB-02 starts with idempotent managed creation
+
+Verified the first MKB-02 slice in the current uncommitted MKT Browser working tree. Managed profile
+creation is deterministic and idempotent: retrying the same request returns the existing profile
+instead of creating a duplicate, while a conflicting request is rejected. The runtime now advertises
+`idempotent-create-v1`; it does not advertise `managed-profile-v1` or `atomic-launch-v1`. MKB-02
+therefore remains in progress rather than complete.
+
+The Windows package was regenerated at
+`E:\MKTBrowser\apps\desktop\release\win-unpacked\MKTBrowser.exe` with SHA-256
+`7634f689920fb0c5a5a1e8e45aaa98b6eb7d96e9abcf97a9ee926c543dc0a662`. Verification passed: Node
+guards 2/2, W02 8/8, MKB-01 9/9, MKB-01E 6/6, MKB-02 4/4, Windows packaging guards 3/3,
+typecheck, lint, the full Windows build, the packaged verifier, and `git diff --check`.
+
+The packaged verifier confirmed `update_profile` persistence, `INVALID_INPUT` rejection for an
+invalid proxy, real Chrome launch/close, profile deletion, clean profile/application cleanup without
+new MKT Browser or Chrome PIDs, and restoration of workspace links. Packaging retries `rcedit` only
+for the transient `Unable to commit changes` failure; all other failures stop immediately.
+
+The executable remains unsigned and the MKT Browser changes remain uncommitted. This checkpoint is
+not pushed, released, distributed, or pilot-ready. The remaining MKB-02 slices, MKB-03 onboarding and
+signing, and the MKB-04 pilot/canary gates still block real accounts and team rollout.
+
+---
+
+## 11/08/2026 (8) — Legacy import and packaged lifecycle review findings close
+
+Closed the four follow-up review findings in the MKT Browser working tree. Legacy discovery now
+returns an explicit unreadable state for a corrupt MultiZen database, allowing the desktop to offer
+`Start fresh` or `Quit` instead of failing on every startup. Import also rejects a database row whose
+profile directory is missing and removes the staging root instead of publishing a broken copied
+store.
+
+Fingerprint measurement no longer swallows close/delete failures: cleanup errors now make the
+command fail with their causes. The packaged verifier now exercises list, create, update persistence,
+invalid proxy input rejection, a real system Chrome launch, process-confirmed close, delete, final
+profile count, application exit, and disposable-root cleanup. Its verification-only engine fixture
+and restricted-host launch flags are scoped to an explicit disposable packaged-contract run; normal
+profile launches do not enter that path.
+
+That verification passed: Node guards 2/2, MKB-01E 6/6, MKB-01 9/9, W02 8/8, typecheck, lint,
+script syntax, `git diff --check`, and the packaged runtime/profile lifecycle. Cleanup left no MKT
+Browser process or packaged-contract temp root. That verification executable had SHA-256:
+`5be3462135633f92f273208cf6ed30720cea2aa10871c7aea89f6edefb6eaede`.
+
+The executable remains unsigned. MKB-02, MKB-03, and the MKB-04 pilot still gate real accounts and
+team distribution.
+
+---
+
+## 11/08/2026 (7) — MKB-01E upgrades Electron and hardens the renderer
+
+Completed MKB-01E in the MKT Browser repository. The Windows package moved from end-of-life
+Electron 33 to pinned Electron `42.8.1` with modules ABI `146`, `better-sqlite3` `12.11.1`,
+electron-vite 5, and electron-builder 26. Packaging now bundles first-party workspace code while
+leaving true runtime/native dependencies external, rebuilds the native module for Electron, restores
+the development Node-ABI binaries in `finally`, and loads a sandbox-compatible CommonJS preload.
+
+The renderer now uses sandboxing, context isolation, disabled Node integration, web security, a
+restrictive CSP, denied popup creation, and denied top-level renderer navigation. Preload/main IPC
+invokes and pushed events must exist in a classified inventory and reject non-primary-renderer
+senders. MCP tools also require an explicit exposure class; unknown or unclassified tools fail
+closed. Windows CI now runs the MKB-01E guard with the existing W01/W02 and MKB-01 gates.
+
+Verification passed: MKB-01E 4/4, MKB-01 7/7, W02 8/8, typecheck, lint, Windows directory build,
+packaged runtime contract, and script syntax checks. The packaged runtime reports Electron
+`42.8.1`, ABI `146`, and live engine state `cloakbrowser / 146.0.7680.177.5 / ready`. The fixed-seed
+configured and observed fingerprints were identical before and after the upgrade. All five primary
+screen baselines were reviewed against Electron 33 without layout, copy, resource, or preload
+regressions. That verification executable had SHA-256:
+`f60ef62fd4e446e3baff52b54c897c7e13faf87af787ac56bec1b4542027a447`.
+
+The executable remains unsigned. MKB-02, MKB-03, and the MKB-04 pilot still gate real accounts and
+team distribution.
+
+---
+
+## 11/08/2026 (6) — MKB-01 closes with copy-only import, visual baselines, and Windows CI
+
+Completed the remaining MKB-01 compatibility work in the MKT Browser repository. A fresh normal
+Windows launch now checks for legacy MultiZen profiles only when MKT Browser has no profile database,
+then offers `Copy profiles`, `Start fresh`, or `Quit`. Copying uses a read-only SQLite backup, copies
+the profile directories and shared extension store, rewrites only the copied `data_dir` paths, and
+never writes or deletes the MultiZen source. The legacy MCP token and settings stay behind. Explicit
+`--user-data-dir` verification launches skip legacy discovery entirely.
+
+Captured five packaged-renderer baselines for onboarding, profile creation, profiles, MCP, and
+settings. The first capture caught stale macOS/Linux platform copy in the onboarding screen; the copy
+now says Windows x64 while retaining the upstream layout, components, and interactions. Baselines
+live under `E:\MKTBrowser\assets\images\mkb-01-visual-baselines\` and can be regenerated with the
+checked-in loopback DevTools capture script.
+
+The OS-parameterised Windows workflow now runs on every push and pull request. It executes W01/W02
+guards, MKB-01 tests, typecheck, a directory package build, and `get_runtime_info` against the actual
+packaged executable. Building that gate exposed and fixed two packaging-only defects: an empty
+`LegalCopyright` argument that made `rcedit` fail, and a native-module rebuild that left source tests
+on the Electron ABI. Packaging now restores every Node development binary in a `finally` block while
+the packaged copy retains the Electron ABI.
+
+Evidence: MKB-01 tests 7/7, W01/W02 guards 8/8, typecheck, Windows directory build, packaged runtime
+contract, script syntax checks, and five reviewed PNG baselines passed. That verification executable
+had SHA-256:
+`d84b761b50c0cc1e52fd8b4f89d077066d9ab39e153113f8e6be99e234f9eedf`. The executable remains
+unsigned; MKB-01E/MKB-02/MKB-03 and the MKB-04 pilot still gate real accounts and team distribution.
+
+---
+
 ## 11/08/2026 (5) — MKT Browser reports itself, and failures carry codes
 
 Closed the runtime-contract part of MKB-01 across both repositories. MKT Browser now answers
