@@ -438,11 +438,17 @@ OTP values, but profile actions fail closed with a configuration error. See the
 team-demo platform; macOS is deferred to MKB-07. Distribution remains a later gate, and v1 retains
 the upstream UX/UI.
 
-MKT Browser contract version `2` advertises `atomic-launch-v1`. Relay then calls
-`launch_managed_profile`, which persists and reads back the account proxy before launching Chromium.
-If that profile is already running with a different proxy, the operation stops and asks the operator
-to close it; it does not modify or relaunch the active session. The legacy update-then-launch path is
-used only when an older build does not expose the atomic tool.
+That discovered token is **profile-management only**. It cannot navigate, click, type, read pages,
+access cookies, or send raw CDP, and the current build issues no page-control token. MKT Browser
+contract version `3` advertises managed-profile locking and correlated operation diagnostics in
+addition to idempotent create and atomic launch. Relay v7 preserves each ticket `jti` as the
+`operationId`; mismatched diagnostics fail closed and support detail contains only stage, code,
+duration, and runtime versions.
+
+Relay `/health` now evaluates the live MKT Browser process, contract, engine, and capabilities on
+**this PC**. Historical enrollment by itself is not `Ready`. Profile list/create/launch remain blocked
+until the current local runtime is operational, and the setup page shows an actionable repair state
+when it is not.
 
 ### Correct-proxy engineering smoke test
 
@@ -508,9 +514,9 @@ công cụ tạo ra, ngược hẳn với việc mua 10 proxy riêng.
 Tạo ở máy nào thì nick thuộc máy đó — profile chỉ tồn tại trên một máy, nên không khai sai được.
 Muốn đổi máy sau đó thì vẫn phải nhờ quản trị viên gán lại cụm.
 
-**Cần cầu nối bản 6 trở lên.** Bản cũ hơn thì thẻ đó nói rõ và bạn dán id bằng tay như trước —
-không có gì hỏng, chỉ là chưa có tiện nghi. Người nhập liệu hộ từ máy khác cũng vậy: máy họ không
-có profile của nick nên đường gõ tay vẫn còn đó.
+**Managed profile creation and launch require Relay version 7 or newer.** Older Relay builds cannot
+preserve the required operation correlation or prove the contract-v3 managed capabilities, so these
+actions stop with an update instruction instead of falling back to an uncorrelated path.
 
 > **Quy trình tay** (khi tạo trong MKT Browser): gắn proxy → tab Fingerprint → bấm **"Match proxy"**
 > → *rồi mới* đăng nhập lần đầu. Bấm nút của MKTTool thì **hai bước đầu** gộp làm một, và MKT Browser
@@ -567,9 +573,10 @@ trên nhãn nút. Kiểm proxy còn sống thì ngược lại, chỉ tốn vài
 Đo được nhưng ra lỗi thì hiện **"không đo được"**, không hiện thành số 0: proxy chưa đo được và
 proxy chậm là hai chuyện khác nhau, dẫn tới hai hành động khác nhau.
 
-MKT Browser không phơi endpoint CDP ra ngoài (Playwright không gắn vào được) — đó là **bình thường,
-không phải lỗi**. Nó lái trình duyệt bằng chính tool MCP của nó (`navigate`, `click`, `type`,
-`extract`, `screenshot`), và Phase 05 sẽ đi đường đó. AdsPower thì có trả về endpoint CDP.
+MKT Browser does not expose a public CDP endpoint. The current Relay token also cannot call page
+tools. Phase 05 must introduce a separately reviewed capability/token before any page interaction is
+enabled; installing or enrolling MKT Browser does not enable browser automation. AdsPower may still
+return a CDP endpoint through its separate adapter.
 
 ## Đăng nhập
 
@@ -745,12 +752,13 @@ không lưu.
 hơn mà vì ngoại lệ ở đó vô nghĩa: vé bọc mật mã cho khóa của máy kia, nên phát được cũng không mở
 nổi. Đường khôi phục của ADMIN là **gán lại cụm** — một thao tác có tên, có `AuditLog`.
 
-### Đổi máy: ba bước, và bước thứ ba là bước hay bị bỏ
+### Device transfer remains gated
 
-Profile MKT Browser **không tự đi theo**. Export ở máy cũ → import ở máy mới → **xóa bản ở máy cũ**.
+Managed MKT Browser profiles cannot use the generic desktop export path. MKB-05 owns the controlled
+transfer lock, recipient-encrypted export/import, and source retirement flow. Until that gate is
+implemented and verified, do not copy a managed real-account profile to another device.
 
-Công cụ cảnh báo chứ không chặn, vì chuyển hẳn sang máy mới rồi xóa bản cũ là chuyện người thật
-vẫn làm. Thứ giết nick là hai ca khác:
+The two unsafe cases remain:
 
 | Ca | Vì sao |
 |---|---|

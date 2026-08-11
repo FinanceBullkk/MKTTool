@@ -148,7 +148,7 @@ thực, không có cách nào đi tắt. Phần mềm xong sớm không giúp g�
 | # | Giai đoạn | Trạng thái |
 |---|---|---|
 | 0 | Chuẩn bị & kiểm chứng khả thi | 🔄 Chặng B + C đạt 02/08/2026; còn mua proxy/nick + cold-start |
-| 0B | Internal MKT Browser | 🟡 Windows x64 is the only v1/demo platform; MKB-00/W01/W02/01/01E verified; MKB-02 is in progress with only `idempotent-create-v1` verified; MKB-02/03 still gate pilot readiness; retain upstream UX/UI in v1 |
+| 0B | Internal MKT Browser | 🟡 Windows x64 is the only v1/demo platform; MKB-00/W01/W02/01/01E/02 verified; MKB-03 installer/onboarding and MKB-04 pilot/canary still gate real accounts and rollout; retain upstream UX/UI in v1 |
 | 1 | Kho danh tính | ✅ 01/08/2026 |
 | 2 | Hàng đợi content + bộ luật an toàn | ✅ 02/08/2026 |
 | 3 | Theo dõi sức khỏe tài khoản | ✅ 03/08/2026 — bộ dò đọc được Reddit thật. Proxy quan sát viên đã có và kiểm sống trên máy chủ (06/08/2026); **vẫn chưa chạy với nick thật** vì kho trên máy chủ chưa có nick Reddit |

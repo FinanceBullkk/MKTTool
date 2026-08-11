@@ -12,6 +12,36 @@ Dự án chưa phát hành phiên bản (`0.1.0`, dùng nội bộ). Mốc chia 
 
 ---
 
+## 12/08/2026 (4) — MKB-02 closes with managed controls, correlated diagnostics, and live device health
+
+Completed MKB-02 across MKT Browser, Relay, and MKTTool. Browser contract version `3` now advertises
+`managed-profile-v1` and `operation-diagnostics-v1` alongside idempotent create and atomic launch.
+Ticket `jti` is preserved as `operationId`, create keeps its retry-stable `requestId`, and only
+sanitized stage, code, duration, and runtime versions cross the local layers. Correlation mismatches
+fail closed. Proxy endpoints/credentials, tickets, cookies, page content, external references, and
+fingerprint seeds are excluded from diagnostics, activity summaries, and MCP proxy summaries.
+
+The discovered HTTP token is profile-management only. Page-control, page-read, cookie, and raw-CDP
+tools are absent from `tools/list` and rejected from `tools/call`; this build issues no page-control
+token. Managed profiles show a locked state and cannot be directly launched, deleted, exported, or
+have proxy/fingerprint changed through ordinary UI, command-palette, IPC, or MCP paths. Atomic
+managed launch remains the only permitted proxy update path.
+
+Relay v7 is required for both managed create and launch. Relay health now evaluates the live Browser,
+contract, engine, and required capabilities on the current PC; profile list/create/launch stop until
+that local runtime is operational. The Web setup surface reports `Ready` only from current local
+evidence and otherwise shows an actionable repair state. Operation support detail is expandable on
+create and launch results.
+
+Verification passed: MKT Browser MKB-02 18/18, all desktop main tests 25/25, typecheck, Windows
+directory build, and packaged contract/lifecycle; MKTTool focused managed-flow tests 8 files/80 tests,
+full suite, typecheck, ESLint, and production build. The packaged executable is unsigned and has
+SHA-256 `238d5d6fd5e373b052c484ceab90698f6dc295205a59be6573f9928b01db4f42`.
+MKB-03 signing/onboarding/update work and the MKB-04 pilot/canary gates still block distribution and
+real accounts.
+
+---
+
 ## 12/08/2026 (3) — MKT Browser contract v2 launches profiles atomically
 
 Completed the atomic-launch slice of MKB-02 across MKT Browser, MKTTool, and Relay. MKT Browser now

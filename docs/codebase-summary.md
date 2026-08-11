@@ -112,6 +112,7 @@ scripts/
 relay/                          **Chương trình riêng**, chạy trên máy operator — không phải một
 ├── src/                        phần của web app. Nghe `127.0.0.1:47821`, giữ khóa vùng operator;
 │   ├── relay-route-policy.ts   typed method/capability inventory for every owned JSON endpoint
+│   ├── operation-diagnostics.ts  keeps operation correlation and emits metadata-only support detail
 │   └── mkt-browser-token-discovery.ts  validates and reads the owned Windows MCP token on demand
 ├── install-relay.ps1           là chỗ DUY NHẤT trong cả hệ mở được mật khẩu nick. Không có đường
 └── setup.bat                   vào database; có test hình dạng mã nguồn chặn nó import `prisma`,
@@ -199,19 +200,20 @@ Click "Open profile" → POST /api/accounts/[id]/launch
   2. The server selects the bound device and issues a signed, recipient-encrypted ticket
   3. The Web browser sends the ticket to Relay at 127.0.0.1:47821
   4. Relay verifies signature, recipient, expiry, and replay state
-  5. Relay calls adapter.launchProfileWithProxy(profileId, proxy)
-  6. MKT Browser contract v2 persists + reads back the proxy, then launches atomically
-     Legacy builds only: Relay falls back to applyProxy() → launchProfile() when the tool is absent
-  7. The server records PROFILE_LAUNCH_TICKET_ISSUED; it does not claim the window opened
+  5. Relay v7 preserves ticket jti as operationId and requires the current Browser runtime to be ready
+  6. MKT Browser contract v3 persists + reads back the proxy, then launches atomically
+  7. Relay accepts only a correlated metadata-only diagnostic and returns support detail to the Web
+  8. The server records PROFILE_LAUNCH_TICKET_ISSUED; it does not claim the window opened
 ```
 
 Proxy persistence still must precede launch: changing it after Chromium starts does not change the
-running session. Contract v2 owns that ordering in `launch_managed_profile`; it rejects a running
-profile whose active proxy differs and never falls back after an atomic rejection.
+running session. Contract v3 owns that ordering in `launch_managed_profile`; it rejects a running
+profile whose active proxy differs and never falls back after an atomic rejection. Direct launch and
+ordinary proxy/fingerprint mutation are denied for managed profiles.
 
 | Provider | Proxy application path |
 |---|---|
-| MKT Browser | authenticated MCP tool `launch_managed_profile` on default port `47822`; contract v2 persists and verifies `proxy: { type: http\|socks5, host, port, username?, password? }` before launch |
+| MKT Browser | authenticated MCP tool `launch_managed_profile` on default port `47822`; contract v3 persists and verifies `proxy: { type: http\|socks5, host, port, username?, password? }` before launch, while responses expose no endpoint or credentials |
 | AdsPower | `POST /api/v1/user/update` with `user_proxy_config.proxy_soft = "other"`; the adapter spaces calls by 1.1 seconds to stay below the 1 request/second limit |
 
 Mật khẩu proxy dạng trần đi đúng một đường có kiểm soát:

@@ -61,11 +61,18 @@ Ba đường ra internet đi qua **ba IP khác nhau và không được lẫn**:
 > `Web → Relay → authenticated MCP → MKT Browser`; operator keys stay in Relay and profiles/cookies
 > stay on the operator device. There is no MultiZen provider or configuration fallback.
 
-> **Current MKB-02 launch boundary:** contract version `2` advertises `atomic-launch-v1`. Relay calls
-> `launch_managed_profile`, which persists and reads back the requested proxy before Chromium starts.
-> A running session is returned only when its active proxy matches; a mismatch fails closed without
-> modification or relaunch. Contract-v1 builds use `update_profile → launch_profile` only when the
-> atomic tool is absent, never after an atomic rejection.
+> **Current MKB-02 managed boundary:** contract version `3` advertises idempotent create, atomic
+> launch, managed-profile locking, and operation diagnostics. Relay v7 preserves ticket `jti` as
+> `operationId`, calls `launch_managed_profile`, and accepts the result only when correlation matches.
+> The Browser persists and reads back the requested proxy before Chromium starts; a running session
+> is returned only when its active proxy matches. Ordinary direct launch, delete, export, and
+> proxy/fingerprint edits are blocked for managed profiles.
+
+> **Token and health boundary:** the token discovered from the current Windows user data root grants
+> profile management only. It cannot list or call page-read, page-control, cookie, or raw-CDP tools,
+> and the build issues no page-control token. Relay `/health` reports live Browser, app, engine,
+> contract, and capability state for this PC. Historical device enrollment is not readiness;
+> list/create/launch stop until the current runtime is operational.
 
 > **“Relay” does not mean an edge proxy here.** It exposes no public tunnel, target-forwarding API,
 > or proxy pool. It verifies recipient-bound tickets, opens operator-domain secrets locally, and calls
@@ -136,7 +143,7 @@ Toàn bộ `data/` và `.env` đều nằm trong `.gitignore`. Repo **không bao
 
 | Phụ thuộc | Dùng để | Hỏng thì biểu hiện | Xử lý đã cài sẵn |
 |---|---|---|---|
-| **MKT Browser** (authenticated local MCP, default `127.0.0.1:47822`) | Open browser profiles and apply their static proxies | HTTP 401/403, desktop app stopped, contract/engine/CPU mismatch | One transport re-handshake is allowed; proxy/tool failures remain fail-closed. Managed-control locking, operation diagnostics, current-device readiness, engine pinning, and rollback remain v1 gates; Mac arm64 belongs to MKB-07 |
+| **MKT Browser** (authenticated local MCP, default `127.0.0.1:47822`) | Open browser profiles and apply their static proxies | HTTP 401/403, desktop app stopped, contract/engine/CPU mismatch | One transport re-handshake is allowed; proxy/tool failures remain fail-closed. MKB-02 now enforces managed controls, correlated diagnostics, token separation, and current-device readiness. Engine pinning, signed updates/rollback, and installer recovery remain MKB-03 gates; Mac arm64 belongs to MKB-07 |
 | **Proxy tĩnh** (nhà cung cấp) | Đường ra của từng nick | Đẩy vào profile vẫn "thành công" dù proxy đã chết | Không tự phát hiện được — phải mở `ipinfo.io` kiểm IP sau mỗi lần mở profile mới |
 | **Proxy quan sát viên** | Dò shadowban | Chưa nhập thì `npm run health` dừng ngay từ đầu | Cố ý dừng: dò bằng IP nhà còn tệ hơn không dò |
 | **HTML `old.reddit.com`** | Nguồn dữ liệu dò shadowban + karma | Reddit đổi giao diện → parser hỏng | Hỏng thì kết luận **`ERROR` ("Không dò được")**, tuyệt đối không bao giờ là `HEALTHY`. `npm run health:smoke` đối chiếu Reddit thật |
