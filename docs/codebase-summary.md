@@ -106,7 +106,9 @@ scripts/
 ├── smoke-test-identity-vault.ts  Kiểm chứng Phase 01
 ├── smoke-test-content-rules.ts   Kiểm chứng Phase 02
 ├── smoke-test-account-health.ts  Kiểm chứng Phase 03 (có phần đọc HTML Reddit thật)
-└── smoke-test-facebook-pages.ts  Kiểm chứng Phase 04 (không cần Meta App)
+├── smoke-test-facebook-pages.ts  Kiểm chứng Phase 04 (không cần Meta App)
+└── smoke-test-mkt-browser-correct-proxy.ts  Verifies the disposable MKT Browser correct-proxy
+                                 path without printing or retaining proxy credentials
 relay/                          **Chương trình riêng**, chạy trên máy operator — không phải một
 ├── src/                        phần của web app. Nghe `127.0.0.1:47821`, giữ khóa vùng operator,
 ├── install-relay.ps1           là chỗ DUY NHẤT trong cả hệ mở được mật khẩu nick. Không có đường

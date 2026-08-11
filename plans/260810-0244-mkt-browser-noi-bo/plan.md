@@ -2,7 +2,7 @@
 
 **Direction approved:** 10 August 2026
 
-**Status:** MKB-00 open · MKB-W01 Windows isolation verified · MKB-W02 internal clean break verified · Windows x64 is the primary platform for v1 · macOS Apple Silicon moves to MKB-07 after v1 · retain the MultiZen UX/UI in v1
+**Status:** MKB-00 verified 11 August 2026 · MKB-W01 Windows isolation verified · MKB-W02 internal clean break verified · Windows x64 is the primary platform for v1 · macOS Apple Silicon moves to MKB-07 after v1 · retain the MultiZen UX/UI in v1 · zero-confusion Windows onboarding is a hard MKB-03 gate
 
 **Status source:** [development-roadmap.md](../../docs/development-roadmap.md)
 
@@ -13,12 +13,14 @@
 > with the project owner may remain in Vietnamese. This active specification has been translated
 > before MKB-00 implementation; historical records remain unchanged.
 
-> **MKB-00 evidence (10 August 2026):** Official MultiZen `v0.3.1` is pinned at
+> **MKB-00 evidence (11 August 2026):** Official MultiZen `v0.3.1` is pinned at
 > `83c6898b2de3de1122b5fea88008fbbaa4677bff` in the separate `E:\MKTBrowser` checkout. The
 > unmodified Windows x64 build, direct MCP contract, and current MKTTool adapter passed with only
-> disposable profiles; failed proxy application remained fail-closed. MKB-00 is not complete: the
-> correct-proxy test is still missing. The Apple Silicon half left this gate under the 10 August
-> platform decision below and now belongs to MKB-07, where the verification runbook still applies.
+> disposable profiles; failed proxy application remained fail-closed. The current packaged build
+> then opened a disposable profile through a dedicated working proxy, matched its in-browser exit IP
+> to an independent probe, and left no profile, process, handoff file, or disposable data root behind.
+> The engine remains approved only for unmodified internal use through its official download path and
+> must not be bundled. The Apple Silicon half belongs to MKB-07, where the verification runbook still applies.
 > See the
 > [source/license/engine inventory](../../../MKTBrowser/docs/mkb-00-source-license-engine-inventory.md)
 > and [Apple Silicon verification runbook](../../../MKTBrowser/docs/mkb-00-apple-silicon-verification.md).
@@ -91,7 +93,7 @@ need to open the desktop profile-management interface directly.
 | Launch profile | The Relay calls “update proxy” and then “launch” as two consecutive commands | The app performs one atomic operation; failed proxy application leaves no launch gap |
 | Manual edit/launch | Users may still edit or open profiles directly in the app | Managed profiles lock proxy, fingerprint, deletion, and ordinary direct launch |
 | Status | Primarily indicates whether MultiZen answers MCP | Reports app, engine, contract, capabilities, and the exact failing layer |
-| Installation | MultiZen and Relay are installed separately and the MCP token is copied manually | One installation experience; the Relay discovers the local app and token automatically |
+| Installation | MultiZen and Relay are installed separately and the MCP token is copied manually | One authenticated, signed Windows download opens one guided setup journey; the operator never handles separate components, tokens, keys, ports, paths, archives, or checksums |
 | Updates | App and engine change independently of the MKTTool workflow | Signed approved releases, pinned engine, staged pilot, and rollback |
 | Device transfer | Export/import occurs outside the workflow and can leave two live copies | Transfer lock, recipient-encrypted bundle, and ADMIN audit trail |
 
@@ -110,12 +112,55 @@ fork appear more bespoke.
 A redesign may begin after the team has used the application and produced evidence about the parts
 that are difficult to use. It is not on the fork's critical path.
 
+### v1 Windows onboarding decision
+
+The two-process architecture is an implementation detail, not a user journey. A normal operator sees
+one product called **MKTTool on this PC** and completes this path:
+
+`Download for Windows → Install → Sign in → Confirm this PC → Waiting for administrator approval or Ready`
+
+The signed installer starts both MKT Browser and Relay, acquires an approved engine from its official
+source when redistribution is not allowed, verifies every artifact automatically, and opens the one
+authenticated setup page. Durable state resumes when that page is reopened after sign-in, refresh,
+browser restart, or Windows reboot.
+**Confirm this PC** is a deliberate user click because the first browser-to-loopback request must be
+user-triggered for Local Network Access permission. The page shows the detected PC name and signed-in
+email before binding them; it does not ask the operator to type identifiers that the system already
+knows.
+
+A normal operator must never have to:
+
+- download Relay or MKT Browser separately, extract a ZIP, run `.bat`/PowerShell, install Node, or
+  bypass an unsigned-publisher warning;
+- visit a localhost status page or manually navigate among `/setup`, `/relay-download`, and
+  `/relay-devices`;
+- see or copy an MCP token, operator key, public key, device ID, port, JSON field, filesystem path,
+  engine archive, checksum, or command;
+- select the device owner or use a manual-key fallback when an administrator is unavailable.
+
+`Waiting for administrator approval` is a successful, non-error installation outcome. It survives
+reload and reboot, tells the operator that there is nothing else to do, creates an actionable ADMIN
+queue, and moves to `Ready` automatically after a grant arrives. The four technical layers remain
+available behind an expandable support/ADMIN view; the primary operator view shows one plain state
+and one next action.
+
+The first device for the whole team is the only bootstrap exception. An authenticated ADMIN starts a
+five-minute, one-use bootstrap authorization for that registered local device, then enters
+`VAULT_KEY_OPERATOR` only into a Relay-owned loopback surface on that PC. The plaintext never enters a
+Web field, installer, URL, MKT Browser, log, crash report, or server store. Ordinary operator setup
+does not reveal or enable this path. Every later device uses ADMIN-approved, recipient-sealed delivery
+from an already-ready Relay. This guided setup is functional release work, not the custom redesign
+deferred to MKB-06.
+
 ## 2. Desired outcomes
 
 ### What operators see
 
 - One signed Windows installer. macOS receives its notarized `.dmg` in MKB-07, after v1.
-- A status page that clearly reports Relay, MKT Browser, engine, proxy, and version status.
+- One current-PC setup verdict — `Starting`, `Sign in`, `Confirm this PC`, `Waiting for administrator
+  approval`, `Ready`, or `Needs repair` — with technical layers hidden under support details.
+- The local device identity, signed-in owner, enrollment, app/engine versions, and compatibility are
+  detected automatically; an operator confirms them instead of retyping them.
 - **Create profile on this device** creates exactly one profile, applies the proxy and fingerprint,
   and pins the account to the device.
 - **Launch profile** opens the correct account; an error identifies the failing step and the required
@@ -128,6 +173,8 @@ that are difficult to use. It is not on the fork's critical path.
 
 ### What administrators control
 
+- A named queue of current-PC enrollment requests showing authenticated owner, detected device,
+  public-key fingerprint, request time, and revocation/previous-owner conflicts before approval.
 - Which device runs which app, engine, and control-contract versions.
 - Which releases may be installed and which checksums and signatures must match.
 - Staged updates rather than an all-at-once rollout.
@@ -141,7 +188,8 @@ that are difficult to use. It is not on the fork's critical path.
 |---|---|
 | Compatibility | The current list/create/update/launch/close flow works without changing ticket shape |
 | Proxy safety | No launch path remains after proxy application fails or when a profile is already running with a different configuration |
-| Installation usability | A person unfamiliar with MCP can install the product and reach ready status using only on-screen guidance |
+| Installation usability | On a clean standard-user Windows account, an unfamiliar operator reaches `Waiting for administrator approval` or `Ready` with at most ten minutes of user attention, excluding automatic artifact transfer and administrator wait time, with on-screen guidance and zero technical interventions |
+| Approval handoff | An offline administrator, page close, browser restart, or Windows reboot does not duplicate enrollment; the same PC later moves from `Waiting` to `Ready` without reinstalling or copying a secret |
 | No orphans | Retrying create after a timeout returns the original profile rather than creating a second one |
 | Data stability | Restarting, upgrading, or rolling back one version retains profile IDs, cookies, localStorage, and fingerprint seeds |
 | Operations | One test device runs for at least seven days, followed by one real account completing first login and cold start |
@@ -163,7 +211,8 @@ that are difficult to use. It is not on the fork's critical path.
 - Orchestrate proxy application and profile launch as one safe operation.
 - Add an independent release channel, controlled updates, and rollback.
 - Provide a copy-and-verify import path from existing MultiZen data without deleting the source.
-- After the flow is stable, package MKT Browser and the Relay into one end-user installer.
+- After the flow is stable, package MKT Browser and the Relay into one end-user installer before any
+  team member is asked to self-install it.
 
 ### Excluded from v1
 
@@ -175,6 +224,10 @@ that are difficult to use. It is not on the fork's critical path.
 - Do not redistribute an engine binary unless its license permits redistribution.
 - Do not cloud-sync profiles or cookies to MKTTool Web.
 - Do not let the server call MKT Browser directly over the internet.
+- Do not expose the Relay or MKT Browser MCP through a public tunnel, edge forwarder, or remotely
+  hosted proxy pool. Both listeners remain loopback-only.
+- Do not round-robin or fail over between accounts, profiles, devices, or proxies. A retry stays on
+  the same bound identity and static proxy or fails closed.
 - Do not turn MKT Browser into a SaaS product or sell it externally.
 - Do not add automatic CAPTCHA solving, auto-DM, reply hijacking, automated Group posting, or an
   unattended 24/7 bot.
@@ -276,6 +329,30 @@ The token used by the Relay may call only profile-management tools. Page-control
 `navigate`, `click`, and `type` for Phase 05 require a separate capability or token and remain disabled
 by default. Installing MKT Browser must not accidentally enable browser automation.
 
+### Operation correlation and exposed-surface control
+
+Every accepted profile operation carries two non-secret identifiers with distinct meanings:
+
+- `operationId` is the ticket envelope `jti`. It identifies one Web → Relay → MKT Browser attempt.
+- `requestId` is the stable idempotency key for a managed create request. A retry may receive a new
+  `operationId` while retaining the same `requestId` and profile result.
+
+The Relay passes the identifiers into MKT Browser and returns the same `operationId` with a structured
+stage, machine-readable error code, duration, and runtime versions. Local diagnostics may record only
+an allowlisted subset of those fields. They must never record ticket bodies, proxy endpoints or
+credentials, account secrets, page content, cookies, or browser storage.
+
+This is correlation, not a new callback channel. The Relay remains outbound-offline, and v1 does not
+let the hosted browser turn a local response into a trusted server audit statement. MKTTool continues
+to record what it can prove — ticket issuance — while persistent outcome receipts or offline device
+telemetry stay deferred until pilot evidence justifies a data model and provenance design.
+
+Exposure is default-deny. Maintain a checked-in inventory of every MCP tool, preload/IPC handler, and
+Relay HTTP endpoint together with its capability class and guard. CI compares that inventory with the
+runtime-exposed surface and fails when a new or renamed operation is unclassified. Unknown tools,
+routes, and capability combinations are denied rather than inheriting access from a broad middleware
+allowlist.
+
 Example capability response:
 
 ```json
@@ -307,6 +384,11 @@ V1 reuses the current data:
 **Do not add a table during the compatibility phase.** The Relay reads version and capability data
 directly from the current device. Store this data in Postgres only if the pilot demonstrates a real
 need to track devices while they are offline; do not prebuild a table for a hypothetical need.
+
+MKB-03 may extend `RelayDevice` with the minimum grant-generation, expiry, challenge, and completion
+metadata required to enforce one-use enrollment. That is security state for an existing device, not
+an offline runtime-inventory table. Postgres may hold only signed-envelope metadata and opaque
+recipient ciphertext; it never receives the plaintext operator key or device private key.
 
 Device transfer is a post-pilot slice and must not reuse `Account.status`, which describes account
 health. During MKB-05, add a minimal `ProfileTransfer` record containing the account, source device,
@@ -350,6 +432,22 @@ store such as DPAPI or Credential Manager. JSON files contain only non-sensitive
 Browser MCP token remains separate, with `0600` permissions on macOS and per-user ACLs on Windows;
 the Relay discovers it locally.
 
+MKB-03 must migrate every existing Windows secret deliberately. The operator-domain key and Relay
+device private key move from plaintext JSON into DPAPI CurrentUser or Credential Manager; the MCP
+bearer remains in protected per-user storage that both trusted local processes can consume. Migration
+is transactional: import, read back and verify, then remove the plaintext source. A crash is safely
+retryable, and repair, rollback, backup, temporary files, and uninstall must never recreate or retain
+an unnoticed plaintext copy. Do not claim process-level isolation where Windows provides only a
+same-user boundary; full-disk encryption remains required for profile/session data.
+
+Secret migration establishes a **rollback floor**. First activate a signed bridge Relay that can read
+legacy plaintext and the protected store but writes only the protected format. After it imports and
+verifies the secret, commit a durable secure-store schema marker and delete the plaintext source. From
+that point, the retained rollback set must contain that bridge Relay or a newer compatible version;
+the manifest and local updater refuse any older Relay even through rollback. Fault injection covers
+before/after import, read-back verification, source deletion, marker commit, activation, and reboot.
+No binary that requires plaintext may run after the deletion boundary.
+
 ## 8. Primary flows
 
 ### 8.1 First installation on a device
@@ -357,31 +455,100 @@ the Relay discovers it locally.
 ```mermaid
 sequenceDiagram
   actor Operator
-  participant Setup as OS-specific MKT Desktop installer
+  actor Admin
+  participant Setup as Signed Windows installer
   participant MB as MKT Browser
   participant R as Relay
-  participant W as MKTTool Web
+  participant UI as MKTTool setup page in browser
+  participant S as MKTTool server
+  participant AR as Ready ADMIN Relay
 
-  Operator->>Setup: Run the signed installer
-  Setup->>MB: Install app and register per-user startup
-  MB->>MB: Generate MCP token in a user-only location
-  Setup->>R: Install separate Relay helper and autostart it
-  R->>MB: Check get_runtime_info
-  Operator->>W: Register device
-  W->>R: Send deviceId and server public key
-  Operator->>R: Receive operator-domain key through current flow
-  R-->>Operator: Report four layers: Relay · MKT Browser · engine · configuration
+  Operator->>Setup: Run the one authenticated download
+  Setup->>MB: Install and start per-user app
+  MB->>MB: Generate MCP token in protected per-user storage
+  Setup->>R: Install and start per-user helper
+  Setup-->>Operator: Open the single setup route
+  Operator->>UI: Sign in, review PC + email, click Confirm this PC
+  UI->>R: User-triggered loopback readiness probe
+  R-->>UI: Public device identity + local runtime status
+  UI->>S: Self-enroll this device for the signed-in user
+  S-->>UI: deviceId + server public key + approval state
+  UI->>R: Configure public enrollment values
+  UI->>S: Poll for recipient-sealed grant
+  alt Grant not approved yet
+    S-->>UI: Waiting for administrator approval
+    Admin->>UI: Approve named owner/device on a ready ADMIN PC
+    UI->>AR: Ask local ADMIN Relay to seal for recipient
+    AR-->>UI: Recipient-sealed ciphertext
+    UI->>S: Store opaque signed grant envelope
+  end
+  S-->>UI: Opaque ciphertext + 30-second one-use delivery authorization
+  UI->>R: Deliver both over loopback
+  R->>R: Persist secret, generation, grant ID, and completion proof atomically
+  R-->>UI: New or cached recipient-bound completion proof
+  UI->>S: Idempotently consume proof and mark enrollment complete
+  UI->>R: Read live four-layer health
+  R-->>UI: Ready
 ```
 
-The v1 team release is a signed Windows installer with per-user autostart. The Relay runs as a
-separate process even when it ships in the same package. The macOS release — a native Apple Silicon
-application signed with Developer ID, notarized, with the Relay as a LaunchAgent helper and no
-Homebrew, `xattr`, or Terminal requirement — is specified in MKB-07 and is not a v1 deliverable.
+All `UI → R` calls above are made by the user's browser to loopback. The server never calls Relay,
+and the installer opens the normal authenticated setup route without a bearer, bootstrap secret, or
+operator key in the URL, command line, or configuration. The installer is identical for every user
+and contains only public release metadata and the approved Web origin.
+
+The setup controller owns these user-visible states:
+
+| State | Meaning | Only primary action |
+|---|---|---|
+| `Starting` | Installed components or the pinned engine are still becoming available | Wait, then retry automatically |
+| `Sign in` | There is no valid MKTTool session | Sign in normally |
+| `Confirm this PC` | The page has not yet performed the user-triggered loopback check | Confirm the shown PC and email; allow Local Network Access if prompted |
+| `Waiting for administrator approval` | The device is enrolled correctly but has no approved operator grant | No operator action; keep polling and resume after reload/reboot |
+| `Ready` | Owner/device reconciliation, grant persistence, live app/engine health, contract compatibility, and secure storage all pass on this PC | Continue to MKTTool |
+| `Needs repair` | A specific recoverable layer failed | Show one plain-language repair/retry action; keep technical detail expandable |
+
+Readiness is local and current, not inferred from another team device or from a historical server
+flag. A second operator on a clean PC sees `Confirm this PC` even when other devices are ready. The
+server reconciles local public key and `deviceId` with the authenticated owner and revocation state on
+every setup pass. A wrong signed-in user, previous owner, shared Windows account, or revoked key fails
+closed into an ADMIN transfer/re-enrollment path; a friendly PC name is never proof of ownership.
+
+An operator-key grant is durable opaque recipient-sealed ciphertext with a grant ID,
+device/public-key binding, and monotonic operator-key generation. When the recipient polls, the server
+checks current owner, revocation, generation, and pending state, then signs a separate 30-second,
+one-use delivery authorization for that ciphertext. Relay requires both, verifies the
+authorization signature/recipient/expiry/generation and local replay state, then atomically stores the
+secret, generation, grant ID, and a deterministic completion proof.
+
+If the response, browser action, or server commit is lost after that atomic write, exact redelivery of
+the same authorized grant returns the cached proof without rewriting the key; server completion is
+also idempotent. A tampered payload, different grant reusing an ID, expired authorization,
+superseded generation, or wrong recipient cannot mutate storage. Revocation immediately blocks new
+delivery authorizations and invalidates pending server state, but an authorization minted just before
+revocation retains a residual lifetime of at most 30 seconds because Relay remains outbound-offline.
+Tests cover delivery both inside that residual window and after expiry. As elsewhere in the design,
+revocation cannot erase a valid payload or secret already obtained by a lost device; key/credential
+rotation covers that case. The server clears a pending grant and records completion only after the
+recipient proof; a browser-only assertion can never create `Ready`.
+
+For the first-device exception, an ADMIN-only guarded Web action issues a five-minute, one-use,
+device-bound bootstrap authorization. Relay verifies it before exposing its local plaintext entry
+surface. This is not a fallback for an unavailable administrator, and ordinary operators cannot
+activate it even if they know the loopback endpoint.
+
+The v1 team release is an Authenticode-signed per-user Windows installer with autostart and no UAC
+requirement. Relay remains a separate process even when it ships in the same package. The macOS
+release — a native Apple Silicon application signed with Developer ID, notarized, with Relay as a
+LaunchAgent helper and no Homebrew, `xattr`, or Terminal requirement — is specified in MKB-07 and is
+not a v1 deliverable.
 
 During technical development, the app and Relay may be separate artifacts for diagnostics. Do not
-hand them to the team until Windows has **one download and one installation flow**. If
-the engine license prohibits bundling, the installer or app downloads it from the official source and
-verifies its signature or checksum; the operator does not perform those steps manually.
+hand them to the team until Windows has **one signed download and one resumable setup controller**.
+The current Relay ZIP, `setup.bat`, manual checksum, localhost status page, and separate technical
+MKT Browser directory remain owner/developer artifacts, not an acceptable team installation flow. If
+the engine license prohibits bundling, the installer or app downloads the manifest-pinned version
+from the official source and verifies its signature or checksum; the operator does not perform those
+steps manually and the runtime never resolves an unpinned “latest” version.
 
 ### 8.2 Create an account profile
 
@@ -433,20 +600,41 @@ sequenceDiagram
 During transition, the Relay prefers `launch_managed_profile`. Only when the capability is absent may
 it fall back to the current `update_profile` followed by `launch_profile` sequence.
 
-### 8.4 Update the app or engine
+### 8.4 Update the local compatibility set
+
+The installer/app pins an offline release-root public key and the expected Authenticode publisher.
+The root signs delegated manifest-key rotation/revocation statements; delegated private keys and code
+signing credentials remain separate from R2 credentials. R2 is an untrusted artifact host, not the
+source of release authority. Protected local state records the highest accepted compatibility-set
+sequence, secure-store rollback floor, and exactly one retained rollback sequence.
+
+A truly clean install accepts only a manifest at or above the minimum sequence embedded in its signed
+installer. If profile/device data exists but the anti-downgrade state is missing or damaged, reinstall
+fails into an ADMIN repair/recovery path instead of pretending the device is clean. A local one-use
+ADMIN rollback authorization names the retained sequence and is the only allowed monotonic exception.
 
 1. The Web app or status page reports an approved release; it does not close profiles automatically.
-2. Refuse updates while a profile is open.
-3. Snapshot metadata and databases and validate SQLite before changing anything.
-4. Verify the package's digital signature and checksum.
-5. Update the app; the engine has an independent version and changes only when the release manifest
-   explicitly names a new version.
-6. Run smoke tests: list → open test profile → cookie → proxy → close.
-7. On failure, restore the prior app or engine snapshot. Never guess at a downgrade migration.
+2. Verify a signed compatibility manifest that pins installer, Relay, MKT Browser, control-contract,
+   and engine versions, hashes, sizes, sequence, publisher, delegated key, and allowed transition.
+   Reject a stale/replayed manifest, wrong publisher/key, revoked delegation, incompatible tuple, or
+   network-driven downgrade.
+3. Refuse the update before stopping any process when a profile is open.
+4. Snapshot metadata, databases, secure-store migration state, and the previous approved compatibility
+   set; validate SQLite before changing anything.
+5. Stage Relay, MKT Browser, and the pinned engine without activating a mixed set. If the engine is
+   externally acquired, resume interrupted downloads and verify the approved official artifact.
+6. Activate the complete set, restart both processes in either order, and run smoke tests: runtime
+   health → list → open test profile → cookie → proxy → close.
+7. On any failure or reboot between steps, converge to either the complete new set or the complete
+   retained set. Never run a mixed tuple or guess at a downgrade migration.
+8. Permit rollback only through an explicit ADMIN/human action and one-use local authorization to the
+   retained approved version at or above the secure-store rollback floor; audit it and never let
+   release metadata trigger a silent downgrade.
 
 The engine progresses through **development → pilot device → team**. Do not automatically fetch the
 latest engine every day: changing Chromium may change the measured fingerprint even if the profile ID
-and seed remain constant.
+and seed remain constant. A cached approved engine can reach `Ready` while offline; an uncached engine
+reports a resumable preparation state instead of asking the operator to obtain an archive.
 
 ### 8.5 Transfer a profile to another device
 
@@ -620,13 +808,17 @@ This is a legal and operational gate, not legal advice.
 | Provider identification | `relay/src/relay-config.ts`, `relay/src/relay-antidetect.ts` | W02 complete: use `mkt-browser` only; rollback is the frozen W01 checkpoint, not a runtime provider fallback |
 | Relay core and OS seam | build/release + `relay/src/relay-home.ts` | Keep Windows behavior behind adapters over a shared core: Windows per-user autostart + secure store now, macOS helper/LaunchAgent + Keychain at MKB-07 |
 | MCP contract | `src/lib/antidetect/` | W02 complete: owned client/adapter/contract names and port; runtime capability reporting remains future work |
-| Health | `src/lib/relay/relay-endpoints.ts`, `relay/src/main.ts` | Return provider/app/engine/contract versions without sensitive tokens or paths |
+| Health | `src/lib/relay/relay-endpoints.ts`, `relay/src/main.ts` | Return current-device provider/app/engine/contract health without sensitive tokens or paths; historical enrollment alone never means `Ready` |
 | Idempotent create | profile actions + adapter | Send `accountId`/`requestId` and reconcile by external reference |
 | Atomic launch | `relay/src/launch-profile.ts` | Prefer the atomic capability and retain the old path for a bounded transition window |
+| Operation correlation | ticket issuer + Relay client + managed contract | Carry ticket `jti` as `operationId`; preserve create `requestId`; return sanitized stage, code, duration, and versions without adding a remote callback |
+| Surface authorization | MKT Browser MCP/preload + Relay HTTP routes | Keep a default-deny exposure inventory; CI fails on any unclassified tool, IPC handler, route, or token capability |
+| Device onboarding | installer + `/setup` + Relay enrollment actions | Own one resumable state machine, bind the detected device to the signed-in user, require ADMIN-approved recipient-sealed grants, and keep first-device bootstrap ADMIN-only |
+| Secret migration | Relay config + Windows secure-store adapter | Transactionally move legacy plaintext operator/device keys into protected per-user storage; verify before deleting the source and never recreate plaintext during repair/rollback |
 | Device transfer (MKB-05) | Prisma + ticket route + Relay | Add a `ProfileTransfer` lock and recipient-encrypted export/import; the server stores no bundle |
-| Web UI | profile card + Relay page | Show the actual provider and actionable errors/versions without redesign |
+| Web UI | current-PC setup controller + profile card | Show one plain setup state/action, keep support diagnostics expandable, and show actual provider/versions on operational surfaces without redesign |
 | Fork UI | MultiZen renderer | Retain upstream layout and components; add only rebranding, managed badge, and minimal locked states |
-| Release | download page + R2 | Serve the signed Windows installer with a compatibility manifest; add further OS/architecture entries at MKB-07 |
+| Release | authenticated download + R2 + Windows installer CI | Produce one Authenticode-signed per-user installer and a signed anti-downgrade compatibility manifest for Relay, Browser, contract, and pinned engine; add other OS/architecture entries at MKB-07 |
 
 The pre-operational W02 owner decision supersedes the original dual-provider transition proposal.
 No real device depended on the old internal names, so the active runtime fallback was removed in
@@ -636,9 +828,11 @@ upstream application; do not reintroduce silent dual-name behavior.
 ## 12. Implementation roadmap
 
 The estimates below express relative size rather than hard calendar commitments. With Windows as the
-only committed platform and no redesign, a technical build ready for pilot is estimated at **three to
-five weeks**. The anti-open-ended guard is that MKB-02 must be reachable within two working weeks; if
-it is not, stop and reassess rather than extending.
+only committed platform and no redesign, a technical build ready for pilot is estimated at **four to
+seven weeks**. The 11 August onboarding review made previously implicit work explicit: current-device
+readiness, ADMIN-only bootstrap, expiring one-use grants, legacy secret migration, and transactional
+component updates. The anti-open-ended guard is that MKB-02 must be reachable within two working
+weeks; if it is not, stop and reassess rather than extending.
 
 Two items inside that range carry most of the uncertainty and deserve to be tracked as their own
 slices rather than as bullets inside a phase: moving off end-of-life Electron 33 on a fork with native
@@ -650,26 +844,15 @@ The estimate excludes developing an engine, which is out of scope, and excludes 
 MKB-07. Full rollout to real accounts also waits for one canary account to complete its **14-day cold
 start**; that elapsed time is outside the coding estimate and cannot be shortened.
 
-### MKB-00 — Source, license, and engine gate (1–2 days remaining)
+### MKB-00 — Source, license, and engine gate (verified 11 August 2026)
 
-**Already done:** the separate fork repository with the upstream remote and NOTICE files intact, the
-pinned source SHA and lockfile, the unmodified Windows x64 build, and the list/create/update/launch/
-close contract run through the MKTTool adapter.
-
-**Work remaining:**
-
-- Approve an experimental and operational engine for Windows x64; confirm artifacts, licenses, and a
-  lawful download path.
-- Inventory operator devices: the Windows device count, plus the available Mac models and chips
-  recorded for MKB-07 planning only.
-- Run one profile through create → apply a **real working proxy** → launch → verify the exit IP →
-  close. W01 and W02 only proved fail-closed behavior against a deliberately invalid proxy, which
-  demonstrates the guard rather than the working path.
-
-**Gate:** A reproducible Windows build opens a test profile through the correct proxy with a verified
-exit IP. Apple Silicon evidence is no longer part of this gate; it moves to MKB-07. The completed
-MKB-W01 and MKB-W02 slices remain the Windows identity work that the original ordering had placed
-after this gate.
+**Gate result:** Passed. The separate fork retains the upstream remote, source SHA, lockfile, NOTICE,
+and license boundary. The unmodified and current packaged Windows builds passed the compatible
+contract with disposable profiles. On 11 August, a dedicated working proxy produced the same
+non-direct exit IP in an independent probe and inside a disposable profile; cleanup left zero test
+profiles, processes, handoff files, or disposable roots. The engine is conditionally approved for
+unmodified internal use through its official download path and remains excluded from redistribution.
+Apple Silicon evidence belongs to MKB-07.
 
 ### MKB-01 — Windows compatibility and product identity (2–3 days remaining)
 
@@ -705,6 +888,8 @@ failed under Node 24.
   first.
 - Enforce renderer sandboxing, context isolation, CSP, and an IPC allowlist. The renderer must not
   read tokens or profile files directly.
+- Add the default-deny exposure inventory and CI guard for MKT Browser MCP tools and preload/IPC
+  handlers. A newly exposed operation without an explicit capability class fails the build.
 - Measure the fingerprint on the same profile and seed before and after the upgrade.
 
 **Gate:** The packaged application passes the full contract and lifecycle run on the new Electron
@@ -735,41 +920,113 @@ recorded in the W02 evidence linked above.
 
 - Add `externalRef` metadata, idempotent create, and post-timeout reconciliation.
 - Add atomic launch and reject a running session with a different proxy.
+- Propagate ticket `jti` as `operationId`, retain `requestId` for create idempotency, and return
+  sanitized stage/error-code/version diagnostics across Web, Relay, and MKT Browser without a remote
+  Relay callback or new server table.
 - Lock proxy, fingerprint, and delete controls for managed profiles using upstream components and
   styles; do not redraw screens.
+- Enforce capability separation in contract tests: the profile-management token cannot call page
+  control, and any unclassified tool is denied by default.
+- Extend the exposure inventory across the Relay HTTP endpoints and cross-repository contract. A new
+  route or capability without an explicit guard remains inaccessible and fails CI.
 - Let the Relay discover the MCP token automatically from the correct OS data area while retaining a
   development override.
 - Return provider, app, engine, and capabilities in Relay health.
 - Add cross-repository contract tests.
 
-**Gate:** Retrying after a timeout does not create a second profile and every error path fails closed.
+**Gate:** Retrying after a timeout does not create a second profile; every accepted attempt returns the
+same `operationId` through each local layer with a structured failing stage; unclassified tools remain
+inaccessible; and every error path fails closed.
 
-### MKB-03 — Windows installer, Relay packaging, and updater (6–9 days)
+### MKB-03 — Windows onboarding, installer, and controlled updates (10–15 days)
 
-**Work:**
+**Entry dependencies:** MKB-01E must be green before final packaging/signing so the team installer
+does not freeze an end-of-life Electron line. MKB-02 owns MCP-token discovery, runtime/capability
+health, atomic managed launch, and default-deny local operations; MKB-03 consumes those contracts
+rather than building a second status or authorization path.
 
-- Add a four-layer status page: Relay, MKT Browser, engine, and profile/proxy.
-- One signed Windows installer carrying both processes, with per-user autostart and a secure store
-  for sensitive keys.
-- Let the Relay discover the MKT Browser MCP token from the OS data area so operators stop copying it
-  by hand. This is the single most visible remaining piece of manual setup.
-- Add digital signatures, checksums, SBOMs, and a compatibility manifest.
-- Refuse updates while profiles are open, snapshot before changes, and retain one rollback version.
+**MKB-03A — guided current-PC onboarding and secure enrollment:**
+
+- Replace the separate Relay download/registration journey with one authenticated Windows download
+  and one resumable setup controller. Keep existing self-enrollment and recipient sealing where safe,
+  but do not preserve technical UI merely for compatibility.
+- Show one primary state/action and derive it from the current local PC, authenticated owner, registry
+  state, live Relay/MKT Browser/engine health, contract compatibility, and update state. Put the
+  four-layer diagnostic view behind support/ADMIN details.
+- Bind an OPERATOR only to their own detected device. Show PC name + email before confirmation; fail
+  closed on previous-owner, revoked-key, wrong-user, or shared-PC conflicts and require an explicit
+  ADMIN recovery path.
+- Make `Waiting for administrator approval` resumable and non-error. Keep recipient ciphertext opaque
+  and durable, but require a 30-second one-use delivery authorization minted only after a live
+  owner/revocation/generation check. Public-key binding and recipient proof remain mandatory.
+- Make grant completion crash-idempotent: atomically cache the completion proof with the persisted
+  grant, return that proof on an exact retry without rewriting the key, and make the server consume it
+  idempotently. Fault injection covers post-store, post-proof, pre-server-commit, reload, and reboot.
+- Add the ADMIN-only, five-minute first-device bootstrap authorization. Plaintext key entry remains on
+  a Relay-owned loopback surface and never appears to an ordinary operator or crosses Web.
+- Audit every approval and classify every new setup server action and loopback route in the
+  default-deny inventory. Authentication/authorization remains at each Web boundary; loopback routes
+  enforce exact origin, method, bounded body, and signed/public-or-sealed input rather than treating
+  CORS as authorization. No custom protocol, deep link, callback, or URL carries a secret.
+- Move operator-domain and device private keys into protected per-user storage, transactionally
+  migrate legacy plaintext config, and retain no plaintext fallback. Keep the MCP bearer protected
+  and automatically discoverable by Relay.
+- Verify the first loopback probe from a direct user click against the deployed HTTPS origin in real
+  Chrome and Edge. Allow, deny, permission recovery, and retry must be distinguishable from
+  “not installed” and require no reinstall.
+- Replace active team-facing setup guidance only when this flow ships. The current ZIP, `.bat`,
+  PowerShell, localhost, manual-key, and checksum instructions remain technical truth until then but
+  must not survive as the normal team path afterward.
+
+**MKB-03B — signed compatibility-set lifecycle:**
+
+- Make CI produce exactly one Authenticode-signed per-user Windows installer containing compatible
+  Relay and MKT Browser builds, plus a signed manifest and SBOM. Serve it from the authenticated
+  MKTTool release route; the artifact is secretless and requires no separate file or UAC.
+- Pin an offline manifest root and Authenticode publisher, keep signing credentials separate from R2,
+  define root-signed delegated-key rotation/revocation, and persist the highest accepted set, secure-
+  store rollback floor, and retained rollback sequence. Missing anti-downgrade state beside existing
+  device/profile data is a repair condition, not a clean reinstall.
+- Pin the approved external engine version, official URL, integrity value, and compatibility tuple;
+  never resolve “latest” at installation time. Resume interrupted acquisition and retain one approved
+  cached engine for offline start and rollback.
+- Install, update, and roll back Relay, MKT Browser, contract, and engine as one compatibility set.
+  Refuse before killing anything when a profile is open; fault injection after each step and reboot
+  must converge to the complete new set or complete retained set, never a mixed tuple. The first
+  secure-store migration establishes a bridge-Relay rollback floor; no plaintext-only Relay can run
+  after source deletion.
+- Reject altered, stale, replayed, wrong-publisher, incompatible, and downgrade manifests. A rollback
+  is an explicit audited ADMIN/human action to the one retained approved set.
+- Detect existing standalone Relay, technical MKT Browser, MultiZen, duplicate startup entries, and
+  listeners on `47821`/`47822`. Do not kill an unknown process or silently select another port; show
+  the exact blocked layer and a safe repair action. Leave MultiZen data untouched.
+- Define repair and uninstall: repair is idempotent and preserves device/profile data; uninstall stops
+  owned processes and removes owned binaries/autostart while preserving profiles and device
+  credentials by default. Removing local data is a separate explicit confirmation.
 - Keep path, autostart, and secure-store behavior behind thin adapters over a shared Relay core, and
-  test the contract and cryptography against the core. The adapters are the seam MKB-07 plugs into;
-  writing Windows behavior into the core is what would make macOS expensive later.
-- Test WebRTC leak behavior on Windows, and record the Windows Firewall workaround as
-  Windows-specific rather than as the general solution.
-- Add proxy, DNS, WebRTC, and fingerprint checks using a dedicated test profile.
+  test the contract and cryptography against the core so MKB-07 adds an adapter rather than reopening
+  Windows behavior.
+- Test proxy, DNS, WebRTC, fingerprint, and Windows Firewall behavior with a dedicated profile; keep
+  the workaround Windows-specific.
 
-**Gate:** A clean Windows device without Node or MultiZen installs through one download, reaches ready
-status from on-screen guidance alone, and stays ready after reboot.
+**Gate:** On a clean standard-user Windows account, one unfamiliar operator runs one authenticated,
+signed installer and reaches `Waiting for administrator approval` or `Ready` with at most ten minutes
+of user attention; automatic artifact-transfer and administrator wait time are measured separately.
+The path requires no Node, MultiZen, UAC, SmartScreen bypass, terminal, archive extraction, developer
+coaching, separate downloads, manual checksum, localhost navigation, or copied technical value. When
+approval is available, the same enrollment becomes `Ready`, remains ready after both startup orders
+and reboot, and passes owner/grant/secure-store/live-health checks. The legacy-install, permission,
+port-conflict, repair, uninstall, update fault-injection, and rollback matrices are also green.
 
 ### MKB-04 — Technical pilot and one canary account (7 days + 14-day cold start)
 
 **Work:**
 
 - Test on two Windows operator devices representative of the team, using test profiles only.
+- Have at least one operator who has never seen the setup complete it without developer coaching.
+  Record time to `Waiting`/`Ready` and technical interventions; the passing intervention count is zero.
+- Exercise real Chrome and Edge Local Network Access allow, deny, recover, and retry paths against
+  the deployed HTTPS origin, plus administrator-offline approval after page close and reboot.
 - Upgrade and roll back the app while retaining cookies, profile ID, and seed.
 - Measure proxy exit IP, DNS, timezone, locale, WebRTC UDP, and fingerprint across repeated launches.
   Record the observed values as the baseline; drift thresholds are defined here, from real
@@ -780,7 +1037,8 @@ status from on-screen guidance alone, and stays ready after reboot.
   remote-wipe claim is made.
 
 **Technical gate:** Seven days without profile or proxy faults and an evidence-backed acceptance
-checklist. The canary then completes the full 14-day cold start without an IP or profile incident
+checklist, including the unfamiliar-operator zero-intervention setup and real Chrome/Edge permission
+recovery. The canary then completes the full 14-day cold start without an IP or profile incident
 before wider real-account rollout.
 
 ### MKB-05 — Team migration and temporary-path retirement (after pilot)
@@ -854,17 +1112,26 @@ is now part of the critical path and must be reported honestly rather than treat
 | Area | Required tests |
 |---|---|
 | Contract | initialize, tools/list, list/create/update/launch/close; restart app and reconnect |
-| UX/UI | Navigation, layout, and components match the MultiZen baseline; only approved rebranding and managed states differ |
+| Surface authorization | Runtime MCP/IPC/Relay inventory exactly matches the checked-in capability registry; new or unknown operations are denied until explicitly classified; hostile/missing Origin, wrong method, oversized body, forged deep link, and unauthenticated setup action cannot mutate state |
+| UX/UI | Desktop navigation/layout/components match the MultiZen baseline; the required setup controller uses plain states and one next action without becoming a broader redesign |
 | Idempotency | Disconnect after desktop create completes; retry returns the same profile ID |
+| Diagnostics | Ticket `jti` remains the same `operationId` across Web, Relay, and MKT Browser for one attempt; responses expose only stage, code, duration, and versions; logs pass negative secret tests |
 | Proxy | Bad token, dead proxy, wrong protocol, and proxy change while running never cause a misconfigured launch |
 | Fingerprint | Seed, canvas, WebGL, UA, timezone, and locale remain stable across restart and an approved update |
 | Platform | App and engine run natively on Windows x64; macOS arm64 is verified in MKB-07, not in v1 |
 | Network | Correct exit IP, remote DNS, no unexpected ICE `srflx`; leak mitigation verified on Windows, and independently again in MKB-07 |
 | Data | Cookies, localStorage, IndexedDB, extensions, and profile ID survive restart, update, and rollback |
 | Isolation | Two profiles share no cookies, user-data-dir, proxy bridge, or seed |
-| Security | MCP is loopback + bearer only; renderer cannot read operator keys; Keychain/secure store restricts process access; logs contain no proxy password or token |
-| Installation | Clean Windows device, standard user, one download, ready from on-screen guidance alone |
-| Recovery | Failed update, failed database migration, interrupted engine download, lost device, and duplicate import |
+| Security | MCP and Relay remain loopback-only; renderer, installer, Web, server, URLs, command lines, logs, and crash reports never receive an operator key; Windows secrets are protected to the current OS user without claiming per-process isolation |
+| Current-device identity | Clean second PC, wrong Google user, prior owner, shared Windows account, reinstall, revoked key, and one user with two PCs; only the reconciled local owner/device may proceed and no other team device can make this PC appear ready |
+| Grant protocol | ADMIN approval from a ready Relay; exact retry after store/proof/server-commit loss returns the cached proof idempotently, while conflicting replay, wrong recipient, expired authorization, superseded generation, failed store write, forged completion, and direct browser action fail before `Ready`; capture → revoke → deliver is tested inside the declared residual window and after expiry |
+| Local permission | Deployed HTTPS origin in current Chrome and Edge: first-click Allow, Deny, recover permission, retry, and timeout; denial is never mislabeled as missing software |
+| Installation | Clean standard-user Windows account, one authenticated signed installer, no UAC/SmartScreen bypass/Node/MultiZen/archive/terminal/manual hash/separate download/localhost navigation or technical-value copying; unfamiliar operator reaches `Waiting` or `Ready` with zero coaching |
+| Existing installation | Standalone Relay, technical MKT Browser, MultiZen, and all together; exactly one owned process/startup entry per component, compatible config, no silent port fallback, and untouched MultiZen data |
+| Secret migration | Real legacy plaintext config; fault injection around bridge install, import, verification, plaintext deletion, rollback-floor commit, repair/rollback, reboot, and a second Windows user; no plaintext-only binary runs and no plaintext remains after the deletion boundary |
+| Release lifecycle | Pinned offline root/publisher, separate R2/signing credentials, delegated-key rotation/revocation, altered/stale/old-valid manifest, R2 compromise, incompatible tuple, partial install, state-cache deletion, clean reinstall, reboot at every activation step, and one-use explicit rollback; only a complete permitted new or retained set may run |
+| Repair/uninstall | Repair is idempotent and preserves binding/profile data; default uninstall removes owned process/binary/autostart and frees ports while preserving local data; destructive removal is a separate confirmed choice |
+| Recovery | Admin offline then later approval, both process startup orders, failed update/migration, interrupted engine download, occupied ports, lost device, and duplicate import |
 
 Do not claim “antidetect passed” because one scanner reports a high score. Acceptance depends on
 **consistency and stability for the same identity over time**, together with the guarantee that a
@@ -879,13 +1146,25 @@ profile never opens with the wrong proxy.
 | Renaming makes profiles appear to disappear | Copy-only import, stable IDs, migration manifests, and preserved source directory until acceptance |
 | Automatic engine update changes fingerprint | Pin versions, use staged pilots, and prohibit daily auto-update |
 | Electron UI compromise exposes files | Context isolation, sandbox and IPC allowlist, and no arbitrary renderer filesystem access |
+| A new MCP tool, IPC handler, or Relay route bypasses the intended guard | Default-deny capability registry plus a runtime exposure inventory test; unclassified operations fail CI and remain inaccessible |
+| Correlation logs become a second secret store | Metadata allowlist plus negative tests for tickets, proxy data, credentials, content, cookies, and browser storage |
 | Deferring macOS bakes Windows assumptions into the core | Path, autostart, and secure storage stay behind thin adapters; contract and cryptography tests run against the shared core so MKB-07 adds a platform instead of reopening one |
 | macOS later “works” but is not native or stable | MKB-07 keeps arm64 native as a hard gate and tests native modules and engine; Rosetta is not acceptance |
 | Gatekeeper or helper forces operators into Terminal | Developer ID, notarization, and LaunchAgent tests on a clean Mac, at MKB-07 |
 | Redesign increases upstream drift | Retain MultiZen UX/UI in v1 and move redesign to MKB-06 |
 | Web times out after profile creation | Unique external reference, request ID, and reconciliation |
 | Open profile retains old proxy | Atomic launch rejects or requires close and restart; never no-op |
-| One installer collapses key boundaries | Two processes; installer configures only the connection and never moves the operator key into the Browser |
+| “One installer” still leaves a multi-tab, copy/paste setup | One setup controller and a zero-technical-intervention usability gate; separate archives, localhost pages, and technical fields are not team-ready |
+| Convenience onboarding collapses key boundaries | Two processes; a secretless installer; ADMIN-approved recipient-sealed delivery; ADMIN-only local first-device bootstrap; Web/server/Browser never receive plaintext operator key |
+| A browser action falsely reports `Ready` or clears a pending grant | Current live health plus owner/device reconciliation and recipient-bound persistence proof; browser self-attestation is advisory only |
+| A stale grant restores an old operator key | Expiring one-use signed envelopes, recipient and generation binding, local replay state, server-side invalidation on rotation/revocation, and key/credential rotation for anything a lost device already obtained |
+| Relay stores a grant but the completion response is lost | Atomically cache the completion proof with the grant and make exact Relay retry plus server completion idempotent; conflicting replay remains rejected |
+| Legacy plaintext survives a “secure store” migration | Transactional import/verify/delete with crash, repair, rollback, backup, temp-file, and second-user tests; no plaintext fallback |
+| Secure-store migration makes the retained rollback unreadable | Activate a secure-store-capable bridge first, commit a rollback floor at plaintext deletion, and forbid every older Relay afterward |
+| Partial update creates a mixed Relay/Browser/engine set | Signed compatibility tuple, stage-before-activate, fault injection after every step, and complete-set rollback |
+| R2 or an old valid manifest silently downgrades the device | Offline pinned release root and publisher, delegated-key rotation/revocation, durable highest-sequence state, damaged-state repair, and one-use local rollback authorization |
+| Local Network Access denial or a port collision looks like a broken install | Direct-click probes in Chrome/Edge, named permission recovery, listener ownership checks, no silent port fallback, and one safe retry/repair action |
+| Waiting for ADMIN looks like failure | Named non-error state, durable enrollment, actionable ADMIN queue, automatic resume, and no manual-key escape hatch for operators |
 | Lost device retains cookies | State the real limit: revoke and rotate; never promise remote wipe |
 | Fork delays business operations | Target a test profile within two weeks and use explicit stop gates |
 
@@ -895,19 +1174,38 @@ V1 is complete only when all conditions hold:
 
 1. The fork builds natively from documented instructions on a clean Windows x64 device.
 2. License, NOTICE, SBOM, and engine acquisition have been approved.
-3. The Windows installer is signed and the updater no longer targets upstream.
+3. CI produces one Authenticode-signed, secretless, per-user Windows installer and signed
+   anti-downgrade compatibility manifest rooted in a pinned offline key/publisher with durable
+   sequence state; updater and engine acquisition no longer target unapproved or unpinned releases.
 4. The Relay discovers MKT Browser automatically; operators never copy an MCP token.
-5. Idempotent profile creation and atomic profile launch have tests.
-6. MKTTool displays the actual provider, app, and engine versions with actionable errors.
-7. Import and rollback retain IDs and sessions, never delete source automatically, and the tested
-   device-transfer flow never allows two active copies.
-8. The proxy, DNS, WebRTC, fingerprint, and cookie matrix is green on at least two Windows devices.
-9. A test profile runs for seven days and one real account completes a 14-day cold start without a
+5. An unfamiliar normal operator reaches `Waiting for administrator approval` or `Ready` through one
+   resumable setup controller with zero technical intervention; approval, reload, and reboot do not
+   duplicate the device or require a secret paste.
+6. First-device bootstrap is an ADMIN-only local ceremony. Later grants are ADMIN-approved,
+   recipient-bound, generation-aware, delivered only with 30-second one-use authorization, and
+   acknowledged idempotently by the live recipient Relay after secure persistence; Web, server,
+   installer, and MKT Browser never hold the plaintext key.
+7. Legacy operator/device secrets migrate transactionally to protected per-user storage, and tests
+   establish a secure-store-capable rollback floor and find no plaintext fallback in active, backup,
+   snapshot, temp, repair, rollback, or log paths.
+8. Idempotent profile creation and atomic profile launch have tests.
+9. Every accepted local operation preserves its `operationId`, returns a structured stage and error
+   code, and passes negative secret-log tests.
+10. Runtime MCP/IPC/Relay exposure matches a default-deny capability inventory; adding an
+   unclassified operation fails CI.
+11. MKTTool displays one plain current-PC state/action and makes actual provider, app, engine, and
+    contract versions available as actionable support detail.
+12. Import, repair, coordinated-set update, and rollback retain IDs and sessions, never delete source
+    automatically, and the tested device-transfer flow never allows two active copies.
+13. The proxy, DNS, WebRTC, fingerprint, cookie, Local Network Access, existing-install, port,
+    startup-order, and update fault-injection matrices are green on at least two Windows devices.
+14. A test profile runs for seven days and one real account completes a 14-day cold start without a
    technical incident.
-10. An operator installs from one download without touching a command line, and documentation no
-    longer requires manual MultiZen administration.
-11. MultiZen UX/UI remains intact in v1; every redesign belongs to MKB-06 and does not block release.
-12. macOS is absent from v1 by decision, and the shared Relay core carries no Windows-only assumption
+15. Team-facing UI and documentation no longer require separate Relay/MKT Browser downloads,
+    localhost navigation, archive extraction, command line, manual checksums, tokens, keys, IDs,
+    ports, paths, or manual MultiZen administration.
+16. MultiZen UX/UI remains intact in v1; every redesign belongs to MKB-06 and does not block release.
+17. macOS is absent from v1 by decision, and the shared Relay core carries no Windows-only assumption
     that MKB-07 would have to undo.
 
 ## 17. Decisions required outside code
@@ -922,6 +1220,30 @@ V1 is complete only when all conditions hold:
 | Release channel | R2 plus authenticated MKTTool download page; artifacts exclude restricted engines | Before MKB-03 |
 | Pilot devices | Two representative Windows devices | Before MKB-04 |
 | UX/UI | Retain MultiZen in v1; redesign only in MKB-06 | Approved 10 August 2026 |
+| Windows onboarding | One signed download → normal sign-in → confirm detected PC → `Waiting` or `Ready`; first-device secret bootstrap is ADMIN-only and local | Approved 11 August 2026 |
 
 No decision in this table permits weakening the security invariants or adding automation excluded by
 the product scope.
+
+## 18. 9Router pattern review (11 August 2026)
+
+The review compared the full MKT Browser plan and current MKTTool trust boundaries with 9Router. It
+does not create another phase or dependency. Useful patterns are absorbed into the existing
+MKB-01E/MKB-02/MKB-03 slices; incompatible patterns are recorded here so the shared word “Relay” does
+not blur two different architectures.
+
+| Pattern | Decision | Reason and placement |
+|---|---|---|
+| Capability discovery and layered health | Keep the existing plan | `get_runtime_info` and the four-layer status page already cover the useful behavior in MKB-01/MKB-03 |
+| Correlated request diagnostics | Adopt, local and metadata-only | `operationId`, `requestId`, stage, code, duration, and versions join MKB-02; no server receipt or new table in v1 |
+| Default-deny exposed-surface inventory | Adopt | MKB-01E inventories the desktop MCP/IPC surface; MKB-02 extends the guard across Relay routes and proves token capability separation. This directly controls the class of allowlist omission documented in the [9Router security advisory](https://github.com/decolua/9router/security/advisories/GHSA-fhh6-4qxv-rpqj) |
+| Signed release manifest, staged update, rollback | Keep the existing plan | Already a core MKB-03 requirement; no second updater or release channel |
+| Edge HTTP relay, public tunnel, or target forwarding | Reject | MKTTool Relay is a local ticket verifier and secret boundary, not a hosted forwarder. Public reachability would widen the most sensitive surface |
+| Proxy pools, round-robin, and fallback identities | Reject | The invariant is one account → one static proxy → one profile → one device. Failure stops the same identity; it never selects another route or account |
+| Bulk proxy management | No MKT Browser scope | MKTTool Web already checks one or all proxies and shows bindings/liveness. Import remains an ADMIN workflow, not desktop routing logic |
+| Persistent outcome receipts, offline device inventory, circuit-breaker dashboard | Defer to MKB-04 evidence | Relay is intentionally outbound-offline, current volume is small and manual, and the plan already rejects a speculative device table. Reconsider only if pilot incidents cannot be diagnosed from correlated local results |
+| Full request/response logging or cloud profile sync | Reject | Both would duplicate sensitive ticket, proxy, content, cookie, or profile data outside its current trust boundary |
+
+Research inputs: [9Router repository](https://github.com/decolua/9router),
+[architecture](https://github.com/decolua/9router/blob/master/docs/ARCHITECTURE.md), and
+[proxy-pool implementation](https://github.com/decolua/9router/tree/master/src/app/api/proxy-pools).

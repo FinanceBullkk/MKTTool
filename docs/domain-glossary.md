@@ -1,6 +1,6 @@
 # Từ điển thuật ngữ nghiệp vụ
 
-**Updated:** 10/08/2026
+**Updated:** 11/08/2026
 
 Bộ luật an toàn là tri thức nghiệp vụ được mã hóa thành code. Tài liệu này giải thích
 từng khái niệm để 6 tháng nữa vẫn hiểu vì sao ngưỡng Jaccard là 0.70 chứ không phải 0.85.
@@ -19,7 +19,7 @@ Tra cứu thêm: [mục lục tài liệu](README.md) · [tài liệu sản ph�
 | **Giọng viết + mảng nội dung** | Hai câu ghi chú trên chính nick: nó nói kiểu gì, nó viết về cái gì. | Cú hích **trước khi viết**: người ôm mười nick mà không có gì nhắc làn thì viết cả mười bài bằng giọng tự nhiên của mình, rồi bị luật 7 chặn ở phút cuối. **Lưu ý:** bộ luật KHÔNG đọc hai cột này — luật 7 so trùng văn bản thật, xét mọi nick cùng họ nền tảng. Thiếu thì `describeAccountReadiness()` báo `NO_VOICE`. | `schema.prisma` → `Account.voice`, `Account.contentAngle` |
 | **Vân tay (fingerprint)** | Tổ hợp đặc điểm trình duyệt (canvas, WebGL, font, timezone…) dùng để nhận diện thiết bị. | Hai nick chung vân tay = cùng một người = shadowban. | Do antidetect browser quản lý, MKTTool chỉ lưu `antidetectProfileId` |
 | **Antidetect browser** | A desktop application that gives each account an isolated browser profile and fingerprint. MKT Browser is the production Relay target; AdsPower remains a secondary adapter. | It is the hardware/browser isolation layer between accounts. | `src/lib/antidetect/` |
-| **MKT Browser** | The separate MultiZen-derived desktop fork for MKTTool. W02 owns its first-party package/preload/MCP contract on configurable default port `47822`; macOS remains the primary target and v1 retains upstream UX/UI. | It removes upstream runtime identity coupling before managed mode without claiming ownership of the separately licensed engine. | `plans/260810-0244-mkt-browser-noi-bo/plan.md` |
+| **MKT Browser** | The separate MultiZen-derived desktop fork for MKTTool. W02 owns its first-party package/preload/MCP contract on configurable default port `47822`; Windows x64 is the only v1 and team-demo platform, macOS is deferred to MKB-07, and v1 retains upstream UX/UI. | It removes upstream runtime identity coupling before managed mode without claiming ownership of the separately licensed engine. | `plans/260810-0244-mkt-browser-noi-bo/plan.md` |
 | **Browser engine** | The Chromium-derived binary that actually runs sites, separate from the MKT Browser application layer. | MIT application source does not grant engine redistribution rights; app and engine require separate version/license approval. | MKT Browser `ChromiumBootstrap`; MKB-00 evidence |
 | **Profile** | Một instance trình duyệt bên antidetect browser, gắn 1:1 với nick qua `antidetectProfileId @unique`. | Ép bằng ràng buộc DB — hai nick chung profile là không thể. | `schema.prisma` → `Account.antidetectProfileId` |
 | **Cụm nick** | Tập hợp mọi nick do cùng một người vận hành (tức toàn bộ nick trong database). | Bộ luật coi mọi nick trong DB là "của mình" khi kiểm tra đụng độ. | Ngầm định trong `rule-context-queries.ts` |

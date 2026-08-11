@@ -1,6 +1,6 @@
 # MKTTool — Tài liệu sản phẩm
 
-**Cập nhật:** 10/08/2026 · **Trạng thái:** [development-roadmap.md](development-roadmap.md)
+**Cập nhật:** 11/08/2026 · **Trạng thái:** [development-roadmap.md](development-roadmap.md)
 
 Tài liệu này trả lời "vì sao" và "phạm vi tới đâu". Chi tiết thi công nằm ở
 [plan công cụ gốc](../plans/260801-2030-multi-account-posting-console/plan.md),
@@ -82,8 +82,12 @@ Nếu sau này có ai đề xuất thêm một trong các mục trên, đây là
    một người lạ vô danh*: chưa đăng nhập, IP khác hẳn, không vân tay nào của nick. Mở nó bằng
    chính profile antidetect của nick là tự nhìn mình trong gương rồi kết luận người ngoài cũng
    thấy vậy.
-8. **MKT Browser không thay Cầu nối.** Có thể phát chung một bộ cài, nhưng Cầu nối tiếp tục giữ
-   khóa operator, xác minh vé và chống dùng lại; ứng dụng Electron chỉ giữ/chạy profile.
+8. **MKT Browser does not replace Relay, but v1 must ship them as one Windows installation.** A
+   normal operator gets one signed download, signs in, confirms the detected PC, and reaches
+   `Waiting for administrator approval` or `Ready` without handling keys, tokens, ports, paths,
+   archives, localhost pages, or commands. This presentation does not collapse trust boundaries:
+   Relay keeps the operator key and verifies/replay-protects tickets; Electron only stores and runs
+   profiles. First-device key bootstrap is a separate ADMIN-only local ceremony.
 9. **Windows x64 is the only platform MKT Browser v1 commits to (decided 10 August 2026).** macOS
    Apple Silicon — native arm64, a signed and notarized DMG, and the Relay as a LaunchAgent helper
    with Keychain storage — moves to MKB-07 after v1. Mac hardware exists, so this is a priority
@@ -144,7 +148,7 @@ thực, không có cách nào đi tắt. Phần mềm xong sớm không giúp g�
 | # | Giai đoạn | Trạng thái |
 |---|---|---|
 | 0 | Chuẩn bị & kiểm chứng khả thi | 🔄 Chặng B + C đạt 02/08/2026; còn mua proxy/nick + cold-start |
-| 0B | Internal MKT Browser | 🟡 Windows W01/W02 verified; Mac-first MKB-00/MKB-01 gates remain open; retain upstream UX/UI in v1 |
+| 0B | Internal MKT Browser | 🟡 Windows x64 is the only v1/demo platform; MKB-00/W01/W02 verified; MKB-01/01E/02/03 still gate pilot readiness; retain upstream UX/UI in v1 |
 | 1 | Kho danh tính | ✅ 01/08/2026 |
 | 2 | Hàng đợi content + bộ luật an toàn | ✅ 02/08/2026 |
 | 3 | Theo dõi sức khỏe tài khoản | ✅ 03/08/2026 — bộ dò đọc được Reddit thật. Proxy quan sát viên đã có và kiểm sống trên máy chủ (06/08/2026); **vẫn chưa chạy với nick thật** vì kho trên máy chủ chưa có nick Reddit |

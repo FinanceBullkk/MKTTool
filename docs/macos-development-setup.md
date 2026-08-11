@@ -1,4 +1,9 @@
-# macOS development setup
+# macOS development setup — deferred MKB-07 reference
+
+> **Deferred on 11 August 2026:** do not spend the v1 or team-demo critical path setting up a Mac.
+> Windows x64 is the only active build, demo, pilot, and rollout platform. This guide is retained so
+> MKB-07 can resume later without rediscovering the development differences; following it produces
+> no current release or acceptance evidence.
 
 Covers only what differs on a Mac. For product behaviour, commands, and operating rules, the
 [README](../README.md) remains the source of truth; do not duplicate it here.

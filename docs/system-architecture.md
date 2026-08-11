@@ -1,6 +1,6 @@
 # Kiến trúc hệ thống
 
-**Cập nhật:** 10/08/2026
+**Cập nhật:** 11/08/2026
 
 Tài liệu này trả lời: hệ thống **chạy ở đâu**, **tin ai**, **phụ thuộc gì**, và **hỏng thì hỏng
 thế nào**. Code nằm ở đâu thì tra [codebase-summary.md](codebase-summary.md); thuật ngữ tra
@@ -50,7 +50,9 @@ flowchart LR
 
 **Mô hình phân tán (Team nhiều người).**
 - **Máy chủ** chạy trên mạng thật (Railway/VPS bằng Docker), lo tính toán, bộ luật, dò shadowban, đăng Fanpage và quản lý toàn bộ dữ liệu chung.
-- **Operator device:** runs the normal browser, **Relay**, and MKT Browser. Relay decrypts operator secrets and calls the authenticated MKT Browser MCP endpoint; the current Relay package remains Windows-only while the target architecture is Mac-first.
+- **Operator device:** runs the normal browser, **Relay**, and MKT Browser. Relay decrypts operator
+  secrets and calls the authenticated MKT Browser MCP endpoint. Windows x64 is the only v1, demo,
+  pilot, and rollout platform; macOS is deferred to MKB-07 behind the same trust boundaries.
 
 Ba đường ra internet đi qua **ba IP khác nhau và không được lẫn**: nick đi bằng proxy tĩnh của chính nó (từ máy bàn), bộ dò đi bằng proxy quan sát viên (từ máy chủ), Graph API đi bằng IP máy chủ. Lẫn đường nào cũng phá đúng thứ nó đang bảo vệ.
 
@@ -58,6 +60,11 @@ Ba đường ra internet đi qua **ba IP khác nhau và không được lẫn**:
 > contract on loopback port `47822` by default. The path remains
 > `Web → Relay → authenticated MCP → MKT Browser`; operator keys stay in Relay and profiles/cookies
 > stay on the operator device. There is no MultiZen provider or configuration fallback.
+
+> **“Relay” does not mean an edge proxy here.** It exposes no public tunnel, target-forwarding API,
+> or proxy pool. It verifies recipient-bound tickets, opens operator-domain secrets locally, and calls
+> MKT Browser on loopback. Account traffic leaves only through that account's bound static proxy; a
+> failure stops the operation instead of selecting another proxy, profile, device, or account.
 
 ## 2. Vòng đời một bài đăng — và vòng phản hồi nuôi bộ luật
 
@@ -123,7 +130,7 @@ Toàn bộ `data/` và `.env` đều nằm trong `.gitignore`. Repo **không bao
 
 | Phụ thuộc | Dùng để | Hỏng thì biểu hiện | Xử lý đã cài sẵn |
 |---|---|---|---|
-| **MKT Browser** (authenticated local MCP, default `127.0.0.1:47822`) | Open browser profiles and apply their static proxies | HTTP 401/403, desktop app stopped, contract/engine/CPU mismatch | One transport re-handshake is allowed; proxy/tool failures remain fail-closed. Mac arm64, runtime capability reporting, engine pinning, and rollback remain future gates |
+| **MKT Browser** (authenticated local MCP, default `127.0.0.1:47822`) | Open browser profiles and apply their static proxies | HTTP 401/403, desktop app stopped, contract/engine/CPU mismatch | One transport re-handshake is allowed; proxy/tool failures remain fail-closed. Windows runtime capability reporting, engine pinning, and rollback remain v1 gates; Mac arm64 belongs to MKB-07 |
 | **Proxy tĩnh** (nhà cung cấp) | Đường ra của từng nick | Đẩy vào profile vẫn "thành công" dù proxy đã chết | Không tự phát hiện được — phải mở `ipinfo.io` kiểm IP sau mỗi lần mở profile mới |
 | **Proxy quan sát viên** | Dò shadowban | Chưa nhập thì `npm run health` dừng ngay từ đầu | Cố ý dừng: dò bằng IP nhà còn tệ hơn không dò |
 | **HTML `old.reddit.com`** | Nguồn dữ liệu dò shadowban + karma | Reddit đổi giao diện → parser hỏng | Hỏng thì kết luận **`ERROR` ("Không dò được")**, tuyệt đối không bao giờ là `HEALTHY`. `npm run health:smoke` đối chiếu Reddit thật |

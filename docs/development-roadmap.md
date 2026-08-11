@@ -1,6 +1,6 @@
 # Lộ trình phát triển
 
-**Cập nhật:** 10/08/2026
+**Cập nhật:** 11/08/2026
 
 Đây là **nguồn duy nhất về trạng thái** của dự án. Chi tiết thi công nằm ở
 [plan công cụ gốc](../plans/260801-2030-multi-account-posting-console/plan.md),
@@ -14,7 +14,7 @@ Dự án đang chạy **ba luồng song song**:
 |---|---|---|
 | **A — Công cụ** | 5 giai đoạn gốc: kho danh tính → hàng đợi → sức khỏe → Facebook → tự đăng Reddit | GĐ1-4 xong, GĐ0 kẹt ở tiền + cold-start, GĐ5 chưa bắt đầu |
 | **B — Web chung** | Biến app một máy thành web chung cho 5-6 người ở 5-6 nơi | **GĐ0-4 xong 06/08**, GĐ5 web **đã chạy thật trên Railway** cùng ngày |
-| **C — MKT Browser** | Fork the MultiZen desktop layer; Windows-only in v1 while Web, Relay, and upstream UX/UI remain intact | **MKB-00 remains open on the correct-proxy test; MKB-W01 and MKB-W02 verified**; macOS deferred to MKB-07; [plan](../plans/260810-0244-mkt-browser-noi-bo/plan.md) |
+| **C — MKT Browser** | Fork the MultiZen desktop layer; Windows-only in v1 while Web, Relay, and upstream UX/UI remain intact | **MKB-00, MKB-W01, and MKB-W02 verified on Windows x64**; macOS deferred to MKB-07; [plan](../plans/260810-0244-mkt-browser-noi-bo/plan.md) |
 
 Luồng B sinh ra sau khi chốt bàn giao cho team — xem
 [plan web chung](../plans/260804-1752-web-chung-cho-team-phan-tan/plan.md). Nó **không thay thế**
@@ -31,9 +31,31 @@ owned, and no operator workflow depends on macOS today. The control against payi
 that the Relay keeps a shared core with thin OS adapters, so MKB-07 adds a platform instead of
 reopening one. V1 does not redesign MultiZen or develop a Chromium engine.
 
+**Immediate delivery target, 11 August 2026:** prepare the current Windows x64 technical build for
+an owner-led team demonstration. Stop active MacBook setup work. The demo uses disposable profiles
+and may show the Web → Relay → MKT Browser flow, but it is not a pilot, distribution approval, or
+permission to use real accounts. The MKB-00 positive path has now passed through a dedicated working
+proxy; installer, signing, managed mode, pilot duration, and real-account gates remain separate.
+
+**Team-installation boundary, reviewed 11 August 2026:** the owner-led demo may use the current
+technical artifacts, but team members must not be asked to install the Relay ZIP and Browser
+directory themselves. MKB-03 now has a hard zero-confusion gate: one authenticated signed Windows
+download opens one resumable current-PC journey — sign in, confirm the detected PC, then reach the
+non-error `Waiting for administrator approval` state or `Ready`. Ordinary operators never handle
+Relay/MCP vocabulary, keys, tokens, ports, paths, archives, checksums, localhost pages, or commands.
+The first-device secret bootstrap remains a separate ADMIN-only local ceremony.
+
+The Windows technical package was regenerated on 11 August at
+`E:\MKTBrowser\apps\desktop\release\win-unpacked\MKTBrowser.exe`; SHA-256 remains
+`27c27443385f4ecdbc0187772934adb5d1718169d7c387d41b3718ef72ba2b18`, matching the verified W02
+artifact. Desktop guards passed 8/8, focused MKTTool consumer tests passed 50/50, both repository
+typechecks passed, and the packaged Relay verification passed. The executable is still unsigned,
+so this is owner-led demo evidence, not distribution or pilot approval. A disposable profile also
+passed the independently cross-checked correct-proxy lifecycle and left no profile or process behind.
+
 > **Language rule — 10 August 2026:** all new or materially revised project artifacts and product
 > copy must be in English. Direct conversation with the project owner may remain in Vietnamese.
-> Translate the active MKT Browser specification before MKB-00; historical records remain intact.
+> The active MKT Browser records are maintained in English; historical records remain intact.
 
 ---
 
@@ -64,7 +86,7 @@ Chi tiết ở [plan.md](../plans/260804-1752-web-chung-cho-team-phan-tan/plan.m
 | 3 | [Tách hai vùng khóa + vé ký](../plans/260804-1752-web-chung-cho-team-phan-tan/phase-03-tach-hai-vung-khoa-va-ve-ky.md) | ✅ Xong | 06/08 | – |
 | 4 | [Cầu nối trên máy operator](../plans/260804-1752-web-chung-cho-team-phan-tan/phase-04-cau-noi-tren-may-operator.md) | ✅ Xong | 06/08 | Đã nghiệm thu thành công trên máy Windows thứ hai không cài Node. |
 | 5 | [Lên Railway + cron + sao lưu](../plans/260804-1752-web-chung-cho-team-phan-tan/phase-05-len-railway-cron-sao-luu.md) | 🟢 **Web chạy thật, deploy tự động, sao lưu tự rời máy chủ** | 06/08 | Chạy ở `mkttool-web-production.up.railway.app`, đăng nhập Google được, 10 proxy sang đủ, bộ lịch tự bắn đúng 09:00 giờ team, **đẩy commit lên `master` là web tự cập nhật**, và **app tự đẩy bản sao lưu lên Cloudflare R2 mỗi đêm** — đã nghiệm thu trọn vòng (tải object về, khôi phục vào database rỗng, đúng 22 hàng/6 bảng). **Proxy quan sát viên đã có và kiểm sống** (`Observer1`, US, 15:31), và **Facebook đã nối Fanpage thật trên máy chủ** (16:08 — Meta chấp nhận domain `*.up.railway.app`, không phải mua tên miền). Còn lại đúng một việc, và nó **không tự đóng được trong GĐ5**: một lượt dò thật — chờ **nick Reddit trong kho máy chủ**, tức chờ bước nhập liệu của GĐ6 |
-| 6 | Bàn giao team | 🟡 Đang chuẩn bị | 07/08 | Hết chặn kỹ thuật: web đã có địa chỉ (GĐ5) và **gói cầu nối đã có đường phát** (`npm run relay:publish` → R2 → `/relay-download`). **07/08 siết xong phân quyền cho nhiều người dùng chung** — nick ghim vào một máy, vé bay về máy giữ nick, kho proxy về tay ADMIN (làm trước bước nhập liệu vì kho nick còn rỗng nên không phải gán tay cụm nào). Còn lại là việc quy trình: nhập dữ liệu, cài 1-2 máy Reddit, đào tạo |
+| 6 | Team handoff | 🟡 Web/Facebook ready; Reddit desktop blocked | 11/08 | Railway, authentication, authorization, backups, and the technical Relay release path are ready, so Web-only/Facebook handoff and an owner-led disposable-profile demo may proceed. Reddit team self-installation and real-account handoff remain blocked by MKB-01E/MKB-02/MKB-03, then the MKB-04 pilot/canary gates. Do not give ordinary operators the current Relay ZIP and Browser directory; data entry and training follow the relevant gate. |
 
 ## Stream C — Internal MKT Browser
 
@@ -74,30 +96,32 @@ repository. MKTTool retains only the consuming contract, Relay, and release page
 
 | # | Phase | Status | Exit gate |
 |---|---|---|---|
-| MKB-00 | Source, license, and engine | 🟡 In progress | A Windows build opens a test profile through a **real working proxy** with a verified exit IP; engine approved for Windows x64 |
+| MKB-00 | Source, license, and engine | ✅ Verified 11 August | A Windows build opened a disposable profile through a **real working proxy**; its observed exit IP matched an independent proxy probe; engine conditionally approved for unmodified internal use on Windows x64 |
 | MKB-W01 | Windows-only product isolation (authorized exception) | ✅ Verified 10 August | Independent Windows identity/data root; upstream updater/heartbeat/publishing absent; current MCP adapter remains green |
 | MKB-W02 | Windows internal clean break | ✅ Verified 10 August | Dedicated port `47822`, MKT Browser-only internal contract, no legacy fallback, packaged lifecycle through updated MKTTool consumer |
 | MKB-01 | Windows compatibility and product identity | 🟡 Mostly done via W01/W02 | Copy-only importer, visual baselines, `get_runtime_info`, and the W01/W02 guards running in Windows CI |
 | MKB-01E | Electron upgrade and renderer hardening | ⬜ Not started | Off end-of-life Electron 33 with native modules rebuilt; sandbox/CSP/IPC allowlist; fingerprint delta reviewed deliberately |
-| MKB-02 | Managed mode | ⬜ Not started | Idempotent create, atomic launch, and dangerous actions locked with upstream components |
-| MKB-03 | Windows installer, Relay packaging, and updates | ⬜ Not started | One signed Windows installer, Relay discovers the MCP token automatically, snapshot/rollback, OS behavior behind thin adapters |
-| MKB-04 | Technical pilot and one canary account | ⬜ Not started | Two Windows devices remain green for seven days; one account completes a 14-day cold start |
+| MKB-02 | Managed mode | ⬜ Not started | Idempotent create, atomic launch, correlated stage/error results, default-deny tool capabilities, and dangerous actions locked with upstream components |
+| MKB-03 | Windows onboarding, installer, and controlled updates | ⬜ Not started | One signed secretless installer; current-PC `Waiting`/`Ready` flow with no technical setup; ADMIN-only bootstrap and recipient-sealed grants; secure-store migration; coordinated-set update/rollback behind thin OS adapters |
+| MKB-04 | Technical pilot and one canary account | ⬜ Not started | An unfamiliar operator completes setup with zero developer intervention; two Windows devices remain green for seven days; one account completes a 14-day cold start |
 | MKB-05 | Team rollout | ⬜ Not started | Canary completes cold start; MKT Browser becomes default; rollback uses only the frozen W01 checkpoint and never restores a MultiZen adapter fallback |
 | MKB-06 | Custom UX/UI | ⏸ Deferred beyond v1 | Begin only from observed usage feedback; does not block MKB-00 through MKB-05 |
 | MKB-07 | macOS Apple Silicon | ⏸ Deferred beyond v1 | Native arm64 build, engine approved for macOS, signed/notarized DMG, LaunchAgent + Keychain, macOS added to the CI matrix |
 
-**MKB-00 evidence, 10 August 2026:** Official MultiZen `v0.3.1` is pinned at
+**MKB-00 evidence, completed 11 August 2026:** Official MultiZen `v0.3.1` is pinned at
 `83c6898b2de3de1122b5fea88008fbbaa4677bff` in the separate `E:\MKTBrowser` checkout. The
 unmodified Windows x64 build, the 22-tool MCP contract, and MKTTool's current adapter passed with
 disposable profiles; focused fail-closed tests passed 27/27. The CloakBrowser binary is approved
 only conditionally for unmodified internal use through official downloads and must not be bundled or
-redistributed. MKB-00 now remains in progress for one reason only: no profile has been launched
-through a **real working proxy** with a verified exit IP. W01 and W02 proved the fail-closed guard
-against a deliberately invalid proxy, which is the opposite case. The Apple Silicon half left this
-gate on 10 August and belongs to MKB-07. Evidence and the Mac runbook live in `E:\MKTBrowser\docs`.
+redistributed. On 11 August, the current packaged build consumed a dedicated proxy from a fixed local
+handoff file, deleted that file before network activity, obtained a non-direct exit IP through an
+independent probe, and opened a disposable profile whose in-browser exit IP matched that expected
+value. The profile then closed and deleted; the final profile, MKT Browser process, handoff-file, and
+disposable-root counts were all zero. No account, cookie, TOTP value, proxy endpoint, credential, or
+observed IP was printed or retained. Apple Silicon belongs to MKB-07 and is not an MKB-00 gate.
 
 **MKB-W01 evidence, 10 August 2026:** The project owner authorized a bounded Windows-first
-exception while MKB-00 remains open. The fork now builds as `MKTBrowser.exe` with application ID
+exception while MKB-00 was still open. The fork now builds as `MKTBrowser.exe` with application ID
 `com.mkttool.browser` and fixed Windows data root
 `%LOCALAPPDATA%\MKTTool\MKTBrowser\`. It does not discover or migrate the legacy MultiZen store.
 The upstream updater, manual update IPC, heartbeat, publish scripts/provider, and tag-triggered
@@ -129,19 +153,33 @@ is restored, the same check now lives in the installer encoding tests, and the r
 executable passed its 24-check acceptance carrying the W02 contract and port `47822`. Treat a green
 test suite as evidence about the code paths it runs, not about release packaging.
 
-The current technical estimate is **three to five weeks**, down from five to eight after macOS left
-v1: the Relay stays on the Windows `.exe`, PowerShell, and Startup path it already uses, and no
-native helper, Keychain, LaunchAgent, Developer ID, or notarization work is in scope. Retaining the
-MultiZen UX/UI keeps a separate design project off this critical path.
+The current technical estimate is **four to seven weeks**, still below the former five-to-eight-week
+dual-platform range because macOS remains out of v1. The 11 August onboarding review made previously
+implicit Windows work explicit: current-device readiness, ADMIN-only bootstrap, expiring one-use
+recipient grants, legacy secret migration, and transactional Relay/Browser/engine updates. Retaining
+the MultiZen UX/UI still keeps a separate design project off this critical path.
 
 Two items carry most of the remaining uncertainty and are tracked as their own slices rather than as
-bullets: the Electron 33 upgrade with native module rebuilds (MKB-01E) and the signed installer with
-updates and rollback (MKB-03). W02 already met the small version of the first when a
-`better-sqlite3` rebuild failed under Node 24.
+bullets: the Electron 33 upgrade with native module rebuilds (MKB-01E) and the guided, signed Windows
+installer with secure enrollment and coordinated updates/rollback (MKB-03). W02 already met the small
+version of the first when a `better-sqlite3` rebuild failed under Node 24.
 
 **There is no database migration in the compatibility phase.** `antidetectProfileId`, `deviceId`,
 and `proxyId` are sufficient to replace the provider. Add provider or version data to Postgres only
 if the pilot demonstrates that ADMIN users genuinely need to track devices while they are offline.
+MKB-03 may add only the minimal `RelayDevice` grant-generation/expiry/completion fields needed for
+one-use secure enrollment; that is not a runtime-inventory table and stores no plaintext key.
+
+**9Router pattern audit, 11 August 2026:** the useful overlap does not justify a second Relay
+architecture or a new phase. Capability discovery, four-layer health, signed updates, and rollback
+were already in MKB-01/MKB-03. MKB-01E/MKB-02 now also require a default-deny inventory of exposed
+MCP/IPC/Relay operations and metadata-only `operationId`/stage/error correlation across the local
+chain. Edge forwarding, public tunnels, dynamic proxy pools, and identity fallback are rejected
+because Relay remains loopback-only and every Reddit identity stays bound to one static proxy,
+profile, device, and owner. Persistent server-side outcome receipts, offline device inventory, and a
+circuit-breaker dashboard remain pilot-gated; none added a v1 database migration or changed the
+estimate during that audit. The later Windows onboarding review is the reason for the current
+four-to-seven-week range.
 
 **GĐ1 đã đổi nền dữ liệu sang Postgres và đóng hẳn** (05/08/2026): 482/482 test, 4 smoke test và
 `npm run db:backup` đều xanh trên Postgres. Ràng buộc 1 nick = 1 proxy vẫn do database ép.
@@ -252,19 +290,20 @@ và máy chủ tự `pg_dump` rồi tải lên Cloudflare R2 mỗi đêm.
 > phủ. Bù bằng một nếp tay thay vì tiền: **chạy `db:backup:remote` ngay trước mỗi lần deploy có đổi
 > cấu trúc database**, vì `prisma migrate deploy` không tự sao lưu.
 
-## Đường găng: cái gì đang chặn
+## Critical path: current blockers
 
-| Chặn | Bản chất | Ai gỡ được |
+| Blocker | Nature | Owner |
 |---|---|---|
-| **MKB-00: một proxy thật để thử đường chạy đúng** | Mới chỉ chứng minh chặn-khi-hỏng, chưa chứng minh chạy-khi-đúng; cần một proxy dùng được và một lượt đối chiếu IP ra | Người phát triển + người duyệt chi phí proxy |
-| **Chứng thư ký Windows** | Không có thì mọi máy team đều gặp SmartScreen ở lần chạy đầu | Người quyết ngân sách |
-| **Mua proxy tĩnh + nick** | Tiền (3-8 triệu một lần) | Người quyết ngân sách |
-| **14 ngày cold-start** | Đồng hồ thật, không rút ngắn | Không ai — chỉ chờ |
+| **MKB-01E + MKB-02** | Supported Electron, renderer hardening, managed idempotent/atomic profile flow, and current-device health must pass before final release packaging | Engineering |
+| **MKB-03 zero-confusion Windows onboarding** | One signed installer, secure device enrollment, protected secret migration, and coordinated update/rollback are not implemented | Engineering + certificate budget owner |
+| **MKB-04 pilot and canary** | An unfamiliar-operator setup test, two-device seven-day pilot, then one 14-day canary cold start are elapsed evidence gates | Engineering + responsible operator + time |
+| **Windows code-signing certificate** | Without an approved publisher and clean-device acceptance, team installation still hits an unsafe warning/bypass path | Budget owner |
+| **Static proxies + accounts** | Procurement (VND 3–8 million once) | Budget owner |
+| **14-day cold start** | Real elapsed time cannot be compressed | Nobody — wait |
 
-Mua nick/proxy, chọn subreddit và chuẩn bị content có thể chạy song song với fork. Sau MKB-04 chỉ
-đăng nhập một nick thăm dò; cả cụm đợi nick đó đi hết cold-start để không đem một lỗi desktop nhân
-ra nhiều nick. Phase 05 vẫn không bắt đầu trước M3 — tự động hóa lên nick chưa qua cold-start là
-cách giết nick nhanh nhất.
+Account/proxy procurement, subreddit selection, and content preparation may run in parallel with the
+fork. After MKB-04 starts, sign in only one canary account; the fleet waits for its cold start so a
+desktop fault is not multiplied across identities. Phase 05 still does not begin before M3.
 
 ## Đã kiểm chứng bằng thực tế
 

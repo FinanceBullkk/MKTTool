@@ -432,8 +432,28 @@ MKT Browser requires a **bearer token**. Copy it from `MCP → Connect an agent`
 Relay status page (`mktBrowserToken` in `relay-config.json`). Never put this token in server
 environment variables. Without it, Relay can still reveal credentials and OTP values, but profile
 actions fail closed with a configuration error. See the
-[MKT Browser plan](plans/260810-0244-mkt-browser-noi-bo/plan.md); Apple Silicon and distribution
-remain open gates, and v1 retains the upstream UX/UI.
+[MKT Browser plan](plans/260810-0244-mkt-browser-noi-bo/plan.md). Windows x64 is the only v1 and
+team-demo platform; macOS is deferred to MKB-07. Distribution remains a later gate, and v1 retains
+the upstream UX/UI.
+
+### Correct-proxy engineering smoke test
+
+The MKB-00 positive-path check can use a dedicated proxy without storing it in the database or
+printing it in terminal output. Put the five fields below in
+`%LOCALAPPDATA%\MKTTool\mkb00-proxy.env`:
+
+```dotenv
+PROXY_PROTOCOL=http
+PROXY_HOST=
+PROXY_PORT=
+PROXY_USERNAME=
+PROXY_PASSWORD=
+```
+
+Then run `npm run mkt-browser:proxy-smoke -- --proxy-file`. The script validates and immediately
+deletes the handoff file before making any network request. It independently probes the proxy,
+launches a disposable MKT Browser profile, verifies that both paths observe the same non-direct exit
+IP, and closes and deletes the profile. Use only a dedicated test proxy and never account data.
 
 ### Proxy được đẩy tự động
 
@@ -618,9 +638,9 @@ nhóm ADMIN.
 
 ## Cầu nối
 
-> **The Relay package is currently Windows-only.** The MKT Browser plan is Mac-first, but Mac is
-> supported only after MKB-03 provides a notarized DMG, helper/LaunchAgent, Keychain integration,
-> and clean-device acceptance. Installing an upstream browser build on Mac does not replace Relay.
+> **The Relay package and MKT Browser v1 are Windows x64 only.** The current team demo and pilot
+> path use Windows; macOS is deferred to MKB-07 after v1 and does not block any current gate.
+> Installing an upstream browser build on Mac does not replace Relay.
 
 **Máy chủ không mở được một mật khẩu nick nào.** Từ 06/08/2026 kho chia hai vùng khóa thật, và
 vùng giữ bí mật nick chỉ mở được ở **máy của người vận hành** — bằng một chương trình nhỏ chạy

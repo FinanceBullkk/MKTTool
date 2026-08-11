@@ -12,6 +12,119 @@ Dự án chưa phát hành phiên bản (`0.1.0`, dùng nội bộ). Mốc chia 
 
 ---
 
+## 11/08/2026 (4) — Windows onboarding becomes a hard product gate
+
+Reviewed the active MKT Browser plan against the current Windows Relay download, device enrollment,
+first-device bootstrap, browser-to-loopback permission, desktop packaging, and update paths. The
+review found that “one installer” alone was too weak: it could still leave ordinary operators
+extracting archives, opening multiple setup pages, reading Relay/key/token vocabulary, or treating an
+offline administrator as a broken installation.
+
+The plan now defines one normal journey:
+
+`Download for Windows → Install → Sign in → Confirm this PC → Waiting for administrator approval or Ready`
+
+- The normal operator receives one authenticated Authenticode-signed, secretless installer and one
+  resumable current-PC setup controller. Separate Relay/MKT Browser downloads, `.bat`/PowerShell,
+  localhost navigation, manual checksums, keys, tokens, IDs, ports, paths, and engine archives are
+  explicit release failures rather than documentation problems.
+- `Waiting for administrator approval` is a durable non-error state. The first device uses a separate
+  ADMIN-only local bootstrap authorization; all later devices use ADMIN-approved recipient-sealed
+  grants. Web, server, installer, and MKT Browser never receive the plaintext operator key.
+- `Ready` now requires authenticated owner/device reconciliation, recipient proof after secure
+  persistence, and current local Relay/Browser/engine health. Durable sealed grants require a
+  short-lived one-use delivery authorization; exact retry returns a cached completion proof after a
+  lost response instead of rewriting the key. Revocation blocks new authorizations and documents the
+  short residual lifetime of one already issued rather than claiming impossible remote erasure.
+- Legacy-secret migration now activates a secure-store-capable bridge Relay before deleting
+  plaintext and commits that bridge as the rollback floor. No plaintext-only Relay may run afterward.
+  Wrong-user/revoked/shared-PC cases and crash points around store/proof/migration commits are part of
+  MKB-03 acceptance.
+- Release acceptance now treats Relay, MKT Browser, contract, and the pinned external engine as one
+  signed compatibility set rooted in an offline pinned manifest key and publisher, independent of R2.
+  Durable highest-sequence state and one-use local rollback authorization distinguish approved
+  rollback from an old valid-manifest replay. Partial update, reboot, key rotation, state deletion,
+  existing standalone installs, port collision, repair, uninstall, Chrome/Edge Local Network Access,
+  and rollback each have explicit tests.
+
+MKB-03 is split internally into guided secure onboarding and signed compatibility-set lifecycle, and
+its estimate changes from 6–9 to 10–15 working days. The remaining technical range changes from
+three-to-five to **four-to-seven weeks**. This does not block the current owner-led disposable-profile
+demo, but team self-installation and real-account use remain gated. This entry records a plan and
+product-decision update; it does not claim that the installer or new setup UI is already implemented.
+
+---
+
+## 11/08/2026 (3) — 9Router pattern audit sharpens the MKT Browser plan
+
+Reviewed the full active MKT Browser plan, the living roadmap/PDR/architecture, the existing
+Web/Relay plans, and the current ticket and data boundaries before accepting any 9Router-inspired
+work. The review adds no phase, runtime dependency, or v1 database migration.
+
+Two bounded additions now sit in the existing MKB-01E/MKB-02 scope:
+
+- Carry a non-secret ticket `jti` as `operationId` across Web → Relay → MKT Browser, retain
+  `requestId` separately for create idempotency, and return only allowlisted stage, error-code,
+  duration, and runtime-version diagnostics. This is local correlation, not a Relay-to-server
+  callback or a trusted browser-reported audit receipt.
+- Keep a checked-in, default-deny inventory of exposed MCP tools, preload/IPC handlers, Relay HTTP
+  endpoints, and capability classes. CI must fail when a new or renamed operation is exposed without
+  classification; the profile-management token remains unable to call page-control tools.
+
+The audit confirmed that capability discovery, four-layer status, signed release manifests, staged
+updates, and rollback were already planned. It explicitly rejects hosted edge forwarding, public
+tunnels, dynamic proxy pools, identity/proxy fallback, full request logging, and cloud profile sync.
+Persistent outcome receipts, offline device inventory, and a circuit-breaker dashboard remain
+deferred until MKB-04 pilot evidence shows a concrete need. The active plan's stale MKB-00 wording
+was also aligned with the verified 11 August correct-proxy result.
+
+---
+
+## 11/08/2026 (2) — MKB-00 correct-proxy positive path verified on Windows
+
+Closed the final MKB-00 runtime gate with the current packaged Windows x64 build and a dedicated
+working proxy. A new secret-safe smoke script accepts either an unassigned vault record or the fixed
+local handoff file `%LOCALAPPDATA%\MKTTool\mkb00-proxy.env`. For file handoff, it parses the proxy in
+memory and deletes the file before any network or browser operation. It does not log proxy fields,
+database URLs, tokens, or observed IP values.
+
+The independent proxy probe produced an exit IP distinct from the direct connection. A disposable
+MKT Browser instance then created a blank profile, applied the same proxy, launched it, and observed
+the same exit IP from inside the browser. The profile closed and deleted successfully; final checks
+found no handoff file, disposable profile, MKT Browser process, or temporary MKB-00 data root. No
+account, cookie, account password, TOTP value, or operational profile was used. Typecheck and
+focused ESLint also passed.
+
+This verifies MKB-00 only. The executable remains unsigned, and MKB-01/MKB-01E/MKB-02/MKB-03 and
+the MKB-04 multi-device pilot still gate distribution or real-account use.
+
+---
+
+## 11/08/2026 (1) — Windows technical demo becomes the immediate delivery target
+
+The owner stopped active MacBook setup because its development and release path was too complex for
+the current team-demo deadline. This reaffirms the 10 August platform decision rather than creating
+a second platform change: **Windows x64 remains the only v1 build, demo, pilot, and rollout target**,
+and macOS stays deferred to MKB-07 after v1.
+
+The immediate demo boundary is deliberately narrower than pilot readiness. It may exercise the
+existing Windows Web → Relay → MKT Browser flow with disposable profiles, but it does not authorize
+real accounts, team distribution, or claims that MKB-00/MKB-04 have passed. The only open MKB-00
+runtime gate remains a disposable launch through a real working proxy with a verified exit IP.
+
+Aligned stale Mac-first wording in the living README, architecture, glossary, documentation index,
+and the MKT Browser engineering inventory. The macOS setup guide remains only as a deferred MKB-07
+reference so future work does not need to rediscover it.
+
+Regenerated the current Windows directory package after the scope alignment. `MKTBrowser.exe`
+retained the verified W02 SHA-256
+`27c27443385f4ecdbc0187772934adb5d1718169d7c387d41b3718ef72ba2b18`; product metadata remains
+`MKT Browser`, x64 packaging completed, desktop guards passed 8/8, focused MKTTool consumer tests
+passed 50/50, both repository typechecks passed, and the packaged Relay verification passed. The
+executable remains unsigned and therefore stays an owner-led technical-demo artifact only.
+
+---
+
 ## 10/08/2026 (9) — Platform decision: Windows only in v1, macOS moves to MKB-07
 
 The fork was planned macOS-first. After two Windows slices and zero Apple Silicon evidence, the owner
@@ -1048,4 +1161,3 @@ Hàng rào chuyển từ **chỗ app lắng nghe** sang **đăng nhập**. Hai t
   không phải phiền toái nhỏ: nó **giấu** những gì các bước sau lẽ ra đã bắt.
 
 Chưa đóng ở đợt này: một phiên bị trộm vẫn đọc được mật khẩu nick (hai vùng khóa tách ở GĐ3).
-
