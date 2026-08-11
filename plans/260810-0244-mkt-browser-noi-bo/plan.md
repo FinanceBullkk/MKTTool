@@ -1050,6 +1050,15 @@ inaccessible; and every error path fails closed.
 unmanaged/legacy data, but managed export is blocked; MKB-05 still owns the controlled device-transfer
 lock and recipient-encrypted bundle required before moving a real managed identity.
 
+**Carried into MKB-03 — the activity sanitizer is still a denylist.** Section 6 requires local
+diagnostics to record only an *allowlisted* subset. `ActivityLog.sanitize` in MKT Browser instead
+redacts a list of known-sensitive argument names and passes every other key through unchanged, so a
+tool argument introduced under a new name would be recorded by default. Every argument in the current
+profile-management tool set is classified and redacted, and `activity-log-redaction.test.ts` covers
+them, so nothing leaks today — this is a default-allow seam rather than an active leak, which is why
+it did not block the gate. It remains the one place in the project that is not default-deny, and
+MKB-03A owns the inversion.
+
 ### MKB-03 — Windows onboarding, installer, and controlled updates (10–15 days)
 
 **Entry dependencies:** MKB-01E and MKB-02 are green. Final packaging/signing can build on the
@@ -1080,6 +1089,13 @@ path.
   default-deny inventory. Authentication/authorization remains at each Web boundary; loopback routes
   enforce exact origin, method, bounded body, and signed/public-or-sealed input rather than treating
   CORS as authorization. No custom protocol, deep link, callback, or URL carries a secret.
+- Invert the MKT Browser activity sanitizer from a denylist to an allowlist, closing the seam carried
+  over from MKB-02. Name the argument keys that may be recorded and the shape each is reduced to;
+  drop everything else rather than passing unknown keys through. Onboarding is the right slice for it
+  because MKB-03A adds new local operations and their arguments, and adding them to a default-allow
+  recorder is how the first real leak would arrive. Add a test that a tool argument under an
+  unrecognised key never reaches the activity feed, so the guard fails closed for arguments the way
+  the tool inventory already does for operations.
 - Move operator-domain and device private keys into protected per-user storage, transactionally
   migrate legacy plaintext config, and retain no plaintext fallback. Keep the MCP bearer protected
   and automatically discoverable by Relay.
