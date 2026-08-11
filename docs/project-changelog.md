@@ -12,6 +12,66 @@ Dự án chưa phát hành phiên bản (`0.1.0`, dùng nội bộ). Mốc chia 
 
 ---
 
+## 12/08/2026 (3) — MKT Browser contract v2 launches profiles atomically
+
+Completed the atomic-launch slice of MKB-02 across MKT Browser, MKTTool, and Relay. MKT Browser now
+exposes `launch_managed_profile` and advertises `atomic-launch-v1` under contract version `2`. The
+operation persists and reads back the requested proxy before launch. If the profile is already
+running, it returns the existing session only when the active proxy matches; a mismatch returns
+`PROFILE_ALREADY_RUNNING` without changing or relaunching that session.
+
+MKTTool supports contract versions `1` and `2`. Relay prefers the atomic operation, uses the legacy
+`update_profile` then `launch_profile` sequence only when the atomic tool is absent, and never falls
+back after an atomic rejection. The cross-repository smoke contract now requires and exercises the
+atomic capability.
+
+Packaged Windows verification also closed a lifecycle defect where Chrome handed off from its
+launcher PID to the real browser PID. Process discovery now follows the exact `--user-data-dir`,
+selects the live Windows process, and cleans up when CDP disappears. A per-profile launch lock also
+prevents concurrent requests from replacing a verified proxy before Chromium starts. Verification
+passed: MKB-02 12/12, focused MKTTool atomic/contract tests 53/53, both full project verification
+sets, and the packaged lifecycle with zero disposable Chrome processes remaining. The unsigned
+executable SHA-256
+is `4253401aa1a59995f30d2d49a5875a5b705453c751c008b1e5437ce19d99e37b`.
+
+MKB-02 remains open for correlated stage diagnostics, token capability separation, managed-control
+locking, current-device health, and remaining cross-repository coverage.
+
+---
+
+## 12/08/2026 (2) — Relay discovers the MKT Browser token without operator copy/paste
+
+Completed the Windows MCP-token discovery slice of MKB-02. Relay now validates and reads the bearer
+token from `%LOCALAPPDATA%\MKTTool\MKTBrowser\mcp-token` on demand. If MKT Browser creates the token
+after Relay has already started, the next status or profile request sees it without a Relay restart.
+The adapter is rebuilt if the token changes, and readiness caching is bound to the token that was
+actually probed.
+
+The Relay status page no longer asks an ordinary operator to reveal or copy the token. It reports
+whether access was discovered automatically, supplied by a development override, or is still absent.
+`mktBrowserToken` remains supported in `relay-config.json` only for disposable/custom development
+data roots and must be a 64-character hexadecimal token.
+
+Verification passed: all Relay tests 156/156, focused discovery/lifecycle tests 45/45, typecheck,
+lint, and `git diff --check`.
+
+---
+
+## 12/08/2026 (1) — Relay endpoints gain a default-deny exposure inventory
+
+Completed the MKTTool-owned Relay inventory slice of MKB-02. Every owned JSON endpoint now declares
+one allowed HTTP method and one reviewed capability class in a typed registry. The production route
+table can no longer add or omit a contract endpoint without a TypeScript failure, and a wrong method
+returns `405` before the endpoint handler reads a body or performs work.
+
+This closes the HTTP-surface inventory only. It does not claim token capability separation, atomic
+profile launch, cross-layer operation diagnostics, or cross-repository contract completion.
+
+Verification passed: all Relay tests 149/149, focused route/inventory tests 15/15, typecheck, lint,
+and `git diff --check`.
+
+---
+
 ## 11/08/2026 (9) — MKB-02 starts with idempotent managed creation
 
 Verified the first MKB-02 slice in the current uncommitted MKT Browser working tree. Managed profile

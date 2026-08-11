@@ -65,10 +65,10 @@ describe("launchProfileFromTicket error copy", () => {
     const result = await launchProfileFromTicket(payload(), antidetectThatFails("applyProxy", error));
 
     expect(result.ok).toBe(false);
-    expect(result.message).toContain("proxy của nick");
+    expect(result.message).toContain("account proxy");
     expect(result.message).not.toContain(INTERNAL_SENTENCE);
     // Luật gốc vẫn phải hiện ra: đẩy proxy hỏng thì KHÔNG mở profile.
-    expect(result.message).toContain("KHÔNG mở profile");
+    expect(result.message).toContain("NOT opened");
   });
 
   it("names the engine when the engine is what failed", async () => {
@@ -81,7 +81,7 @@ describe("launchProfileFromTicket error copy", () => {
     );
 
     expect(result.ok).toBe(false);
-    expect(result.message).toContain("Nhân trình duyệt");
+    expect(result.message).toContain("browser engine");
     expect(result.message).not.toContain(INTERNAL_SENTENCE);
   });
 
@@ -107,5 +107,24 @@ describe("launchProfileFromTicket error copy", () => {
 
     expect(result.ok).toBe(false);
     expect(result.message).toContain("Lỗi lạ từ máy.");
+  });
+
+  it("explains an atomic rejection caused by a different active proxy", async () => {
+    const error = new AntidetectError(INTERNAL_SENTENCE, "MKT Browser", {
+      code: "PROFILE_ALREADY_RUNNING",
+    });
+    const adapter = antidetectThatFails("launchProfile", error).getAdapter();
+    adapter.launchProfileWithProxy = async () => {
+      throw error;
+    };
+
+    const result = await launchProfileFromTicket(payload(), {
+      getAdapter: () => adapter,
+      forgetProbe: () => {},
+    } as unknown as RelayAntidetect);
+
+    expect(result.ok).toBe(false);
+    expect(result.message).toContain("already running with a different proxy");
+    expect(result.message).not.toContain(INTERNAL_SENTENCE);
   });
 });

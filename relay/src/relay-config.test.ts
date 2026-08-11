@@ -7,6 +7,7 @@ import { CONFIG_TEMPLATE, loadRelayConfig, reviewRelayConfig } from "./relay-con
 import { CONFIG_FILE } from "./relay-home";
 
 const HEX_64 = "a".repeat(64);
+const MKT_BROWSER_TOKEN = "c".repeat(64);
 
 /** A complete valid config that each test changes in one focused way. */
 function validConfig(overrides: Record<string, unknown> = {}) {
@@ -32,13 +33,13 @@ describe("reviewRelayConfig", () => {
 
   it("normalizes an explicit MKT Browser loopback origin override", () => {
     const result = reviewRelayConfig(
-      validConfig({ mktBrowserUrl: "http://localhost:49001/", mktBrowserToken: "test-token" }),
+      validConfig({ mktBrowserUrl: "http://localhost:49001/", mktBrowserToken: MKT_BROWSER_TOKEN }),
     );
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.config.mktBrowserUrl).toBe("http://localhost:49001");
-    expect(result.config.mktBrowserToken).toBe("test-token");
+    expect(result.config.mktBrowserToken).toBe(MKT_BROWSER_TOKEN);
   });
 
   it.each([
@@ -67,6 +68,12 @@ describe("reviewRelayConfig", () => {
     expect(result.config.mktBrowserUrl).toBeUndefined();
     expect(result.config).not.toHaveProperty("multizenToken");
     expect(result.config).not.toHaveProperty("multizenUrl");
+  });
+
+  it("rejects a malformed MKT Browser development token override", () => {
+    expect(problemFields(validConfig({ mktBrowserToken: "not-a-token" }))).toContain(
+      "mktBrowserToken",
+    );
   });
 
   it("accepts a complete config and normalizes the web origin", () => {

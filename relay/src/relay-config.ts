@@ -25,6 +25,7 @@ import {
   resolveMktBrowserMcpUrl,
 } from "../../src/lib/antidetect/mkt-browser-contract";
 import { CONFIG_FILE, relayFilePath, resolveRelayHome } from "./relay-home";
+import { isMktBrowserToken } from "./mkt-browser-token-discovery";
 
 /** Cấu hình đã kiểm xong, sẵn sàng dùng. */
 export interface RelayConfig {
@@ -72,7 +73,7 @@ export const CONFIG_TEMPLATE = {
   deviceId: "<web app tự điền khi bấm \"Đăng ký máy này\">",
   serverPublicKey: "<web app tự điền>",
   vaultKeyOperator: "<64 ký tự hex — dán ở ngay trang này, ô bên dưới>",
-  mktBrowserToken: "<required only for profile actions: MKT Browser → MCP → Connect an agent>",
+  mktBrowserToken: "<optional development override; normally discovered from MKT Browser>",
   mktBrowserUrl: MKT_BROWSER_DEFAULT_MCP_URL,
 };
 
@@ -209,6 +210,17 @@ export function reviewRelayConfig(parsed: unknown): ConfigLoad {
         });
       }
     }
+  }
+
+  if (
+    raw.mktBrowserToken !== undefined &&
+    (typeof raw.mktBrowserToken !== "string" ||
+      (raw.mktBrowserToken.trim() !== "" && !isMktBrowserToken(raw.mktBrowserToken)))
+  ) {
+    problems.push({
+      field: "mktBrowserToken",
+      message: '"mktBrowserToken" must be a 64-character hexadecimal token when configured.',
+    });
   }
 
   if (problems.length > 0) return { ok: false, problems };

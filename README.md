@@ -428,13 +428,21 @@ Production Relay constructs `MktBrowserAdapter` directly. The owned desktop cont
 `http://127.0.0.1:47822`; set `mktBrowserUrl` in `relay-config.json` only for an explicit loopback
 override. Retired MultiZen provider/config keys are not read as a fallback.
 
-MKT Browser requires a **bearer token**. Copy it from `MCP → Connect an agent` and enter it on the
-Relay status page (`mktBrowserToken` in `relay-config.json`). Never put this token in server
-environment variables. Without it, Relay can still reveal credentials and OTP values, but profile
-actions fail closed with a configuration error. See the
+MKT Browser requires a **bearer token**, but ordinary operators do not copy it. On Windows, Relay
+reads the token from MKT Browser's owned local data directory whenever it needs to connect, including
+when MKT Browser is enabled after Relay has already started. `mktBrowserToken` in `relay-config.json`
+remains only as a development override for disposable/custom data roots. Never put this token in
+server environment variables. Without a discoverable token, Relay can still reveal credentials and
+OTP values, but profile actions fail closed with a configuration error. See the
 [MKT Browser plan](plans/260810-0244-mkt-browser-noi-bo/plan.md). Windows x64 is the only v1 and
 team-demo platform; macOS is deferred to MKB-07. Distribution remains a later gate, and v1 retains
 the upstream UX/UI.
+
+MKT Browser contract version `2` advertises `atomic-launch-v1`. Relay then calls
+`launch_managed_profile`, which persists and reads back the account proxy before launching Chromium.
+If that profile is already running with a different proxy, the operation stops and asks the operator
+to close it; it does not modify or relaunch the active session. The legacy update-then-launch path is
+used only when an older build does not expose the atomic tool.
 
 ### Correct-proxy engineering smoke test
 

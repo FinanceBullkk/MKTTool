@@ -17,6 +17,7 @@ const REQUIRED_TOOLS = [
   "list_fingerprint_options",
   "create_profile",
   "update_profile",
+  "launch_managed_profile",
   "launch_profile",
   "close_profile",
   "delete_profile",
@@ -55,6 +56,12 @@ async function main(): Promise<void> {
     throw new Error(`MKT Browser is missing required tools: ${missingTools.join(", ")}.`);
   }
   console.log(`MCP initialize and tools/list passed (${tools.length} tools).`);
+
+  const runtime = await adapter.runtimeInfo();
+  if (!runtime?.capabilities.includes("atomic-launch-v1")) {
+    throw new Error("MKT Browser does not advertise atomic-launch-v1.");
+  }
+  console.log(`Runtime contract ${runtime.contractVersion} advertises atomic-launch-v1.`);
 
   const initialProfiles = await adapter.listProfiles();
   if (initialProfiles.length !== 0) {
@@ -103,16 +110,13 @@ async function main(): Promise<void> {
     }
     console.log("Invalid proxy application failed closed without launching a profile.");
 
-    await adapter.applyProxy(profileId, {
+    await adapter.launchProfileWithProxy(profileId, {
       protocol: "http",
       host: "127.0.0.1",
       port: 9,
     });
-    console.log("Valid proxy update passed.");
-
-    await adapter.launchProfile(profileId);
     await waitForRunningState(adapter, profileId, true);
-    console.log("Profile launch passed.");
+    console.log("Atomic proxy verification and profile launch passed.");
 
     await adapter.closeProfile(profileId);
     await waitForRunningState(adapter, profileId, false);

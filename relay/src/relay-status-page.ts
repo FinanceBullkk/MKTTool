@@ -21,6 +21,7 @@ import { RELAY_PATHS, RELAY_VERSION } from "../../src/lib/relay/relay-endpoints"
 import { renderOperatorKeyForm } from "./relay-operator-key-form";
 import { CONFIG_FILE, DEVICE_KEY_FILE } from "./relay-home";
 import { CONFIG_TEMPLATE, type ConfigProblem } from "./relay-config";
+import type { MktBrowserTokenSource } from "./mkt-browser-token-discovery";
 
 export interface StatusPageInput {
   /** Khóa công khai của máy này, hex. */
@@ -40,6 +41,7 @@ export interface StatusPageInput {
     deviceId: string;
     webOrigin: string;
     hasMktBrowserToken: boolean;
+    mktBrowserTokenSource: MktBrowserTokenSource | null;
   } | null;
   /** Whether Relay can reach MKT Browser locally. `null` means no token is configured to probe it. */
   antidetectReady: boolean | null;
@@ -60,7 +62,7 @@ function describeAntidetect(ready: boolean | null): { tone: string; text: string
   if (ready === null) {
     return {
       tone: "warn",
-      text: 'not checked — "mktBrowserToken" is not configured, so this machine cannot launch profiles',
+      text: "not checked — open MKT Browser and enable MCP so Relay can discover its local token",
     };
   }
   return ready
@@ -68,8 +70,7 @@ function describeAntidetect(ready: boolean | null): { tone: string; text: string
     : {
         tone: "bad",
         text:
-          "Cannot connect to MKT Browser. Open MKT Browser; if it is already open, verify the " +
-          "MCP (trong app: MCP → Connect an agent).",
+          "Cannot connect to MKT Browser. Open MKT Browser and make sure its MCP HTTP service is enabled.",
       };
 }
 
@@ -139,10 +140,19 @@ function renderActiveConfig(config: StatusPageInput["config"]): string {
 <ul>
   <li>Mã máy: <code>${escapeHtml(config.deviceId)}</code> — sai mã thì mọi vé báo "phát cho máy khác"</li>
   <li>Nhận lời gọi từ: <code>${escapeHtml(config.webOrigin)}</code> — chỉ đúng một nguồn này</li>
-  <li>MKT Browser token: ${config.hasMktBrowserToken ? "configured" : "<strong>not configured</strong> — this machine cannot launch profiles"}</li>
+  <li>MKT Browser access: ${describeMktBrowserToken(config)}</li>
 </ul>
 <p class="muted">Khóa vùng operator và token không in ra đây. Còn khóa công khai của máy chủ thì
 đúng hay sai chỉ biết được khi có tấm vé đầu tiên: sai khóa thì vé nào cũng báo chữ ký không hợp lệ.</p>`;
+}
+
+function describeMktBrowserToken(config: NonNullable<StatusPageInput["config"]>): string {
+  if (!config.hasMktBrowserToken) {
+    return "<strong>not found</strong> — open MKT Browser and enable MCP";
+  }
+  return config.mktBrowserTokenSource === "config-override"
+    ? "development override configured"
+    : "discovered automatically from MKT Browser";
 }
 
 /**

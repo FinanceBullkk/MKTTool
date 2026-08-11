@@ -117,6 +117,15 @@ export interface AntidetectAdapter {
    */
   applyProxy(profileId: string, proxy: AntidetectProxyConfig): Promise<void>;
 
+  /**
+   * Persist, verify, and launch with one provider-owned operation when supported.
+   * Providers without an atomic contract omit this method and keep the legacy two-call path.
+   */
+  launchProfileWithProxy?(
+    profileId: string,
+    proxy: AntidetectProxyConfig,
+  ): Promise<LaunchedProfile>;
+
   /** Mở profile, trả về endpoint CDP. */
   launchProfile(profileId: string): Promise<LaunchedProfile>;
 

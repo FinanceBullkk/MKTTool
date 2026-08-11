@@ -42,6 +42,13 @@ export type RelayRoute = (
   body: string,
 ) => Promise<RelayResponseBody> | RelayResponseBody;
 
+export interface RelayRouteDefinition {
+  method: "GET" | "POST";
+  /** Security classification is mandatory even when enforcement lives inside the handler. */
+  capability: string;
+  handler: RelayRoute;
+}
+
 export interface RelayServerOptions {
   /**
    * Nguồn web được phép gọi vào, hoặc `null` khi bản build không nung nguồn nào.
@@ -54,7 +61,7 @@ export interface RelayServerOptions {
    */
   allowedOrigin: () => string | null;
   /** Bảng đường JSON: đường dẫn → hàm xử lý. */
-  routes: Partial<Record<string, RelayRoute>>;
+  routes: Partial<Record<string, RelayRouteDefinition>>;
   /**
    * Trang HTML người xem bằng mắt: đường dẫn → hàm dựng chuỗi.
    *
@@ -185,8 +192,21 @@ async function handleRequest(
     return;
   }
 
+  if (request.method !== route.method) {
+    sendJson(
+      response,
+      405,
+      {
+        ok: false,
+        message: `Method ${request.method ?? "UNKNOWN"} is not allowed for "${path}". Use ${route.method}.`,
+      },
+      { ...headers, allow: route.method },
+    );
+    return;
+  }
+
   let body = "";
-  if (request.method === "POST") {
+  if (route.method === "POST") {
     try {
       body = await readBody(request);
     } catch (error) {
@@ -196,7 +216,7 @@ async function handleRequest(
   }
 
   try {
-    const result = await route(request, body);
+    const result = await route.handler(request, body);
     sendJson(response, result.ok ? 200 : 400, result, headers);
   } catch (error) {
     // Không bao giờ để lỗi lọt ra dạng stack trace: vé và bí mật đi qua đúng những hàm này.

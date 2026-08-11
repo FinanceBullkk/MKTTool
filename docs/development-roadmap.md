@@ -1,6 +1,6 @@
 # Lộ trình phát triển
 
-**Cập nhật:** 11/08/2026
+**Cập nhật:** 12/08/2026
 
 Đây là **nguồn duy nhất về trạng thái** của dự án. Chi tiết thi công nằm ở
 [plan công cụ gốc](../plans/260801-2030-multi-account-posting-console/plan.md),
@@ -45,19 +45,19 @@ non-error `Waiting for administrator approval` state or `Ready`. Ordinary operat
 Relay/MCP vocabulary, keys, tokens, ports, paths, archives, checksums, localhost pages, or commands.
 The first-device secret bootstrap remains a separate ADMIN-only local ceremony.
 
-The Windows technical package was regenerated on 11 August at
-`E:\MKTBrowser\apps\desktop\release\win-unpacked\MKTBrowser.exe`; its current SHA-256 is
-`7634f689920fb0c5a5a1e8e45aaa98b6eb7d96e9abcf97a9ee926c543dc0a662`. Node guards passed 2/2,
-W02 passed 8/8, MKB-01 passed 9/9, MKB-01E passed 6/6, the first MKB-02 slice passed 4/4, and
+The Windows technical package was regenerated on 12 August at
+`E:\MKTWorkspace\MKTBrowser\apps\desktop\release\win-unpacked\MKTBrowser.exe`; its current SHA-256 is
+`4253401aa1a59995f30d2d49a5875a5b705453c751c008b1e5437ce19d99e37b`. Node guards passed 2/2,
+W02 passed 8/8, MKB-01 passed 9/9, MKB-01E passed 6/6, MKB-02 passed 12/12, and
 Windows packaging guards passed 3/3. Typecheck, lint, the full Windows build, packaged verification,
-and `git diff --check` also passed. The packaged verifier proves `update_profile` persistence,
-`INVALID_INPUT` rejection for an invalid proxy, real Chrome launch/close, profile deletion, clean
-application/profile cleanup with no new MKT Browser or Chrome PID left behind, and restoration of
-workspace links. Packaging now retries `rcedit` only for the transient `Unable to commit changes`
-failure; every other edit failure stops immediately. The executable is still unsigned and the MKT
-Browser changes remain uncommitted, so this is technical checkpoint evidence, not a pushed release,
-distribution approval, or pilot approval. The earlier dedicated-proxy exit-IP match remains separate
-real-proxy evidence.
+and `git diff --check` also passed. The packaged verifier proves persisted proxy read-back,
+`INVALID_INPUT` rejection for an invalid proxy, atomic managed launch, Windows Chrome launcher-PID
+handoff, process-confirmed close, profile deletion, clean application/profile cleanup with no
+disposable Chrome process left behind, and restoration of workspace links. Packaging retries
+`rcedit` only for the transient `Unable to commit changes` failure; every other edit failure stops
+immediately. The executable is still unsigned, so this is technical checkpoint evidence, not a
+release, distribution approval, or pilot approval. The earlier dedicated-proxy exit-IP match remains
+separate real-proxy evidence.
 
 > **Language rule — 10 August 2026:** all new or materially revised project artifacts and product
 > copy must be in English. Direct conversation with the project owner may remain in Vietnamese.
@@ -107,7 +107,7 @@ repository. MKTTool retains only the consuming contract, Relay, and release page
 | MKB-W02 | Windows internal clean break | ✅ Verified 10 August | Dedicated port `47822`, MKT Browser-only internal contract, no legacy fallback, packaged lifecycle through updated MKTTool consumer |
 | MKB-01 | Windows compatibility and product identity | ✅ Verified 11 August | Copy-only first-launch importer preserves the MultiZen source; five primary-screen baselines captured; Windows CI runs W01/W02 guards, typecheck, package build, and packaged runtime-contract verification on every push/PR |
 | MKB-01E | Electron upgrade and renderer hardening | ✅ Verified 11 August | Electron 42.8.1 / ABI 146 package; native module rebuild; sandbox/CSP/default-deny IPC and MCP inventories; fixed-seed fingerprint unchanged and five visual baselines accepted |
-| MKB-02 | Managed mode | 🟡 In progress — first slice verified 11 August | Deterministic/idempotent managed profile creation and conflict rejection are verified under `idempotent-create-v1`; `managed-profile-v1`, `atomic-launch-v1`, correlated stage/error results, Relay coverage, and locked dangerous actions remain open |
+| MKB-02 | Managed mode | 🟡 In progress — four slices verified through 12 August | Deterministic/idempotent create, Relay endpoint inventory, automatic Windows MCP-token discovery, and contract-v2 atomic launch are verified; correlated stage/error results, token capability separation, managed-control locking, current-device health, and remaining cross-repository coverage stay open |
 | MKB-03 | Windows onboarding, installer, and controlled updates | ⬜ Not started | One signed secretless installer; current-PC `Waiting`/`Ready` flow with no technical setup; ADMIN-only bootstrap and recipient-sealed grants; secure-store migration; coordinated-set update/rollback behind thin OS adapters |
 | MKB-04 | Technical pilot and one canary account | ⬜ Not started | An unfamiliar operator completes setup with zero developer intervention; two Windows devices remain green for seven days; one account completes a 14-day cold start |
 | MKB-05 | Team rollout | ⬜ Not started | Canary completes cold start; MKT Browser becomes default; rollback uses only the frozen W01 checkpoint and never restores a MultiZen adapter fallback |
@@ -115,7 +115,7 @@ repository. MKTTool retains only the consuming contract, Relay, and release page
 | MKB-07 | macOS Apple Silicon | ⏸ Deferred beyond v1 | Native arm64 build, engine approved for macOS, signed/notarized DMG, LaunchAgent + Keychain, macOS added to the CI matrix |
 
 **MKB-00 evidence, completed 11 August 2026:** Official MultiZen `v0.3.1` is pinned at
-`83c6898b2de3de1122b5fea88008fbbaa4677bff` in the separate `E:\MKTBrowser` checkout. The
+`83c6898b2de3de1122b5fea88008fbbaa4677bff` in the separate `E:\MKTWorkspace\MKTBrowser` checkout. The
 unmodified Windows x64 build, the 22-tool MCP contract, and MKTTool's current adapter passed with
 disposable profiles; focused fail-closed tests passed 27/27. The CloakBrowser binary is approved
 only conditionally for unmodified internal use through official downloads and must not be bundled or
@@ -194,15 +194,29 @@ close, delete, application exit, and clean process/temp-root removal without wea
 flags. The fixed-seed configured and observed fingerprints remained byte-for-byte equivalent across
 the Electron upgrade, and the five Electron 42 primary-screen baselines retained layout, text,
 resources, and preload behavior. The current executable SHA-256 is
-`7634f689920fb0c5a5a1e8e45aaa98b6eb7d96e9abcf97a9ee926c543dc0a662` and it remains unsigned.
+`4253401aa1a59995f30d2d49a5875a5b705453c751c008b1e5437ce19d99e37b` and it remains unsigned.
 
-**MKB-02 progress, 11 August 2026:** The first managed-mode slice is verified, not the full phase.
+**MKB-02 progress, updated 12 August 2026:** Four managed-mode slices are verified, not the full phase.
 Deterministic/idempotent profile creation returns the existing profile on retry instead of creating a
-duplicate, and rejects a conflicting request. The runtime advertises `idempotent-create-v1` only;
-`managed-profile-v1` and `atomic-launch-v1` remain deliberately absent. MKB-02 tests passed 4/4 and
-the current package passed the full verification set listed above. Atomic launch, cross-layer
-operation/stage diagnostics, Relay capability enforcement, MCP-token discovery, and managed-control
-locking still have to pass before the MKB-02 gate can close.
+duplicate, and rejects a conflicting request. Contract version `2` advertises
+`idempotent-create-v1` and `atomic-launch-v1`; `managed-profile-v1` remains deliberately absent.
+`launch_managed_profile` persists and reads back the requested proxy before launch, returns an
+existing session only when its active proxy matches, and rejects a mismatched running session without
+modifying or relaunching it. MKB-02 tests passed 12/12 and the current package passed the full
+verification set listed above. Relay now has a typed exposure
+inventory for every owned JSON endpoint: each route declares its allowed HTTP method and reviewed
+capability class, a new contract path cannot be omitted from that inventory without a type failure,
+and wrong methods return `405` before route code runs. Relay now also validates and discovers the
+256-bit bearer token from `%LOCALAPPDATA%\MKTTool\MKTBrowser\mcp-token` on demand. Starting or
+enabling MKT Browser after Relay startup no longer requires a Relay restart, ordinary operators no
+longer see a token field, and `mktBrowserToken` remains only as a development override. Relay
+verification passed 156/156, with typecheck and lint green. MKTTool's atomic consumer supports
+contract versions `1` and `2`, prefers the atomic tool when exposed, falls back to the legacy
+update-then-launch sequence only when that tool is absent, and never falls back after an atomic
+rejection. Focused atomic/contract tests passed 53/53; the full test suite, typecheck, lint, and
+production build passed. Cross-layer operation/stage diagnostics, token capability separation,
+managed-control locking, current-device health, and remaining cross-repository coverage still have
+to pass before the MKB-02 gate can close.
 
 The current technical estimate is **four to seven weeks**, still below the former five-to-eight-week
 dual-platform range because macOS remains out of v1. The 11 August onboarding review made previously
@@ -223,8 +237,9 @@ one-use secure enrollment; that is not a runtime-inventory table and stores no p
 
 **9Router pattern audit, 11 August 2026:** the useful overlap does not justify a second Relay
 architecture or a new phase. Capability discovery, four-layer health, signed updates, and rollback
-were already in MKB-01/MKB-03. MKB-01E now inventories the desktop MCP/IPC surface; MKB-02 must
-extend the default-deny inventory across Relay operations and add metadata-only
+were already in MKB-01/MKB-03. MKB-01E inventories the desktop MCP/IPC surface, and MKB-02 now also
+classifies every Relay JSON endpoint by method and capability. MKB-02 must still enforce token-level
+capability separation across the local contract and add metadata-only
 `operationId`/stage/error correlation across the local chain. Edge forwarding, public tunnels,
 dynamic proxy pools, and identity fallback are rejected
 because Relay remains loopback-only and every Reddit identity stays bound to one static proxy,
@@ -346,7 +361,7 @@ và máy chủ tự `pg_dump` rồi tải lên Cloudflare R2 mỗi đêm.
 
 | Blocker | Nature | Owner |
 |---|---|---|
-| **MKB-02 managed mode** | The deterministic/idempotent create slice passed, but atomic launch, cross-layer diagnostics, Relay capability enforcement, MCP-token discovery, managed-control locking, and current-device health still block final release packaging | Engineering |
+| **MKB-02 managed mode** | Create, Relay endpoint inventory, on-demand MCP-token discovery, and atomic launch passed; cross-layer diagnostics, token capability separation, managed-control locking, current-device health, and remaining cross-repository coverage still block final release packaging | Engineering |
 | **MKB-03 zero-confusion Windows onboarding** | One signed installer, secure device enrollment, protected secret migration, and coordinated update/rollback are not implemented | Engineering + certificate budget owner |
 | **MKB-04 pilot and canary** | An unfamiliar-operator setup test, two-device seven-day pilot, then one 14-day canary cold start are elapsed evidence gates | Engineering + responsible operator + time |
 | **Windows code-signing certificate** | Without an approved publisher and clean-device acceptance, team installation still hits an unsafe warning/bypass path | Budget owner |

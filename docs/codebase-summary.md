@@ -110,7 +110,9 @@ scripts/
 └── smoke-test-mkt-browser-correct-proxy.ts  Verifies the disposable MKT Browser correct-proxy
                                  path without printing or retaining proxy credentials
 relay/                          **Chương trình riêng**, chạy trên máy operator — không phải một
-├── src/                        phần của web app. Nghe `127.0.0.1:47821`, giữ khóa vùng operator,
+├── src/                        phần của web app. Nghe `127.0.0.1:47821`, giữ khóa vùng operator;
+│   ├── relay-route-policy.ts   typed method/capability inventory for every owned JSON endpoint
+│   └── mkt-browser-token-discovery.ts  validates and reads the owned Windows MCP token on demand
 ├── install-relay.ps1           là chỗ DUY NHẤT trong cả hệ mở được mật khẩu nick. Không có đường
 └── setup.bat                   vào database; có test hình dạng mã nguồn chặn nó import `prisma`,
                                 `next`, React và lớp phân quyền
@@ -192,23 +194,25 @@ biến mất. Khác biệt duy nhất giữa hai nền tảng là số ô nhập
 ## Luồng mở profile antidetect
 
 ```
-Bấm "Mở profile" → POST /api/accounts/[id]/launch
-  1. Máy chủ chặn trạng thái nick, thiếu profile/proxy và proxy chết
-  2. Máy chủ tìm đúng máy giữ nick, dựng cấu hình proxy và phát vé đã ký + mã hóa
-  3. Trình duyệt chuyển vé xuống Cầu nối tại 127.0.0.1:47821
-  4. Cầu nối xác minh chữ ký, người nhận, hạn vé và chống dùng lại
-  5. Cầu nối ĐẨY proxy vào profile → adapter.applyProxy()   ← hỏng thì DỪNG, không mở
-  6. Cầu nối mở profile            → adapter.launchProfile()
-  7. Máy chủ chỉ ghi PROFILE_LAUNCH_TICKET_ISSUED — nó không biết cửa sổ đã mở thật hay chưa
+Click "Open profile" → POST /api/accounts/[id]/launch
+  1. The server rejects an unsafe account state, missing profile/proxy, or dead proxy
+  2. The server selects the bound device and issues a signed, recipient-encrypted ticket
+  3. The Web browser sends the ticket to Relay at 127.0.0.1:47821
+  4. Relay verifies signature, recipient, expiry, and replay state
+  5. Relay calls adapter.launchProfileWithProxy(profileId, proxy)
+  6. MKT Browser contract v2 persists + reads back the proxy, then launches atomically
+     Legacy builds only: Relay falls back to applyProxy() → launchProfile() when the tool is absent
+  7. The server records PROFILE_LAUNCH_TICKET_ISSUED; it does not claim the window opened
 ```
 
-Thứ tự 5 trước 6 là bắt buộc: đổi proxy sau khi profile đã mở thì phiên đang chạy vẫn đi bằng
-IP cũ. Đẩy thất bại mà vẫn mở là mở bằng IP nhà — nên mọi đường thất bại đều chặn hẳn.
+Proxy persistence still must precede launch: changing it after Chromium starts does not change the
+running session. Contract v2 owns that ordering in `launch_managed_profile`; it rejects a running
+profile whose active proxy differs and never falls back after an atomic rejection.
 
-| Provider | Đẩy proxy bằng |
+| Provider | Proxy application path |
 |---|---|
-| MKT Browser | authenticated MCP tool `update_profile` on default port `47822`, field `proxy: { type: http\|socks5, host, port, username?, password? }` |
-| AdsPower | `POST /api/v1/user/update` với `user_proxy_config.proxy_soft = "other"`; adapter tự giãn 1,1s/lời gọi cho khỏi vượt hạn mức 1 req/s |
+| MKT Browser | authenticated MCP tool `launch_managed_profile` on default port `47822`; contract v2 persists and verifies `proxy: { type: http\|socks5, host, port, username?, password? }` before launch |
+| AdsPower | `POST /api/v1/user/update` with `user_proxy_config.proxy_soft = "other"`; the adapter spaces calls by 1.1 seconds to stay below the 1 request/second limit |
 
 Mật khẩu proxy dạng trần đi đúng một đường có kiểm soát:
 `proxy-config-builder.ts` → ruột vé đã bọc cho đúng máy → Cầu nối → lời gọi adapter. Thông báo lỗi

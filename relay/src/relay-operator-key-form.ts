@@ -29,9 +29,6 @@ export function renderOperatorKeyForm(path: string, hasKey: boolean): string {
   <label>Khóa vùng operator (64 ký tự hex)<br>
     <input id="opkey" type="password" autocomplete="off" spellcheck="false" size="70"
            placeholder="${"0".repeat(64)}"></label>
-  <p><label>MKT Browser MCP token — required only if this machine launches profiles<br>
-    <input id="mkt-browser-token" type="password" autocomplete="off" spellcheck="false" size="70"
-           placeholder="leave blank to keep the existing token"></label></p>
   <p><button type="submit">Lưu vào máy này</button>
   <span id="opmsg" class="muted"></span></p>
 </form>
@@ -48,8 +45,7 @@ export function renderOperatorKeyForm(path: string, hasKey: boolean): string {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        vaultKeyOperator: document.getElementById("opkey").value,
-        mktBrowserToken: document.getElementById("mkt-browser-token").value
+        vaultKeyOperator: document.getElementById("opkey").value
       })
     })
       .then(function (r) { return r.json(); })

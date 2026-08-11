@@ -8,6 +8,11 @@ import {
   resolveMktBrowserMcpUrl,
 } from "../../src/lib/antidetect/mkt-browser-contract";
 import type { RelayConfig } from "./relay-config";
+import {
+  resolveMktBrowserToken,
+  type MktBrowserTokenSource,
+  type ResolvedMktBrowserToken,
+} from "./mkt-browser-token-discovery";
 
 const PROBE_TTL_MS = 30_000;
 
@@ -33,8 +38,8 @@ export interface AntidetectRuntimeHealth {
 export class AntidetectNotConfiguredError extends Error {
   constructor() {
     super(
-      'The Relay does not have an MKT Browser token. Open MKT Browser, choose MCP → "Connect an agent", ' +
-        'then add "mktBrowserToken" to relay-config.json and restart the Relay.',
+      "The Relay could not find the local MKT Browser token. Open MKT Browser and enable MCP, then retry. " +
+        'For development only, set "mktBrowserToken" in relay-config.json.',
     );
     this.name = "AntidetectNotConfiguredError";
   }
@@ -43,12 +48,22 @@ export class AntidetectNotConfiguredError extends Error {
 /** The token is optional because credential and OTP actions do not use MKT Browser. */
 export class RelayAntidetect {
   private adapter: MktBrowserAdapter | null = null;
-  private probe: { at: number; ready: boolean } | null = null;
+  private adapterToken: string | null = null;
+  private probe: { at: number; ready: boolean; token: string } | null = null;
 
-  constructor(private readonly config: RelayConfig | null) {}
+  constructor(
+    private readonly config: RelayConfig | null,
+    private readonly tokenResolver: () => ResolvedMktBrowserToken | null = () =>
+      resolveMktBrowserToken(config?.mktBrowserToken),
+  ) {}
 
   private get token(): string | null {
-    return this.config?.mktBrowserToken ?? null;
+    return this.tokenResolver()?.value ?? null;
+  }
+
+  tokenStatus(): { available: boolean; source: MktBrowserTokenSource | null } {
+    const resolved = this.tokenResolver();
+    return { available: Boolean(resolved), source: resolved?.source ?? null };
   }
 
   getAdapter(): AntidetectAdapter {
@@ -58,14 +73,21 @@ export class RelayAntidetect {
     const baseUrl = resolveMktBrowserMcpUrl(
       this.config.mktBrowserUrl ?? MKT_BROWSER_DEFAULT_MCP_URL,
     );
-    this.adapter ??= new MktBrowserAdapter(baseUrl, token);
+    if (!this.adapter || this.adapterToken !== token) {
+      this.adapter = new MktBrowserAdapter(baseUrl, token);
+      this.adapterToken = token;
+      this.probe = null;
+    }
     return this.adapter;
   }
 
   /** Cache readiness briefly because the Web client calls Relay health before every action. */
   async isReady(now: number = Date.now()): Promise<boolean> {
-    if (!this.token) return false;
-    if (this.probe && now - this.probe.at < PROBE_TTL_MS) return this.probe.ready;
+    const token = this.token;
+    if (!token) return false;
+    if (this.probe && this.probe.token === token && now - this.probe.at < PROBE_TTL_MS) {
+      return this.probe.ready;
+    }
 
     let ready = false;
     try {
@@ -75,7 +97,7 @@ export class RelayAntidetect {
       ready = false;
     }
 
-    this.probe = { at: now, ready };
+    this.probe = { at: now, ready, token };
     return ready;
   }
 

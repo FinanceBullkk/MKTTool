@@ -132,6 +132,27 @@ describe("handleTicketRequest — vé mở profile", () => {
     expect(result.message).toContain("Webshare #3");
   });
 
+  it("prefers one atomic launch call when the provider supports it", async () => {
+    const { identity, recipient } = relaySetup();
+    const { adapter, calls } = fakeAdapter({
+      launchProfileWithProxy: async (profileId, proxy) => {
+        calls.push("launchProfileWithProxy");
+        expect(profileId).toBe("profile-1");
+        expect(proxy).toEqual(PROXY);
+        return { profileId };
+      },
+    });
+
+    const result = await handleTicketRequest(requestBody(issueTicket(launchPayload(), recipient)), {
+      identity,
+      antidetect: fakeAntidetect(adapter),
+      notConfiguredMessage: "not configured",
+    });
+
+    expect(result.ok).toBe(true);
+    expect(calls).toEqual(["launchProfileWithProxy"]);
+  });
+
   it("đẩy proxy hỏng thì KHÔNG mở profile — mở ra là nick chạy bằng IP nhà", async () => {
     const { identity, recipient } = relaySetup();
     const { adapter, calls } = fakeAdapter({
@@ -148,7 +169,7 @@ describe("handleTicketRequest — vé mở profile", () => {
 
     expect(result.ok).toBe(false);
     expect(calls).not.toContain("launchProfile");
-    expect(result.message).toContain("KHÔNG mở profile");
+    expect(result.message).toContain("NOT opened");
   });
 
   it("không để lộ mật khẩu proxy ra câu trả lời, kể cả khi hỏng", async () => {
@@ -279,7 +300,7 @@ describe("handleTicketRequest — vé mở profile", () => {
     });
 
     expect(result.ok).toBe(false);
-    expect(result.message).toContain("Connect an agent");
+    expect(result.message).toContain("enable MCP");
   });
 
   it("thân request không có trường ticket thì báo đúng chỗ thiếu", async () => {

@@ -61,6 +61,12 @@ Ba đường ra internet đi qua **ba IP khác nhau và không được lẫn**:
 > `Web → Relay → authenticated MCP → MKT Browser`; operator keys stay in Relay and profiles/cookies
 > stay on the operator device. There is no MultiZen provider or configuration fallback.
 
+> **Current MKB-02 launch boundary:** contract version `2` advertises `atomic-launch-v1`. Relay calls
+> `launch_managed_profile`, which persists and reads back the requested proxy before Chromium starts.
+> A running session is returned only when its active proxy matches; a mismatch fails closed without
+> modification or relaunch. Contract-v1 builds use `update_profile → launch_profile` only when the
+> atomic tool is absent, never after an atomic rejection.
+
 > **“Relay” does not mean an edge proxy here.** It exposes no public tunnel, target-forwarding API,
 > or proxy pool. It verifies recipient-bound tickets, opens operator-domain secrets locally, and calls
 > MKT Browser on loopback. Account traffic leaves only through that account's bound static proxy; a
@@ -130,7 +136,7 @@ Toàn bộ `data/` và `.env` đều nằm trong `.gitignore`. Repo **không bao
 
 | Phụ thuộc | Dùng để | Hỏng thì biểu hiện | Xử lý đã cài sẵn |
 |---|---|---|---|
-| **MKT Browser** (authenticated local MCP, default `127.0.0.1:47822`) | Open browser profiles and apply their static proxies | HTTP 401/403, desktop app stopped, contract/engine/CPU mismatch | One transport re-handshake is allowed; proxy/tool failures remain fail-closed. Windows runtime capability reporting, engine pinning, and rollback remain v1 gates; Mac arm64 belongs to MKB-07 |
+| **MKT Browser** (authenticated local MCP, default `127.0.0.1:47822`) | Open browser profiles and apply their static proxies | HTTP 401/403, desktop app stopped, contract/engine/CPU mismatch | One transport re-handshake is allowed; proxy/tool failures remain fail-closed. Managed-control locking, operation diagnostics, current-device readiness, engine pinning, and rollback remain v1 gates; Mac arm64 belongs to MKB-07 |
 | **Proxy tĩnh** (nhà cung cấp) | Đường ra của từng nick | Đẩy vào profile vẫn "thành công" dù proxy đã chết | Không tự phát hiện được — phải mở `ipinfo.io` kiểm IP sau mỗi lần mở profile mới |
 | **Proxy quan sát viên** | Dò shadowban | Chưa nhập thì `npm run health` dừng ngay từ đầu | Cố ý dừng: dò bằng IP nhà còn tệ hơn không dò |
 | **HTML `old.reddit.com`** | Nguồn dữ liệu dò shadowban + karma | Reddit đổi giao diện → parser hỏng | Hỏng thì kết luận **`ERROR` ("Không dò được")**, tuyệt đối không bao giờ là `HEALTHY`. `npm run health:smoke` đối chiếu Reddit thật |
@@ -151,9 +157,12 @@ dự án cũng là phần dễ sửa nhất.
 
 **2. The browser-profile runtime sits behind `AntidetectAdapter`.** MKTTool retains the MKT Browser
 and AdsPower implementations for server/test selection, while production profile actions go through
-Relay. Relay deliberately constructs `MktBrowserAdapter`, reads `mktBrowserToken`, and uses
-`mktBrowserUrl` only as an explicit loopback override. It does not inspect retired provider or
-configuration names.
+Relay. Relay deliberately constructs `MktBrowserAdapter`, discovers the bearer token from MKT
+Browser's Windows data root on demand, accepts `mktBrowserToken` only as a development override, and
+uses `mktBrowserUrl` only as an explicit loopback override. It does not inspect retired provider or
+configuration names. When MKT Browser exposes `atomic-launch-v1`, Relay uses the provider-owned
+persist/verify/launch operation; the two-call fallback is restricted to older builds where the tool
+is absent.
 
 **3. Ràng buộc nghiệp vụ ép ở tầng database, không ở tầng UI.** `antidetectProfileId @unique`,
 `proxyId @unique`, `@@unique([platform, username])` — quy tắc "1 nick = 1 proxy = 1 vân tay"

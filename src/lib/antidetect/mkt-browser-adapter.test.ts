@@ -21,6 +21,7 @@ const PROXY = {
 } as const;
 
 const REQUIRED_TOOLS = [
+  "launch_managed_profile",
   "launch_profile",
   "close_profile",
   "list_profiles",
@@ -215,6 +216,59 @@ describe("MktBrowserAdapter contract", () => {
 });
 
 describe("MktBrowserAdapter profile operations", () => {
+  it("uses the atomic managed-launch tool when the desktop exposes it", async () => {
+    const calls = installFakeMcpServer();
+    await new MktBrowserAdapter(MKT_BROWSER_DEFAULT_MCP_URL, "t").launchProfileWithProxy(
+      PROFILE_ID,
+      PROXY,
+    );
+
+    expect(argsOf(calls, "launch_managed_profile")).toEqual({
+      profile_id: PROFILE_ID,
+      proxy: {
+        type: "socks5",
+        host: "5.6.7.8",
+        port: 1080,
+        username: "test-user",
+        password: "test-proxy-password",
+      },
+    });
+    expect(calls.some((call) => call.params?.name === "update_profile")).toBe(false);
+    expect(calls.some((call) => call.params?.name === "launch_profile")).toBe(false);
+  });
+
+  it("falls back to update then launch only when the atomic tool is absent", async () => {
+    const calls = installFakeMcpServer({
+      tools: REQUIRED_TOOLS.filter((tool) => tool !== "launch_managed_profile"),
+    });
+    await new MktBrowserAdapter(MKT_BROWSER_DEFAULT_MCP_URL, "t").launchProfileWithProxy(
+      PROFILE_ID,
+      PROXY,
+    );
+
+    const toolCalls = calls
+      .filter((call) => call.method === "tools/call")
+      .map((call) => call.params?.name);
+    expect(toolCalls).toEqual(["update_profile", "launch_profile"]);
+  });
+
+  it("does not fall back after an atomic launch rejection", async () => {
+    const calls = installFakeMcpServer({
+      failingTool: "launch_managed_profile",
+      failingToolCode: "PROFILE_ALREADY_RUNNING",
+    });
+    const error = await new MktBrowserAdapter(MKT_BROWSER_DEFAULT_MCP_URL, "t")
+      .launchProfileWithProxy(PROFILE_ID, PROXY)
+      .catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(AntidetectError);
+    if (!(error instanceof AntidetectError)) throw new Error("Expected launch to fail.");
+    expect(error.code).toBe("PROFILE_ALREADY_RUNNING");
+    expect(error.message).not.toContain(PROXY.host);
+    expect(error.message).not.toContain(PROXY.password);
+    expect(calls.filter((call) => call.method === "tools/call")).toHaveLength(1);
+  });
+
   it("sends the exact proxy payload and snake_case profile id", async () => {
     const calls = installFakeMcpServer();
     await new MktBrowserAdapter(MKT_BROWSER_DEFAULT_MCP_URL, "t").applyProxy(PROFILE_ID, PROXY);

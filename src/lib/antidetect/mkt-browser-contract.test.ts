@@ -52,7 +52,7 @@ describe("MKT Browser consumer contract", () => {
 describe("MKT Browser compatibility verdict", () => {
   it("names the runtime tool and the versions this build drives", () => {
     expect(MKT_BROWSER_RUNTIME_INFO_TOOL).toBe("get_runtime_info");
-    expect([...MKT_BROWSER_SUPPORTED_CONTRACT_VERSIONS]).toEqual([1]);
+    expect([...MKT_BROWSER_SUPPORTED_CONTRACT_VERSIONS]).toEqual([1, 2]);
   });
 
   it("accepts a device on a supported contract version", () => {
@@ -71,9 +71,9 @@ describe("MKT Browser compatibility verdict", () => {
   });
 
   it("refuses a newer contract version instead of assuming newer is safe", () => {
-    const verdict = describeMktBrowserCompatibility({ ...RUNTIME_INFO, contractVersion: 2 });
+    const verdict = describeMktBrowserCompatibility({ ...RUNTIME_INFO, contractVersion: 3 });
     expect(verdict.compatible).toBe(false);
-    expect(verdict.reason).toContain("contract version 2");
+    expect(verdict.reason).toContain("contract version 3");
   });
 
   it("refuses an endpoint that answers as another product", () => {

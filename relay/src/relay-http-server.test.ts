@@ -4,21 +4,42 @@ import { createRelayServer } from "./relay-http-server";
 import { RELAY_VERSION } from "../../src/lib/relay/relay-endpoints";
 
 const WEB_ORIGIN = "https://mkttool.example.com";
+let echoCalls = 0;
 
 /** Máy chủ thật trên cổng ngẫu nhiên — kiểm header thì phải đi qua HTTP thật. */
 const running: { close: () => void }[] = [];
 
 async function startServer(allowedOrigin: string | null = WEB_ORIGIN): Promise<string> {
+  echoCalls = 0;
   const server = createRelayServer({
     // Hàm chứ không phải giá trị: cấu hình đổi được lúc chạy, nên khung phải hỏi lại mỗi lượt.
     allowedOrigin: () => allowedOrigin,
     htmlPages: { "/": () => "<!doctype html><title>trang trạng thái</title>" },
     routes: {
-      "/health": () => ({ ok: true, message: "sẵn sàng" }),
-      "/echo": (_request, body) => ({ ok: true, message: body }),
-      "/no": () => ({ ok: false, message: "từ chối" }),
-      "/boom": () => {
-        throw new Error("hỏng bên trong");
+      "/health": {
+        method: "GET",
+        capability: "test-health",
+        handler: () => ({ ok: true, message: "sẵn sàng" }),
+      },
+      "/echo": {
+        method: "POST",
+        capability: "test-echo",
+        handler: (_request, body) => {
+          echoCalls += 1;
+          return { ok: true, message: body };
+        },
+      },
+      "/no": {
+        method: "GET",
+        capability: "test-rejection",
+        handler: () => ({ ok: false, message: "từ chối" }),
+      },
+      "/boom": {
+        method: "GET",
+        capability: "test-failure",
+        handler: () => {
+          throw new Error("hỏng bên trong");
+        },
       },
     },
   });
@@ -89,6 +110,17 @@ describe("máy chủ HTTP của cầu nối", () => {
     const response = await fetch(`${base}/echo`, { method: "POST", body: "xin chào" });
 
     expect((await response.json()).message).toBe("xin chào");
+  });
+
+  it("rejects the wrong HTTP method before invoking a route handler", async () => {
+    const base = await startServer();
+    const response = await fetch(`${base}/echo`);
+    const body = await response.json();
+
+    expect(response.status).toBe(405);
+    expect(response.headers.get("allow")).toBe("POST");
+    expect(body.message).toContain("Use POST");
+    expect(echoCalls).toBe(0);
   });
 
   it("ok:false ra HTTP 400, để phía web phân biệt được với lỗi mạng", async () => {

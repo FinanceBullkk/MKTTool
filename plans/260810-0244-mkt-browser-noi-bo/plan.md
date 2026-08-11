@@ -2,7 +2,7 @@
 
 **Direction approved:** 10 August 2026
 
-**Status:** MKB-00 verified 11 August 2026 · MKB-W01 Windows isolation verified · MKB-W02 internal clean break verified · MKB-01 and MKB-01E verified 11 August 2026 · MKB-02 in progress with the idempotent-create slice verified · Windows x64 is the primary platform for v1 · macOS Apple Silicon moves to MKB-07 after v1 · retain the MultiZen UX/UI in v1 · zero-confusion Windows onboarding is a hard MKB-03 gate
+**Status:** MKB-00 verified 11 August 2026 · MKB-W01 Windows isolation verified · MKB-W02 internal clean break verified · MKB-01 and MKB-01E verified 11 August 2026 · MKB-02 in progress with idempotent create, the Relay endpoint inventory, Windows MCP-token discovery, and atomic launch verified · Windows x64 is the primary platform for v1 · macOS Apple Silicon moves to MKB-07 after v1 · retain the MultiZen UX/UI in v1 · zero-confusion Windows onboarding is a hard MKB-03 gate
 
 **Status source:** [development-roadmap.md](../../docs/development-roadmap.md)
 
@@ -353,18 +353,17 @@ runtime-exposed surface and fails when a new or renamed operation is unclassifie
 routes, and capability combinations are denied rather than inheriting access from a broad middleware
 allowlist.
 
-Target capability response after MKB-02 closes. The current checkpoint advertises only
-`idempotent-create-v1`:
+Current contract-version `2` checkpoint. Full managed-control locking remains pending, so
+`managed-profile-v1` is not advertised yet:
 
 ```json
 {
   "provider": "mkt-browser",
   "appVersion": "0.1.0",
-  "contractVersion": 1,
-  "profileSchemaVersion": 1,
+  "contractVersion": 2,
+  "profileSchemaVersion": 2,
   "engine": { "kind": "approved-external", "version": "..." },
   "capabilities": [
-    "managed-profile-v1",
     "idempotent-create-v1",
     "atomic-launch-v1"
   ]
@@ -811,7 +810,7 @@ This is a legal and operational gate, not legal advice.
 | MCP contract | `src/lib/antidetect/` | W02 complete: owned client/adapter/contract names and port. Runtime capability reporting landed 11 August: `get_runtime_info`, supported-contract-version list, and stable error codes carried through to the adapter |
 | Health | `src/lib/relay/relay-endpoints.ts`, `relay/src/main.ts` | Relay health returns current-device provider/app/engine/contract state with no token, path, or proxy endpoint (11 August). Rendering it on the Web setup surface, and the rule that historical enrollment alone never means `Ready`, remain MKB-03 |
 | Idempotent create | profile actions + adapter | Send `accountId`/`requestId` and reconcile by external reference |
-| Atomic launch | `relay/src/launch-profile.ts` | Prefer the atomic capability and retain the old path for a bounded transition window |
+| Atomic launch | `relay/src/launch-profile.ts` | Completed 12 August: prefer contract-v2 atomic launch; retain the old path only when the tool is absent and never after an atomic rejection |
 | Operation correlation | ticket issuer + Relay client + managed contract | Carry ticket `jti` as `operationId`; preserve create `requestId`; return sanitized stage, code, duration, and versions without adding a remote callback |
 | Surface authorization | MKT Browser MCP/preload + Relay HTTP routes | Keep a default-deny exposure inventory; CI fails on any unclassified tool, IPC handler, route, or token capability |
 | Device onboarding | installer + `/setup` + Relay enrollment actions | Own one resumable state machine, bind the detected device to the signed-in user, require ADMIN-approved recipient-sealed grants, and keep first-device bootstrap ADMIN-only |
@@ -914,7 +913,7 @@ profile cleanup, application exit, and disposable-root removal. Fingerprint clea
 fail the measurement command; the earlier fixed-seed configured and observed fingerprints remained
 identical across the upgrade, and all five visual baselines retained layout, copy, resources, and
 preload behavior. Current executable SHA-256:
-`7634f689920fb0c5a5a1e8e45aaa98b6eb7d96e9abcf97a9ee926c543dc0a662`. The package remains unsigned.
+`4253401aa1a59995f30d2d49a5875a5b705453c751c008b1e5437ce19d99e37b`. The package remains unsigned.
 
 ### MKB-W02 — Windows internal clean break (verified 10 August 2026)
 
@@ -934,13 +933,24 @@ initialize/tools-list/list/fingerprint/create/fail-closed proxy/update/launch/cl
 through the updated MKTTool consumer. The artifact remains technical-only; distribution gates are
 recorded in the W02 evidence linked above.
 
-### MKB-02 — MKTTool-managed mode (in progress; first slice verified 11 August 2026)
+### MKB-02 — MKTTool-managed mode (in progress; four slices verified through 12 August 2026)
 
 **Progress checkpoint:** Deterministic/idempotent managed profile creation is verified. Retrying the
 same request returns the existing profile without creating a duplicate; a conflicting request is
-rejected. The runtime advertises `idempotent-create-v1`, while `managed-profile-v1` and
-`atomic-launch-v1` remain absent. MKB-02 tests passed 4/4. This closes only the creation slice, not the
-phase gate.
+rejected. Contract version `2` advertises `idempotent-create-v1` and `atomic-launch-v1`, while full
+`managed-profile-v1` remains absent. `launch_managed_profile` persists and reads back the requested
+proxy before launch, returns an existing session only when its active proxy matches, and rejects a
+mismatched running session without modification or relaunch. A per-profile lock serializes
+concurrent requests so no other proxy can replace the verified value before launch. MKB-02 tests
+passed 12/12. This closes
+the creation and atomic-launch slices, not the phase gate. The Relay endpoint inventory is also
+verified: every owned JSON endpoint declares one HTTP method and one reviewed capability class,
+contract additions cannot omit that classification, and wrong methods stop at the HTTP frame before
+a handler runs. Relay tests passed 149/149, with
+typecheck and lint green. Relay also discovers the validated token from the owned Windows MKT
+Browser data root on every access, so enabling MKT Browser after Relay startup requires no restart.
+The status page no longer asks an ordinary operator to copy a token; the config field remains only as
+a development override. The expanded Relay suite passed 156/156.
 
 The current package also passed Node guards 2/2, W02 8/8, MKB-01 9/9, MKB-01E 6/6, Windows
 packaging guards 3/3, typecheck, lint, the full Windows build, packaged verification, and
@@ -951,7 +961,8 @@ links. The packaging path retries `rcedit` only for transient `Unable to commit 
 
 - Completed first slice: deterministic/idempotent managed creation, same-profile retry, and conflict
   rejection.
-- Add atomic launch and reject a running session with a different proxy.
+- Completed atomic-launch slice: persist and read back the proxy before launch; return a matching
+  running session; reject a running session with a different proxy without mutation or fallback.
 - Propagate ticket `jti` as `operationId`, retain `requestId` for create idempotency, and return
   sanitized stage/error-code/version diagnostics across Web, Relay, and MKT Browser without a remote
   Relay callback or new server table.
@@ -959,10 +970,12 @@ links. The packaging path retries `rcedit` only for transient `Unable to commit 
   styles; do not redraw screens.
 - Enforce capability separation in contract tests: the profile-management token cannot call page
   control, and any unclassified tool is denied by default.
-- Extend the exposure inventory across the Relay HTTP endpoints and cross-repository contract. A new
-  route or capability without an explicit guard remains inaccessible and fails CI.
-- Let the Relay discover the MCP token automatically from the correct OS data area while retaining a
-  development override.
+- Completed Relay slice: classify every owned JSON endpoint, enforce its declared HTTP method before
+  handler execution, and fail typecheck when a contract path is omitted from the inventory.
+- Extend the same exposure inventory into the cross-repository contract. A new tool or token
+  capability without an explicit guard remains inaccessible and fails CI.
+- Completed Relay slice: discover the validated MCP token on demand from the owned Windows data area,
+  retain a development override, and remove ordinary operator token copy/paste.
 - Return provider, app, engine, and capabilities in Relay health.
 - Add cross-repository contract tests.
 
@@ -970,15 +983,15 @@ links. The packaging path retries `rcedit` only for transient `Unable to commit 
 same `operationId` through each local layer with a structured failing stage; unclassified tools remain
 inaccessible; and every error path fails closed.
 
-**Gate status:** Open. Atomic launch, correlated operation/stage diagnostics, Relay capability
-enforcement, MCP-token discovery, managed-control locking, and cross-repository contract coverage
+**Gate status:** Open. Correlated operation/stage diagnostics, token capability separation,
+managed-control locking, current-device health, and remaining cross-repository contract coverage
 remain required.
 
 ### MKB-03 — Windows onboarding, installer, and controlled updates (10–15 days)
 
 **Entry dependencies:** MKB-01E is green, so final packaging/signing can build on the supported
-Electron line. MKB-02 owns MCP-token discovery, runtime/capability
-health, atomic managed launch, and default-deny local operations; MKB-03 consumes those contracts
+Electron line. MKB-02 has delivered MCP-token discovery and atomic managed launch, and still owns
+runtime/capability health plus default-deny local operations; MKB-03 consumes those contracts
 rather than building a second status or authorization path.
 
 **MKB-03A — guided current-PC onboarding and secure enrollment:**

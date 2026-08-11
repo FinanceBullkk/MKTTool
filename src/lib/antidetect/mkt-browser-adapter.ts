@@ -25,6 +25,7 @@ import {
 } from "./mkt-browser-mcp-client";
 
 const TOOLS = {
+  atomicLaunch: "launch_managed_profile",
   launch: "launch_profile",
   close: "close_profile",
   list: "list_profiles",
@@ -32,6 +33,29 @@ const TOOLS = {
   create: "create_profile",
   fingerprintOptions: "list_fingerprint_options",
 } as const;
+
+function proxyPayload(proxy: AntidetectProxyConfig): Record<string, unknown> {
+  return {
+    type: proxy.protocol,
+    host: proxy.host,
+    port: proxy.port,
+    ...(proxy.username ? { username: proxy.username } : {}),
+    ...(proxy.password ? { password: proxy.password } : {}),
+  };
+}
+
+function launchedProfileFromResult(
+  profileId: string,
+  result: McpToolResult,
+): LaunchedProfile {
+  const responseText = [extractText(result), JSON.stringify(result.structuredContent ?? {})].join(
+    "\n",
+  );
+  return {
+    cdpEndpoint: responseText.match(CDP_ENDPOINT_PATTERN)?.[0],
+    profileId,
+  };
+}
 
 function parseToolBody(result: McpToolResult): Record<string, unknown> {
   const text = extractText(result).trim();
@@ -191,18 +215,10 @@ export class MktBrowserAdapter implements AntidetectAdapter {
   async applyProxy(profileId: string, proxy: AntidetectProxyConfig): Promise<void> {
     await this.ensureInitialized();
     const toolName = this.requireTool(TOOLS.update, "profile update");
-    const proxyPayload = {
-      type: proxy.protocol,
-      host: proxy.host,
-      port: proxy.port,
-      ...(proxy.username ? { username: proxy.username } : {}),
-      ...(proxy.password ? { password: proxy.password } : {}),
-    };
-
     try {
       await this.callToolWithRehandshake(toolName, {
         profile_id: profileId,
-        proxy: proxyPayload,
+        proxy: proxyPayload(proxy),
       });
     } catch (cause) {
       const reason = redactProxyDetails(cause instanceof Error ? cause.message : String(cause), proxy);
@@ -213,6 +229,38 @@ export class MktBrowserAdapter implements AntidetectAdapter {
         { cause, code: errorCodeOf(cause) },
       );
     }
+  }
+
+  async launchProfileWithProxy(
+    profileId: string,
+    proxy: AntidetectProxyConfig,
+  ): Promise<LaunchedProfile> {
+    await this.ensureInitialized();
+    if (!this.availableTools.includes(TOOLS.atomicLaunch)) {
+      await this.applyProxy(profileId, proxy);
+      return this.launchProfile(profileId);
+    }
+
+    let result: McpToolResult;
+    try {
+      result = await this.callToolWithRehandshake(TOOLS.atomicLaunch, {
+        profile_id: profileId,
+        proxy: proxyPayload(proxy),
+      });
+    } catch (cause) {
+      const reason = redactProxyDetails(
+        cause instanceof Error ? cause.message : String(cause),
+        proxy,
+      );
+      throw new AntidetectError(
+        `${this.providerName} could not safely launch profile "${profileId}" with its assigned proxy. ` +
+          `Reason: ${reason}`,
+        this.providerName,
+        { cause, code: errorCodeOf(cause) },
+      );
+    }
+
+    return launchedProfileFromResult(profileId, result);
   }
 
   async launchProfile(profileId: string): Promise<LaunchedProfile> {
@@ -231,13 +279,7 @@ export class MktBrowserAdapter implements AntidetectAdapter {
         { cause, code: errorCodeOf(cause) },
       );
     }
-    const responseText = [extractText(result), JSON.stringify(result.structuredContent ?? {})].join(
-      "\n",
-    );
-    return {
-      cdpEndpoint: responseText.match(CDP_ENDPOINT_PATTERN)?.[0],
-      profileId,
-    };
+    return launchedProfileFromResult(profileId, result);
   }
 
   async closeProfile(profileId: string): Promise<void> {
@@ -283,13 +325,7 @@ export class MktBrowserAdapter implements AntidetectAdapter {
     if (request.seed) args.seed = request.seed;
     if (request.fingerprint) args.fingerprint = request.fingerprint;
     if (request.proxy) {
-      args.proxy = {
-        type: request.proxy.protocol,
-        host: request.proxy.host,
-        port: request.proxy.port,
-        ...(request.proxy.username ? { username: request.proxy.username } : {}),
-        ...(request.proxy.password ? { password: request.proxy.password } : {}),
-      };
+      args.proxy = proxyPayload(request.proxy);
     }
 
     let body: Record<string, unknown>;
