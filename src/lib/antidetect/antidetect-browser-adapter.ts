@@ -128,13 +128,20 @@ export interface AntidetectAdapter {
 }
 
 export class AntidetectError extends Error {
+  /**
+   * Mã lỗi máy-đọc-được do ứng dụng desktop trả về, nếu bản đó có gửi. Chỗ gọi phải rẽ nhánh theo
+   * mã này chứ không so khớp câu chữ — câu chữ bên desktop được phép đổi bất cứ lúc nào.
+   */
+  readonly code?: string;
+
   constructor(
     message: string,
     readonly provider: string,
-    options?: { cause?: unknown },
+    options?: { cause?: unknown; code?: string },
   ) {
     super(message, options);
     this.name = "AntidetectError";
+    this.code = options?.code;
   }
 }
 

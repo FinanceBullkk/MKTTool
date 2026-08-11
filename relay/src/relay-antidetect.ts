@@ -4,11 +4,31 @@ import type { AntidetectAdapter } from "../../src/lib/antidetect/antidetect-brow
 import { MktBrowserAdapter } from "../../src/lib/antidetect/mkt-browser-adapter";
 import {
   MKT_BROWSER_DEFAULT_MCP_URL,
+  describeMktBrowserCompatibility,
   resolveMktBrowserMcpUrl,
 } from "../../src/lib/antidetect/mkt-browser-contract";
 import type { RelayConfig } from "./relay-config";
 
 const PROBE_TTL_MS = 30_000;
+
+/**
+ * Cái mà máy ĐANG NGỒI tự khai, đọc tại chỗ chứ không suy từ cờ lịch sử trên máy chủ.
+ *
+ * Không có trường bí mật nào: không token, không đường dẫn, không endpoint proxy. Bản desktop cũ
+ * chưa có `get_runtime_info` thì mọi trường phiên bản là `null` và `contractCompatible` là `false`
+ * — máy cũ phải hiện ra là máy cũ, không được lẫn vào nhóm bình thường.
+ */
+export interface AntidetectRuntimeHealth {
+  ready: boolean;
+  provider: string | null;
+  appVersion: string | null;
+  contractVersion: number | null;
+  contractCompatible: boolean;
+  /** Câu tiếng Anh mô tả chỗ lệch, rỗng khi khớp. */
+  contractProblem: string;
+  engine: { kind: string; version: string | null; status: string } | null;
+  capabilities: string[];
+}
 
 export class AntidetectNotConfiguredError extends Error {
   constructor() {
@@ -22,7 +42,7 @@ export class AntidetectNotConfiguredError extends Error {
 
 /** The token is optional because credential and OTP actions do not use MKT Browser. */
 export class RelayAntidetect {
-  private adapter: AntidetectAdapter | null = null;
+  private adapter: MktBrowserAdapter | null = null;
   private probe: { at: number; ready: boolean } | null = null;
 
   constructor(private readonly config: RelayConfig | null) {}
@@ -61,5 +81,50 @@ export class RelayAntidetect {
 
   forgetProbe(): void {
     this.probe = null;
+  }
+
+  /**
+   * Bốn tầng của máy này trong một lượt hỏi: chạy chưa, là sản phẩm nào, hợp đồng bản mấy, nhân
+   * trình duyệt tới đâu. Không cache — người đọc trang này đang muốn biết TÌNH TRẠNG BÂY GIỜ.
+   */
+  async describeRuntime(): Promise<AntidetectRuntimeHealth> {
+    const offline: AntidetectRuntimeHealth = {
+      ready: false,
+      provider: null,
+      appVersion: null,
+      contractVersion: null,
+      contractCompatible: false,
+      contractProblem: "",
+      engine: null,
+      capabilities: [],
+    };
+
+    if (!this.token) return offline;
+
+    let info: Awaited<ReturnType<MktBrowserAdapter["runtimeInfo"]>> = null;
+    try {
+      info = await this.getMktBrowserAdapter().runtimeInfo();
+    } catch {
+      // Máy không trả lời cũng là một câu trả lời: giữ nguyên trạng thái ngoại tuyến.
+      return offline;
+    }
+
+    const compatibility = describeMktBrowserCompatibility(info);
+    return {
+      ready: await this.isReady(),
+      provider: info?.provider ?? null,
+      appVersion: info?.appVersion ?? null,
+      contractVersion: info?.contractVersion ?? null,
+      contractCompatible: compatibility.compatible,
+      contractProblem: compatibility.reason,
+      engine: info?.engine ?? null,
+      capabilities: info?.capabilities ?? [],
+    };
+  }
+
+  private getMktBrowserAdapter(): MktBrowserAdapter {
+    this.getAdapter();
+    if (!this.adapter) throw new AntidetectNotConfiguredError();
+    return this.adapter;
   }
 }

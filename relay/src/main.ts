@@ -173,6 +173,9 @@ async function main(): Promise<void> {
         deviceId: state.deviceId,
         webOrigin: state.webOrigin,
         antidetectReady: await state.antidetect.isReady(),
+        // Bốn tầng của CHÍNH máy này. Web dùng nó để nói đúng chỗ hỏng thay vì "không kết nối
+        // được", và để chặn sớm một máy chạy bản hợp đồng khác.
+        browser: await state.antidetect.describeRuntime(),
       }),
       [RELAY_PATHS.configure]: (request, body) =>
         handleConfigure(request, body, {

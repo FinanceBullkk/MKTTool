@@ -12,6 +12,8 @@ import {
 } from "./antidetect-browser-adapter";
 import {
   MKT_BROWSER_PROVIDER_NAME,
+  MKT_BROWSER_RUNTIME_INFO_TOOL,
+  type MktBrowserRuntimeInfo,
   resolveMktBrowserMcpUrl,
 } from "./mkt-browser-contract";
 import {
@@ -46,6 +48,43 @@ function parseToolBody(result: McpToolResult): Record<string, unknown> {
 
 const CDP_ENDPOINT_PATTERN = /(wss?:\/\/[^\s"'{}]+|https?:\/\/127\.0\.0\.1:\d+[^\s"'{}]*)/;
 
+/**
+ * Accept a runtime report only when every field the caller will act on is present and typed.
+ * A partial answer is treated as no answer, because a half-read report would be indistinguishable
+ * from a legacy build while still looking authoritative.
+ */
+function parseRuntimeInfo(body: Record<string, unknown>): MktBrowserRuntimeInfo | null {
+  const engine = body.engine;
+  if (
+    typeof body.provider !== "string" ||
+    typeof body.appVersion !== "string" ||
+    typeof body.contractVersion !== "number" ||
+    typeof body.profileSchemaVersion !== "number" ||
+    !engine ||
+    typeof engine !== "object"
+  ) {
+    return null;
+  }
+
+  const engineRecord = engine as Record<string, unknown>;
+  if (typeof engineRecord.kind !== "string" || typeof engineRecord.status !== "string") return null;
+
+  return {
+    provider: body.provider,
+    appVersion: body.appVersion,
+    contractVersion: body.contractVersion,
+    profileSchemaVersion: body.profileSchemaVersion,
+    engine: {
+      kind: engineRecord.kind,
+      version: typeof engineRecord.version === "string" ? engineRecord.version : null,
+      status: engineRecord.status,
+    },
+    capabilities: Array.isArray(body.capabilities)
+      ? body.capabilities.filter((item): item is string => typeof item === "string")
+      : [],
+  };
+}
+
 function redact(text: string, secrets: Array<string | undefined>): string {
   const orderedSecrets = [...new Set(secrets.filter((secret): secret is string => Boolean(secret)))].sort(
     (left, right) => right.length - left.length,
@@ -58,6 +97,11 @@ function redact(text: string, secrets: Array<string | undefined>): string {
 
 function redactProxyDetails(text: string, proxy?: AntidetectProxyConfig): string {
   return redact(text, [proxy?.host, proxy?.username, proxy?.password]);
+}
+
+/** The desktop's stable failure code, when the build that answered was new enough to send one. */
+function errorCodeOf(cause: unknown): string | undefined {
+  return cause instanceof McpToolError ? cause.code : undefined;
 }
 
 export class MktBrowserAdapter implements AntidetectAdapter {
@@ -122,6 +166,28 @@ export class MktBrowserAdapter implements AntidetectAdapter {
     }
   }
 
+  /**
+   * Ask the device to describe itself.
+   *
+   * Returns `null` when this build predates the contract — the W01/W02 packaged artifacts do not
+   * expose the tool — so callers can report a legacy device instead of inventing versions for it.
+   */
+  async runtimeInfo(): Promise<MktBrowserRuntimeInfo | null> {
+    await this.ensureInitialized();
+    if (!this.availableTools.includes(MKT_BROWSER_RUNTIME_INFO_TOOL)) return null;
+
+    try {
+      const body = parseToolBody(
+        await this.callToolWithRehandshake(MKT_BROWSER_RUNTIME_INFO_TOOL, {}),
+      );
+      return parseRuntimeInfo(body);
+    } catch {
+      // Runtime reporting is diagnostic. A device that cannot answer must not turn a health read
+      // into a thrown error on every operational surface that calls it.
+      return null;
+    }
+  }
+
   async applyProxy(profileId: string, proxy: AntidetectProxyConfig): Promise<void> {
     await this.ensureInitialized();
     const toolName = this.requireTool(TOOLS.update, "profile update");
@@ -144,6 +210,7 @@ export class MktBrowserAdapter implements AntidetectAdapter {
         `${this.providerName} rejected the proxy for profile "${profileId}". ` +
           `The profile was not launched. Reason: ${reason}`,
         this.providerName,
+        { cause, code: errorCodeOf(cause) },
       );
     }
   }
@@ -151,7 +218,19 @@ export class MktBrowserAdapter implements AntidetectAdapter {
   async launchProfile(profileId: string): Promise<LaunchedProfile> {
     await this.ensureInitialized();
     const toolName = this.requireTool(TOOLS.launch, "profile launch");
-    const result = await this.callToolWithRehandshake(toolName, { profile_id: profileId });
+    let result: McpToolResult;
+    try {
+      result = await this.callToolWithRehandshake(toolName, { profile_id: profileId });
+    } catch (cause) {
+      // Carry the code so the Relay can name the failing layer — engine missing, proxy refused,
+      // profile gone — instead of forwarding an internal sentence to the operator.
+      throw new AntidetectError(
+        `${this.providerName} could not launch profile "${profileId}". ` +
+          `Reason: ${cause instanceof Error ? cause.message : String(cause)}`,
+        this.providerName,
+        { cause, code: errorCodeOf(cause) },
+      );
+    }
     const responseText = [extractText(result), JSON.stringify(result.structuredContent ?? {})].join(
       "\n",
     );
@@ -224,6 +303,7 @@ export class MktBrowserAdapter implements AntidetectAdapter {
       throw new AntidetectError(
         `${this.providerName} could not create profile "${request.name}". Reason: ${reason}`,
         this.providerName,
+        { cause, code: errorCodeOf(cause) },
       );
     }
 

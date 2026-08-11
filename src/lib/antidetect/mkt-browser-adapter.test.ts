@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { AntidetectError } from "./antidetect-browser-adapter";
 import { MktBrowserAdapter } from "./mkt-browser-adapter";
 import { MKT_BROWSER_DEFAULT_MCP_URL } from "./mkt-browser-contract";
 
@@ -40,6 +41,8 @@ function installFakeMcpServer(
     tools?: string[];
     launchText?: string;
     failingTool?: string;
+    /** Contract-shaped failure body, as a build that speaks the error taxonomy would send. */
+    failingToolCode?: string;
     toolBodies?: Record<string, unknown>;
   } = {},
 ): RecordedCall[] {
@@ -71,7 +74,17 @@ function installFakeMcpServer(
         result = {
           isError: true,
           content: [
-            { type: "text", text: `Rejected: ${JSON.stringify(request.params?.arguments)}` },
+            {
+              type: "text",
+              text: options.failingToolCode
+                ? JSON.stringify({
+                    error: {
+                      code: options.failingToolCode,
+                      message: `Rejected: ${JSON.stringify(request.params?.arguments)}`,
+                    },
+                  })
+                : `Rejected: ${JSON.stringify(request.params?.arguments)}`,
+            },
           ],
         };
       } else if (request.method === "tools/list") {
@@ -309,5 +322,88 @@ describe("MktBrowserAdapter profile operations", () => {
     });
     await expect(adapter.createProfile({ name: "Disposable" })).resolves.toBe(PROFILE_ID);
     await expect(adapter.isRunning(PROFILE_ID)).resolves.toBe(true);
+  });
+});
+
+describe("MktBrowserAdapter runtime reporting", () => {
+  const RUNTIME_TOOLS = [...REQUIRED_TOOLS, "get_runtime_info"];
+
+  it("reports what the device says about itself", async () => {
+    installFakeMcpServer({
+      tools: RUNTIME_TOOLS,
+      toolBodies: {
+        get_runtime_info: {
+          provider: "mkt-browser",
+          appVersion: "0.3.1",
+          contractVersion: 1,
+          profileSchemaVersion: 1,
+          engine: { kind: "cloakbrowser", version: "145.0.0.0", status: "ready" },
+          capabilities: ["profile-contract-v1", "runtime-info-v1"],
+        },
+      },
+    });
+
+    await expect(
+      new MktBrowserAdapter(MKT_BROWSER_DEFAULT_MCP_URL, "t").runtimeInfo(),
+    ).resolves.toEqual({
+      provider: "mkt-browser",
+      appVersion: "0.3.1",
+      contractVersion: 1,
+      profileSchemaVersion: 1,
+      engine: { kind: "cloakbrowser", version: "145.0.0.0", status: "ready" },
+      capabilities: ["profile-contract-v1", "runtime-info-v1"],
+    });
+  });
+
+  it("reports null for a build that predates the runtime tool", async () => {
+    installFakeMcpServer({ tools: REQUIRED_TOOLS });
+    await expect(
+      new MktBrowserAdapter(MKT_BROWSER_DEFAULT_MCP_URL, "t").runtimeInfo(),
+    ).resolves.toBeNull();
+  });
+
+  it("treats a partial report as no report", async () => {
+    // Half a report still looks authoritative. Accepting it would let a caller act on a version
+    // number while the engine half is missing.
+    installFakeMcpServer({
+      tools: RUNTIME_TOOLS,
+      toolBodies: { get_runtime_info: { provider: "mkt-browser", appVersion: "0.3.1" } },
+    });
+    await expect(
+      new MktBrowserAdapter(MKT_BROWSER_DEFAULT_MCP_URL, "t").runtimeInfo(),
+    ).resolves.toBeNull();
+  });
+
+  it("does not turn an unreachable device into a thrown health read", async () => {
+    installFakeMcpServer({ tools: RUNTIME_TOOLS, failingTool: "get_runtime_info" });
+    await expect(
+      new MktBrowserAdapter(MKT_BROWSER_DEFAULT_MCP_URL, "t").runtimeInfo(),
+    ).resolves.toBeNull();
+  });
+
+  it("carries the machine-readable failure code out of a refused launch", async () => {
+    installFakeMcpServer({
+      tools: RUNTIME_TOOLS,
+      failingTool: "launch_profile",
+      failingToolCode: "ENGINE_UNAVAILABLE",
+    });
+    const error = await new MktBrowserAdapter(MKT_BROWSER_DEFAULT_MCP_URL, "t")
+      .launchProfile(PROFILE_ID)
+      .catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(AntidetectError);
+    if (!(error instanceof AntidetectError)) throw new Error("Expected the launch to fail.");
+    expect(error.code).toBe("ENGINE_UNAVAILABLE");
+  });
+
+  it("leaves the code undefined when a legacy build answers with a bare sentence", async () => {
+    installFakeMcpServer({ tools: REQUIRED_TOOLS, failingTool: "launch_profile" });
+    const error = await new MktBrowserAdapter(MKT_BROWSER_DEFAULT_MCP_URL, "t")
+      .launchProfile(PROFILE_ID)
+      .catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(AntidetectError);
+    if (!(error instanceof AntidetectError)) throw new Error("Expected the launch to fail.");
+    expect(error.code).toBeUndefined();
   });
 });

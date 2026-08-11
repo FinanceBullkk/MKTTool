@@ -61,13 +61,33 @@ export async function launchProfileFromTicket(
 }
 
 /**
+ * Việc cần làm, tra theo **mã lỗi** của MKT Browser.
+ *
+ * Mã là phần nằm trong hợp đồng; câu chữ bên desktop được phép đổi bất cứ lúc nào nên không được
+ * so khớp nó. Bản desktop cũ chưa gửi mã — khi đó rơi về `describe()`.
+ */
+const REMEDY_BY_CODE: Record<string, string> = {
+  ENGINE_UNAVAILABLE:
+    "Nhân trình duyệt trên máy này chưa sẵn sàng. Mở MKT Browser và đợi nó tải xong nhân, rồi thử lại.",
+  PROXY_REJECTED: "Máy không dựng được đường proxy nội bộ. Kiểm tra proxy của nick còn sống không.",
+  PROFILE_NOT_FOUND:
+    "Máy này không có profile đó. Nick có thể đã được ghim sang máy khác — hỏi ADMIN trước khi tạo lại.",
+  PROFILE_NOT_RUNNING: "Profile chưa mở. Bấm mở profile trước khi thao tác lên trang.",
+  UNKNOWN_TOOL: "Bản MKT Browser trên máy này quá cũ so với web. Cập nhật MKT Browser rồi thử lại.",
+  FORBIDDEN: "Thao tác bị chặn bởi luật an toàn của MKT Browser.",
+};
+
+/**
  * Câu mô tả lỗi cho người dùng.
  *
- * `AntidetectError` đã được viết cho người đọc nên dùng nguyên văn. Lỗi lạ thì chỉ lấy
- * `message` — **không** kèm stack, vì cấu hình proxy vừa đi qua đúng những hàm này và một
- * stack trace là chỗ mật khẩu proxy rất dễ lọt ra.
+ * Có mã thì trả về việc cần làm đã soạn sẵn. Không có mã thì `AntidetectError` đã được viết cho
+ * người đọc nên dùng nguyên văn; lỗi lạ thì chỉ lấy `message` — **không** kèm stack, vì cấu hình
+ * proxy vừa đi qua đúng những hàm này và một stack trace là chỗ mật khẩu proxy rất dễ lọt ra.
  */
 function describe(error: unknown): string {
-  if (error instanceof AntidetectError) return error.message;
+  if (error instanceof AntidetectError) {
+    const remedy = error.code ? REMEDY_BY_CODE[error.code] : undefined;
+    return remedy ?? error.message;
+  }
   return error instanceof Error ? error.message : String(error);
 }

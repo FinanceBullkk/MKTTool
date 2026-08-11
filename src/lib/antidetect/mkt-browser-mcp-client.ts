@@ -32,9 +32,36 @@ interface JsonRpcResponse {
 
 /** A tool-level failure means the MCP session remains valid and must not be replayed. */
 export class McpToolError extends McpClientError {
-  constructor(message: string) {
+  constructor(
+    message: string,
+    /**
+     * The desktop's machine-readable failure code when it sent one. Older builds answer with a
+     * bare sentence, so this stays optional — but callers must branch on it rather than on the
+     * message whenever it is present.
+     */
+    readonly code?: string,
+  ) {
     super(message);
     this.name = "McpToolError";
+  }
+}
+
+/**
+ * Read the stable error code out of a failed tool result. The desktop wraps it as
+ * `{"error":{"code":…,"message":…}}`; anything else is a legacy or non-conforming build.
+ */
+export function extractErrorCode(result: McpToolResult): string | undefined {
+  const text = extractText(result).trim();
+  if (text === "") return undefined;
+  try {
+    const parsed: unknown = JSON.parse(text);
+    if (!parsed || typeof parsed !== "object") return undefined;
+    const error = (parsed as { error?: unknown }).error;
+    if (!error || typeof error !== "object") return undefined;
+    const code = (error as { code?: unknown }).code;
+    return typeof code === "string" && code !== "" ? code : undefined;
+  } catch {
+    return undefined;
   }
 }
 
@@ -129,7 +156,10 @@ export class MktBrowserMcpClient {
   async callTool(name: string, args: Record<string, unknown>): Promise<McpToolResult> {
     const result = (await this.send("tools/call", { name, arguments: args })) as McpToolResult;
     if (result?.isError) {
-      throw new McpToolError(`Tool "${name}" failed: ${extractText(result)}`);
+      throw new McpToolError(
+        `Tool "${name}" failed: ${extractText(result)}`,
+        extractErrorCode(result),
+      );
     }
     return result;
   }

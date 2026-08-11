@@ -1,0 +1,111 @@
+/**
+ * Vé mở profile: hỏng ở tầng nào thì operator phải đọc ra việc cần làm ở tầng đó.
+ *
+ * Test này giữ đúng một luật: câu trả lời dựng từ **mã lỗi** của MKT Browser, không phải từ câu
+ * chữ nội bộ của nó. Bản desktop được phép đổi câu chữ bất cứ lúc nào; đổi mã là đổi hợp đồng.
+ */
+import { describe, expect, it } from "vitest";
+import type { AntidetectAdapter } from "../../src/lib/antidetect/antidetect-browser-adapter";
+import { AntidetectError } from "../../src/lib/antidetect/antidetect-browser-adapter";
+import { TICKET_KINDS } from "../../src/lib/tickets/ticket-types";
+import { launchProfileFromTicket } from "./launch-profile";
+import type { RelayAntidetect } from "./relay-antidetect";
+
+const INTERNAL_SENTENCE = "resolveBinaryPath failed: Chromium not ready: missing";
+
+function payload() {
+  return {
+    kind: TICKET_KINDS.LAUNCH_PROFILE,
+    accountId: "acc-1",
+    antidetectProfileId: "profile-1",
+    proxyLabel: "Webshare #3",
+    proxy: {
+      protocol: "socks5" as const,
+      host: "5.6.7.8",
+      port: 1080,
+      username: "u",
+      password: "p",
+    },
+  } as const;
+}
+
+function antidetectThatFails(
+  stage: "applyProxy" | "launchProfile",
+  error: unknown,
+): RelayAntidetect {
+  const adapter: AntidetectAdapter = {
+    providerName: "MKT Browser",
+    isAvailable: async () => true,
+    applyProxy: async () => {
+      if (stage === "applyProxy") throw error;
+    },
+    launchProfile: async (profileId: string) => {
+      if (stage === "launchProfile") throw error;
+      return { profileId };
+    },
+    closeProfile: async () => {},
+    isRunning: async () => true,
+    listProfiles: async () => [],
+    fingerprintOptions: async () => ({ devices: [], locales: [] }),
+    createProfile: async () => "profile-1",
+  };
+
+  return {
+    getAdapter: () => adapter,
+    isReady: async () => true,
+    forgetProbe: () => {},
+  } as unknown as RelayAntidetect;
+}
+
+describe("launchProfileFromTicket error copy", () => {
+  it("turns a proxy refusal into the proxy remedy, not the desktop's sentence", async () => {
+    const error = new AntidetectError(INTERNAL_SENTENCE, "MKT Browser", {
+      code: "PROXY_REJECTED",
+    });
+    const result = await launchProfileFromTicket(payload(), antidetectThatFails("applyProxy", error));
+
+    expect(result.ok).toBe(false);
+    expect(result.message).toContain("proxy của nick");
+    expect(result.message).not.toContain(INTERNAL_SENTENCE);
+    // Luật gốc vẫn phải hiện ra: đẩy proxy hỏng thì KHÔNG mở profile.
+    expect(result.message).toContain("KHÔNG mở profile");
+  });
+
+  it("names the engine when the engine is what failed", async () => {
+    const error = new AntidetectError(INTERNAL_SENTENCE, "MKT Browser", {
+      code: "ENGINE_UNAVAILABLE",
+    });
+    const result = await launchProfileFromTicket(
+      payload(),
+      antidetectThatFails("launchProfile", error),
+    );
+
+    expect(result.ok).toBe(false);
+    expect(result.message).toContain("Nhân trình duyệt");
+    expect(result.message).not.toContain(INTERNAL_SENTENCE);
+  });
+
+  it("falls back to the readable message when a legacy build sends no code", async () => {
+    const error = new AntidetectError("Không mở được profile.", "MKT Browser");
+    const result = await launchProfileFromTicket(
+      payload(),
+      antidetectThatFails("launchProfile", error),
+    );
+
+    expect(result.ok).toBe(false);
+    expect(result.message).toContain("Không mở được profile.");
+  });
+
+  it("falls back rather than inventing copy for an unrecognised code", async () => {
+    const error = new AntidetectError("Lỗi lạ từ máy.", "MKT Browser", {
+      code: "SOMETHING_ADDED_LATER",
+    });
+    const result = await launchProfileFromTicket(
+      payload(),
+      antidetectThatFails("launchProfile", error),
+    );
+
+    expect(result.ok).toBe(false);
+    expect(result.message).toContain("Lỗi lạ từ máy.");
+  });
+});
