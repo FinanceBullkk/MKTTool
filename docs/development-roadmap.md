@@ -34,14 +34,17 @@ reopening one. V1 does not redesign MultiZen or develop a Chromium engine.
 **Immediate delivery target, 12 August 2026:** begin MKB-03 on top of the verified Windows x64
 managed-mode contract. An owner-led demonstration may use disposable profiles and show the
 Web → Relay → MKT Browser flow, but it is not a pilot, distribution approval, or permission to use
-real accounts. Signing, the one-download onboarding journey, secure enrollment/migration,
-controlled updates, pilot duration, and real-account gates remain separate.
+real accounts. The one-download onboarding journey, secure enrollment/migration, controlled updates,
+pilot duration, and real-account gates remain separate. Code signing is no longer among them: on
+12 August the owner decided v1 ships **unsigned** for the internal fleet, so SmartScreen appears once
+and the setup journey must announce it in advance.
 
 **Team-installation boundary, reviewed 11 August 2026:** the owner-led demo may use the current
 technical artifacts, but team members must not be asked to install the Relay ZIP and Browser
-directory themselves. MKB-03 now has a hard zero-confusion gate: one authenticated signed Windows
-download opens one resumable current-PC journey — sign in, confirm the detected PC, then reach the
-non-error `Waiting for administrator approval` state or `Ready`. Ordinary operators never handle
+directory themselves. MKB-03 now has a hard zero-confusion gate: one authenticated Windows
+download opens one resumable current-PC journey — an announced SmartScreen click-through, sign in,
+confirm the detected PC, then reach the non-error `Waiting for administrator approval` state or
+`Ready`. Ordinary operators never handle
 Relay/MCP vocabulary, keys, tokens, ports, paths, archives, checksums, localhost pages, or commands.
 The first-device secret bootstrap remains a separate ADMIN-only local ceremony.
 
@@ -109,7 +112,7 @@ repository. MKTTool retains only the consuming contract, Relay, and release page
 | MKB-01 | Windows compatibility and product identity | ✅ Verified 11 August | Copy-only first-launch importer preserves the MultiZen source; five primary-screen baselines captured; Windows CI runs W01/W02 guards, typecheck, package build, and packaged runtime-contract verification on every push/PR |
 | MKB-01E | Electron upgrade and renderer hardening | ✅ Verified 11 August | Electron 42.8.1 / ABI 146 package; native module rebuild; sandbox/CSP/default-deny IPC and MCP inventories; fixed-seed fingerprint unchanged and five visual baselines accepted |
 | MKB-02 | Managed mode | ✅ Verified 12 August | Contract v3 diagnostics, profile-token capability separation, managed proxy/fingerprint/delete/direct-launch locks, current-device Browser health, Relay v7 correlation, and cross-repository packaged verification are green |
-| MKB-03 | Windows onboarding, installer, and controlled updates | ⬜ Not started | One signed secretless installer; current-PC `Waiting`/`Ready` flow with no technical setup; ADMIN-only bootstrap and recipient-sealed grants; secure-store migration; coordinated-set update/rollback behind thin OS adapters |
+| MKB-03 | Windows onboarding, installer, and controlled updates | ⬜ Not started | One unsigned secretless installer with the SmartScreen prompt announced on screen; current-PC `Waiting`/`Ready` flow with no technical setup; ADMIN-only bootstrap and recipient-sealed grants; secure-store migration; coordinated-set update/rollback behind thin OS adapters |
 | MKB-04 | Technical pilot and one canary account | ⬜ Not started | An unfamiliar operator completes setup with zero developer intervention; two Windows devices remain green for seven days; one account completes a 14-day cold start |
 | MKB-05 | Team rollout | ⬜ Not started | Canary completes cold start; MKT Browser becomes default; rollback uses only the frozen W01 checkpoint and never restores a MultiZen adapter fallback |
 | MKB-06 | Custom UX/UI | ⏸ Deferred beyond v1 | Begin only from observed usage feedback; does not block MKB-00 through MKB-05 |
@@ -231,7 +234,7 @@ implicit Windows work explicit: current-device readiness, ADMIN-only bootstrap, 
 recipient grants, legacy secret migration, and transactional Relay/Browser/engine updates. Retaining
 the MultiZen UX/UI still keeps a separate design project off this critical path.
 
-The Electron/native-module uncertainty is now retired by MKB-01E. The guided, signed Windows
+The Electron/native-module uncertainty is now retired by MKB-01E. The guided Windows
 installer with secure enrollment and coordinated updates/rollback (MKB-03) carries most of the
 remaining delivery uncertainty and now consumes the managed, idempotent local contract verified by
 MKB-02.
@@ -368,9 +371,9 @@ và máy chủ tự `pg_dump` rồi tải lên Cloudflare R2 mỗi đêm.
 
 | Blocker | Nature | Owner |
 |---|---|---|
-| **MKB-03 zero-confusion Windows onboarding** | One signed installer, secure device enrollment, protected secret migration, and coordinated update/rollback are not implemented | Engineering + certificate budget owner |
+| **MKB-03 zero-confusion Windows onboarding** | One installer, secure device enrollment, protected secret migration, and coordinated update/rollback are not implemented | Engineering |
 | **MKB-04 pilot and canary** | An unfamiliar-operator setup test, two-device seven-day pilot, then one 14-day canary cold start are elapsed evidence gates | Engineering + responsible operator + time |
-| **Windows code-signing certificate** | Without an approved publisher and clean-device acceptance, team installation still hits an unsafe warning/bypass path | Budget owner |
+| ~~**Windows code-signing certificate**~~ | Resolved 12 August 2026: v1 ships unsigned for the internal fleet. The accepted cost is one announced SmartScreen click-through and an installer binary backed only by a checksum from the same host; the offline manifest root still carries anti-downgrade authority | Closed — owner decision |
 | **Static proxies + accounts** | Procurement (VND 3–8 million once) | Budget owner |
 | **14-day cold start** | Real elapsed time cannot be compressed | Nobody — wait |
 
@@ -441,7 +444,7 @@ and independently installed upstream application, not a dual-name adapter path.
 | Nick Reddit cổ (8 cái) | 2-5 triệu | – |
 | Nick FB (3 cái) | 1-3 triệu | – |
 | Proxy tĩnh (11 IP) | – | ~700k |
-| MKT Browser + engine ngoài | **Chưa chốt** — Apple Developer + chứng thư ký Windows | **Chưa chốt** — engine mới nhất có thể cần subscription |
+| MKT Browser + engine ngoài | Chứng thư ký Windows: **0đ — chốt 12/08 không mua, v1 dùng nội bộ nên chấp nhận SmartScreen**. Apple Developer vẫn **chưa chốt**, thuộc MKB-07 | **Chưa chốt** — engine mới nhất có thể cần subscription |
 | Máy chạy | dùng máy sẵn có | 0đ |
 | Thay nick hao hụt | – | ~500k-1tr |
 | **Tổng** | **3-8 triệu + chi phí fork/ký chưa chốt** | **~1,2-1,7 triệu + engine nếu có** |

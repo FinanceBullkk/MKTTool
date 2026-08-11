@@ -83,7 +83,7 @@ Nếu sau này có ai đề xuất thêm một trong các mục trên, đây là
    chính profile antidetect của nick là tự nhìn mình trong gương rồi kết luận người ngoài cũng
    thấy vậy.
 8. **MKT Browser does not replace Relay, but v1 must ship them as one Windows installation.** A
-   normal operator gets one signed download, signs in, confirms the detected PC, and reaches
+   normal operator gets one authenticated download, signs in, confirms the detected PC, and reaches
    `Waiting for administrator approval` or `Ready` without handling keys, tokens, ports, paths,
    archives, localhost pages, or commands. This presentation does not collapse trust boundaries:
    Relay keeps the operator key and verifies/replay-protects tickets; Electron only stores and runs
@@ -97,6 +97,18 @@ Nếu sau này có ai đề xuất thêm một trong các mục trên, đây là
 10. **English is the only language for project artifacts from 10 August 2026 onward.** This
     includes code comments, UI and error copy, documentation, plans, tests, installers, release
     notes, and commit messages. Direct conversation with the project owner may remain Vietnamese.
+11. **No Windows code-signing certificate (decided 12 August 2026).** v1 ships unsigned. The
+    audience is five or six known internal operators on machines the project already administers,
+    so a recurring certificate cost is not justified. The team accepts one SmartScreen
+    click-through, and MKB-03 must announce that prompt on screen with a marked screenshot before
+    it appears — a surprised operator still fails the gate. Release authority is unaffected: it was
+    always carried by the project's own offline manifest root key, not by Authenticode, so signed
+    manifests, sequence pinning, anti-downgrade, and rollback all stand. The accepted gap is that
+    the installer binary itself is backed only by a checksum served from the same host, so a
+    compromised release host could hand a brand-new device a different installer before any local
+    state is pinned. An internal PKI was considered and rejected: pushing a private root to six
+    unmanaged WORKGROUP machines needs an administrator on each one and still would not clear
+    SmartScreen. Revisit if distribution ever reaches outside the known team.
 
 ## 6. Nguyên tắc bất di bất dịch
 
@@ -124,7 +136,7 @@ và trước lúc phát vé; một người hoặc một máy vẫn có thể ph
 | Nick Reddit cổ (8) | 2-5 triệu | – |
 | Nick Facebook (3) | 1-3 triệu | – |
 | Proxy tĩnh (11 IP) | – | ~700k |
-| MKT Browser + engine ngoài | Chưa chốt — Apple Developer + chứng thư ký Windows | Chưa chốt — engine mới nhất có thể cần subscription |
+| MKT Browser + engine ngoài | Chứng thư ký Windows: **0đ** — chốt 12/08/2026 không mua. Apple Developer chưa chốt, thuộc MKB-07 | Chưa chốt — engine mới nhất có thể cần subscription |
 | Thay nick hao hụt | – | ~500k-1tr |
 | **Tổng** | **3-8 triệu + chi phí fork/ký chưa chốt** | **~1,2-1,7 triệu + engine nếu có** |
 

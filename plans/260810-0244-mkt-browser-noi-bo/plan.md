@@ -51,6 +51,41 @@
 > that macOS evidence stays at zero for longer; the control is that the Relay and desktop code keep a
 > shared core plus thin OS adapters, so MKB-07 adds a platform instead of reopening the core.
 
+> **Code-signing decision (12 August 2026, supersedes every earlier requirement for an
+> Authenticode-signed Windows artifact):** v1 ships **unsigned**. No Windows code-signing certificate
+> is purchased. The audience is five or six known internal operators on machines the project already
+> administers, not the public, and the recurring certificate cost is not justified at that scale.
+>
+> **What this withdraws.** The MKB-03 gate no longer forbids a SmartScreen prompt. A downloaded
+> installer carries Mark-of-the-Web, so Windows will show "Windows protected your PC" and the
+> operator must click **More info → Run anyway**. That is now an accepted, documented step rather
+> than a gate failure. An internal PKI was considered and rejected: distributing a private root to
+> six unmanaged WORKGROUP machines needs an administrator on each machine and still does not clear
+> SmartScreen, so it costs more operator friction than it removes.
+>
+> **What this does not change.** Release authority never depended on Authenticode. The offline
+> manifest root key is the project's own keypair and costs nothing, so the signed compatibility
+> manifest, sequence pinning, anti-downgrade state, rollback floor, and delegated-key
+> rotation/revocation all stay exactly as specified in section 8.4. Only the publisher check against
+> the installer binary is dropped.
+>
+> **What is knowingly given up.** The installer binary is authenticated only by a checksum served
+> from the same host that serves the artifact, so a compromised release host can hand a fresh device
+> a different installer at the bootstrap moment, before any pinned local state exists. Everything
+> after that first install is still covered by the manifest chain. The controls that make this
+> affordable are that the download stays behind MKTTool authentication, the artifact is secretless,
+> and the operator fleet is small enough that an unexpected install is noticed.
+>
+> **Compensating requirement.** Because the warning is now expected, MKB-03A must show a guided
+> screen naming the SmartScreen prompt before it appears, with a screenshot marking **More info** and
+> **Run anyway**. An operator who is surprised by the wall is a gate failure; an operator who was told
+> about it and clicked through is not.
+>
+> **Revisit when** any of these becomes true: distribution reaches people outside the known team,
+> the artifact is served from anywhere public, or a low-cost signing service (for example Microsoft's
+> Trusted Signing tier) turns out to be available for this project. Signing is then a packaging
+> change, not a redesign.
+
 ## One-line decision
 
 Fork MultiZen into a dedicated desktop application provisionally named **MKT Browser**, with
@@ -93,7 +128,7 @@ need to open the desktop profile-management interface directly.
 | Launch profile | The Relay calls “update proxy” and then “launch” as two consecutive commands | The app performs one atomic operation; failed proxy application leaves no launch gap |
 | Manual edit/launch | Users may still edit or open profiles directly in the app | Managed profiles lock proxy, fingerprint, deletion, and ordinary direct launch |
 | Status | Primarily indicates whether MultiZen answers MCP | Reports app, engine, contract, capabilities, and the exact failing layer |
-| Installation | MultiZen and Relay are installed separately and the MCP token is copied manually | One authenticated, signed Windows download opens one guided setup journey; the operator never handles separate components, tokens, keys, ports, paths, archives, or checksums |
+| Installation | MultiZen and Relay are installed separately and the MCP token is copied manually | One authenticated Windows download opens one guided setup journey; the operator never handles separate components, tokens, keys, ports, paths, archives, or checksums, and the one expected SmartScreen prompt is announced in advance |
 | Updates | App and engine change independently of the MKTTool workflow | Signed approved releases, pinned engine, staged pilot, and rollback |
 | Device transfer | Export/import occurs outside the workflow and can leave two live copies | Transfer lock, recipient-encrypted bundle, and ADMIN audit trail |
 
@@ -119,7 +154,7 @@ one product called **MKTTool on this PC** and completes this path:
 
 `Download for Windows → Install → Sign in → Confirm this PC → Waiting for administrator approval or Ready`
 
-The signed installer starts both MKT Browser and Relay, acquires an approved engine from its official
+The installer starts both MKT Browser and Relay, acquires an approved engine from its official
 source when redistribution is not allowed, verifies every artifact automatically, and opens the one
 authenticated setup page. Durable state resumes when that page is reopened after sign-in, refresh,
 browser restart, or Windows reboot.
@@ -130,8 +165,10 @@ knows.
 
 A normal operator must never have to:
 
-- download Relay or MKT Browser separately, extract a ZIP, run `.bat`/PowerShell, install Node, or
-  bypass an unsigned-publisher warning;
+- download Relay or MKT Browser separately, extract a ZIP, run `.bat`/PowerShell, or install Node;
+- meet an *unannounced* publisher warning. Per the 12 August code-signing decision the artifact is
+  unsigned, so SmartScreen will appear; the setup journey must predict it on screen with a marked
+  screenshot before the operator sees it;
 - visit a localhost status page or manually navigate among `/setup`, `/relay-download`, and
   `/relay-devices`;
 - see or copy an MCP token, operator key, public key, device ID, port, JSON field, filesystem path,
@@ -156,7 +193,8 @@ deferred to MKB-06.
 
 ### What operators see
 
-- One signed Windows installer. macOS receives its notarized `.dmg` in MKB-07, after v1.
+- One authenticated Windows installer, unsigned by the 12 August decision. macOS receives its
+  notarized `.dmg` in MKB-07, after v1.
 - One current-PC setup verdict — `Starting`, `Sign in`, `Confirm this PC`, `Waiting for administrator
   approval`, `Ready`, or `Needs repair` — with technical layers hidden under support details.
 - The local device identity, signed-in owner, enrollment, app/engine versions, and compatibility are
@@ -457,7 +495,7 @@ No binary that requires plaintext may run after the deletion boundary.
 sequenceDiagram
   actor Operator
   actor Admin
-  participant Setup as Signed Windows installer
+  participant Setup as Windows installer
   participant MB as MKT Browser
   participant R as Relay
   participant UI as MKTTool setup page in browser
@@ -537,14 +575,15 @@ device-bound bootstrap authorization. Relay verifies it before exposing its loca
 surface. This is not a fallback for an unavailable administrator, and ordinary operators cannot
 activate it even if they know the loopback endpoint.
 
-The v1 team release is an Authenticode-signed per-user Windows installer with autostart and no UAC
+The v1 team release is an unsigned per-user Windows installer with autostart and no UAC
 requirement. Relay remains a separate process even when it ships in the same package. The macOS
 release — a native Apple Silicon application signed with Developer ID, notarized, with Relay as a
 LaunchAgent helper and no Homebrew, `xattr`, or Terminal requirement — is specified in MKB-07 and is
 not a v1 deliverable.
 
 During technical development, the app and Relay may be separate artifacts for diagnostics. Do not
-hand them to the team until Windows has **one signed download and one resumable setup controller**.
+hand them to the team until Windows has **one authenticated download and one resumable setup
+controller**.
 The current Relay ZIP, `setup.bat`, manual checksum, localhost status page, and separate technical
 MKT Browser directory remain owner/developer artifacts, not an acceptable team installation flow. If
 the engine license prohibits bundling, the installer or app downloads the manifest-pinned version
@@ -603,10 +642,12 @@ it fall back to the current `update_profile` followed by `launch_profile` sequen
 
 ### 8.4 Update the local compatibility set
 
-The installer/app pins an offline release-root public key and the expected Authenticode publisher.
-The root signs delegated manifest-key rotation/revocation statements; delegated private keys and code
-signing credentials remain separate from R2 credentials. R2 is an untrusted artifact host, not the
-source of release authority. Protected local state records the highest accepted compatibility-set
+The installer/app pins an offline release-root public key. The root signs delegated manifest-key
+rotation/revocation statements; delegated private keys remain separate from R2 credentials. R2 is an
+untrusted artifact host, not the source of release authority. Per the 12 August code-signing
+decision there is no Authenticode publisher to pin, so the manifest root is the **only** source of
+release authority and its private key must stay offline — losing it loses the whole chain, with no
+second signature underneath it. Protected local state records the highest accepted compatibility-set
 sequence, secure-store rollback floor, and exactly one retained rollback sequence.
 
 A truly clean install accepts only a manifest at or above the minimum sequence embedded in its signed
@@ -776,8 +817,10 @@ Therefore each release must pass these gates:
    from its official channel or use another approved agreement.
 3. Retain NOTICE and license text for every component.
 4. Generate an SBOM and run license checks for each release.
-5. Use Developer ID, hardened runtime, and notarization on macOS and code signing on Windows. A
-   checksum does not replace source authentication.
+5. Windows v1 ships unsigned by the 12 August decision, so a checksum plus an authenticated download
+   route is all that stands behind the installer binary; this is an accepted, recorded gap rather
+   than an unmet gate. macOS still requires Developer ID, hardened runtime, and notarization when
+   MKB-07 starts, because Gatekeeper has no equivalent click-through path.
 
 Apple identifies Developer ID as the mechanism Gatekeeper uses to identify developers distributing
 outside the Mac App Store; notarization scans the signed package and issues a Gatekeeper ticket:
@@ -831,7 +874,7 @@ This is a legal and operational gate, not legal advice.
 | Device transfer (MKB-05) | Prisma + ticket route + Relay | Add a `ProfileTransfer` lock and recipient-encrypted export/import; the server stores no bundle |
 | Web UI | current-PC setup controller + profile card | Show one plain setup state/action, keep support diagnostics expandable, and show actual provider/versions on operational surfaces without redesign |
 | Fork UI | MultiZen renderer | Retain upstream layout and components; add only rebranding, managed badge, and minimal locked states |
-| Release | authenticated download + R2 + Windows installer CI | Produce one Authenticode-signed per-user installer and a signed anti-downgrade compatibility manifest for Relay, Browser, contract, and pinned engine; add other OS/architecture entries at MKB-07 |
+| Release | authenticated download + R2 + Windows installer CI | Produce one unsigned per-user installer and a root-signed anti-downgrade compatibility manifest for Relay, Browser, contract, and pinned engine; add other OS/architecture entries at MKB-07 |
 
 The pre-operational W02 owner decision supersedes the original dual-provider transition proposal.
 No real device depended on the old internal names, so the active runtime fallback was removed in
@@ -849,7 +892,7 @@ met on 12 August 2026.
 
 Two items inside that range carry most of the uncertainty and deserve to be tracked as their own
 slices rather than as bullets inside a phase: moving off end-of-life Electron 33 on a fork with native
-modules, and the signed Windows installer with controlled updates and rollback. W02 already met the
+modules, and the Windows installer with controlled updates and rollback. W02 already met the
 smaller version of the first problem when a native `better-sqlite3` rebuild failed under Node 24 and
 had to fall back to a checksum-verified Node 22.
 
@@ -1049,13 +1092,16 @@ path.
 
 **MKB-03B — signed compatibility-set lifecycle:**
 
-- Make CI produce exactly one Authenticode-signed per-user Windows installer containing compatible
-  Relay and MKT Browser builds, plus a signed manifest and SBOM. Serve it from the authenticated
-  MKTTool release route; the artifact is secretless and requires no separate file or UAC.
-- Pin an offline manifest root and Authenticode publisher, keep signing credentials separate from R2,
-  define root-signed delegated-key rotation/revocation, and persist the highest accepted set, secure-
-  store rollback floor, and retained rollback sequence. Missing anti-downgrade state beside existing
-  device/profile data is a repair condition, not a clean reinstall.
+- Make CI produce exactly one unsigned per-user Windows installer containing compatible Relay and
+  MKT Browser builds, plus a root-signed manifest and SBOM. Serve it from the authenticated MKTTool
+  release route; the artifact is secretless and requires no separate file or UAC. Publish its
+  checksum on that authenticated route and state plainly that the checksum proves integrity, not
+  origin.
+- Pin an offline manifest root, keep its private key off CI and out of R2, define root-signed
+  delegated-key rotation/revocation, and persist the highest accepted set, secure-store rollback
+  floor, and retained rollback sequence. Missing anti-downgrade state beside existing device/profile
+  data is a repair condition, not a clean reinstall. There is no publisher check underneath the
+  manifest root, so guard that key accordingly.
 - Pin the approved external engine version, official URL, integrity value, and compatibility tuple;
   never resolve “latest” at installation time. Resume interrupted acquisition and retain one approved
   cached engine for offline start and rollback.
@@ -1064,8 +1110,8 @@ path.
   must converge to the complete new set or complete retained set, never a mixed tuple. The first
   secure-store migration establishes a bridge-Relay rollback floor; no plaintext-only Relay can run
   after source deletion.
-- Reject altered, stale, replayed, wrong-publisher, incompatible, and downgrade manifests. A rollback
-  is an explicit audited ADMIN/human action to the one retained approved set.
+- Reject altered, stale, replayed, wrong-key, incompatible, and downgrade manifests. A rollback is an
+  explicit audited ADMIN/human action to the one retained approved set.
 - Detect existing standalone Relay, technical MKT Browser, MultiZen, duplicate startup entries, and
   listeners on `47821`/`47822`. Do not kill an unknown process or silently select another port; show
   the exact blocked layer and a safe repair action. Leave MultiZen data untouched.
@@ -1078,11 +1124,14 @@ path.
 - Test proxy, DNS, WebRTC, fingerprint, and Windows Firewall behavior with a dedicated profile; keep
   the workaround Windows-specific.
 
-**Gate:** On a clean standard-user Windows account, one unfamiliar operator runs one authenticated,
-signed installer and reaches `Waiting for administrator approval` or `Ready` with at most ten minutes
-of user attention; automatic artifact-transfer and administrator wait time are measured separately.
-The path requires no Node, MultiZen, UAC, SmartScreen bypass, terminal, archive extraction, developer
-coaching, separate downloads, manual checksum, localhost navigation, or copied technical value. When
+**Gate:** On a clean standard-user Windows account, one unfamiliar operator runs one authenticated
+installer and reaches `Waiting for administrator approval` or `Ready` with at most ten minutes of
+user attention; automatic artifact-transfer and administrator wait time are measured separately.
+The path requires no Node, MultiZen, UAC, terminal, archive extraction, developer coaching, separate
+downloads, manual checksum, localhost navigation, or copied technical value. The artifact is
+unsigned, so exactly one SmartScreen click-through is permitted, and only when the setup journey
+already showed the operator what the prompt looks like and where to click; an operator who has to
+ask what the warning means fails this gate. When
 approval is available, the same enrollment becomes `Ready`, remains ready after both startup orders
 and reboot, and passes owner/grant/secure-store/live-health checks. The legacy-install, permission,
 port-conflict, repair, uninstall, update fault-injection, and rollback matrices are also green.
@@ -1195,7 +1244,7 @@ is now part of the critical path and must be reported honestly rather than treat
 | Current-device identity | Clean second PC, wrong Google user, prior owner, shared Windows account, reinstall, revoked key, and one user with two PCs; only the reconciled local owner/device may proceed and no other team device can make this PC appear ready |
 | Grant protocol | ADMIN approval from a ready Relay; exact retry after store/proof/server-commit loss returns the cached proof idempotently, while conflicting replay, wrong recipient, expired authorization, superseded generation, failed store write, forged completion, and direct browser action fail before `Ready`; capture → revoke → deliver is tested inside the declared residual window and after expiry |
 | Local permission | Deployed HTTPS origin in current Chrome and Edge: first-click Allow, Deny, recover permission, retry, and timeout; denial is never mislabeled as missing software |
-| Installation | Clean standard-user Windows account, one authenticated signed installer, no UAC/SmartScreen bypass/Node/MultiZen/archive/terminal/manual hash/separate download/localhost navigation or technical-value copying; unfamiliar operator reaches `Waiting` or `Ready` with zero coaching |
+| Installation | Clean standard-user Windows account, one authenticated installer, no UAC/Node/MultiZen/archive/terminal/manual hash/separate download/localhost navigation or technical-value copying; the single SmartScreen click-through is announced on screen beforehand; unfamiliar operator reaches `Waiting` or `Ready` with zero coaching |
 | Existing installation | Standalone Relay, technical MKT Browser, MultiZen, and all together; exactly one owned process/startup entry per component, compatible config, no silent port fallback, and untouched MultiZen data |
 | Secret migration | Real legacy plaintext config; fault injection around bridge install, import, verification, plaintext deletion, rollback-floor commit, repair/rollback, reboot, and a second Windows user; no plaintext-only binary runs and no plaintext remains after the deletion boundary |
 | Release lifecycle | Pinned offline root/publisher, separate R2/signing credentials, delegated-key rotation/revocation, altered/stale/old-valid manifest, R2 compromise, incompatible tuple, partial install, state-cache deletion, clean reinstall, reboot at every activation step, and one-use explicit rollback; only a complete permitted new or retained set may run |
@@ -1243,9 +1292,9 @@ V1 is complete only when all conditions hold:
 
 1. The fork builds natively from documented instructions on a clean Windows x64 device.
 2. License, NOTICE, SBOM, and engine acquisition have been approved.
-3. CI produces one Authenticode-signed, secretless, per-user Windows installer and signed
-   anti-downgrade compatibility manifest rooted in a pinned offline key/publisher with durable
-   sequence state; updater and engine acquisition no longer target unapproved or unpinned releases.
+3. CI produces one secretless, per-user Windows installer and a root-signed anti-downgrade
+   compatibility manifest rooted in a pinned offline key with durable sequence state; updater and
+   engine acquisition no longer target unapproved or unpinned releases.
 4. The Relay discovers MKT Browser automatically; operators never copy an MCP token.
 5. An unfamiliar normal operator reaches `Waiting for administrator approval` or `Ready` through one
    resumable setup controller with zero technical intervention; approval, reload, and reboot do not
@@ -1289,7 +1338,7 @@ V1 is complete only when all conditions hold:
 | Release channel | R2 plus authenticated MKTTool download page; artifacts exclude restricted engines | Before MKB-03 |
 | Pilot devices | Two representative Windows devices | Before MKB-04 |
 | UX/UI | Retain MultiZen in v1; redesign only in MKB-06 | Approved 10 August 2026 |
-| Windows onboarding | One signed download → normal sign-in → confirm detected PC → `Waiting` or `Ready`; first-device secret bootstrap is ADMIN-only and local | Approved 11 August 2026 |
+| Windows onboarding | One authenticated download → announced SmartScreen click-through → normal sign-in → confirm detected PC → `Waiting` or `Ready`; first-device secret bootstrap is ADMIN-only and local | Approved 11 August 2026, unsigned artifact accepted 12 August 2026 |
 
 No decision in this table permits weakening the security invariants or adding automation excluded by
 the product scope.

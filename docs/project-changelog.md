@@ -12,6 +12,36 @@ Dự án chưa phát hành phiên bản (`0.1.0`, dùng nội bộ). Mốc chia 
 
 ---
 
+## 12/08/2026 (5) — v1 ships unsigned; the MKB-03 gate now allows one announced SmartScreen prompt
+
+The owner decided not to buy a Windows code-signing certificate. v1 is for five or six known internal
+operators on machines the project already administers, so the recurring cost is not justified.
+
+The MKB-03 gate previously forbade a SmartScreen bypass. That clause is withdrawn and replaced: the
+artifact is unsigned, exactly one SmartScreen click-through is permitted, and the setup journey must
+show the operator what the prompt looks like and where to click **before** it appears. An operator
+who has to ask what the warning means still fails the gate.
+
+Release authority does not change. It was always carried by the project's own offline manifest root
+key rather than by Authenticode, so the signed compatibility manifest, sequence pinning,
+anti-downgrade state, rollback floor, and delegated-key rotation stand exactly as specified. The
+publisher check against the installer binary is dropped, which means the manifest root is now the
+only source of release authority and its private key must stay offline and out of CI.
+
+The recorded gap: the installer binary is backed only by a checksum served from the same host as the
+artifact, so a compromised release host could hand a brand-new device a different installer before
+any local state is pinned. Everything after that first install remains covered by the manifest
+chain. An internal PKI was considered and rejected — pushing a private root to six unmanaged
+WORKGROUP machines needs an administrator on each one and still would not clear SmartScreen, so it
+adds operator friction without removing the wall.
+
+Updated the MKT Browser plan (installer, section 8.4 update authority, section 10 release gates,
+MKB-03A/03B, the MKB-03 gate, v1 measures, and the completion checklist), the roadmap delivery
+target, blocker table and budget, and the product overview decisions. Revisit if distribution ever
+reaches beyond the known team.
+
+---
+
 ## 12/08/2026 (4) — MKB-02 closes with managed controls, correlated diagnostics, and live device health
 
 Completed MKB-02 across MKT Browser, Relay, and MKTTool. Browser contract version `3` now advertises
