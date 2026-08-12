@@ -161,41 +161,33 @@ function describeMktBrowserToken(config: NonNullable<StatusPageInput["config"]>)
     : "discovered automatically from MKT Browser";
 }
 
-/**
- * Còn thiếu gì, và **cách lấy từng thứ** — hai đường khác nhau, đừng gộp.
- *
- * `deviceId` và `serverPublicKey` do web app ghi hộ khi bấm một nút; khóa vùng operator thì phải
- * dán tay vì máy chủ không có nó. Người cài đọc trang này lúc đang bí, nên chỗ này phải nói ra
- * đúng thứ tự làm chứ không chỉ liệt kê thứ thiếu.
- */
 function renderProblems(problems: ConfigProblem[], webOrigin: string): string {
   const items = problems.map((problem) => `<li>${escapeHtml(problem.message)}</li>`).join("");
 
-  return `<h2>Còn thiếu</h2>
+  return `<h2>Setup is incomplete</h2>
 <ul>${items}</ul>
 
-<h2>Một bước để xong</h2>
+<h2>Primary setup path</h2>
 <ol>
-  <li>Mở <code>${escapeHtml(webOrigin)}/relay-devices</code>, đăng nhập, rồi bấm
-      <strong>Đăng ký máy này</strong>. Web app tự đọc khóa công khai ở trên, ghi máy vào sổ, và
-      gửi cấu hình ngược xuống đây — không phải chép tay giá trị nào.</li>
+  <li>Open <code>${escapeHtml(webOrigin)}/setup</code> and sign in. The setup page detects this
+      Relay, verifies the signed-in owner, registers this PC, and sends configuration back without
+      requiring manual key or JSON copying.</li>
 </ol>
-<p><strong>Khóa vùng operator thì không phải làm gì:</strong> sau khi đăng ký, quản trị viên bấm
-   <em>Cấp khóa</em> cho máy này, và ngay lần sau bạn mở web app thì khóa tự về. Trang đó nói rõ
-   đang chờ hay đã xong.</p>
-<p class="muted">Có hiệu lực ngay, không phải tắt bật lại cầu nối.</p>
+<p><strong>The server never has the operator secret.</strong> An administrator authorizes a sealed
+   grant for this PC; the local Relay receives and stores it without exposing the secret to the
+   server.</p>
+<p class="muted">Configuration takes effect immediately; restarting the Relay is not required.</p>
 
-<details><summary class="muted">Dán tay khóa vùng operator</summary>
-<p class="muted">Hai ca cần tới ô ở cuối trang này: <strong>chiếc máy đầu tiên của cả team</strong>
-   — lúc đó chưa có cầu nối nào khác để cấp khóa từ đó — và lúc cần dùng ngay mà không đợi được
-   quản trị viên.</p>
+<details><summary class="muted">Recovery or legacy: enter an operator key manually</summary>
+<p class="muted">Use the manual form only for recovery or a legacy first-device bootstrap when the
+   guided setup page cannot complete the sealed-grant flow.</p>
 </details>
 
-<details><summary class="muted">Cách cũ: sửa tay <code>${escapeHtml(CONFIG_FILE)}</code></summary>
+<details><summary class="muted">Legacy recovery: edit <code>${escapeHtml(CONFIG_FILE)}</code></summary>
 <pre>${escapeHtml(JSON.stringify(CONFIG_TEMPLATE, null, 2))}</pre>
-<p class="muted">Sửa tay thì phải khởi động lại cầu nối. Chỉ dùng khi web app không mở được.</p>
+<p class="muted">Manual edits require a Relay restart. Use this only when the web app is unavailable.</p>
 </details>
 
-<p class="muted">Cầu nối vẫn nghe khi thiếu cấu hình, nhưng mọi việc thật đều bị từ chối — nó
-không đoán bừa bằng khóa nào.</p>`;
+<p class="muted">The Relay remains reachable while setup is incomplete, but all real work is
+rejected. It never guesses or substitutes a missing key.</p>`;
 }

@@ -100,6 +100,18 @@ describe("trang trạng thái của cầu nối", () => {
     expect(html).toContain("discovered automatically from MKT Browser");
   });
 
+  it("makes setup the primary journey and labels manual operator-key entry as recovery", () => {
+    const html = page({
+      problems: [{ field: "deviceId", message: "Missing device registration." }],
+      config: null,
+    });
+
+    expect(html).toContain("https://web.example/setup");
+    expect(html).toMatch(/recovery|legacy/i);
+    expect(html).toMatch(/server[\s\S]{0,80}operator secret/i);
+    expect(html).not.toContain("https://web.example/relay-devices");
+  });
+
   it("thoát HTML trong dữ liệu — đường dẫn và mã máy là dữ liệu, không phải mã", () => {
     const html = page({
       config: {

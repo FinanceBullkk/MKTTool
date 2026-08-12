@@ -5,8 +5,8 @@ import { SetupPrimaryStateCard } from "@/components/setup/setup-primary-state-ca
 import { SetupSupportDetails } from "@/components/setup/setup-support-details";
 import { configureRelay, receiveOperatorKey } from "@/lib/relay/relay-browser-client";
 import type { RelayHealth } from "@/lib/relay/relay-endpoints";
-import { inspectSetupDevice } from "@/lib/setup/setup-device-actions";
 import { probeSetupRelay } from "@/lib/setup/setup-relay-probe";
+import { reconcileSavedSetupDevice } from "@/lib/setup/reconcile-saved-setup-device";
 import {
   setupStateMachine,
   type SetupDeviceRegistry,
@@ -28,7 +28,7 @@ export function RelayEnrollCard({
 }: {
   viewer: { userId: string; email: string; isAdmin: boolean };
 }) {
-  const [relay, setRelay] = useState<SetupRelayHealth>({ status: "unchecked" });
+  const [relay, setRelay] = useState<SetupRelayHealth>({ status: "checking" });
   const [device, setDevice] = useState<SetupDeviceRegistry>({ status: "unknown" });
   const [health, setHealth] = useState<RelayHealth | null>(null);
   const [busy, setBusy] = useState(false);
@@ -82,33 +82,42 @@ export function RelayEnrollCard({
   }, [markReady]);
 
   useEffect(() => {
-    const deviceId = window.localStorage.getItem("mkttool.setup.device-id");
-    if (!deviceId) return;
-    const form = new FormData();
-    form.set("deviceId", deviceId);
-    void inspectSetupDevice(null, form)
-      .then(async (inspected) => {
-        const registry = "device" in inspected ? inspected.device : undefined;
-        if (!inspected.ok || !registry) {
-          setDevice({ status: "inspection-failed" });
-          setDetail("MKTTool could not verify the saved setup for this PC.");
-          return;
-        }
-        setRelay({ status: "checking" });
-        setDevice(registry);
-        if (registry.status !== "enrolled" || registry.conflict) return;
-        const resumed = await probeSetupRelay();
-        setRelay(resumed.relay);
-        setHealth(resumed.health);
-        if (resumed.device) setDevice(resumed.device);
-        if (resumed.detail) setDetail(resumed.detail);
-        if (resumed.health?.deviceId) void deliverGrant(resumed.health.deviceId);
-      })
-      .catch(() => {
-        setDevice({ status: "inspection-failed" });
-        setDetail("MKTTool could not verify the saved setup for this PC.");
+    let cancelled = false;
+    const savedDeviceId = window.localStorage.getItem("mkttool.setup.device-id");
+
+    void probeSetupRelay().then((probed) => {
+      if (cancelled) return;
+      setRelay(probed.relay);
+      setHealth(probed.health);
+      if (probed.detail) setDetail(probed.detail);
+      if (!probed.device) return;
+
+      setDevice(probed.device);
+      const liveDeviceId = probed.health?.deviceId ?? null;
+      const reconciliation = reconcileSavedSetupDevice({
+        savedDeviceId,
+        liveDeviceId,
+        device: probed.device,
+        viewerUserId: viewer.userId,
       });
-  }, [deliverGrant]);
+      if (reconciliation.storage === "clear") {
+        window.localStorage.removeItem("mkttool.setup.device-id");
+      } else if (reconciliation.storage === "replace") {
+        window.localStorage.setItem("mkttool.setup.device-id", reconciliation.deviceId);
+      }
+
+      const safeToResume =
+        probed.device.status === "enrolled" &&
+        probed.device.ownerUserId === viewer.userId &&
+        !probed.device.revoked &&
+        !probed.device.conflict;
+      if (safeToResume && liveDeviceId) void deliverGrant(liveDeviceId);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [deliverGrant, viewer.userId]);
 
   async function saveEnrollmentToRelay(currentHealth: RelayHealth) {
     const enrollmentForm = new FormData();
