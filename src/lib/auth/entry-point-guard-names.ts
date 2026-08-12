@@ -14,8 +14,14 @@
 /** Wrapper hợp lệ cho server action — xem `guarded-action.ts`. */
 export const ACTION_GUARDS = ["guardedAction", "adminAction"] as const;
 
-/** Wrapper hợp lệ cho route handler — xem `guarded-route.ts`. */
-export const ROUTE_GUARDS = ["guardedRoute", "adminRoute"] as const;
+/**
+ * Wrapper hợp lệ cho route handler — xem `guarded-route.ts`.
+ *
+ * `machineOrGuardedRoute` cho phép một chìa máy-tới-máy đi thẳng, nên nó **nới** phạm vi so với
+ * hai cái kia. Nó có tên ở đây vì quyết định "ai được gọi" vẫn nằm trong module xác thực; đường
+ * sai là xuất một handler trần rồi tự kiểm ở thân hàm, vì dòng đó quên được và lách được.
+ */
+export const ROUTE_GUARDS = ["guardedRoute", "adminRoute", "machineOrGuardedRoute"] as const;
 
 /**
  * Route cố ý KHÔNG gác.

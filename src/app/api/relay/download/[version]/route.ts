@@ -1,9 +1,10 @@
-import { guardedRoute } from "@/lib/auth/guarded-route";
+import { machineOrGuardedRoute } from "@/lib/auth/guarded-route";
 import {
   openRelayArchive,
   readRelayRelease,
   relayDownloadFileName,
 } from "@/lib/relay/relay-release-file";
+import { releaseDownloadTokenMatches } from "@/lib/relay/release-download-token";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -23,11 +24,9 @@ function requestedStart(range: string | null, sizeBytes: number): number | null 
   return Number.isSafeInteger(start) && start >= 0 && start < sizeBytes ? start : null;
 }
 
-export const GET = guardedRoute(async function GET(
-  _actor,
-  request: Request,
-  context: { params: Promise<{ version: string }> },
-) {
+type VersionContext = { params: Promise<{ version: string }> };
+
+async function serveRelayRelease(request: Request, context: VersionContext): Promise<Response> {
   const version = requestedVersion((await context.params).version);
   if (version === null) return new Response("Invalid Relay version.", { status: 400 });
 
@@ -57,4 +56,18 @@ export const GET = guardedRoute(async function GET(
         : {}),
     },
   });
-});
+}
+
+/**
+ * Người thì đăng nhập; **máy dựng** thì trình một token chỉ mở đúng tuyến này — xem
+ * [release-download-token.ts](@/lib/relay/release-download-token). Phần "chìa sai thì rơi xuống
+ * lớp đăng nhập, không trả lời khác đi" nằm trong `machineOrGuardedRoute`.
+ *
+ * Chỉ tuyến **có số phiên bản** nhận token. Tuyến chuyển hướng `/api/relay/download` và trang
+ * `/relay-download` vẫn chỉ dành cho người: máy dựng luôn biết chính xác nó ghim bản nào, không
+ * bao giờ cần hỏi "bản mới nhất là gì".
+ */
+export const GET = machineOrGuardedRoute(
+  (request) => releaseDownloadTokenMatches(request.headers.get("authorization")),
+  serveRelayRelease,
+);
