@@ -6,12 +6,14 @@
  * ngoại lệ ném ra từ `statSync`: trang tải cần in được chỗ đã tìm để người sửa biết đặt file vào
  * đâu, mà một exception thì chỉ còn cách hiện "lỗi máy chủ".
  */
+import { createHash } from "node:crypto";
 import { mkdtempSync, mkdirSync, rmSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { RELAY_RELEASE_R2_ENV } from "../r2/r2-config";
 import { RELAY_VERSION } from "./relay-endpoints";
+import { writeRelayArtifactMetadata } from "./relay-release-metadata";
 import {
   RELAY_ARCHIVE_NAME,
   readRelayRelease,
@@ -26,6 +28,16 @@ function makeReleaseDir(): string {
   homes.push(dir);
   process.env.RELAY_RELEASE_DIR = dir;
   return dir;
+}
+
+function writeArtifact(dir: string, contents: string, version = RELAY_VERSION): void {
+  const archive = path.join(dir, RELAY_ARCHIVE_NAME);
+  writeFileSync(archive, contents);
+  writeRelayArtifactMetadata(dir, {
+    version,
+    sizeBytes: Buffer.byteLength(contents),
+    sha256: createHash("sha256").update(contents).digest("hex"),
+  });
 }
 
 // Bộ test này đo **nhánh đĩa**. Máy chạy nó có thể đã khai ngăn R2 trong môi trường của mình, và
@@ -51,13 +63,13 @@ describe("readRelayRelease", () => {
 
   it("có gói — trả dung lượng và mốc đóng gói", async () => {
     const dir = makeReleaseDir();
-    writeFileSync(path.join(dir, RELAY_ARCHIVE_NAME), "x".repeat(2048));
+    writeArtifact(dir, "x".repeat(2048), RELAY_VERSION - 1);
 
     const release = await readRelayRelease();
     expect(release.available).toBe(true);
     if (release.available) {
       expect(release.sizeBytes).toBe(2048);
-      expect(release.version).toBe(RELAY_VERSION);
+      expect(release.version).toBe(RELAY_VERSION - 1);
       // Nới một giây thay vì so thẳng với `Date.now()`. Mốc sửa file trên NTFS có độ phân giải
       // mịn hơn mili giây và được LÀM TRÒN khi thành `Date`, còn `Date.now()` thì CẮT — nên mtime
       // của một file vừa ghi xong hoàn toàn có thể lớn hơn `Date.now()` gọi ngay sau đó đúng 1 ms.
@@ -79,7 +91,7 @@ describe("readRelayRelease", () => {
   it("tên lúc tải xuống mang số phiên bản, tên trên đĩa thì không", () => {
     // Hai tên khác nhau có chủ ý: đường dẫn cố định để route và bộ build không phải hẹn nhau
     // theo phiên bản, còn thư mục Downloads thì cần phân biệt được các bản nằm cạnh nhau.
-    expect(relayDownloadFileName()).toBe(`MKTTool-Relay-v${RELAY_VERSION}.zip`);
+    expect(relayDownloadFileName(RELAY_VERSION)).toBe(`MKTTool-Relay-v${RELAY_VERSION}.zip`);
     expect(RELAY_ARCHIVE_NAME).not.toContain(String(RELAY_VERSION));
   });
 });
@@ -90,7 +102,7 @@ describe("relayArchiveChecksum", () => {
 
   it("băm đúng chuẩn SHA-256", async () => {
     const dir = makeReleaseDir();
-    writeFileSync(path.join(dir, RELAY_ARCHIVE_NAME), "hello");
+    writeArtifact(dir, "hello");
 
     // So với hằng số ngoài đời, không so với `createHash` gọi lại lần nữa: một phép so như thế
     // vẫn xanh kể cả khi cả hai bên cùng dùng sai thuật toán.
@@ -108,8 +120,7 @@ describe("relayArchiveChecksum", () => {
     // khi file hoàn toàn đúng và thứ sai là con số trên trang.
     const dir = makeReleaseDir();
     const file = path.join(dir, RELAY_ARCHIVE_NAME);
-
-    writeFileSync(file, "hello");
+    writeArtifact(dir, "hello");
     const before = await relayArchiveChecksum();
 
     // Cùng độ dài để phép kiểm không đi qua được chỉ nhờ cỡ file đổi; đẩy mốc sửa lên một phút
@@ -123,10 +134,16 @@ describe("relayArchiveChecksum", () => {
 
   it("gọi lại trên cùng một file trả về cùng một chuỗi", async () => {
     const dir = makeReleaseDir();
-    writeFileSync(path.join(dir, RELAY_ARCHIVE_NAME), "hello");
+    writeArtifact(dir, "hello");
 
     // Lượt sau đi qua ô đệm. Trang tải vẽ lại ở mỗi lượt xem, nên nếu ô đệm trả sai thì mỗi
     // người xem một con số khác nhau — thứ còn tệ hơn là không hiện gì.
     expect(await relayArchiveChecksum()).toBe(await relayArchiveChecksum());
+  });
+
+  it("từ chối artifact không có metadata phiên bản", async () => {
+    const dir = makeReleaseDir();
+    writeFileSync(path.join(dir, RELAY_ARCHIVE_NAME), "hello");
+    await expect(readRelayRelease()).rejects.toThrow(/artifact metadata/i);
   });
 });

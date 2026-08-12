@@ -21,6 +21,7 @@ import { RELAY_PATHS, RELAY_VERSION } from "../../src/lib/relay/relay-endpoints"
 import { renderOperatorKeyForm } from "./relay-operator-key-form";
 import { CONFIG_FILE, DEVICE_KEY_FILE } from "./relay-home";
 import { CONFIG_TEMPLATE, type ConfigProblem } from "./relay-config";
+import type { MktBrowserTokenSource } from "./mkt-browser-token-discovery";
 
 export interface StatusPageInput {
   /** Khóa công khai của máy này, hex. */
@@ -39,9 +40,10 @@ export interface StatusPageInput {
   config: {
     deviceId: string;
     webOrigin: string;
-    hasMultizenToken: boolean;
+    hasMktBrowserToken: boolean;
+    mktBrowserTokenSource: MktBrowserTokenSource | null;
   } | null;
-  /** Cầu nối nối được MultiZen trên cùng máy không. `null` = chưa điền token nên không hỏi được. */
+  /** Whether Relay can reach MKT Browser locally. `null` means no token is configured to probe it. */
   antidetectReady: boolean | null;
   /** Nguồn web được tin — in ra kể cả khi cấu hình chưa đủ, vì sai nó là hỏng theo kiểu CORS. */
   webOrigin: string;
@@ -60,16 +62,15 @@ function describeAntidetect(ready: boolean | null): { tone: string; text: string
   if (ready === null) {
     return {
       tone: "warn",
-      text: 'chưa hỏi được — máy này chưa điền "multizenToken", nên chưa mở được profile',
+      text: "not checked — open MKT Browser and enable MCP so Relay can discover its local token",
     };
   }
   return ready
-    ? { tone: "ok", text: "nối được MultiZen trên máy này" }
+    ? { tone: "ok", text: "connected to MKT Browser on this machine" }
     : {
         tone: "bad",
         text:
-          "KHÔNG nối được MultiZen. Mở ứng dụng MultiZen lên; nếu nó đang mở thì kiểm lại token " +
-          "MCP (trong app: MCP → Connect an agent).",
+          "Cannot connect to MKT Browser. Open MKT Browser and make sure its MCP HTTP service is enabled.",
       };
 }
 
@@ -104,7 +105,7 @@ export function renderStatusPage(input: StatusPageInput): string {
 <p class="muted">Bản ${RELAY_VERSION} · thư mục dữ liệu <code>${escapeHtml(input.home)}</code></p>
 
 <div class="row"><span class="tag ok">đang chạy</span><span>Mở được trang này nghĩa là cầu nối đang nghe.</span></div>
-<div class="row"><span class="tag ${antidetect.tone}">MultiZen</span><span>${escapeHtml(antidetect.text)}</span></div>
+<div class="row"><span class="tag ${antidetect.tone}">MKT Browser</span><span>${escapeHtml(antidetect.text)}</span></div>
 <div class="row"><span class="tag ${configured ? "ok" : "bad"}">cấu hình</span><span>${
     configured ? "đủ — cầu nối làm việc được" : "CHƯA ĐỦ — mọi nút trên web sẽ bị từ chối"
   }</span></div>
@@ -128,9 +129,9 @@ ${renderOperatorKeyForm(RELAY_PATHS.setOperatorKey, configured)}
  * chết theo kiểu CORS, không câu lỗi nào chỉ vào đây. Cả hai đọc bằng mắt là ra ngay, nên in
  * chúng lên đây rẻ hơn nhiều so với việc dò.
  *
- * **Không in khóa vùng operator và token MultiZen.** Chúng là bí mật thật, và trang này là thứ
- * người ta mở ra trong lúc chia sẻ màn hình với người đang giúp mình sửa lỗi. Chỉ nói *có hay
- * không* — đủ để trả lời câu "đã điền chưa", không đủ để mất gì.
+ * **Do not print the operator vault key or MKT Browser token.** They are real secrets, and this
+ * page is often open during support screen sharing. Show only whether each value exists, which is
+ * enough to answer "is it configured?" without disclosing it.
  */
 function renderActiveConfig(config: StatusPageInput["config"]): string {
   if (!config) return "";
@@ -139,10 +140,19 @@ function renderActiveConfig(config: StatusPageInput["config"]): string {
 <ul>
   <li>Mã máy: <code>${escapeHtml(config.deviceId)}</code> — sai mã thì mọi vé báo "phát cho máy khác"</li>
   <li>Nhận lời gọi từ: <code>${escapeHtml(config.webOrigin)}</code> — chỉ đúng một nguồn này</li>
-  <li>Token MultiZen: ${config.hasMultizenToken ? "đã điền" : "<strong>chưa điền</strong> — máy này chưa mở được profile"}</li>
+  <li>MKT Browser access: ${describeMktBrowserToken(config)}</li>
 </ul>
 <p class="muted">Khóa vùng operator và token không in ra đây. Còn khóa công khai của máy chủ thì
 đúng hay sai chỉ biết được khi có tấm vé đầu tiên: sai khóa thì vé nào cũng báo chữ ký không hợp lệ.</p>`;
+}
+
+function describeMktBrowserToken(config: NonNullable<StatusPageInput["config"]>): string {
+  if (!config.hasMktBrowserToken) {
+    return "<strong>not found</strong> — open MKT Browser and enable MCP";
+  }
+  return config.mktBrowserTokenSource === "config-override"
+    ? "development override configured"
+    : "discovered automatically from MKT Browser";
 }
 
 /**

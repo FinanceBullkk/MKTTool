@@ -258,7 +258,7 @@ model Account {
   /// `@unique` trên cột nullable vẫn chặn hai nick dùng chung một proxy (Postgres cho phép
   /// nhiều NULL nhưng chỉ một giá trị thật — giống hệt SQLite trước đây, nên đổi nền dữ liệu
   /// KHÔNG nới lỏng ràng buộc này), nên nguyên tắc 1 nick = 1 proxy vẫn nguyên cho Reddit.
-  antidetectProfileId String? @unique // id profile bên MultiZen/AdsPower
+  antidetectProfileId String? @unique // profile id in MKT Browser or AdsPower
   proxyId             String? @unique // @unique ép quan hệ 1:1, chặn 2 nick chung IP
 
   // trạng thái vận hành
@@ -282,10 +282,10 @@ model Account {
   ///
   /// ## Đây là LỜI KHAI, không phải phép đo
   ///
-  /// Ghi khi người dùng bấm "Đã đăng nhập được", giống `karma` và `platformCreatedAt`. Quên bấm
-  /// thì nick báo đỏ oan — đổi lại nút nằm ngay trong thẻ chứa nút "Mở profile", nên người bấm
-  /// chính là người vừa đăng nhập xong. Đo thật thì phải hỏi MultiZen xem profile có cookie phiên
-  /// Reddit không, tức thêm một đường ở cầu nối và một lượt cả team cài lại — chưa đáng.
+  /// Recorded when the operator confirms the first successful login, like `karma` and
+  /// `platformCreatedAt`. A missed confirmation produces a false warning, but the action sits next
+  /// to the profile launch control for the operator who just logged in. Direct measurement would
+  /// require asking MKT Browser for Reddit session cookies, which is outside this slice.
   ///
   /// Migration lấp `firstLoginAt = createdAt` cho nick đã có `antidetectProfileId` lúc chạy, đúng
   /// theo định nghĩa cũ ở trên. Không lấp thì cả đàn nick đang chạy báo đỏ cùng lúc.

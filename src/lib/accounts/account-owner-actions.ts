@@ -5,9 +5,9 @@
  *
  * ## Vì sao hai ô phải đi cùng một lượt
  *
- * `Account.antidetectProfileId` là khóa chính của một file SQLite trên **đúng một máy** —
- * MultiZen không đồng bộ profile giữa các máy. Nên nguyên tắc gốc của dự án
- * (`1 nick = 1 proxy = 1 vân tay`) dài thêm một đoạn: `= 1 máy = 1 người`.
+ * `Account.antidetectProfileId` is the primary key of a SQLite file on **exactly one machine**.
+ * MKT Browser does not synchronize profiles across machines. Therefore the project's core invariant
+ * (`1 account = 1 proxy = 1 fingerprint`) extends to `= 1 machine = 1 operator`.
  *
  * Tách thành hai lần bấm là dựng ra trạng thái nửa vời — nick có chủ mà chưa có máy, hoặc tệ
  * hơn, nick ghim vào máy của người không còn là chủ. Một form, một transaction, một hàng

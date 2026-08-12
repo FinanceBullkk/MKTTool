@@ -263,8 +263,9 @@ describe("năm phép kiểm", () => {
 
     expect(result.ok).toBe(false);
     expect(result.message).toContain("PC của Nam");
-    // Câu từ chối phải nhắc dọn profile vừa lỡ tạo, không để lại rác bên MultiZen.
-    expect(result.message).toContain("mồ côi");
+    // The rejection must instruct the operator to remove the newly created profile instead of
+    // leaving orphaned data in MKT Browser.
+    expect(result.message).toContain("orphan");
 
     const sau = await prisma.account.findUniqueOrThrow({ where: { id: daGhim } });
     expect(sau.deviceId).toBe(mayCuaNam);

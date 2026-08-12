@@ -13,10 +13,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { RELAY_RELEASE_R2_ENV } from "../r2/r2-config";
 import { readRelayRelease } from "./relay-release-file";
+import { RELAY_VERSION } from "./relay-endpoints";
 import {
-  RELAY_RELEASE_R2_KEY,
   checksumOf,
   readRelayReleaseR2Config,
+  relayReleaseR2Key,
+  versionOf,
 } from "./relay-release-r2";
 
 /** SHA-256 của chuỗi "hello" — hằng số công khai, đúng hình dạng 64 ký tự hex. */
@@ -89,6 +91,24 @@ describe("checksumOf", () => {
   });
 });
 
+describe("versionOf", () => {
+  const info = (metadata: Record<string, string>) => ({
+    sizeBytes: 1,
+    lastModified: new Date(),
+    metadata,
+  });
+
+  it("reads a positive artifact version from metadata", () => {
+    expect(versionOf(info({ "relay-version": "7" }))).toBe(7);
+  });
+
+  it("rejects missing and malformed versions", () => {
+    expect(versionOf(info({}))).toBeNull();
+    expect(versionOf(info({ "relay-version": "v7" }))).toBeNull();
+    expect(versionOf(info({ "relay-version": "0" }))).toBeNull();
+  });
+});
+
 describe("readRelayRelease — nguồn R2", () => {
   it("khai đủ thì hỏi R2 chứ không đọc đĩa", async () => {
     configureR2();
@@ -101,6 +121,7 @@ describe("readRelayRelease — nguồn R2", () => {
             "content-length": "34078720",
             "last-modified": "Thu, 06 Aug 2026 06:36:14 GMT",
             "x-amz-meta-sha256": REAL_SHA256,
+            "x-amz-meta-relay-version": String(RELAY_VERSION),
           },
         }),
       ),
@@ -115,10 +136,11 @@ describe("readRelayRelease — nguồn R2", () => {
       expect(release.sizeBytes).toBe(34078720);
       // Mã băm tới từ metadata — máy chủ KHÔNG kéo 32 MB về để tự băm ở mỗi lượt mở trang.
       expect(release.checksum).toBe(REAL_SHA256);
+      expect(release.version).toBe(RELAY_VERSION);
     }
 
     const [url, init] = fetchImpl.mock.calls[0]!;
-    expect(String(url)).toContain(`/mkttool-relay/${RELAY_RELEASE_R2_KEY}`);
+    expect(String(url)).toContain(`/mkttool-relay/${relayReleaseR2Key(RELAY_VERSION)}`);
     expect(init!.method).toBe("HEAD");
   });
 
@@ -131,7 +153,7 @@ describe("readRelayRelease — nguồn R2", () => {
     expect(release.available).toBe(false);
     if (!release.available) {
       expect(release.expectedPath).toContain("mkttool-relay");
-      expect(release.expectedPath).toContain(RELAY_RELEASE_R2_KEY);
+      expect(release.expectedPath).toContain(relayReleaseR2Key(RELAY_VERSION));
       // Chỗ đã tìm in ra cho người sửa, nhưng KHÔNG kèm chìa.
       expect(release.expectedPath).not.toContain("secret");
     }
@@ -145,5 +167,24 @@ describe("readRelayRelease — nguồn R2", () => {
     );
 
     await expect(readRelayRelease()).rejects.toThrow(/AccessDenied/);
+  });
+
+  it("từ chối object có metadata phiên bản lệch tên bất biến", async () => {
+    configureR2();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        new Response(null, {
+          status: 200,
+          headers: {
+            "content-length": "10",
+            "x-amz-meta-sha256": REAL_SHA256,
+            "x-amz-meta-relay-version": String(RELAY_VERSION - 1),
+          },
+        }),
+      ),
+    );
+
+    await expect(readRelayRelease()).rejects.toThrow(/reports artifact version/);
   });
 });

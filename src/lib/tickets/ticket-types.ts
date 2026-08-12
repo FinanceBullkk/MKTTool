@@ -82,9 +82,10 @@ export type TicketKind = (typeof TICKET_KINDS)[keyof typeof TICKET_KINDS];
 export const MIN_RELAY_VERSION_BY_KIND: Record<TicketKind, number> = {
   [TICKET_KINDS.CREDENTIAL]: MIN_RELAY_VERSION,
   [TICKET_KINDS.OTP]: MIN_RELAY_VERSION,
-  [TICKET_KINDS.LAUNCH_PROFILE]: MIN_RELAY_VERSION,
-  /** Cần `create_profile` của MultiZen — có từ bản 6. */
-  [TICKET_KINDS.CREATE_PROFILE]: 6,
+  /** Requires managed launch correlation and the v3 MKT Browser contract. */
+  [TICKET_KINDS.LAUNCH_PROFILE]: 7,
+  /** Requires managed create correlation and the v3 MKT Browser contract. */
+  [TICKET_KINDS.CREATE_PROFILE]: 7,
 };
 
 /** Bí mật nào của nick đang được hỏi. Khớp tên cột trong `Account`. */
@@ -136,7 +137,9 @@ export type TicketPayload =
   | {
       kind: typeof TICKET_KINDS.CREATE_PROFILE;
       accountId: string;
-      /** Tên profile bên MultiZen. Máy chủ đặt để nó đoán được: `Reddit — anna`. */
+      /** Retry-stable idempotency key; a new ticket jti keeps this value. */
+      requestId: string;
+      /** MKT Browser profile name. The server makes it predictable via `profileNameForNick`. */
       profileName: string;
       /** Như `LAUNCH_PROFILE`: mật khẩu proxy thuộc vùng server nên máy chủ mở được. */
       proxy: {
@@ -147,12 +150,13 @@ export type TicketPayload =
         password?: string;
       };
       /**
-       * Vân tay ở dạng **núm cao cấp**, đúng hình dạng `create_profile` của MultiZen nhận.
+       * Fingerprint expressed as **high-level controls**, matching the shape accepted by MKT Browser `create_profile`.
        *
-       * Không tả từng bề mặt (UA, client hints, WebGL): MultiZen tự suy ra một câu chuyện nhất
-       * quán từ mấy núm này, và **từ chối tổ hợp mâu thuẫn** (`INVALID_INPUT`). Đo 07/08/2026:
-       * khai `localeId: en-US` kèm `timezone: Europe/London` thì nó trả lỗi và liệt kê luôn bốn
-       * timezone hợp lệ. Tự ghép bề mặt ở phía mình là bỏ đi lớp bảo vệ đó.
+       * It does not describe individual surfaces (UA, client hints, WebGL). MKT Browser derives one
+       * consistent fingerprint from these controls and **rejects inconsistent combinations**
+       * (`INVALID_INPUT`). Measured on 2026-08-07: `localeId: en-US` with
+       * `timezone: Europe/London` returned an error listing the four valid timezones. Constructing
+       * surfaces here would bypass that protection.
        */
       fingerprint: {
         device: string;

@@ -59,7 +59,7 @@ export const RELAY_PATHS = {
   /** POST `{ deviceId, serverPublicKey }` — web app ghi hộ cấu hình sau khi đăng ký máy. */
   configure: "/configure",
   /**
-   * POST `{ vaultKeyOperator, multizenToken? }` — **chỉ trang của chính cầu nối gọi được**.
+   * POST `{ vaultKeyOperator, mktBrowserToken? }`: **callable only by the Relay's own page**.
    *
    * Tách khỏi `/configure` vì hai đường đi từ hai phía và không bao giờ được gộp: máy chủ biết
    * `deviceId` nhưng **không** có khóa vùng operator, và ngày nó có thì GĐ3 mất nghĩa.
@@ -146,32 +146,33 @@ export interface ConfigureRelayRequest {
 export const RELAY_TIMEOUT_MS = 4_000;
 
 /**
- * Hạn giờ cho những lời gọi **bắt MultiZen làm việc nặng**: tạo profile, và mở profile.
+ * Timeout for calls that make MKT Browser perform **heavy work**: creating and launching profiles.
  *
  * ## Vì sao 4 giây sai ở đúng hai chỗ này
  *
  * Con số kia đo *"một lượt gọi trong cùng máy"* — ping, bọc bí mật, liệt kê profile đều xong trong
  * vài chục mili giây (đo 07/08/2026: `GET /profiles` mất **78 ms**). Hai việc dưới đây thì không:
  *
- * | Việc | MultiZen phải làm gì |
+ * | Operation | What MKT Browser must do |
  * |---|---|
- * | Tạo profile | dựng cả một hồ sơ Chromium trên đĩa, kèm proxy và vân tay |
- * | Mở profile | đẩy proxy vào profile, **rồi** bật một cửa sổ Chromium thật |
+ * | Create profile | Build a full Chromium profile on disk with its proxy and fingerprint |
+ * | Launch profile | Apply the proxy to the profile, **then** open a real Chromium window |
  *
  * Cả hai vượt 4 giây một cách bình thường, và càng lâu hơn khi proxy chậm.
  *
  * ## Đã vấp thật 07/08/2026, cả hai lần trên máy thật
  *
- * Lượt tạo: profile sinh ra đầy đủ và đúng bên MultiZen, trình duyệt bỏ cuộc ở giây thứ tư. Lượt
- * mở: cửa sổ Chromium hiện lên bình thường, trình duyệt vẫn báo hỏng. Cả hai lần đều ra câu
- * *"trình duyệt không cho trang này gọi xuống máy của bạn"* — **đoán sai hoàn toàn**, vì suy luận
- * *"hết hạn giờ ⟹ bị luật mạng nội bộ nuốt"* chỉ đúng khi lời gọi vốn nhanh.
+ * Creation: MKT Browser created the profile correctly, but the browser gave up after four seconds.
+ * Launch: the Chromium window opened normally, but the browser still reported a failure. Both
+ * cases claimed that the browser blocked the page from reaching the local machine, which was
+ * **completely wrong** because timeout implies local-network blocking only for normally fast calls.
  *
  * Ở lượt tạo, hệ quả còn nặng hơn câu chữ: lượt ghi id vào kho không chạy tới nơi.
  *
- * 60 giây: đủ cho lượt chậm nhất từng đo, vẫn đủ ngắn để không treo giao diện vĩnh viễn khi
- * MultiZen thật sự chết. Kèm theo nó là **đường dò lại** ở `antidetect-profile-card.tsx` — nới hạn
- * giờ chỉ làm ca hỏng hiếm đi, không làm nó biến mất.
+ * Sixty seconds covers the slowest measured operation while remaining short enough to avoid
+ * hanging the UI forever when MKT Browser is genuinely unavailable. It is paired with the
+ * **reconciliation path** in `antidetect-profile-card.tsx`; increasing the timeout only makes
+ * failures rarer and cannot eliminate them.
  */
 export const RELAY_PROFILE_WORK_TIMEOUT_MS = 60_000;
 
@@ -197,7 +198,7 @@ export const RELAY_PROFILE_WORK_TIMEOUT_MS = 60_000;
  * tăng bằng tay: tự sinh theo git hash thì nó đổi ở mọi lượt build, và một số đổi liên tục thì
  * cảnh báo "bản cũ" kêu liên tục cho tới lúc không ai còn nhìn.
  */
-export const RELAY_VERSION = 6;
+export const RELAY_VERSION = 7;
 
 /**
  * Một profile antidetect như cầu nối khai ra ở `GET /profiles`.
@@ -216,7 +217,7 @@ export interface RelayProfileSummary {
 }
 
 /**
- * Danh mục giá trị hợp lệ để dựng vân tay, lấy từ chính MultiZen.
+ * Catalog of valid fingerprint values, obtained directly from MKT Browser.
  *
  * **Không** phải bảng cứng viết trong code: bảng cứng mục đúng vào ngày họ thêm một locale, và
  * lúc đó nó sẽ chặn nhầm những tổ hợp vốn hợp lệ.
@@ -232,13 +233,40 @@ export interface RelayProfilesReply extends RelayReply {
   fingerprintOptions?: RelayFingerprintOptions;
 }
 
+export interface RelayBrowserHealth {
+  ready: boolean;
+  provider: string | null;
+  appVersion: string | null;
+  contractVersion: number | null;
+  contractCompatible: boolean;
+  contractProblem: string;
+  engine: { kind: string; version: string | null; status: string } | null;
+  capabilities: string[];
+}
+
+export interface RelayOperationDiagnostic {
+  operationId: string;
+  requestId?: string;
+  stage: string;
+  code?: string;
+  durationMs: number;
+  runtime: {
+    appVersion: string;
+    contractVersion: number;
+    profileSchemaVersion: number;
+    engine: { kind: string; version: string | null; status: string };
+  } | null;
+}
+
 /** Những gì `/health` trả về. */
 export interface RelayHealth {
   relayVersion: number;
   /** Khóa công khai X25519 của máy này, hex — để đối chiếu với sổ đăng ký khi nghi dán nhầm. */
   publicKey: string;
-  /** Cầu nối có nối được MultiZen trên cùng máy không. */
+  /** Whether the Relay can connect to MKT Browser on the same machine. */
   antidetectReady: boolean;
+  /** Live metadata-only state reported by MKT Browser on this exact PC. */
+  browser: RelayBrowserHealth;
   /** Cấu hình đã đủ chưa. Web app dùng để vẽ đúng nút thay vì đoán. */
   configured?: boolean;
   /**
@@ -265,6 +293,8 @@ export interface RelayReply {
   message: string;
   /** Cầu nối gửi kèm phiên bản trong **mọi** phản hồi — QĐ 11. */
   relayVersion: number;
+  /** Present for accepted profile operations; never contains tickets, proxy data, or secrets. */
+  diagnostic?: RelayOperationDiagnostic;
 }
 
 /** Thân của `POST /encrypt-for-vault`: bí mật dạng trần, chỉ đi trong cùng một máy. */

@@ -13,8 +13,9 @@ kiến trúc, bản đồ code, quy ước, nhật ký thay đổi) nằm ở [d
 
 ## Đây là gì
 
-Không phải bot farm. Là "tủ hồ sơ + bảng điều khiển" cho **một** bạn MKT vận hành 5-8 nick Reddit
-và 1-3 Fanpage. Team tự viết content, công cụ lo phần danh tính và an toàn.
+Không phải bot farm. Là "tủ hồ sơ + bảng điều khiển" dùng chung cho team; mỗi nick có đúng một
+người phụ trách và một máy giữ profile. Team vận hành 5-8 nick Reddit cùng 1-3 Fanpage, tự viết
+content; công cụ lo phần danh tính và an toàn.
 
 Nguyên tắc bất di bất dịch: **1 nick = 1 proxy tĩnh = 1 vân tay.**
 Ràng buộc này do database ép, không lách được.
@@ -28,7 +29,7 @@ Ràng buộc này do database ép, không lách được.
 
 - Node.js 22+ (dự án đang chạy trên 24)
 - **PostgreSQL 17** — bản cài native, không cần Docker
-- Một antidetect browser: [MultiZen](https://getmultizen.com/) (miễn phí) hoặc AdsPower
+- MKT Browser technical build (preferred) or AdsPower as the secondary adapter
 - Proxy tĩnh (static ISP), mỗi nick một IP
 
 ## Cài đặt
@@ -386,7 +387,7 @@ src/
 └── lib/
     ├── accounts/            server actions (thêm/sửa/xóa) + schema form + trạng thái nick
     ├── actions/             kiểu ActionResult dùng chung cho mọi server action
-    ├── antidetect/          adapter MultiZen / AdsPower (đổi bằng 1 dòng .env)
+    ├── antidetect/          MKT Browser owned client/adapter contract plus AdsPower adapter
     ├── audit/               tên các loại thao tác ghi vào AuditLog.action
     ├── auth/                đăng nhập Google, danh sách email cho phép, gác lối vào, hai vai trò
     ├── content/             từ vựng content + server action kho content
@@ -407,12 +408,12 @@ src/
 Mỗi luật là một hàm thuần `(ctx: RuleContext) => RuleVerdict`. Toàn bộ việc hỏi database nằm ở
 `rule-context-builder.ts`, nên thêm luật mới chỉ là thêm một file và một dòng trong `rules-engine.ts`.
 
-Stack: Next.js 16 + TypeScript + Prisma 7 + PostgreSQL + MCP client tới MultiZen. Một process,
-không Redis, không microservice.
+Stack phía Web: Next.js 16 + TypeScript + Prisma 7 + PostgreSQL. Web runs on Railway; Relay is a
+separate Windows program on the operator device and calls authenticated local MKT Browser MCP.
+There is no Redis dependency.
 
-> **Chỗ chạy đang chuyển.** Tới 04/08/2026 nó chạy trên đúng một máy bàn. Nay đã có `Dockerfile`
-> ở gốc repo cho bước lên Railway (GĐ5), và bản trên máy vẫn chạy bình thường bằng `npm run dev`
-> — Docker chỉ cần khi đưa lên máy chủ thật, không cần để phát triển.
+> **Chỗ chạy hiện tại.** Web đã chạy thật trên Railway từ 06/08/2026. Bản phát triển vẫn chạy
+> bằng `npm run dev`; `Dockerfile` dùng cho môi trường máy chủ, không cần để phát triển cục bộ.
 
 > Nền dữ liệu đổi từ SQLite sang Postgres ngày 04/08/2026 — bước đầu của việc biến công cụ
 > thành web chung cho team. Một file SQLite trên một máy không phục vụ được 5-6 người ở 5-6 nơi.
@@ -423,10 +424,50 @@ antidetect browser — xem [Dò shadowban](#dò-shadowban). Lần đầu chạy 
 
 ## Antidetect browser
 
-Sửa `ANTIDETECT_PROVIDER` trong `.env` thành `multizen` hoặc `adspower`. Không đụng code.
+Production Relay constructs `MktBrowserAdapter` directly. The owned desktop contract defaults to
+`http://127.0.0.1:47822`; set `mktBrowserUrl` in `relay-config.json` only for an explicit loopback
+override. Retired MultiZen provider/config keys are not read as a fallback.
 
-MultiZen đòi **bearer token**: lấy trong app ở `MCP → Connect an agent`, dán vào
-`MULTIZEN_MCP_TOKEN`. Thiếu token là mọi lời gọi ăn HTTP 401.
+MKT Browser requires a **bearer token**, but ordinary operators do not copy it. On Windows, Relay
+reads the token from MKT Browser's owned local data directory whenever it needs to connect, including
+when MKT Browser is enabled after Relay has already started. `mktBrowserToken` in `relay-config.json`
+remains only as a development override for disposable/custom data roots. Never put this token in
+server environment variables. Without a discoverable token, Relay can still reveal credentials and
+OTP values, but profile actions fail closed with a configuration error. See the
+[MKT Browser plan](plans/260810-0244-mkt-browser-noi-bo/plan.md). Windows x64 is the only v1 and
+team-demo platform; macOS is deferred to MKB-07. Distribution remains a later gate, and v1 retains
+the upstream UX/UI.
+
+That discovered token is **profile-management only**. It cannot navigate, click, type, read pages,
+access cookies, or send raw CDP, and the current build issues no page-control token. MKT Browser
+contract version `3` advertises managed-profile locking and correlated operation diagnostics in
+addition to idempotent create and atomic launch. Relay v7 preserves each ticket `jti` as the
+`operationId`; mismatched diagnostics fail closed and support detail contains only stage, code,
+duration, and runtime versions.
+
+Relay `/health` now evaluates the live MKT Browser process, contract, engine, and capabilities on
+**this PC**. Historical enrollment by itself is not `Ready`. Profile list/create/launch remain blocked
+until the current local runtime is operational, and the setup page shows an actionable repair state
+when it is not.
+
+### Correct-proxy engineering smoke test
+
+The MKB-00 positive-path check can use a dedicated proxy without storing it in the database or
+printing it in terminal output. Put the five fields below in
+`%LOCALAPPDATA%\MKTTool\mkb00-proxy.env`:
+
+```dotenv
+PROXY_PROTOCOL=http
+PROXY_HOST=
+PROXY_PORT=
+PROXY_USERNAME=
+PROXY_PASSWORD=
+```
+
+Then run `npm run mkt-browser:proxy-smoke -- --proxy-file`. The script validates and immediately
+deletes the handoff file before making any network request. It independently probes the proxy,
+launches a disposable MKT Browser profile, verifies that both paths observe the same non-direct exit
+IP, and closes and deletes the profile. Use only a dedicated test proxy and never account data.
 
 ### Proxy được đẩy tự động
 
@@ -441,17 +482,17 @@ bằng IP nhà mà không ai nhận ra.
 Trường **Giao thức** (`http` / `socks5`) ở `/proxies` phải khớp cổng nhà cung cấp cấp — nhiều nơi
 dùng cổng khác nhau cho hai giao thức (Webshare thì cùng cổng phục vụ cả hai).
 
-Chọn giao thức nào cũng được: **DNS phân giải từ xa trong cả hai chế độ** (đo 02/08/2026 — resolver
-thấy được là chính IP proxy), vì trình duyệt luôn nói chuyện với cầu SOCKS5 nội bộ của MultiZen,
-giao thức upstream chỉ là chặng sau đó.
+Either supported protocol keeps **DNS resolution remote**. The browser connects first to MKT
+Browser's internal SOCKS5 bridge, then that bridge uses the configured upstream protocol. The
+02 August baseline verified that the resolver saw the proxy IP.
 
-> ⚠️ **MultiZen căn múi giờ theo IP proxy, nhưng KHÔNG căn ngôn ngữ.** Đo được 02/08/2026:
-> profile cấu hình `Europe/Stockholm` + `Svenska`, chạy qua proxy GB thì `timezone` thành
-> `Europe/London` (tự ghi đè lúc chạy, đúng) còn `navigator.language` vẫn là `sv-SE` — tiếng
-> Thụy Điển trên IP Anh, tín hiệu bất thường rõ ràng.
+> ⚠️ **The unchanged upstream-derived engine aligns the timezone to the proxy IP but does not align
+> the locale.** In the 02 August baseline, a profile configured as `Europe/Stockholm` + `Svenska`
+> and launched through a GB proxy changed to `Europe/London`, while `navigator.language` remained
+> `sv-SE`.
 >
-> **Đừng đổi ngôn ngữ của profile đang nuôi:** nick dùng `sv-SE` suốt 3 tháng rồi đột ngột sang
-> `en-GB` còn đáng ngờ hơn là cứ để lệch.
+> **Do not change the locale of an established profile.** A sudden switch from `sv-SE` to `en-GB`
+> after months of stable use is a stronger anomaly than retaining the existing mismatch.
 
 ### Để công cụ tạo profile, đừng tạo tay
 
@@ -461,7 +502,7 @@ dựng nhầm chỗ là một nick mà chủ nó không mở nổi. Một lần 
 
 | Việc | Trước | Nay |
 |---|---|---|
-| Dựng profile mang đúng proxy của nick | mở MultiZen, gắn proxy | tự |
+| Dựng profile mang đúng proxy của nick | mở MKT Browser, gắn proxy | tự |
 | Căn vân tay theo quốc gia proxy | nhớ bấm **"Match proxy"** | tự — locale, múi giờ và họ thiết bị chọn theo `Proxy.country` |
 | Đưa id profile về kho | chép dãy UUID sang form | tự, **và ghim luôn nick vào máy vừa tạo** |
 
@@ -473,12 +514,12 @@ công cụ tạo ra, ngược hẳn với việc mua 10 proxy riêng.
 Tạo ở máy nào thì nick thuộc máy đó — profile chỉ tồn tại trên một máy, nên không khai sai được.
 Muốn đổi máy sau đó thì vẫn phải nhờ quản trị viên gán lại cụm.
 
-**Cần cầu nối bản 6 trở lên.** Bản cũ hơn thì thẻ đó nói rõ và bạn dán id bằng tay như trước —
-không có gì hỏng, chỉ là chưa có tiện nghi. Người nhập liệu hộ từ máy khác cũng vậy: máy họ không
-có profile của nick nên đường gõ tay vẫn còn đó.
+**Managed profile creation and launch require Relay version 7 or newer.** Older Relay builds cannot
+preserve the required operation correlation or prove the contract-v3 managed capabilities, so these
+actions stop with an update instruction instead of falling back to an uncorrelated path.
 
-> **Quy trình tay** (khi tạo trong MultiZen): gắn proxy → tab Fingerprint → bấm **"Match proxy"**
-> → *rồi mới* đăng nhập lần đầu. Bấm nút của MKTTool thì **hai bước đầu** gộp làm một, và MultiZen
+> **Quy trình tay** (khi tạo trong MKT Browser): gắn proxy → tab Fingerprint → bấm **"Match proxy"**
+> → *rồi mới* đăng nhập lần đầu. Bấm nút của MKTTool thì **hai bước đầu** gộp làm một, và MKT Browser
 > từ chối tổ hợp vân tay mâu thuẫn nên không có đường tạo ra một profile lệch proxy.
 
 **Bước đăng nhập thì vẫn là việc của người.** Profile vừa dựng là một trình duyệt trắng — thẻ
@@ -506,7 +547,7 @@ một cột ghi kết luận của lần kiểm gần nhất. Proxy hỏng nổi
 Proxy **chưa kiểm lần nào** hiện đúng chữ "chưa kiểm lần nào", không hiện như đang khỏe.
 
 > ⚠️ Phép đo trên là của **công cụ**, không phải của trình duyệt: nó chứng minh proxy còn sống,
-> không chứng minh MultiZen đang thật sự dùng nó. Lần đầu mở một profile mới vẫn nên vào
+> không chứng minh MKT Browser đang thật sự dùng nó. Lần đầu mở một profile mới vẫn nên vào
 > `ipinfo.io` trong chính profile đó đối chiếu.
 
 ### Đo băng thông proxy
@@ -532,9 +573,10 @@ trên nhãn nút. Kiểm proxy còn sống thì ngược lại, chỉ tốn vài
 Đo được nhưng ra lỗi thì hiện **"không đo được"**, không hiện thành số 0: proxy chưa đo được và
 proxy chậm là hai chuyện khác nhau, dẫn tới hai hành động khác nhau.
 
-MultiZen không phơi endpoint CDP ra ngoài (Playwright không gắn vào được) — đó là **bình thường,
-không phải lỗi**. Nó lái trình duyệt bằng chính tool MCP của nó (`navigate`, `click`, `type`,
-`extract`, `screenshot`), và Phase 05 sẽ đi đường đó. AdsPower thì có trả về endpoint CDP.
+MKT Browser does not expose a public CDP endpoint. The current Relay token also cannot call page
+tools. Phase 05 must introduce a separately reviewed capability/token before any page interaction is
+enabled; installing or enrolling MKT Browser does not enable browser automation. AdsPower may still
+return a CDP endpoint through its separate adapter.
 
 ## Đăng nhập
 
@@ -611,6 +653,10 @@ nhóm ADMIN.
 
 ## Cầu nối
 
+> **The Relay package and MKT Browser v1 are Windows x64 only.** The current team demo and pilot
+> path use Windows; macOS is deferred to MKB-07 after v1 and does not block any current gate.
+> Installing an upstream browser build on Mac does not replace Relay.
+
 **Máy chủ không mở được một mật khẩu nick nào.** Từ 06/08/2026 kho chia hai vùng khóa thật, và
 vùng giữ bí mật nick chỉ mở được ở **máy của người vận hành** — bằng một chương trình nhỏ chạy
 nền tên là *cầu nối*. Chiếm được máy chủ, hay đọc được biến môi trường của nó, cũng không lấy
@@ -681,10 +727,9 @@ rút mật khẩu proxy nữa, vì vé chỉ tới được đúng chiếc máy 
 Nguyên tắc gốc `1 nick = 1 proxy = 1 vân tay` dài thêm một đoạn: **`= 1 máy = 1
 người`**. Và database ép nó, y như cách nó đang ép `1 nick = 1 proxy`.
 
-Lý do là địa lý của một con số. `antidetectProfileId` là **khóa chính của một file SQLite trên
-đúng một máy** — MultiZen không đồng bộ profile giữa các máy, không có tài khoản, không có
-license server (đo 07/08/2026; per-profile cloud sync và team workspace mới chỉ nằm ở roadmap của
-họ). Nên id profile là một con số vô nghĩa nếu không nói kèm nó nằm ở máy nào.
+The reason is that `antidetectProfileId` identifies a local SQLite record on **one specific
+machine**. MKT Browser intentionally has no cross-device profile synchronization or account
+service, so a profile ID is meaningless without the device that owns it.
 
 | Ô | Trả lời câu hỏi |
 |---|---|
@@ -699,7 +744,7 @@ không lưu.
 
 | Trước | Nay |
 |---|---|
-| Bấm "Mở profile" trên nick người khác vẫn phát được vé, cầu nối bên kia báo một lỗi MultiZen mơ hồ | Từ chối kèm đúng tên máy và email chủ máy |
+| Launching another owner's profile still issued a ticket and the remote Relay returned an ambiguous browser error | Reject with the exact device name and owner email |
 | Ruột vé chứa mật khẩu proxy đã giải mã → ai đăng nhập được cũng rút được cả kho bằng cách bấm nút | Mật khẩu proxy chỉ tới chiếc máy vốn đã phải biết nó |
 | Nút "Mở profile" ở thẻ nhắc việc hỏng với người có hai máy (không có ô chọn máy) | Máy chủ tự tra sổ, không hỏi gì |
 
@@ -707,12 +752,13 @@ không lưu.
 hơn mà vì ngoại lệ ở đó vô nghĩa: vé bọc mật mã cho khóa của máy kia, nên phát được cũng không mở
 nổi. Đường khôi phục của ADMIN là **gán lại cụm** — một thao tác có tên, có `AuditLog`.
 
-### Đổi máy: ba bước, và bước thứ ba là bước hay bị bỏ
+### Device transfer remains gated
 
-Profile MultiZen **không tự đi theo**. Export ở máy cũ → import ở máy mới → **xóa bản ở máy cũ**.
+Managed MKT Browser profiles cannot use the generic desktop export path. MKB-05 owns the controlled
+transfer lock, recipient-encrypted export/import, and source retirement flow. Until that gate is
+implemented and verified, do not copy a managed real-account profile to another device.
 
-Công cụ cảnh báo chứ không chặn, vì chuyển hẳn sang máy mới rồi xóa bản cũ là chuyện người thật
-vẫn làm. Thứ giết nick là hai ca khác:
+The two unsafe cases remain:
 
 | Ca | Vì sao |
 |---|---|
@@ -733,7 +779,7 @@ Nick ghim lệch, hoặc có profile mà chưa ghim máy nào, đều nổi lên
 > **VPS thay laptop được, nhưng đừng dùng chung một VPS cho cả team.** Sổ `RelayDevice` không
 > quan tâm máy là sắt hay ảo nên một VPS đăng ký y hệt một laptop. Nhưng một VPS chung là gom cả
 > đàn nick về đúng một nền phần cứng thật — ngược hẳn với việc đang chi tiền cho 10 proxy riêng.
-> Thêm nữa: Windows desktop chỉ cho một phiên RDP tại một thời điểm, và MultiZen **không có chế
+> Thêm nữa: Windows desktop chỉ cho một phiên RDP tại một thời điểm, và MKT Browser **không có chế
 > độ headless**. Dùng VPS thì phải đo vân tay trước khi đưa nick thật lên: VPS không có GPU thật
 > nên Chromium render bằng phần mềm, và cái tên GPU được giả sẽ mâu thuẫn với thứ đo được.
 
@@ -947,15 +993,15 @@ tạo vẫn mã hóa bằng khóa cũ.
 
 ### WebRTC — cần luật firewall, đừng bỏ
 
-MultiZen che IP trong ICE candidate ở tầng JS (thay bằng chuỗi `auto`), nhưng **gói UDP vẫn rời
+MKT Browser che IP trong ICE candidate ở tầng JS (thay bằng chuỗi `auto`), nhưng **gói UDP vẫn rời
 máy bằng IP nhà**: cầu SOCKS5 của nó không chuyển tiếp UDP. Site tự chạy STUN/TURN server riêng
-thì thấy IP thật — đủ để nối mọi nick về một hộ gia đình. Không chỉnh được từ MultiZen (không có
+thì thấy IP thật — đủ để nối mọi nick về một hộ gia đình. Không chỉnh được từ MKT Browser (không có
 trong MCP, file cấu hình, lẫn GUI).
 
 Đã bịt 02/08/2026 bằng luật Windows Firewall chặn UDP ra ngoài cho `chrome.exe` của cloakbrowser.
 Đo lại: candidate `srflx` bằng 0, duyệt web không chậm đi (Chrome không dùng QUIC khi có proxy).
 
-> ⚠️ Đường dẫn trong luật có **số phiên bản chromium**. Nâng cấp MultiZen là đường dẫn đổi và luật
+> ⚠️ Đường dẫn trong luật có **số phiên bản chromium**. Nâng cấp MKT Browser là đường dẫn đổi và luật
 > **lặng lẽ hết tác dụng**. Sau mỗi lần nâng cấp: tạo lại luật rồi đo lại.
 >
 > ⚠️ **Đường hỏng thứ hai: profile firewall của mạng đang dùng bị tắt.** Luật vẫn hiện

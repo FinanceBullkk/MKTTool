@@ -5,8 +5,8 @@
  * một chiếc máy đang chạy tốt mà bị ghi đè khóa hỏng thì mọi bí mật thành không mở nổi, và câu
  * lỗi lúc đó sẽ nói về việc giải mã chứ không nói về lượt ghi này.
  *
- * Tính chất thứ ba là chống lại đúng lỗi mà bản mã mời mắc: ghi đè **cả file** cấu hình, xóa mất
- * `multizenToken` của máy đã cài xong.
+ * The third property guards against the exact mistake invited by this code: replacing the
+ * **entire config file** and deleting `mktBrowserToken` from an already configured machine.
  */
 import { generateKeyPairSync } from "node:crypto";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -66,16 +66,16 @@ describe("handleReceiveOperatorKey", () => {
     expect(onConfigured).toHaveBeenCalledOnce();
   });
 
-  it("GIỮ NGUYÊN token MultiZen — không ghi đè cả file", () => {
+  it("preserves the MKT Browser token instead of replacing the whole file", () => {
     const device = makeDevice();
-    const home = makeHome({ deviceId: "device-abc", multizenToken: "mz-token" });
+    const home = makeHome({ deviceId: "device-abc", mktBrowserToken: "test-browser-token" });
     const grant = sealForDevice({ vaultKeyOperator: OPERATOR_KEY }, device.publicKeyHex);
 
     call(home, grant, device.privateKey);
 
     expect(readConfig(home)).toMatchObject({
       deviceId: "device-abc",
-      multizenToken: "mz-token",
+      mktBrowserToken: "test-browser-token",
       vaultKeyOperator: OPERATOR_KEY,
     });
   });

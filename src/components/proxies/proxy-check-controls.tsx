@@ -3,9 +3,9 @@
 /**
  * Nút kiểm proxy còn sống — một proxy hoặc cả kho.
  *
- * Trước đây việc này hoàn toàn nằm ngoài công cụ: `launch/route.ts` chỉ in ra câu "vẫn nên mở
- * ipinfo.io kiểm tra IP" rồi để người dùng tự làm. Hậu quả là proxy chết chỉ lộ ra trên giao
- * diện MultiZen, hoặc tệ hơn là không lộ ra ở đâu cả.
+ * Previously this check lived entirely outside the tool: `launch/route.ts` only suggested opening
+ * ipinfo.io to verify the IP and left the operator to do it manually. A dead proxy therefore showed
+ * up only in the MKT Browser interface, or worse, nowhere at all.
  */
 import { useState, useTransition } from "react";
 import { SMALL_BUTTON_CLASS as BUTTON_CLASS } from "@/components/ui/page-section";

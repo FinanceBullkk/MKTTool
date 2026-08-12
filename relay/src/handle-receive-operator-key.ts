@@ -98,9 +98,9 @@ export function handleReceiveOperatorKey(
   }
 
   try {
-    // `writeRelayConfig` vá đúng một ô và **giữ nguyên phần còn lại**. Ghi đè cả file ở đây là
-    // xóa mất `multizenToken` của máy đã cấu hình xong — và triệu chứng là "mở profile hỏng",
-    // câu không chỉ về lượt nhận khóa vừa rồi.
+    // `writeRelayConfig` patches one field and **preserves everything else**. Replacing the file
+    // here would delete `mktBrowserToken` on an already configured machine and surface later as a
+    // misleading profile-launch failure rather than an operator-key update failure.
     writeRelayConfig({ vaultKeyOperator: key }, deps.home);
   } catch (error) {
     return { ok: false, message: `Không ghi được file cấu hình: ${(error as Error).message}` };

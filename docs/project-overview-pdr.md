@@ -1,9 +1,11 @@
 # MKTTool — Tài liệu sản phẩm
 
-**Cập nhật:** 03/08/2026 · **Trạng thái:** [development-roadmap.md](development-roadmap.md)
+**Cập nhật:** 11/08/2026 · **Trạng thái:** [development-roadmap.md](development-roadmap.md)
 
 Tài liệu này trả lời "vì sao" và "phạm vi tới đâu". Chi tiết thi công nằm ở
-[plans/260801-2030-multi-account-posting-console/](../plans/260801-2030-multi-account-posting-console/plan.md).
+[plan công cụ gốc](../plans/260801-2030-multi-account-posting-console/plan.md),
+[plan Web chung](../plans/260804-1752-web-chung-cho-team-phan-tan/plan.md) và
+[plan MKT Browser](../plans/260810-0244-mkt-browser-noi-bo/plan.md).
 Thuật ngữ tra ở [domain-glossary.md](domain-glossary.md); mục lục tài liệu ở [docs/README.md](README.md).
 
 ---
@@ -69,22 +71,52 @@ Nếu sau này có ai đề xuất thêm một trong các mục trên, đây là
 5. ~~**SQLite + Prisma**, không Postgres/Redis. Một người dùng, một máy.~~
    **Đổi 04/08/2026: Postgres + Prisma.** Quyết định gốc đúng với giả định "một người dùng,
    một máy"; giả định đó hết hiệu lực khi chốt bàn giao cho 5-6 người ở 5-6 nơi. Vẫn không Redis.
-6. **Điều khiển trình duyệt của NICK qua MCP của MultiZen, không dùng Playwright.**
-   Kiểm chứng 02/08/2026: MultiZen không phơi endpoint CDP ra ngoài mà phơi thẳng bộ tool
-   (`navigate`, `click`, `type`, `extract`, `screenshot`). Đường này còn tốt hơn vì có sẵn
-   *human handoff* (người vào tay khi gặp 2FA/captcha) và mô phỏng hành vi người ở tầng CDP.
+6. **Control account browsers through local MCP, not Playwright.** MultiZen proved the behavior on
+   02/08/2026; W01 preserved it as a rollback checkpoint, and W02 moved active first-party package,
+   preload, MCP, adapter, and configuration identities to the owned **MKT Browser** contract on
+   configurable default port `47822`. Profiles/cookies stay off the server, and v1 does not fork
+   Chromium — see
+   [kế hoạch MKT Browser](../plans/260810-0244-mkt-browser-noi-bo/plan.md).
 7. **Nhưng bộ dò shadowban thì dùng Playwright trực tiếp** (Phase 03) — hai việc trái ngược
    nhau nên đi hai đường. Đăng bài cần *giả làm người có danh tính*; dò shadowban cần *đúng là
    một người lạ vô danh*: chưa đăng nhập, IP khác hẳn, không vân tay nào của nick. Mở nó bằng
    chính profile antidetect của nick là tự nhìn mình trong gương rồi kết luận người ngoài cũng
    thấy vậy.
+8. **MKT Browser does not replace Relay, but v1 must ship them as one Windows installation.** A
+   normal operator gets one authenticated download, signs in, confirms the detected PC, and reaches
+   `Waiting for administrator approval` or `Ready` without handling keys, tokens, ports, paths,
+   archives, localhost pages, or commands. This presentation does not collapse trust boundaries:
+   Relay keeps the operator key and verifies/replay-protects tickets; Electron only stores and runs
+   profiles. First-device key bootstrap is a separate ADMIN-only local ceremony.
+9. **Windows x64 is the only platform MKT Browser v1 commits to (decided 10 August 2026).** macOS
+   Apple Silicon — native arm64, a signed and notarized DMG, and the Relay as a LaunchAgent helper
+   with Keychain storage — moves to MKB-07 after v1. Mac hardware exists, so this is a priority
+   choice, not a hardware limit. The Relay keeps a shared core behind thin OS adapters so adding
+   macOS later does not reopen the core. V1 retains the MultiZen UX/UI; redesign waits for real
+   usage feedback.
+10. **English is the only language for project artifacts from 10 August 2026 onward.** This
+    includes code comments, UI and error copy, documentation, plans, tests, installers, release
+    notes, and commit messages. Direct conversation with the project owner may remain Vietnamese.
+11. **No Windows code-signing certificate (decided 12 August 2026).** v1 ships unsigned. The
+    audience is five or six known internal operators on machines the project already administers,
+    so a recurring certificate cost is not justified. The team accepts one SmartScreen
+    click-through, and MKB-03 must announce that prompt on screen with a marked screenshot before
+    it appears — a surprised operator still fails the gate. Release authority is unaffected: it was
+    always carried by the project's own offline manifest root key, not by Authenticode, so signed
+    manifests, sequence pinning, anti-downgrade, and rollback all stand. The accepted gap is that
+    the installer binary itself is backed only by a checksum served from the same host, so a
+    compromised release host could hand a brand-new device a different installer before any local
+    state is pinned. An internal PKI was considered and rejected: pushing a private root to six
+    unmanaged WORKGROUP machines needs an administrator on each one and still would not clear
+    SmartScreen. Revisit if distribution ever reaches outside the known team.
 
 ## 6. Nguyên tắc bất di bất dịch
 
-> **1 nick = 1 proxy tĩnh = 1 vân tay.**
+> **Mỗi nick Reddit có đúng 1 proxy tĩnh, 1 vân tay/profile, 1 máy giữ và 1 người phụ trách.**
 
-Ràng buộc này do **database ép** (`Account.proxyId` và `Account.antidetectProfileId` đều `@unique`),
-không phải quy ước mềm. Có vội cũng không lách được.
+Database ép hai nick không thể dùng chung proxy/profile (`Account.proxyId` và
+`Account.antidetectProfileId` đều `@unique`). Quan hệ chủ nick/máy giữ được kiểm lại ở các action
+và trước lúc phát vé; một người hoặc một máy vẫn có thể phụ trách nhiều nick.
 
 ## 7. Tiêu chí thành công
 
@@ -104,9 +136,9 @@ không phải quy ước mềm. Có vội cũng không lách được.
 | Nick Reddit cổ (8) | 2-5 triệu | – |
 | Nick Facebook (3) | 1-3 triệu | – |
 | Proxy tĩnh (11 IP) | – | ~700k |
-| Antidetect browser | 0đ (MultiZen, MIT) | 0đ |
+| MKT Browser + engine ngoài | Chứng thư ký Windows: **0đ** — chốt 12/08/2026 không mua. Apple Developer chưa chốt, thuộc MKB-07 | Chưa chốt — engine mới nhất có thể cần subscription |
 | Thay nick hao hụt | – | ~500k-1tr |
-| **Tổng** | **3-8 triệu** | **~1,2-1,7 triệu** |
+| **Tổng** | **3-8 triệu + chi phí fork/ký chưa chốt** | **~1,2-1,7 triệu + engine nếu có** |
 
 **Thời gian — không rút ngắn được**
 
@@ -128,6 +160,7 @@ thực, không có cách nào đi tắt. Phần mềm xong sớm không giúp g�
 | # | Giai đoạn | Trạng thái |
 |---|---|---|
 | 0 | Chuẩn bị & kiểm chứng khả thi | 🔄 Chặng B + C đạt 02/08/2026; còn mua proxy/nick + cold-start |
+| 0B | Internal MKT Browser | 🟡 Windows x64 is the only v1/demo platform; MKB-00/W01/W02/01/01E/02 verified; MKB-03 installer/onboarding and MKB-04 pilot/canary still gate real accounts and rollout; retain upstream UX/UI in v1 |
 | 1 | Kho danh tính | ✅ 01/08/2026 |
 | 2 | Hàng đợi content + bộ luật an toàn | ✅ 02/08/2026 |
 | 3 | Theo dõi sức khỏe tài khoản | ✅ 03/08/2026 — bộ dò đọc được Reddit thật. Proxy quan sát viên đã có và kiểm sống trên máy chủ (06/08/2026); **vẫn chưa chạy với nick thật** vì kho trên máy chủ chưa có nick Reddit |
@@ -145,6 +178,6 @@ thực, không có cách nào đi tắt. Phần mềm xong sớm không giúp g�
   chưa có nick thật để dò nên vẫn chưa có số liệu để quyết siết hay nới.
 - Chưa chốt 2-3 subreddit mục tiêu và luật cụ thể của từng sub (việc của Phase 00 bước 1).
 - Chưa đo được "xếp 15 bài trong 15 phút" vì chưa có người dùng thật chạy quy trình đầy đủ.
-- ~~Mục 2 ghi rõ công cụ phục vụ **1 người**.~~ **Đã có chủ 04/08/2026:**
-  [plan web chung](../plans/260804-1752-web-chung-cho-team-phan-tan/plan.md) nhận đúng việc này.
-  Đổi sang DB dùng chung đã xong; đăng nhập + phân quyền + tách hai vùng khóa còn ở phía trước.
+- ~~Mục 2 ghi rõ công cụ phục vụ **1 người**.~~ Web chung, đăng nhập, phân quyền, hai vùng khóa và
+  Cầu nối đã hoàn tất; phần desktop riêng cho team nay đi theo
+  [plan MKT Browser](../plans/260810-0244-mkt-browser-noi-bo/plan.md).

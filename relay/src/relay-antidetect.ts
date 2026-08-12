@@ -1,94 +1,159 @@
-/**
- * Đường xuống MultiZen trên **cùng chiếc máy này**.
- *
- * ## Vì sao cầu nối dựng adapter riêng, không dùng `antidetect-adapter-factory`
- *
- * Factory bên web app đọc `process.env` — nó sống trong một tiến trình có file `.env`. Cầu nối
- * thì không: cấu hình của nó nằm trong `relay-config.json` cạnh `.exe`. Kéo factory sang đây là
- * kéo theo giả định "có biến môi trường", và nó sẽ im lặng dùng giá trị mặc định thay vì nói ra
- * là chưa cấu hình.
- *
- * ## Vì sao MultiZen là tùy chọn, không phải cấu hình bắt buộc
- *
- * Cầu nối làm ba việc, chỉ **một** cần MultiZen (mở profile). Máy chỉ dùng để lấy mật khẩu và
- * OTP vẫn phải chạy được đầy đủ. Nên thiếu token không chặn khởi động — nó chỉ làm đúng nút
- * "Mở profile" trả về một câu nói rõ thiếu gì.
- */
+/** Relay-owned connection to MKT Browser on the same operator device. */
+
 import type { AntidetectAdapter } from "../../src/lib/antidetect/antidetect-browser-adapter";
-import { MultizenAdapter } from "../../src/lib/antidetect/multizen-adapter";
+import { MktBrowserAdapter } from "../../src/lib/antidetect/mkt-browser-adapter";
+import {
+  MKT_BROWSER_DEFAULT_MCP_URL,
+  describeMktBrowserCompatibility,
+  resolveMktBrowserMcpUrl,
+} from "../../src/lib/antidetect/mkt-browser-contract";
 import type { RelayConfig } from "./relay-config";
+import type { RelayBrowserHealth } from "../../src/lib/relay/relay-endpoints";
+import { currentDeviceBrowserReadiness } from "../../src/lib/relay/current-device-browser-health";
+import {
+  resolveMktBrowserToken,
+  type MktBrowserTokenSource,
+  type ResolvedMktBrowserToken,
+} from "./mkt-browser-token-discovery";
 
-/** MultiZen chỉ công bố địa chỉ này; giữ khai được để còn dựng thử. */
-export const DEFAULT_MULTIZEN_URL = "http://127.0.0.1:7777";
-
-/** Bao lâu thì hỏi lại MultiZen. Đủ ngắn để trang trạng thái không nói dối quá một phút. */
 const PROBE_TTL_MS = 30_000;
+
+/**
+ * Cái mà máy ĐANG NGỒI tự khai, đọc tại chỗ chứ không suy từ cờ lịch sử trên máy chủ.
+ *
+ * Không có trường bí mật nào: không token, không đường dẫn, không endpoint proxy. Bản desktop cũ
+ * chưa có `get_runtime_info` thì mọi trường phiên bản là `null` và `contractCompatible` là `false`
+ * — máy cũ phải hiện ra là máy cũ, không được lẫn vào nhóm bình thường.
+ */
+export type AntidetectRuntimeHealth = RelayBrowserHealth;
 
 export class AntidetectNotConfiguredError extends Error {
   constructor() {
     super(
-      'Cầu nối chưa có token MultiZen. Mở MultiZen → MCP → "Connect an agent" để lấy token, ' +
-        'rồi thêm "multizenToken" vào relay-config.json và khởi động lại cầu nối.',
+      "The Relay could not find the local MKT Browser token. Open MKT Browser and enable MCP, then retry. " +
+        'For development only, set "mktBrowserToken" in relay-config.json.',
     );
     this.name = "AntidetectNotConfiguredError";
   }
 }
 
-/**
- * Adapter dùng chung cho cả tiến trình, dựng trễ.
- *
- * Dựng trễ vì `MultizenAdapter` bắt tay MCP ở lời gọi đầu tiên, và cầu nối khởi động lúc bật
- * máy — sớm hơn MultiZen. Dựng ngay lúc khởi động là bắt tay vào lúc chắc chắn hỏng, rồi ghi
- * nhớ trạng thái hỏng đó.
- */
+export class AntidetectRuntimeNotReadyError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "AntidetectRuntimeNotReadyError";
+  }
+}
+
+/** The token is optional because credential and OTP actions do not use MKT Browser. */
 export class RelayAntidetect {
-  private adapter: AntidetectAdapter | null = null;
-  private probe: { at: number; ready: boolean } | null = null;
+  private adapter: MktBrowserAdapter | null = null;
+  private adapterToken: string | null = null;
+  private probe: { at: number; ready: boolean; token: string } | null = null;
 
-  constructor(private readonly config: RelayConfig | null) {}
+  constructor(
+    private readonly config: RelayConfig | null,
+    private readonly tokenResolver: () => ResolvedMktBrowserToken | null = () =>
+      resolveMktBrowserToken(config?.mktBrowserToken),
+  ) {}
 
-  /** `null` khi chưa cấu hình được — chỗ gọi tự quyết nói câu gì. */
   private get token(): string | null {
-    return this.config?.multizenToken ?? null;
+    return this.tokenResolver()?.value ?? null;
   }
 
-  /** Adapter đã sẵn sàng, hoặc ném lỗi nói rõ thiếu gì. */
+  tokenStatus(): { available: boolean; source: MktBrowserTokenSource | null } {
+    const resolved = this.tokenResolver();
+    return { available: Boolean(resolved), source: resolved?.source ?? null };
+  }
+
   getAdapter(): AntidetectAdapter {
     const token = this.token;
     if (!this.config || !token) throw new AntidetectNotConfiguredError();
 
-    this.adapter ??= new MultizenAdapter(this.config.multizenUrl ?? DEFAULT_MULTIZEN_URL, token);
+    const baseUrl = resolveMktBrowserMcpUrl(
+      this.config.mktBrowserUrl ?? MKT_BROWSER_DEFAULT_MCP_URL,
+    );
+    if (!this.adapter || this.adapterToken !== token) {
+      this.adapter = new MktBrowserAdapter(baseUrl, token);
+      this.adapterToken = token;
+      this.probe = null;
+    }
     return this.adapter;
   }
 
-  /**
-   * MultiZen có đang mở và nhận lệnh không.
-   *
-   * Kết quả nhớ trong `PROBE_TTL_MS` vì `/health` bị gọi ở **mọi cú bấm** trên web (ràng buộc 1
-   * của spike GĐ0 — `pingRelay()` chạy trước mọi thứ khác). Hỏi MultiZen mỗi lần là cộng một
-   * vòng bắt tay MCP vào độ trễ của từng cú bấm, đổi lấy độ tươi mà không ai cần: MultiZen
-   * không tự tắt giữa hai cú bấm cách nhau vài giây.
-   */
+  /** Cache readiness briefly because the Web client calls Relay health before every action. */
   async isReady(now: number = Date.now()): Promise<boolean> {
-    if (!this.token) return false;
-    if (this.probe && now - this.probe.at < PROBE_TTL_MS) return this.probe.ready;
+    const token = this.token;
+    if (!token) return false;
+    if (this.probe && this.probe.token === token && now - this.probe.at < PROBE_TTL_MS) {
+      return this.probe.ready;
+    }
 
     let ready = false;
     try {
       ready = await this.getAdapter().isAvailable();
     } catch {
-      // `isAvailable` vốn không nên ném, nhưng nó đi qua mạng và qua một adapter. Mọi đường
-      // hỏng đều là "chưa sẵn sàng" — đừng để một lỗi ở đây làm đổ cả `/health`, vì `/health`
-      // chính là thứ web app dùng để nói "cầu nối còn sống không".
+      // Health must stay available even when the local browser process is down.
       ready = false;
     }
 
-    this.probe = { at: now, ready };
+    this.probe = { at: now, ready, token };
     return ready;
   }
 
-  /** Quên kết quả đã nhớ — gọi sau một lần mở profile hỏng, để lần hỏi sau nói đúng hiện trạng. */
   forgetProbe(): void {
     this.probe = null;
+  }
+
+  /**
+   * Bốn tầng của máy này trong một lượt hỏi: chạy chưa, là sản phẩm nào, hợp đồng bản mấy, nhân
+   * trình duyệt tới đâu. Không cache — người đọc trang này đang muốn biết TÌNH TRẠNG BÂY GIỜ.
+   */
+  async describeRuntime(): Promise<AntidetectRuntimeHealth> {
+    const offline: AntidetectRuntimeHealth = {
+      ready: false,
+      provider: null,
+      appVersion: null,
+      contractVersion: null,
+      contractCompatible: false,
+      contractProblem: "",
+      engine: null,
+      capabilities: [],
+    };
+
+    if (!this.token) return offline;
+
+    let info: Awaited<ReturnType<MktBrowserAdapter["runtimeInfo"]>> = null;
+    try {
+      info = await this.getMktBrowserAdapter().runtimeInfo();
+    } catch {
+      // Máy không trả lời cũng là một câu trả lời: giữ nguyên trạng thái ngoại tuyến.
+      return offline;
+    }
+
+    const compatibility = describeMktBrowserCompatibility(info);
+    return {
+      // A successful runtime tool call is fresher evidence than the short availability cache.
+      ready: info !== null ? true : await this.isReady(),
+      provider: info?.provider ?? null,
+      appVersion: info?.appVersion ?? null,
+      contractVersion: info?.contractVersion ?? null,
+      contractCompatible: compatibility.compatible,
+      contractProblem: compatibility.reason,
+      engine: info?.engine ?? null,
+      capabilities: info?.capabilities ?? [],
+    };
+  }
+
+  async requireOperationalRuntime(): Promise<AntidetectRuntimeHealth> {
+    const health = await this.describeRuntime();
+    const readiness = currentDeviceBrowserReadiness(health);
+    if (!readiness.ready) throw new AntidetectRuntimeNotReadyError(readiness.message);
+    return health;
+  }
+
+  private getMktBrowserAdapter(): MktBrowserAdapter {
+    this.getAdapter();
+    if (!this.adapter) throw new AntidetectNotConfiguredError();
+    return this.adapter;
   }
 }

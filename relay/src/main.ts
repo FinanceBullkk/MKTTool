@@ -41,6 +41,7 @@ import {
 } from "./relay-config";
 import { loadOrCreateDeviceKeypair } from "./relay-device-keypair";
 import { createRelayServer, listenOnLoopback } from "./relay-http-server";
+import { defineRelayRoutes } from "./relay-route-policy";
 import { resolveRelayHome } from "./relay-home";
 import type { RelayIdentity } from "../../src/lib/tickets/ticket-verifier";
 import { buildRelayIdentity } from "./relay-identity";
@@ -61,7 +62,6 @@ interface RelayState {
    */
   webOrigin: string;
   deviceId: string | null;
-  hasMultizenToken: boolean;
 }
 
 function loadState(
@@ -107,7 +107,6 @@ function loadState(
     // Đọc thẳng từ file, không qua `config`: web app vừa ghi mã máy xuống và cần thấy nó tới nơi,
     // kể cả khi khóa vùng operator còn thiếu — mà thiếu nó thì `config` là `null`.
     deviceId: resolveDeviceId(home),
-    hasMultizenToken: Boolean(config?.multizenToken),
   };
 }
 
@@ -140,8 +139,9 @@ async function main(): Promise<void> {
   const server = createRelayServer({
     allowedOrigin: () => state.webOrigin || null,
     htmlPages: {
-      "/": async () =>
-        renderStatusPage({
+      "/": async () => {
+        const tokenStatus = state.antidetect.tokenStatus();
+        return renderStatusPage({
           publicKeyHex: keypair.publicKeyHex,
           home,
           problems: state.problems,
@@ -150,18 +150,20 @@ async function main(): Promise<void> {
             ? {
                 deviceId: state.deviceId,
                 webOrigin: state.webOrigin,
-                hasMultizenToken: state.hasMultizenToken,
+                hasMktBrowserToken: tokenStatus.available,
+                mktBrowserTokenSource: tokenStatus.source,
               }
             : null,
-          // Hỏi MultiZen NGAY lúc vẽ trang. Người cài mở trang này chính là để biết MultiZen
-          // có nối được không — in ra một kết quả nhớ từ lần nào đó trước là trả lời câu hỏi
-          // của họ bằng tin cũ. Chưa điền token thì không hỏi được: `null`, và trang nói đúng
-          // là "chưa điền token" chứ không phải "không nối được".
-          antidetectReady: state.hasMultizenToken ? await state.antidetect.isReady() : null,
-        }),
+          // Probe MKT Browser while rendering the page. The installer opens this page to see
+          // whether it is reachable, so a cached result would answer with stale state. Without a
+          // token the probe cannot run: `null` lets the page report "token not configured" instead
+          // of "cannot connect".
+          antidetectReady: tokenStatus.available ? await state.antidetect.isReady() : null,
+        });
+      },
       [RELAY_PATHS.secret]: renderSecretPage,
     },
-    routes: {
+    routes: defineRelayRoutes({
       [RELAY_PATHS.health]: async () => ({
         ok: state.problems.length === 0,
         message: state.problems.length === 0 ? "Cầu nối sẵn sàng." : notConfiguredMessage(),
@@ -173,6 +175,9 @@ async function main(): Promise<void> {
         deviceId: state.deviceId,
         webOrigin: state.webOrigin,
         antidetectReady: await state.antidetect.isReady(),
+        // Bốn tầng của CHÍNH máy này. Web dùng nó để nói đúng chỗ hỏng thay vì "không kết nối
+        // được", và để chặn sớm một máy chạy bản hợp đồng khác.
+        browser: await state.antidetect.describeRuntime(),
       }),
       [RELAY_PATHS.configure]: (request, body) =>
         handleConfigure(request, body, {
@@ -214,7 +219,7 @@ async function main(): Promise<void> {
           home,
           onConfigured: reloadConfig,
         }),
-    },
+    }),
   });
 
   await listenOnLoopback(server);

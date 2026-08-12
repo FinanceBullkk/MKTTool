@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { Card, EmptyState, PageHeading } from "@/components/ui/page-section";
 import { formatFullDateTime } from "@/lib/format/vietnamese-date-format";
-import { RELAY_VERSION } from "@/lib/relay/relay-endpoints";
 import {
   formatFileSize,
   readRelayRelease,
@@ -45,7 +44,7 @@ export default async function RelayDownloadPage() {
         description="Cầu nối là chương trình chạy trên chính máy bạn. Nó giữ khóa mở bí mật nick — thứ mà máy chủ cố ý không có — nên không lấy được mật khẩu, mã OTP hay mở được profile nếu máy bạn chưa cài nó."
       />
 
-      <Card title={`Bản ${RELAY_VERSION}`}>
+      <Card title={release.available ? `Bản ${release.version}` : "Bản hiện tại"}>
         {release.available ? (
           <div className="space-y-4">
             <dl className="grid gap-x-8 gap-y-2 text-sm sm:grid-cols-[auto_1fr]">
@@ -55,8 +54,8 @@ export default async function RelayDownloadPage() {
               <dd>{formatFullDateTime(release.builtAt)}</dd>
             </dl>
 
-            <a href="/api/relay/download" className={BUTTON_CLASS} download>
-              Tải {relayDownloadFileName()}
+            <a href={`/api/relay/download/v${release.version}`} className={BUTTON_CLASS} download>
+              Tải {relayDownloadFileName(release.version)}
             </a>
 
             <p className="text-xs text-neutral-500">
@@ -79,7 +78,7 @@ export default async function RelayDownloadPage() {
                 <p className="pt-1 text-xs text-neutral-500">
                   Tải xong, mở PowerShell ở thư mục chứa file rồi chạy{" "}
                   <code className="font-mono">
-                    Get-FileHash {relayDownloadFileName()} -Algorithm SHA256
+                    Get-FileHash {relayDownloadFileName(release.version)} -Algorithm SHA256
                   </code>{" "}
                   — hai chuỗi phải khớp. Lệch nghĩa là file tải dở dang hoặc không phải bản này;
                   tải lại, đừng chạy.

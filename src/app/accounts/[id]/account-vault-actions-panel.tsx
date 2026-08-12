@@ -31,10 +31,11 @@
  *
  * ## Mở profile chạy LÂU, và hạn giờ mặc định không hợp với nó
  *
- * Cầu nối phải đẩy proxy vào profile rồi bật một cửa sổ Chromium thật — hai lượt làm việc nặng.
- * Với hạn giờ 4 giây mặc định, trang này bỏ cuộc trong khi cửa sổ vẫn đang mở ra, rồi báo *"trình
- * duyệt không cho trang này gọi xuống máy"*. Đã vấp thật 07/08/2026: profile hiện `running` bên
- * MultiZen trong lúc màn hình báo hỏng. Xem `RELAY_PROFILE_WORK_TIMEOUT_MS`.
+ * The Relay must apply the proxy to the profile and then open a real Chromium window, both of
+ * which are expensive operations. With the default four-second timeout, this page gives up while
+ * the window is still opening and reports that the browser blocked access to the local machine.
+ * This happened on 2026-08-07: the MKT Browser profile was `running` while the UI reported a
+ * failure. See `RELAY_PROFILE_WORK_TIMEOUT_MS`.
  */
 import { useState } from "react";
 import {
@@ -51,8 +52,14 @@ import {
   type RelayOutcome,
 } from "@/lib/relay/relay-browser-client";
 import { RELAY_PROFILE_WORK_TIMEOUT_MS, relaySecretUrl } from "@/lib/relay/relay-endpoints";
+import type { RelayOperationDiagnostic } from "@/lib/relay/relay-endpoints";
+import { RelayOperationDiagnosticDetails } from "@/components/relay/relay-operation-diagnostic-details";
 
-type Feedback = { kind: "ok" | "error"; text: string } | null;
+type Feedback = {
+  kind: "ok" | "error";
+  text: string;
+  diagnostic?: RelayOperationDiagnostic;
+} | null;
 
 const BUTTON_CLASS =
   "rounded-md border border-neutral-300 px-3 py-1.5 text-sm transition " +
@@ -272,7 +279,11 @@ export function AccountVaultActionsPanel({
       noteRelayVersion(sent);
 
       if (sent.status === "ok") {
-        setFeedback({ kind: "ok", text: `${sent.data.message} ${body.message}` });
+        setFeedback({
+          kind: "ok",
+          text: `${sent.data.message} ${body.message}`,
+          diagnostic: sent.data.diagnostic,
+        });
         return;
       }
 
@@ -287,6 +298,7 @@ export function AccountVaultActionsPanel({
             ? `${describeSlowRelayFailure(sent, "mở profile")} Nhìn màn hình xem có cửa sổ trình ` +
               `duyệt mới hiện ra không trước khi bấm lại.`
             : describeRelayFailure(sent, health),
+        diagnostic: sent.status === "rejected" ? sent.data?.diagnostic : undefined,
       });
     } catch {
       setFeedback({ kind: "error", text: "Không gọi được API phát vé mở profile." });
@@ -405,15 +417,18 @@ export function AccountVaultActionsPanel({
       ) : null}
 
       {feedback ? (
-        <p
-          className={
-            feedback.kind === "ok"
-              ? "text-sm text-emerald-700 dark:text-emerald-400"
-              : "text-sm text-red-700 dark:text-red-400"
-          }
-        >
-          {feedback.text}
-        </p>
+        <div className="space-y-2">
+          <p
+            className={
+              feedback.kind === "ok"
+                ? "text-sm text-emerald-700 dark:text-emerald-400"
+                : "text-sm text-red-700 dark:text-red-400"
+            }
+          >
+            {feedback.text}
+          </p>
+          <RelayOperationDiagnosticDetails diagnostic={feedback.diagnostic} />
+        </div>
       ) : null}
     </div>
   );

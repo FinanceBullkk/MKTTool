@@ -98,10 +98,11 @@ export async function resolveTicketRecipient(
  *
  * ## Vì sao đảo chiều so với `resolveTicketRecipient`
  *
- * `Account.antidetectProfileId` là khóa chính của một file SQLite trên đúng một máy: MultiZen
- * không đồng bộ profile. Nên "máy của người đang bấm" là một câu trả lời **đoán**, và nó sai
- * mỗi khi người bấm không phải chủ nick — cầu nối bên kia không có profile đó và chỉ báo được
- * một lỗi mơ hồ. Hỏi thẳng cuốn sổ thì câu trả lời là sự thật, và ca hỏng nói được nguyên nhân.
+ * `Account.antidetectProfileId` is the primary key of a SQLite file on exactly one machine. MKT
+ * Browser does not synchronize profiles, so "the machine of the person clicking" is a **guess**.
+ * It fails whenever that person is not the account owner because the other Relay does not have the
+ * profile and can report only a vague error. Reading the registry directly yields the true machine
+ * and an actionable failure reason.
  *
  * Mật khẩu nick cũng đi đường này: nó được gõ vào chính profile ấy, tức chỉ có nghĩa ở đúng
  * chiếc máy ấy. Phụ phẩm là mật khẩu proxy trong ruột vé `LAUNCH_PROFILE` chỉ tới được chiếc

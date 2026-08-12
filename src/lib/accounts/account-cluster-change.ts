@@ -50,8 +50,8 @@ export interface ClusterChange {
  * của database, nên chỗ đúng để can thiệp là câu chữ cộng dấu vết trong sổ.
  */
 export const DEVICE_MOVE_WARNING =
-  "Profile MultiZen KHÔNG tự đi theo: export ở máy cũ → import ở máy mới → **xóa bản ở máy cũ**. " +
-  "Bỏ bước cuối là nick sống ở hai máy cùng lúc, đúng thứ dễ mất nick nhất.";
+  "MKT Browser profiles DO NOT move automatically: export on the old machine -> import on the new machine -> **delete the copy on the old machine**. " +
+  "Skipping the last step leaves the account active on two machines at once, which is one of the easiest ways to lose it.";
 
 export function describeClusterChange(input: ClusterChangeInput): ClusterChange {
   const { before, after, ownerEmail, deviceName, previousDeviceName } = input;

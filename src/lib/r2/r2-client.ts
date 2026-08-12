@@ -117,6 +117,8 @@ export async function putObject(options: {
   contentType: string;
   /** Metadata tự đặt. Tên được thêm tiền tố `x-amz-meta-` trước khi ký. */
   metadata?: Record<string, string>;
+  /** Prevent overwriting an existing immutable object. */
+  ifNoneMatch?: "*";
   now?: Date;
   timeoutMs?: number;
   fetchImpl?: typeof fetch;
@@ -127,6 +129,7 @@ export async function putObject(options: {
     body,
     contentType,
     metadata = {},
+    ifNoneMatch,
     now = new Date(),
     timeoutMs = 60_000,
     fetchImpl = fetch,
@@ -144,6 +147,7 @@ export async function putObject(options: {
     payloadSha256: sha256Hex(body),
     headers: {
       "content-type": contentType,
+      ...(ifNoneMatch ? { "if-none-match": ifNoneMatch } : {}),
       ...Object.fromEntries(
         Object.entries(metadata).map(([name, value]) => [
           `${METADATA_PREFIX}${name.toLowerCase()}`,
@@ -256,11 +260,12 @@ export async function headObject(options: {
 export async function getObject(options: {
   config: R2Config;
   key: string;
+  range?: string;
   now?: Date;
   timeoutMs?: number;
   fetchImpl?: typeof fetch;
 }): Promise<{ info: R2ObjectInfo; body: ReadableStream<Uint8Array> }> {
-  const { config, key, now = new Date(), timeoutMs = 120_000, fetchImpl = fetch } = options;
+  const { config, key, range, now = new Date(), timeoutMs = 120_000, fetchImpl = fetch } = options;
 
   const host = r2Host(config.accountId);
   const path = objectPath(config, key);
@@ -272,6 +277,7 @@ export async function getObject(options: {
     host,
     payload: Buffer.alloc(0),
     payloadSha256: EMPTY_PAYLOAD_SHA256,
+    headers: range ? { range } : undefined,
     now,
   });
 

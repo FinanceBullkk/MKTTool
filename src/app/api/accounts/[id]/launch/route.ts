@@ -3,10 +3,10 @@
  *
  * ## Route này từng tự mở profile. Nay nó phát vé, và lý do là địa lý
  *
- * MultiZen chỉ nghe `127.0.0.1:7777` và không có tài liệu cho đổi địa chỉ nghe. Chừng nào app
- * còn chạy trên đúng chiếc máy có MultiZen thì máy chủ tự gọi được; từ lúc app lên Railway
- * (GĐ5) thì `127.0.0.1` của máy chủ là một máy khác hẳn, cách người vận hành nửa vòng trái đất.
- * Nên việc mở profile phải rời sang cầu nối, và thứ máy chủ gửi đi là một tấm vé.
+ * MKT Browser exposes its configurable MCP server only on the operator machine loopback interface.
+ * While this app runs on that same machine, the server can call it directly. Once the app runs on
+ * Railway, the server loopback points to a different machine, so profile launch must go through the
+ * operator Relay and the server sends a signed ticket instead.
  *
  * ## Năm lớp chặn, và chỉ lớp cuối rời khỏi máy chủ
  *
@@ -17,19 +17,21 @@
  *     sắp lộ ra bằng IP nào.
  *  4. Nick phải ĐANG GHIM vào một chiếc máy còn dùng được, **và người bấm phải là chủ chiếc máy
  *     đó** — **ở đây**, xem `resolveNickDeviceRecipient`.
- *  5. Proxy phải ĐẨY ĐƯỢC sang trình duyệt, đẩy hỏng thì không mở — **ở cầu nối** (GĐ4), vì chỉ
- *     nó nói chuyện được với MultiZen. Quy tắc không đổi, chỗ thi hành thì đổi.
+ *  5. The proxy must be applied successfully before the browser opens. The **Relay** enforces this
+ *     because only it can communicate with MKT Browser. The rule stays the same; only the
+ *     enforcement point moves.
  *
  * Bốn lớp đầu chạy TRƯỚC khi phát vé có chủ ý: vé đã ký là đã ra khỏi tầm với: máy chủ không thu
  * hồi được tấm vé nào. Kiểm sau khi ký là kiểm quá muộn.
  *
  * ## Lớp 4 thêm vào 07/08/2026, và nó đóng hai lỗ cùng lúc
  *
- * Trước đó vé bay về **máy của người đang bấm**. Bấm nút trên nick của đồng nghiệp thì máy chủ
- * vẫn phát vé, cầu nối bên kia không có profile đó và chỉ báo được một lỗi MultiZen mơ hồ. Tệ
- * hơn: ruột vé chứa **mật khẩu proxy đã giải mã**, và vé mở profile cố ý không bị đếm hạn nhịp —
- * nên bất kỳ ai đăng nhập được cũng rút được mật khẩu của cả kho proxy bằng cách bấm nút, dù
- * `/proxies` không bao giờ hiện mật khẩu ra màn hình.
+ * Previously, the ticket went to the **machine of the person clicking the button**. Clicking an
+ * account owned by a colleague still issued a ticket, but the other Relay did not have that
+ * profile and could only report a vague MKT Browser error. Worse, the ticket contains the
+ * **decrypted proxy password**, and launch tickets intentionally bypass rate limiting. Any signed-in
+ * user could therefore extract passwords for the entire proxy vault by clicking the button even
+ * though `/proxies` never displays those passwords.
  *
  * Hỏi cuốn sổ *"nick này nằm ở máy nào"* thay vì đoán *"chắc là máy người đang bấm"* đóng cả hai.
  *

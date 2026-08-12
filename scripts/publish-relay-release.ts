@@ -23,18 +23,18 @@
  * là kiểu hỏng tệ nhất ở đây — người cài đối chiếu thấy lệch rồi kết luận file hỏng.
  */
 import { readFileSync } from "node:fs";
-import { RELAY_VERSION } from "../src/lib/relay/relay-endpoints";
 import {
   formatFileSize,
-  readRelayReleaseFromDisk,
-  relayArchiveChecksum,
   relayArchivePath,
 } from "../src/lib/relay/relay-release-file";
+import { readVerifiedRelayPublishArtifact } from "../src/lib/relay/relay-publish-artifact-validation";
 import {
   CHECKSUM_METADATA_KEY,
-  RELAY_RELEASE_R2_KEY,
+  VERSION_METADATA_KEY,
   checksumOf,
   headRelayRelease,
+  relayReleaseR2Key,
+  versionOf,
 } from "../src/lib/relay/relay-release-r2";
 import { putObject } from "../src/lib/r2/r2-client";
 import { readR2Config, RELAY_RELEASE_R2_ENV } from "../src/lib/r2/r2-config";
@@ -52,35 +52,44 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  // Đọc thẳng từ đĩa: thứ sắp đẩy đi là gói **vừa build**, không phải gói đang nằm trên R2.
-  const local = readRelayReleaseFromDisk();
+  // Validate the build sidecar before any R2 read or write. Immutable object names make stale
+  // metadata unrecoverable after publication, so every local byte must match the build record.
+  const { local, checksum } = await readVerifiedRelayPublishArtifact();
 
-  if (!local.available) {
-    console.error(
-      `\nKhông thấy gói ở ${local.expectedPath}.\n` +
-        `Chạy "npm run relay:build" trước — trên chính máy Windows này.\n`,
-    );
-    process.exit(1);
-  }
-
-  const checksum = await relayArchiveChecksum(local);
-  if (!checksum) {
-    console.error("\nKhông băm được gói. Kiểm tra lại file rồi chạy lại.\n");
-    process.exit(1);
-  }
-
-  console.log(`\nPhát hành cầu nối bản ${RELAY_VERSION}`);
+  const objectKey = relayReleaseR2Key(local.version);
+  console.log(`\nPhát hành cầu nối bản ${local.version}`);
   console.log(`  Nguồn:   ${relayArchivePath()} — ${formatFileSize(local.sizeBytes)}`);
-  console.log(`  Đích:    ngăn "${config.bucket}", object "${RELAY_RELEASE_R2_KEY}"`);
+  console.log(`  Đích:    ngăn "${config.bucket}", object "${objectKey}"`);
   console.log(`  SHA-256: ${checksum}`);
+
+  const existing = await headRelayRelease(config, local.version);
+  if (existing) {
+    if (
+      existing.sizeBytes !== local.sizeBytes ||
+      checksumOf(existing) !== checksum ||
+      versionOf(existing) !== local.version
+    ) {
+      console.error(
+        `\nObject bất biến ${objectKey} đã tồn tại nhưng không khớp artifact cục bộ. ` +
+          `Tăng phiên bản Relay; không được ghi đè cùng một URL bằng bytes khác.\n`,
+      );
+      process.exit(1);
+    }
+    console.log(`\n✅ ${objectKey} đã tồn tại với đúng bytes và metadata; không tải lên lại.\n`);
+    return;
+  }
 
   console.log("\nĐang tải lên…");
   await putObject({
     config,
-    key: RELAY_RELEASE_R2_KEY,
+    key: objectKey,
     body: readFileSync(relayArchivePath()),
     contentType: "application/zip",
-    metadata: { [CHECKSUM_METADATA_KEY]: checksum },
+    metadata: {
+      [CHECKSUM_METADATA_KEY]: checksum,
+      [VERSION_METADATA_KEY]: String(local.version),
+    },
+    ifNoneMatch: "*",
     // 32 MB qua một đường lên nhà dân có thể lâu hơn một phút. Mặc định 60 giây của `putObject`
     // hợp với bản sao lưu vài chục KB, không hợp với đây.
     timeoutMs: 10 * 60_000,
@@ -90,7 +99,7 @@ async function main(): Promise<void> {
   // nằm trên đó là thứ mình định gửi — và ca hỏng đáng sợ là metadata mã băm không bám vào object,
   // vì lúc đó trang tải im lặng bỏ cột SHA-256 mà không ai để ý.
   console.log("Đang đối chiếu lại từ R2…");
-  const remote = await headRelayRelease(config);
+  const remote = await headRelayRelease(config, local.version);
   if (!remote) {
     console.error("\nĐẩy xong nhưng đọc lại không thấy object. Kiểm tra quyền của token.\n");
     process.exit(1);
@@ -102,6 +111,9 @@ async function main(): Promise<void> {
   }
   if (checksumOf(remote) !== checksum) {
     problems.push(`metadata "${CHECKSUM_METADATA_KEY}" không khớp — trang tải sẽ không hiện mã băm`);
+  }
+  if (versionOf(remote) !== local.version) {
+    problems.push(`metadata "${VERSION_METADATA_KEY}" không khớp artifact cục bộ`);
   }
 
   if (problems.length > 0) {

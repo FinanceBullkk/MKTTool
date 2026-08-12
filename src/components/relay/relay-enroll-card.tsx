@@ -34,6 +34,8 @@ import {
   type RelayOutcome,
 } from "@/lib/relay/relay-browser-client";
 import { RELAY_ORIGIN, type RelayHealth, type RelayReply } from "@/lib/relay/relay-endpoints";
+import type { RelayBrowserHealth } from "@/lib/relay/relay-endpoints";
+import { currentDeviceBrowserReadiness } from "@/lib/relay/current-device-browser-health";
 import {
   enrollThisMachine,
   markOperatorKeyReady,
@@ -46,7 +48,12 @@ interface TeamMember {
 }
 
 /** Cầu nối trên máy này đang ở đâu trong quá trình cài. */
-type Found = { publicKey: string; configured: boolean; deviceId: string | null };
+type Found = {
+  publicKey: string;
+  configured: boolean;
+  deviceId: string | null;
+  browser: RelayBrowserHealth;
+};
 
 /**
  * Nhịp hỏi lại khi đang đợi quản trị viên cấp khóa.
@@ -60,6 +67,17 @@ const NOTE_CLASS = "text-xs text-neutral-500";
 const BUTTON_CLASS =
   "rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white transition " +
   "hover:bg-neutral-700 disabled:opacity-50 dark:bg-neutral-100 dark:text-neutral-900";
+
+const OFFLINE_BROWSER: RelayBrowserHealth = {
+  ready: false,
+  provider: null,
+  appVersion: null,
+  contractVersion: null,
+  contractCompatible: false,
+  contractProblem: "",
+  engine: null,
+  capabilities: [],
+};
 
 export function RelayEnrollCard({
   teamMembers,
@@ -135,6 +153,7 @@ export function RelayEnrollCard({
           publicKey: data.publicKey,
           configured: data.configured ?? false,
           deviceId: data.deviceId ?? null,
+          browser: data.browser ?? OFFLINE_BROWSER,
         });
       } else {
         // Trả lời được mà không có khóa công khai thì thứ đang nghe ở cổng đó nhiều khả năng
@@ -260,11 +279,29 @@ export function RelayEnrollCard({
             </span>
           </p>
 
-          {found.configured ? (
+          {found.configured && currentDeviceBrowserReadiness(found.browser).ready ? (
             <p className="text-sm text-emerald-700 dark:text-emerald-400">
-              Máy này đã sẵn sàng{found.deviceId ? ` (mã ${found.deviceId})` : ""}. Lấy mật khẩu,
-              OTP và mở profile đều dùng được từ đây.
+              This PC is ready{found.deviceId ? ` (${found.deviceId})` : ""}. Relay, MKT Browser,
+              the browser engine, and the managed-profile contract are live on this device.
             </p>
+          ) : found.configured ? (
+            <div className="space-y-2 rounded-md border border-red-200 bg-red-50 p-3 dark:border-red-900/50 dark:bg-red-950/30">
+              <p className="text-sm font-medium text-red-900 dark:text-red-200">This PC needs repair.</p>
+              <p className="text-sm text-red-800 dark:text-red-300">
+                {currentDeviceBrowserReadiness(found.browser).message}
+              </p>
+              <details className="text-xs text-neutral-600 dark:text-neutral-400">
+                <summary className="cursor-pointer">Support details</summary>
+                <div className="mt-2 space-y-1 font-mono">
+                  <p>Provider: {found.browser.provider ?? "not detected"}</p>
+                  <p>App: {found.browser.appVersion ?? "unknown"}</p>
+                  <p>Contract: {found.browser.contractVersion ?? "unknown"}</p>
+                  <p>
+                    Engine: {found.browser.engine?.kind ?? "unknown"} / {found.browser.engine?.version ?? "unknown"} / {found.browser.engine?.status ?? "offline"}
+                  </p>
+                </div>
+              </details>
+            </div>
           ) : found.deviceId ? (
             <div className="space-y-2 rounded-md border border-amber-200 bg-amber-50 p-3 dark:border-amber-900/50 dark:bg-amber-950/30">
               <p className="text-sm text-amber-900 dark:text-amber-200">

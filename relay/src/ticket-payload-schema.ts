@@ -82,10 +82,10 @@ function reviewProxy(value: unknown): AntidetectProxyConfig {
 /**
  * Vân tay trong vé tạo profile.
  *
- * Chỉ kiểm **hình dạng**, không kiểm nội dung: "timezone này có thuộc locale kia không" là câu
- * MultiZen tự trả lời và trả lời tốt hơn — nó từ chối tổ hợp mâu thuẫn kèm danh sách giá trị hợp
- * lệ. Dựng thêm một bảng đối chiếu ở đây là dựng một bản sao sẽ mục vào ngày họ thêm locale mới,
- * và bản mục đó sẽ chặn nhầm những tổ hợp vốn hợp lệ.
+ * Validate the **shape**, not the semantics. MKT Browser can answer questions such as whether a
+ * timezone belongs to a locale more accurately: it rejects contradictory combinations and lists
+ * valid values. Duplicating that lookup here would create a stale copy as soon as a locale is
+ * added, which could incorrectly block valid combinations.
  */
 function reviewFingerprint(value: unknown): {
   device: string;
@@ -162,6 +162,7 @@ export function reviewTicketPayload(kind: string, payload: unknown): TicketPaylo
       return {
         kind: TICKET_KINDS.CREATE_PROFILE,
         accountId: requireString(source, "accountId"),
+        requestId: requireString(source, "requestId"),
         profileName: requireString(source, "profileName"),
         proxy: reviewProxy(source.proxy),
         fingerprint: reviewFingerprint(source.fingerprint),

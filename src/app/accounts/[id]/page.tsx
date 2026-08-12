@@ -250,9 +250,10 @@ export default async function AccountDetailPage({
             <strong>gỡ chủ</strong>, và gỡ chủ thì gỡ luôn máy.
           </p>
           <p className="mb-4 text-sm text-amber-700 dark:text-amber-400">
-            <strong>Đổi sang máy khác:</strong> profile MultiZen không tự đi theo. Export ở máy cũ
-            → import ở máy mới → <strong>xóa bản ở máy cũ</strong>. Bỏ bước cuối là nick sống ở hai
-            máy cùng lúc — một phiên đăng nhập, hai bộ tín hiệu thiết bị.
+            <strong>Moving to another machine:</strong> MKT Browser profiles do not move
+            automatically. Export on the old machine -&gt; import on the new machine -&gt;{" "}
+            <strong>delete the copy on the old machine</strong>. Skipping the last step leaves the
+            account active on two machines at once: one session with two device-signal sets.
           </p>
 
           {teamMembers.length === 0 ? (

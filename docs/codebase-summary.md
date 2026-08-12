@@ -1,6 +1,6 @@
 # Bản đồ mã nguồn
 
-**Cập nhật:** 08/08/2026
+**Cập nhật:** 10/08/2026
 
 Tài liệu dành cho người mới và AI agent định vị nhanh trong codebase — **code nằm ở đâu**.
 Hệ thống chạy ở đâu và phụ thuộc gì thì xem [system-architecture.md](system-architecture.md);
@@ -43,7 +43,8 @@ src/
 └── lib/
     ├── accounts/               Server actions + quy tắc trạng thái nick
     ├── actions/                Kiểu ActionResult dùng chung cho mọi server action
-    ├── antidetect/             Adapter MultiZen / AdsPower (đổi bằng 1 dòng .env)
+    ├── antidetect/             `MktBrowserAdapter`, owned MCP client/contract, and AdsPower adapter;
+    │                           production runs through Relay with no legacy provider fallback
     ├── audit/                  Tên các loại thao tác ghi vào `AuditLog.action` — gom một chỗ vì
     │                           gõ sai một chữ thì hàng vẫn ghi, chỉ câu truy vấn sau này là hụt
     ├── auth/                   Đăng nhập Google, danh sách email cho phép, gác lối vào, hai vai trò
@@ -105,9 +106,14 @@ scripts/
 ├── smoke-test-identity-vault.ts  Kiểm chứng Phase 01
 ├── smoke-test-content-rules.ts   Kiểm chứng Phase 02
 ├── smoke-test-account-health.ts  Kiểm chứng Phase 03 (có phần đọc HTML Reddit thật)
-└── smoke-test-facebook-pages.ts  Kiểm chứng Phase 04 (không cần Meta App)
+├── smoke-test-facebook-pages.ts  Kiểm chứng Phase 04 (không cần Meta App)
+└── smoke-test-mkt-browser-correct-proxy.ts  Verifies the disposable MKT Browser correct-proxy
+                                 path without printing or retaining proxy credentials
 relay/                          **Chương trình riêng**, chạy trên máy operator — không phải một
-├── src/                        phần của web app. Nghe `127.0.0.1:47821`, giữ khóa vùng operator,
+├── src/                        phần của web app. Nghe `127.0.0.1:47821`, giữ khóa vùng operator;
+│   ├── relay-route-policy.ts   typed method/capability inventory for every owned JSON endpoint
+│   ├── operation-diagnostics.ts  keeps operation correlation and emits metadata-only support detail
+│   └── mkt-browser-token-discovery.ts  validates and reads the owned Windows MCP token on demand
 ├── install-relay.ps1           là chỗ DUY NHẤT trong cả hệ mở được mật khẩu nick. Không có đường
 └── setup.bat                   vào database; có test hình dạng mã nguồn chặn nó import `prisma`,
                                 `next`, React và lớp phân quyền
@@ -189,25 +195,30 @@ biến mất. Khác biệt duy nhất giữa hai nền tảng là số ô nhập
 ## Luồng mở profile antidetect
 
 ```
-Bấm "Mở profile" → POST /api/accounts/[id]/launch
-  1. Chặn theo trạng thái nick    → account-status.ts (canLaunch)
-  2. Dựng cấu hình proxy          → antidetect/proxy-config-builder.ts (giải mã passwordEnc)
-  3. ĐẨY proxy vào profile        → adapter.applyProxy()   ← hỏng thì DỪNG, không mở
-  4. Mở profile                   → adapter.launchProfile()
-  5. Ghi AuditLog PROFILE_LAUNCHED kèm nhãn proxy + giao thức
+Click "Open profile" → POST /api/accounts/[id]/launch
+  1. The server rejects an unsafe account state, missing profile/proxy, or dead proxy
+  2. The server selects the bound device and issues a signed, recipient-encrypted ticket
+  3. The Web browser sends the ticket to Relay at 127.0.0.1:47821
+  4. Relay verifies signature, recipient, expiry, and replay state
+  5. Relay v7 preserves ticket jti as operationId and requires the current Browser runtime to be ready
+  6. MKT Browser contract v3 persists + reads back the proxy, then launches atomically
+  7. Relay accepts only a correlated metadata-only diagnostic and returns support detail to the Web
+  8. The server records PROFILE_LAUNCH_TICKET_ISSUED; it does not claim the window opened
 ```
 
-Thứ tự 3 trước 4 là bắt buộc: đổi proxy sau khi profile đã mở thì phiên đang chạy vẫn đi bằng
-IP cũ. Đẩy thất bại mà vẫn mở là mở bằng IP nhà — nên mọi đường thất bại ở bước 2/3 đều chặn hẳn.
+Proxy persistence still must precede launch: changing it after Chromium starts does not change the
+running session. Contract v3 owns that ordering in `launch_managed_profile`; it rejects a running
+profile whose active proxy differs and never falls back after an atomic rejection. Direct launch and
+ordinary proxy/fingerprint mutation are denied for managed profiles.
 
-| Provider | Đẩy proxy bằng |
+| Provider | Proxy application path |
 |---|---|
-| MultiZen | tool MCP `update_profile`, field `proxy: { type: http\|socks5, host, port, username?, password? }` |
-| AdsPower | `POST /api/v1/user/update` với `user_proxy_config.proxy_soft = "other"`; adapter tự giãn 1,1s/lời gọi cho khỏi vượt hạn mức 1 req/s |
+| MKT Browser | authenticated MCP tool `launch_managed_profile` on default port `47822`; contract v3 persists and verifies `proxy: { type: http\|socks5, host, port, username?, password? }` before launch, while responses expose no endpoint or credentials |
+| AdsPower | `POST /api/v1/user/update` with `user_proxy_config.proxy_soft = "other"`; the adapter spaces calls by 1.1 seconds to stay below the 1 request/second limit |
 
-Mật khẩu proxy dạng trần chỉ tồn tại trong `proxy-config-builder.ts` và lời gọi adapter. Thông
-báo lỗi của cả hai adapter đều che mật khẩu trước khi trả về — API của provider hay vọng lại
-nguyên tham số đã gửi.
+Mật khẩu proxy dạng trần đi đúng một đường có kiểm soát:
+`proxy-config-builder.ts` → ruột vé đã bọc cho đúng máy → Cầu nối → lời gọi adapter. Thông báo lỗi
+của adapter che mật khẩu trước khi trả về — API của provider hay vọng lại nguyên tham số đã gửi.
 
 ---
 

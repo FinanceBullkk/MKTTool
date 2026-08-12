@@ -1,46 +1,88 @@
 /**
- * Mở một profile antidetect từ vé đã xác minh.
+ * Open an antidetect profile from an already verified ticket.
  *
- * ## Đẩy proxy hỏng thì KHÔNG mở profile
+ * A proxy failure must stop launch: opening on the operator's home IP can burn the account. MKT
+ * Browser contract v2 owns persistence, verification, and launch as one atomic operation. Older
+ * providers keep the strict `applyProxy` then `launchProfile` fallback, where a failed first step
+ * always prevents the second.
  *
- * Luật này có từ `antidetect-browser-adapter.ts` và không được nới ở đây: profile mở ra mà proxy
- * chưa vào là nick đăng nhập bằng IP nhà, và **mất nick là mất hẳn** — không có thao tác nào gỡ
- * lại được sau đó. Thà không mở còn hơn mở sai IP.
- *
- * Thứ tự vì vậy là bắt buộc: `applyProxy` xong mới `launchProfile`. Adapter đã viết đúng thứ tự
- * đó; việc của file này là **không** thêm đường nào đi vòng qua nó.
- *
- * ## Vì sao câu trả lời nhắc tên proxy
- *
- * Người bấm nút không nhìn thấy gì ngoài một dòng chữ — profile mở ra ở cửa sổ khác. Nhắc đúng
- * nhãn proxy vừa đẩy là cách duy nhất họ đối chiếu được "đúng nick, đúng IP" mà không phải mở
- * cài đặt MultiZen ra dò.
+ * The response names the assigned proxy label so the operator can confirm the intended identity
+ * without opening technical MKT Browser settings.
  */
 import { AntidetectError } from "../../src/lib/antidetect/antidetect-browser-adapter";
 import { TICKET_KINDS, type TicketPayload } from "../../src/lib/tickets/ticket-types";
 import type { RelayAntidetect } from "./relay-antidetect";
 import type { RelayResponseBody } from "./relay-http-server";
+import type { RelayOperationDiagnostic } from "../../src/lib/relay/relay-endpoints";
+import { relayOperationDiagnostic } from "./operation-diagnostics";
 
-/** Ruột vé mở profile — thu hẹp từ union để chỗ gọi không phải ép kiểu. */
+/** Narrow the ticket union once so callers never cast launch payloads. */
 type LaunchPayload = Extract<TicketPayload, { kind: typeof TICKET_KINDS.LAUNCH_PROFILE }>;
 
 export async function launchProfileFromTicket(
   payload: LaunchPayload,
   antidetect: RelayAntidetect,
+  operationId: string,
 ): Promise<RelayResponseBody> {
+  const startedAt = Date.now();
+  try {
+    await antidetect.requireOperationalRuntime();
+  } catch (error) {
+    return {
+      ok: false,
+      message: error instanceof Error ? error.message : String(error),
+      diagnostic: relayOperationDiagnostic({ operationId, startedAt, stage: "browser-health" }),
+    };
+  }
   const adapter = antidetect.getAdapter();
+
+  if (adapter.launchProfileWithProxy) {
+    let launched;
+    try {
+      launched = await adapter.launchProfileWithProxy(
+        payload.antidetectProfileId,
+        payload.proxy,
+        { operationId },
+      );
+    } catch (error) {
+      antidetect.forgetProbe();
+      return {
+        ok: false,
+        message:
+          `Could not safely open the profile with proxy "${payload.proxyLabel}". ` +
+          `${describe(error)}`,
+        diagnostic: relayOperationDiagnostic({
+          operationId,
+          startedAt,
+          stage: "launch-profile",
+          code: error instanceof AntidetectError ? error.code : undefined,
+          browser: error instanceof AntidetectError ? error.diagnostic : undefined,
+        }),
+      };
+    }
+
+    return launchSuccess(
+      payload.proxyLabel,
+      relayOperationDiagnostic({
+        operationId,
+        startedAt,
+        stage: "complete",
+        browser: launched.diagnostic,
+      }),
+    );
+  }
 
   try {
     await adapter.applyProxy(payload.antidetectProfileId, payload.proxy);
   } catch (error) {
-    // Hỏng ở bước đẩy proxy thì DỪNG. Quên kết quả kiểm MultiZen đã nhớ, vì "đẩy proxy hỏng"
-    // rất hay là triệu chứng đầu tiên của việc MultiZen vừa tắt.
+    // STOP when applying the proxy fails. Forget the cached MKT Browser probe because a failed
+    // proxy update is often the first sign that MKT Browser just stopped.
     antidetect.forgetProbe();
     return {
       ok: false,
       message:
-        `Không đẩy được proxy "${payload.proxyLabel}" vào profile, nên KHÔNG mở profile — mở ra ` +
-        `lúc này là nick chạy bằng IP nhà. ${describe(error)}`,
+        `Could not apply proxy "${payload.proxyLabel}", so the profile was NOT opened. ` +
+        `${describe(error)}`,
     };
   }
 
@@ -50,24 +92,51 @@ export async function launchProfileFromTicket(
     antidetect.forgetProbe();
     return {
       ok: false,
-      message: `Đã đẩy proxy "${payload.proxyLabel}" nhưng không mở được profile. ${describe(error)}`,
+      message: `Proxy "${payload.proxyLabel}" was applied, but the profile could not open. ${describe(error)}`,
     };
   }
 
+  return launchSuccess(
+    payload.proxyLabel,
+    relayOperationDiagnostic({ operationId, startedAt, stage: "complete" }),
+  );
+}
+
+function launchSuccess(proxyLabel: string, diagnostic: RelayOperationDiagnostic): RelayResponseBody {
   return {
     ok: true,
-    message: `Đã mở profile với proxy "${payload.proxyLabel}". Cửa sổ trình duyệt hiện ở màn hình của bạn.`,
+    message: `Opened the profile with proxy "${proxyLabel}". The browser window is on this PC.`,
+    diagnostic,
   };
 }
 
 /**
- * Câu mô tả lỗi cho người dùng.
+ * Operator remedy selected by the stable MKT Browser error code.
  *
- * `AntidetectError` đã được viết cho người đọc nên dùng nguyên văn. Lỗi lạ thì chỉ lấy
- * `message` — **không** kèm stack, vì cấu hình proxy vừa đi qua đúng những hàm này và một
- * stack trace là chỗ mật khẩu proxy rất dễ lọt ra.
+ * The code is contractual; desktop wording may change. Legacy builds without a code fall back to
+ * the already-redacted adapter message.
+ */
+const REMEDY_BY_CODE: Record<string, string> = {
+  ENGINE_UNAVAILABLE:
+    "The browser engine is not ready. Open MKT Browser, wait for the engine to finish, then retry.",
+  PROXY_REJECTED: "The local proxy path could not start. Check whether the account proxy is alive.",
+  PROFILE_NOT_FOUND:
+    "This PC does not have that profile. Ask an ADMIN before creating or moving it.",
+  PROFILE_NOT_RUNNING: "The profile is not open. Launch it before controlling the page.",
+  PROFILE_ALREADY_RUNNING:
+    "This profile is already running with a different proxy. Close it, then try again.",
+  UNKNOWN_TOOL: "MKT Browser on this PC is too old for this Web build. Update it, then retry.",
+  FORBIDDEN: "MKT Browser blocked this operation under its safety policy.",
+};
+
+/**
+ * Return reviewed copy for known codes. Unknown or legacy failures use only the redacted message,
+ * never a stack trace that could expose proxy configuration.
  */
 function describe(error: unknown): string {
-  if (error instanceof AntidetectError) return error.message;
+  if (error instanceof AntidetectError) {
+    const remedy = error.code ? REMEDY_BY_CODE[error.code] : undefined;
+    return remedy ?? error.message;
+  }
   return error instanceof Error ? error.message : String(error);
 }

@@ -1,6 +1,6 @@
 # Quy ước viết code
 
-**Cập nhật:** 03/08/2026
+**Cập nhật:** 10/08/2026
 
 Quy ước đã dùng thật trong repo này, không phải mong muốn. Sửa code theo tài liệu này thì phần
 sau khớp phần trước. Kiến trúc tổng thể ở [system-architecture.md](system-architecture.md),
@@ -8,13 +8,15 @@ bản đồ file ở [codebase-summary.md](codebase-summary.md).
 
 ---
 
-## 1. Ngôn ngữ
+## 1. Language
 
-**Tiếng Việt: giao diện, thông báo lỗi, chú thích, tài liệu, commit message.**
-**Tiếng Anh: tên biến, tên hàm, tên file, giá trị enum trong database.**
+**English is required for every project artifact:** source comments, identifiers, UI copy, error
+messages, documentation, plans, tests, scripts, installer/release text, and commit messages.
+Vietnamese is reserved for direct conversation with the project owner.
 
-Người dùng công cụ này là bạn MKT người Việt, và thông báo lỗi là thứ họ đọc lúc đang bối rối
-nhất. `"Proxy này đã gắn cho nick khác"` hữu ích hơn `"Unique constraint failed"`.
+Existing Vietnamese files are legacy. Do not add new Vietnamese content. When an actively
+maintained section is materially changed, translate that section or document to English; do not
+rewrite historical records merely to make their language look current.
 
 ## 2. File
 
@@ -28,8 +30,8 @@ nhất. `"Proxy này đã gắn cho nick khác"` hữu ích hơn `"Unique constr
 ## 3. Server action
 
 Mọi server action trả về `ActionResult { ok: boolean; message: string }` (`lib/actions/action-result.ts`).
-`message` là câu tiếng Việt hiện thẳng cho người dùng: **nói điều gì đã xảy ra và làm gì tiếp
-theo**, không phải mã lỗi kỹ thuật.
+`message` is an English sentence shown directly to the user: **state what happened and what to do
+next**, rather than exposing a technical error code.
 
 Đặt tên theo động từ + đối tượng: `createAccount`, `publishJobToPage`, `markJobPosted`.
 Nhóm theo nghiệp vụ trong `lib/<miền>/`, không gom hết vào một file `actions.ts`.
@@ -111,11 +113,11 @@ chứa toàn bộ ciphertext), khóa, token, mật khẩu.
 
 ## 9. Commit message
 
-Conventional commits, phần mô tả bằng tiếng Việt, nói **kết quả** chứ không nói **thao tác**:
+Use Conventional Commits in English and describe the **outcome**, not the editing action:
 
 ```
-feat(health): tự dọn ảnh chụp cũ hơn 30 ngày ở cuối mỗi lượt dò
-fix(facebook): không đẩy job về FAILED sau khi bài đã lên tường
+feat(health): remove screenshots older than 30 days after each run
+fix(facebook): preserve posted jobs when the status callback fails
 ```
 
 Scope theo miền nghiệp vụ: `vault`, `rules`, `queue`, `health`, `facebook`, `antidetect`, `db`,

@@ -1,43 +1,45 @@
-/**
- * Chọn adapter antidetect theo biến môi trường ANTIDETECT_PROVIDER.
- * Đổi nhà cung cấp = sửa một dòng trong .env, không đụng vào code.
- */
+/** Select the browser-profile adapter from the explicit provider configuration. */
 import type { AntidetectAdapter } from "./antidetect-browser-adapter";
 import { AdsPowerAdapter } from "./adspower-adapter";
-import { MultizenAdapter } from "./multizen-adapter";
+import { MktBrowserAdapter } from "./mkt-browser-adapter";
+import {
+  MKT_BROWSER_MCP_TOKEN_ENV,
+  MKT_BROWSER_MCP_URL_ENV,
+  MKT_BROWSER_PROVIDER_SLUG,
+  resolveMktBrowserMcpUrl,
+} from "./mkt-browser-contract";
 
-export type AntidetectProvider = "multizen" | "adspower";
+export type AntidetectProvider = "mkt-browser" | "adspower";
 
-const DEFAULT_MULTIZEN_URL = "http://127.0.0.1:7777";
 const DEFAULT_ADSPOWER_URL = "http://local.adspower.net:50325";
 
 let cachedAdapter: AntidetectAdapter | null = null;
 
 export function createAntidetectAdapter(): AntidetectAdapter {
-  const provider = (process.env.ANTIDETECT_PROVIDER ?? "multizen").toLowerCase();
+  const provider = (process.env.ANTIDETECT_PROVIDER ?? MKT_BROWSER_PROVIDER_SLUG).toLowerCase();
 
   switch (provider) {
-    case "multizen":
-      return new MultizenAdapter(
-        process.env.MULTIZEN_MCP_URL ?? DEFAULT_MULTIZEN_URL,
-        process.env.MULTIZEN_MCP_TOKEN,
+    case "mkt-browser":
+      return new MktBrowserAdapter(
+        resolveMktBrowserMcpUrl(process.env[MKT_BROWSER_MCP_URL_ENV]),
+        process.env[MKT_BROWSER_MCP_TOKEN_ENV],
       );
     case "adspower":
       return new AdsPowerAdapter(process.env.ADSPOWER_API_URL ?? DEFAULT_ADSPOWER_URL);
     default:
       throw new Error(
-        `ANTIDETECT_PROVIDER="${provider}" không hợp lệ. Chỉ nhận "multizen" hoặc "adspower".`,
+        `ANTIDETECT_PROVIDER="${provider}" is invalid. Use "mkt-browser" or "adspower".`,
       );
   }
 }
 
-/** Adapter dùng chung, khởi tạo một lần. */
+/** Shared process-level adapter. */
 export function getAntidetectAdapter(): AntidetectAdapter {
   cachedAdapter ??= createAntidetectAdapter();
   return cachedAdapter;
 }
 
-/** Chỉ dùng trong test. */
+/** Test-only singleton reset. */
 export function resetAntidetectAdapter(): void {
   cachedAdapter = null;
 }

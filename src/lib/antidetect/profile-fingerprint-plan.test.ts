@@ -65,8 +65,8 @@ describe("quốc gia proxy quyết định locale", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.plan.localeId).toBe("en-US");
-    // MultiZen từ chối timezone không thuộc locale (INVALID_INPUT), nên đây là ràng buộc thật
-    // chứ không phải quy ước của riêng ta.
+    // MKT Browser rejects timezones outside the locale (INVALID_INPUT), so this is a real constraint
+    // rather than a local convention.
     expect(OPTIONS.locales[0].timezones).toContain(result.plan.timezone);
   });
 
@@ -95,11 +95,11 @@ describe("quốc gia proxy quyết định locale", () => {
     if (result.ok) return;
     expect(result.failure.reason).toBe("KHONG_CO_QUOC_GIA");
     expect(result.failure.message).toContain("VN");
-    // Câu từ chối phải chỉ ra đường đi tiếp, không chỉ nói "không được".
-    expect(result.failure.message).toContain("bằng tay");
+    // The rejection must explain the next step instead of merely saying that the input is invalid.
+    expect(result.failure.message).toContain("manually");
   });
 
-  it("danh mục rỗng (MultiZen đóng giữa chừng) cũng từ chối, và nói đúng nguyên nhân", () => {
+  it("rejects an empty catalog when MKT Browser closes mid-operation and explains why", () => {
     const result = planProfileFingerprint({
       proxyCountry: "US",
       seedKey: "anna",
@@ -193,7 +193,7 @@ describe("họ thiết bị", () => {
 });
 
 describe("tên profile", () => {
-  it("đoán được và tra được bằng mắt trong danh sách MultiZen", () => {
+  it("creates a predictable name that can be found visually in the MKT Browser list", () => {
     expect(profileNameForNick("REDDIT", "anna")).toBe("REDDIT — anna");
   });
 });

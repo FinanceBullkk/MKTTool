@@ -29,9 +29,6 @@ export function renderOperatorKeyForm(path: string, hasKey: boolean): string {
   <label>Khóa vùng operator (64 ký tự hex)<br>
     <input id="opkey" type="password" autocomplete="off" spellcheck="false" size="70"
            placeholder="${"0".repeat(64)}"></label>
-  <p><label>Token MCP của MultiZen — chỉ cần nếu máy này mở profile<br>
-    <input id="mztoken" type="password" autocomplete="off" spellcheck="false" size="70"
-           placeholder="để trống nếu giữ nguyên"></label></p>
   <p><button type="submit">Lưu vào máy này</button>
   <span id="opmsg" class="muted"></span></p>
 </form>
@@ -48,8 +45,7 @@ export function renderOperatorKeyForm(path: string, hasKey: boolean): string {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        vaultKeyOperator: document.getElementById("opkey").value,
-        multizenToken: document.getElementById("mztoken").value
+        vaultKeyOperator: document.getElementById("opkey").value
       })
     })
       .then(function (r) { return r.json(); })

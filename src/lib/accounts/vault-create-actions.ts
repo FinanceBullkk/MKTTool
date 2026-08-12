@@ -77,9 +77,10 @@ export const createProxy = adminAction(async function createProxy(
  * | `antidetectProfileId` + `deviceId` | nút "Tạo profile trên máy này" ở trang chi tiết |
  * | `firstLoginAt` | nút "Đã đăng nhập được", sau khi đăng nhập thật trong profile |
  *
- * Bản ghi nick **chính là** trạng thái của luồng nhập; `describeAccountReadiness()` đọc nó rồi
- * nói ra việc còn lại. Không có state tạm nào phải giữ giữa các chặng — onboarding một nick kéo
- * dài qua nhiều lượt ngồi (chờ MultiZen, chờ mã Google), và state tạm là thứ mất khi đóng tab.
+ * The account record **is** the onboarding state. `describeAccountReadiness()` reads it and reports
+ * the remaining work. No temporary state must survive between stages because onboarding can span
+ * multiple sessions while waiting for MKT Browser or a Google code, and temporary state disappears
+ * when the tab closes.
  *
  * **Người tạo là chủ nick** (từ 07/08/2026). Trước đó nick sinh ra vô chủ, mà `requireNickOwner()`
  * chặn OPERATOR trên nick vô chủ — nên chính người vừa khai nick cũng không bấm được nút tạo

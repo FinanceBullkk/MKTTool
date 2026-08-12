@@ -67,7 +67,7 @@ export type RelayOutcome<T> =
   /** Cầu nối trả lời và nói việc đã xong. */
   | { status: "ok"; data: T; relayVersion?: number }
   /**
-   * Cầu nối trả lời nhưng từ chối — vé hỏng, MultiZen không mở được, bản quá cũ…
+   * The Relay responded but rejected the request: invalid ticket, MKT Browser unavailable, obsolete version, and similar failures.
    *
    * Mang theo cả `data`, và đó không phải tiện tay giữ lại: `/health` của một chiếc máy **chưa
    * cấu hình xong** trả về `ok: false` — tức đi ra bằng đúng nhánh này — nhưng thân của nó vẫn
@@ -299,12 +299,13 @@ export function describeRelayFailure(
  * định **lời gọi vốn nhanh, treo tức là bị chặn**. Giả định đó là nền của cả ràng buộc 3 ở đầu
  * file, và nó đúng — cho ping, cho lượt bọc bí mật, cho lượt liệt kê profile.
  *
- * Với hai việc bắt MultiZen dựng hoặc bật một trình duyệt thật thì nó **sai**, và sai theo hướng
- * tệ nhất: cử người đi bật lại một quyền vốn không hỏng, trong khi việc họ vừa bấm đã xong rồi.
- * Đã vấp cả hai lần trên máy thật 07/08/2026.
+ * For the two operations that ask MKT Browser to create or launch a real browser, that assumption
+ * is **wrong**, and in the worst way: it sends operators to re-enable a permission that is not
+ * broken even though the operation they requested has already completed. Both cases occurred on a
+ * real machine on 2026-08-07.
  *
- * Nêu cả hai khả năng thay vì khẳng định một cái, và nhắc chỗ nhìn để tự phân xử — cửa sổ vừa mở
- * ra, hay profile vừa hiện trong MultiZen.
+ * Describe both possibilities instead of asserting one, and tell the operator where to check:
+ * whether a window just opened or a profile just appeared in MKT Browser.
  */
 export function describeSlowRelayFailure(
   attempt: RelayOutcome<unknown>,

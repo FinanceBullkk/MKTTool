@@ -1,21 +1,22 @@
 /**
  * Chọn vân tay cho một profile sắp tạo: **quốc gia proxy quyết định locale**.
  *
- * ## Đây chính là nút "Match proxy" của MultiZen, viết lại thành code
+ * ## This is the MKT Browser "Match proxy" action expressed in code
  *
  * Quy trình đúng trong README là `gắn proxy → bấm Match proxy → rồi mới đăng nhập lần đầu`, và
  * bước giữa là bước hay bị quên. Đo 02/08/2026: một profile chạy `sv-SE` trên IP Anh. Tới
  * 07/08/2026 vẫn còn `Reddit - Account 01` để `Africa/Johannesburg` trên proxy US.
  *
- * Hóa ra "Match proxy" chỉ là chọn hộ `localeId` + `timezone` theo quốc gia proxy — mà quốc gia
- * thì kho đã biết (`Proxy.country`), và danh mục locale thì MultiZen công bố qua
- * `list_fingerprint_options`. Nên bước đó không cần một cái nút để nhớ bấm; nó thành một hàm.
+ * "Match proxy" simply chooses `localeId` and `timezone` from the proxy country, which the vault
+ * already knows (`Proxy.country`), while MKT Browser exposes the locale catalog through
+ * `list_fingerprint_options`. This no longer needs to be a button that operators must remember;
+ * it becomes a function.
  *
  * ## Hàm thuần, danh mục truyền từ ngoài vào
  *
- * Danh mục lấy từ chính MultiZen chứ **không** phải bảng cứng ta tự gõ: bảng cứng sẽ mục đúng
- * vào ngày họ thêm một locale. Truyền vào thay vì tự gọi thì test chạy được bằng dữ liệu cố định,
- * và bảng ánh xạ này là thứ đáng test nhất của cả tính năng.
+ * The catalog comes from MKT Browser itself, **not** from a hard-coded table, which would become
+ * stale as soon as a locale is added. Passing the catalog in instead of fetching it here keeps tests
+ * deterministic, and this mapping is the most important behavior in the feature to test.
  */
 import type { AntidetectFingerprintSpec, FingerprintOptions } from "./antidetect-browser-adapter";
 
@@ -78,8 +79,8 @@ export function planProfileFingerprint(input: FingerprintPlanInput): Fingerprint
       failure: {
         reason: "DANH_MUC_RONG",
         message:
-          "MultiZen không trả về danh mục vân tay nào, nên chưa chọn được locale. " +
-          "Kiểm MultiZen còn mở không, rồi thử lại.",
+          "MKT Browser returned no fingerprint options, so a locale cannot be selected. " +
+          "Make sure MKT Browser is still running, then try again.",
       },
     };
   }
@@ -93,8 +94,8 @@ export function planProfileFingerprint(input: FingerprintPlanInput): Fingerprint
       failure: {
         reason: "KHONG_CO_QUOC_GIA",
         message:
-          `MultiZen không có nhóm locale nào cho quốc gia "${proxyCountry}". Chọn locale bằng ` +
-          `tay, hoặc tạo profile trong MultiZen rồi dán id vào ô "Id profile antidetect".`,
+          `MKT Browser has no locale group for country "${proxyCountry}". Select a locale manually, ` +
+          `or create the profile in MKT Browser and paste its ID into the "Antidetect profile ID" field.`,
       },
     };
   }
@@ -128,7 +129,7 @@ export function planProfileFingerprint(input: FingerprintPlanInput): Fingerprint
   };
 }
 
-/** Tên profile bên MultiZen. Đoán được và tra được bằng mắt trong danh sách của họ. */
+/** MKT Browser profile name. Predictable and easy to find visually in its profile list. */
 export function profileNameForNick(platform: string, username: string): string {
   return `${platform} — ${username}`;
 }

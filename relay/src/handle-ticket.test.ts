@@ -43,6 +43,30 @@ function launchPayload() {
   } as const;
 }
 
+function createPayload() {
+  return {
+    kind: TICKET_KINDS.CREATE_PROFILE,
+    accountId: "acc-1",
+    requestId: "create-profile:acc-1",
+    profileName: "REDDIT - anna",
+    proxy: PROXY,
+    fingerprint: {
+      device: "windows-laptop-amd",
+      localeId: "en-US",
+      timezone: "America/Denver",
+      screen: { width: 1680, height: 1050 },
+    },
+    seed: "mkttool-acc-1",
+  } as const;
+}
+
+function operationIdOf(ticket: string): string {
+  const envelope = JSON.parse(Buffer.from(ticket.split(".")[0]!, "base64url").toString("utf8")) as {
+    jti: string;
+  };
+  return envelope.jti;
+}
+
 /** Adapter giả, ghi lại thứ tự các lời gọi — thứ tự chính là thứ luật "đẩy hỏng thì không mở" nói. */
 function fakeAdapter(overrides: Partial<AntidetectAdapter> = {}) {
   const calls: string[] = [];
@@ -62,7 +86,7 @@ function fakeAdapter(overrides: Partial<AntidetectAdapter> = {}) {
     fingerprintOptions: async () => ({ devices: [], locales: [] }),
     createProfile: async () => {
       calls.push("createProfile");
-      return "profile-vua-tao";
+      return { profileId: "profile-vua-tao" };
     },
     ...overrides,
   };
@@ -76,6 +100,7 @@ function fakeAntidetect(adapter: AntidetectAdapter | null): RelayAntidetect {
       return adapter;
     },
     isReady: async () => adapter !== null,
+    requireOperationalRuntime: async () => ({}) as never,
     forgetProbe: () => {},
   } as unknown as RelayAntidetect;
 }
@@ -132,11 +157,32 @@ describe("handleTicketRequest — vé mở profile", () => {
     expect(result.message).toContain("Webshare #3");
   });
 
+  it("prefers one atomic launch call when the provider supports it", async () => {
+    const { identity, recipient } = relaySetup();
+    const { adapter, calls } = fakeAdapter({
+      launchProfileWithProxy: async (profileId, proxy) => {
+        calls.push("launchProfileWithProxy");
+        expect(profileId).toBe("profile-1");
+        expect(proxy).toEqual(PROXY);
+        return { profileId };
+      },
+    });
+
+    const result = await handleTicketRequest(requestBody(issueTicket(launchPayload(), recipient)), {
+      identity,
+      antidetect: fakeAntidetect(adapter),
+      notConfiguredMessage: "not configured",
+    });
+
+    expect(result.ok).toBe(true);
+    expect(calls).toEqual(["launchProfileWithProxy"]);
+  });
+
   it("đẩy proxy hỏng thì KHÔNG mở profile — mở ra là nick chạy bằng IP nhà", async () => {
     const { identity, recipient } = relaySetup();
     const { adapter, calls } = fakeAdapter({
       applyProxy: async () => {
-        throw new AntidetectError("MultiZen từ chối cấu hình proxy", "Giả");
+        throw new AntidetectError("MKT Browser rejected the proxy configuration", "Test");
       },
     });
 
@@ -148,7 +194,7 @@ describe("handleTicketRequest — vé mở profile", () => {
 
     expect(result.ok).toBe(false);
     expect(calls).not.toContain("launchProfile");
-    expect(result.message).toContain("KHÔNG mở profile");
+    expect(result.message).toContain("NOT opened");
   });
 
   it("không để lộ mật khẩu proxy ra câu trả lời, kể cả khi hỏng", async () => {
@@ -269,7 +315,7 @@ describe("handleTicketRequest — vé mở profile", () => {
     expect(result.message).toContain("127.0.0.1:47821");
   });
 
-  it("thiếu token MultiZen thì nói rõ lấy token ở đâu, không đổ tại vé", async () => {
+  it("explains where to get a missing MKT Browser token instead of blaming the ticket", async () => {
     const { identity, recipient } = relaySetup();
 
     const result = await handleTicketRequest(requestBody(issueTicket(launchPayload(), recipient)), {
@@ -279,7 +325,7 @@ describe("handleTicketRequest — vé mở profile", () => {
     });
 
     expect(result.ok).toBe(false);
-    expect(result.message).toContain("Connect an agent");
+    expect(result.message).toContain("enable MCP");
   });
 
   it("thân request không có trường ticket thì báo đúng chỗ thiếu", async () => {
@@ -293,5 +339,39 @@ describe("handleTicketRequest — vé mở profile", () => {
     });
 
     expect(result.message).toContain("ticket");
+  });
+});
+
+describe("handleTicketRequest - managed create correlation", () => {
+  it("keeps ticket jti as operationId and the stable create requestId", async () => {
+    const { identity, recipient } = relaySetup();
+    let received: Record<string, unknown> | undefined;
+    const { adapter } = fakeAdapter({
+      createProfile: async (request) => {
+        received = request as unknown as Record<string, unknown>;
+        return { profileId: "profile-vua-tao" };
+      },
+    });
+    const ticket = issueTicket(createPayload(), recipient);
+
+    const result = await handleTicketRequest(requestBody(ticket), {
+      identity,
+      antidetect: fakeAntidetect(adapter),
+      notConfiguredMessage: "not configured",
+    });
+
+    expect(result.ok).toBe(true);
+    expect(received).toMatchObject({
+      externalRef: "acc-1",
+      requestId: "create-profile:acc-1",
+      operationId: operationIdOf(ticket),
+    });
+    expect(result.diagnostic).toMatchObject({
+      operationId: operationIdOf(ticket),
+      requestId: "create-profile:acc-1",
+      stage: "complete",
+    });
+    expect(JSON.stringify(result.diagnostic)).not.toContain(PROXY.host);
+    expect(JSON.stringify(result.diagnostic)).not.toContain(PROXY.password);
   });
 });

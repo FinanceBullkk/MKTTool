@@ -181,8 +181,8 @@ async function run() {
     });
     check("vé giả bị từ chối", forged.rejectionCode === "BAD_SIGNATURE", String(forged.message));
 
-    // Vé thật, nhưng máy này chưa điền token MultiZen. Bị từ chối ở bước MỞ TRÌNH DUYỆT nghĩa là
-    // chữ ký, giải mã và soi ruột đều đã qua — đó chính là thứ cần đo ở đây.
+    // This is a valid ticket, but the machine has no MKT Browser token. Rejection at the BROWSER
+    // LAUNCH step proves that signature verification, decryption, and payload validation passed.
     const launched = await relayCall(RELAY_PATHS.ticket, { ticket: launchTicket });
     check(
       "vé thật đi hết chữ ký + giải mã + soi ruột",

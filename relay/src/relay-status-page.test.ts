@@ -10,7 +10,12 @@ function page(overrides: Partial<Parameters<typeof renderStatusPage>[0]> = {}) {
     problems: [],
     antidetectReady: true,
     webOrigin: "https://web.example",
-    config: { deviceId: "device-abc", webOrigin: "https://web.example", hasMultizenToken: true },
+    config: {
+      deviceId: "device-abc",
+      webOrigin: "https://web.example",
+      hasMktBrowserToken: true,
+      mktBrowserTokenSource: "mkt-browser-data",
+    },
     ...overrides,
   });
 }
@@ -39,21 +44,42 @@ describe("trang trạng thái của cầu nối", () => {
     expect(html).toContain("serverPublicKey");
   });
 
-  it('chưa điền token thì nói đúng thế, KHÔNG nói "không nối được MultiZen"', () => {
-    // Hai câu đó dẫn người đọc đi hai hướng khác hẳn nhau: một bên là điền vào file cấu hình,
-    // bên kia là đi mở ứng dụng MultiZen lên.
-    const html = page({ antidetectReady: null });
-
-    expect(html).toContain("chưa điền");
-    expect(html).not.toContain("KHÔNG nối được");
-  });
-
-  it("nói rõ khi chưa điền token MultiZen", () => {
+  it('reports an unconfigured token instead of saying "cannot connect to MKT Browser"', () => {
+    // Those messages lead to different actions: one means updating the config file, while the
+    // other means opening MKT Browser.
     const html = page({
-      config: { deviceId: "d", webOrigin: "https://w.example", hasMultizenToken: false },
+      antidetectReady: null,
+      config: {
+        deviceId: "device-abc",
+        webOrigin: "https://web.example",
+        hasMktBrowserToken: false,
+        mktBrowserTokenSource: null,
+      },
     });
 
-    expect(html).toContain("chưa mở được profile");
+    expect(html).toContain("discover its local token");
+    expect(html).not.toContain("Cannot connect");
+  });
+
+  it("explains that profiles cannot be launched without an MKT Browser token", () => {
+    const html = page({
+      config: {
+        deviceId: "d",
+        webOrigin: "https://w.example",
+        hasMktBrowserToken: false,
+        mktBrowserTokenSource: null,
+      },
+    });
+
+    expect(html).toContain("not found");
+    expect(html).toContain("enable MCP");
+  });
+
+  it("does not ask an ordinary operator to copy an MCP token", () => {
+    const html = page();
+
+    expect(html).not.toContain('id="mkt-browser-token"');
+    expect(html).toContain("discovered automatically from MKT Browser");
   });
 
   it("thoát HTML trong dữ liệu — đường dẫn và mã máy là dữ liệu, không phải mã", () => {
@@ -61,7 +87,8 @@ describe("trang trạng thái của cầu nối", () => {
       config: {
         deviceId: '<img src=x onerror="alert(1)">',
         webOrigin: "https://w.example",
-        hasMultizenToken: true,
+        hasMktBrowserToken: true,
+        mktBrowserTokenSource: "mkt-browser-data",
       },
     });
 

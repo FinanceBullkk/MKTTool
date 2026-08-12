@@ -6,10 +6,11 @@
  *
  * ## Vì sao phải có một cái nút cho việc này
  *
- * Trước 07/08/2026, *"có profile"* và *"đã đăng nhập"* là một: người ta tự dựng profile trong
- * MultiZen, đăng nhập ngay trong đó, **rồi mới** chép id sang MKTTool. Nút "Tạo profile trên máy
- * này" đảo ngược thứ tự — nó sinh ra một trình duyệt trắng tinh, có proxy và vân tay, không một
- * cookie nào. Từ đó tồn tại một trạng thái chưa từng có: nick đủ mọi thứ mà chưa ai đăng nhập.
+ * Before 2026-08-07, *"has a profile"* and *"has signed in"* were the same state: operators created
+ * profiles manually in MKT Browser, signed in there, and **only then** copied the ID into MKTTool.
+ * The "Create profile on this machine" button reverses that order. It creates a clean browser with
+ * a proxy and fingerprint but no cookies. This introduces a new state: an account can have every
+ * prerequisite while nobody has signed in yet.
  *
  * Không đánh dấu thì cột "Sẵn sàng" khoe màu xanh cho nick đó, và chuyện chỉ lộ ra vào đúng hôm
  * ai đó ngồi xuống định đăng bài — đúng lớp hỏng mà cả dự án tránh ở chỗ khác.
@@ -21,9 +22,9 @@
  * ngay trong thẻ chứa nút "Mở profile" và các nút lấy bí mật, nên người bấm chính là người vừa
  * đăng nhập xong.
  *
- * Đường đo thật thì có: hỏi MultiZen xem profile có cookie phiên Reddit không (`get_cookies` của
- * MCP). Nhưng nó cần thêm một đường ở cầu nối, một bản `.exe` mới, và một lượt cả team cài lại —
- * chưa đáng cho một cái mốc bấm một lần rồi thôi.
+ * A direct check is possible: ask MKT Browser whether the profile has a Reddit session cookie using
+ * its `get_cookies` MCP tool. That would require another Relay path, a new `.exe`, and a full-team
+ * reinstall, which is not justified for a one-time acknowledgement.
  *
  * ## Vì sao chỉ ghi được MỘT LẦN
  *

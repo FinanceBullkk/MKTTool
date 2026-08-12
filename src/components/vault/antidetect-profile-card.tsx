@@ -17,9 +17,9 @@
  *
  * ## Lượt tạo có thể XONG mà trình duyệt không biết
  *
- * Cầu nối dựng profile bên MultiZen **rồi mới** trả lời, và lượt dựng đó chạy cả phút một cách
- * bình thường. Bất cứ thứ gì cắt ngang giữa hai việc — hết hạn giờ, đóng tab, mạng nội bộ chớp —
- * đều để lại một profile **có thật mà kho không biết**.
+ * The Relay creates the profile in MKT Browser **before** responding, and creation can normally
+ * take a full minute. Anything that interrupts those operations, including a timeout, a closed tab,
+ * or a brief local-network outage, leaves behind a **real profile that the vault does not know about**.
  *
  * Hai lớp chống, và lớp thứ hai mới là lớp thật:
  *
@@ -31,9 +31,10 @@
  *
  * ## Vì sao phép chọn vân tay chạy ở TRÌNH DUYỆT
  *
- * Danh mục locale nằm trong MultiZen trên máy này; máy chủ không đọc được. Nên `planProfileFingerprint`
- * chạy ngay đây, hiện xem trước cho người dùng thấy **trước khi** bấm, rồi gửi kết quả lên cùng
- * lời xin vé. Xem chú thích đầu `account-profile-actions.ts` về chuyện máy chủ không đối chiếu lại.
+ * The locale catalog lives in MKT Browser on this machine; the server cannot read it. Therefore
+ * `planProfileFingerprint` runs here, shows the operator a preview **before** they click, and sends
+ * the result to the server with the ticket request. See the opening comment in
+ * `account-profile-actions.ts` for why the server does not validate it again.
  */
 import { useCallback, useEffect, useState } from "react";
 import {
@@ -56,13 +57,19 @@ import {
   type RelayFingerprintOptions,
   type RelayProfileSummary,
   type RelayReply,
+  type RelayOperationDiagnostic,
 } from "@/lib/relay/relay-endpoints";
+import { RelayOperationDiagnosticDetails } from "@/components/relay/relay-operation-diagnostic-details";
 
 const BUTTON_CLASS =
   "rounded-md bg-neutral-900 px-3 py-2 text-sm font-medium text-white transition " +
   "hover:bg-neutral-700 disabled:opacity-40 dark:bg-neutral-100 dark:text-neutral-900";
 
-type Feedback = { kind: "ok" | "error"; text: string } | null;
+type Feedback = {
+  kind: "ok" | "error";
+  text: string;
+  diagnostic?: RelayOperationDiagnostic;
+} | null;
 
 /** Cầu nối trả lời được nhưng không kèm id thì chính câu của nó là câu đáng hiện. */
 function moTaNguyenNhan(sent: RelayOutcome<RelayReply>): string {
@@ -131,18 +138,20 @@ export function AntidetectProfileCard({
    *
    * ## Vì sao cần đường này chứ không chỉ cần một hạn giờ dài hơn
    *
-   * Cầu nối gọi MultiZen dựng profile **rồi mới** trả lời. Bất cứ thứ gì cắt ngang giữa hai việc
-   * đó — hết hạn giờ, đóng tab, mạng nội bộ chớp — đều để lại một profile **đã tồn tại thật mà kho
-   * không biết**. Nới hạn giờ làm ca đó hiếm đi, không làm nó biến mất.
+   * The Relay asks MKT Browser to create the profile **before** responding. Anything that interrupts
+   * those operations, including a timeout, a closed tab, or a brief local-network outage, leaves
+   * behind a **real profile that the vault does not know about**. A longer timeout makes this less
+   * likely, but cannot eliminate it.
    *
    * Dò được là nhờ tên profile **sinh ra có quy tắc** (`profileNameForNick`), nên nó là khóa tra
    * cứu chứ không phải nhãn cho đẹp.
    *
    * ## Vì sao trùng tên thì TỪ CHỐI đoán
    *
-   * Hai profile cùng tên nghĩa là đã có một lượt tạo hỏng trước đó. Chọn bừa một cái là ghi vào kho
-   * một id có thể không phải cái vừa dựng — và cái còn lại thành rác vĩnh viễn mà không ai biết để
-   * đi dọn. Nói thẳng ra thì người dùng mở MultiZen xóa bớt trong mười giây.
+   * Two profiles with the same name indicate an earlier failed creation attempt. Choosing one
+   * arbitrarily could store an ID that does not belong to the profile just created, while the other
+   * becomes permanent orphaned data that nobody knows to remove. The operator can resolve the
+   * ambiguity by opening MKT Browser and removing the duplicate.
    */
   const doProfileVuaTao = useCallback(
     async (tenMongDoi: string): Promise<{ ok: true; id: string } | { ok: false; text: string }> => {
@@ -163,9 +172,10 @@ export function AntidetectProfileCard({
           trung.length === 0
             ? `Không thấy profile nào tên "${tenMongDoi}" trên máy này, nên nhiều khả năng lượt ` +
               `tạo chưa chạy tới nơi. Bấm lại.`
-            : `Có ${trung.length} profile trùng tên "${tenMongDoi}" bên MultiZen — dấu hiệu của ` +
-              `một lượt tạo hỏng trước đó. Công cụ không đoán cái nào là cái đúng: mở MultiZen xóa ` +
-              `bớt, rồi dán id còn lại vào ô "Id profile antidetect" ở thẻ Sửa nick.`,
+            : `Found ${trung.length} MKT Browser profiles named "${tenMongDoi}", which indicates ` +
+              `an earlier creation attempt failed. The tool cannot guess which one is correct. ` +
+              `Open MKT Browser, remove the duplicates, then paste the remaining ID into the ` +
+              `"Antidetect profile ID" field on the Edit account card.`,
       };
     },
     [],
@@ -208,7 +218,14 @@ export function AntidetectProfileCard({
         profileId,
         deviceId: issued.deviceId,
       });
-      setFeedback({ kind: recorded.ok ? "ok" : "error", text: recorded.message });
+      setFeedback({
+        kind: recorded.ok ? "ok" : "error",
+        text: recorded.message,
+        diagnostic:
+          sent.status === "ok" || sent.status === "rejected"
+            ? sent.data?.diagnostic
+            : undefined,
+      });
     } catch {
       setFeedback({ kind: "error", text: "Không gọi được máy chủ. Tải lại trang rồi thử lại." });
     } finally {
@@ -241,10 +258,10 @@ export function AntidetectProfileCard({
       ) : plan?.ok ? (
         <>
           <p className="text-sm text-neutral-600 dark:text-neutral-400">
-            Sẽ dựng một profile mang sẵn proxy <strong>{proxyLabel}</strong> cùng vân tay{" "}
+            This will create a profile with proxy <strong>{proxyLabel}</strong> and fingerprint{" "}
             <strong>{plan.plan.localeId}</strong> / <strong>{plan.plan.timezone}</strong> /{" "}
-            <strong>{plan.plan.device}</strong> — khớp quốc gia proxy, nên không phải bấm
-            &quot;Match proxy&quot; trong MultiZen nữa.
+            <strong>{plan.plan.device}</strong>, matched to the proxy country, so you do not need to
+            use &quot;Match proxy&quot; in MKT Browser.
           </p>
           <button type="button" className={BUTTON_CLASS} disabled={busy} onClick={taoProfile}>
             {busy ? "Đang tạo…" : "Tạo profile trên máy này"}
@@ -284,15 +301,18 @@ export function AntidetectProfileCard({
       ) : null}
 
       {feedback ? (
-        <p
-          className={
-            feedback.kind === "ok"
-              ? "text-sm text-emerald-700 dark:text-emerald-400"
-              : "text-sm text-red-700 dark:text-red-400"
-          }
-        >
-          {feedback.text}
-        </p>
+        <div className="space-y-2">
+          <p
+            className={
+              feedback.kind === "ok"
+                ? "text-sm text-emerald-700 dark:text-emerald-400"
+                : "text-sm text-red-700 dark:text-red-400"
+            }
+          >
+            {feedback.text}
+          </p>
+          <RelayOperationDiagnosticDetails diagnostic={feedback.diagnostic} />
+        </div>
       ) : null}
     </div>
   );

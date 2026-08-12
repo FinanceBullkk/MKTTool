@@ -36,10 +36,16 @@ import { readR2Config, RELAY_RELEASE_R2_ENV, type R2Config } from "../r2/r2-conf
  * theo phiên bản. Số phiên bản chỉ xuất hiện ở tên file lúc tải xuống, nơi người dùng cần phân
  * biệt các bản nằm cạnh nhau trong thư mục Downloads.
  */
-export const RELAY_RELEASE_R2_KEY = "MKTTool-Relay.zip";
+export function relayReleaseR2Key(version: number): string {
+  if (!Number.isSafeInteger(version) || version <= 0) {
+    throw new Error(`Relay release version must be a positive integer, received ${version}.`);
+  }
+  return `MKTTool-Relay-v${version}.zip`;
+}
 
 /** Tên metadata chứa mã băm SHA-256 của gói. */
 export const CHECKSUM_METADATA_KEY = "sha256";
+export const VERSION_METADATA_KEY = "relay-version";
 
 /**
  * Cấu hình ngăn phát hành, hoặc `null` khi không khai — nghĩa là máy chủ này đọc gói từ đĩa.
@@ -61,24 +67,39 @@ export function checksumOf(info: R2ObjectInfo): string | null {
   return value && /^[0-9a-f]{64}$/.test(value) ? value : null;
 }
 
+export function versionOf(info: R2ObjectInfo): number | null {
+  const value = info.metadata[VERSION_METADATA_KEY]?.trim();
+  if (!value || !/^\d+$/.test(value)) return null;
+  const version = Number(value);
+  return Number.isSafeInteger(version) && version > 0 ? version : null;
+}
+
 /** Xem ngăn đã có gói chưa. `null` khi chưa phát hành bản nào — trạng thái bình thường. */
 export function headRelayRelease(
   config: R2Config,
+  version: number,
   fetchImpl?: typeof fetch,
 ): Promise<R2ObjectInfo | null> {
-  return headObject({ config, key: RELAY_RELEASE_R2_KEY, fetchImpl });
+  return headObject({ config, key: relayReleaseR2Key(version), fetchImpl });
 }
 
 /** Mở luồng đọc gói từ R2. */
 export async function openRelayReleaseStream(
   config: R2Config,
+  version: number,
+  startByte = 0,
   fetchImpl?: typeof fetch,
 ): Promise<ReadableStream<Uint8Array>> {
-  const { body } = await getObject({ config, key: RELAY_RELEASE_R2_KEY, fetchImpl });
+  const { body } = await getObject({
+    config,
+    key: relayReleaseR2Key(version),
+    range: startByte > 0 ? `bytes=${startByte}-` : undefined,
+    fetchImpl,
+  });
   return body;
 }
 
 /** Chỗ đã tìm, in ra khi chưa có gói. Không lộ chìa, chỉ lộ tên ngăn. */
-export function describeR2Location(config: R2Config): string {
-  return `ngăn R2 "${config.bucket}", object "${RELAY_RELEASE_R2_KEY}"`;
+export function describeR2Location(config: R2Config, version: number): string {
+  return `ngăn R2 "${config.bucket}", object "${relayReleaseR2Key(version)}"`;
 }

@@ -5,22 +5,22 @@
  *
  * Hai nửa, và ranh giới giữa chúng là điểm chính của cả file:
  *
- * | Nửa | Ai làm | Vì sao |
+ * | Half | Owner | Why |
  * |---|---|---|
- * | Phát vé kèm proxy đã giải mã | máy chủ (`requestCreateProfileTicket`) | mật khẩu proxy thuộc vùng khóa máy chủ |
- * | Gọi MultiZen, sinh profile | cầu nối trên máy operator | profile chỉ tồn tại trên một máy |
- * | Ghi id vừa sinh về kho | máy chủ (`recordCreatedProfile`) | kho là của máy chủ |
+ * | Issue a ticket with the decrypted proxy | Server (`requestCreateProfileTicket`) | The proxy password belongs to the server vault |
+ * | Ask MKT Browser to create the profile | Relay on the operator machine | The profile exists on only one machine |
+ * | Save the new ID to the vault | Server (`recordCreatedProfile`) | The vault belongs to the server |
  *
  * ## Vì sao vân tay do TRÌNH DUYỆT tính rồi gửi lên
  *
- * Danh mục locale/thiết bị nằm ở MultiZen trên máy operator — máy chủ không đọc được. Nên phép
- * chọn chạy ở trình duyệt (`planProfileFingerprint`, hàm thuần), và máy chủ chỉ bọc nó vào vé.
+ * The locale and device catalogs live in MKT Browser on the operator machine, so the server cannot
+ * read them. The browser therefore runs the pure `planProfileFingerprint` function, and the server
+ * only wraps its result in the ticket.
  *
- * Máy chủ **không** kiểm "locale này có khớp quốc gia proxy không", và đó là quyết định chứ
- * không phải thiếu sót: nó không có danh mục để đối chiếu, MultiZen đã tự từ chối tổ hợp mâu
- * thuẫn, và người gọi là đồng nghiệp đã đăng nhập — người muốn dựng một profile lệch thì mở
- * thẳng MultiZen ra làm còn nhanh hơn. Việc của lớp này là chặn **tai nạn**, không phải chặn
- * người trong nhà.
+ * The server intentionally **does not** check whether the locale matches the proxy country. It has
+ * no catalog for validation, MKT Browser already rejects inconsistent combinations, and the caller
+ * is an authenticated colleague who could create a mismatched profile directly in MKT Browser even
+ * faster. This layer prevents **accidents**; it does not try to stop insiders.
  */
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -78,11 +78,12 @@ export const requestCreateProfileTicket = guardedAction(async function requestCr
   });
   if (!account) return { ok: false, message: "Không tìm thấy nick." };
 
-  // Chặn ở ĐÂY chứ không chỉ ở lượt ghi kết quả, dù `recordCreatedProfile` cũng kiểm điều này.
+  // Reject HERE, not only when saving the result, even though `recordCreatedProfile` checks again.
   //
-  // `requireNickOwner` cho ADMIN đi qua mọi nick, nên một ADMIN bấm hộ nick của đồng nghiệp sẽ
-  // được cấp vé, cầu nối dựng profile thật bên MultiZen, RỒI lượt ghi mới từ chối — để lại một
-  // profile mồ côi mà không ai biết phải đi dọn. Từ chối trước khi phát vé thì không có gì sinh ra.
+  // `requireNickOwner` allows an ADMIN through for every account. Without this check, an ADMIN
+  // acting for a colleague would receive a ticket, the Relay would create a real MKT Browser
+  // profile, and ONLY THEN would the write be rejected, leaving an orphaned profile that nobody
+  // knows to remove. Rejecting before ticket issuance means nothing is created.
   if (account.ownerId !== actor.userId) {
     return {
       ok: false,
@@ -99,8 +100,9 @@ export const requestCreateProfileTicket = guardedAction(async function requestCr
     return {
       ok: false,
       message:
-        `Nick này đã có profile (${account.antidetectProfileId}). Tạo thêm là để lại một profile ` +
-        `mồ côi bên MultiZen — xóa id cũ ở thẻ "Sửa nick" trước nếu thật sự muốn dựng lại.`,
+        `This account already has profile ${account.antidetectProfileId}. Creating another would ` +
+        `leave an orphaned MKT Browser profile. Remove the old ID from the "Edit account" card ` +
+        `first if you really want to recreate it.`,
     };
   }
 
@@ -122,6 +124,7 @@ export const requestCreateProfileTicket = guardedAction(async function requestCr
       {
         kind: TICKET_KINDS.CREATE_PROFILE,
         accountId,
+        requestId: `create-profile:${accountId}`,
         profileName: profileNameForNick(account.platform, account.username),
         proxy: buildProxyConfig(account.proxy),
         fingerprint: parsed.data,
@@ -237,9 +240,9 @@ export const recordCreatedProfile = guardedAction(async function recordCreatedPr
     return {
       ok: false,
       message:
-        `Nick "${account.username}" đang ghim ở máy "${account.device?.name}". Chuyển sang máy ` +
-        `khác là việc của quản trị viên, ở thẻ Phân công cụm — profile vừa tạo bên MultiZen nên ` +
-        `xóa đi để khỏi bỏ lại một profile mồ côi.`,
+        `Account "${account.username}" is pinned to machine "${account.device?.name}". Moving it ` +
+        `to another machine is an administrator task in the Cluster assignment card. Delete the ` +
+        `newly created MKT Browser profile to avoid leaving an orphan.`,
     };
   }
 

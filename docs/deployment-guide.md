@@ -199,7 +199,7 @@ Rồi nạp lên Railway. Lấy chuỗi nối ở dịch vụ Postgres → nút 
 Chỉ cần dán **đúng một chuỗi**, khối dưới tự tách ra thành các biến libpq:
 
 ```powershell
-cd E:\MKTTool
+cd E:\MKTWorkspace\MKTTool
 $env:PATH = "C:\Program Files\PostgreSQL\18\bin;$env:PATH"
 $raw = 'DÁN_CHUỖI_NỐI_VÀO_ĐÂY'
 if ($raw -match '\$\{\{') { throw "Đây là BẢN MẪU của Railway, chưa phải giá trị thật. Lấy ở nút Connect -> Public Network của dịch vụ Postgres." }
@@ -760,7 +760,7 @@ Xong thì bấm **Kiểm tra token tất cả Page** ngay, đừng đợi tới 
 | Đăng được hôm nay, mai hỏng | Token chết không báo trước — nick admin Page đổi mật khẩu, gỡ app, hoặc bị Meta khóa |
 
 > ⚠️ **Câu lỗi ở dòng thứ hai đang chỉ sai giao thức.**
-> [facebook-redirect-host-guard.ts:46](../src/lib/facebook/facebook-redirect-host-guard.ts:46) ghép
+> [facebook-redirect-host-guard.ts:46](../src/lib/facebook/facebook-redirect-host-guard.ts) ghép
 > cứng `http://` khi khuyên "mở lại app bằng…" — sót lại từ thời chỉ chạy localhost. Trên máy chủ
 > thật nó sẽ bảo anh mở `http://mkttool-web-production…`, tức chỉ sai đúng thứ nó sinh ra để chỉ
 > đúng. Đọc câu đó thì tự đổi thành `https`.

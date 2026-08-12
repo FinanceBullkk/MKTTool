@@ -19,6 +19,7 @@ const { issueTicket } = await import("./ticket-issuer");
 const { TicketReplayGuard } = await import("./ticket-replay-guard");
 const { verifyTicket, TicketRejected } = await import("./ticket-verifier");
 const { TICKET_LIFETIME_MS, TICKET_KINDS } = await import("./ticket-types");
+const { RELAY_VERSION } = await import("../relay/relay-endpoints");
 
 const DEVICE_ID = "device-hao";
 const NOW = 1_800_000_000_000;
@@ -51,7 +52,7 @@ beforeEach(() => {
   device = generateRelayDeviceKeyPair();
   relay = {
     deviceId: DEVICE_ID,
-    version: 1,
+    version: RELAY_VERSION,
     privateKey: privateKeyFromHex(device.privateKeyHex, device.publicKeyHex),
     serverPublicKey: loadServerSigningKeys().publicKey,
     replayGuard: new TicketReplayGuard(),
