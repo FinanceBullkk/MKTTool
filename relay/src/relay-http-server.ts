@@ -79,17 +79,21 @@ function readBody(request: IncomingMessage): Promise<string> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
     let size = 0;
+    let oversized = false;
 
     request.on("data", (chunk: Buffer) => {
+      if (oversized) return;
       size += chunk.length;
       if (size > MAX_BODY_BYTES) {
+        oversized = true;
         reject(new Error("Thân request quá lớn."));
-        request.destroy();
         return;
       }
       chunks.push(chunk);
     });
-    request.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
+    request.on("end", () => {
+      if (!oversized) resolve(Buffer.concat(chunks).toString("utf8"));
+    });
     request.on("error", reject);
   });
 }

@@ -18,7 +18,11 @@
  */
 
 /** Đường mà form gửi tới. Khai ở đây để script nội tuyến và bảng route không lệch nhau. */
-export function renderOperatorKeyForm(path: string, hasKey: boolean): string {
+export function renderOperatorKeyForm(path: string, hasKey: boolean, bootstrapAuthorized: boolean, webOrigin: string): string {
+  if (!hasKey && !bootstrapAuthorized) {
+    return `<h2>Operator key bootstrap</h2>
+<p class="muted">An authenticated administrator must start the five-minute bootstrap from the MKTTool setup page before this form is enabled.</p>`;
+  }
   return `<h2>${hasKey ? "Đổi khóa vùng operator" : "Dán khóa vùng operator"}</h2>
 <p>${
     hasKey
@@ -53,6 +57,10 @@ export function renderOperatorKeyForm(path: string, hasKey: boolean): string {
         msg.textContent = body.message;
         // Nạp lại trang khi đã lưu được: mọi huy hiệu ở trên vừa đổi nghĩa, và để nguyên màn
         // hình cũ bên dưới một dòng "đã lưu" là mời người ta tin vào thứ không còn đúng.
+        if (body.ok && body.proof && window.opener) {
+          window.opener.postMessage({ type: "mkttool-bootstrap-complete", grantId: body.grantId,
+            generation: body.generation, proof: body.proof }, ${JSON.stringify(webOrigin)});
+        }
         if (body.ok) setTimeout(function () { location.reload(); }, 1200);
       })
       .catch(function (error) { msg.textContent = "Không gửi được: " + error.message; });

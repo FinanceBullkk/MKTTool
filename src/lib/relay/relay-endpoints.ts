@@ -75,6 +75,8 @@ export const RELAY_PATHS = {
   sealOperatorKey: "/seal-operator-key",
   /** POST `{ ephemeralPublicKey, sealed }` — máy nhận mở hộp bằng khóa riêng của nó rồi lưu lại. */
   receiveOperatorKey: "/receive-operator-key",
+  authorizeBootstrap: "/authorize-bootstrap",
+  bootstrapCompletion: "/bootstrap-completion",
 } as const;
 
 /**
@@ -113,6 +115,27 @@ export interface SealedOperatorKeyGrant {
   ephemeralPublicKey: string;
   /** Khóa vùng operator đã mã hóa — định dạng `v1.iv.tag.ct`. */
   sealed: string;
+}
+
+export interface OperatorKeyDeliveryRequest {
+  grant: SealedOperatorKeyGrant;
+  authorization: string;
+}
+
+export interface OperatorKeyDeliveryReply extends RelayReply {
+  grantId?: string;
+  generation?: number;
+  proof?: string;
+}
+
+export interface BootstrapAuthorizationRequest {
+  authorization: string;
+}
+
+export interface BootstrapCompletionReply extends RelayReply {
+  grantId?: string;
+  generation?: number;
+  proof?: string;
 }
 
 /** Thân của `POST /seal-operator-key`: khóa công khai của chiếc máy sẽ nhận. */
@@ -198,7 +221,7 @@ export const RELAY_PROFILE_WORK_TIMEOUT_MS = 60_000;
  * tăng bằng tay: tự sinh theo git hash thì nó đổi ở mọi lượt build, và một số đổi liên tục thì
  * cảnh báo "bản cũ" kêu liên tục cho tới lúc không ai còn nhìn.
  */
-export const RELAY_VERSION = 9;
+export const RELAY_VERSION = 10;
 
 /**
  * Một profile antidetect như cầu nối khai ra ở `GET /profiles`.
@@ -261,6 +284,8 @@ export interface RelayOperationDiagnostic {
 /** Những gì `/health` trả về. */
 export interface RelayHealth {
   relayVersion: number;
+  /** Friendly OS-reported PC name. It is not an authorization signal. */
+  machineName?: string;
   /** Khóa công khai X25519 của máy này, hex — để đối chiếu với sổ đăng ký khi nghi dán nhầm. */
   publicKey: string;
   /** Whether the Relay can connect to MKT Browser on the same machine. */

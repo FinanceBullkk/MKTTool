@@ -715,6 +715,16 @@ model RelayDevice {
   /// Mốc ADMIN bấm cấp. Giữ lại sau khi máy đã nhận, để sổ trả lời được "cấp lúc nào".
   operatorKeyGrantedAt DateTime?
 
+  /// Monotonic generation and stable grant identity prevent an older sealed key from replacing a
+  /// newer one. Hashes authenticate opaque ciphertext and the recipient-only completion proof.
+  operatorKeyGrantGeneration Int @default(0)
+  operatorKeyGrantId String?
+  operatorKeyGrantHash String?
+  operatorKeyCompletionHash String?
+  operatorKeyCompletionGrant String?
+  operatorKeyDeliveryAuthorization String?
+  operatorKeyDeliveryExpiresAt DateTime?
+
   /// Mốc **chính chiếc máy đó tự báo** rằng nó đã có khóa vùng operator. Lúc đó
   /// `operatorKeyGrant` bị **xóa** — hộp đã tới nơi thì giữ lại chỉ là thêm một thứ để rò nếu
   /// có ngày bản sao lưu lọt ra ngoài.
@@ -726,6 +736,14 @@ model RelayDevice {
   /// không suy ra từ việc đã cấp hay chưa. Sổ nói sai về việc một máy đã sẵn sàng hay chưa thì
   /// tệ hơn là sổ không nói gì.
   operatorKeyReadyAt DateTime?
+  operatorKeyCompletedGrantId String?
+  operatorKeyCompletedGeneration Int?
+
+  /// Latest first-device bootstrap ceremony. A newer generation supersedes an older authorization.
+  bootstrapAuthorizationId String?
+  bootstrapAuthorization String?
+  bootstrapAuthorizationExpiresAt DateTime?
+  bootstrapAuthorizationUsedAt DateTime?
 
   @@index([userId])
 }

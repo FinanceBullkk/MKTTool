@@ -12,6 +12,50 @@ Dự án chưa phát hành phiên bản (`0.1.0`, dùng nội bộ). Mốc chia 
 
 ---
 
+## 13 August 2026 — MKB-03 Phase 04 enrollment grants and ADMIN bootstrap
+
+The enrollment/bootstrap protocol advances Relay source to version 10. A Windows v10 artifact was
+built and passed the packaged executable smoke path locally; it has not been published.
+
+Operator-key delivery now separates durable recipient ciphertext from a server-signed 30-second,
+one-use authorization bound to owner, device, revocation state, grant generation, and grant hash.
+Relay verifies the signature and recipient before atomically persisting the key, generation, grant
+ID, and recipient completion proof in one protected record. Exact retries after response loss,
+reload, restart, or authorization expiry return the cached proof without rewriting the key.
+
+Signed authorizations carry their issue time and allow a bounded 60-second Windows clock skew. A
+larger drift fails with explicit time-sync guidance; the documented worst-case first-delivery window
+is therefore 90 seconds rather than pretending the Relay and server clocks are identical.
+
+The server records `Ready` only after validating that proof and handles completion idempotently.
+First-device bootstrap is ADMIN-only, lasts five minutes, reuses the existing Relay-owned plaintext
+form, and exposes a cached local proof so a lost response does not require a second key entry. The
+additive migration stores only signed-envelope metadata, hashes, and opaque recipient ciphertext.
+Once verified grant state exists, Relay removes the retired standalone operator key and retries that
+cleanup on startup or exact redelivery. Partial completion metadata now returns a controlled error
+instead of throwing. Bootstrap authorization remains memory-only and is intentionally lost on Relay
+restart. Offline-administrator, real Windows reboot, and live-database-copy migration rehearsals remain
+open; the database rehearsal must include a legacy pending grant and an explicit regrant recovery.
+
+## 13 August 2026 — MKB-03 Phase 02 current-PC setup controller
+
+`/setup` now renders one pure six-state current-PC controller with one primary action while retaining
+the existing eight-step workspace preparation checklist. The first loopback request remains inside
+the operator's click, and a second confirmation shows the detected PC name and signed-in email before
+enrollment. Registry reconciliation fails closed without fabricating a conflict reason when inspection
+or enrollment fails.
+
+`Waiting for administrator approval` is durable and non-error: the browser stores only the public
+device ID needed to resume, then rechecks owner, revocation, grant, local Relay, MKT Browser,
+contract, and engine state. Live Relay update status now feeds the controller, while `Ready` still
+comes exclusively from `currentDeviceBrowserReadiness()`. Technical layers moved behind support
+details while `/setup`, `/relay-download`, and `/relay-devices` remain reachable.
+
+The unsigned SmartScreen journey is announced before download. The component references the future
+real capture and renders a visible pending state while the asset is absent. The real SmartScreen
+capture, deployed Chrome/Edge Local Network Access matrix, and clean-account reboot rehearsal remain
+human gates.
+
 ## 12/08/2026 (11) — Relay 9 replaces a v8 the source could no longer reproduce
 
 v8 was published before the DPAPI transport and migration fixes above landed, so building from

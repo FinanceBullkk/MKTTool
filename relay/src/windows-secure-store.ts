@@ -106,6 +106,15 @@ export class WindowsSecureStore implements SecureStore {
     }
   }
 
+  remove(name: RelaySecretName): void {
+    try {
+      unlinkSync(this.filePath(name));
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") return;
+      throw new Error(`Cannot remove protected Relay secret ${name}: ${(error as Error).message}`);
+    }
+  }
+
   private filePath(name: RelaySecretName): string {
     return path.join(this.home, STORE_DIRECTORY, `${name}.dpapi`);
   }

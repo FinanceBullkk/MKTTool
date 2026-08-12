@@ -23,9 +23,9 @@ export const metadata: Metadata = {
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; error_description?: string }>;
+  searchParams: Promise<{ error?: string; error_description?: string; callbackURL?: string }>;
 }) {
-  const { error, error_description: description } = await searchParams;
+  const { error, error_description: description, callbackURL } = await searchParams;
 
   if (await readActor()) redirect("/");
 
@@ -47,7 +47,7 @@ export default async function LoginPage({
         </AlertBanner>
       ) : null}
 
-      <GoogleSignInButton />
+      <GoogleSignInButton callbackURL={callbackURL === "/setup" ? "/setup" : "/"} />
 
       <p className="mt-6 text-xs text-neutral-500">
         Cấu hình hỏng thì <code>npm run auth:check</code> chỉ ra thiếu biến nào — trừ{" "}

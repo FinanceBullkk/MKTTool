@@ -1,6 +1,5 @@
 import { RelayDeviceIdCell } from "@/components/relay/relay-device-id-cell";
 import { RelayDeviceRevokeButton } from "@/components/relay/relay-device-revoke-button";
-import { RelayEnrollCard } from "@/components/relay/relay-enroll-card";
 import { RelayGrantKeyButton } from "@/components/relay/relay-grant-key-button";
 import { ActionForm, Field, SelectField } from "@/components/ui/form-controls";
 import { Card, DataTable, EmptyState, PageHeading, StatusBadge } from "@/components/ui/page-section";
@@ -245,7 +244,10 @@ export default async function RelayDevicesPage() {
           nhập hộ trên máy mình là dựng lại đúng vòng chờ mà nút này sinh ra để dẹp. Ranh giới nằm
           ở chủ máy — OPERATOR chỉ đăng ký được máy của chính họ. */}
       <Card title="Cài máy này (Máy bạn đang ngồi)">
-        <RelayEnrollCard teamMembers={teamMembers} isAdmin={isAdmin} />
+        <p className="text-sm text-neutral-600 dark:text-neutral-400">
+          The guided current-PC controller now lives on <a href="/setup" className="underline">/setup</a>.
+          This registry remains available for administrator approval, revocation, and support.
+        </p>
       </Card>
 
       {isAdmin ? (

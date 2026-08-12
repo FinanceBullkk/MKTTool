@@ -14,7 +14,7 @@ Dự án đang chạy **ba luồng song song**:
 |---|---|---|
 | **A — Công cụ** | 5 giai đoạn gốc: kho danh tính → hàng đợi → sức khỏe → Facebook → tự đăng Reddit | GĐ1-4 xong, GĐ0 kẹt ở tiền + cold-start, GĐ5 chưa bắt đầu |
 | **B — Web chung** | Biến app một máy thành web chung cho 5-6 người ở 5-6 nơi | **GĐ0-4 xong 06/08**, GĐ5 web **đã chạy thật trên Railway** cùng ngày |
-| **C — MKT Browser** | Fork the MultiZen desktop layer; Windows-only in v1 while Web, Relay, and upstream UX/UI remain intact | **MKB-00, MKB-W01, MKB-W02, MKB-01, MKB-01E, and MKB-02 verified on Windows x64**; MKB-03 is next; macOS deferred to MKB-07; [plan](../plans/260810-0244-mkt-browser-noi-bo/plan.md) |
+| **C — MKT Browser** | Fork the MultiZen desktop layer; Windows-only in v1 while Web, Relay, and upstream UX/UI remain intact | **MKB-00 through MKB-02 verified on Windows x64; MKB-03 Phases 01-04 implemented in code with human gates open**; macOS deferred to MKB-07; [plan](../plans/260810-0244-mkt-browser-noi-bo/plan.md) |
 
 Luồng B sinh ra sau khi chốt bàn giao cho team — xem
 [plan web chung](../plans/260804-1752-web-chung-cho-team-phan-tan/plan.md). Nó **không thay thế**
@@ -121,7 +121,7 @@ repository. MKTTool retains only the consuming contract, Relay, and release page
 | MKB-01 | Windows compatibility and product identity | ✅ Verified 11 August | Copy-only first-launch importer preserves the MultiZen source; five primary-screen baselines captured; Windows CI runs W01/W02 guards, typecheck, package build, and packaged runtime-contract verification on every push/PR |
 | MKB-01E | Electron upgrade and renderer hardening | ✅ Verified 11 August | Electron 42.8.1 / ABI 146 package; native module rebuild; sandbox/CSP/default-deny IPC and MCP inventories; fixed-seed fingerprint unchanged and five visual baselines accepted |
 | MKB-02 | Managed mode | ✅ Verified 12 August | Contract v3 diagnostics, profile-token capability separation, managed proxy/fingerprint/delete/direct-launch locks, current-device Browser health, Relay v7 correlation, and cross-repository packaged verification are green |
-| MKB-03 | Windows onboarding, installer, and controlled updates | 🟡 Phases 01 and 03 implemented; human clean-account gate open — [execution plan](../plans/260812-1301-mkb-03-windows-onboarding-and-installer/plan.md) | Phase 01 provides immutable versioned Relay payloads and one installer. Phase 03 moves Relay secrets to DPAPI CurrentUser with crash-safe migration, a rollback floor/tombstone, and default-deny activity diagnostics. Verification used self-created temporary Relay homes only; no live install was migrated. Phases 02, 04, 05, and 06 plus clean-account gates remain. |
+| MKB-03 | Windows onboarding, installer, and controlled updates | 🟡 Phases 01-04 implemented in code; human gates open — [execution plan](../plans/260812-1301-mkb-03-windows-onboarding-and-installer/plan.md) | Phase 04 adds owner/revocation/generation-checked one-use delivery, bounded clock-skew handling, recipient proof, crash-idempotent protected persistence, and ADMIN-only first-device bootstrap. Relay source v10 is built and executable-verified locally but not published. SmartScreen/LNA, clean-account/reboot, offline-admin, and a live-database-copy rehearsal with a legacy pending grant remain human gates. Phases 05-06 remain. |
 | MKB-04 | Technical pilot and one canary account | ⬜ Not started | An unfamiliar operator completes setup with zero developer intervention; two Windows devices remain green for seven days; one account completes a 14-day cold start |
 | MKB-05 | Team rollout | ⬜ Not started | Canary completes cold start; MKT Browser becomes default; rollback uses only the frozen W01 checkpoint and never restores a MultiZen adapter fallback |
 | MKB-06 | Custom UX/UI | ⏸ Deferred beyond v1 | Begin only from observed usage feedback; does not block MKB-00 through MKB-05 |
@@ -380,7 +380,7 @@ và máy chủ tự `pg_dump` rồi tải lên Cloudflare R2 mỗi đêm.
 
 | Blocker | Nature | Owner |
 |---|---|---|
-| **MKB-03 zero-confusion Windows onboarding** | One installer, secure device enrollment, protected secret migration, and coordinated update/rollback are not implemented | Engineering |
+| **MKB-03 zero-confusion Windows onboarding** | Phases 01-04 are implemented in code; controlled updates/rollback, conflict repair, and real Windows/database rehearsal evidence remain | Engineering + responsible operator |
 | **MKB-04 pilot and canary** | An unfamiliar-operator setup test, two-device seven-day pilot, then one 14-day canary cold start are elapsed evidence gates | Engineering + responsible operator + time |
 | ~~**Windows code-signing certificate**~~ | Resolved 12 August 2026: v1 ships unsigned for the internal fleet. The accepted cost is one announced SmartScreen click-through and an installer binary backed only by a checksum from the same host; the offline manifest root still carries anti-downgrade authority | Closed — owner decision |
 | **Static proxies + accounts** | Procurement (VND 3–8 million once) | Budget owner |

@@ -12,6 +12,8 @@ export const RELAY_ROUTE_CAPABILITIES = [
   "local-secret-reveal",
   "operator-key-seal",
   "operator-key-receive",
+  "admin-bootstrap-authorization",
+  "admin-bootstrap-completion-read",
 ] as const;
 
 export type RelayRouteCapability = (typeof RELAY_ROUTE_CAPABILITIES)[number];
@@ -35,6 +37,8 @@ export const RELAY_ROUTE_POLICIES = {
   [SECRET_REVEAL_PATH]: { method: "POST", capability: "local-secret-reveal" },
   [RELAY_PATHS.sealOperatorKey]: { method: "POST", capability: "operator-key-seal" },
   [RELAY_PATHS.receiveOperatorKey]: { method: "POST", capability: "operator-key-receive" },
+  [RELAY_PATHS.authorizeBootstrap]: { method: "POST", capability: "admin-bootstrap-authorization" },
+  [RELAY_PATHS.bootstrapCompletion]: { method: "GET", capability: "admin-bootstrap-completion-read" },
 } as const satisfies Record<RelayContractPath, RelayRoutePolicy>;
 
 type RelayRouteHandlers = Record<RelayContractPath, RelayRoute>;

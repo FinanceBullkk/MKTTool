@@ -3,8 +3,15 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { MKT_BROWSER_DEFAULT_MCP_URL } from "../../src/lib/antidetect/mkt-browser-contract";
-import { CONFIG_TEMPLATE, loadRelayConfig, reviewRelayConfig } from "./relay-config";
+import {
+  CONFIG_TEMPLATE,
+  loadRelayConfig,
+  resolveServerPublicKey,
+  reviewRelayConfig,
+} from "./relay-config";
 import { CONFIG_FILE } from "./relay-home";
+import { InMemorySecureStore } from "./in-memory-secure-store";
+import { RELAY_SECRET_NAMES } from "./secure-store";
 
 const HEX_64 = "a".repeat(64);
 const MKT_BROWSER_TOKEN = "c".repeat(64);
@@ -27,6 +34,19 @@ function problemFields(parsed: unknown): string[] {
 }
 
 describe("reviewRelayConfig", () => {
+  it("reads the server key before the operator key makes the full config valid", () => {
+    const home = mkdtempSync(path.join(tmpdir(), "mkttool-bootstrap-key-"));
+    try {
+      writeFileSync(
+        path.join(home, CONFIG_FILE),
+        JSON.stringify({ deviceId: "device-1", serverPublicKey: HEX_64 }),
+      );
+      expect(resolveServerPublicKey(home)).toBe(HEX_64);
+    } finally {
+      rmSync(home, { recursive: true, force: true });
+    }
+  });
+
   it("uses the owned MKT Browser loopback origin in the installer template", () => {
     expect(CONFIG_TEMPLATE.mktBrowserUrl).toBe(MKT_BROWSER_DEFAULT_MCP_URL);
   });
@@ -117,6 +137,30 @@ describe("reviewRelayConfig", () => {
         "utf8",
       );
       expect(loadRelayConfig(home).ok).toBe(true);
+    } finally {
+      rmSync(home, { recursive: true, force: true });
+    }
+  });
+
+  it("uses verified grant state and retires a leftover legacy operator key", () => {
+    const home = mkdtempSync(path.join(tmpdir(), "mkttool-grant-state-"));
+    const store = new InMemorySecureStore({
+      [RELAY_SECRET_NAMES.operatorDomainKey]: "c".repeat(64),
+      [RELAY_SECRET_NAMES.operatorGrantState]: JSON.stringify({
+        v: 1,
+        kind: "delivery",
+        operatorKey: "b".repeat(64),
+        generation: 1,
+        grantId: "grant-1",
+        grantHash: "hash-1",
+        completionProof: "proof-1",
+      }),
+    });
+    try {
+      writeFileSync(path.join(home, CONFIG_FILE), JSON.stringify(validConfig()), "utf8");
+      const result = loadRelayConfig(home, store);
+      expect(result.ok && result.config.vaultKeyOperator).toBe("b".repeat(64));
+      expect(store.read(RELAY_SECRET_NAMES.operatorDomainKey)).toBeNull();
     } finally {
       rmSync(home, { recursive: true, force: true });
     }

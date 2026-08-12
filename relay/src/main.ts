@@ -23,6 +23,7 @@
  * Nên mọi thứ dẫn xuất từ cấu hình gom vào `RelayState` và dựng lại nguyên khối. Dựng lại nguyên
  * khối chứ không vá từng ô: một trạng thái nửa cũ nửa mới là thứ không ai suy luận nổi.
  */
+import os from "node:os";
 import { RELAY_ORIGIN, RELAY_PATHS, RELAY_VERSION } from "../../src/lib/relay/relay-endpoints";
 import { handleConfigure } from "./handle-configure";
 import { handleEncryptForVault } from "./handle-encrypt-for-vault";
@@ -30,12 +31,17 @@ import { handleReceiveOperatorKey } from "./handle-receive-operator-key";
 import { handleSealOperatorKey } from "./handle-seal-operator-key";
 import { handleSecretReveal } from "./handle-secret";
 import { handleSetOperatorKey } from "./handle-set-operator-key";
+import { handleAuthorizeBootstrap } from "./handle-authorize-bootstrap";
+import { handleReadBootstrapCompletion } from "./handle-read-bootstrap-completion";
+import { BootstrapAuthorizationBroker } from "./bootstrap-authorization";
+import { readOperatorGrantState } from "./operator-grant-state";
 import { handleProfilesRequest } from "./handle-profiles";
 import { handleTicketRequest } from "./handle-ticket";
 import { RelayAntidetect } from "./relay-antidetect";
 import {
   loadRelayConfig,
   resolveDeviceId,
+  resolveServerPublicKey,
   resolveWebOrigin,
   type ConfigProblem,
 } from "./relay-config";
@@ -44,6 +50,7 @@ import { createRelayServer, listenOnLoopback } from "./relay-http-server";
 import { defineRelayRoutes } from "./relay-route-policy";
 import { resolveRelayHome } from "./relay-home";
 import type { RelayIdentity } from "../../src/lib/tickets/ticket-verifier";
+import { publicKeyFromHex } from "../../src/lib/tickets/server-signing-key";
 import { buildRelayIdentity } from "./relay-identity";
 import { renderStatusPage } from "./relay-status-page";
 import { SECRET_REVEAL_PATH, renderSecretPage } from "./secret-page";
@@ -65,6 +72,7 @@ interface RelayState {
    */
   webOrigin: string;
   deviceId: string | null;
+  serverPublicKey: ReturnType<typeof publicKeyFromHex> | null;
 }
 
 function loadState(
@@ -97,6 +105,16 @@ function loadState(
     }
   }
 
+  const serverPublicKeyHex = resolveServerPublicKey(home);
+  let serverPublicKey: ReturnType<typeof publicKeyFromHex> | null = null;
+  if (serverPublicKeyHex) {
+    try {
+      serverPublicKey = publicKeyFromHex(serverPublicKeyHex);
+    } catch {
+      // The full config review reports the actionable field error.
+    }
+  }
+
   return {
     problems,
     identity,
@@ -111,6 +129,7 @@ function loadState(
     // Đọc thẳng từ file, không qua `config`: web app vừa ghi mã máy xuống và cần thấy nó tới nơi,
     // kể cả khi khóa vùng operator còn thiếu — mà thiếu nó thì `config` là `null`.
     deviceId: resolveDeviceId(home),
+    serverPublicKey,
   };
 }
 
@@ -122,6 +141,14 @@ async function main(): Promise<void> {
   migrateRelaySecrets(home, secureStore, RELAY_VERSION);
 
   let state = loadState(home, keypair, secureStore);
+  const bootstrap = new BootstrapAuthorizationBroker(
+    () => state.deviceId,
+    keypair.publicKeyHex,
+    keypair.privateKey,
+    () => state.serverPublicKey,
+    Date.now,
+    () => readOperatorGrantState(secureStore)?.generation ?? null,
+  );
 
   const notConfiguredMessage = (): string =>
     `Cầu nối trên máy này chưa cấu hình xong (${state.problems.length} mục còn thiếu). ` +
@@ -166,6 +193,7 @@ async function main(): Promise<void> {
           // token the probe cannot run: `null` lets the page report "token not configured" instead
           // of "cannot connect".
           antidetectReady: tokenStatus.available ? await state.antidetect.isReady() : null,
+          bootstrapAuthorized: bootstrap.isAuthorized(),
         });
       },
       [RELAY_PATHS.secret]: renderSecretPage,
@@ -175,6 +203,7 @@ async function main(): Promise<void> {
         ok: state.problems.length === 0,
         message: state.problems.length === 0 ? "Cầu nối sẵn sàng." : notConfiguredMessage(),
         publicKey: keypair.publicKeyHex,
+        machineName: os.hostname(),
         // Web app cần biết máy này đã đăng ký chưa để vẽ đúng nút — "Đăng ký máy này" hay
         // "Đã đăng ký". Hỏi sổ trên máy chủ cũng ra, nhưng phải hỏi bằng khóa công khai và
         // vẫn không biết chiếc máy ĐANG NGỒI nghĩ mình là ai.
@@ -193,7 +222,16 @@ async function main(): Promise<void> {
           onConfigured: reloadConfig,
         }),
       [RELAY_PATHS.setOperatorKey]: (request, body) =>
-        handleSetOperatorKey(request, body, { home, onConfigured: reloadConfig }),
+        handleSetOperatorKey(request, body, {
+          home,
+          secureStore,
+          bootstrap: state.vaultKeyOperator ? undefined : bootstrap,
+          onConfigured: reloadConfig,
+        }),
+      [RELAY_PATHS.authorizeBootstrap]: (request, body) =>
+        handleAuthorizeBootstrap(request, body, state.webOrigin || null, bootstrap),
+      [RELAY_PATHS.bootstrapCompletion]: (request) =>
+        handleReadBootstrapCompletion(request, state.webOrigin || null, secureStore),
       [RELAY_PATHS.ticket]: (_request, body) =>
         handleTicketRequest(body, {
           identity: state.identity,
@@ -220,10 +258,14 @@ async function main(): Promise<void> {
           vaultKeyOperator: state.vaultKeyOperator,
           notConfiguredMessage: notConfiguredMessage(),
         }),
-      [RELAY_PATHS.receiveOperatorKey]: (_request, body) =>
-        handleReceiveOperatorKey(body, {
+      [RELAY_PATHS.receiveOperatorKey]: (request, body) =>
+        handleReceiveOperatorKey(request, body, {
+          allowedOrigin: state.webOrigin || null,
+          deviceId: state.deviceId,
+          devicePublicKey: keypair.publicKeyHex,
           devicePrivateKey: keypair.privateKey,
-          home,
+          serverPublicKey: state.identity?.serverPublicKey ?? null,
+          secureStore,
           onConfigured: reloadConfig,
         }),
     }),

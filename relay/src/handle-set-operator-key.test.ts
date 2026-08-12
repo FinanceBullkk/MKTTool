@@ -8,6 +8,7 @@
  *  2. **Không đạp lên `deviceId` / `serverPublicKey`** mà web app vừa ghi xuống. Hai đường ghi
  *     vào cùng một file từ hai phía; đường nào cũng ghi đè cả file là đường nào cũng phá đường kia.
  */
+import { generateKeyPairSync } from "node:crypto";
 import type { IncomingMessage } from "node:http";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -18,7 +19,12 @@ import { handleSetOperatorKey } from "./handle-set-operator-key";
 import { CONFIG_FILE } from "./relay-home";
 import { RELAY_SECRET_NAMES, type SecureStore } from "./secure-store";
 import { InMemorySecureStore } from "./in-memory-secure-store";
-import { readProtectedOperatorKey } from "./relay-config";
+import { issueGrantAuthorization } from "../../src/lib/relay/enrollment/grant-authorization";
+import { hashGrantCompletionProof } from "../../src/lib/relay/enrollment/grant-digests";
+import { relayPublicKeyToHex } from "../../src/lib/tickets/relay-device-key";
+import { sealForDevice } from "../../src/lib/tickets/ticket-sealed-box";
+import { BootstrapAuthorizationBroker } from "./bootstrap-authorization";
+import { readOperatorGrantState } from "./operator-grant-state";
 
 const OPERATOR_KEY = "c4".repeat(32);
 const homes: string[] = [];
@@ -120,6 +126,42 @@ describe("handleSetOperatorKey", () => {
     call(home, { mktBrowserToken: "test-browser-token" }, RELAY_ORIGIN, seeded);
 
     expect(readConfig(home)).toMatchObject({ mktBrowserToken: "test-browser-token" });
-    expect(readProtectedOperatorKey(home, seeded)).toBe(OPERATOR_KEY);
+    expect(seeded.read(RELAY_SECRET_NAMES.operatorDomainKey)).toBe(OPERATOR_KEY);
+  });
+
+  it("recovers the cached bootstrap proof after the post-store response is lost", () => {
+    const home = makeHome({ deviceId: "device-1", serverPublicKey: "a1".repeat(32) });
+    const store = new InMemorySecureStore();
+    const device = generateKeyPairSync("x25519");
+    const signer = generateKeyPairSync("ed25519");
+    const publicKey = relayPublicKeyToHex(device.publicKey);
+    const proof = "bootstrap-proof";
+    const completion = sealForDevice({ proof }, publicKey);
+    const authorization = issueGrantAuthorization({
+      kind: "bootstrap", authorizationId: "bootstrap-1", deviceId: "device-1",
+      recipientPublicKey: publicKey, grantId: "bootstrap-1", generation: 1,
+      grantHash: "aa".repeat(32), completionHash: hashGrantCompletionProof(proof),
+      completionEphemeralPublicKey: completion.ephemeralPublicKey, completionSealed: completion.sealed,
+    }, signer.privateKey, 1_000, 300_000);
+    const consumedGeneration = () => readOperatorGrantState(store)?.generation ?? null;
+    const broker = new BootstrapAuthorizationBroker(
+      () => "device-1", publicKey, device.privateKey, () => signer.publicKey,
+      () => 1_001, consumedGeneration,
+    );
+    broker.authorize(authorization);
+
+    expect(() => handleSetOperatorKey(
+      { headers: { origin: RELAY_ORIGIN } } as IncomingMessage,
+      JSON.stringify({ vaultKeyOperator: OPERATOR_KEY }),
+      { home, secureStore: store, bootstrap: broker, onConfigured: () => { throw new Error("lost response"); } },
+    )).toThrow("lost response");
+    expect(readOperatorGrantState(store)).toMatchObject({ kind: "bootstrap", completionProof: proof });
+    expect(store.read(RELAY_SECRET_NAMES.operatorDomainKey)).toBeNull();
+
+    const restarted = new BootstrapAuthorizationBroker(
+      () => "device-1", publicKey, device.privateKey, () => signer.publicKey,
+      () => 1_002, consumedGeneration,
+    );
+    expect(() => restarted.authorize(authorization)).toThrow(/consumed/i);
   });
 });

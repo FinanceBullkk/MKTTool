@@ -21,12 +21,14 @@
  */
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { randomUUID } from "node:crypto";
 import { firstError, formToObject } from "@/lib/accounts/vault-form-schemas";
 import type { ActionResult } from "@/lib/actions/action-result";
 import { AUDIT_ACTIONS } from "@/lib/audit/audit-log-actions";
 import { isEmailAllowed, readEmailAccessList } from "@/lib/auth/allowed-emails";
 import { adminAction } from "@/lib/auth/guarded-action";
 import { prisma } from "@/lib/db/prisma-client";
+import { hashOperatorKeyGrant } from "@/lib/relay/enrollment/grant-digests";
 import { isUniqueConstraintError } from "@/lib/db/prisma-error-helpers";
 import { formatFullDateTime } from "@/lib/format/vietnamese-date-format";
 import {
@@ -302,11 +304,20 @@ export const grantOperatorKeyToDevice = adminAction(async function grantOperator
     };
   }
 
+  const grant = { ephemeralPublicKey, sealed };
   await prisma.relayDevice.update({
     where: { id: deviceId },
     data: {
-      operatorKeyGrant: JSON.stringify({ ephemeralPublicKey, sealed }),
+      operatorKeyGrant: JSON.stringify(grant),
       operatorKeyGrantedAt: new Date(),
+      operatorKeyGrantGeneration: { increment: 1 },
+      operatorKeyGrantId: randomUUID(),
+      operatorKeyGrantHash: hashOperatorKeyGrant(grant),
+      operatorKeyCompletionHash: null,
+      operatorKeyCompletionGrant: null,
+      operatorKeyDeliveryAuthorization: null,
+      operatorKeyDeliveryExpiresAt: null,
+      operatorKeyReadyAt: null,
     },
   });
 

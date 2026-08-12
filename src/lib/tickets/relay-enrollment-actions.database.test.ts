@@ -156,6 +156,31 @@ describe("enrollThisMachine", () => {
     expect(await prisma.relayDevice.count()).toBe(1);
   });
 
+  it("recovers every caller when the same PC is enrolled concurrently", async () => {
+    const { publicKeyHex } = generateRelayDeviceKeyPair();
+
+    const results = await Promise.all(
+      Array.from({ length: 8 }, (_, index) => enroll({ name: `Concurrent PC ${index}`, publicKey: publicKeyHex })),
+    );
+
+    expect(results.every((result) => result.ok && "enrollment" in result && result.enrollment)).toBe(true);
+    const ids = results.map((result) => "enrollment" in result ? result.enrollment?.deviceId : undefined);
+    expect(new Set(ids).size).toBe(1);
+    expect(await prisma.relayDevice.count()).toBe(1);
+  });
+
+  it("does not return another owner's existing device configuration", async () => {
+    const { publicKeyHex } = generateRelayDeviceKeyPair();
+    await prisma.relayDevice.create({
+      data: { name: "Other owner's PC", userId: OTHER_ID, publicKey: publicKeyHex },
+    });
+
+    const result = await enroll({ name: "Claimed PC", publicKey: publicKeyHex });
+
+    expect(result.ok).toBe(false);
+    expect(result.message).toContain("administrator");
+  });
+
   it("khóa đã thu hồi thì từ chối, kèm CÁCH sinh khóa mới", async () => {
     const { publicKeyHex } = generateRelayDeviceKeyPair();
     await enroll({ name: "Laptop mất", publicKey: publicKeyHex });

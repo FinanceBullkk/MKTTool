@@ -46,12 +46,15 @@ import {
   RELAY_TIMEOUT_MS,
   RELAY_VERSION,
   type ConfigureRelayRequest,
+  type BootstrapAuthorizationRequest,
+  type BootstrapCompletionReply,
+  type OperatorKeyDeliveryReply,
+  type OperatorKeyDeliveryRequest,
   type RelayHealth,
   type RelayProfilesReply,
   type RelayReply,
   type SealOperatorKeyReply,
   type SealOperatorKeyRequest,
-  type SealedOperatorKeyGrant,
   relayUrl,
 } from "./relay-endpoints";
 
@@ -261,13 +264,25 @@ export function sealOperatorKey(
 
 /** Đưa hộp khóa xuống cầu nối trên máy đang ngồi để nó tự mở bằng khóa riêng của nó. */
 export function receiveOperatorKey(
-  grant: SealedOperatorKeyGrant,
-): Promise<RelayOutcome<RelayReply>> {
-  return callRelay<RelayReply>(RELAY_PATHS.receiveOperatorKey, {
+  delivery: OperatorKeyDeliveryRequest,
+): Promise<RelayOutcome<OperatorKeyDeliveryReply>> {
+  return callRelay<OperatorKeyDeliveryReply>(RELAY_PATHS.receiveOperatorKey, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify(grant),
+    body: JSON.stringify(delivery),
   });
+}
+
+export function authorizeBootstrap(authorization: string): Promise<RelayOutcome<RelayReply>> {
+  return callRelay<RelayReply>(RELAY_PATHS.authorizeBootstrap, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ authorization } satisfies BootstrapAuthorizationRequest),
+  });
+}
+
+export function readBootstrapCompletion(): Promise<RelayOutcome<BootstrapCompletionReply>> {
+  return callRelay<BootstrapCompletionReply>(RELAY_PATHS.bootstrapCompletion);
 }
 
 /**

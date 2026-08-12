@@ -48,6 +48,7 @@ export interface StatusPageInput {
   antidetectReady: boolean | null;
   /** Nguồn web được tin — in ra kể cả khi cấu hình chưa đủ, vì sai nó là hỏng theo kiểu CORS. */
   webOrigin: string;
+  bootstrapAuthorized?: boolean;
 }
 
 /** Chèn văn bản vào HTML. Khóa và đường dẫn đều là dữ liệu, không phải mã. */
@@ -123,7 +124,7 @@ trên web app rồi thu hồi khóa cũ, không phải khôi phục từ bản c
 
 ${configured ? renderActiveConfig(input.config) : renderProblems(input.problems, input.webOrigin)}
 
-${renderOperatorKeyForm(RELAY_PATHS.setOperatorKey, configured)}
+${renderOperatorKeyForm(RELAY_PATHS.setOperatorKey, configured, input.bootstrapAuthorized ?? false, input.webOrigin)}
 </body></html>`;
 }
 
@@ -198,4 +199,3 @@ function renderProblems(problems: ConfigProblem[], webOrigin: string): string {
 <p class="muted">Cầu nối vẫn nghe khi thiếu cấu hình, nhưng mọi việc thật đều bị từ chối — nó
 không đoán bừa bằng khóa nào.</p>`;
 }
-

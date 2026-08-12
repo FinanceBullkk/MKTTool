@@ -20,7 +20,9 @@ import type { IncomingMessage } from "node:http";
 import { RELAY_ORIGIN } from "../../src/lib/relay/relay-endpoints";
 import type { RelayResponseBody } from "./relay-http-server";
 import { writeRelayConfig } from "./relay-config";
-import type { SecureStore } from "./secure-store";
+import { RELAY_SECRET_NAMES, type SecureStore } from "./secure-store";
+import type { BootstrapAuthorizationBroker } from "./bootstrap-authorization";
+import { writeOperatorGrantState } from "./operator-grant-state";
 
 /** Cùng con số với `VAULT_KEY_HEX_LENGTH` phía máy chủ. */
 const VAULT_KEY_HEX_LENGTH = 64;
@@ -32,6 +34,7 @@ export interface SetOperatorKeyDeps {
    * Có mặt để test kiểm được logic ở đây mà không cần DPAPI — CI chạy Linux, và ở đó kho thật ném.
    */
   secureStore?: SecureStore;
+  bootstrap?: BootstrapAuthorizationBroker;
   onConfigured: () => { ok: boolean; message: string };
 }
 
@@ -88,10 +91,38 @@ export function handleSetOperatorKey(
   }
 
   try {
+    if (patch.vaultKeyOperator && deps.bootstrap) {
+      if (!deps.secureStore) throw new Error("Bootstrap requires protected storage.");
+      const completion = deps.bootstrap.consume();
+      writeOperatorGrantState(deps.secureStore, {
+        v: 1,
+        kind: "bootstrap",
+        operatorKey: patch.vaultKeyOperator,
+        generation: completion.generation,
+        grantId: completion.grantId,
+        grantHash: completion.grantHash,
+        completionProof: completion.proof,
+      });
+      delete patch.vaultKeyOperator;
+    }
     writeRelayConfig(patch, deps.home, deps.secureStore);
   } catch (error) {
     return { ok: false, message: `Không ghi được file cấu hình: ${(error as Error).message}` };
   }
 
-  return deps.onConfigured();
+  const configured = deps.onConfigured();
+  if (deps.bootstrap && !deps.bootstrap.isAuthorized()) {
+    const state = deps.secureStore ? readBootstrapState(deps.secureStore) : null;
+    if (state) return { ...configured, ...state };
+  }
+  return configured;
+}
+
+function readBootstrapState(store: SecureStore): Record<string, unknown> | null {
+  const raw = store.read(RELAY_SECRET_NAMES.operatorGrantState);
+  if (!raw) return null;
+  const state = JSON.parse(raw) as { kind?: unknown; grantId?: unknown; generation?: unknown; completionProof?: unknown };
+  return state.kind === "bootstrap" && typeof state.grantId === "string" && typeof state.generation === "number" && typeof state.completionProof === "string"
+    ? { grantId: state.grantId, generation: state.generation, proof: state.completionProof }
+    : null;
 }

@@ -28,6 +28,7 @@ import { CONFIG_FILE, relayFilePath, resolveRelayHome } from "./relay-home";
 import { isMktBrowserToken } from "./mkt-browser-token-discovery";
 import { RELAY_SECRET_NAMES, type SecureStore } from "./secure-store";
 import { WindowsSecureStore } from "./windows-secure-store";
+import { readOperatorGrantState, retireLegacyOperatorKey } from "./operator-grant-state";
 
 /** Cấu hình đã kiểm xong, sẵn sàng dùng. */
 export interface RelayConfig {
@@ -344,6 +345,14 @@ export function resolveDeviceId(home: string = resolveRelayHome()): string | nul
   return typeof raw === "string" && raw.trim() !== "" ? raw.trim() : null;
 }
 
+/** Server signing key is needed for bootstrap before the operator key makes the full config valid. */
+export function resolveServerPublicKey(home: string = resolveRelayHome()): string | null {
+  const raw = readRawConfig(home).serverPublicKey;
+  if (typeof raw !== "string") return null;
+  const value = raw.trim().toLowerCase();
+  return /^[0-9a-f]{64}$/.test(value) ? value : null;
+}
+
 /** File cấu hình dưới dạng thô. Chưa có file, hoặc hỏng JSON, đều thành object rỗng. */
 function readRawConfig(home: string): Record<string, unknown> {
   try {
@@ -413,24 +422,18 @@ export function loadRelayConfig(
   }
 
   try {
-    return reviewRelayConfig(parsed, secureStore.read(RELAY_SECRET_NAMES.operatorDomainKey));
+    const delivered = readOperatorGrantState(secureStore)?.operatorKey;
+    if (delivered) retireLegacyOperatorKey(secureStore);
+    return reviewRelayConfig(parsed, delivered ?? secureStore.read(RELAY_SECRET_NAMES.operatorDomainKey));
   } catch (error) {
     return {
       ok: false,
       problems: [
         {
           field: "vaultKeyOperator",
-          message: `Cannot read the operator key from Windows protected storage: ${(error as Error).message}`,
+          message: `Cannot load or retire the operator key in Windows protected storage: ${(error as Error).message}`,
         },
       ],
     };
   }
-}
-
-/** Test/helper seam for callers that need the protected operator key without parsing config JSON. */
-export function readProtectedOperatorKey(
-  home: string = resolveRelayHome(),
-  secureStore: SecureStore = new WindowsSecureStore(home),
-): string | null {
-  return secureStore.read(RELAY_SECRET_NAMES.operatorDomainKey);
 }

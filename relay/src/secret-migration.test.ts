@@ -97,6 +97,7 @@ describe("Relay protected-secret migration", () => {
       read: () => "corrupt",
       write: () => undefined,
       writeIfAbsent: () => false,
+      remove: () => undefined,
     };
 
     expect(() => migrateRelaySecrets(home, corruptStore, RELAY_VERSION)).toThrow(/conflicts/);
