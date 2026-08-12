@@ -30,18 +30,25 @@ are installed, registered to start with Windows, and discoverable by each other.
 - The MCP token no longer needs to cross the boundary. MKB-02 made Relay discover it from the owned
   Windows data root, confirmed on a real machine whose config still carried the pre-W02 key name.
 
-## Decision required before implementation
+## Decision — pinned download, chosen 12 August 2026
 
-How does the Relay binary reach the MKTBrowser installer build?
+The MKTBrowser installer build downloads a **pinned Relay release by version and SHA-256** from the
+MKTTool release route. Committing the 90 MB binary into MKTBrowser was rejected because every clone
+would carry it forever; a combined pipeline checking out both repositories was rejected because it
+couples the CI of two repositories §9 deliberately keeps apart.
 
-| Option | Trade-off |
-|---|---|
-| **A. MKTBrowser CI downloads a pinned Relay release** from the MKTTool release route by version + SHA-256 | Keeps repositories separate; needs the release route to serve a versioned, immutable URL |
-| B. Commit the Relay `.exe` into MKTBrowser | 90 MB binary in git; rejected |
-| C. One combined pipeline that checks out both repositories | Couples the repositories' CI; contradicts §9 |
+This matches the discipline already in place: `RELAY_VERSION` plus a published checksum.
 
-**Recommendation: A.** It matches the existing `RELAY_VERSION` + checksum discipline and keeps the
-clean-break boundary. Confirm with the owner before writing the workflow.
+**Prerequisite this decision creates.** R2 currently stores one fixed object name,
+`MKTTool-Relay.zip`, which each release **overwrites**. Pinning by version is meaningless against a
+mutable URL, so the release route must publish and retain a per-version immutable object —
+`MKTTool-Relay-v7.zip` must still return the v7 bytes after v8 ships. This is the first step of the
+phase, not a footnote.
+
+Note the related weakness already recorded elsewhere: `readRelayRelease()` reports
+`version: RELAY_VERSION`, asserted from the constant rather than measured from the artifact. That is
+what allowed a v6 archive to be labelled v7 yesterday. While adding versioned objects, make the
+reported version come from the stored artifact metadata.
 
 ## Requirements
 
@@ -74,7 +81,9 @@ clean-break boundary. Confirm with the owner before writing the workflow.
 
 ## Implementation steps
 
-1. Confirm the cross-repository option with the owner. Do not start until it is chosen.
+1. Make the release route publish and retain per-version immutable objects, and report the version
+   from stored artifact metadata rather than from the `RELAY_VERSION` constant. Nothing else in this
+   phase is sound until a pinned URL means one fixed set of bytes.
 2. Add `fetch-pinned-relay.cjs`: takes version + expected SHA-256 from a checked-in manifest, resumes
    interrupted downloads, and fails closed on mismatch. No "latest".
 3. Wire it into `package-windows.cjs` before `electron-builder` runs, so a packaging run cannot
@@ -90,7 +99,8 @@ clean-break boundary. Confirm with the owner before writing the workflow.
 
 ## Todo list
 
-- [ ] Owner confirms the cross-repository option
+- [ ] Release route publishes per-version immutable objects
+- [ ] Reported release version measured from the artifact, not the constant
 - [ ] `fetch-pinned-relay.cjs` with checksum verification and resume
 - [ ] Pinned Relay version + hash manifest checked in
 - [ ] `package-windows.cjs` fetches and verifies before packaging

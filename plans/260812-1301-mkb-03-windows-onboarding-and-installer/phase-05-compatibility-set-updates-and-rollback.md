@@ -27,6 +27,39 @@ compatibility set that can never run as a mixed tuple.
 - Refuse the update **before stopping anything** when a profile is open. Killing first and checking
   second is how a warmed identity dies.
 
+## Decision — root key custody, chosen 12 August 2026
+
+The threat model is a solo owner and six internal operators. The realistic danger is **losing** the
+key, not a targeted attacker, so custody optimises for recoverability.
+
+Use the two-tier structure the specification already defines, rather than treating the root as a
+per-release key:
+
+| | Used | Stored |
+|---|---|---|
+| **Root** | About once a year, only to sign or rotate a delegation | Encrypted, **two copies on separate physical media kept in different places**, passphrase in the owner's password manager. Never on the build machine, never in CI, never in R2 |
+| **Delegated** | Every release, to sign the compatibility manifest | Windows per-user protected storage on the owner's machine — the same DPAPI mechanism Phase 03 builds |
+
+**Release flow.** CI produces the artifacts and their hashes; the owner signs the manifest locally;
+the signed manifest is uploaded. Leaked CI credentials can therefore push bytes to R2 but cannot
+confer release authority, which is the whole point of R2 being an untrusted host.
+
+No hardware token. The owner declined a recurring certificate cost on the same reasoning, and an
+encrypted key on two separate media is proportionate to this threat model.
+
+**Two obligations that are easy to skip and must not be:**
+
+1. Generate the root key **before** any code depends on it. Writing the validator first and
+   improvising the key later is how a laptop-generated single point of failure gets created.
+2. Rehearse recovery from the second copy exactly once. A backup that has never been restored is not
+   a backup.
+
+**If the root key is lost** — decided now rather than during the incident: devices keep running the
+compatibility set they already have, but can never be updated again. Recovery is a fresh installer
+pinning a new root, installed once by each of the six operators. The disaster is "everyone reinstalls
+once", not "everything dies". That is acceptable, and knowing it is acceptable is what keeps the
+response calm.
+
 ## Requirements
 
 - Signed compatibility manifest pinning installer, Relay, Browser, contract, and engine versions,
@@ -54,8 +87,8 @@ compatibility set that can never run as a mixed tuple.
 
 ## Implementation steps
 
-1. Define the manifest schema and the root/delegated key relationship. Decide and document where the
-   root key is generated and stored **before** writing code that depends on it.
+1. Generate the root key and the first delegation per the custody decision above, and rehearse
+   recovery from the second copy. Do this before writing code that depends on either key.
 2. Implement validation with every rejection case as a test: altered, stale, replayed, wrong key,
    revoked delegation, incompatible tuple, network-driven downgrade.
 3. Implement staging and activation with a durable marker per step.
@@ -65,7 +98,9 @@ compatibility set that can never run as a mixed tuple.
 
 ## Todo list
 
-- [ ] Root key custody decided and written down
+- [ ] Root key generated per the custody decision; two copies on separate media
+- [ ] Recovery from the second copy rehearsed once
+- [ ] First delegation signed; delegated key in protected per-user storage
 - [ ] Manifest schema and validation
 - [ ] All seven rejection cases tested
 - [ ] Staging and activation with durable markers
@@ -82,8 +117,9 @@ secure-store floor is refused even by ADMIN.
 
 ## Risk assessment
 
-- **The root key has no fallback.** Decide custody first; a key generated casually on a laptop is a
-  single point of failure for every future release.
+- **The root key has no fallback underneath it.** Custody is decided above; the residual risk is
+  skipping the recovery rehearsal, which turns a survivable loss into a full reinstall across the
+  fleet.
 - Fault injection across reboots is slow to test by hand. Budget for it or the convergence guarantee
   is a claim rather than a result.
 
