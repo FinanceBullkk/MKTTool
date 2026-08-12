@@ -39,6 +39,7 @@ import {
   readFileSync,
   rmSync,
   statSync,
+  utimesSync,
   writeFileSync,
 } from "node:fs";
 import { createRequire } from "node:module";
@@ -236,6 +237,35 @@ if (installerBytes[0] !== 0xef || installerBytes[1] !== 0xbb || installerBytes[2
 }
 
 step(5, "Nén ba file thành gói tải về");
+
+/**
+ * Ghim mốc sửa của cả ba file trước khi nén — nếu không thì hai lượt build cùng nội dung ra hai
+ * chuỗi byte khác nhau.
+ *
+ * `Compress-Archive` cất mốc sửa của **từng mục** vào zip, mà `.exe` thì vừa dựng xong ở bước 4
+ * nên mang mốc mới ở mọi lượt. (`setup.bat` và `install-relay.ps1` thì không sao: trên Windows
+ * `copyFileSync` gọi `CopyFileW`, hàm đó giữ nguyên mốc của file nguồn.) Đo thực tế: giữ nguyên
+ * đầu vào rồi nén hai lần cho ra cùng một mã băm, chỉ dời mốc của `.exe` một giờ là mã băm đổi
+ * hoàn toàn — tức luồng deflate vốn đã tất định, chỉ mỗi mốc thời gian là biến.
+ *
+ * Cái này mua được gì: dựng lại từ mã nguồn rồi đối chiếu mã băm là **chứng minh được** gói đang
+ * phát hành đúng là thứ cây mã này sinh ra. Thiếu nó thì mỗi lượt build ra một mã băm mới, và
+ * "khác mã băm" không còn phân biệt được *đổi nội dung* với *chỉ là build lại* — đúng cái đã làm
+ * lệch pin ngày 12/08.
+ *
+ * Giới hạn: zip cất mốc theo **giờ địa phương**, nên tính tái lập này đúng trong phạm vi cùng một
+ * máy/múi giờ. Muốn tái lập xuyên múi giờ thì phải ghim cả `TZ`, mà bản này chỉ build trên đúng
+ * một máy Windows nên chưa cần trả giá đó.
+ */
+const REPRODUCIBLE_MTIME = new Date("2020-01-01T00:00:00Z");
+for (const file of [
+  EXECUTABLE_FILE,
+  path.join(DIST_DIR, "setup.bat"),
+  path.join(DIST_DIR, "install-relay.ps1"),
+]) {
+  utimesSync(file, REPRODUCIBLE_MTIME, REPRODUCIBLE_MTIME);
+}
+
 // `Compress-Archive` có sẵn từ PowerShell 5 — không thêm phụ thuộc npm nào cho một việc mà
 // Windows đã làm được. `powershell.exe` là `.exe` thật nên gọi thẳng, không vướng bẫy `.cmd`.
 run("powershell", [
