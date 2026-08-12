@@ -198,7 +198,7 @@ export const RELAY_PROFILE_WORK_TIMEOUT_MS = 60_000;
  * tăng bằng tay: tự sinh theo git hash thì nó đổi ở mọi lượt build, và một số đổi liên tục thì
  * cảnh báo "bản cũ" kêu liên tục cho tới lúc không ai còn nhìn.
  */
-export const RELAY_VERSION = 8;
+export const RELAY_VERSION = 9;
 
 /**
  * Một profile antidetect như cầu nối khai ra ở `GET /profiles`.

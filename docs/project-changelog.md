@@ -12,6 +12,24 @@ Dự án chưa phát hành phiên bản (`0.1.0`, dùng nội bộ). Mốc chia 
 
 ---
 
+## 12/08/2026 (11) — Relay 9 replaces a v8 the source could no longer reproduce
+
+v8 was published before the DPAPI transport and migration fixes above landed, so building from
+`main` afterwards produced a different executable that still called itself 8 — the exact failure
+that raising 7 to 8 was meant to end. `relay:publish` refuses to overwrite an existing version, so
+nothing wrong could reach R2, but a locally built "v8" would have reported a number that no longer
+identified one artifact.
+
+`MKTTool-Relay-v9.zip` is `74afbdc1…`, built twice to identical bytes, and the installer pins it.
+v8 stays on R2 unused; immutable per-version objects are meant to accumulate rather than be
+corrected.
+
+The sequencing lesson is the durable part: **publish last, after the code is final.** A guard worth
+adding later is stamping the commit into the artifact metadata and refusing to publish from a dirty
+tree, so "which source produced this" is always answerable.
+
+---
+
 ## 12/08/2026 (10) — The build machine authenticates with its own token
 
 `/api/relay/download/vN` now accepts either a signed-in session or
