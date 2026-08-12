@@ -1,6 +1,6 @@
 # MKB-03 — Windows onboarding, installer, and controlled updates
 
-**Started:** 12 August 2026 · **Estimate:** 10–15 days · **Status:** Phase 01 implemented; human gate open
+**Started:** 12 August 2026 · **Estimate:** 10–15 days · **Status:** Phases 01 and 03 implemented; two human gates open
 
 **Specification:** [MKT Browser plan §MKB-03](../260810-0244-mkt-browser-noi-bo/plan.md) — the "why"
 and the gate wording live there. This directory is the execution plan only; do not restate the spec,
@@ -32,7 +32,7 @@ working artifact rather than an unknown one.
 |---|---|---|---|
 | 01 | [One installer carrying Relay and Browser](phase-01-one-installer-with-relay.md) | — | 🟡 Implemented; clean-account install/reboot/uninstall pending |
 | 02 | [Setup controller and the announced SmartScreen journey](phase-02-setup-controller-and-smartscreen-journey.md) | 01 | ⬜ |
-| 03 | [Protected secrets and the diagnostics allowlist](phase-03-protected-secrets-and-diagnostics-allowlist.md) | — | ⬜ |
+| 03 | [Protected secrets and the diagnostics allowlist](phase-03-protected-secrets-and-diagnostics-allowlist.md) | — | 🟡 Implemented; live-install migration rehearsal pending |
 | 04 | [Enrollment, grants, and ADMIN bootstrap](phase-04-enrollment-grants-and-admin-bootstrap.md) | 02, 03 | ⬜ |
 | 05 | [Compatibility set, updates, and rollback](phase-05-compatibility-set-updates-and-rollback.md) | 01, 03 | ⬜ |
 | 06 | [Conflicts, repair, uninstall, and gate rehearsal](phase-06-conflicts-repair-uninstall-and-gate-rehearsal.md) | 01–05 | ⬜ |
