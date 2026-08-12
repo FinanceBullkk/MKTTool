@@ -19,7 +19,8 @@
  */
 import { RELAY_PATHS, RELAY_VERSION } from "../../src/lib/relay/relay-endpoints";
 import { renderOperatorKeyForm } from "./relay-operator-key-form";
-import { CONFIG_FILE, DEVICE_KEY_FILE } from "./relay-home";
+import { CONFIG_FILE } from "./relay-home";
+import { STORE_DIRECTORY } from "./windows-secure-store";
 import { CONFIG_TEMPLATE, type ConfigProblem } from "./relay-config";
 import type { MktBrowserTokenSource } from "./mkt-browser-token-discovery";
 
@@ -112,8 +113,12 @@ export function renderStatusPage(input: StatusPageInput): string {
 
 <h2>Khóa công khai của máy này</h2>
 <p>Chép nguyên dòng này sang trang <strong>Máy cầu nối</strong> trên web app để đăng ký.
-Đây là khóa <strong>công khai</strong> — khóa riêng nằm trong
-<code>${escapeHtml(DEVICE_KEY_FILE)}</code> và không bao giờ rời máy này.</p>
+Đây là khóa <strong>công khai</strong>. Khóa riêng nằm trong kho bảo vệ của Windows
+(<code>${escapeHtml(STORE_DIRECTORY)}\\</code>) và không bao giờ rời máy này.</p>
+<p class="muted">Kho đó gắn với <strong>tài khoản Windows đang đăng nhập</strong>. Chép mấy file
+trong đó sang máy khác hay tài khoản khác thì không mở ra được — nên chúng <strong>không phải
+một bản sao lưu</strong>. Mất tài khoản này là mất khóa riêng, và đường chữa là đăng ký lại máy
+trên web app rồi thu hồi khóa cũ, không phải khôi phục từ bản chép.</p>
 <code class="key">${escapeHtml(input.publicKeyHex)}</code>
 
 ${configured ? renderActiveConfig(input.config) : renderProblems(input.problems, input.webOrigin)}

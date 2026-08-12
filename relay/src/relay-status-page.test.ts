@@ -25,6 +25,24 @@ describe("trang trạng thái của cầu nối", () => {
     expect(page()).toContain(PUBLIC_KEY);
   });
 
+  /**
+   * Trang này từng nói khóa riêng nằm trong `relay-device-key.json`. Sau MKB-03 Phase 03 thì file
+   * đó chỉ còn là bia mộ 93 byte, còn khóa nằm trong kho DPAPI — nên câu cũ chỉ người ta đi sao
+   * lưu đúng cái file KHÔNG chứa gì. Bắt gặp ngay sau lượt di trú thật đầu tiên, 12/08/2026.
+   *
+   * Và phần quan trọng hơn tên thư mục: kho DPAPI gắn với **tài khoản Windows**, nên chép nó đi
+   * chỗ khác không mở ra được. Người đọc phải biết đó không phải một bản sao lưu, trước khi họ
+   * tin là mình đã có một bản.
+   */
+  it("chỉ đúng chỗ khóa riêng đang nằm, và nói rõ nó KHÔNG sao lưu được bằng cách chép file", () => {
+    const html = page();
+
+    expect(html).toContain("protected-secrets");
+    expect(html).not.toContain("relay-device-key.json");
+    expect(html).toMatch(/tài khoản Windows/);
+    expect(html).toMatch(/không phải[\s\S]{0,40}bản sao lưu/);
+  });
+
   it("hiện mã máy và nguồn web — hai giá trị sai thì hỏng theo kiểu khó đoán nhất", () => {
     const html = page();
 
