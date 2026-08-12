@@ -29,12 +29,14 @@ import path from "node:path";
 import { Readable } from "node:stream";
 import { type R2Config } from "../r2/r2-config";
 import { RELAY_VERSION } from "./relay-endpoints";
+import { readRelayArtifactMetadata } from "./relay-release-metadata";
 import {
   checksumOf,
   describeR2Location,
   headRelayRelease,
   openRelayReleaseStream,
   readRelayReleaseR2Config,
+  versionOf,
 } from "./relay-release-r2";
 
 /**
@@ -53,8 +55,8 @@ export const RELAY_ARCHIVE_NAME = "MKTTool-Relay.zip";
  * theo phiên bản, còn thư mục Downloads của người dùng thì cần phân biệt được ba gói nằm cạnh
  * nhau. Một chồng `MKTTool-Relay.zip`, `(1)`, `(2)` là cách chắc chắn để cài lại đúng bản cũ.
  */
-export function relayDownloadFileName(): string {
-  return `MKTTool-Relay-v${RELAY_VERSION}.zip`;
+export function relayDownloadFileName(version: number): string {
+  return `MKTTool-Relay-v${version}.zip`;
 }
 
 /** Thư mục chứa bản phát hành trên đĩa. Mặc định là chỗ `npm run relay:build` ghi ra. */
@@ -96,24 +98,33 @@ export type RelayRelease =
  *
  * Bất đồng bộ vì nhánh R2 phải hỏi qua mạng — một request `HEAD`, không kéo nội dung về.
  */
-export async function readRelayRelease(): Promise<RelayRelease> {
+export async function readRelayRelease(version?: number): Promise<RelayRelease> {
   const r2 = readRelayReleaseR2Config();
-  return r2 ? readFromR2(r2) : readRelayReleaseFromDisk();
+  return r2 ? readFromR2(r2, version ?? RELAY_VERSION) : readRelayReleaseFromDisk(version);
 }
 
-async function readFromR2(config: R2Config): Promise<RelayRelease> {
+async function readFromR2(config: R2Config, requestedVersion: number): Promise<RelayRelease> {
   // Lỗi mạng và lỗi cấu hình KHÔNG được biến thành "chưa có gói": hai chuyện đó dẫn tới hai việc
   // phải làm khác hẳn nhau, và câu "chưa phát hành bản nào" sẽ cử người quản trị đi build lại một
   // gói vốn đã nằm sẵn trên R2. Ném lên để trang hiện đúng lỗi.
-  const info = await headRelayRelease(config);
-  if (!info) return { available: false, expectedPath: describeR2Location(config) };
+  const info = await headRelayRelease(config, requestedVersion);
+  if (!info) return { available: false, expectedPath: describeR2Location(config, requestedVersion) };
+  const artifactVersion = versionOf(info);
+  if (artifactVersion === null) {
+    throw new Error(`Relay release v${requestedVersion} has no valid artifact version metadata.`);
+  }
+  if (artifactVersion !== requestedVersion) {
+    throw new Error(
+      `Relay release object v${requestedVersion} reports artifact version ${artifactVersion}.`,
+    );
+  }
 
   return {
     available: true,
     source: "r2",
     sizeBytes: info.sizeBytes,
     builtAt: info.lastModified,
-    version: RELAY_VERSION,
+    version: artifactVersion,
     checksum: checksumOf(info),
   };
 }
@@ -125,7 +136,7 @@ async function readFromR2(config: R2Config): Promise<RelayRelease> {
  * build**, không phải gói đang nằm trên R2 — mà máy build thì có khai ngăn R2 (nó cần token ghi),
  * nên `readRelayRelease` ở đó sẽ đi đọc chính cái nó sắp ghi đè.
  */
-export function readRelayReleaseFromDisk(): RelayRelease {
+export function readRelayReleaseFromDisk(requestedVersion?: number): RelayRelease {
   const filePath = relayArchivePath();
 
   try {
@@ -133,16 +144,26 @@ export function readRelayReleaseFromDisk(): RelayRelease {
     // Một thư mục trùng tên cũng qua được `statSync`, và nhánh sau sẽ cố stream nó.
     if (!stats.isFile()) return { available: false, expectedPath: filePath };
 
+    const metadata = readRelayArtifactMetadata(relayReleaseDir());
+    if (!metadata) throw new Error(`Relay artifact metadata is missing or invalid beside ${filePath}.`);
+    if (metadata.sizeBytes !== stats.size) {
+      throw new Error(`Relay artifact metadata does not match the archive size beside ${filePath}.`);
+    }
+    if (requestedVersion !== undefined && metadata.version !== requestedVersion) {
+      return { available: false, expectedPath: `${filePath} (version ${requestedVersion})` };
+    }
+
     return {
       available: true,
       source: "disk",
       sizeBytes: stats.size,
       builtAt: stats.mtime,
-      version: RELAY_VERSION,
-      checksum: null,
+      version: metadata.version,
+      checksum: metadata.sha256,
       path: filePath,
     };
-  } catch {
+  } catch (error) {
+    if (error instanceof Error && error.message.startsWith("Relay artifact metadata")) throw error;
     return { available: false, expectedPath: filePath };
   }
 }
@@ -156,14 +177,17 @@ export function readRelayReleaseFromDisk(): RelayRelease {
  */
 export async function openRelayArchive(
   release: Extract<RelayRelease, { available: true }>,
+  startByte = 0,
 ): Promise<ReadableStream<Uint8Array>> {
   if (release.source === "disk" && release.path) {
-    return Readable.toWeb(createReadStream(release.path)) as ReadableStream<Uint8Array>;
+    return Readable.toWeb(
+      createReadStream(release.path, { start: startByte }),
+    ) as ReadableStream<Uint8Array>;
   }
 
   const config = readRelayReleaseR2Config();
   if (!config) throw new Error("Ngăn R2 chứa gói cầu nối không còn được khai.");
-  return openRelayReleaseStream(config);
+  return openRelayReleaseStream(config, release.version, startByte);
 }
 
 /**
@@ -198,7 +222,7 @@ let cachedChecksum: { key: string; digest: string } | null = null;
 export async function relayArchiveChecksum(known?: RelayRelease): Promise<string | null> {
   const release = known ?? (await readRelayRelease());
   if (!release.available) return null;
-  if (release.checksum) return release.checksum;
+  if (release.source === "r2" && release.checksum) return release.checksum;
   if (!release.path) return null;
 
   const key = `${release.path}:${release.sizeBytes}:${release.builtAt.getTime()}`;

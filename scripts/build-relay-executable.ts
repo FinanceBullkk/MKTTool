@@ -31,14 +31,20 @@
  * ứng dụng Win32 hợp lệ". Nên chặn thẳng ở đây, kèm câu nói rõ vì sao.
  */
 import { execFileSync } from "node:child_process";
-import { copyFileSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import {
+  copyFileSync,
+  createReadStream,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { RELAY_VERSION } from "../src/lib/relay/relay-endpoints";
-import {
-  readRelayReleaseFromDisk,
-  relayArchiveChecksum,
-} from "../src/lib/relay/relay-release-file";
+import { writeRelayArtifactMetadata } from "../src/lib/relay/relay-release-metadata";
 
 /**
  * Gọi esbuild và postject qua **file JS của chúng**, chạy bằng chính `node` đang chạy script này.
@@ -246,6 +252,18 @@ run("powershell", [
  * không khai `"type": "module"`), mà CJS thì không có `await` ở cấp cao nhất.
  */
 async function printSummary(): Promise<void> {
+  const hash = createHash("sha256");
+  for await (const chunk of createReadStream(ARCHIVE_FILE)) {
+    hash.update(chunk as Buffer);
+  }
+  const checksum = hash.digest("hex");
+  const sizeBytes = statSync(ARCHIVE_FILE).size;
+  writeRelayArtifactMetadata(DIST_DIR, {
+    version: RELAY_VERSION,
+    sizeBytes,
+    sha256: checksum,
+  });
+
   console.log(`\n✅ ${path.relative(process.cwd(), ARCHIVE_FILE)} — ${sizeOf(ARCHIVE_FILE)}`);
   console.log(`   (${path.relative(process.cwd(), EXECUTABLE_FILE)} — ${sizeOf(EXECUTABLE_FILE)})`);
 
@@ -255,7 +273,7 @@ async function printSummary(): Promise<void> {
   // **Ép nhánh đĩa.** Máy build có khai ngăn R2 (nó cần token ghi để `relay:publish`), nên
   // `readRelayRelease()` không tham số sẽ đi hỏi R2 và in ra mã băm của gói ĐANG nằm trên đó —
   // tức mã của bản trước. Đã in nhầm thật một lượt: hai bản khác nhau ra cùng một chuỗi.
-  console.log(`   SHA-256: ${await relayArchiveChecksum(readRelayReleaseFromDisk())}`);
+  console.log(`   SHA-256: ${checksum}`);
   console.log(`
 Nghiệm thu ngay: npm run relay:verify
 

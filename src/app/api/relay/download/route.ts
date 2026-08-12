@@ -20,9 +20,7 @@
 import { NextResponse } from "next/server";
 import { guardedRoute } from "@/lib/auth/guarded-route";
 import {
-  openRelayArchive,
   readRelayRelease,
-  relayDownloadFileName,
 } from "@/lib/relay/relay-release-file";
 
 export const runtime = "nodejs";
@@ -31,7 +29,7 @@ export const runtime = "nodejs";
 // phục vụ một bản `.exe` đã bị thay từ đời nào.
 export const dynamic = "force-dynamic";
 
-export const GET = guardedRoute(async function GET() {
+export const GET = guardedRoute(async function GET(_actor, request: Request) {
   const release = await readRelayRelease();
 
   if (!release.available) {
@@ -47,18 +45,5 @@ export const GET = guardedRoute(async function GET() {
     );
   }
 
-  const stream = await openRelayArchive(release);
-
-  return new Response(stream, {
-    headers: {
-      "content-type": "application/octet-stream",
-      "content-length": String(release.sizeBytes),
-      // `attachment` để trình duyệt tải xuống thay vì cố mở. Tên kèm số phiên bản: thư mục
-      // Downloads của người dùng là nơi ba gói nằm cạnh nhau, và `(1)`, `(2)` không nói bản nào.
-      "content-disposition": `attachment; filename="${relayDownloadFileName()}"`,
-      // Bản phát hành đổi mà tên đường dẫn không đổi: một bản nằm trong cache là một máy cài lại
-      // bản cũ rồi tự hỏi vì sao dải cảnh báo "bản cũ" vẫn còn.
-      "cache-control": "no-store",
-    },
-  });
+  return NextResponse.redirect(new URL(`/api/relay/download/v${release.version}`, request.url));
 });

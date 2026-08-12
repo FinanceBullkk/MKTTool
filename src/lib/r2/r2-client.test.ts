@@ -152,6 +152,22 @@ describe("putObject", () => {
     expect(Object.keys(headers).some((name) => name.startsWith("x-amz-meta-"))).toBe(false);
   });
 
+  it("ký điều kiện không ghi đè cho object bất biến", async () => {
+    const fetchImpl = fakeFetch(() => respond(200));
+    await putObject({
+      config: CONFIG,
+      key: "MKTTool-Relay-v7.zip",
+      body: Buffer.from("x"),
+      contentType: "application/zip",
+      ifNoneMatch: "*",
+      fetchImpl,
+    });
+
+    const headers = fetchImpl.mock.calls[0]![1]!.headers as Record<string, string>;
+    expect(headers["if-none-match"]).toBe("*");
+    expect(headers.Authorization).toContain("if-none-match");
+  });
+
   it("R2 từ chối thì ném R2UploadError", async () => {
     const fetchImpl = fakeFetch(() => respond(403, {}, "<Code>SignatureDoesNotMatch</Code>"));
 
