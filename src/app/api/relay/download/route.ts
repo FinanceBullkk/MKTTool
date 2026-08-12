@@ -4,7 +4,7 @@
  * ## Lớp đăng nhập ở đây bảo vệ cái gì, và không bảo vệ cái gì
  *
  * `.exe` này **không chứa bí mật nào**: khóa riêng do chính nó sinh ra trên từng máy, còn khóa
- * vùng operator thì người cài dán tay vào `relay-config.json`. Ai lấy được file cũng không mở
+ * vùng operator thì người cài nhập trên loopback page và Relay lưu trong DPAPI. Ai lấy được file cũng không mở
  * nổi một mật khẩu nào — đó là toàn bộ thiết kế của GĐ3.
  *
  * Nên đừng nhầm: lớp gác này **không** phải là thứ giữ kho an toàn. Nó làm hai việc khiêm tốn
@@ -22,6 +22,7 @@ import { guardedRoute } from "@/lib/auth/guarded-route";
 import {
   readRelayRelease,
 } from "@/lib/relay/relay-release-file";
+import { RELAY_VERSION } from "@/lib/relay/relay-endpoints";
 
 export const runtime = "nodejs";
 
@@ -30,7 +31,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export const GET = guardedRoute(async function GET(_actor, request: Request) {
-  const release = await readRelayRelease();
+  const release = await readRelayRelease(RELAY_VERSION);
 
   if (!release.available) {
     return NextResponse.json(

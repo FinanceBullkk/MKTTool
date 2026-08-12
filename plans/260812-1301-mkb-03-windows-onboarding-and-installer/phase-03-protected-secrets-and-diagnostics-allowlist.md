@@ -8,7 +8,7 @@
 ## Overview
 
 **Priority:** high, and **independent** — no dependency on Phases 01 or 02, so it can run in parallel.
-**Status:** ⬜ ready to start.
+**Status:** ✅ implemented and verified in self-created temporary Relay homes; no live migration run.
 
 Move the operator-domain key and the Relay device private key out of plaintext JSON into per-user
 protected storage, and close the last default-allow seam in the diagnostics path.
@@ -65,13 +65,13 @@ protected storage, and close the last default-allow seam in the diagnostics path
 
 ## Todo list
 
-- [ ] `windows-secure-store.ts` adapter over the shared core
-- [ ] `secret-migration.ts` with durable markers
-- [ ] Fault injection at all seven boundaries plus reboot
-- [ ] Rollback floor recorded and enforced
-- [ ] No plaintext recreated by repair, backup, temp files, or uninstall
-- [ ] `sanitize` inverted to an allowlist
-- [ ] Unknown-key test proves the feed fails closed
+- [x] `windows-secure-store.ts` adapter over the shared core
+- [x] `secret-migration.ts` with durable markers
+- [x] Fault injection at all seven boundaries plus reboot
+- [x] Rollback floor recorded and enforced
+- [x] No plaintext recreated by repair, backup, temp files, or uninstall
+- [x] `sanitize` inverted to an allowlist
+- [x] Unknown-key test proves the feed fails closed
 
 ## Success criteria
 

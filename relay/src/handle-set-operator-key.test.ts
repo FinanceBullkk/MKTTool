@@ -16,6 +16,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { RELAY_ORIGIN } from "../../src/lib/relay/relay-endpoints";
 import { handleSetOperatorKey } from "./handle-set-operator-key";
 import { CONFIG_FILE } from "./relay-home";
+import { RELAY_SECRET_NAMES, type SecureStore } from "./secure-store";
+import { InMemorySecureStore } from "./in-memory-secure-store";
+import { readProtectedOperatorKey } from "./relay-config";
 
 const OPERATOR_KEY = "c4".repeat(32);
 const homes: string[] = [];
@@ -32,12 +35,23 @@ function readConfig(home: string): Record<string, unknown> {
 }
 
 /** `null` = request không khai `Origin`. Xem chú thích cùng tên ở `handle-configure.test.ts`. */
-function call(home: string, body: unknown, origin: string | null = RELAY_ORIGIN) {
+function call(
+  home: string,
+  body: unknown,
+  origin: string | null = RELAY_ORIGIN,
+  // Kho giả, không phải DPAPI: bài này kiểm logic ở handler, và kho thật ném trên CI Linux.
+  secureStore: SecureStore = new InMemorySecureStore(),
+) {
   const onConfigured = vi.fn(() => ({ ok: true, message: "Đã lưu." }));
   const request = { headers: origin ? { origin } : {} } as IncomingMessage;
   return {
-    result: handleSetOperatorKey(request, JSON.stringify(body), { home, onConfigured }),
+    result: handleSetOperatorKey(request, JSON.stringify(body), {
+      home,
+      secureStore,
+      onConfigured,
+    }),
     onConfigured,
+    secureStore,
   };
 }
 
@@ -48,10 +62,11 @@ afterEach(() => {
 describe("handleSetOperatorKey", () => {
   it("lưu khóa khi gọi từ chính trang của cầu nối", () => {
     const home = makeHome();
-    const { result, onConfigured } = call(home, { vaultKeyOperator: OPERATOR_KEY });
+    const { result, onConfigured, secureStore } = call(home, { vaultKeyOperator: OPERATOR_KEY });
 
     expect(result.ok).toBe(true);
-    expect(readConfig(home).vaultKeyOperator).toBe(OPERATOR_KEY);
+    expect(secureStore.read(RELAY_SECRET_NAMES.operatorDomainKey)).toBe(OPERATOR_KEY);
+    expect(readConfig(home).vaultKeyOperator).toBeUndefined();
     expect(onConfigured).toHaveBeenCalledOnce();
   });
 
@@ -67,13 +82,13 @@ describe("handleSetOperatorKey", () => {
 
   it("GIỮ NGUYÊN mã máy và khóa máy chủ do web app ghi xuống", () => {
     const home = makeHome({ deviceId: "device-abc", serverPublicKey: "a1".repeat(32) });
-    call(home, { vaultKeyOperator: OPERATOR_KEY });
+    const { secureStore } = call(home, { vaultKeyOperator: OPERATOR_KEY });
 
     expect(readConfig(home)).toMatchObject({
       deviceId: "device-abc",
       serverPublicKey: "a1".repeat(32),
-      vaultKeyOperator: OPERATOR_KEY,
     });
+    expect(secureStore.read(RELAY_SECRET_NAMES.operatorDomainKey)).toBe(OPERATOR_KEY);
   });
 
   it("bắt khóa sai độ dài, nói rõ đang có bao nhiêu ký tự", () => {
@@ -98,12 +113,13 @@ describe("handleSetOperatorKey", () => {
   });
 
   it("saves only the MKT Browser token without changing the operator key", () => {
-    const home = makeHome({ vaultKeyOperator: OPERATOR_KEY });
-    call(home, { mktBrowserToken: "test-browser-token" });
-
-    expect(readConfig(home)).toMatchObject({
-      vaultKeyOperator: OPERATOR_KEY,
-      mktBrowserToken: "test-browser-token",
+    const home = makeHome();
+    const seeded = new InMemorySecureStore({
+      [RELAY_SECRET_NAMES.operatorDomainKey]: OPERATOR_KEY,
     });
+    call(home, { mktBrowserToken: "test-browser-token" }, RELAY_ORIGIN, seeded);
+
+    expect(readConfig(home)).toMatchObject({ mktBrowserToken: "test-browser-token" });
+    expect(readProtectedOperatorKey(home, seeded)).toBe(OPERATOR_KEY);
   });
 });

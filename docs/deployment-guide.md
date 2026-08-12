@@ -843,6 +843,35 @@ RELAY_RELEASE_R2_SECRET_ACCESS_KEY=<Secret của token GHI>
 quy tắc với `R2_*`, và cùng lý do: một tính năng không chạy mà nhìn như đang chạy tệ hơn một tính
 năng tắt hẳn.
 
+**6. Chìa cho máy dựng installer.** Bộ dựng file cài của MKT Browser phải **tải** gói Relay đã ghim
+qua `/api/relay/download/vN`, mà tuyến đó nằm sau lớp đăng nhập Google — máy dựng thì không có
+trình duyệt.
+
+Sinh một chìa rồi đặt **hai nơi, cùng giá trị**:
+
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
+| Nơi đặt | Tên biến |
+|---|---|
+| Railway (máy chủ) | `RELAY_RELEASE_DOWNLOAD_TOKEN` |
+| Máy Windows dựng installer | `MKTTOOL_RELEASE_TOKEN` |
+
+Nó mở **đúng một việc**: tải một bản đã phát hành theo số phiên bản. Không dựng ra người dùng nào,
+không đụng được gì khác. Bỏ trống thì tuyến vẫn phục vụ người đã đăng nhập như cũ, chỉ là máy dựng
+hết đường tự tải.
+
+Tối thiểu 32 ký tự — ngắn hơn thì máy chủ **dừng hẳn** chứ không lặng lẽ nhận. Một chìa yếu nguy
+hiểm hơn không có chìa: không khai gì thì tuyến vẫn đóng, còn khai `"test"` thì nó mở cho người
+đoán ra mà không có gì kêu lên.
+
+> ⚠️ **Đừng quay lại dùng cookie phiên.** Cách cũ là dán cookie của một người thật vào biến môi
+> trường máy dựng. Cookie đó mở cả kho danh tính cho một việc cần đúng một file zip, lại còn hết
+> hạn giữa chừng (build gãy với lỗi 401 trông y hệt lỗi deploy) và chết theo người rời team.
+
+Xoay vòng: đổi giá trị trên Railway, deploy lại, rồi đổi ở máy dựng. Không cần dựng lại gói nào.
+
 ### Mỗi lần phát hành
 
 ```bash

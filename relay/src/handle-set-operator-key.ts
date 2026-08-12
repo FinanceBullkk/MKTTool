@@ -20,12 +20,18 @@ import type { IncomingMessage } from "node:http";
 import { RELAY_ORIGIN } from "../../src/lib/relay/relay-endpoints";
 import type { RelayResponseBody } from "./relay-http-server";
 import { writeRelayConfig } from "./relay-config";
+import type { SecureStore } from "./secure-store";
 
 /** Cùng con số với `VAULT_KEY_HEX_LENGTH` phía máy chủ. */
 const VAULT_KEY_HEX_LENGTH = 64;
 
 export interface SetOperatorKeyDeps {
   home?: string;
+  /**
+   * Kho bí mật. Bỏ trống thì `writeRelayConfig` tự dựng `WindowsSecureStore`, tức đường chạy thật.
+   * Có mặt để test kiểm được logic ở đây mà không cần DPAPI — CI chạy Linux, và ở đó kho thật ném.
+   */
+  secureStore?: SecureStore;
   onConfigured: () => { ok: boolean; message: string };
 }
 
@@ -82,7 +88,7 @@ export function handleSetOperatorKey(
   }
 
   try {
-    writeRelayConfig(patch, deps.home);
+    writeRelayConfig(patch, deps.home, deps.secureStore);
   } catch (error) {
     return { ok: false, message: `Không ghi được file cấu hình: ${(error as Error).message}` };
   }

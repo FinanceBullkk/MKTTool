@@ -17,6 +17,8 @@ import { relayPublicKeyToHex } from "../../src/lib/tickets/relay-device-key";
 import { sealForDevice } from "../../src/lib/tickets/ticket-sealed-box";
 import { handleReceiveOperatorKey } from "./handle-receive-operator-key";
 import { CONFIG_FILE } from "./relay-home";
+import { RELAY_SECRET_NAMES, type SecureStore } from "./secure-store";
+import { InMemorySecureStore } from "./in-memory-secure-store";
 
 const OPERATOR_KEY = "c4".repeat(32);
 const homes: string[] = [];
@@ -37,15 +39,23 @@ function readConfig(home: string): Record<string, unknown> {
   return JSON.parse(readFileSync(path.join(home, CONFIG_FILE), "utf8"));
 }
 
-function call(home: string, body: unknown, devicePrivateKey: ReturnType<typeof makeDevice>["privateKey"]) {
+function call(
+  home: string,
+  body: unknown,
+  devicePrivateKey: ReturnType<typeof makeDevice>["privateKey"],
+  // Kho giả, không phải DPAPI: bài này kiểm logic ở handler, và kho thật ném trên CI Linux.
+  secureStore: SecureStore = new InMemorySecureStore(),
+) {
   const onConfigured = vi.fn(() => ({ ok: true, message: "Đã lưu. Cầu nối sẵn sàng." }));
   return {
     result: handleReceiveOperatorKey(JSON.stringify(body), {
       devicePrivateKey,
       home,
+      secureStore,
       onConfigured,
     }),
     onConfigured,
+    secureStore,
   };
 }
 
@@ -59,10 +69,11 @@ describe("handleReceiveOperatorKey", () => {
     const home = makeHome();
     const grant = sealForDevice({ vaultKeyOperator: OPERATOR_KEY }, device.publicKeyHex);
 
-    const { result, onConfigured } = call(home, grant, device.privateKey);
+    const { result, onConfigured, secureStore } = call(home, grant, device.privateKey);
 
     expect(result.ok).toBe(true);
-    expect(readConfig(home).vaultKeyOperator).toBe(OPERATOR_KEY);
+    expect(secureStore.read(RELAY_SECRET_NAMES.operatorDomainKey)).toBe(OPERATOR_KEY);
+    expect(readConfig(home).vaultKeyOperator).toBeUndefined();
     expect(onConfigured).toHaveBeenCalledOnce();
   });
 
@@ -71,13 +82,13 @@ describe("handleReceiveOperatorKey", () => {
     const home = makeHome({ deviceId: "device-abc", mktBrowserToken: "test-browser-token" });
     const grant = sealForDevice({ vaultKeyOperator: OPERATOR_KEY }, device.publicKeyHex);
 
-    call(home, grant, device.privateKey);
+    const { secureStore } = call(home, grant, device.privateKey);
 
     expect(readConfig(home)).toMatchObject({
       deviceId: "device-abc",
       mktBrowserToken: "test-browser-token",
-      vaultKeyOperator: OPERATOR_KEY,
     });
+    expect(secureStore.read(RELAY_SECRET_NAMES.operatorDomainKey)).toBe(OPERATOR_KEY);
   });
 
   it("hộp của MÁY KHÁC thì từ chối và KHÔNG ghi gì", () => {

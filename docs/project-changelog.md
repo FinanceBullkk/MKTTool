@@ -12,6 +12,112 @@ Dự án chưa phát hành phiên bản (`0.1.0`, dùng nội bộ). Mốc chia 
 
 ---
 
+## 12/08/2026 (11) — Relay 9 replaces a v8 the source could no longer reproduce
+
+v8 was published before the DPAPI transport and migration fixes above landed, so building from
+`main` afterwards produced a different executable that still called itself 8 — the exact failure
+that raising 7 to 8 was meant to end. `relay:publish` refuses to overwrite an existing version, so
+nothing wrong could reach R2, but a locally built "v8" would have reported a number that no longer
+identified one artifact.
+
+`MKTTool-Relay-v9.zip` is `74afbdc1…`, built twice to identical bytes, and the installer pins it.
+v8 stays on R2 unused; immutable per-version objects are meant to accumulate rather than be
+corrected.
+
+The sequencing lesson is the durable part: **publish last, after the code is final.** A guard worth
+adding later is stamping the commit into the artifact metadata and refusing to publish from a dirty
+tree, so "which source produced this" is always answerable.
+
+---
+
+## 12/08/2026 (10) — The build machine authenticates with its own token
+
+`/api/relay/download/vN` now accepts either a signed-in session or
+`Authorization: Bearer <RELAY_RELEASE_DOWNLOAD_TOKEN>`, and the installer build sends
+`MKTTOOL_RELEASE_TOKEN` instead of a pasted session cookie. A wrong token falls through to the
+session check rather than answering differently, so the route is not a guessing oracle. Only the
+versioned route takes a token; the redirect route and the download page stay human-only, because a
+build always knows which version it pinned.
+
+The decision still lives in the auth module: `machineOrGuardedRoute` joins `guardedRoute` and
+`adminRoute` in `ROUTE_GUARDS`, so the entry-point guard that scans every route keeps recognising
+this one. Its handler deliberately receives no `Actor` — a machine is not a person, and a handler
+that needs to know who is calling now fails to compile against this wrapper instead of quietly
+receiving nothing. Exporting a bare handler and checking inside the body was the alternative, and it
+is the shape that guard exists to reject.
+
+The cookie it replaces was wrong four ways: it unlocked the whole app including the identity vault
+when the build needed one zip; it expired, so builds failed at random with a 401 that reads like a
+broken deploy; it recorded a person in the audit trail for machine-initiated work; and removing that
+person from `ALLOWED_EMAILS` broke the build. The token is nobody, expires never, and opens one
+route. The server refuses a token under 32 characters instead of accepting it quietly — a weak token
+is worse than none, because without one the route is still closed behind the login.
+
+DPAPI now carries plaintext over the pipe as base64 in both directions. Windows PowerShell 5.1
+decodes redirected stdin with the console codepage rather than UTF-8, so a secret containing
+anything outside ASCII would have been corrupted silently and surfaced as "wrong key". The on-disk
+format is unchanged, so existing blobs still read. Forcing `[Console]::InputEncoding` is not the
+alternative: setting it against a redirected handle throws on this PowerShell.
+
+The migration's `after-read-back` fault point moved ahead of the durable marker write. It sat
+directly beside `before-source-deletion` with no code between, so the two injected at one identical
+state and the advertised seven boundaries were six. It now covers a crash between a successful
+read-back and the marker reaching disk. The no-legacy fast path also records whichever protected
+secrets exist rather than assuming only the device key, so a store already holding the operator key
+stays covered by `requireTrackedSecrets`.
+
+---
+
+## 12/08/2026 (9) — The Relay release archive is reproducible
+
+`relay:build` pins the last-write time of the three archived files to a fixed instant before
+compressing. Two consecutive builds of the same source now produce byte-identical archives; measured
+`00054e26…` twice, and the executable itself was already reproducible.
+
+`Compress-Archive` stores each entry's last-write time, and the executable carries a fresh one every
+run, so every rebuild produced a different SHA-256 from identical content. That cost a real mistake
+the same day: a rebuilt archive was published under a hash the pin did not expect, and "the hash
+changed" could not distinguish a content change from a plain rebuild. It can now.
+
+The limit is that zip records local time, so reproducibility holds within one machine and timezone.
+Cross-timezone reproducibility would also need a pinned `TZ`, which this single-Windows-builder
+release path does not need to pay for.
+
+---
+
+## 12/08/2026 (8) — MKB-03 Phase 03 protects Relay secrets and closes diagnostics default-allow
+
+Relay now stores the operator-domain key and device private key through DPAPI CurrentUser. The
+migration records durable stages, imports, reads back and verifies, removes plaintext, then commits
+the schema marker and Relay rollback floor. A non-secret tombstone at the legacy device-key path
+prevents a plaintext-only Relay from starting or silently recreating a key after migration. The
+installer no longer creates or instructs operators to populate a plaintext operator-key field.
+
+Fault injection covers all seven required boundaries plus a simulated reboot. Tests build their own
+temporary Relay homes, migrate through real DPAPI, and scan the complete temporary tree for both key
+values with zero matches. This is a same-Windows-user protection boundary, not process isolation or
+a sandbox; full-disk encryption remains required for profile and session data.
+
+MKT Browser activity diagnostics now use an explicit key-to-reduced-shape allowlist. Unknown argument
+keys are dropped, and the new regression is included in `test:managed`; the existing redaction suite
+remains green. Full MKTTool and MKT Browser acceptance passed. The running Relay, MKT Browser, live
+data roots, and ports 47821/47822 were not touched.
+
+`RELAY_VERSION` rises to 8, which this phase requires rather than merely accommodates. The migration
+records the running version as its rollback floor, so leaving the constant at 7 produced a floor that
+accepted the very pre-DPAPI build it exists to refuse. The outdated-Relay banner also compares the
+number a Relay reports against the number the server publishes, so two materially different builds
+both calling themselves 7 would never raise it — the silent-warning failure that
+`relay-endpoints.ts` warns about in its own comment. Ticket floors for `LAUNCH_PROFILE` and
+`CREATE_PROFILE` stay at 7: they encode the MKT Browser contract v3, not protected storage.
+
+Removing the plaintext operator key from `relay-config.json` now uses a unique temporary name and
+clears it on failure. The previous PID-only name meant a leftover temporary from a crash between
+write and rename made every later attempt fail `EEXIST` at a point where read-back had already
+succeeded — the Relay would never start again until someone deleted that file by hand.
+
+---
+
 ## 12/08/2026 (7) — MKB-03 Phase 01 builds one pinned Relay + Browser installer
 
 Relay publishing no longer overwrites one mutable `MKTTool-Relay.zip`. Each release targets a
