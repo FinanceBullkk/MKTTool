@@ -16,6 +16,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { RELAY_ORIGIN } from "../../src/lib/relay/relay-endpoints";
 import { handleSetOperatorKey } from "./handle-set-operator-key";
 import { CONFIG_FILE } from "./relay-home";
+import { RELAY_SECRET_NAMES } from "./secure-store";
+import { WindowsSecureStore } from "./windows-secure-store";
+import { readProtectedOperatorKey } from "./relay-config";
 
 const OPERATOR_KEY = "c4".repeat(32);
 const homes: string[] = [];
@@ -51,7 +54,8 @@ describe("handleSetOperatorKey", () => {
     const { result, onConfigured } = call(home, { vaultKeyOperator: OPERATOR_KEY });
 
     expect(result.ok).toBe(true);
-    expect(readConfig(home).vaultKeyOperator).toBe(OPERATOR_KEY);
+    expect(new WindowsSecureStore(home).read(RELAY_SECRET_NAMES.operatorDomainKey)).toBe(OPERATOR_KEY);
+    expect(readConfig(home).vaultKeyOperator).toBeUndefined();
     expect(onConfigured).toHaveBeenCalledOnce();
   });
 
@@ -72,8 +76,8 @@ describe("handleSetOperatorKey", () => {
     expect(readConfig(home)).toMatchObject({
       deviceId: "device-abc",
       serverPublicKey: "a1".repeat(32),
-      vaultKeyOperator: OPERATOR_KEY,
     });
+    expect(new WindowsSecureStore(home).read(RELAY_SECRET_NAMES.operatorDomainKey)).toBe(OPERATOR_KEY);
   });
 
   it("bắt khóa sai độ dài, nói rõ đang có bao nhiêu ký tự", () => {
@@ -98,12 +102,11 @@ describe("handleSetOperatorKey", () => {
   });
 
   it("saves only the MKT Browser token without changing the operator key", () => {
-    const home = makeHome({ vaultKeyOperator: OPERATOR_KEY });
+    const home = makeHome();
+    new WindowsSecureStore(home).write(RELAY_SECRET_NAMES.operatorDomainKey, OPERATOR_KEY);
     call(home, { mktBrowserToken: "test-browser-token" });
 
-    expect(readConfig(home)).toMatchObject({
-      vaultKeyOperator: OPERATOR_KEY,
-      mktBrowserToken: "test-browser-token",
-    });
+    expect(readConfig(home)).toMatchObject({ mktBrowserToken: "test-browser-token" });
+    expect(readProtectedOperatorKey(home)).toBe(OPERATOR_KEY);
   });
 });

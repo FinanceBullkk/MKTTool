@@ -7,6 +7,7 @@ import {
   relayArchiveChecksum,
   relayDownloadFileName,
 } from "@/lib/relay/relay-release-file";
+import { RELAY_VERSION } from "@/lib/relay/relay-endpoints";
 
 export const dynamic = "force-dynamic";
 
@@ -24,7 +25,7 @@ const BUTTON_CLASS =
  * lại đúng thói quen mà trang này sinh ra để dẹp — cài một file `.exe` nhặt được từ tin nhắn.
  *
  * `.exe` không chứa bí mật nào: khóa riêng do chính nó sinh trên từng máy, khóa vùng operator
- * thì dán tay vào cấu hình. Xem thêm ở route tải.
+ * thì nhập trên loopback page của Relay và được bảo vệ bằng DPAPI. Xem thêm ở route tải.
  *
  * ## Trạng thái "chưa có file" là bình thường
  *
@@ -33,7 +34,7 @@ const BUTTON_CLASS =
  * rồi đưa ra một nút bấm vào là 404.
  */
 export default async function RelayDownloadPage() {
-  const release = await readRelayRelease();
+  const release = await readRelayRelease(RELAY_VERSION);
   // Truyền lại `release` để khỏi hỏi nguồn hai lần — với nguồn R2 đó là một request qua mạng.
   const checksum = await relayArchiveChecksum(release);
 
@@ -166,8 +167,8 @@ export default async function RelayDownloadPage() {
         <p className="text-sm text-neutral-600 dark:text-neutral-400">
           Tải lại rồi chạy <code className="font-mono">setup.bat</code> lần nữa. Nó tắt bản đang
           chạy, chép bản mới đè lên, và <strong>giữ nguyên</strong>{" "}
-          <code className="font-mono">relay-config.json</code> — máy không phải đăng ký lại, cũng
-          không phải xin lại khóa vùng operator. Không có bộ tự cập nhật, và đó là chủ ý: một
+          <code className="font-mono">relay-config.json</code> và protected store — máy không phải đăng ký lại,
+          cũng không phải xin lại khóa vùng operator. Không có bộ tự cập nhật, và đó là chủ ý: một
           chương trình giữ khóa của cả kho thì không nên có đường tự tải mã mới về chạy.
         </p>
       </Card>

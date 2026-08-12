@@ -47,6 +47,9 @@ import type { RelayIdentity } from "../../src/lib/tickets/ticket-verifier";
 import { buildRelayIdentity } from "./relay-identity";
 import { renderStatusPage } from "./relay-status-page";
 import { SECRET_REVEAL_PATH, renderSecretPage } from "./secret-page";
+import { migrateRelaySecrets } from "./secret-migration";
+import type { SecureStore } from "./secure-store";
+import { WindowsSecureStore } from "./windows-secure-store";
 
 /** Mọi thứ dẫn xuất từ file cấu hình. Dựng lại nguyên khối mỗi lần cấu hình đổi. */
 interface RelayState {
@@ -67,8 +70,9 @@ interface RelayState {
 function loadState(
   home: string,
   keypair: ReturnType<typeof loadOrCreateDeviceKeypair>,
+  secureStore: SecureStore,
 ): RelayState {
-  const configLoad = loadRelayConfig(home);
+  const configLoad = loadRelayConfig(home, secureStore);
   const problems: ConfigProblem[] = configLoad.ok ? [] : configLoad.problems;
   const config = configLoad.ok ? configLoad.config : null;
 
@@ -112,9 +116,12 @@ function loadState(
 
 async function main(): Promise<void> {
   const home = resolveRelayHome();
-  const keypair = loadOrCreateDeviceKeypair(home);
+  const secureStore = new WindowsSecureStore(home);
+  migrateRelaySecrets(home, secureStore, RELAY_VERSION);
+  const keypair = loadOrCreateDeviceKeypair(home, secureStore);
+  migrateRelaySecrets(home, secureStore, RELAY_VERSION);
 
-  let state = loadState(home, keypair);
+  let state = loadState(home, keypair, secureStore);
 
   const notConfiguredMessage = (): string =>
     `Cầu nối trên máy này chưa cấu hình xong (${state.problems.length} mục còn thiếu). ` +
@@ -122,7 +129,7 @@ async function main(): Promise<void> {
 
   /** Nạp lại sau khi file cấu hình đổi, rồi nói ra hiện trạng — kể cả khi vẫn còn thiếu. */
   function reloadConfig(): { ok: boolean; message: string } {
-    state = loadState(home, keypair);
+    state = loadState(home, keypair, secureStore);
 
     if (state.problems.length === 0) {
       return { ok: true, message: "Đã lưu. Cầu nối trên máy này sẵn sàng." };

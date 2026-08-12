@@ -12,6 +12,56 @@ Dự án chưa phát hành phiên bản (`0.1.0`, dùng nội bộ). Mốc chia 
 
 ---
 
+## 12/08/2026 (9) — The Relay release archive is reproducible
+
+`relay:build` pins the last-write time of the three archived files to a fixed instant before
+compressing. Two consecutive builds of the same source now produce byte-identical archives; measured
+`00054e26…` twice, and the executable itself was already reproducible.
+
+`Compress-Archive` stores each entry's last-write time, and the executable carries a fresh one every
+run, so every rebuild produced a different SHA-256 from identical content. That cost a real mistake
+the same day: a rebuilt archive was published under a hash the pin did not expect, and "the hash
+changed" could not distinguish a content change from a plain rebuild. It can now.
+
+The limit is that zip records local time, so reproducibility holds within one machine and timezone.
+Cross-timezone reproducibility would also need a pinned `TZ`, which this single-Windows-builder
+release path does not need to pay for.
+
+---
+
+## 12/08/2026 (8) — MKB-03 Phase 03 protects Relay secrets and closes diagnostics default-allow
+
+Relay now stores the operator-domain key and device private key through DPAPI CurrentUser. The
+migration records durable stages, imports, reads back and verifies, removes plaintext, then commits
+the schema marker and Relay rollback floor. A non-secret tombstone at the legacy device-key path
+prevents a plaintext-only Relay from starting or silently recreating a key after migration. The
+installer no longer creates or instructs operators to populate a plaintext operator-key field.
+
+Fault injection covers all seven required boundaries plus a simulated reboot. Tests build their own
+temporary Relay homes, migrate through real DPAPI, and scan the complete temporary tree for both key
+values with zero matches. This is a same-Windows-user protection boundary, not process isolation or
+a sandbox; full-disk encryption remains required for profile and session data.
+
+MKT Browser activity diagnostics now use an explicit key-to-reduced-shape allowlist. Unknown argument
+keys are dropped, and the new regression is included in `test:managed`; the existing redaction suite
+remains green. Full MKTTool and MKT Browser acceptance passed. The running Relay, MKT Browser, live
+data roots, and ports 47821/47822 were not touched.
+
+`RELAY_VERSION` rises to 8, which this phase requires rather than merely accommodates. The migration
+records the running version as its rollback floor, so leaving the constant at 7 produced a floor that
+accepted the very pre-DPAPI build it exists to refuse. The outdated-Relay banner also compares the
+number a Relay reports against the number the server publishes, so two materially different builds
+both calling themselves 7 would never raise it — the silent-warning failure that
+`relay-endpoints.ts` warns about in its own comment. Ticket floors for `LAUNCH_PROFILE` and
+`CREATE_PROFILE` stay at 7: they encode the MKT Browser contract v3, not protected storage.
+
+Removing the plaintext operator key from `relay-config.json` now uses a unique temporary name and
+clears it on failure. The previous PID-only name meant a leftover temporary from a crash between
+write and rename made every later attempt fail `EEXIST` at a point where read-back had already
+succeeded — the Relay would never start again until someone deleted that file by hand.
+
+---
+
 ## 12/08/2026 (7) — MKB-03 Phase 01 builds one pinned Relay + Browser installer
 
 Relay publishing no longer overwrites one mutable `MKTTool-Relay.zip`. Each release targets a

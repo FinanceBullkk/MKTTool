@@ -26,6 +26,8 @@ import {
 } from "../../src/lib/antidetect/mkt-browser-contract";
 import { CONFIG_FILE, relayFilePath, resolveRelayHome } from "./relay-home";
 import { isMktBrowserToken } from "./mkt-browser-token-discovery";
+import { RELAY_SECRET_NAMES, type SecureStore } from "./secure-store";
+import { WindowsSecureStore } from "./windows-secure-store";
 
 /** Cấu hình đã kiểm xong, sẵn sàng dùng. */
 export interface RelayConfig {
@@ -72,7 +74,6 @@ const SERVER_PUBLIC_KEY_HEX_LENGTH = 64;
 export const CONFIG_TEMPLATE = {
   deviceId: "<web app tự điền khi bấm \"Đăng ký máy này\">",
   serverPublicKey: "<web app tự điền>",
-  vaultKeyOperator: "<64 ký tự hex — dán ở ngay trang này, ô bên dưới>",
   mktBrowserToken: "<optional development override; normally discovered from MKT Browser>",
   mktBrowserUrl: MKT_BROWSER_DEFAULT_MCP_URL,
 };
@@ -92,6 +93,7 @@ export const CONFIG_TEMPLATE = {
 export function writeRelayConfig(
   patch: Partial<Record<keyof RelayConfig, string>>,
   home: string = resolveRelayHome(),
+  secureStore: SecureStore = new WindowsSecureStore(home),
 ): void {
   const filePath = relayFilePath(CONFIG_FILE, home);
 
@@ -104,7 +106,13 @@ export function writeRelayConfig(
     // đưa một máy mới cài từ "chưa có gì" sang "cấu hình xong".
   }
 
+  if (patch.vaultKeyOperator !== undefined) {
+    secureStore.write(RELAY_SECRET_NAMES.operatorDomainKey, patch.vaultKeyOperator);
+    delete current.vaultKeyOperator;
+  }
+
   for (const [field, value] of Object.entries(patch)) {
+    if (field === "vaultKeyOperator") continue;
     if (value !== undefined) current[field] = value;
   }
 
@@ -143,7 +151,7 @@ function hexProblem(
  * trả một lượt: dừng ở lỗi đầu tiên thì người cài sửa một dòng, chạy lại, gặp lỗi tiếp — bốn
  * vòng cho bốn ô, mỗi vòng một lần khởi động lại.
  */
-export function reviewRelayConfig(parsed: unknown): ConfigLoad {
+export function reviewRelayConfig(parsed: unknown, protectedVaultKey?: string | null): ConfigLoad {
   if (typeof parsed !== "object" || parsed === null) {
     return {
       ok: false,
@@ -153,6 +161,7 @@ export function reviewRelayConfig(parsed: unknown): ConfigLoad {
 
   const raw = parsed as Record<string, unknown>;
   const problems: ConfigProblem[] = [];
+  const vaultKey = protectedVaultKey ?? raw.vaultKeyOperator;
 
   const deviceId = typeof raw.deviceId === "string" ? raw.deviceId.trim() : "";
   if (deviceId === "") {
@@ -175,7 +184,7 @@ export function reviewRelayConfig(parsed: unknown): ConfigLoad {
 
   const vaultKeyProblem = hexProblem(
     "vaultKeyOperator",
-    raw.vaultKeyOperator,
+    vaultKey,
     VAULT_KEY_HEX_LENGTH,
     "khóa mở bí mật nick. Không có nó thì cầu nối nhận được vé nhưng không đọc nổi ruột",
     "Hỏi quản trị viên — khóa này KHÔNG nằm trên máy chủ, đó là toàn bộ mục đích của nó.",
@@ -230,7 +239,7 @@ export function reviewRelayConfig(parsed: unknown): ConfigLoad {
     config: {
       deviceId,
       serverPublicKey: String(raw.serverPublicKey).trim().toLowerCase(),
-      vaultKeyOperator: String(raw.vaultKeyOperator).trim().toLowerCase(),
+      vaultKeyOperator: String(vaultKey).trim().toLowerCase(),
       webOrigin: normalizeOrigin(webOrigin),
       ...optionalString(raw.mktBrowserToken, "mktBrowserToken"),
       ...(mktBrowserUrl ? { mktBrowserUrl } : {}),
@@ -364,7 +373,10 @@ function readConfigText(filePath: string): string {
 }
 
 /** Đọc file cấu hình rồi soi. File chưa có cũng là một `problem`, không phải một ngoại lệ. */
-export function loadRelayConfig(home: string = resolveRelayHome()): ConfigLoad {
+export function loadRelayConfig(
+  home: string = resolveRelayHome(),
+  secureStore: SecureStore = new WindowsSecureStore(home),
+): ConfigLoad {
   const filePath = relayFilePath(CONFIG_FILE, home);
 
   let raw: string;
@@ -385,8 +397,9 @@ export function loadRelayConfig(home: string = resolveRelayHome()): ConfigLoad {
     };
   }
 
+  let parsed: unknown;
   try {
-    return reviewRelayConfig(JSON.parse(raw));
+    parsed = JSON.parse(raw);
   } catch {
     return {
       ok: false,
@@ -398,4 +411,26 @@ export function loadRelayConfig(home: string = resolveRelayHome()): ConfigLoad {
       ],
     };
   }
+
+  try {
+    return reviewRelayConfig(parsed, secureStore.read(RELAY_SECRET_NAMES.operatorDomainKey));
+  } catch (error) {
+    return {
+      ok: false,
+      problems: [
+        {
+          field: "vaultKeyOperator",
+          message: `Cannot read the operator key from Windows protected storage: ${(error as Error).message}`,
+        },
+      ],
+    };
+  }
+}
+
+/** Test/helper seam for callers that need the protected operator key without parsing config JSON. */
+export function readProtectedOperatorKey(
+  home: string = resolveRelayHome(),
+  secureStore: SecureStore = new WindowsSecureStore(home),
+): string | null {
+  return secureStore.read(RELAY_SECRET_NAMES.operatorDomainKey);
 }

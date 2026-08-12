@@ -7,8 +7,8 @@ có bản `.exe` mới.
 
 ## Vì sao không vào Program Files
 
-Cầu nối để khóa riêng và file cấu hình ngay cạnh `.exe` (xem `relay-home.ts`), mà Program Files
-thì không ghi được. Triệu chứng sẽ là một dòng lỗi lúc khởi động, giữa lúc không ai đang nhìn.
+Cầu nối để dữ liệu bảo vệ theo người dùng và file cấu hình ngay cạnh `.exe` (xem `relay-home.ts`),
+mà Program Files thì không ghi được. Triệu chứng sẽ là một dòng lỗi lúc khởi động, giữa lúc không ai đang nhìn.
 
 ## Vì sao file này phải có BOM
 
@@ -115,8 +115,8 @@ Unblock-File -Path $targetExe -ErrorAction SilentlyContinue
 <#
 File cấu hình dựng sẵn để người cài chỉ phải **điền**, không phải tự gõ đúng tên từng ô.
 
-**Không ghi đè bản có sẵn.** Ở đường nâng cấp, ghi đè là xóa mất khóa vùng operator của máy này —
-thứ không có ở đâu khác để lấy lại, và mất nó thì mọi mật khẩu nick trong kho thành chuỗi vô nghĩa.
+**Không ghi đè bản có sẵn.** Ở đường nâng cấp, ghi đè sẽ xóa metadata không nhạy cảm mà máy này
+đã nhận từ web. Operator key và device private key nằm trong DPAPI CurrentUser, không nằm trong JSON.
 #>
 if (Test-Path $configFile) {
     Write-Step 3 "Giữ nguyên relay-config.json đã có."
@@ -125,7 +125,6 @@ if (Test-Path $configFile) {
     $template = [ordered]@{
         deviceId = ""
         serverPublicKey = ""
-        vaultKeyOperator = ""
         webOrigin = ""
         mktBrowserToken = ""
         mktBrowserUrl = ""
@@ -186,7 +185,8 @@ Write-Host "  1. Chép KHÓA CÔNG KHAI trên trang đó, gửi quản trị vi�
 Write-Host "     tại /relay-devices trên web app."
 Write-Host "  2. Quản trị viên gửi lại MÃ MÁY. Mở file cấu hình rồi điền vào:"
 Write-Host "     $configFile"
-Write-Host "     Điền nốt serverPublicKey, vaultKeyOperator, webOrigin."
+Write-Host "     Điền nốt serverPublicKey và webOrigin."
+Write-Host "     Khóa operator chỉ nhập trên trang trạng thái của cầu nối; nó không nằm trong JSON."
 Write-Host "  3. Tắt bật lại cầu nối bằng shortcut ngoài desktop — cấu hình chỉ"
 Write-Host "     được đọc lúc khởi động."
 Write-Host ""

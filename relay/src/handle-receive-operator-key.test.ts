@@ -17,6 +17,8 @@ import { relayPublicKeyToHex } from "../../src/lib/tickets/relay-device-key";
 import { sealForDevice } from "../../src/lib/tickets/ticket-sealed-box";
 import { handleReceiveOperatorKey } from "./handle-receive-operator-key";
 import { CONFIG_FILE } from "./relay-home";
+import { RELAY_SECRET_NAMES } from "./secure-store";
+import { WindowsSecureStore } from "./windows-secure-store";
 
 const OPERATOR_KEY = "c4".repeat(32);
 const homes: string[] = [];
@@ -62,7 +64,8 @@ describe("handleReceiveOperatorKey", () => {
     const { result, onConfigured } = call(home, grant, device.privateKey);
 
     expect(result.ok).toBe(true);
-    expect(readConfig(home).vaultKeyOperator).toBe(OPERATOR_KEY);
+    expect(new WindowsSecureStore(home).read(RELAY_SECRET_NAMES.operatorDomainKey)).toBe(OPERATOR_KEY);
+    expect(readConfig(home).vaultKeyOperator).toBeUndefined();
     expect(onConfigured).toHaveBeenCalledOnce();
   });
 
@@ -76,8 +79,8 @@ describe("handleReceiveOperatorKey", () => {
     expect(readConfig(home)).toMatchObject({
       deviceId: "device-abc",
       mktBrowserToken: "test-browser-token",
-      vaultKeyOperator: OPERATOR_KEY,
     });
+    expect(new WindowsSecureStore(home).read(RELAY_SECRET_NAMES.operatorDomainKey)).toBe(OPERATOR_KEY);
   });
 
   it("hộp của MÁY KHÁC thì từ chối và KHÔNG ghi gì", () => {
