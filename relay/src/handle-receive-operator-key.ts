@@ -23,6 +23,7 @@
  */
 import { SealedBoxError, openSealedPayload } from "../../src/lib/tickets/ticket-sealed-box";
 import { writeRelayConfig } from "./relay-config";
+import type { SecureStore } from "./secure-store";
 import type { RelayResponseBody } from "./relay-http-server";
 import type { KeyObject } from "node:crypto";
 
@@ -33,6 +34,11 @@ export interface ReceiveOperatorKeyDeps {
   /** Khóa riêng X25519 của chính máy này — thứ duy nhất mở được hộp. */
   devicePrivateKey: KeyObject;
   home?: string;
+  /**
+   * Kho bí mật. Bỏ trống thì `writeRelayConfig` tự dựng `WindowsSecureStore`, tức đường chạy thật.
+   * Có mặt để test kiểm được logic ở đây mà không cần DPAPI — CI chạy Linux, và ở đó kho thật ném.
+   */
+  secureStore?: SecureStore;
   onConfigured: () => { ok: boolean; message: string };
 }
 
@@ -101,7 +107,7 @@ export function handleReceiveOperatorKey(
     // `writeRelayConfig` patches one field and **preserves everything else**. Replacing the file
     // here would delete `mktBrowserToken` on an already configured machine and surface later as a
     // misleading profile-launch failure rather than an operator-key update failure.
-    writeRelayConfig({ vaultKeyOperator: key }, deps.home);
+    writeRelayConfig({ vaultKeyOperator: key }, deps.home, deps.secureStore);
   } catch (error) {
     return { ok: false, message: `Không ghi được file cấu hình: ${(error as Error).message}` };
   }

@@ -8,31 +8,14 @@ import {
   migrateRelaySecrets,
   type MigrationFaultPoint,
 } from "./secret-migration";
-import { RELAY_SECRET_NAMES, type RelaySecretName, type SecureStore } from "./secure-store";
+import { RELAY_SECRET_NAMES, type SecureStore } from "./secure-store";
+import { InMemorySecureStore } from "./in-memory-secure-store";
 import { WindowsSecureStore } from "./windows-secure-store";
 import { LEGACY_DEVICE_KEY_TOMBSTONE } from "./legacy-device-key-tombstone";
 
 const OPERATOR_KEY = "a1".repeat(32);
 const DEVICE_KEY = "b2".repeat(32);
 const RELAY_VERSION = 8;
-
-class InMemorySecureStore implements SecureStore {
-  private readonly values = new Map<RelaySecretName, string>();
-
-  read(name: RelaySecretName): string | null {
-    return this.values.get(name) ?? null;
-  }
-
-  write(name: RelaySecretName, value: string): void {
-    this.values.set(name, value);
-  }
-
-  writeIfAbsent(name: RelaySecretName, value: string): boolean {
-    if (this.values.has(name)) return false;
-    this.values.set(name, value);
-    return true;
-  }
-}
 
 const homes: string[] = [];
 
