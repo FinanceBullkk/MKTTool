@@ -9,7 +9,7 @@
 ## Overview
 
 **Priority:** highest — nothing else in MKB-03 is testable by an operator until this exists.
-**Status:** ⬜ ready to start.
+**Status:** 🟡 implemented; clean-account install/reboot/uninstall gate pending.
 
 Today there are two downloads: a Relay `.zip` with `setup.bat`, and a MKT Browser directory the owner
 copies by hand. Phase 01 replaces both with one file. The operator runs it once and both components
@@ -32,7 +32,7 @@ are installed, registered to start with Windows, and discoverable by each other.
 
 ## Decision — pinned download, chosen 12 August 2026
 
-The MKTBrowser installer build downloads a **pinned Relay release by version and SHA-256** from the
+The MKTBrowser installer build downloads a **pinned Relay release by version, size, and SHA-256** from the
 MKTTool release route. Committing the 90 MB binary into MKTBrowser was rejected because every clone
 would carry it forever; a combined pipeline checking out both repositories was rejected because it
 couples the CI of two repositories §9 deliberately keeps apart.
@@ -56,8 +56,9 @@ reported version come from the stored artifact metadata.
 - The installer refuses to proceed when it cannot verify the pinned Relay checksum.
 - Both components start after install and after a reboot, in either order.
 - Relay upgrade preserves `relay-config.json`; MKT Browser upgrade preserves the data root.
-- Uninstall removes both components, both autostart entries, and leaves profiles and Relay
-  credentials in place. Removing local data stays a separate explicit action.
+- Uninstall removes the Relay executable and its target-resolved shortcuts only when a durable
+  marker proves this installer originally placed it. A pre-existing or unknown-ownership Relay is
+  preserved. Profiles and Relay credentials stay in place in every path.
 - The uninstall registry entry carries a `Publisher` value.
 
 ## Related code files
@@ -84,8 +85,8 @@ reported version come from the stored artifact metadata.
 1. Make the release route publish and retain per-version immutable objects, and report the version
    from stored artifact metadata rather than from the `RELAY_VERSION` constant. Nothing else in this
    phase is sound until a pinned URL means one fixed set of bytes.
-2. Add `fetch-pinned-relay.cjs`: takes version + expected SHA-256 from a checked-in manifest, resumes
-   interrupted downloads, and fails closed on mismatch. No "latest".
+2. Add `fetch-pinned-relay.cjs`: takes version + expected size + SHA-256 from a checked-in manifest,
+   resumes interrupted downloads, and fails closed on mismatch. No "latest".
 3. Wire it into `package-windows.cjs` before `electron-builder` runs, so a packaging run cannot
    silently omit the payload.
 4. Add the Relay payload to `extraResources` and write `installer.nsh` to copy it into the Relay home,
@@ -99,16 +100,19 @@ reported version come from the stored artifact metadata.
 
 ## Todo list
 
-- [ ] Release route publishes per-version immutable objects
-- [ ] Reported release version measured from the artifact, not the constant
-- [ ] `fetch-pinned-relay.cjs` with checksum verification and resume
-- [ ] Pinned Relay version + hash manifest checked in
-- [ ] `package-windows.cjs` fetches and verifies before packaging
-- [ ] `installer.nsh` installs, starts, and uninstalls Relay
-- [ ] `relay-config.json` preserved across upgrade
-- [ ] Publisher metadata present in the uninstall entry
-- [ ] MKT Browser autostart entry
-- [ ] Packaging guard asserts the pinned payload
+- [x] Release route publishes per-version immutable objects
+- [x] Reported release version measured from the artifact, not the constant
+- [x] `fetch-pinned-relay.cjs` with checksum verification and resume
+- [x] Pinned Relay version + hash manifest checked in
+- [x] `package-windows.cjs` fetches and verifies before packaging
+- [x] `installer.nsh` installs, starts, and uninstalls Relay
+- [x] `relay-config.json` preserved across upgrade
+- [x] Publisher metadata present in the uninstall entry
+- [x] MKT Browser autostart entry
+- [x] Packaging guard asserts the pinned payload
+- [x] ASCII-only NSIS include deletes Relay shortcuts by resolved target path
+- [x] Durable ownership marker preserves a pre-existing Relay on uninstall
+- [x] Publisher rejects missing, stale, or byte-mismatched artifact sidecars
 - [ ] Clean-account install + reboot verified
 
 ## Success criteria

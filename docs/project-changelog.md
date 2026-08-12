@@ -12,6 +12,32 @@ Dự án chưa phát hành phiên bản (`0.1.0`, dùng nội bộ). Mốc chia 
 
 ---
 
+## 12/08/2026 (7) — MKB-03 Phase 01 builds one pinned Relay + Browser installer
+
+Relay publishing no longer overwrites one mutable `MKTTool-Relay.zip`. Each release targets a
+retained `MKTTool-Relay-vN.zip` object with measured artifact-version, size, and SHA-256 metadata; an
+existing same-version object is accepted only when its size, checksum, and version already match,
+and the conditional R2 write refuses replacement. The authenticated version route supports Range
+requests so a pinned installer build can resume without falling back to `latest`.
+
+MKT Browser now checks in Relay v7 plus its approved size and SHA-256, rejects a wrong size before
+hashing, and embeds it only after verification. The NSIS include is ASCII-only and removes Relay
+shortcuts by resolved target rather than localized filename. Install records whether Relay already
+existed; uninstall removes Relay only when that durable marker proves MKT Browser owns it, otherwise
+it preserves the binary, shortcuts, and `relay-config.json`. Missing markers fail closed to preserve.
+The publisher now refuses a missing/stale sidecar or archive bytes that do not match it before any R2
+request.
+
+The reviewed installer was rebuilt at `release/installer/MKTBrowser-win-x64.exe`: 145,896,567 bytes,
+SHA-256 `c0f619fa1e3686bca5b0be572c3ce17e85f047a6dec17bf8e65e6968b68264b4`. The frozen MKB-02
+`release/win-unpacked/MKTBrowser.exe` remained
+`238d5d6fd5e373b052c484ceab90698f6dc295205a59be6573f9928b01db4f42`. Full MKTTool verification
+passed 120 files / 1165 tests plus typecheck, lint, and production build; all required MKT Browser
+guards passed, with packaging now 8/8. Clean standard-user install, reboot, and uninstall remain
+unverified human gates; the live Relay and Browser on this machine were not stopped or modified.
+
+---
+
 ## 12/08/2026 (6) — the Windows installer now produces an application that starts
 
 The first NSIS installer built from the existing configuration installed cleanly and then died on

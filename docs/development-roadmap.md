@@ -31,13 +31,22 @@ owned, and no operator workflow depends on macOS today. The control against payi
 that the Relay keeps a shared core with thin OS adapters, so MKB-07 adds a platform instead of
 reopening one. V1 does not redesign MultiZen or develop a Chromium engine.
 
-**Immediate delivery target, 12 August 2026:** begin MKB-03 on top of the verified Windows x64
+**Immediate delivery target, 12 August 2026:** continue MKB-03 on top of the verified Windows x64
 managed-mode contract. An owner-led demonstration may use disposable profiles and show the
 Web → Relay → MKT Browser flow, but it is not a pilot, distribution approval, or permission to use
 real accounts. The one-download onboarding journey, secure enrollment/migration, controlled updates,
 pilot duration, and real-account gates remain separate. Code signing is no longer among them: on
 12 August the owner decided v1 ships **unsigned** for the internal fleet, so SmartScreen appears once
 and the setup journey must announce it in advance.
+
+Phase 01 implementation now produces one installer carrying the pinned Relay v7 archive and MKT
+Browser. Relay releases use retained `MKTTool-Relay-vN.zip` R2 objects, carry measured version, size,
+and SHA-256 metadata, and refuse publication when the local build sidecar is missing, stale, or does
+not match the archive. The combined installer verifies pinned size before hashing, keeps its NSIS
+include ASCII-only, and records whether Relay pre-existed so uninstall removes only an owned Relay;
+unknown ownership preserves it. It writes only under `release/installer/` and leaves the frozen
+MKB-02 directory artifact unchanged. Clean-account install, reboot, and uninstall verification remain
+a human gate because this machine's live Relay and Browser must not be stopped.
 
 **Team-installation boundary, reviewed 11 August 2026:** the owner-led demo may use the current
 technical artifacts, but team members must not be asked to install the Relay ZIP and Browser
@@ -112,7 +121,7 @@ repository. MKTTool retains only the consuming contract, Relay, and release page
 | MKB-01 | Windows compatibility and product identity | ✅ Verified 11 August | Copy-only first-launch importer preserves the MultiZen source; five primary-screen baselines captured; Windows CI runs W01/W02 guards, typecheck, package build, and packaged runtime-contract verification on every push/PR |
 | MKB-01E | Electron upgrade and renderer hardening | ✅ Verified 11 August | Electron 42.8.1 / ABI 146 package; native module rebuild; sandbox/CSP/default-deny IPC and MCP inventories; fixed-seed fingerprint unchanged and five visual baselines accepted |
 | MKB-02 | Managed mode | ✅ Verified 12 August | Contract v3 diagnostics, profile-token capability separation, managed proxy/fingerprint/delete/direct-launch locks, current-device Browser health, Relay v7 correlation, and cross-repository packaged verification are green |
-| MKB-03 | Windows onboarding, installer, and controlled updates | 🟡 Phase 01 ready — [execution plan](../plans/260812-1301-mkb-03-windows-onboarding-and-installer/plan.md) | Six phases. One unsigned secretless installer carrying Relay and Browser, with the SmartScreen prompt announced on screen; current-PC `Waiting`/`Ready` controller; protected secret storage and the activity-sanitizer allowlist carried over from MKB-02; recipient-sealed grants and ADMIN-only bootstrap; coordinated-set update/rollback; then the conflict/repair/uninstall matrices and the unfamiliar-operator gate rehearsal |
+| MKB-03 | Windows onboarding, installer, and controlled updates | 🟡 Phase 01 implemented; human clean-account gate open — [execution plan](../plans/260812-1301-mkb-03-windows-onboarding-and-installer/plan.md) | Immutable versioned Relay objects, artifact-derived release metadata, pinned hash verification, one unsigned installer carrying Relay + Browser, autostart, Publisher metadata, and preserve-data uninstall logic are implemented. Clean-account install/reboot/uninstall evidence remains required before Phase 01 is verified. Five later phases still own setup controller, secure migration/grants, updates/rollback, matrices, and unfamiliar-operator rehearsal. |
 | MKB-04 | Technical pilot and one canary account | ⬜ Not started | An unfamiliar operator completes setup with zero developer intervention; two Windows devices remain green for seven days; one account completes a 14-day cold start |
 | MKB-05 | Team rollout | ⬜ Not started | Canary completes cold start; MKT Browser becomes default; rollback uses only the frozen W01 checkpoint and never restores a MultiZen adapter fallback |
 | MKB-06 | Custom UX/UI | ⏸ Deferred beyond v1 | Begin only from observed usage feedback; does not block MKB-00 through MKB-05 |
