@@ -12,6 +12,46 @@ Dự án chưa phát hành phiên bản (`0.1.0`, dùng nội bộ). Mốc chia 
 
 ---
 
+## 12/08/2026 (6) — the Windows installer now produces an application that starts
+
+The first NSIS installer built from the existing configuration installed cleanly and then died on
+its first database call, showing a startup error dialog with no log. The directory package used for
+every gate so far was unaffected, which is why nothing had caught it.
+
+Cause: `electron-builder.yml` sets `npmRebuild: false`, so electron-builder packages whichever
+`better-sqlite3` build is already on disk. After a normal `yarn install` that is the Node-ABI copy,
+and Electron cannot load it. `package-windows-directory.cjs` had always run `@electron/rebuild`
+against the pinned Electron version first; `build:win` called `electron-builder` directly and
+skipped it. Two Windows artifacts, one of them silently broken.
+
+The packaging pipeline now lives in `package-windows.cjs` with two thin entry points, so no Windows
+artifact can be produced without the Electron-ABI rebuild. The installer writes to
+`release/installer/` because electron-builder stages an unpacked tree that would otherwise overwrite
+the directory package whose SHA-256 the MKB-02 gate result cites. `build:win` runs the Node version
+guard and the installer packager instead of electron-builder. `productIdentity` now asserts that both
+entry points delegate to the shared pipeline and that `build:win` never invokes electron-builder —
+the check that would have caught this.
+
+Verified by running it, not only by tests. The installer builds, installs per-user without UAC,
+starts, and drives the whole Web → Relay → MKT Browser chain with contract version `3` and all six
+capabilities — the first time the real release artifact rather than the technical package has done
+so. Uninstall removes the directory, registry entry, and Start Menu shortcut while `profiles.db` and
+the MCP token survive, which is the MKB-03B requirement that uninstall preserves profiles. Node
+guard 2/2, W02 8/8, MKB-01 8/8, MKB-01E 7/7, MKB-02 18/18, Windows packaging guards 3/3, typecheck,
+and packaged runtime/lifecycle verification all pass. Rebuilding the directory package through the
+refactored path reproduces it byte for byte at
+`238d5d6fd5e373b052c484ceab90698f6dc295205a59be6573f9928b01db4f42`.
+
+`build:mac` and `build:linux` still call electron-builder directly and carry the same defect. They
+are MKB-07 and off the critical path and cannot be tested from Windows, so they were left alone —
+but the Intel/arm64 packaging incident that shipped a wrong-architecture binary was this same class
+of fault, so MKB-07 must fix them before producing any macOS artifact.
+
+Two smaller gaps recorded while testing: the uninstall entry has an empty `Publisher` field, and the
+installer creates no autostart entry. Both belong to MKB-03.
+
+---
+
 ## 12/08/2026 (5) — v1 ships unsigned; the MKB-03 gate now allows one announced SmartScreen prompt
 
 The owner decided not to buy a Windows code-signing certificate. v1 is for five or six known internal
