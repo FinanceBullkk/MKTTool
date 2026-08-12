@@ -26,6 +26,32 @@ describe.skipIf(process.platform !== "win32")("WindowsSecureStore", () => {
     ).not.toContain(secret);
   });
 
+  // Windows PowerShell 5.1 decodes redirected stdin with the console codepage, not UTF-8, so a
+  // secret carrying anything outside ASCII used to come back corrupted — silently, and the symptom
+  // would read as "wrong key" rather than "wrong encoding". Both directions go through base64 now.
+  it("round-trips a secret that is not pure ASCII", () => {
+    const home = mkdtempSync(path.join(os.tmpdir(), "mkt-relay-dpapi-"));
+    homes.push(home);
+    const store = new WindowsSecureStore(home);
+    const secret = "khóa-vùng-operator — ключ — 鍵 — 🔑";
+
+    store.write(RELAY_SECRET_NAMES.operatorDomainKey, secret);
+
+    expect(store.read(RELAY_SECRET_NAMES.operatorDomainKey)).toBe(secret);
+  });
+
+  // Trimming the decrypted value would corrupt any secret whose first or last character is a space.
+  it("preserves leading and trailing whitespace", () => {
+    const home = mkdtempSync(path.join(os.tmpdir(), "mkt-relay-dpapi-"));
+    homes.push(home);
+    const store = new WindowsSecureStore(home);
+    const secret = "  padded secret  ";
+
+    store.write(RELAY_SECRET_NAMES.devicePrivateKey, secret);
+
+    expect(store.read(RELAY_SECRET_NAMES.devicePrivateKey)).toBe(secret);
+  });
+
   it("atomically replaces an existing protected value", () => {
     const home = mkdtempSync(path.join(os.tmpdir(), "mkt-relay-dpapi-"));
     homes.push(home);

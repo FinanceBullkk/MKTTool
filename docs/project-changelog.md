@@ -12,6 +12,44 @@ Dự án chưa phát hành phiên bản (`0.1.0`, dùng nội bộ). Mốc chia 
 
 ---
 
+## 12/08/2026 (10) — The build machine authenticates with its own token
+
+`/api/relay/download/vN` now accepts either a signed-in session or
+`Authorization: Bearer <RELAY_RELEASE_DOWNLOAD_TOKEN>`, and the installer build sends
+`MKTTOOL_RELEASE_TOKEN` instead of a pasted session cookie. A wrong token falls through to the
+session check rather than answering differently, so the route is not a guessing oracle. Only the
+versioned route takes a token; the redirect route and the download page stay human-only, because a
+build always knows which version it pinned.
+
+The decision still lives in the auth module: `machineOrGuardedRoute` joins `guardedRoute` and
+`adminRoute` in `ROUTE_GUARDS`, so the entry-point guard that scans every route keeps recognising
+this one. Its handler deliberately receives no `Actor` — a machine is not a person, and a handler
+that needs to know who is calling now fails to compile against this wrapper instead of quietly
+receiving nothing. Exporting a bare handler and checking inside the body was the alternative, and it
+is the shape that guard exists to reject.
+
+The cookie it replaces was wrong four ways: it unlocked the whole app including the identity vault
+when the build needed one zip; it expired, so builds failed at random with a 401 that reads like a
+broken deploy; it recorded a person in the audit trail for machine-initiated work; and removing that
+person from `ALLOWED_EMAILS` broke the build. The token is nobody, expires never, and opens one
+route. The server refuses a token under 32 characters instead of accepting it quietly — a weak token
+is worse than none, because without one the route is still closed behind the login.
+
+DPAPI now carries plaintext over the pipe as base64 in both directions. Windows PowerShell 5.1
+decodes redirected stdin with the console codepage rather than UTF-8, so a secret containing
+anything outside ASCII would have been corrupted silently and surfaced as "wrong key". The on-disk
+format is unchanged, so existing blobs still read. Forcing `[Console]::InputEncoding` is not the
+alternative: setting it against a redirected handle throws on this PowerShell.
+
+The migration's `after-read-back` fault point moved ahead of the durable marker write. It sat
+directly beside `before-source-deletion` with no code between, so the two injected at one identical
+state and the advertised seven boundaries were six. It now covers a crash between a successful
+read-back and the marker reaching disk. The no-legacy fast path also records whichever protected
+secrets exist rather than assuming only the device key, so a store already holding the operator key
+stays covered by `requireTrackedSecrets`.
+
+---
+
 ## 12/08/2026 (9) — The Relay release archive is reproducible
 
 `relay:build` pins the last-write time of the three archived files to a fixed instant before

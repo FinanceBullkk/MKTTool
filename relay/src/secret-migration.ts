@@ -44,10 +44,19 @@ export function migrateRelaySecrets(
 
   if (!hasLegacy && state.migrationStage === "not-started") {
     if (store.read(RELAY_SECRET_NAMES.devicePrivateKey) === null) return state;
+    // Ghi sổ đúng thứ kho đang giữ. Cứng hoá mỗi khóa máy thì một kho vốn đã có cả khóa operator
+    // sẽ không được `requireTrackedSecrets` canh ở những lượt sau — mất một lớp kiểm mà không ai
+    // thấy. Khóa máy đọc trước để lượt cài mới thoát sớm, khỏi tốn thêm một tiến trình PowerShell.
+    const protectedSecrets: RelaySecretName[] = [];
+    if (store.read(RELAY_SECRET_NAMES.operatorDomainKey) !== null) {
+      protectedSecrets.push(RELAY_SECRET_NAMES.operatorDomainKey);
+    }
+    protectedSecrets.push(RELAY_SECRET_NAMES.devicePrivateKey);
+
     state = {
       schemaVersion: SECURE_STORE_SCHEMA_VERSION,
       migrationStage: "activated",
-      protectedSecrets: [RELAY_SECRET_NAMES.devicePrivateKey],
+      protectedSecrets,
       rollbackFloor: relayVersion,
       activeRelayVersion: relayVersion,
     };
@@ -76,8 +85,11 @@ export function migrateRelaySecrets(
 
   verifySecret(store, RELAY_SECRET_NAMES.operatorDomainKey, legacy.operatorDomainKey);
   verifySecret(store, RELAY_SECRET_NAMES.devicePrivateKey, legacy.devicePrivateKey);
-  if (stageBefore(state.migrationStage, "verified")) state = mark(home, state, "verified");
+  // `after-read-back` phải tiêm TRƯỚC khi mốc "verified" kịp xuống đĩa. Đặt cả hai sau mốc thì
+  // chúng đo đúng cùng một trạng thái, tức bảy điểm tiêm thật ra chỉ có sáu. Tách ra thì điểm này
+  // phủ được lần chết giữa "đọc lại xong" và "đã ghi mốc" — một trạng thái trước đây không ai đo.
   inject(options, "after-read-back");
+  if (stageBefore(state.migrationStage, "verified")) state = mark(home, state, "verified");
   inject(options, "before-source-deletion");
 
   deleteLegacySources(home, legacy);
