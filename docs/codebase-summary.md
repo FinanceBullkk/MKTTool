@@ -201,16 +201,21 @@ Click "Open profile" → POST /api/accounts/[id]/launch
   2. The server selects the bound device and issues a signed, recipient-encrypted ticket
   3. The Web browser sends the ticket to Relay at 127.0.0.1:47821
   4. Relay verifies signature, recipient, expiry, and replay state
-  5. Relay v7 preserves ticket jti as operationId and requires the current Browser runtime to be ready
-  6. MKT Browser contract v3 persists + reads back the proxy, then launches atomically
+  5. Relay v12 preserves ticket jti as operationId and requires the current Browser runtime to be ready
+  6. MKT Browser contract v4 persists + reads back the proxy, then launches atomically
   7. Relay accepts only a correlated metadata-only diagnostic and returns support detail to the Web
   8. The server records PROFILE_LAUNCH_TICKET_ISSUED; it does not claim the window opened
 ```
 
 Proxy persistence still must precede launch: changing it after Chromium starts does not change the
-running session. Contract v3 owns that ordering in `launch_managed_profile`; it rejects a running
+running session. Contract v4 retains that ordering in `launch_managed_profile`; it rejects a running
 profile whose active proxy differs and never falls back after an atomic rejection. Direct launch and
 ordinary proxy/fingerprint mutation are denied for managed profiles.
+
+The `/setup` readiness path adds one stricter requirement without changing Relay's operational
+minimum: packaged MKT Browser reports `local-install-ready-v1` only after the installer-owned
+PowerShell detector verifies expected process, fixed-port, MultiZen-process, and startup ownership.
+Missing or unavailable inspection routes setup to installer repair instead of `Ready`.
 
 ## Relay device retirement flow
 

@@ -1,4 +1,7 @@
-import { currentDeviceBrowserReadiness } from "@/lib/relay/current-device-browser-health";
+import {
+  currentDeviceBrowserReadiness,
+  REQUIRED_SETUP_BROWSER_CAPABILITIES,
+} from "@/lib/relay/current-device-browser-health";
 import type {
   SetupPrimaryAction,
   SetupState,
@@ -162,7 +165,10 @@ export function setupStateMachine(input: SetupStateMachineInput): SetupStateResu
     );
   }
 
-  const browser = currentDeviceBrowserReadiness(health.browser);
+  const browser = currentDeviceBrowserReadiness(
+    health.browser,
+    REQUIRED_SETUP_BROWSER_CAPABILITIES,
+  );
   if (!browser.ready) {
     const becomingReady = ["browser-offline", "engine-not-ready"].includes(browser.state);
     return becomingReady

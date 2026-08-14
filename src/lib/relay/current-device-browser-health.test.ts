@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { currentDeviceBrowserReadiness } from "./current-device-browser-health";
+import {
+  currentDeviceBrowserReadiness,
+  REQUIRED_SETUP_BROWSER_CAPABILITIES,
+} from "./current-device-browser-health";
 import type { RelayBrowserHealth } from "./relay-endpoints";
 
 const READY: RelayBrowserHealth = {
@@ -32,5 +35,23 @@ describe("currentDeviceBrowserReadiness", () => {
     expect(currentDeviceBrowserReadiness({ ...READY, capabilities: [] }).state).toBe(
       "capability-missing",
     );
+  });
+
+  it("requires the shared local-install verdict only for setup readiness", () => {
+    expect(currentDeviceBrowserReadiness(READY).ready).toBe(true);
+
+    const setupReadiness = currentDeviceBrowserReadiness(
+      READY,
+      REQUIRED_SETUP_BROWSER_CAPABILITIES,
+    );
+    expect(setupReadiness.state).toBe("capability-missing");
+    expect(setupReadiness.message).toContain("installer repair");
+
+    expect(
+      currentDeviceBrowserReadiness(
+        { ...READY, capabilities: [...READY.capabilities, "local-install-ready-v1"] },
+        REQUIRED_SETUP_BROWSER_CAPABILITIES,
+      ).ready,
+    ).toBe(true);
   });
 });

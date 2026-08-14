@@ -22,6 +22,7 @@ const HEALTHY: RelayHealth = {
       "atomic-launch-v1",
       "managed-profile-v1",
       "operation-diagnostics-v1",
+      "local-install-ready-v1",
     ],
   },
 };
@@ -127,12 +128,36 @@ describe("setupStateMachine", () => {
     const output = derive({
       relay: {
         status: "responded",
-        health: { ...HEALTHY, browser: { ...HEALTHY.browser, capabilities: [] } },
+        health: {
+          ...HEALTHY,
+          browser: { ...HEALTHY.browser, capabilities: ["local-install-ready-v1"] },
+        },
       },
     });
 
     expect(output.state).toBe("Needs repair");
     expect(output.message).toContain("Missing capabilities");
+  });
+
+  it("routes a failed shared install inspection to installer repair", () => {
+    const output = derive({
+      relay: {
+        status: "responded",
+        health: {
+          ...HEALTHY,
+          browser: {
+            ...HEALTHY.browser,
+            capabilities: HEALTHY.browser.capabilities.filter(
+              (capability) => capability !== "local-install-ready-v1",
+            ),
+          },
+        },
+      },
+    });
+
+    expect(output.state).toBe("Needs repair");
+    expect(output.action.kind).toBe("UPDATE");
+    expect(output.message).toContain("installer repair");
   });
 
   it("keeps waiting as a durable success when registration exists but approval does not", () => {

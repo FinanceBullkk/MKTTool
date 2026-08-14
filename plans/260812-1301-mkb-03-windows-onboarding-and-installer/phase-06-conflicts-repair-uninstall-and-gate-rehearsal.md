@@ -7,7 +7,8 @@
 ## Overview
 
 **Priority:** the gate itself — no shippable middle.
-**Status:** 🟡 engineering subset verified; completion remains blocked on Phase 05 and live/human gates.
+**Status:** 🟡 pushed lifecycle subset plus locally verified setup-conflict integration;
+completion remains blocked on Phase 05 and live/human gates.
 
 Handle the machines that are not clean, define repair and uninstall, then rehearse the gate with
 someone who has never seen the product.
@@ -64,7 +65,12 @@ never touched.
 - The current ZIP, `setup.bat`, PowerShell, localhost, manual-key, and checksum instructions are
   retired from team-facing guidance only once this flow ships.
 
-## Engineering Checkpoint - 14 August 2026
+## Engineering checkpoint — synced 15 August 2026
+
+- Pushed HEAD evidence is MKTTool `2e31d20` on `origin/feat/mkt-browser-clean-break` and MKTBrowser
+  `1ae1b0a` on `origin/main`. Both repositories were clean and matched those remote-tracking refs at
+  the sync. The MKTTool commit closes the grant/bootstrap-versus-retirement race; the MKTBrowser
+  commit carries permanent profile deletion and the Relay v12 pin.
 
 - Interactive and silent installer paths run conflict inspection before old-version uninstall or
   application/registry mutation.
@@ -88,21 +94,43 @@ never touched.
   Browser lifecycle can delete a managed profile only after that confirmation. Profile schema v3
   persists retryable pending state; same-root quarantine and real-path ownership checks prevent
   outside-root or MultiZen deletion and avoid silent orphaning after partial failure.
+- The combined installer now persists the exact PowerShell conflict detector beside the packaged
+  Browser. Runtime inspection permits only the expected running Browser and Relay while retaining
+  foreign-process, fixed-port, MultiZen-process, and startup-entry checks. Contract v4 advertises
+  `local-install-ready-v1` only after that read-only verdict passes; `/setup` requires it and routes a
+  missing verdict to installer repair. Relay v12 needs no change because it already forwards
+  capability strings.
+- The complete Browser Node 22 installer suite passes 97/97 on the owner's Windows account, including
+  runtime conflict checks and 24/24 packaging contracts; Browser typecheck, lint, and the production
+  Electron bundle also pass. Focused MKTTool setup tests pass 28/28 with typecheck, lint, and build.
+  The full MKTTool sandbox run passes 1,359/1,367, with only the eight DPAPI CurrentUser cases blocked
+  by the sandbox user context; the owner's real-account DPAPI run remains 22/22.
 
 ## Related code files
 
-**Modify**
-- `MKTBrowser/apps/desktop/build/installer.nsh` — detection and blocked-layer messaging
-- `MKTTool/docs/huong-dan-van-hanh-cho-team.md` — replace the technical install path
+**Implemented**
+- `MKTBrowser/apps/desktop/build/installer.nsh` — pre-mutation inspection and blocked-layer messaging
+- `MKTBrowser/apps/desktop/build/windows-install-conflict-detection.ps1` — standard-user inspection
+  and exact-target startup repair
+- `MKTBrowser/apps/desktop/scripts/windows-install-conflict-detection.test.cjs` — ordering and
+  ownership contracts
+- `MKTBrowser/apps/desktop/scripts/windows-installer-ownership-fixtures.test.cjs` — disposable
+  process and shortcut fixtures
+- `MKTBrowser/apps/desktop/src/main/windows-local-install-inspector.ts` — hidden, cached runtime
+  execution of the packaged detector
+- `MKTBrowser/packages/mcp-server/src/runtime-capabilities.ts` — fail-closed conditional capability
+  merge
+- `MKTTool/src/lib/relay/current-device-browser-health.ts` — setup-only local-install requirement
+- `MKTTool/src/lib/setup/setup-state-machine.ts` — explicit installer-repair route
 
-**Create**
-- `MKTBrowser/apps/desktop/scripts/detect-conflicting-install.cjs` — the detection used by the
-  installer and by repair
+**Still modify**
+- `MKTTool/docs/huong-dan-van-hanh-cho-team.md` — replace the technical install path after rehearsal
 
 ## Implementation steps
 
-1. Write the detection as a standalone module so the installer, repair, and the setup controller all
-   report the same verdict.
+1. Keep the standalone PowerShell detector shared by interactive install, silent install, and repair.
+   Add the same local-install verdict to the setup controller before closing the shared-detection
+   checklist item.
 2. Add the blocked-layer messages: one plain sentence plus one safe action, technical detail behind a
    disclosure.
 3. Implement repair as an idempotent re-run of install with data preserved.
@@ -119,9 +147,9 @@ never touched.
 
 ## Todo list
 
-- [ ] `detect-conflicting-install.cjs` shared by installer, repair, and setup
-- [ ] Blocked-layer messaging with safe actions
-- [ ] Idempotent repair preserving data
+- [x] Shared conflict inspection across installer, repair, and setup controller
+- [x] Blocked-layer messaging with safe actions
+- [x] Idempotent repair preserving data
 - [x] Normal uninstall remains preserve-only
 - [x] Signed ADMIN Relay retirement with recipient completion proof
 - [x] Separate high-friction Browser profile deletion

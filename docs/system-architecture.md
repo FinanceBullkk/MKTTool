@@ -61,8 +61,9 @@ Ba đường ra internet đi qua **ba IP khác nhau và không được lẫn**:
 > `Web → Relay → authenticated MCP → MKT Browser`; operator keys stay in Relay and profiles/cookies
 > stay on the operator device. There is no MultiZen provider or configuration fallback.
 
-> **Current MKB-02 managed boundary:** contract version `3` advertises idempotent create, atomic
-> launch, managed-profile locking, and operation diagnostics. Relay v7 preserves ticket `jti` as
+> **Current managed boundary:** contract version `4` advertises idempotent create, atomic launch,
+> managed-profile locking, operation diagnostics, and no MCP profile deletion. Relay v12 preserves
+> ticket `jti` as
 > `operationId`, calls `launch_managed_profile`, and accepts the result only when correlation matches.
 > The Browser persists and reads back the requested proxy before Chromium starts; a running session
 > is returned only when its active proxy matches. Ordinary direct launch, delete, export, and
@@ -73,6 +74,12 @@ Ba đường ra internet đi qua **ba IP khác nhau và không được lẫn**:
 > and the build issues no page-control token. Relay `/health` reports live Browser, app, engine,
 > contract, and capability state for this PC. Historical device enrollment is not readiness;
 > list/create/launch stop until the current runtime is operational.
+
+> **Setup conflict boundary:** the combined installer persists its read-only conflict detector beside
+> MKT Browser. `get_runtime_info` adds `local-install-ready-v1` only when that detector verifies the
+> expected Browser and Relay ownership, ports `47821`/`47822`, MultiZen process state, and startup
+> entries. `/setup` requires this runtime-dependent capability and routes absence to installer repair;
+> ordinary Relay profile operations retain the base managed-capability requirement.
 
 > **“Relay” does not mean an edge proxy here.** It exposes no public tunnel, target-forwarding API,
 > or proxy pool. It verifies recipient-bound tickets, opens operator-domain secrets locally, and calls

@@ -1,6 +1,6 @@
 # MKB-03 — Windows onboarding, installer, and controlled updates
 
-**Started:** 12 August 2026 · **Estimate:** 10–15 days · **Status:** Phases 01-04 implemented; Phase 06 engineering in progress with lifecycle ownership decided; Phase 05 and human gates open
+**Started:** 12 August 2026 · **Estimate:** 10–15 days · **Status:** Phases 01-04 implemented; Phase 06 engineering subset pushed; Phase 05 ceremony and human gates open
 
 **Specification:** [MKT Browser plan §MKB-03](../260810-0244-mkt-browser-noi-bo/plan.md) — the "why"
 and the gate wording live there. This directory is the execution plan only; do not restate the spec,
@@ -35,7 +35,28 @@ working artifact rather than an unknown one.
 | 03 | [Protected secrets and the diagnostics allowlist](phase-03-protected-secrets-and-diagnostics-allowlist.md) | — | 🟡 Implemented; live-install migration rehearsal pending |
 | 04 | [Enrollment, grants, and ADMIN bootstrap](phase-04-enrollment-grants-and-admin-bootstrap.md) | 02, 03 | 🟡 Implemented; offline-admin, real reboot, and live-database-copy rehearsals pending |
 | 05 | [Compatibility set, updates, and rollback](phase-05-compatibility-set-updates-and-rollback.md) | 01, 03 | ⛔ Blocked on owner root/delegation custody and recovery ceremony; implementation not started |
-| 06 | [Conflicts, repair, uninstall, and gate rehearsal](phase-06-conflicts-repair-uninstall-and-gate-rehearsal.md) | 01–05 | 🟡 Signed Relay retirement and ownership design verified; Browser deletion and all live/human matrices remain open |
+| 06 | [Conflicts, repair, uninstall, and gate rehearsal](phase-06-conflicts-repair-uninstall-and-gate-rehearsal.md) | 01–05 | 🟡 Lifecycle subset pushed; setup-conflict integration verified locally; live Windows and unfamiliar-operator matrices remain open |
+
+## Current critical path — synced 15 August 2026
+
+**Phase-file checklist snapshot:** 42 of 64 items complete. This is implementation tracking, not a
+release-readiness percentage; the physical, clean-Windows, network, and unfamiliar-operator gates
+remain authoritative.
+
+1. **Pushed baseline confirmed.** MKTTool `2e31d20` is on
+   `origin/feat/mkt-browser-clean-break`; MKTBrowser `1ae1b0a` is on `origin/main`. Browser profile
+   deletion is complete. Relay v12 is the current local artifact and Browser contract-v4 payload.
+2. **Controlling blocker: physical release-signing ceremony.** The owner must provide one offline
+   Windows host, USB A, USB B, the password manager, paper fingerprints, and the permanent Windows
+   account that will own the DPAPI delegated key. Follow
+   [release-signing-key-ceremony.md](../../docs/release-signing-key-ceremony.md); do not generate
+   production key material on the build machine or substitute synthetic keys.
+3. After the public ceremony receipt verifies, complete Phase 05 manifest validation, coordinated
+   update activation, fault-injected convergence, and bounded rollback.
+4. Publish the verified Relay v12 ZIP to its immutable authenticated URL, then rebuild the installer
+   by fetching that published object. The current installer proves the local packaging path only.
+5. Run Phase 06 Windows matrices and the unfamiliar-operator rehearsal. Freeze the accepted MKB-03
+   baseline only after every live and human gate is green, then begin the MKB-04 audit.
 
 Phase 03 has no dependency on 01 or 02 and can run in parallel if a second pair of hands appears.
 Phases 01 and 02 are the ones that produce something an operator can hold, so they go first.

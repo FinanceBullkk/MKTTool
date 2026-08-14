@@ -13,6 +13,28 @@ machine. It must be completed before compatibility-manifest implementation begin
 The two removable devices become encrypted root backups A and B. Store them in different physical
 locations after the rehearsal. The passphrase stays only in the owner's password manager.
 
+Two USB devices are sufficient; a third transfer drive is not required. USB A first carries the
+public delegation request and verified offline-tool ZIP to the offline host, then becomes encrypted
+root backup A. USB B becomes encrypted root backup B and is the mandatory recovery source. USB A may
+carry only the public evidence back to the build machine after initialization; never copy its
+encrypted root backup onto the build disk.
+
+## Preflight stop/go checklist
+
+Do not run step 1 until every item is true:
+
+- [ ] The permanent Windows account that will own the delegated DPAPI key is signed in on the build
+  machine. A temporary or disposable account is not acceptable.
+- [ ] The offline Windows host is available, has Node.js 22 or a verified portable Node.js 22
+  directory, and can remain disconnected from Wi-Fi, Ethernet, Bluetooth networking, and VPNs.
+- [ ] USB A and USB B are separately labelled, healthy, mounted under different drive letters, and
+  contain no sole copy of valuable data.
+- [ ] The password manager contains a newly generated, unique passphrase of at least 20 characters.
+  Do not record it on paper, in chat, in shell history, or in a repository file.
+- [ ] Paper and pen are ready for the bundle, delegated-key, and root-key comparison fingerprints.
+- [ ] The owner has an uninterrupted session and understands the failure rules at the end of this
+  runbook. A failed backup-B recovery discards this root and restarts the ceremony.
+
 ## Safety boundary
 
 - The build machine creates the delegated release key and protects it with DPAPI CurrentUser.
@@ -27,7 +49,7 @@ All ceremony tools refuse to overwrite an existing key, request, backup director
 
 ## 1. Prepare the delegated key on the build machine
 
-Insert the transfer/removable device and run from the MKTTool repository:
+Insert USB A as the transfer device and run from the MKTTool repository:
 
 ```powershell
 npm run release:delegation:prepare -- `
@@ -50,16 +72,16 @@ transfer drive; the offline tool requires this separately recorded value before 
 
 ## 2. Build and verify the offline-tool bundle
 
-Build one ZIP directly on the transfer device:
+Build one ZIP directly on USB A:
 
 ```powershell
 npm run release:ceremony:bundle -- `
   -Output <TRANSFER_DRIVE>:\mkttool-release-ceremony\offline-root-ceremony-tools.zip
 ```
 
-Write the printed 32-character `Paper comparison fingerprint` on paper. Move the ZIP and public
-`delegation-request.json` to the offline host, disconnect that host from every network, then compare
-the ZIP before extraction:
+Write the printed 32-character `Paper comparison fingerprint` on paper. Move USB A with the ZIP and
+public `delegation-request.json` to the offline host, disconnect that host from every network, then
+compare the ZIP before extraction:
 
 ```powershell
 $hash = (Get-FileHash .\offline-root-ceremony-tools.zip -Algorithm SHA256).Hash.ToLowerInvariant()
@@ -72,7 +94,7 @@ machine, even for convenience.
 
 ## 3. Initialize the offline root
 
-Mount backup devices A and B under different drive letters, then run on the offline host:
+Keep USB A mounted and mount USB B under a different drive letter, then run on the offline host:
 
 ```powershell
 node .\offline-root-ceremony.mjs initialize `
@@ -110,7 +132,7 @@ required; merely confirming that the file exists does not count as recovery.
 
 ## 5. Return only public evidence
 
-Copy only these files back to a transfer directory accessible from the build machine:
+Copy only these files to the transfer directory on USB A for return to the build machine:
 
 ```text
 root-public.json

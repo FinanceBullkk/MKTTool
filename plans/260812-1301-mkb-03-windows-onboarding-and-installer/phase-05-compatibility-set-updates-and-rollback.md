@@ -25,6 +25,13 @@ delegated key has been generated. The owner still needs the offline host, two ph
 password-manager passphrase, and the real recovery rehearsal. This remains the controlling MKB-04
 NO-GO blocker. Runbook: [release-signing-key-ceremony.md](../../docs/release-signing-key-ceremony.md).
 
+**Physical preflight, synced 15 August 2026:** no production-key step is authorized until the owner
+has the offline Windows host, two separately labelled USB devices, the password manager, paper and
+pen, and access to the permanent Windows account that will own the DPAPI delegated key. Two USB
+devices are sufficient: USB A carries the public request and verified tool bundle into the offline
+host before becoming backup A; USB B is backup B and the required recovery source. The runbook now
+makes this transfer order explicit.
+
 Install, update, and roll back Relay, MKT Browser, the control contract, and the pinned engine as one
 compatibility set that can never run as a mixed tuple.
 

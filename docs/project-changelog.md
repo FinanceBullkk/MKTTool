@@ -12,6 +12,28 @@ Dự án chưa phát hành phiên bản (`0.1.0`, dùng nội bộ). Mốc chia 
 
 ---
 
+## 15 August 2026 - Shared setup conflict verdict
+
+The Windows combined installer now persists its exact standard-user conflict detector beside the
+packaged Browser instead of using it only from NSIS temporary storage. A read-only runtime mode
+allows the expected running MKT Browser and Relay but retains foreign executable ownership,
+listeners on `47821`/`47822`, running MultiZen, and duplicate or foreign startup-entry checks. The
+detector never stops a process or changes MultiZen data during setup inspection.
+
+MKT Browser contract v4 keeps its base capabilities stable and adds `local-install-ready-v1` only
+after the runtime detector passes. The result is cached for five seconds and fails closed when the
+script is missing, PowerShell fails, or inspection times out. Relay v12 already forwards arbitrary
+capability strings, so this integration does not require a Relay rebuild. MKTTool `/setup` requires
+the new capability and gives one safe installer-repair action when it is absent; ordinary managed
+profile readiness continues to require only the base capability set.
+
+The complete Browser Node 22 installer suite passes 97/97 on the owner's Windows account, including
+runtime conflict checks and Windows packaging contracts at 24/24; Browser typecheck, lint, and the
+production Electron bundle also pass. Focused MKTTool setup tests pass 28/28 with typecheck, lint,
+and build. The full MKTTool sandbox run passes 1,359/1,367; only eight DPAPI CurrentUser tests fail
+under the sandbox user context, while the owner's real Windows-account run remains 22/22. No
+installer was rebuilt or published, and the physical signing ceremony remains the release blocker.
+
 ## 15 August 2026 - Relay retirement race hardening
 
 Review found that bootstrap authorization and operator-key grant actions could read an active Relay
