@@ -15,7 +15,7 @@ Dự án chưa phát hành phiên bản (`0.1.0`, dùng nội bộ). Mốc chia 
 ## 14 August 2026 - Pre-MKB-04 remediation checkpoint
 
 The device lifecycle is now split into normal uninstall, emergency revoke, planned Relay retirement,
-and future Browser profile deletion. Repair and uninstall preserve every local identity. Emergency
+and Browser-only profile deletion. Repair and uninstall preserve every local identity. Emergency
 revoke is explicitly for a lost or unreachable PC and makes no remote-wipe claim.
 
 Planned retirement is an ADMIN-only, server-first protocol. The server revokes the device, clears
@@ -31,12 +31,14 @@ so later ticket-signing-key rotation cannot strand recovery or authorize a secon
 `/setup` treats this state as explicit retirement recovery, not enrollment or generic repair. Browser
 profiles, cookies, the MCP token, and MultiZen data are never deleted by this flow.
 
-Relay source is now version 11 because version 10 predates the retirement endpoints. The web UI
-refuses to revoke server access until the exact local PC reports version 11 or later. Retirement
-keeps the rollback marker and tombstone so an older Relay cannot recreate identity while the
-protected receipt is pending. The packaged v11 executable passed the full crypto smoke path plus
-signed cleanup, recovery health, and finalization. Its local, unpublished ZIP is 34,181,782 bytes
-with SHA-256 `6c8582b1bf6141efe35efaa5de4db57c9f2acbdc235891836483f7f7220448f6`.
+Relay source is now version 12 because version 11 predates Browser contract v4 support. The web UI
+still refuses retirement until the exact local PC reports version 11 or later; that floor protects
+the retirement endpoint independently of Browser compatibility. Retirement keeps the rollback
+marker and tombstone so an older Relay cannot recreate identity while the protected receipt is
+pending. The packaged v12 executable accepts Browser contracts 1-4 and passed the full crypto smoke
+path plus signed cleanup, recovery health, and finalization. Its local, unpublished ZIP is
+34,181,785 bytes with SHA-256
+`fe6de7fcf23a811682226a765c2986d1dc7e0242ef247ec61f1e5bd56dcd998c`.
 
 MKT Browser now runs existing-install conflict inspection before old-version uninstall or source,
 registry, and shortcut mutation. Interactive and silent install paths inspect the resolved target
@@ -54,12 +56,21 @@ that the earlier tests missed: an official packaging entrypoint that reused stal
 unsafe direct spawning of `corepack.cmd`, an undefined NSIS executable constant, and custom-header
 dependencies used before electron-builder declared them. Regression tests cover each contract.
 
-The fresh unsigned installer is 146,004,070 bytes with SHA-256
-`758d155cf06b15205186fef8b631daae7b5831a010feb51e17f559054cfaf5f7`. Its embedded Relay archive
-and manifest exactly match local v11, and post-build legacy-profile tests prove Node ABI restoration.
+The fresh unsigned installer is 146,006,574 bytes with SHA-256
+`b66c3cf89ac683063372d320c7a77193be1d90a3a0427066318fc6e849dc4f2b`. Its embedded Relay archive
+and manifest exactly match local v12, and post-build legacy-profile tests prove Node ABI restoration.
 The artifact was not published, installed, or promoted. MKB-04 remains NO-GO: Phase 05 awaits the
-owner root/delegation custody ceremony, and Phase 06 still needs Relay v11 publication, separate
-Browser profile deletion, live Windows matrices, and the unfamiliar-operator rehearsal.
+owner root/delegation custody ceremony, and Phase 06 still needs Relay v12 publication, live Windows
+matrices, and the unfamiliar-operator rehearsal.
+
+MKT Browser profile deletion is now a separate high-friction lifecycle instead of an uninstall,
+retirement, or MCP operation. Contract v4 removes `delete_profile` from every MCP policy. The in-app
+dialog names the exact profile and requires `DELETE <full profile id>`. Main-process enforcement
+refuses launch, running, and closing states; ordinary managed-profile deletion remains locked while
+the dedicated Browser flow can remove it. Profile schema v3 records incomplete deletion, moves only
+the owned profile directory into same-root quarantine, validates real paths against the MKT Browser
+profile root, and makes every crash point retryable. Relay configuration, device credentials, the MCP
+token, shared product settings, and MultiZen data remain untouched.
 
 The release-authority ceremony now has portable, fail-closed tooling. The owner machine creates the
 delegated Ed25519 key only inside a DPAPI CurrentUser store. A separate offline host creates two

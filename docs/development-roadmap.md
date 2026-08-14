@@ -14,7 +14,7 @@ Dự án đang chạy **ba luồng song song**:
 |---|---|---|
 | **A — Công cụ** | 5 giai đoạn gốc: kho danh tính → hàng đợi → sức khỏe → Facebook → tự đăng Reddit | GĐ1-4 xong, GĐ0 kẹt ở tiền + cold-start, GĐ5 chưa bắt đầu |
 | **B — Web chung** | Biến app một máy thành web chung cho 5-6 người ở 5-6 nơi | **GĐ0-4 xong 06/08**, GĐ5 web **đã chạy thật trên Railway** cùng ngày |
-| **C — MKT Browser** | Fork the MultiZen desktop layer; Windows-only in v1 while Web, Relay, and upstream UX/UI remain intact | **MKB-00 through MKB-02 verified; MKB-03 Phases 01-04 implemented and Phase 06 engineering in progress; Phase 05 plus human gates open**; MKB-04 remains NO-GO; macOS deferred to MKB-07; [plan](../plans/260810-0244-mkt-browser-noi-bo/plan.md) |
+| **C — MKT Browser** | Fork the MultiZen desktop layer; Windows-only in v1 while Web, Relay, and upstream UX/UI remain intact | **MKB-00 through MKB-02 verified; MKB-03 Phases 01-04 plus the Phase 06 deletion subset implemented; Phase 05 and human gates open**; MKB-04 remains NO-GO; macOS deferred to MKB-07; [plan](../plans/260810-0244-mkt-browser-noi-bo/plan.md) |
 
 Luồng B sinh ra sau khi chốt bàn giao cho team — xem
 [plan web chung](../plans/260804-1752-web-chung-cho-team-phan-tan/plan.md). Nó **không thay thế**
@@ -82,10 +82,10 @@ W02 passed 8/8, MKB-01 passed 8/8, MKB-01E passed 7/7, MKB-02 passed 18/18, and
 Windows packaging guards passed 3/3. That frozen checkpoint passed typecheck, build, and packaged
 verification. Current Phase 00 remediation adds real workspace lint and CI/package quality guards;
 23 packaging contracts, the complete Node 22 installer suite, lint, and typecheck pass on 14 August.
-The fresh unsigned installer at `release/installer/MKTBrowser-win-x64.exe` is 146,004,070 bytes with
-SHA-256 `758d155cf06b15205186fef8b631daae7b5831a010feb51e17f559054cfaf5f7`.
-It embeds the exact Relay v11 archive and manifest, but remains local and unpublished. The packaged
-verifier proves contract-v3 capability
+The fresh unsigned installer at `release/installer/MKTBrowser-win-x64.exe` is 146,006,574 bytes with
+SHA-256 `b66c3cf89ac683063372d320c7a77193be1d90a3a0427066318fc6e849dc4f2b`.
+It embeds the exact Relay v12 archive and manifest, but remains local and unpublished. The packaged
+verifier proves contract-v4 capability
 reporting, a profile-management-only tool inventory, deterministic managed create/retry, correlated
 create/launch diagnostics, direct-launch and delete locks, endpoint-free proxy summaries, atomic
 managed launch, Windows Chrome launcher-PID handoff, process-confirmed close, and clean
@@ -144,7 +144,7 @@ repository. MKTTool retains only the consuming contract, Relay, and release page
 | MKB-01 | Windows compatibility and product identity | ✅ Verified 11 August | Copy-only first-launch importer preserves the MultiZen source; five primary-screen baselines captured; Windows CI runs W01/W02 guards, typecheck, package build, and packaged runtime-contract verification on every push/PR |
 | MKB-01E | Electron upgrade and renderer hardening | ✅ Verified 11 August | Electron 42.8.1 / ABI 146 package; native module rebuild; sandbox/CSP/default-deny IPC and MCP inventories; fixed-seed fingerprint unchanged and five visual baselines accepted |
 | MKB-02 | Managed mode | ✅ Verified 12 August | Contract v3 diagnostics, profile-token capability separation, managed proxy/fingerprint/delete/direct-launch locks, current-device Browser health, Relay v7 correlation, and cross-repository packaged verification are green |
-| MKB-03 | Windows onboarding, installer, and controlled updates | 🟡 Phases 01-04 implemented; Phase 06 engineering subset verified; Phase 05 and human gates open — [execution plan](../plans/260812-1301-mkb-03-windows-onboarding-and-installer/plan.md) | Local findings have code fixes for WebRTC containment, engine fallback, live Relay identity reconciliation, progress, guidance, pre-mutation conflict detection, ownership-aware uninstall cleanup, and signed ADMIN Relay retirement. Relay v11 blocks retirement on older local artifacts before server mutation, revokes and unpins first, binds cleanup to the device identity and a per-retirement finalization key, retains a DPAPI recovery receipt plus non-secret rollback floor, persists a durable completion receipt that survives normal ticket-key rotation, and never claims Browser or remote data deletion. The Node 22 full installer suite and fresh local combined-installer build are green. Phase 05 is blocked on the owner offline root/delegation ceremony. Separate Browser profile deletion, v11 publication, clean-account/UAC, SmartScreen/LNA, network matrices, offline-admin, migration, update/rollback, and unfamiliar-operator rehearsal remain open. |
+| MKB-03 | Windows onboarding, installer, and controlled updates | 🟡 Phases 01-04 implemented; Phase 06 engineering subset verified; Phase 05 and human gates open — [execution plan](../plans/260812-1301-mkb-03-windows-onboarding-and-installer/plan.md) | Local findings have code fixes for WebRTC containment, engine fallback, live Relay identity reconciliation, progress, guidance, pre-mutation conflict detection, ownership-aware uninstall cleanup, signed ADMIN Relay retirement, and separate Browser-only profile deletion. MKT Browser contract v4 removes deletion from MCP; its typed-confirmation flow refuses active profiles, permits managed-profile deletion only through the dedicated UI, validates the owned profile root, and records retryable pending state across partial cleanup. Relay v12 accepts contract v4, preserves the v11 retirement floor, and never claims Browser or remote data deletion. The Node 22 Browser deletion tests, full installer suite, and fresh local combined-installer build are green. Phase 05 is blocked on the owner offline root/delegation ceremony. Relay v12 publication, clean-account/UAC, SmartScreen/LNA, network matrices, offline-admin, migration, update/rollback, and unfamiliar-operator rehearsal remain open. |
 | MKB-04 | Technical pilot and one canary account | ⬜ Not started | An unfamiliar operator completes setup with zero developer intervention; two Windows devices remain green for seven days; one account completes a 14-day cold start |
 | MKB-05 | Team rollout | ⬜ Not started | Canary completes cold start; MKT Browser becomes default; rollback uses only the frozen W01 checkpoint and never restores a MultiZen adapter fallback |
 | MKB-06 | Custom UX/UI | ⏸ Deferred beyond v1 | Begin only from observed usage feedback; does not block MKB-00 through MKB-05 |

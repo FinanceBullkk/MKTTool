@@ -75,13 +75,19 @@ never touched.
 - Relay uninstall cleanup stops only the exact owned executable path, removes only matching shortcuts
   and the owned executable, and preserves `relay-config.json`. A disposable process fixture passed.
 - PowerShell parsers, 23 packaging contracts, the complete Node 22 installer suite, real lint, and
-  typecheck pass. A fresh unsigned NSIS installer compiled with the exact local Relay v11 payload;
+  typecheck pass. A fresh unsigned NSIS installer compiled with the exact local Relay v12 payload;
   post-build legacy-profile tests prove the Node ABI and workspace links were restored.
 - Destructive ownership is resolved as separate Relay retirement and Browser profile deletion.
   Signed Relay retirement, durable completion evidence, crash recovery, setup fail-closed behavior,
   ticket-key-rotation independence, and downgrade-resistant recovery are implemented and covered by
-  focused tests. Relay v11 also passed its packaged retirement smoke path; its local installer is
-  reproducible, while publication, Browser profile deletion, and all live matrices remain open.
+  focused tests. Relay v12 accepts Browser contract v4 and passed its packaged retirement smoke path;
+  its local installer is reproducible, while publication and all live matrices remain open.
+- Browser profile deletion is implemented as a separate in-app action. The profile-management MCP
+  token cannot list or call deletion. The operator must type `DELETE <full profile id>`, active
+  launch/run/close states are refused, ordinary managed deletion remains locked, and the dedicated
+  Browser lifecycle can delete a managed profile only after that confirmation. Profile schema v3
+  persists retryable pending state; same-root quarantine and real-path ownership checks prevent
+  outside-root or MultiZen deletion and avoid silent orphaning after partial failure.
 
 ## Related code files
 
@@ -118,7 +124,7 @@ never touched.
 - [ ] Idempotent repair preserving data
 - [x] Normal uninstall remains preserve-only
 - [x] Signed ADMIN Relay retirement with recipient completion proof
-- [ ] Separate high-friction Browser profile deletion
+- [x] Separate high-friction Browser profile deletion
 - [ ] MultiZen data untouched in every path
 - [ ] Legacy/permission/port/repair/uninstall/update/rollback matrices green
 - [ ] Proxy, DNS, WebRTC, fingerprint, Firewall verified

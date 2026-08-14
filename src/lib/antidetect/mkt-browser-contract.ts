@@ -13,7 +13,7 @@ export const MKT_BROWSER_RUNTIME_INFO_TOOL = "get_runtime_info";
  * still calls, and silently trusting "newer is fine" is how a device fails at launch time instead
  * of at health-check time.
  */
-export const MKT_BROWSER_SUPPORTED_CONTRACT_VERSIONS = [1, 2, 3] as const;
+export const MKT_BROWSER_SUPPORTED_CONTRACT_VERSIONS = [1, 2, 3, 4] as const;
 
 /**
  * Mirrors the desktop contract's codes. MKTTool branches on these; it must never match a
@@ -29,6 +29,7 @@ export type MktBrowserErrorCode =
   | "ENGINE_UNAVAILABLE"
   | "UNKNOWN_TOOL"
   | "MANAGED_PROFILE_LOCKED"
+  | "PROFILE_DELETION_PENDING"
   | "INTERNAL_ERROR";
 
 export interface MktBrowserEngineInfo {

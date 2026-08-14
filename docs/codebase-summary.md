@@ -233,11 +233,12 @@ After step 4 begins, retries use the already verified protected receipt rather t
 current ticket key to authorize the same deletion again. Normal uninstall does not enter this flow.
 The web requires Relay v11 or later before step 1, so the pre-retirement v10 artifact cannot trigger
 server revocation and then fail at a missing local endpoint. Browser profile deletion is intentionally
-separate.
+separate: contract v4 removes it from MCP, while the in-app typed-confirmation path uses profile
+schema v3 pending state and same-root quarantine to retry partial cleanup safely.
 
 | Provider | Proxy application path |
 |---|---|
-| MKT Browser | authenticated MCP tool `launch_managed_profile` on default port `47822`; contract v3 persists and verifies `proxy: { type: http\|socks5, host, port, username?, password? }` before launch, while responses expose no endpoint or credentials |
+| MKT Browser | authenticated MCP tool `launch_managed_profile` on default port `47822`; contract v4 persists and verifies `proxy: { type: http\|socks5, host, port, username?, password? }` before launch, removes profile deletion from MCP, and exposes no proxy endpoint or credentials in responses |
 | AdsPower | `POST /api/v1/user/update` with `user_proxy_config.proxy_soft = "other"`; the adapter spaces calls by 1.1 seconds to stay below the 1 request/second limit |
 
 Mật khẩu proxy dạng trần đi đúng một đường có kiểm soát:

@@ -2,7 +2,7 @@
  * Disposable end-to-end verification of the MKT Browser contract consumed by MKTTool.
  *
  * Run only against an isolated MKT Browser data root. The script refuses a non-empty
- * profile store, never prints the bearer token, and removes its profile in `finally`.
+ * profile store and never prints the bearer token. Remove the disposable data root after the run.
  */
 import { MktBrowserAdapter } from "../src/lib/antidetect/mkt-browser-adapter";
 import {
@@ -20,7 +20,6 @@ const REQUIRED_TOOLS = [
   "launch_managed_profile",
   "launch_profile",
   "close_profile",
-  "delete_profile",
 ] as const;
 
 const DISPOSABLE_PROXY_PASSWORD = "w02-disposable-proxy-password";
@@ -122,24 +121,18 @@ async function main(): Promise<void> {
     await waitForRunningState(adapter, profileId, false);
     console.log("Profile close passed.");
 
-    await client.callTool("delete_profile", { profile_id: profileId });
-    profileId = null;
     const finalProfiles = await adapter.listProfiles();
-    if (finalProfiles.length !== 0) {
-      throw new Error(`Final disposable profile count is ${finalProfiles.length}, expected zero.`);
+    if (finalProfiles.length !== 1 || finalProfiles[0]?.id !== profileId) {
+      throw new Error("The disposable profile changed unexpectedly after close.");
     }
-    console.log("Profile deletion passed. Final disposable profile count: 0.");
+    console.log("Profile close passed. Profile deletion remains available only inside MKT Browser.");
+    profileId = null;
   } finally {
     if (profileId) {
       try {
         if (await adapter.isRunning(profileId)) await adapter.closeProfile(profileId);
       } catch {
-        // Continue to the deletion attempt.
-      }
-      try {
-        await client.callTool("delete_profile", { profile_id: profileId });
-      } catch {
-        // Preserve the original failure; the outer verifier also inspects the disposable root.
+        // Preserve the original failure.
       }
     }
   }

@@ -142,8 +142,10 @@ identity while recovery is pending. Each retirement has a one-use
 finalization signing key whose public half is sealed into the local receipt. The encrypted private
 seed is erased when the server stores the durable completion receipt, so normal ticket-key rotation
 cannot strand recovery and cannot mint another completion afterward. Browser profile deletion belongs
-to an independent future Browser lifecycle because profile cookies and the Browser MCP token are not
-Relay-owned.
+to an independent in-app Browser lifecycle because profile cookies are not Relay-owned. It is absent
+from MCP, requires a typed full-profile-id confirmation, refuses active lifecycle work, and deletes
+only the owned profile directory plus its database row. Retryable pending state reports partial
+cleanup without touching Relay, device credentials, the Browser token, settings, or MultiZen.
 
 ## 4. Nơi dữ liệu nằm
 
