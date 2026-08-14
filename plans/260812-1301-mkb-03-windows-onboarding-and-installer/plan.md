@@ -35,7 +35,7 @@ working artifact rather than an unknown one.
 | 03 | [Protected secrets and the diagnostics allowlist](phase-03-protected-secrets-and-diagnostics-allowlist.md) | — | 🟡 Implemented; live-install migration rehearsal pending |
 | 04 | [Enrollment, grants, and ADMIN bootstrap](phase-04-enrollment-grants-and-admin-bootstrap.md) | 02, 03 | 🟡 Implemented; offline-admin, real reboot, and live-database-copy rehearsals pending |
 | 05 | [Compatibility set, updates, and rollback](phase-05-compatibility-set-updates-and-rollback.md) | 01, 03 | ⛔ Blocked on owner root/delegation custody and recovery ceremony; implementation not started |
-| 06 | [Conflicts, repair, uninstall, and gate rehearsal](phase-06-conflicts-repair-uninstall-and-gate-rehearsal.md) | 01–05 | 🟡 Lifecycle subset pushed; setup-conflict integration verified locally; live Windows and unfamiliar-operator matrices remain open |
+| 06 | [Conflicts, repair, uninstall, and gate rehearsal](phase-06-conflicts-repair-uninstall-and-gate-rehearsal.md) | 01–05 | 🟡 Lifecycle and setup-conflict engineering subsets pushed; live Windows and unfamiliar-operator matrices remain open |
 
 ## Current critical path — synced 15 August 2026
 
@@ -43,9 +43,10 @@ working artifact rather than an unknown one.
 release-readiness percentage; the physical, clean-Windows, network, and unfamiliar-operator gates
 remain authoritative.
 
-1. **Pushed baseline confirmed.** MKTTool `2e31d20` is on
-   `origin/feat/mkt-browser-clean-break`; MKTBrowser `1ae1b0a` is on `origin/main`. Browser profile
-   deletion is complete. Relay v12 is the current local artifact and Browser contract-v4 payload.
+1. **Pushed baseline confirmed.** MKTTool `f447466` is on
+   `origin/feat/mkt-browser-clean-break`; MKTBrowser `f8f1615` is on `origin/main`. Browser profile
+   deletion and setup-time conflict readiness are complete. Relay v12 is the current local artifact
+   and Browser contract-v4 payload.
 2. **Controlling blocker: physical release-signing ceremony.** The owner must provide one offline
    Windows host, USB A, USB B, the password manager, paper fingerprints, and the permanent Windows
    account that will own the DPAPI delegated key. Follow

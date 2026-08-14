@@ -7,7 +7,7 @@
 ## Overview
 
 **Priority:** the gate itself — no shippable middle.
-**Status:** 🟡 pushed lifecycle subset plus locally verified setup-conflict integration;
+**Status:** 🟡 lifecycle and setup-conflict engineering subsets pushed;
 completion remains blocked on Phase 05 and live/human gates.
 
 Handle the machines that are not clean, define repair and uninstall, then rehearse the gate with
@@ -67,10 +67,11 @@ never touched.
 
 ## Engineering checkpoint — synced 15 August 2026
 
-- Pushed HEAD evidence is MKTTool `2e31d20` on `origin/feat/mkt-browser-clean-break` and MKTBrowser
-  `1ae1b0a` on `origin/main`. Both repositories were clean and matched those remote-tracking refs at
-  the sync. The MKTTool commit closes the grant/bootstrap-versus-retirement race; the MKTBrowser
-  commit carries permanent profile deletion and the Relay v12 pin.
+- Pushed HEAD evidence is MKTTool `f447466` on `origin/feat/mkt-browser-clean-break` and MKTBrowser
+  `f8f1615` on `origin/main`. Both repositories were clean and matched those remote-tracking refs at
+  the sync. The current commits add setup-time local-install enforcement, package the shared
+  conflict detector, and conditionally report its runtime capability. Earlier pushed history retains
+  the grant/bootstrap-versus-retirement race fix, permanent profile deletion, and the Relay v12 pin.
 
 - Interactive and silent installer paths run conflict inspection before old-version uninstall or
   application/registry mutation.
