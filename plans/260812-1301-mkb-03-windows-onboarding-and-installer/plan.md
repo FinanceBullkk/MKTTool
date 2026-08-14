@@ -1,6 +1,6 @@
 # MKB-03 — Windows onboarding, installer, and controlled updates
 
-**Started:** 12 August 2026 · **Estimate:** 10–15 days · **Status:** Phases 01-04 implemented in code; human gates open
+**Started:** 12 August 2026 · **Estimate:** 10–15 days · **Status:** Phases 01-04 implemented; Phase 06 engineering in progress with lifecycle ownership decided; Phase 05 and human gates open
 
 **Specification:** [MKT Browser plan §MKB-03](../260810-0244-mkt-browser-noi-bo/plan.md) — the "why"
 and the gate wording live there. This directory is the execution plan only; do not restate the spec,
@@ -34,8 +34,8 @@ working artifact rather than an unknown one.
 | 02 | [Setup controller and the announced SmartScreen journey](phase-02-setup-controller-and-smartscreen-journey.md) | 01 | 🟡 Implemented; SmartScreen capture, Chrome/Edge LNA verification, and clean-account reboot rehearsal pending |
 | 03 | [Protected secrets and the diagnostics allowlist](phase-03-protected-secrets-and-diagnostics-allowlist.md) | — | 🟡 Implemented; live-install migration rehearsal pending |
 | 04 | [Enrollment, grants, and ADMIN bootstrap](phase-04-enrollment-grants-and-admin-bootstrap.md) | 02, 03 | 🟡 Implemented; offline-admin, real reboot, and live-database-copy rehearsals pending |
-| 05 | [Compatibility set, updates, and rollback](phase-05-compatibility-set-updates-and-rollback.md) | 01, 03 | ⬜ |
-| 06 | [Conflicts, repair, uninstall, and gate rehearsal](phase-06-conflicts-repair-uninstall-and-gate-rehearsal.md) | 01–05 | ⬜ |
+| 05 | [Compatibility set, updates, and rollback](phase-05-compatibility-set-updates-and-rollback.md) | 01, 03 | ⛔ Blocked on owner root/delegation custody and recovery ceremony; implementation not started |
+| 06 | [Conflicts, repair, uninstall, and gate rehearsal](phase-06-conflicts-repair-uninstall-and-gate-rehearsal.md) | 01–05 | 🟡 Signed Relay retirement and ownership design verified; Browser deletion and all live/human matrices remain open |
 
 Phase 03 has no dependency on 01 or 02 and can run in parallel if a second pair of hands appears.
 Phases 01 and 02 are the ones that produce something an operator can hold, so they go first.

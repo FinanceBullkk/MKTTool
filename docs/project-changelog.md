@@ -12,6 +12,79 @@ Dự án chưa phát hành phiên bản (`0.1.0`, dùng nội bộ). Mốc chia 
 
 ---
 
+## 14 August 2026 - Pre-MKB-04 remediation checkpoint
+
+The device lifecycle is now split into normal uninstall, emergency revoke, planned Relay retirement,
+and future Browser profile deletion. Repair and uninstall preserve every local identity. Emergency
+revoke is explicitly for a lost or unreachable PC and makes no remote-wipe claim.
+
+Planned retirement is an ADMIN-only, server-first protocol. The server revokes the device, clears
+account assignments and pending grant/bootstrap delivery, then signs a short-lived authorization
+bound to the device id, X25519 public key, and a per-retirement finalization public key. Relay opens
+a recipient-only completion proof, persists a DPAPI recovery receipt before deleting its operator
+key, device key, grant state, and configuration. A non-secret rollback-floor marker and legacy key
+tombstone remain, and enrollment, secret, profile, and ticket routes fail closed while the
+receipt remains. The server records cleanup only after proof validation, signs and stores a durable
+completion receipt with the one-use finalization key, then erases that encrypted private seed. Relay
+verifies the completion against the finalization public key already stored in its protected receipt,
+so later ticket-signing-key rotation cannot strand recovery or authorize a second completion.
+`/setup` treats this state as explicit retirement recovery, not enrollment or generic repair. Browser
+profiles, cookies, the MCP token, and MultiZen data are never deleted by this flow.
+
+Relay source is now version 11 because version 10 predates the retirement endpoints. The web UI
+refuses to revoke server access until the exact local PC reports version 11 or later. Retirement
+keeps the rollback marker and tombstone so an older Relay cannot recreate identity while the
+protected receipt is pending. The packaged v11 executable passed the full crypto smoke path plus
+signed cleanup, recovery health, and finalization. Its local, unpublished ZIP is 34,181,782 bytes
+with SHA-256 `6c8582b1bf6141efe35efaa5de4db57c9f2acbdc235891836483f7f7220448f6`.
+
+MKT Browser now runs existing-install conflict inspection before old-version uninstall or source,
+registry, and shortcut mutation. Interactive and silent install paths inspect the resolved target
+directory. Standard-user process and fixed-port detection uses `Get-Process` plus `netstat` instead
+of CIM APIs that returned access denied on the current machine.
+
+Repair removes only exact-target owned startup duplicates after every conflict check passes. Relay
+uninstall cleanup stops only the exact owned executable path, removes matching shortcuts and binary,
+and preserves `relay-config.json`; disposable fixtures verified both ownership boundaries without
+touching the live installation. MultiZen is detected but never stopped or deleted.
+
+The Browser packaging suite now passes 23/23, and the complete installer suite, real workspace lint,
+and typecheck pass under Node 22. Execution and adversarial review exposed and fixed four blockers
+that the earlier tests missed: an official packaging entrypoint that reused stale `out` bundles,
+unsafe direct spawning of `corepack.cmd`, an undefined NSIS executable constant, and custom-header
+dependencies used before electron-builder declared them. Regression tests cover each contract.
+
+The fresh unsigned installer is 146,004,070 bytes with SHA-256
+`758d155cf06b15205186fef8b631daae7b5831a010feb51e17f559054cfaf5f7`. Its embedded Relay archive
+and manifest exactly match local v11, and post-build legacy-profile tests prove Node ABI restoration.
+The artifact was not published, installed, or promoted. MKB-04 remains NO-GO: Phase 05 awaits the
+owner root/delegation custody ceremony, and Phase 06 still needs Relay v11 publication, separate
+Browser profile deletion, live Windows matrices, and the unfamiliar-operator rehearsal.
+
+## 13 August 2026 — MKB-03 local onboarding human-test fixes
+
+The local human test exposed a real WebRTC STUN leak in packaged Chrome for Testing even though HTTP
+traffic used the proxy and Chromium/JavaScript WebRTC mitigations were enabled. The Windows installer
+now owns a one-shot elevated firewall transaction for exact, stable CFT and CloakBrowser runtime
+paths. Each proxied launch independently verifies its engine rule and all firewall profiles before
+any browser process starts; uncertainty fails closed. Runtime replacement uses a stable directory,
+rollback staging, and a version marker so updates do not silently detach the rule.
+
+The bootstrap error modal can persistently switch a failed CloakBrowser download to Chrome for
+Testing without leaving the modal or editing settings files. The fallback is labeled compatibility
+only. Unknown download sizes now show `Connecting...`, attempt count, and resume state instead of a
+false zero-byte percentage.
+
+`/setup` now treats saved device ID localStorage as a hint. It probes the live Relay identity first,
+clears stale reset identities, replaces same-owner hints, and preserves fail-closed repair behavior
+for revoked or different-owner devices. The Relay status page now points to `/setup` as the primary
+journey and labels manual operator-key entry as recovery/legacy while retaining the server-secret
+boundary explanation.
+
+Automated contracts, typechecks, desktop build, and combined NSIS compilation are green. BrowserLeaks
+and HTTP egress after restart and after a runtime update remain human gates; no real account is
+approved by this change.
+
 ## 13 August 2026 — MKB-03 Phase 04 enrollment grants and ADMIN bootstrap
 
 The enrollment/bootstrap protocol advances Relay source to version 10. A Windows v10 artifact was

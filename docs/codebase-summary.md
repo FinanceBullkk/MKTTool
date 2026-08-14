@@ -147,7 +147,7 @@ Dockerfile                      Ảnh cho môi trường chạy thật (GĐ5) �
 | `User` | **Người dùng công cụ** — không phải nick mạng xã hội (nick là `Account` ở trên) | Hàng này chỉ chứng minh họ TỪNG đăng nhập được. Quyền vào và vai trò tính lại từ `ALLOWED_EMAILS`/`ADMIN_EMAILS` ở **mỗi request**, không đọc cột `role` |
 | `Session`, `AuthAccount`, `Verification` | Do Better Auth quy định hình dạng | `AuthAccount` đổi tên từ mặc định `Account` của thư viện — tên đó đã thuộc về nick từ Phase 01 |
 | `HealthCheckLock` | Khóa chặn hai lượt dò sức khỏe chạy chồng nhau | Tối đa MỘT hàng — `key @id` là thứ ép điều đó, cùng vai trò với cờ `wx` của bản khóa file cũ. `token` để `release()` chỉ xóa khóa của chính mình. Quá 30 phút thì coi là mồ côi và giành được |
-| `RelayDevice` | Một máy chạy cầu nối đã được ADMIN cho vào sổ | `publicKey @unique` (X25519, hex chữ thường) — cùng một khóa nằm hai hàng thì thu hồi một hàng vẫn còn hàng kia sống. `revokedAt` là mốc thời gian chứ không phải cờ, và thu hồi là **một chiều** |
+| `RelayDevice` | Một máy chạy cầu nối đã được ADMIN cho vào sổ | `publicKey @unique` (X25519, lowercase hex); `revokedAt` is one-way server revocation. Retirement metadata keeps one stable retirement id, recipient proof hash, short-lived cleanup authorization, one-use encrypted finalization seed while pending, durable signed completion receipt, and completion timestamp so server revocation cannot be confused with confirmed local Relay cleanup. |
 
 Quan hệ chính: `Account` → `Proxy` (1:1), `PostJob` → `Account` + `PlatformTarget` + `ContentItem`, `Interaction` → `Account` + `PlatformTarget`, `FacebookPage` → `FacebookConnection` (n:1) + `PlatformTarget` (1:1).
 
@@ -210,6 +210,29 @@ Proxy persistence still must precede launch: changing it after Chromium starts d
 running session. Contract v3 owns that ordering in `launch_managed_profile`; it rejects a running
 profile whose active proxy differs and never falls back after an atomic rejection. Direct launch and
 ordinary proxy/fingerprint mutation are denied for managed profiles.
+
+## Relay device retirement flow
+
+```text
+ADMIN chooses planned retirement on the exact PC
+  1. Server revokes RelayDevice and unpins accounts in one transaction
+  2. Server creates a per-retirement finalization key and signs a short-lived cleanup authorization
+     bound to device id, device public key, proof hash, and finalization public key
+  3. Relay verifies signature and recipient, opens the recipient-only proof
+  4. Relay writes a DPAPI receipt and non-secret rollback guard, then removes Relay keys, grant
+     state, and config while retaining the legacy tombstone
+  5. Server validates proof, signs and stores a durable completion receipt, records
+     retirementCompletedAt, and erases the encrypted one-use finalization seed
+  6. Relay verifies the stored completion against the public key in its receipt, removes the receipt,
+     and closes; ticket-signing-key rotation does not affect recovery
+```
+
+`/setup` treats the receipt state as retirement recovery and cannot enroll or deliver a grant.
+After step 4 begins, retries use the already verified protected receipt rather than asking the
+current ticket key to authorize the same deletion again. Normal uninstall does not enter this flow.
+The web requires Relay v11 or later before step 1, so the pre-retirement v10 artifact cannot trigger
+server revocation and then fail at a missing local endpoint. Browser profile deletion is intentionally
+separate.
 
 | Provider | Proxy application path |
 |---|---|

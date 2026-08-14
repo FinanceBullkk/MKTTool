@@ -8,7 +8,12 @@
 ## Overview
 
 **Priority:** medium — a pilot on two devices survives without it; a team rollout does not.
-**Status:** ⬜ blocked on Phases 01 and 03.
+**Status:** ⛔ blocked on the owner root/delegation custody and recovery ceremony. Code implementation
+has not started because this plan requires the ceremony before any code depends on the release root.
+
+**Checkpoint, 14 August 2026:** the four required implementation files do not exist. No root or
+delegated key was generated, copied, restored, uploaded, printed, or placed on the build machine.
+This remains the controlling MKB-04 NO-GO blocker.
 
 Install, update, and roll back Relay, MKT Browser, the control contract, and the pinned engine as one
 compatibility set that can never run as a mixed tuple.

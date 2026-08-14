@@ -1,6 +1,6 @@
 # Kiến trúc hệ thống
 
-**Cập nhật:** 11/08/2026
+**Updated:** 14 August 2026
 
 Tài liệu này trả lời: hệ thống **chạy ở đâu**, **tin ai**, **phụ thuộc gì**, và **hỏng thì hỏng
 thế nào**. Code nằm ở đâu thì tra [codebase-summary.md](codebase-summary.md); thuật ngữ tra
@@ -125,6 +125,26 @@ một mẩu trí nhớ của luật ấy. Lưu **sau** khi chấm luật, để 
 | **Bí mật lọt ra log** | Mật khẩu proxy chỉ tồn tại dạng trần trong lời gọi phát vé; token Facebook đi qua `redactTokens()` trước mọi thông báo lỗi |
 | **Nhật ký** | `AuditLog` ghi mọi thao tác nhạy cảm: mở profile, xem credential, ghi đè luật, đăng Fanpage, phát vé ký |
 
+### Relay device lifecycle boundary
+
+| Path | Authority and ordering | Local data result |
+|---|---|---|
+| Repair/reinstall | No server state change | Preserve Relay identity, Browser profiles, tokens, and MultiZen |
+| Normal uninstall | Remove only owned binaries, processes, shortcuts, autostart, and firewall state | Preserve all identity-bearing data, including a pre-existing Relay |
+| Planned ADMIN retirement | Revoke and unpin on the server first; issue a short-lived signed authorization bound to `deviceId + publicKey + finalizationPublicKey`; validate recipient proof; persist a durable signed completion receipt | Remove Relay keys/config/grant state; retain non-secret rollback/tombstone guards; preserve Browser and MultiZen data |
+| Lost/unreachable PC | Revoke immediately and rotate `VAULT_KEY_OPERATOR` when exposure is plausible | No remote-wipe claim; local Relay and Browser state may remain |
+
+Relay writes a DPAPI-protected receipt before crossing the local deletion boundary. While that
+receipt exists, startup enters retirement recovery before key generation or enrollment and exposes
+only health, receipt-authorized idempotent cleanup retry, and signed finalization. A non-secret
+rollback-floor marker and legacy tombstone remain, so older Relay artifacts cannot recreate an
+identity while recovery is pending. Each retirement has a one-use
+finalization signing key whose public half is sealed into the local receipt. The encrypted private
+seed is erased when the server stores the durable completion receipt, so normal ticket-key rotation
+cannot strand recovery and cannot mint another completion afterward. Browser profile deletion belongs
+to an independent future Browser lifecycle because profile cookies and the Browser MCP token are not
+Relay-owned.
+
 ## 4. Nơi dữ liệu nằm
 
 | Thứ | Ở đâu | Sao lưu thế nào | Mất thì sao |
@@ -143,7 +163,7 @@ Toàn bộ `data/` và `.env` đều nằm trong `.gitignore`. Repo **không bao
 
 | Phụ thuộc | Dùng để | Hỏng thì biểu hiện | Xử lý đã cài sẵn |
 |---|---|---|---|
-| **MKT Browser** (authenticated local MCP, default `127.0.0.1:47822`) | Open browser profiles and apply their static proxies | HTTP 401/403, desktop app stopped, contract/engine/CPU mismatch | One transport re-handshake is allowed; proxy/tool failures remain fail-closed. MKB-02 now enforces managed controls, correlated diagnostics, token separation, and current-device readiness. Engine pinning, signed updates/rollback, and installer recovery remain MKB-03 gates; Mac arm64 belongs to MKB-07 |
+| **MKT Browser** (authenticated local MCP, default `127.0.0.1:47822`) | Open browser profiles and apply their static proxies | HTTP 401/403, desktop app stopped, contract/engine/CPU mismatch, or missing WebRTC containment | One transport re-handshake is allowed; proxy/tool failures remain fail-closed. MKB-02 enforces managed controls and token separation. MKB-03 now also requires exact per-engine outbound UDP protection before any proxied Windows launch; the installer owns elevation and stable runtime paths. BrowserLeaks/runtime-update retest, engine pinning, signed updates/rollback, and installer recovery remain gates; Mac arm64 belongs to MKB-07 |
 | **Proxy tĩnh** (nhà cung cấp) | Đường ra của từng nick | Đẩy vào profile vẫn "thành công" dù proxy đã chết | Không tự phát hiện được — phải mở `ipinfo.io` kiểm IP sau mỗi lần mở profile mới |
 | **Proxy quan sát viên** | Dò shadowban | Chưa nhập thì `npm run health` dừng ngay từ đầu | Cố ý dừng: dò bằng IP nhà còn tệ hơn không dò |
 | **HTML `old.reddit.com`** | Nguồn dữ liệu dò shadowban + karma | Reddit đổi giao diện → parser hỏng | Hỏng thì kết luận **`ERROR` ("Không dò được")**, tuyệt đối không bao giờ là `HEALTHY`. `npm run health:smoke` đối chiếu Reddit thật |
