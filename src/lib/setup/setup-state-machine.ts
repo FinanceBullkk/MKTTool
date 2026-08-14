@@ -27,6 +27,17 @@ export function setupStateMachine(input: SetupStateMachineInput): SetupStateResu
     );
   }
 
+  if (
+    input.device.status === "retirement-pending" ||
+    (input.relay.status === "responded" && input.relay.health.retirementPending)
+  ) {
+    return result(
+      "Needs repair",
+      { kind: "ADMIN", label: "Finish device retirement", href: "/relay-devices" },
+      "This PC has removed its Relay identity. Finish the protected retirement receipt before installing or enrolling Relay again.",
+    );
+  }
+
   if (input.device.conflict || input.device.revoked) {
     return result(
       "Needs repair",

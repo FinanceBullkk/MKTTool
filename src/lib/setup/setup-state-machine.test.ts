@@ -168,4 +168,22 @@ describe("setupStateMachine", () => {
     expect(output.state).toBe("Needs repair");
     expect(output.action.kind).toBe("ADMIN");
   });
+
+  it("fails closed explicitly while a protected retirement receipt remains", () => {
+    const output = derive({
+      device: { status: "retirement-pending" },
+      relay: {
+        status: "responded",
+        health: { ...HEALTHY, configured: false, retirementPending: true },
+      },
+    });
+
+    expect(output.state).toBe("Needs repair");
+    expect(output.action).toEqual({
+      kind: "ADMIN",
+      label: "Finish device retirement",
+      href: "/relay-devices",
+    });
+    expect(output.message).toContain("retirement receipt");
+  });
 });

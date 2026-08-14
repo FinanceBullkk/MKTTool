@@ -28,7 +28,7 @@ export function RelayEnrollCard({
 }: {
   viewer: { userId: string; email: string; isAdmin: boolean };
 }) {
-  const [relay, setRelay] = useState<SetupRelayHealth>({ status: "checking" });
+  const [relay, setRelay] = useState<SetupRelayHealth>({ status: "unchecked" });
   const [device, setDevice] = useState<SetupDeviceRegistry>({ status: "unknown" });
   const [health, setHealth] = useState<RelayHealth | null>(null);
   const [busy, setBusy] = useState(false);
@@ -84,35 +84,44 @@ export function RelayEnrollCard({
   useEffect(() => {
     let cancelled = false;
     const savedDeviceId = window.localStorage.getItem("mkttool.setup.device-id");
+    if (!savedDeviceId) return;
 
-    void probeSetupRelay().then((probed) => {
-      if (cancelled) return;
-      setRelay(probed.relay);
-      setHealth(probed.health);
-      if (probed.detail) setDetail(probed.detail);
-      if (!probed.device) return;
+    void probeSetupRelay()
+      .then((probed) => {
+        if (cancelled) return;
+        setRelay(probed.relay);
+        setHealth(probed.health);
+        if (probed.detail) setDetail(probed.detail);
+        if (!probed.device) return;
 
-      setDevice(probed.device);
-      const liveDeviceId = probed.health?.deviceId ?? null;
-      const reconciliation = reconcileSavedSetupDevice({
-        savedDeviceId,
-        liveDeviceId,
-        device: probed.device,
-        viewerUserId: viewer.userId,
+        setDevice(probed.device);
+        const liveDeviceId = probed.health?.deviceId ?? null;
+        const reconciliation = reconcileSavedSetupDevice({
+          savedDeviceId,
+          liveDeviceId,
+          device: probed.device,
+          viewerUserId: viewer.userId,
+        });
+        if (reconciliation.storage === "clear") {
+          window.localStorage.removeItem("mkttool.setup.device-id");
+        } else if (reconciliation.storage === "replace") {
+          window.localStorage.setItem("mkttool.setup.device-id", reconciliation.deviceId);
+        }
+
+        const safeToResume =
+          probed.device.status === "enrolled" &&
+          probed.device.ownerUserId === viewer.userId &&
+          !probed.device.revoked &&
+          !probed.device.conflict;
+        if (safeToResume && liveDeviceId) void deliverGrant(liveDeviceId);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setRelay({ status: "unreachable" });
+        setHealth(null);
+        setDevice({ status: "inspection-failed" });
+        setDetail("MKTTool could not verify this PC safely.");
       });
-      if (reconciliation.storage === "clear") {
-        window.localStorage.removeItem("mkttool.setup.device-id");
-      } else if (reconciliation.storage === "replace") {
-        window.localStorage.setItem("mkttool.setup.device-id", reconciliation.deviceId);
-      }
-
-      const safeToResume =
-        probed.device.status === "enrolled" &&
-        probed.device.ownerUserId === viewer.userId &&
-        !probed.device.revoked &&
-        !probed.device.conflict;
-      if (safeToResume && liveDeviceId) void deliverGrant(liveDeviceId);
-    });
 
     return () => {
       cancelled = true;
@@ -176,7 +185,13 @@ export function RelayEnrollCard({
       return;
     }
     setBusy(false);
-    if (probed.health?.deviceId) {
+    if (
+      probed.health?.deviceId &&
+      registry.status === "enrolled" &&
+      registry.ownerUserId === viewer.userId &&
+      !registry.revoked &&
+      !registry.conflict
+    ) {
       window.localStorage.setItem("mkttool.setup.device-id", probed.health.deviceId);
       void deliverGrant(probed.health.deviceId);
     }

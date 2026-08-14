@@ -31,6 +31,15 @@ export async function probeSetupRelay(): Promise<SetupRelayProbeResult> {
   }
 
   const health = outcome.data;
+  if (health.retirementPending) {
+    return {
+      relay: { status: "responded", health },
+      health,
+      device: { status: "retirement-pending" },
+      detail: "This PC has retired its Relay identity and cannot be enrolled again until retirement confirmation finishes.",
+    };
+  }
+
   const form = new FormData();
   form.set("publicKey", health.publicKey);
   if (health.deviceId) form.set("deviceId", health.deviceId);

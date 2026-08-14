@@ -16,6 +16,17 @@ describe("reconcileSavedSetupDevice", () => {
     ).toEqual({ storage: "clear" });
   });
 
+  it("clears the enrollment hint while local retirement confirmation is pending", () => {
+    expect(
+      reconcileSavedSetupDevice({
+        savedDeviceId: "retired-device",
+        liveDeviceId: "retired-device",
+        device: { status: "retirement-pending" },
+        viewerUserId: owner,
+      }),
+    ).toEqual({ storage: "clear" });
+  });
+
   it("replaces a stale hint with the live same-owner device", () => {
     expect(
       reconcileSavedSetupDevice({
@@ -38,7 +49,7 @@ describe("reconcileSavedSetupDevice", () => {
     ).toEqual({ storage: "unchanged" });
   });
 
-  it("never adopts a different-owner or revoked device", () => {
+  it("clears stale hints without adopting a different-owner or revoked device", () => {
     expect(
       reconcileSavedSetupDevice({
         savedDeviceId: "old-device",
@@ -46,7 +57,7 @@ describe("reconcileSavedSetupDevice", () => {
         device: { status: "enrolled", ownerUserId: "other-user", conflict: "wrong-signed-in-user" },
         viewerUserId: owner,
       }),
-    ).toEqual({ storage: "unchanged" });
+    ).toEqual({ storage: "clear" });
     expect(
       reconcileSavedSetupDevice({
         savedDeviceId: "revoked-device",
@@ -54,6 +65,6 @@ describe("reconcileSavedSetupDevice", () => {
         device: { status: "enrolled", revoked: true, conflict: "revoked-key" },
         viewerUserId: owner,
       }),
-    ).toEqual({ storage: "unchanged" });
+    ).toEqual({ storage: "clear" });
   });
 });

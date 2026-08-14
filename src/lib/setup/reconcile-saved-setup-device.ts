@@ -17,13 +17,21 @@ export function reconcileSavedSetupDevice(input: {
     return savedDeviceId ? { storage: "clear" } : { storage: "unchanged" };
   }
 
-  const safeSameOwnerDevice =
-    device.status === "enrolled" &&
-    !device.revoked &&
-    !device.conflict &&
-    device.ownerUserId === viewerUserId &&
-    Boolean(liveDeviceId);
-  if (!safeSameOwnerDevice || !liveDeviceId || liveDeviceId === savedDeviceId) {
+  if (device.status === "retirement-pending") {
+    return savedDeviceId ? { storage: "clear" } : { storage: "unchanged" };
+  }
+
+  if (device.status !== "enrolled") return { storage: "unchanged" };
+
+  const unsafeAuthority =
+    device.revoked ||
+    Boolean(device.conflict) ||
+    (Boolean(device.ownerUserId) && device.ownerUserId !== viewerUserId);
+  if (unsafeAuthority) {
+    return savedDeviceId ? { storage: "clear" } : { storage: "unchanged" };
+  }
+
+  if (!liveDeviceId || device.ownerUserId !== viewerUserId || liveDeviceId === savedDeviceId) {
     return { storage: "unchanged" };
   }
 

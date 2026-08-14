@@ -61,4 +61,21 @@ describe("probeSetupRelay", () => {
     expect(result.device).toEqual({ status: "inspection-failed" });
     expect(result.detail).toBe("MKTTool could not verify this PC safely.");
   });
+
+  it("fails closed before registry inspection when local retirement is pending", async () => {
+    mocks.pingRelay.mockResolvedValue({
+      status: "rejected",
+      message: "Relay identity is retired.",
+      data: { ...HEALTH, retirementPending: true, deviceId: "retired-device" },
+    });
+
+    const result = await probeSetupRelay();
+
+    expect(result.device).toEqual({ status: "retirement-pending" });
+    expect(result.relay).toEqual({
+      status: "responded",
+      health: { ...HEALTH, retirementPending: true, deviceId: "retired-device" },
+    });
+    expect(mocks.inspectSetupDevice).not.toHaveBeenCalled();
+  });
 });

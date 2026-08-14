@@ -16,7 +16,7 @@ rem ===========================================================================
 powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0install-relay.ps1"
 if errorlevel 1 (
   echo.
-  echo   Cai dat that bai. Doc thong bao ben tren.
+  echo   Installation failed. Read the message above.
   echo.
 )
 pause

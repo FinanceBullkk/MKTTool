@@ -37,7 +37,12 @@ export type DeviceConflict =
   | "shared-windows-account";
 
 export interface SetupDeviceRegistry {
-  status: "unknown" | "not-enrolled" | "enrolled" | "inspection-failed";
+  status:
+    | "unknown"
+    | "not-enrolled"
+    | "enrolled"
+    | "retirement-pending"
+    | "inspection-failed";
   ownerUserId?: string;
   revoked?: boolean;
   operatorKeyReady?: boolean;
