@@ -57,6 +57,15 @@ operational distribution is claimed until the v11 object exists at its pinned au
 A fresh local Node 22 combined installer now builds from the reviewed archive override; it proves the
 packaging path without claiming that the release channel is available.
 
+Release-authority ceremony tooling is now implemented and verified without creating production key
+material. The owner machine can create the delegated Ed25519 key directly into DPAPI CurrentUser; a
+portable offline tool creates two independently encrypted root backups on separate drive roots,
+signs the first delegation, reads both copies back, and requires a recovery proof from backup B. The
+offline-tool ZIP, delegated key, and root key each use a separate paper fingerprint, preventing a
+modified transfer drive from substituting either ceremony code or authority. The physical ceremony
+remains open, so Phase 05 implementation and MKB-04 remain
+blocked. See [release-signing-key-ceremony.md](release-signing-key-ceremony.md).
+
 **Team-installation boundary, reviewed 11 August 2026:** the owner-led demo may use the current
 technical artifacts, but team members must not be asked to install the Relay ZIP and Browser
 directory themselves. MKB-03 now has a hard zero-confusion gate: one authenticated Windows

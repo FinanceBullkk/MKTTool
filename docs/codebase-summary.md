@@ -107,6 +107,7 @@ scripts/
 ├── smoke-test-content-rules.ts   Kiểm chứng Phase 02
 ├── smoke-test-account-health.ts  Kiểm chứng Phase 03 (có phần đọc HTML Reddit thật)
 ├── smoke-test-facebook-pages.ts  Kiểm chứng Phase 04 (không cần Meta App)
+├── release-authority/           Offline-root, DPAPI delegation, recovery-proof, and ceremony verifier tools
 └── smoke-test-mkt-browser-correct-proxy.ts  Verifies the disposable MKT Browser correct-proxy
                                  path without printing or retaining proxy credentials
 relay/                          **Chương trình riêng**, chạy trên máy operator — không phải một

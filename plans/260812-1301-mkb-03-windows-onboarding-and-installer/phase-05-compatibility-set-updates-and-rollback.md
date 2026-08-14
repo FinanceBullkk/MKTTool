@@ -11,9 +11,19 @@
 **Status:** ⛔ blocked on the owner root/delegation custody and recovery ceremony. Code implementation
 has not started because this plan requires the ceremony before any code depends on the release root.
 
-**Checkpoint, 14 August 2026:** the four required implementation files do not exist. No root or
-delegated key was generated, copied, restored, uploaded, printed, or placed on the build machine.
-This remains the controlling MKB-04 NO-GO blocker.
+**Checkpoint, 14 August 2026:** portable ceremony tooling is ready and verified. The build-side tool
+creates a DPAPI CurrentUser delegated key and public request; the offline tool creates two separately
+salted encrypted root backups on different volume roots, signs the first delegation, reads both
+backups back, and requires recovery from copy B. A single offline-tool ZIP is hash-checked against a
+paper fingerprint before extraction. Delegated and root fingerprints also cross the boundary
+separately from the transfer drive. The verifier matches the signed delegation and recovery proof to
+the local DPAPI key and writes only a public receipt. Six focused tests, the 1,362-test full suite,
+typecheck, and lint pass. Tests used disposable synthetic keys only.
+
+The four compatibility-set implementation files still do not exist, and no production root or
+delegated key has been generated. The owner still needs the offline host, two physical media, the
+password-manager passphrase, and the real recovery rehearsal. This remains the controlling MKB-04
+NO-GO blocker. Runbook: [release-signing-key-ceremony.md](../../docs/release-signing-key-ceremony.md).
 
 Install, update, and roll back Relay, MKT Browser, the control contract, and the pinned engine as one
 compatibility set that can never run as a mixed tuple.

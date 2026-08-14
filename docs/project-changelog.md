@@ -61,6 +61,16 @@ The artifact was not published, installed, or promoted. MKB-04 remains NO-GO: Ph
 owner root/delegation custody ceremony, and Phase 06 still needs Relay v11 publication, separate
 Browser profile deletion, live Windows matrices, and the unfamiliar-operator rehearsal.
 
+The release-authority ceremony now has portable, fail-closed tooling. The owner machine creates the
+delegated Ed25519 key only inside a DPAPI CurrentUser store. A separate offline host creates two
+independently salted AES-256-GCM root backups protected by scrypt, writes them to different volume
+roots without overwrite, reads both back, signs the first delegation, and proves recovery from copy
+B. The offline-tool ZIP plus delegated and root fingerprints are compared over a separate paper
+channel so replacing the transfer drive cannot silently substitute ceremony code or authority.
+Verification matches the public root, delegation, recovery proof, and local DPAPI key before writing
+a non-secret receipt. No production
+key was generated; six focused tests plus the 1,362-test full suite, typecheck, and lint pass.
+
 ## 13 August 2026 — MKB-03 local onboarding human-test fixes
 
 The local human test exposed a real WebRTC STUN leak in packaged Chrome for Testing even though HTTP
