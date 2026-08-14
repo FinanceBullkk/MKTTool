@@ -33,6 +33,8 @@ import { handleSecretReveal } from "./handle-secret";
 import { handleSetOperatorKey } from "./handle-set-operator-key";
 import { handleAuthorizeBootstrap } from "./handle-authorize-bootstrap";
 import { handleReadBootstrapCompletion } from "./handle-read-bootstrap-completion";
+import { handleRetireDevice } from "./handle-retire-device";
+import { handleFinalizeDeviceRetirement } from "./handle-finalize-device-retirement";
 import { BootstrapAuthorizationBroker } from "./bootstrap-authorization";
 import { readOperatorGrantState } from "./operator-grant-state";
 import { handleProfilesRequest } from "./handle-profiles";
@@ -57,6 +59,13 @@ import { SECRET_REVEAL_PATH, renderSecretPage } from "./secret-page";
 import { migrateRelaySecrets } from "./secret-migration";
 import type { SecureStore } from "./secure-store";
 import { WindowsSecureStore } from "./windows-secure-store";
+import {
+  loadPendingRetirementReceipt,
+  retirementBlocked,
+  retirementHealth,
+  runRetirementRecoveryServer,
+} from "./device-retirement-recovery-server";
+import type { DeviceRetirementReceipt } from "./device-retirement-receipt";
 
 /** Mọi thứ dẫn xuất từ file cấu hình. Dựng lại nguyên khối mỗi lần cấu hình đổi. */
 interface RelayState {
@@ -136,11 +145,17 @@ function loadState(
 async function main(): Promise<void> {
   const home = resolveRelayHome();
   const secureStore = new WindowsSecureStore(home);
+  const retirementReceipt = loadPendingRetirementReceipt(secureStore);
+  if (retirementReceipt) {
+    await runRetirementRecoveryServer(home, secureStore, retirementReceipt);
+    return;
+  }
   migrateRelaySecrets(home, secureStore, RELAY_VERSION);
   const keypair = loadOrCreateDeviceKeypair(home, secureStore);
   migrateRelaySecrets(home, secureStore, RELAY_VERSION);
 
   let state = loadState(home, keypair, secureStore);
+  let pendingRetirement: DeviceRetirementReceipt | null = null;
   const bootstrap = new BootstrapAuthorizationBroker(
     () => state.deviceId,
     keypair.publicKeyHex,
@@ -171,7 +186,7 @@ async function main(): Promise<void> {
   }
 
   const server = createRelayServer({
-    allowedOrigin: () => state.webOrigin || null,
+    allowedOrigin: () => pendingRetirement?.webOrigin ?? (state.webOrigin || null),
     htmlPages: {
       "/": async () => {
         const tokenStatus = state.antidetect.tokenStatus();
@@ -200,6 +215,9 @@ async function main(): Promise<void> {
     },
     routes: defineRelayRoutes({
       [RELAY_PATHS.health]: async () => ({
+        ...(pendingRetirement
+          ? retirementHealth(pendingRetirement)
+          : {
         ok: state.problems.length === 0,
         message: state.problems.length === 0 ? "Cầu nối sẵn sàng." : notConfiguredMessage(),
         publicKey: keypair.publicKeyHex,
@@ -214,59 +232,106 @@ async function main(): Promise<void> {
         // Bốn tầng của CHÍNH máy này. Web dùng nó để nói đúng chỗ hỏng thay vì "không kết nối
         // được", và để chặn sớm một máy chạy bản hợp đồng khác.
         browser: await state.antidetect.describeRuntime(),
+          }),
       }),
       [RELAY_PATHS.configure]: (request, body) =>
-        handleConfigure(request, body, {
-          allowedOrigin: state.webOrigin || null,
-          home,
-          onConfigured: reloadConfig,
-        }),
+        pendingRetirement
+          ? retirementBlocked()
+          : handleConfigure(request, body, {
+              allowedOrigin: state.webOrigin || null,
+              home,
+              onConfigured: reloadConfig,
+            }),
       [RELAY_PATHS.setOperatorKey]: (request, body) =>
-        handleSetOperatorKey(request, body, {
-          home,
-          secureStore,
-          bootstrap: state.vaultKeyOperator ? undefined : bootstrap,
-          onConfigured: reloadConfig,
-        }),
+        pendingRetirement
+          ? retirementBlocked()
+          : handleSetOperatorKey(request, body, {
+              home,
+              secureStore,
+              bootstrap: state.vaultKeyOperator ? undefined : bootstrap,
+              onConfigured: reloadConfig,
+            }),
       [RELAY_PATHS.authorizeBootstrap]: (request, body) =>
-        handleAuthorizeBootstrap(request, body, state.webOrigin || null, bootstrap),
+        pendingRetirement
+          ? retirementBlocked()
+          : handleAuthorizeBootstrap(request, body, state.webOrigin || null, bootstrap),
       [RELAY_PATHS.bootstrapCompletion]: (request) =>
-        handleReadBootstrapCompletion(request, state.webOrigin || null, secureStore),
+        pendingRetirement
+          ? retirementBlocked()
+          : handleReadBootstrapCompletion(request, state.webOrigin || null, secureStore),
       [RELAY_PATHS.ticket]: (_request, body) =>
-        handleTicketRequest(body, {
-          identity: state.identity,
-          antidetect: state.antidetect,
-          notConfiguredMessage: notConfiguredMessage(),
-        }),
+        pendingRetirement
+          ? retirementBlocked()
+          : handleTicketRequest(body, {
+              identity: state.identity,
+              antidetect: state.antidetect,
+              notConfiguredMessage: notConfiguredMessage(),
+            }),
       // Không cần vé, và không cần cả `identity`: đường này chỉ đọc danh sách profile của chính
       // máy đang chạy — xem chú thích đầu `handle-profiles.ts`.
-      [RELAY_PATHS.profiles]: () => handleProfilesRequest(state.antidetect),
+      [RELAY_PATHS.profiles]: () =>
+        pendingRetirement ? retirementBlocked() : handleProfilesRequest(state.antidetect),
       [SECRET_REVEAL_PATH]: (_request, body) =>
-        handleSecretReveal(body, {
-          identity: state.identity,
-          vaultKeyOperator: state.vaultKeyOperator,
-          notConfiguredMessage: notConfiguredMessage(),
-        }),
+        pendingRetirement
+          ? retirementBlocked()
+          : handleSecretReveal(body, {
+              identity: state.identity,
+              vaultKeyOperator: state.vaultKeyOperator,
+              notConfiguredMessage: notConfiguredMessage(),
+            }),
       [RELAY_PATHS.encryptForVault]: (_request, body) =>
-        handleEncryptForVault(body, {
-          vaultKeyOperator: state.vaultKeyOperator,
-          notConfiguredMessage: notConfiguredMessage(),
-        }),
+        pendingRetirement
+          ? retirementBlocked()
+          : handleEncryptForVault(body, {
+              vaultKeyOperator: state.vaultKeyOperator,
+              notConfiguredMessage: notConfiguredMessage(),
+            }),
       [RELAY_PATHS.sealOperatorKey]: (request, body) =>
-        handleSealOperatorKey(request, body, {
-          allowedOrigin: state.webOrigin || null,
-          vaultKeyOperator: state.vaultKeyOperator,
-          notConfiguredMessage: notConfiguredMessage(),
-        }),
+        pendingRetirement
+          ? retirementBlocked()
+          : handleSealOperatorKey(request, body, {
+              allowedOrigin: state.webOrigin || null,
+              vaultKeyOperator: state.vaultKeyOperator,
+              notConfiguredMessage: notConfiguredMessage(),
+            }),
       [RELAY_PATHS.receiveOperatorKey]: (request, body) =>
-        handleReceiveOperatorKey(request, body, {
-          allowedOrigin: state.webOrigin || null,
-          deviceId: state.deviceId,
-          devicePublicKey: keypair.publicKeyHex,
-          devicePrivateKey: keypair.privateKey,
-          serverPublicKey: state.identity?.serverPublicKey ?? null,
+        pendingRetirement
+          ? retirementBlocked()
+          : handleReceiveOperatorKey(request, body, {
+              allowedOrigin: state.webOrigin || null,
+              deviceId: state.deviceId,
+              devicePublicKey: keypair.publicKeyHex,
+              devicePrivateKey: keypair.privateKey,
+              serverPublicKey: state.identity?.serverPublicKey ?? null,
+              secureStore,
+              onConfigured: reloadConfig,
+            }),
+      [RELAY_PATHS.retireDevice]: (request, body) =>
+        handleRetireDevice(request, body, {
+          allowedOrigin: pendingRetirement?.webOrigin ?? (state.webOrigin || null),
+          home,
           secureStore,
-          onConfigured: reloadConfig,
+          activeIdentity:
+            !pendingRetirement && state.deviceId && state.serverPublicKey
+              ? {
+                  deviceId: state.deviceId,
+                  devicePublicKey: keypair.publicKeyHex,
+                  devicePrivateKey: keypair.privateKey,
+                  serverPublicKey: state.serverPublicKey,
+                  webOrigin: state.webOrigin,
+                }
+              : null,
+          onRetired: () => {
+            pendingRetirement = loadPendingRetirementReceipt(secureStore);
+            state = loadState(home, keypair, secureStore);
+          },
+        }),
+      [RELAY_PATHS.finalizeDeviceRetirement]: (request, body) =>
+        handleFinalizeDeviceRetirement(request, body, {
+          allowedOrigin: pendingRetirement?.webOrigin ?? (state.webOrigin || null),
+          home,
+          secureStore,
+          onFinalized: () => server.close(),
         }),
     }),
   });

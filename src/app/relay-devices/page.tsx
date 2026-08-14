@@ -1,5 +1,7 @@
 import { RelayDeviceIdCell } from "@/components/relay/relay-device-id-cell";
 import { RelayDeviceRevokeButton } from "@/components/relay/relay-device-revoke-button";
+import { RelayDeviceRetirementButton } from "@/components/relay/relay-device-retirement-button";
+import { RelayDeviceRetirementReceiptButton } from "@/components/relay/relay-device-retirement-receipt-button";
 import { RelayGrantKeyButton } from "@/components/relay/relay-grant-key-button";
 import { ActionForm, Field, SelectField } from "@/components/ui/form-controls";
 import { Card, DataTable, EmptyState, PageHeading, StatusBadge } from "@/components/ui/page-section";
@@ -203,9 +205,9 @@ export default async function RelayDevicesPage() {
                   )}
                 </td>
                 <td className="py-2 pr-4 text-right">
-                  {isAdmin && !device.revokedAt ? (
+                  {isAdmin ? (
                     <div className="space-y-2">
-                      {device.operatorKeyReadyAt || device.operatorKeyGrant ? (
+                      {!device.revokedAt && (device.operatorKeyReadyAt || device.operatorKeyGrant) ? (
                         <RelayGrantKeyButton
                           deviceId={device.id}
                           devicePublicKey={device.publicKey}
@@ -213,10 +215,33 @@ export default async function RelayDevicesPage() {
                           alreadyReady={Boolean(device.operatorKeyReadyAt)}
                         />
                       ) : null}
-                      <RelayDeviceRevokeButton
-                        action={revokeRelayDevice.bind(null, device.id)}
-                        deviceName={device.name}
-                      />
+                      {!device.revokedAt ? (
+                        <RelayDeviceRevokeButton
+                          action={revokeRelayDevice.bind(null, device.id)}
+                          deviceName={device.name}
+                        />
+                      ) : null}
+                      {!device.retirementCompletedAt ? (
+                        <RelayDeviceRetirementButton
+                          deviceId={device.id}
+                          deviceName={device.name}
+                          devicePublicKey={device.publicKey}
+                        />
+                      ) : (
+                        <div className="space-y-2">
+                          <StatusBadge
+                            label={`local cleanup confirmed ${formatFullDateTime(device.retirementCompletedAt)}`}
+                            className="bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400"
+                          />
+                          {device.retirementId ? (
+                            <RelayDeviceRetirementReceiptButton
+                              deviceId={device.id}
+                              devicePublicKey={device.publicKey}
+                              retirementId={device.retirementId}
+                            />
+                          ) : null}
+                        </div>
+                      )}
                     </div>
                   ) : null}
                 </td>

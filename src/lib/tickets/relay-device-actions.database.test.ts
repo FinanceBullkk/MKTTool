@@ -261,6 +261,29 @@ describe("revokeRelayDevice", () => {
     expect(device.revokedAt).toBeInstanceOf(Date);
   });
 
+  it("drops pending key and bootstrap delivery after emergency revocation", async () => {
+    const id = await seedDevice();
+    await prisma.relayDevice.update({
+      where: { id },
+      data: {
+        operatorKeyGrant: JSON.stringify({ ephemeralPublicKey: "ab".repeat(32), sealed: "ciphertext" }),
+        operatorKeyCompletionGrant: JSON.stringify({ ephemeralPublicKey: "cd".repeat(32), sealed: "proof" }),
+        operatorKeyDeliveryAuthorization: "delivery",
+        operatorKeyDeliveryExpiresAt: new Date(Date.now() + 60_000),
+        bootstrapAuthorization: "bootstrap",
+        bootstrapAuthorizationExpiresAt: new Date(Date.now() + 60_000),
+      },
+    });
+
+    await revokeRelayDevice(id);
+
+    const device = await prisma.relayDevice.findUniqueOrThrow({ where: { id } });
+    expect(device.operatorKeyGrant).toBeNull();
+    expect(device.operatorKeyCompletionGrant).toBeNull();
+    expect(device.operatorKeyDeliveryAuthorization).toBeNull();
+    expect(device.bootstrapAuthorization).toBeNull();
+  });
+
   /**
    * Câu thông báo phải nhắc xoay khóa vùng operator. Thu hồi không với tới được ciphertext mà
    * chiếc máy đó đã lấy về — ai bấm xong mà tưởng đã an toàn thì sẽ bỏ nốt việc quan trọng hơn.

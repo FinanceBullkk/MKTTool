@@ -2,6 +2,7 @@ export const RELAY_SECRET_NAMES = {
   operatorDomainKey: "operator-domain-key",
   devicePrivateKey: "device-private-key",
   operatorGrantState: "operator-grant-state",
+  deviceRetirementReceipt: "device-retirement-receipt",
 } as const;
 
 export type RelaySecretName = (typeof RELAY_SECRET_NAMES)[keyof typeof RELAY_SECRET_NAMES];

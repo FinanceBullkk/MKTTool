@@ -745,5 +745,16 @@ model RelayDevice {
   bootstrapAuthorizationExpiresAt DateTime?
   bootstrapAuthorizationUsedAt DateTime?
 
+  /// ADMIN retirement revokes server authority first, then waits for a recipient-only local cleanup
+  /// proof. A stable retirement id and sealed proof survive retries without granting a second wipe.
+  retirementId String? @unique
+  retirementCompletionHash String?
+  retirementCompletionGrant String?
+  retirementAuthorization String?
+  retirementAuthorizationExpiresAt DateTime?
+  retirementFinalizationKeyEnc String? // vault:server
+  retirementFinalizationAuthorization String?
+  retirementCompletedAt DateTime?
+
   @@index([userId])
 }

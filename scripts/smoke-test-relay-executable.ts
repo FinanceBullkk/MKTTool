@@ -27,6 +27,11 @@ import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { decryptCredential, encryptCredential } from "../src/lib/crypto/credential-encryption";
 import { issueGrantAuthorization } from "../src/lib/relay/enrollment/grant-authorization";
 import { hashGrantCompletionProof } from "../src/lib/relay/enrollment/grant-digests";
+import {
+  hashDeviceRetirementProof,
+  issueDeviceRetirementAuthorization,
+} from "../src/lib/relay/retirement/device-retirement-authorization";
+import { issueDeviceRetirementFinalization } from "../src/lib/relay/retirement/device-retirement-finalization";
 import { RELAY_ORIGIN, RELAY_PATHS, RELAY_VERSION } from "../src/lib/relay/relay-endpoints";
 import {
   publicKeyToHex,
@@ -282,6 +287,64 @@ async function run() {
       revealed.ok === true && revealed.secret === PASSWORD,
       revealed.ok === true ? "" : String(revealed.message),
     );
+
+    console.log("\nRetirement — packaged cleanup, recovery receipt, and finalization");
+    const retirementId = randomUUID();
+    const retirementProof = randomBytes(32).toString("base64url");
+    const retirementCompletion = sealForDevice({ proof: retirementProof }, devicePublicKey);
+    const finalizationSeed = randomBytes(32);
+    const finalizationKeys = signingKeysFromSeed(finalizationSeed);
+    const retirementAuthorization = issueDeviceRetirementAuthorization(
+      {
+        authorizationId: randomUUID(),
+        retirementId,
+        deviceId: DEVICE_ID,
+        recipientPublicKey: devicePublicKey,
+        completionHash: hashDeviceRetirementProof(retirementProof),
+        completionEphemeralPublicKey: retirementCompletion.ephemeralPublicKey,
+        completionSealed: retirementCompletion.sealed,
+        finalizationPublicKey: publicKeyToHex(finalizationKeys.publicKey),
+      },
+      serverKeys.privateKey,
+      Date.now(),
+      30_000,
+    );
+    const retired = await relayCall(
+      RELAY_PATHS.retireDevice,
+      { authorization: retirementAuthorization },
+      { origin: bakedOrigin },
+    );
+    check(
+      "removes packaged Relay identity and returns the recipient proof",
+      retired.ok === true &&
+        retired.retirementId === retirementId &&
+        retired.proof === retirementProof &&
+        retired.cleanupComplete === true,
+      String(retired.message),
+    );
+    const pending = await relayCall(RELAY_PATHS.health);
+    check(
+      "enters fail-closed retirement recovery",
+      pending.ok === false && pending.retirementPending === true && pending.deviceId === DEVICE_ID,
+      String(pending.message),
+    );
+    const finalization = issueDeviceRetirementFinalization(
+      {
+        authorizationId: randomUUID(),
+        retirementId,
+        deviceId: DEVICE_ID,
+        recipientPublicKey: devicePublicKey,
+        completionHash: hashDeviceRetirementProof(retirementProof),
+      },
+      finalizationKeys.privateKey,
+      Date.now(),
+    );
+    const finalized = await relayCall(
+      RELAY_PATHS.finalizeDeviceRetirement,
+      { authorization: finalization },
+      { origin: bakedOrigin },
+    );
+    check("accepts only the matching finalization and closes", finalized.ok === true, String(finalized.message));
   } catch (error) {
     console.error(`\nĐỏ giữa chừng: ${(error as Error).message}`);
     console.error(relay.output());

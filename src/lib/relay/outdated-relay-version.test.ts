@@ -6,8 +6,12 @@
  * đúng lúc vé bắt đầu bị từ chối.
  */
 import { describe, expect, it } from "vitest";
-import { outdatedRelayVersion, type RelayOutcome } from "./relay-browser-client";
-import { RELAY_VERSION } from "./relay-endpoints";
+import {
+  outdatedRelayVersion,
+  relaySupportsDeviceRetirement,
+  type RelayOutcome,
+} from "./relay-browser-client";
+import { RELAY_DEVICE_RETIREMENT_MIN_VERSION, RELAY_VERSION } from "./relay-endpoints";
 
 const OLD = RELAY_VERSION - 1;
 
@@ -56,5 +60,17 @@ describe("outdatedRelayVersion", () => {
     // là gửi người ta đi cài lại một chương trình vốn không phải nguyên nhân.
     const outcome: RelayOutcome<unknown> = { status: "ok", data: {} };
     expect(outdatedRelayVersion(outcome)).toBeNull();
+  });
+});
+
+describe("relaySupportsDeviceRetirement", () => {
+  it("blocks the pre-retirement v10 artifact before server revocation", () => {
+    expect(relaySupportsDeviceRetirement(RELAY_DEVICE_RETIREMENT_MIN_VERSION - 1)).toBe(false);
+    expect(relaySupportsDeviceRetirement(undefined)).toBe(false);
+  });
+
+  it("accepts the first retirement-capable Relay and later versions", () => {
+    expect(relaySupportsDeviceRetirement(RELAY_DEVICE_RETIREMENT_MIN_VERSION)).toBe(true);
+    expect(relaySupportsDeviceRetirement(RELAY_DEVICE_RETIREMENT_MIN_VERSION + 1)).toBe(true);
   });
 });

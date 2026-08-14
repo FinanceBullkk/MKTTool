@@ -43,9 +43,14 @@
  */
 import {
   RELAY_PATHS,
+  RELAY_DEVICE_RETIREMENT_MIN_VERSION,
+  RELAY_RETIREMENT_TIMEOUT_MS,
   RELAY_TIMEOUT_MS,
   RELAY_VERSION,
   type ConfigureRelayRequest,
+  type DeviceRetirementReply,
+  type DeviceRetirementRequest,
+  type FinalizeDeviceRetirementRequest,
   type BootstrapAuthorizationRequest,
   type BootstrapCompletionReply,
   type OperatorKeyDeliveryReply,
@@ -174,6 +179,12 @@ export function outdatedRelayVersion(outcome: RelayOutcome<unknown>): number | n
   return outcome.relayVersion < RELAY_VERSION ? outcome.relayVersion : null;
 }
 
+export function relaySupportsDeviceRetirement(relayVersion: number | undefined): boolean {
+  return (
+    Number.isSafeInteger(relayVersion) && relayVersion! >= RELAY_DEVICE_RETIREMENT_MIN_VERSION
+  );
+}
+
 /**
  * Đánh thức đường xuống cầu nối và hỏi nó còn sống không.
  *
@@ -283,6 +294,26 @@ export function authorizeBootstrap(authorization: string): Promise<RelayOutcome<
 
 export function readBootstrapCompletion(): Promise<RelayOutcome<BootstrapCompletionReply>> {
   return callRelay<BootstrapCompletionReply>(RELAY_PATHS.bootstrapCompletion);
+}
+
+export function retireRelayDevice(
+  authorization: string,
+): Promise<RelayOutcome<DeviceRetirementReply>> {
+  return callRelay<DeviceRetirementReply>(RELAY_PATHS.retireDevice, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ authorization } satisfies DeviceRetirementRequest),
+  }, RELAY_RETIREMENT_TIMEOUT_MS);
+}
+
+export function finalizeRelayDeviceRetirement(
+  authorization: string,
+): Promise<RelayOutcome<RelayReply>> {
+  return callRelay<RelayReply>(RELAY_PATHS.finalizeDeviceRetirement, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ authorization } satisfies FinalizeDeviceRetirementRequest),
+  });
 }
 
 /**

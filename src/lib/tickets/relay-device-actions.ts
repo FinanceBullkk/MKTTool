@@ -214,7 +214,15 @@ export const revokeRelayDevice = adminAction(async function revokeRelayDevice(
   const [, unpinned] = await prisma.$transaction([
     prisma.relayDevice.update({
       where: { id: deviceId },
-      data: { revokedAt: new Date() },
+      data: {
+        revokedAt: new Date(),
+        operatorKeyGrant: null,
+        operatorKeyCompletionGrant: null,
+        operatorKeyDeliveryAuthorization: null,
+        operatorKeyDeliveryExpiresAt: null,
+        bootstrapAuthorization: null,
+        bootstrapAuthorizationExpiresAt: null,
+      },
     }),
     prisma.account.updateMany({
       where: { deviceId },

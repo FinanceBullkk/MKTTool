@@ -160,9 +160,34 @@ async function collectFacebookPages(oldKey: Buffer): Promise<WriteFactory[]> {
   });
 }
 
+async function collectRelayDevices(oldKey: Buffer): Promise<WriteFactory[]> {
+  const rows = await prisma.relayDevice.findMany({
+    where: { retirementFinalizationKeyEnc: { not: null } },
+    select: { id: true, retirementFinalizationKeyEnc: true },
+  });
+  return rows.map((row) => {
+    const seed = decryptOrExplain(
+      row.retirementFinalizationKeyEnc!,
+      oldKey,
+      `retirement finalization key for Relay device ${row.id}`,
+    );
+    return (newKey) =>
+      prisma.relayDevice.update({
+        where: { id: row.id },
+        data: { retirementFinalizationKeyEnc: encryptCredential(seed, newKey) },
+      });
+  });
+}
+
 /** Bảng phân công: vùng nào thì gom những bảng nào. Chia sai ở đây là xoay nhầm khóa cho cột. */
 const COLLECTORS: Record<VaultDomain, ((oldKey: Buffer) => Promise<WriteFactory[]>)[]> = {
-  server: [collectProxies, collectObserverProxies, collectFacebookConnections, collectFacebookPages],
+  server: [
+    collectProxies,
+    collectObserverProxies,
+    collectFacebookConnections,
+    collectFacebookPages,
+    collectRelayDevices,
+  ],
   operator: [collectAccounts],
 };
 

@@ -47,6 +47,10 @@ export const ENCRYPTED_MODELS: readonly EncryptedModel[] = [
   },
   { model: "FacebookConnection", fields: [{ name: "accessTokenEnc", domain: "server" }] },
   { model: "FacebookPage", fields: [{ name: "accessTokenEnc", domain: "server" }] },
+  {
+    model: "RelayDevice",
+    fields: [{ name: "retirementFinalizationKeyEnc", domain: "server" }],
+  },
 ] as const;
 
 /**

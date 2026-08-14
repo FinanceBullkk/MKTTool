@@ -77,6 +77,8 @@ export const RELAY_PATHS = {
   receiveOperatorKey: "/receive-operator-key",
   authorizeBootstrap: "/authorize-bootstrap",
   bootstrapCompletion: "/bootstrap-completion",
+  retireDevice: "/retire-device",
+  finalizeDeviceRetirement: "/finalize-device-retirement",
 } as const;
 
 /**
@@ -138,6 +140,21 @@ export interface BootstrapCompletionReply extends RelayReply {
   proof?: string;
 }
 
+export interface DeviceRetirementRequest {
+  authorization: string;
+}
+
+export interface DeviceRetirementReply extends RelayReply {
+  retirementId?: string;
+  proof?: string;
+  cleanupComplete?: boolean;
+  recovered?: boolean;
+}
+
+export interface FinalizeDeviceRetirementRequest {
+  authorization: string;
+}
+
 /** Thân của `POST /seal-operator-key`: khóa công khai của chiếc máy sẽ nhận. */
 export interface SealOperatorKeyRequest {
   /** `RelayDevice.publicKey` của máy nhận, hex. Công khai đúng nghĩa — lộ cũng không mất gì. */
@@ -167,6 +184,12 @@ export interface ConfigureRelayRequest {
  * nút không nghĩ là đã treo.
  */
 export const RELAY_TIMEOUT_MS = 4_000;
+
+/** DPAPI receipt persistence plus idempotent local cleanup may exceed the normal loopback timeout. */
+export const RELAY_RETIREMENT_TIMEOUT_MS = 30_000;
+
+/** Older v10 artifacts do not expose the signed retirement endpoints. */
+export const RELAY_DEVICE_RETIREMENT_MIN_VERSION = 11;
 
 /**
  * Timeout for calls that make MKT Browser perform **heavy work**: creating and launching profiles.
@@ -221,7 +244,7 @@ export const RELAY_PROFILE_WORK_TIMEOUT_MS = 60_000;
  * tăng bằng tay: tự sinh theo git hash thì nó đổi ở mọi lượt build, và một số đổi liên tục thì
  * cảnh báo "bản cũ" kêu liên tục cho tới lúc không ai còn nhìn.
  */
-export const RELAY_VERSION = 10;
+export const RELAY_VERSION = 11;
 
 /**
  * Một profile antidetect như cầu nối khai ra ở `GET /profiles`.
@@ -294,6 +317,8 @@ export interface RelayHealth {
   browser: RelayBrowserHealth;
   /** Cấu hình đã đủ chưa. Web app dùng để vẽ đúng nút thay vì đoán. */
   configured?: boolean;
+  /** Local Relay identity was removed and only the completion receipt remains. */
+  retirementPending?: boolean;
   /**
    * Nguồn web mà cầu nối này tin — nung vào bản build, ghi đè được bằng file cấu hình.
    *

@@ -55,6 +55,19 @@ export function writeRelaySecurityState(home: string, state: RelaySecurityState)
   }
 }
 
+/**
+ * Preserve a non-secret rollback floor while retirement removes every identity-bearing secret.
+ * `not-started` lets the current Relay track a fresh protected key after finalization.
+ */
+export function writeRelayRetirementSecurityGuard(home: string, relayVersion: number): void {
+  writeRelaySecurityState(home, {
+    schemaVersion: SECURE_STORE_SCHEMA_VERSION,
+    migrationStage: "not-started",
+    protectedSecrets: [],
+    rollbackFloor: relayVersion,
+    activeRelayVersion: relayVersion,
+  });
+}
 
 export function assertRelayVersionAllowed(home: string, version: number): void {
   const floor = readRelaySecurityState(home).rollbackFloor;

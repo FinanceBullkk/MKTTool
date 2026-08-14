@@ -14,6 +14,8 @@ export const RELAY_ROUTE_CAPABILITIES = [
   "operator-key-receive",
   "admin-bootstrap-authorization",
   "admin-bootstrap-completion-read",
+  "device-retirement",
+  "device-retirement-finalize",
 ] as const;
 
 export type RelayRouteCapability = (typeof RELAY_ROUTE_CAPABILITIES)[number];
@@ -39,6 +41,11 @@ export const RELAY_ROUTE_POLICIES = {
   [RELAY_PATHS.receiveOperatorKey]: { method: "POST", capability: "operator-key-receive" },
   [RELAY_PATHS.authorizeBootstrap]: { method: "POST", capability: "admin-bootstrap-authorization" },
   [RELAY_PATHS.bootstrapCompletion]: { method: "GET", capability: "admin-bootstrap-completion-read" },
+  [RELAY_PATHS.retireDevice]: { method: "POST", capability: "device-retirement" },
+  [RELAY_PATHS.finalizeDeviceRetirement]: {
+    method: "POST",
+    capability: "device-retirement-finalize",
+  },
 } as const satisfies Record<RelayContractPath, RelayRoutePolicy>;
 
 type RelayRouteHandlers = Record<RelayContractPath, RelayRoute>;
