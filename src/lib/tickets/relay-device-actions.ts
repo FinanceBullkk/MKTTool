@@ -291,6 +291,13 @@ export const grantOperatorKeyToDevice = adminAction(async function grantOperator
   });
   if (!device) return { ok: false, message: "Không tìm thấy máy này trong sổ." };
 
+  if (device.retirementId) {
+    return {
+      ok: false,
+      message: `Device "${device.name}" is already in the retirement flow; no new key grant was stored.`,
+    };
+  }
+
   // Máy đã gạch tên thì không cấp. Cấp cho một chiếc máy đã thu hồi là tự tay dựng lại đúng thứ
   // vừa chặn đi — và tệ hơn, nó không xin được vé nên chẳng ai thấy gì bất thường cho tới lúc
   // đọc lại sổ.
@@ -313,8 +320,8 @@ export const grantOperatorKeyToDevice = adminAction(async function grantOperator
   }
 
   const grant = { ephemeralPublicKey, sealed };
-  await prisma.relayDevice.update({
-    where: { id: deviceId },
+  const committed = await prisma.relayDevice.updateMany({
+    where: { id: deviceId, revokedAt: null, retirementId: null },
     data: {
       operatorKeyGrant: JSON.stringify(grant),
       operatorKeyGrantedAt: new Date(),
@@ -328,6 +335,12 @@ export const grantOperatorKeyToDevice = adminAction(async function grantOperator
       operatorKeyReadyAt: null,
     },
   });
+  if (committed.count === 0) {
+    return {
+      ok: false,
+      message: `Device "${device.name}" became unavailable before the new key grant was stored.`,
+    };
+  }
 
   await prisma.auditLog.create({
     data: {

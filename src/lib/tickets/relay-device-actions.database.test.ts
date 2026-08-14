@@ -50,7 +50,9 @@ vi.mock("@/lib/auth/require-actor", async (importOriginal) => ({
 
 const { prisma } = await import("@/lib/db/prisma-client");
 const { generateRelayDeviceKeyPair } = await import("./relay-device-key");
-const { registerRelayDevice, revokeRelayDevice } = await import("./relay-device-actions");
+const { grantOperatorKeyToDevice, registerRelayDevice, revokeRelayDevice } = await import(
+  "./relay-device-actions"
+);
 
 /** Người dùng seed sẵn, cùng id với `userId` trong FormData. */
 const OPERATOR_ID = "user-operator";
@@ -83,6 +85,31 @@ beforeEach(async () => {
 
 afterAll(async () => {
   await prisma.$disconnect();
+});
+
+describe("grantOperatorKeyToDevice", () => {
+  it("does not restore a key grant after device retirement has started", async () => {
+    const { publicKeyHex } = generateRelayDeviceKeyPair();
+    const device = await prisma.relayDevice.create({
+      data: {
+        name: "Retiring PC",
+        userId: OPERATOR_ID,
+        publicKey: publicKeyHex,
+        retirementId: "retirement-in-progress",
+      },
+    });
+    const form = new FormData();
+    form.set("deviceId", device.id);
+    form.set("ephemeralPublicKey", "ab".repeat(32));
+    form.set("sealed", "synthetic-ciphertext");
+
+    const result = await grantOperatorKeyToDevice(null, form);
+
+    expect(result.ok).toBe(false);
+    expect(
+      (await prisma.relayDevice.findUniqueOrThrow({ where: { id: device.id } })).operatorKeyGrant,
+    ).toBeNull();
+  });
 });
 
 describe("registerRelayDevice", () => {

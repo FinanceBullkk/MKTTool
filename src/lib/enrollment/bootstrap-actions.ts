@@ -29,7 +29,9 @@ export const mintBootstrapAuthorization = adminAction(async function mintBootstr
   return prisma.$transaction(async (tx) => {
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(40304)`;
     const device = await tx.relayDevice.findUnique({ where: { id: parsed.data.deviceId } });
-    if (!device || device.revokedAt) return { ok: false, message: "This PC is unavailable for bootstrap." };
+    if (!device || device.revokedAt || device.retirementId) {
+      return { ok: false, message: "This PC is unavailable for bootstrap." };
+    }
     if (device.operatorKeyReadyAt) return { ok: false, message: "This PC is already ready." };
     const readyCount = await tx.relayDevice.count({ where: { operatorKeyReadyAt: { not: null }, revokedAt: null } });
     if (readyCount > 0) return { ok: false, message: "Bootstrap is only available before the first ready device." };
@@ -55,14 +57,17 @@ export const mintBootstrapAuthorization = adminAction(async function mintBootstr
       grantId: authorizationId, generation, grantHash, completionHash: hashGrantCompletionProof(proof),
       completionEphemeralPublicKey: completion.ephemeralPublicKey, completionSealed: completion.sealed,
     }, loadServerSigningKeys().privateKey, now.getTime(), BOOTSTRAP_LIFETIME_MS);
-    await tx.relayDevice.update({
-      where: { id: device.id },
+    const committed = await tx.relayDevice.updateMany({
+      where: { id: device.id, revokedAt: null, retirementId: null },
       data: {
         operatorKeyGrantGeneration: generation, operatorKeyCompletionHash: hashGrantCompletionProof(proof),
         bootstrapAuthorizationId: authorizationId, bootstrapAuthorization: authorization,
         bootstrapAuthorizationExpiresAt: new Date(now.getTime() + BOOTSTRAP_LIFETIME_MS), bootstrapAuthorizationUsedAt: null,
       },
     });
+    if (committed.count === 0) {
+      return { ok: false, message: "This PC became unavailable before bootstrap was authorized." };
+    }
     return { ok: true, message: "Bootstrap authorized for five minutes.", authorization };
   });
 });

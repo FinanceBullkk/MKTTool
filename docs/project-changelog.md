@@ -12,6 +12,15 @@ Dự án chưa phát hành phiên bản (`0.1.0`, dùng nội bộ). Mốc chia 
 
 ---
 
+## 15 August 2026 - Relay retirement race hardening
+
+Review found that bootstrap authorization and operator-key grant actions could read an active Relay
+device, then store fresh authorization state after a concurrent planned-retirement transaction had
+revoked it. Both actions now reject pending retirement up front and commit through conditional
+writes that require the device to remain unrevoked and outside retirement. Losing that race returns
+a controlled failure instead of restoring grant or bootstrap state. Database regressions cover both
+retirement-state boundaries; milestone and release-gate status remain unchanged.
+
 ## 14 August 2026 - Pre-MKB-04 remediation checkpoint
 
 The device lifecycle is now split into normal uninstall, emergency revoke, planned Relay retirement,

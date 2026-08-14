@@ -31,6 +31,21 @@ async function device() {
 }
 
 describe("ADMIN bootstrap", () => {
+  it("does not mint bootstrap authorization after device retirement has started", async () => {
+    const target = await device();
+    await prisma.relayDevice.update({
+      where: { id: target.id },
+      data: { retirementId: "retirement-in-progress" },
+    });
+    const form = new FormData();
+    form.set("deviceId", target.id);
+
+    expect((await mintBootstrapAuthorization(null, form)).ok).toBe(false);
+    const saved = await prisma.relayDevice.findUniqueOrThrow({ where: { id: target.id } });
+    expect(saved.bootstrapAuthorization).toBeNull();
+    expect(saved.operatorKeyGrantGeneration).toBe(0);
+  });
+
   it("mints one five-minute authorization only for an ADMIN", async () => {
     const target = await device();
     const form = new FormData(); form.set("deviceId", target.id);
