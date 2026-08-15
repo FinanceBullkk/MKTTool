@@ -35,6 +35,8 @@ import { handleAuthorizeBootstrap } from "./handle-authorize-bootstrap";
 import { handleReadBootstrapCompletion } from "./handle-read-bootstrap-completion";
 import { handleRetireDevice } from "./handle-retire-device";
 import { handleFinalizeDeviceRetirement } from "./handle-finalize-device-retirement";
+import { handleCompatibilityRollback } from "./handle-compatibility-rollback";
+import { handleCompatibilityUpdate } from "./handle-compatibility-update";
 import { BootstrapAuthorizationBroker } from "./bootstrap-authorization";
 import { readOperatorGrantState } from "./operator-grant-state";
 import { handleProfilesRequest } from "./handle-profiles";
@@ -66,6 +68,12 @@ import {
   runRetirementRecoveryServer,
 } from "./device-retirement-recovery-server";
 import type { DeviceRetirementReceipt } from "./device-retirement-receipt";
+import { handleWindowsCompatibilityStartup } from "./windows-compatibility-startup";
+import { coordinateCompatibilityUpdateHelper } from "./compatibility-update-helper";
+import { describeCompatibilityUpdateHealth } from "./compatibility-update-health";
+import { readCompatibilityUpdateState } from "./update-state";
+import { resolveWindowsCompatibilityInstallation } from "./windows-compatibility-installation";
+import { WindowsCompatibilityUpdatePlatform } from "./windows-compatibility-update-platform";
 
 /** Mọi thứ dẫn xuất từ file cấu hình. Dựng lại nguyên khối mỗi lần cấu hình đổi. */
 interface RelayState {
@@ -82,6 +90,7 @@ interface RelayState {
   webOrigin: string;
   deviceId: string | null;
   serverPublicKey: ReturnType<typeof publicKeyFromHex> | null;
+  serverPublicKeyHex: string | null;
 }
 
 function loadState(
@@ -139,6 +148,7 @@ function loadState(
     // kể cả khi khóa vùng operator còn thiếu — mà thiếu nó thì `config` là `null`.
     deviceId: resolveDeviceId(home),
     serverPublicKey,
+    serverPublicKeyHex,
   };
 }
 
@@ -150,6 +160,7 @@ async function main(): Promise<void> {
     await runRetirementRecoveryServer(home, secureStore, retirementReceipt);
     return;
   }
+  if (await handleWindowsCompatibilityStartup(home, secureStore)) return;
   migrateRelaySecrets(home, secureStore, RELAY_VERSION);
   const keypair = loadOrCreateDeviceKeypair(home, secureStore);
   migrateRelaySecrets(home, secureStore, RELAY_VERSION);
@@ -232,6 +243,9 @@ async function main(): Promise<void> {
         // Bốn tầng của CHÍNH máy này. Web dùng nó để nói đúng chỗ hỏng thay vì "không kết nối
         // được", và để chặn sớm một máy chạy bản hợp đồng khác.
         browser: await state.antidetect.describeRuntime(),
+        compatibilityUpdate: describeCompatibilityUpdateHealth(
+          readCompatibilityUpdateState(secureStore),
+        ),
           }),
       }),
       [RELAY_PATHS.configure]: (request, body) =>
@@ -265,6 +279,7 @@ async function main(): Promise<void> {
           : handleTicketRequest(body, {
               identity: state.identity,
               antidetect: state.antidetect,
+              home,
               notConfiguredMessage: notConfiguredMessage(),
             }),
       // Không cần vé, và không cần cả `identity`: đường này chỉ đọc danh sách profile của chính
@@ -333,6 +348,77 @@ async function main(): Promise<void> {
           secureStore,
           onFinalized: () => server.close(),
         }),
+      [RELAY_PATHS.compatibilityUpdate]: (request, body) =>
+        pendingRetirement
+          ? retirementBlocked()
+          : handleCompatibilityUpdate(request, body, {
+              allowedOrigin: state.webOrigin || null,
+              home,
+              store: secureStore,
+              identity: state.identity,
+              antidetect: state.antidetect,
+              createPlatform: () => {
+                const installation = resolveWindowsCompatibilityInstallation();
+                return new WindowsCompatibilityUpdatePlatform({
+                  installation,
+                  hasOpenProfiles: async () => {
+                    const profiles = await state.antidetect.getAdapter().listProfiles();
+                    return profiles.some((profile) => profile.isRunning === true);
+                  },
+                });
+              },
+              serverPublicKeyHex: state.serverPublicKeyHex,
+              deviceId: state.deviceId,
+              onPrepared: () => {
+                setTimeout(() => {
+                  server.close();
+                  void coordinateCompatibilityUpdateHelper({
+                    home,
+                    argv: [],
+                    executablePath: process.execPath,
+                    converge: async () => {},
+                  }).catch((error: unknown) => {
+                    console.error(`Compatibility helper could not start: ${(error as Error).message}`);
+                    process.exitCode = 1;
+                  });
+                }, 100);
+              },
+            }),
+      [RELAY_PATHS.compatibilityRollback]: (request, body) => {
+        return pendingRetirement
+          ? retirementBlocked()
+          : handleCompatibilityRollback(request, body, {
+              allowedOrigin: state.webOrigin || null,
+              home,
+              store: secureStore,
+              createPlatform: () => {
+                const installation = resolveWindowsCompatibilityInstallation();
+                return new WindowsCompatibilityUpdatePlatform({
+                  installation,
+                  hasOpenProfiles: async () => {
+                    const profiles = await state.antidetect.getAdapter().listProfiles();
+                    return profiles.some((profile) => profile.isRunning === true);
+                  },
+                });
+              },
+              serverPublicKeyHex: state.serverPublicKeyHex,
+              deviceId: state.deviceId,
+              onPrepared: () => {
+                setTimeout(() => {
+                  server.close();
+                  void coordinateCompatibilityUpdateHelper({
+                    home,
+                    argv: [],
+                    executablePath: process.execPath,
+                    converge: async () => {},
+                  }).catch((error: unknown) => {
+                    console.error(`Compatibility helper could not start: ${(error as Error).message}`);
+                    process.exitCode = 1;
+                  });
+                }, 100);
+              },
+            });
+      },
     }),
   });
 

@@ -17,6 +17,9 @@ import { RELAY_VERSION } from "./relay-endpoints";
 import {
   checksumOf,
   readRelayReleaseR2Config,
+  relayCompatibilityManifestR2Key,
+  relayCompatibilityArtifactR2Key,
+  relayCompatibilityRevocationsR2Key,
   relayReleaseR2Key,
   versionOf,
 } from "./relay-release-r2";
@@ -106,6 +109,24 @@ describe("versionOf", () => {
     expect(versionOf(info({}))).toBeNull();
     expect(versionOf(info({ "relay-version": "v7" }))).toBeNull();
     expect(versionOf(info({ "relay-version": "0" }))).toBeNull();
+  });
+});
+
+describe("immutable compatibility manifest object", () => {
+  it("is versioned beside the Relay artifact without sharing its bytes", () => {
+    expect(relayCompatibilityManifestR2Key(12)).toBe("MKTTool-Relay-v12.compatibility.json");
+    expect(relayCompatibilityManifestR2Key(12)).not.toBe(relayReleaseR2Key(12));
+    expect(() => relayCompatibilityManifestR2Key(0)).toThrow("positive integer");
+  });
+
+  it("uses separate immutable objects for revocations and managed artifacts", () => {
+    expect(relayCompatibilityRevocationsR2Key(12)).toBe(
+      "MKTTool-Relay-v12.compatibility-revocations.json",
+    );
+    expect(relayCompatibilityArtifactR2Key(12, "control-contract")).toBe(
+      "MKTTool-Compatibility-v12-control-contract.artifact",
+    );
+    expect(() => relayCompatibilityRevocationsR2Key(0)).toThrow("positive integer");
   });
 });
 

@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "type": "mkttool.release-delegation",
+  "rootKeyId": "a6d3237649c2586e48b6e4fa744f7a089160fd80250fd29360513f5f625b146c",
+  "signedAt": "2026-08-15T01:29:52.097Z",
+  "delegation": {
+    "schemaVersion": 1,
+    "type": "mkttool.release-delegation-request",
+    "scope": "mkttool.windows.compatibility-manifest",
+    "label": "owner-2026",
+    "delegatedKeyId": "6e5d47d894206e69e6464748333eb76c99b18da1f1b42ddafb2e3f265a7b786e",
+    "delegatedPublicKeyHex": "f0be5e1182ac1ee0c7b9b7f86211fb1bdc13d89494e168de4abfc3cc8c7b004a",
+    "createdAt": "2026-08-15T00:08:50.607Z",
+    "notBefore": "2026-08-15T00:08:50.607Z",
+    "expiresAt": "2027-08-14T00:00:00.000Z",
+    "nonce": "9OnWd84QzvxmL00HuiFWdw"
+  },
+  "signature": "Np4J8UzysoefAvQ5IFqFtGPkwt1Y8KYWMuebCH5vmwyqjhoX4msLahWdIv1gZTSr_lN9VsZ2e430ajzTm5AzBg"
+}

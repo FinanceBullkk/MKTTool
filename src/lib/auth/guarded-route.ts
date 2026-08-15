@@ -84,6 +84,22 @@ export function machineOrGuardedRoute<TRest extends unknown[]>(
   };
 }
 
+/** Route handler that accepts only its explicit machine credential. */
+export function machineRoute<TRest extends unknown[]>(
+  isMachineCaller: (request: Request) => boolean,
+  handler: (request: Request, ...rest: TRest) => Promise<Response>,
+): (request: Request, ...rest: TRest) => Promise<Response> {
+  return async (request, ...rest) => {
+    if (!isMachineCaller(request)) {
+      return NextResponse.json(
+        { ok: false, message: "Machine authorization is invalid or expired." },
+        { status: 401 },
+      );
+    }
+    return handler(request, ...rest);
+  };
+}
+
 /** Route handler chỉ quản trị viên gọi được. */
 export function adminRoute<TArgs extends unknown[]>(
   handler: (actor: Actor, ...args: TArgs) => Promise<Response>,

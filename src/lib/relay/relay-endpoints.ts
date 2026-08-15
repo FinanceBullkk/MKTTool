@@ -1,3 +1,5 @@
+import type { RollbackAuthorization } from "../release/rollback-authorization";
+
 /**
  * Hợp đồng HTTP giữa **trang web** và **cầu nối** chạy trên `127.0.0.1`.
  *
@@ -79,6 +81,8 @@ export const RELAY_PATHS = {
   bootstrapCompletion: "/bootstrap-completion",
   retireDevice: "/retire-device",
   finalizeDeviceRetirement: "/finalize-device-retirement",
+  compatibilityUpdate: "/compatibility-update",
+  compatibilityRollback: "/compatibility-rollback",
 } as const;
 
 /**
@@ -155,6 +159,16 @@ export interface FinalizeDeviceRetirementRequest {
   authorization: string;
 }
 
+export interface CompatibilityRollbackRequest {
+  authorization: RollbackAuthorization;
+}
+
+export interface CompatibilityRollbackReply extends RelayReply {
+  rollbackStarted?: boolean;
+  currentSequence?: number;
+  retainedSequence?: number;
+}
+
 /** Thân của `POST /seal-operator-key`: khóa công khai của chiếc máy sẽ nhận. */
 export interface SealOperatorKeyRequest {
   /** `RelayDevice.publicKey` của máy nhận, hex. Công khai đúng nghĩa — lộ cũng không mất gì. */
@@ -187,6 +201,9 @@ export const RELAY_TIMEOUT_MS = 4_000;
 
 /** DPAPI receipt persistence plus idempotent local cleanup may exceed the normal loopback timeout. */
 export const RELAY_RETIREMENT_TIMEOUT_MS = 30_000;
+
+/** Full-set staging can include the pinned Chromium engine and must outlive normal loopback calls. */
+export const RELAY_COMPATIBILITY_UPDATE_TIMEOUT_MS = 2 * 60 * 60 * 1000;
 
 /** Older v10 artifacts do not expose the signed retirement endpoints. */
 export const RELAY_DEVICE_RETIREMENT_MIN_VERSION = 11;
@@ -319,6 +336,7 @@ export interface RelayHealth {
   configured?: boolean;
   /** Local Relay identity was removed and only the completion receipt remains. */
   retirementPending?: boolean;
+  compatibilityUpdate?: RelayCompatibilityUpdateHealth;
   /**
    * Nguồn web mà cầu nối này tin — nung vào bản build, ghi đè được bằng file cấu hình.
    *
@@ -335,6 +353,30 @@ export interface RelayHealth {
    * quan tâm nhất — máy đã đăng ký nhưng chưa nhận được cấu hình.
    */
   deviceId?: string | null;
+}
+
+export interface RelayCompatibilityUpdateHealth {
+  initialized: boolean;
+  highestAcceptedSequence: number | null;
+  rollbackFloorSequence: number | null;
+  currentSequence: number | null;
+  retainedSequence: number | null;
+  rollbackAvailable: boolean;
+  pending: {
+    mode: "update" | "rollback";
+    phase: "staged" | "stopping" | "activating" | "smoke" | "rollback";
+    targetSequence: number;
+  } | null;
+}
+
+export interface CompatibilityUpdateRequest {
+  ticket: string;
+}
+
+export interface CompatibilityUpdateReply extends RelayReply {
+  updateStarted?: boolean;
+  targetSequence?: number;
+  repairInitialized?: boolean;
 }
 
 /** Phản hồi chung của cầu nối cho một lời gọi ngầm. */

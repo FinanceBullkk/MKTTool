@@ -12,6 +12,42 @@ Dự án chưa phát hành phiên bản (`0.1.0`, dùng nội bộ). Mốc chia 
 
 ---
 
+## 15 August 2026 - Device-side revocation memory
+
+A delegated release key proven revoked now stays revoked on the device. Revocation statements are
+root-signed, so they cannot be forged — but they travel inside the update payload, so whoever serves
+an update chooses which ones to include. Omission needed no forgery: a holder of a revoked key only
+had to leave the statement out. The protected compatibility state now carries a grow-only set of
+revoked delegated key ids, checked ahead of the payload and recorded before staging so a failed
+download cannot make the device forget. State written before this field reads as an empty set rather
+than failing into ADMIN repair.
+
+The secure-store rollback floor stays fixed at the value the clean install recorded. A floor that
+rose with a later reinstall was implemented and reverted: the coordinated update path never
+reinstalls, so it would only reach a device by accident. Raising it properly means a minimum-floor
+field in the signed manifest, which is not bought while rollback can only reach the single retained
+set one step back. The reasoning is recorded in the phase file so the next reader does not
+re-litigate it.
+
+Phase 05 is now complete in code: manifest validation with all seven rejection cases, coordinated
+activation, fault-injected convergence, bounded rollback, and the post-activation smoke test. Real
+Windows reboot during activation, Relay v12 publication, and the live update/rollback rehearsal
+remain human gates.
+
+## 15 August 2026 - Release authority ceremony verified
+
+The production release-authority ceremony is complete. A public receipt binds root key
+`a6d3237649c2586e48b6e4fa744f7a089160fd80250fd29360513f5f625b146c` to delegated manifest key
+`6e5d47d894206e69e6464748333eb76c99b18da1f1b42ddafb2e3f265a7b786e`, with expiry
+`2027-08-14T00:00:00.000Z`. Two encrypted root backups are held in separate physical locations, and
+the required recovery rehearsal from backup B passed. Public delegation and recovery signatures
+verify against the copied root public key, and their SHA-256 values match the receipt.
+
+Only the receipt and public evidence enter the project. The passphrase, encrypted private backups,
+and DPAPI-protected delegated private key remain outside the repositories and CI. Phase 05 therefore
+moves from ceremony-blocked to implementation in progress; MKB-04 remains NO-GO until manifest
+validation, coordinated activation, fault-injected convergence, bounded rollback, and live gates pass.
+
 ## 15 August 2026 - Shared setup conflict verdict
 
 The Windows combined installer now persists its exact standard-user conflict detector beside the

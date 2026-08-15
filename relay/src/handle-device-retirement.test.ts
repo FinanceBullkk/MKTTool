@@ -13,6 +13,10 @@ import {
 import { sealForDevice } from "../../src/lib/tickets/ticket-sealed-box";
 import { handleFinalizeDeviceRetirement } from "./handle-finalize-device-retirement";
 import { handleRetireDevice } from "./handle-retire-device";
+import {
+  completeCompatibilityTransition,
+  withCompatibilityTransitionPreparationLock,
+} from "./compatibility-transition-preparation-lock";
 import { InMemorySecureStore } from "./in-memory-secure-store";
 import { CONFIG_FILE } from "./relay-home";
 import { RELAY_SECRET_NAMES } from "./secure-store";
@@ -21,7 +25,10 @@ const homes: string[] = [];
 const webOrigin = "https://mkttool.example.com";
 
 afterEach(() => {
-  for (const home of homes.splice(0)) rmSync(home, { recursive: true, force: true });
+  for (const home of homes.splice(0)) {
+    completeCompatibilityTransition(home);
+    rmSync(home, { recursive: true, force: true });
+  }
 });
 
 function request(origin = webOrigin): IncomingMessage {
@@ -141,5 +148,30 @@ describe("device retirement HTTP handlers", () => {
     expect(finish.ok).toBe(true);
     expect(finalized).toBe(true);
     expect(store.read(RELAY_SECRET_NAMES.deviceRetirementReceipt)).toBeNull();
+  });
+
+  it("refuses retirement after compatibility preparation starts", async () => {
+    const { authorization, device, home, server, store } = fixture();
+    await withCompatibilityTransitionPreparationLock(home, async () => undefined);
+
+    const result = handleRetireDevice(request(), JSON.stringify({ authorization }), {
+      allowedOrigin: webOrigin,
+      home,
+      secureStore: store,
+      activeIdentity: {
+        deviceId: "device-1",
+        devicePublicKey: device.publicKeyHex,
+        devicePrivateKey: relayPrivateKeyToKeyObject(device.privateKeyHex),
+        serverPublicKey: server.publicKey,
+        webOrigin,
+      },
+      onRetired: () => {
+        throw new Error("must not run");
+      },
+    });
+
+    expect(result).toMatchObject({ ok: false });
+    expect(result.message).toMatch(/compatibility transition/i);
+    expect(store.read(RELAY_SECRET_NAMES.devicePrivateKey)).toBe(device.privateKeyHex);
   });
 });

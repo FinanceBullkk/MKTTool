@@ -108,10 +108,13 @@ scripts/
 ├── smoke-test-account-health.ts  Kiểm chứng Phase 03 (có phần đọc HTML Reddit thật)
 ├── smoke-test-facebook-pages.ts  Kiểm chứng Phase 04 (không cần Meta App)
 ├── release-authority/           Offline-root, DPAPI delegation, recovery-proof, and ceremony verifier tools
+├── sign-compatibility-manifest.ts  Signs a canonical Windows compatibility manifest with the delegated DPAPI key
 └── smoke-test-mkt-browser-correct-proxy.ts  Verifies the disposable MKT Browser correct-proxy
                                  path without printing or retaining proxy credentials
 relay/                          **Chương trình riêng**, chạy trên máy operator — không phải một
 ├── src/                        phần của web app. Nghe `127.0.0.1:47821`, giữ khóa vùng operator;
+│   ├── local-updater.ts        stages and atomically activates one signed compatibility tuple
+│   ├── update-state.ts         protects anti-downgrade, rollback-floor, and convergence state
 │   ├── relay-route-policy.ts   typed method/capability inventory for every owned JSON endpoint
 │   ├── operation-diagnostics.ts  keeps operation correlation and emits metadata-only support detail
 │   └── mkt-browser-token-discovery.ts  validates and reads the owned Windows MCP token on demand

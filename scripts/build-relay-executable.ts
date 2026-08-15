@@ -120,6 +120,9 @@ if (process.platform !== "win32") {
 const originFlag = process.argv
   .find((argument) => argument.startsWith("--web-origin="))
   ?.slice("--web-origin=".length);
+const compatibilityFloorFlag = process.argv
+  .find((argument) => argument.startsWith("--compatibility-floor="))
+  ?.slice("--compatibility-floor=".length);
 
 // Cờ dòng lệnh đứng trước biến môi trường: máy dev khai `BETTER_AUTH_URL=http://localhost:3000`
 // cho việc phát triển, mà bản phát cho team thì phải trỏ về Railway. Bắt sửa `.env` qua lại giữa
@@ -140,6 +143,23 @@ if (!webOrigin) {
   process.exit(1);
 }
 
+const compatibilityFloorRaw = (
+  compatibilityFloorFlag || process.env.RELAY_COMPATIBILITY_INSTALLER_FLOOR_SEQUENCE || ""
+).trim();
+if (!/^\d+$/.test(compatibilityFloorRaw) || Number(compatibilityFloorRaw) <= 0) {
+  console.error(
+    "\nThe Relay build needs the signed compatibility sequence embedded as its installer floor.\n\n" +
+      "Pass it explicitly, for example:\n\n" +
+      "  npm run relay:build -- --web-origin=https://mkttool.example.com --compatibility-floor=1\n",
+  );
+  process.exit(1);
+}
+const compatibilityFloor = Number(compatibilityFloorRaw);
+if (!Number.isSafeInteger(compatibilityFloor)) {
+  console.error("\nThe compatibility installer floor is outside the safe integer range.\n");
+  process.exit(1);
+}
+
 let normalizedOrigin: string;
 try {
   const url = new URL(webOrigin);
@@ -154,6 +174,7 @@ try {
 
 console.log(`\nĐóng gói cầu nối bản ${RELAY_VERSION} — Node ${process.version} (${process.arch})`);
 console.log(`Nguồn web nung vào bản này: ${normalizedOrigin}`);
+console.log(`Compatibility installer floor: ${compatibilityFloor}`);
 if (new URL(normalizedOrigin).hostname === "localhost") {
   console.log("  ⚠️  Đây là địa chỉ máy dev. Bản này KHÔNG dùng được trên máy operator.");
 }
@@ -177,6 +198,7 @@ runTool("esbuild/bin/esbuild", [
   // tên là `"https://…"` — kể cả dấu ngoặc. Đã vấp thật: mọi lời gọi hỏng theo kiểu CORS.
   // Không cần lớp thoát cho shell vì `execFileSync` truyền argv thẳng, không qua `cmd`.
   `--define:process.env.RELAY_WEB_ORIGIN=${JSON.stringify(normalizedOrigin)}`,
+  `--define:process.env.RELAY_COMPATIBILITY_INSTALLER_FLOOR_SEQUENCE=${JSON.stringify(String(compatibilityFloor))}`,
   `--outfile=${BUNDLE_FILE}`,
 ]);
 console.log(`      ${path.relative(process.cwd(), BUNDLE_FILE)} — ${sizeOf(BUNDLE_FILE)}`);

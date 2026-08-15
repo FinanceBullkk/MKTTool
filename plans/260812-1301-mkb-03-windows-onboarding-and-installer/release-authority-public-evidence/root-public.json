@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "type": "mkttool.release-root-public-key",
+  "algorithm": "Ed25519",
+  "rootKeyId": "a6d3237649c2586e48b6e4fa744f7a089160fd80250fd29360513f5f625b146c",
+  "publicKeyHex": "e34f095623e09a6aa8ef58e3cf03f773656076d799a0bde34181f5ce725cde9f",
+  "createdAt": "2026-08-15T01:29:52.097Z"
+}

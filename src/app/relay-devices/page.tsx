@@ -1,4 +1,6 @@
 import { RelayDeviceIdCell } from "@/components/relay/relay-device-id-cell";
+import { RelayCompatibilityRollbackButton } from "@/components/relay/relay-compatibility-rollback-button";
+import { RelayCompatibilityUpdateButton } from "@/components/relay/relay-compatibility-update-button";
 import { RelayDeviceRevokeButton } from "@/components/relay/relay-device-revoke-button";
 import { RelayDeviceRetirementButton } from "@/components/relay/relay-device-retirement-button";
 import { RelayDeviceRetirementReceiptButton } from "@/components/relay/relay-device-retirement-receipt-button";
@@ -213,6 +215,19 @@ export default async function RelayDevicesPage() {
                           devicePublicKey={device.publicKey}
                           deviceName={device.name}
                           alreadyReady={Boolean(device.operatorKeyReadyAt)}
+                        />
+                      ) : null}
+                      {!device.revokedAt ? (
+                        <RelayCompatibilityUpdateButton
+                          deviceId={device.id}
+                          devicePublicKey={device.publicKey}
+                        />
+                      ) : null}
+                      {!device.revokedAt ? (
+                        <RelayCompatibilityRollbackButton
+                          deviceId={device.id}
+                          deviceName={device.name}
+                          devicePublicKey={device.publicKey}
                         />
                       ) : null}
                       {!device.revokedAt ? (

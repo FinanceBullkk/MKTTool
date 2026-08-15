@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "type": "mkttool.release-root-recovery-proof",
+  "rootKeyId": "a6d3237649c2586e48b6e4fa744f7a089160fd80250fd29360513f5f625b146c",
+  "backupLabel": "B",
+  "backupSha256": "c245a6c375bb38be05d2cec07f957f35c39cf0a7de31f0556897a30d24608785",
+  "recoveredAt": "2026-08-15T01:41:26.871Z",
+  "challenge": "NEJGuu-euq5H_skb5t8m8azeTGWtvKnKlO8euj21A68",
+  "signature": "5yeuRnnkVPoQMhEIOwF0kFF0tzgo7qoTafO2qtYBR5JOJqxip-0N_DG-nlaKBOsbV1ZoGE55Rf7FUZ8KNq5RBg"
+}

@@ -154,6 +154,21 @@ from MCP, requires a typed full-profile-id confirmation, refuses active lifecycl
 only the owned profile directory plus its database row. Retryable pending state reports partial
 cleanup without touching Relay, device credentials, the Browser token, settings, or MultiZen.
 
+### Compatibility-set release authority
+
+The Windows installer pins the Ed25519 root public key copied from the verified physical ceremony
+evidence. The offline root signs delegation and revocation statements; the delegated key signs
+compatibility manifests. R2 stores immutable bytes but grants no release authority. Private root
+backups, their passphrase, and the DPAPI-protected delegated private key never enter either repository,
+CI, Railway, or R2.
+
+Protected local state records the highest accepted manifest sequence, a secure-store rollback floor,
+and exactly one retained rollback sequence. Relay, MKT Browser, the control contract, and the pinned
+engine activate as one tuple. Interrupted activation must converge after restart to either the entire
+new tuple or the entire retained tuple; mixed-version execution is forbidden. Release metadata cannot
+authorize a downgrade. The only monotonic exception is a one-use ADMIN rollback authorization naming
+the retained sequence at or above the secure-store floor.
+
 ## 4. Nơi dữ liệu nằm
 
 | Thứ | Ở đâu | Sao lưu thế nào | Mất thì sao |

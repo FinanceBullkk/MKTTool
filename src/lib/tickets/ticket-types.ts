@@ -55,6 +55,8 @@ export const TICKET_KINDS = {
   LAUNCH_PROFILE: "LAUNCH_PROFILE",
   /** Tạo MỚI một profile antidetect cho nick, kèm proxy và vân tay dựng sẵn. */
   CREATE_PROFILE: "CREATE_PROFILE",
+  /** Prepare one signed compatibility-set activation on the enrolled device. */
+  COMPATIBILITY_UPDATE: "COMPATIBILITY_UPDATE",
 } as const;
 
 export type TicketKind = (typeof TICKET_KINDS)[keyof typeof TICKET_KINDS];
@@ -86,6 +88,8 @@ export const MIN_RELAY_VERSION_BY_KIND: Record<TicketKind, number> = {
   [TICKET_KINDS.LAUNCH_PROFILE]: 7,
   /** Requires managed create correlation and the v3 MKT Browser contract. */
   [TICKET_KINDS.CREATE_PROFILE]: 7,
+  /** Requires the protected Phase 05 updater and dedicated smoke-profile contract. */
+  [TICKET_KINDS.COMPATIBILITY_UPDATE]: 12,
 };
 
 /** Bí mật nào của nick đang được hỏi. Khớp tên cột trong `Account`. */
@@ -166,6 +170,23 @@ export type TicketPayload =
       };
       /** Hạt giống nhiễu canvas/audio/WebGL — mỗi nick một giá trị, để hai nick không trùng nhiễu. */
       seed: string;
+    }
+  | {
+      kind: typeof TICKET_KINDS.COMPATIBILITY_UPDATE;
+      manifest: unknown;
+      revocations: unknown[];
+      authorization: unknown;
+      smokeProfile: {
+        proxyLabel: string;
+        proxyCountry: string;
+        proxy: {
+          protocol: "http" | "socks5";
+          host: string;
+          port: number;
+          username?: string;
+          password?: string;
+        };
+      };
     };
 
 /**

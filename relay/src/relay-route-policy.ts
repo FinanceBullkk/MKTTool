@@ -16,6 +16,8 @@ export const RELAY_ROUTE_CAPABILITIES = [
   "admin-bootstrap-completion-read",
   "device-retirement",
   "device-retirement-finalize",
+  "compatibility-update",
+  "compatibility-rollback",
 ] as const;
 
 export type RelayRouteCapability = (typeof RELAY_ROUTE_CAPABILITIES)[number];
@@ -45,6 +47,14 @@ export const RELAY_ROUTE_POLICIES = {
   [RELAY_PATHS.finalizeDeviceRetirement]: {
     method: "POST",
     capability: "device-retirement-finalize",
+  },
+  [RELAY_PATHS.compatibilityUpdate]: {
+    method: "POST",
+    capability: "compatibility-update",
+  },
+  [RELAY_PATHS.compatibilityRollback]: {
+    method: "POST",
+    capability: "compatibility-rollback",
   },
 } as const satisfies Record<RelayContractPath, RelayRoutePolicy>;
 

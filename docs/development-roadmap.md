@@ -14,7 +14,7 @@ Dự án đang chạy **ba luồng song song**:
 |---|---|---|
 | **A — Công cụ** | 5 giai đoạn gốc: kho danh tính → hàng đợi → sức khỏe → Facebook → tự đăng Reddit | GĐ1-4 xong, GĐ0 kẹt ở tiền + cold-start, GĐ5 chưa bắt đầu |
 | **B — Web chung** | Biến app một máy thành web chung cho 5-6 người ở 5-6 nơi | **GĐ0-4 xong 06/08**, GĐ5 web **đã chạy thật trên Railway** cùng ngày |
-| **C — MKT Browser** | Fork the MultiZen desktop layer; Windows-only in v1 while Web, Relay, and upstream UX/UI remain intact | **MKB-00 through MKB-02 verified; MKB-03 Phases 01-04 plus the Phase 06 engineering subset pushed; Phase 05 and human gates open**; MKB-04 remains NO-GO; macOS deferred to MKB-07; [plan](../plans/260810-0244-mkt-browser-noi-bo/plan.md) |
+| **C — MKT Browser** | Fork the MultiZen desktop layer; Windows-only in v1 while Web, Relay, and upstream UX/UI remain intact | **MKB-00 through MKB-02 verified; MKB-03 Phases 01-05 complete in code plus the Phase 06 engineering subset pushed; live Windows and human gates open**; MKB-04 remains NO-GO; macOS deferred to MKB-07; [plan](../plans/260810-0244-mkt-browser-noi-bo/plan.md) |
 
 Luồng B sinh ra sau khi chốt bàn giao cho team — xem
 [plan web chung](../plans/260804-1752-web-chung-cho-team-phan-tan/plan.md). Nó **không thay thế**
@@ -57,14 +57,15 @@ operational distribution is claimed until the immutable authenticated v12 object
 local Node 22 combined installer proves the packaging path without claiming that the release channel
 is available.
 
-Release-authority ceremony tooling is now implemented and verified without creating production key
-material. The owner machine can create the delegated Ed25519 key directly into DPAPI CurrentUser; a
-portable offline tool creates two independently encrypted root backups on separate drive roots,
-signs the first delegation, reads both copies back, and requires a recovery proof from backup B. The
-offline-tool ZIP, delegated key, and root key each use a separate paper fingerprint, preventing a
-modified transfer drive from substituting either ceremony code or authority. The physical ceremony
-remains open, so Phase 05 implementation and MKB-04 remain
-blocked. See [release-signing-key-ceremony.md](release-signing-key-ceremony.md).
+The release-authority ceremony is complete and verified. The public receipt binds root key
+`a6d3237649c2586e48b6e4fa744f7a089160fd80250fd29360513f5f625b146c`, delegated key
+`6e5d47d894206e69e6464748333eb76c99b18da1f1b42ddafb2e3f265a7b786e`, and delegation expiry
+`2027-08-14T00:00:00.000Z`. Two encrypted root backups are in separate physical custody, and the
+required recovery rehearsal from backup B passed. The implementation consumes only the receipt and
+public evidence; private backups, the passphrase, and the DPAPI-protected delegated private key stay
+outside the repositories. Phase 05 is now complete in code — validation, activation, convergence,
+bounded rollback, smoke, and revocation memory — and remains the MKB-04 NO-GO gate until the live
+Windows evidence lands. See [release-signing-key-ceremony.md](release-signing-key-ceremony.md).
 
 Phase 06 setup-conflict integration is now implemented, verified, and pushed without changing Relay v12. The
 combined installer persists its standard-user PowerShell detector beside MKT Browser. Contract v4
@@ -154,7 +155,7 @@ repository. MKTTool retains only the consuming contract, Relay, and release page
 | MKB-01 | Windows compatibility and product identity | ✅ Verified 11 August | Copy-only first-launch importer preserves the MultiZen source; five primary-screen baselines captured; Windows CI runs W01/W02 guards, typecheck, package build, and packaged runtime-contract verification on every push/PR |
 | MKB-01E | Electron upgrade and renderer hardening | ✅ Verified 11 August | Electron 42.8.1 / ABI 146 package; native module rebuild; sandbox/CSP/default-deny IPC and MCP inventories; fixed-seed fingerprint unchanged and five visual baselines accepted |
 | MKB-02 | Managed mode | ✅ Verified 12 August | Contract v3 diagnostics, profile-token capability separation, managed proxy/fingerprint/delete/direct-launch locks, current-device Browser health, Relay v7 correlation, and cross-repository packaged verification are green |
-| MKB-03 | Windows onboarding, installer, and controlled updates | 🟡 Phases 01-04 implemented; lifecycle and setup-conflict engineering subsets pushed; Phase 05 and human gates open — [execution plan](../plans/260812-1301-mkb-03-windows-onboarding-and-installer/plan.md) | Local findings have code fixes for WebRTC containment, engine fallback, live Relay identity reconciliation, progress, guidance, pre-mutation conflict detection, ownership-aware uninstall cleanup, signed ADMIN Relay retirement, separate Browser-only profile deletion, and a setup-time verdict from the shared installer detector. MKT Browser contract v4 removes deletion from MCP and conditionally reports `local-install-ready-v1`; `/setup` fails closed to installer repair when it is absent. Relay v12 accepts contract v4, preserves the v11 retirement floor, and forwards the additive capability without a Relay rebuild. Phase 05 is blocked on the owner offline root/delegation ceremony. Relay v12 publication, clean-account/UAC, SmartScreen/LNA, network matrices, offline-admin, migration, update/rollback, and unfamiliar-operator rehearsal remain open. |
+| MKB-03 | Windows onboarding, installer, and controlled updates | 🟡 Phases 01-05 complete in code after verified release authority; lifecycle and setup-conflict engineering subsets pushed — [execution plan](../plans/260812-1301-mkb-03-windows-onboarding-and-installer/plan.md) | Local findings have code fixes for WebRTC containment, engine fallback, live Relay identity reconciliation, progress, guidance, pre-mutation conflict detection, ownership-aware uninstall cleanup, signed ADMIN Relay retirement, separate Browser-only profile deletion, and a setup-time verdict from the shared installer detector. MKT Browser contract v4 removes deletion from MCP and conditionally reports `local-install-ready-v1`; `/setup` fails closed to installer repair when it is absent. Relay v12 accepts contract v4, preserves the v11 retirement floor, and forwards the additive capability without a Relay rebuild. The root/delegation ceremony and backup-B recovery rehearsal are verified. Compatibility validation with all seven rejection cases, coordinated activation, fault-injected convergence, bounded rollback, post-activation smoke, and device-side revocation memory are implemented and covered; Relay v12 publication, real-reboot activation, live Windows matrices, and unfamiliar-operator rehearsal remain open. |
 | MKB-04 | Technical pilot and one canary account | ⬜ Not started | An unfamiliar operator completes setup with zero developer intervention; two Windows devices remain green for seven days; one account completes a 14-day cold start |
 | MKB-05 | Team rollout | ⬜ Not started | Canary completes cold start; MKT Browser becomes default; rollback uses only the frozen W01 checkpoint and never restores a MultiZen adapter fallback |
 | MKB-06 | Custom UX/UI | ⏸ Deferred beyond v1 | Begin only from observed usage feedback; does not block MKB-00 through MKB-05 |

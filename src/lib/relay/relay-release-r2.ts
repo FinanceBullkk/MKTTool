@@ -43,6 +43,42 @@ export function relayReleaseR2Key(version: number): string {
   return `MKTTool-Relay-v${version}.zip`;
 }
 
+export function relayCompatibilityManifestR2Key(version: number): string {
+  if (!Number.isSafeInteger(version) || version <= 0) {
+    throw new Error(`Relay release version must be a positive integer, received ${version}.`);
+  }
+  return `MKTTool-Relay-v${version}.compatibility.json`;
+}
+
+export function relayCompatibilityRevocationsR2Key(version: number): string {
+  if (!Number.isSafeInteger(version) || version <= 0) {
+    throw new Error(`Relay release version must be a positive integer, received ${version}.`);
+  }
+  return `MKTTool-Relay-v${version}.compatibility-revocations.json`;
+}
+
+export const RELAY_COMPATIBILITY_ARTIFACT_KINDS = [
+  "installer",
+  "relay",
+  "browser",
+  "control-contract",
+] as const;
+export type RelayCompatibilityArtifactKind =
+  (typeof RELAY_COMPATIBILITY_ARTIFACT_KINDS)[number];
+
+export function relayCompatibilityArtifactR2Key(
+  version: number,
+  kind: RelayCompatibilityArtifactKind,
+): string {
+  if (!Number.isSafeInteger(version) || version <= 0) {
+    throw new Error(`Relay release version must be a positive integer, received ${version}.`);
+  }
+  if (!RELAY_COMPATIBILITY_ARTIFACT_KINDS.includes(kind)) {
+    throw new Error(`Unsupported compatibility artifact kind: ${kind}.`);
+  }
+  return `MKTTool-Compatibility-v${version}-${kind}.artifact`;
+}
+
 /** Tên metadata chứa mã băm SHA-256 của gói. */
 export const CHECKSUM_METADATA_KEY = "sha256";
 export const VERSION_METADATA_KEY = "relay-version";
@@ -81,6 +117,64 @@ export function headRelayRelease(
   fetchImpl?: typeof fetch,
 ): Promise<R2ObjectInfo | null> {
   return headObject({ config, key: relayReleaseR2Key(version), fetchImpl });
+}
+
+export function headRelayCompatibilityManifest(
+  config: R2Config,
+  version: number,
+  fetchImpl?: typeof fetch,
+): Promise<R2ObjectInfo | null> {
+  return headObject({ config, key: relayCompatibilityManifestR2Key(version), fetchImpl });
+}
+
+export function headRelayCompatibilityRevocations(
+  config: R2Config,
+  version: number,
+  fetchImpl?: typeof fetch,
+): Promise<R2ObjectInfo | null> {
+  return headObject({ config, key: relayCompatibilityRevocationsR2Key(version), fetchImpl });
+}
+
+export function headRelayCompatibilityArtifact(
+  config: R2Config,
+  version: number,
+  kind: RelayCompatibilityArtifactKind,
+  fetchImpl?: typeof fetch,
+): Promise<R2ObjectInfo | null> {
+  return headObject({ config, key: relayCompatibilityArtifactR2Key(version, kind), fetchImpl });
+}
+
+export async function openRelayCompatibilityManifest(
+  config: R2Config,
+  version: number,
+  fetchImpl?: typeof fetch,
+): Promise<ReadableStream<Uint8Array>> {
+  return (await getObject({ config, key: relayCompatibilityManifestR2Key(version), fetchImpl })).body;
+}
+
+export async function openRelayCompatibilityRevocations(
+  config: R2Config,
+  version: number,
+  fetchImpl?: typeof fetch,
+): Promise<ReadableStream<Uint8Array>> {
+  return (await getObject({
+    config,
+    key: relayCompatibilityRevocationsR2Key(version),
+    fetchImpl,
+  })).body;
+}
+
+export async function openRelayCompatibilityArtifact(
+  config: R2Config,
+  version: number,
+  kind: RelayCompatibilityArtifactKind,
+  fetchImpl?: typeof fetch,
+): Promise<ReadableStream<Uint8Array>> {
+  return (await getObject({
+    config,
+    key: relayCompatibilityArtifactR2Key(version, kind),
+    fetchImpl,
+  })).body;
 }
 
 /** Mở luồng đọc gói từ R2. */

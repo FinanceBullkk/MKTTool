@@ -1,6 +1,6 @@
 # MKB-03 — Windows onboarding, installer, and controlled updates
 
-**Started:** 12 August 2026 · **Estimate:** 10–15 days · **Status:** Phases 01-04 implemented; Phase 06 engineering subset pushed; Phase 05 ceremony and human gates open
+**Started:** 12 August 2026 · **Estimate:** 10–15 days · **Status:** Phases 01-04 implemented; Phase 05 in progress after verified ceremony; Phase 06 engineering subset pushed
 
 **Specification:** [MKT Browser plan §MKB-03](../260810-0244-mkt-browser-noi-bo/plan.md) — the "why"
 and the gate wording live there. This directory is the execution plan only; do not restate the spec,
@@ -34,12 +34,12 @@ working artifact rather than an unknown one.
 | 02 | [Setup controller and the announced SmartScreen journey](phase-02-setup-controller-and-smartscreen-journey.md) | 01 | 🟡 Implemented; SmartScreen capture, Chrome/Edge LNA verification, and clean-account reboot rehearsal pending |
 | 03 | [Protected secrets and the diagnostics allowlist](phase-03-protected-secrets-and-diagnostics-allowlist.md) | — | 🟡 Implemented; live-install migration rehearsal pending |
 | 04 | [Enrollment, grants, and ADMIN bootstrap](phase-04-enrollment-grants-and-admin-bootstrap.md) | 02, 03 | 🟡 Implemented; offline-admin, real reboot, and live-database-copy rehearsals pending |
-| 05 | [Compatibility set, updates, and rollback](phase-05-compatibility-set-updates-and-rollback.md) | 01, 03 | ⛔ Blocked on owner root/delegation custody and recovery ceremony; implementation not started |
+| 05 | [Compatibility set, updates, and rollback](phase-05-compatibility-set-updates-and-rollback.md) | 01, 03 | 🟡 Ceremony verified; implementation complete in code — real reboot, Relay v12 publication, and live Windows rehearsal pending |
 | 06 | [Conflicts, repair, uninstall, and gate rehearsal](phase-06-conflicts-repair-uninstall-and-gate-rehearsal.md) | 01–05 | 🟡 Lifecycle and setup-conflict engineering subsets pushed; live Windows and unfamiliar-operator matrices remain open |
 
 ## Current critical path — synced 15 August 2026
 
-**Phase-file checklist snapshot:** 42 of 64 items complete. This is implementation tracking, not a
+**Phase-file checklist snapshot:** 53 of 65 items complete. This is implementation tracking, not a
 release-readiness percentage; the physical, clean-Windows, network, and unfamiliar-operator gates
 remain authoritative.
 
@@ -47,13 +47,13 @@ remain authoritative.
    `origin/feat/mkt-browser-clean-break`; MKTBrowser `f8f1615` is on `origin/main`. Browser profile
    deletion and setup-time conflict readiness are complete. Relay v12 is the current local artifact
    and Browser contract-v4 payload.
-2. **Controlling blocker: physical release-signing ceremony.** The owner must provide one offline
-   Windows host, USB A, USB B, the password manager, paper fingerprints, and the permanent Windows
-   account that will own the DPAPI delegated key. Follow
-   [release-signing-key-ceremony.md](../../docs/release-signing-key-ceremony.md); do not generate
-   production key material on the build machine or substitute synthetic keys.
-3. After the public ceremony receipt verifies, complete Phase 05 manifest validation, coordinated
-   update activation, fault-injected convergence, and bounded rollback.
+2. **Release authority verified.** The public receipt binds the production root and delegated key,
+   delegation expiry, separate physical custody, and successful recovery from backup B. Private key
+   material remains outside the repositories and outside CI.
+3. **Phase 05 is complete in code.** Manifest validation with all seven rejection cases, coordinated
+   activation, fault-injected convergence, bounded rollback, post-activation smoke, and revocation
+   memory are implemented and covered. What remains is evidence, not engineering: a real Windows
+   reboot during activation, and the live update/rollback rehearsal.
 4. Publish the verified Relay v12 ZIP to its immutable authenticated URL, then rebuild the installer
    by fetching that published object. The current installer proves the local packaging path only.
 5. Run Phase 06 Windows matrices and the unfamiliar-operator rehearsal. Freeze the accepted MKB-03

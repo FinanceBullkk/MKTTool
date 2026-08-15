@@ -95,3 +95,23 @@ describe("managed profile operations require Relay version 7", () => {
     }
   });
 });
+
+describe("compatibility updates require Relay version 12", () => {
+  it("keeps the updater command off older installed Relays", () => {
+    const ticket = issueTicket(
+      {
+        kind: TICKET_KINDS.COMPATIBILITY_UPDATE,
+        manifest: {},
+        revocations: [],
+        authorization: {},
+        smokeProfile: {
+          proxyLabel: "Observer 1",
+          proxyCountry: "US",
+          proxy: PROXY,
+        },
+      },
+      recipient,
+    );
+    expect(minRelayVersionOf(ticket)).toBe(12);
+  });
+});

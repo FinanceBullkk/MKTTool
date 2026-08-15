@@ -169,6 +169,24 @@ export function reviewTicketPayload(kind: string, payload: unknown): TicketPaylo
         seed: requireString(source, "seed"),
       };
 
+    case TICKET_KINDS.COMPATIBILITY_UPDATE: {
+      const smokeProfile = asRecord(source.smokeProfile);
+      if (!Array.isArray(source.revocations)) {
+        throw new TicketPayloadError('Compatibility update ticket field "revocations" must be an array.');
+      }
+      return {
+        kind: TICKET_KINDS.COMPATIBILITY_UPDATE,
+        manifest: asRecord(source.manifest),
+        revocations: source.revocations,
+        authorization: asRecord(source.authorization),
+        smokeProfile: {
+          proxyLabel: requireString(smokeProfile, "proxyLabel"),
+          proxyCountry: requireString(smokeProfile, "proxyCountry"),
+          proxy: reviewProxy(smokeProfile.proxy),
+        },
+      };
+    }
+
     default:
       throw new TicketPayloadError(
         `Bản cầu nối này không biết loại vé "${kind}". Tải lại cầu nối từ web app.`,

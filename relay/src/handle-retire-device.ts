@@ -3,6 +3,7 @@ import type { ActiveRetirementIdentity, DeviceRetirementResult } from "./device-
 import { retireLocalRelayDevice } from "./device-retirement";
 import type { RelayResponseBody } from "./relay-http-server";
 import type { SecureStore } from "./secure-store";
+import { assertNoCompatibilityTransitionInProgress } from "./compatibility-transition-preparation-lock";
 
 export function handleRetireDevice(
   request: IncomingMessage,
@@ -19,6 +20,7 @@ export function handleRetireDevice(
     return { ok: false, message: "Only the configured MKTTool web origin may retire this Relay." };
   }
   try {
+    assertNoCompatibilityTransitionInProgress(deps.home);
     const parsed = JSON.parse(body) as { authorization?: unknown };
     if (typeof parsed.authorization !== "string" || parsed.authorization.length === 0) {
       throw new Error("Device retirement authorization is missing.");

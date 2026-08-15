@@ -22,6 +22,17 @@ import { describe, expect, it } from "vitest";
 
 const RELAY_SOURCE_DIR = path.join(process.cwd(), "relay", "src");
 
+const SHARED_RELEASE_CONTRACTS = new Set([
+  "../../src/lib/release/compatibility-artifact-paths",
+  "../../src/lib/release/compatibility-control-contract",
+  "../../src/lib/release/compatibility-manifest",
+  "../../src/lib/release/compatibility-manifest-crypto",
+  "../../src/lib/release/compatibility-manifest-schema",
+  "../../src/lib/release/compatibility-update-authorization",
+  "../../src/lib/release/release-root-trust",
+  "../../src/lib/release/rollback-authorization",
+]);
+
 /**
  * Thứ `relay/` không được đụng tới, kèm lý do — câu này đi thẳng vào thông báo test đỏ, vì
  * người đọc nó đang ở giữa một việc khác và cần biết ngay vì sao bị chặn.
@@ -90,13 +101,19 @@ describe("biên giới import của relay/", () => {
   });
 
   it("chỉ dùng lại src/lib qua đường dẫn tương đối, và chỉ từ ba thư mục dùng chung", () => {
-    // `tickets`, `crypto`, `relay`, `totp`, `antidetect` là những chỗ đã viết để chạy được ở cả
-    // hai bên. Import từ chỗ khác trong `src/lib` gần như chắc chắn là kéo nhầm thứ của máy chủ.
-    const allowed = /\.\.\/\.\.\/src\/lib\/(tickets|crypto|relay|totp|antidetect)\//;
+    // Release reuse is restricted to audited pure contract files, not the server-side directory.
+    const allowedDirectory = /\.\.\/\.\.\/src\/lib\/(tickets|crypto|relay|totp|antidetect)\//;
 
     const offenders = files.flatMap((file) => {
       return importLines(readFileSync(file, "utf8"))
-        .filter((line) => line.includes("../../src/lib/") && !allowed.test(line))
+        .filter((line) => {
+          const source = /["'](\.\.\/\.\.\/src\/lib\/[^"']+)["']/.exec(line)?.[1];
+          return (
+            source !== undefined &&
+            !allowedDirectory.test(source) &&
+            !SHARED_RELEASE_CONTRACTS.has(source)
+          );
+        })
         .map((line) => `${path.relative(process.cwd(), file)}: ${line.trim()}`);
     });
 

@@ -43,11 +43,16 @@
  */
 import {
   RELAY_PATHS,
+  RELAY_COMPATIBILITY_UPDATE_TIMEOUT_MS,
   RELAY_DEVICE_RETIREMENT_MIN_VERSION,
   RELAY_RETIREMENT_TIMEOUT_MS,
   RELAY_TIMEOUT_MS,
   RELAY_VERSION,
   type ConfigureRelayRequest,
+  type CompatibilityUpdateReply,
+  type CompatibilityUpdateRequest,
+  type CompatibilityRollbackReply,
+  type CompatibilityRollbackRequest,
   type DeviceRetirementReply,
   type DeviceRetirementRequest,
   type FinalizeDeviceRetirementRequest,
@@ -314,6 +319,30 @@ export function finalizeRelayDeviceRetirement(
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ authorization } satisfies FinalizeDeviceRetirementRequest),
   });
+}
+
+export function rollbackRelayCompatibility(
+  authorization: CompatibilityRollbackRequest["authorization"],
+): Promise<RelayOutcome<CompatibilityRollbackReply>> {
+  return callRelay<CompatibilityRollbackReply>(RELAY_PATHS.compatibilityRollback, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ authorization } satisfies CompatibilityRollbackRequest),
+  });
+}
+
+export function updateRelayCompatibility(
+  ticket: CompatibilityUpdateRequest["ticket"],
+): Promise<RelayOutcome<CompatibilityUpdateReply>> {
+  return callRelay<CompatibilityUpdateReply>(
+    RELAY_PATHS.compatibilityUpdate,
+    {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ ticket } satisfies CompatibilityUpdateRequest),
+    },
+    RELAY_COMPATIBILITY_UPDATE_TIMEOUT_MS,
+  );
 }
 
 /**
