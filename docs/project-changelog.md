@@ -12,6 +12,24 @@ Dự án chưa phát hành phiên bản (`0.1.0`, dùng nội bộ). Mốc chia 
 
 ---
 
+## 16 August 2026 - Relay v12 published and the installer rebuilt from it
+
+Relay v12 is on the release bucket and served by the token-gated download route, so `/relay-download`
+now hands the team the current build and older installs start seeing the out-of-date notice.
+
+The Windows installer is rebuilt by fetching that published object instead of a locally packaged
+copy, which is what the phase gate asked for. The build machine authenticates with a route-scoped
+token rather than a person's session cookie: a cookie unlocks the whole app including the identity
+vault, expires mid-build, and dies when that person leaves the team. CI had shipped a stale
+`MKTTOOL_RELEASE_COOKIE` variable that nothing read, so the job would have run unauthenticated; the
+guard that kept the cookie out of the fetcher now covers the workflow too.
+
+Packaging also emits the artifact hashes and sizes the compatibility manifest is signed over. That
+step needs the pinned engine release record, which now ships beside the pinned Relay release in the
+browser repository rather than only in this plan folder — packaging must never fall back to
+resolving an engine latest, because a different Chromium moves the measured fingerprint of every
+profile at once.
+
 ## 15 August 2026 - Device-side revocation memory
 
 A delegated release key proven revoked now stays revoked on the device. Revocation statements are

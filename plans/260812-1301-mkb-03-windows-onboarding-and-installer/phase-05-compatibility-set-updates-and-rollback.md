@@ -167,8 +167,12 @@ after.
 
 - [ ] Real Windows reboot during each activation step; automated coverage simulates startup
   convergence but does not replace an OS reboot.
-- [ ] Publish the verified Relay v12 ZIP to its immutable authenticated URL, then rebuild the
-  installer by fetching that published object.
+- [x] Publish the verified Relay v12 ZIP to its immutable authenticated URL, then rebuild the
+  installer by fetching that published object — closed 16 August 2026. Relay v12 is on R2 and served
+  by the token-gated release route; MKTBrowser run `31909909366` fetched that published object with
+  the build-machine token, embedded it, and produced `mktbrowser-windows-installer` (144.6 MB)
+  together with the signed-over compatibility evidence. The installer no longer proves only the
+  local packaging path.
 - [ ] Live Windows update, rollback, and smoke rehearsal on an operator-representative machine.
 
 ## Success criteria

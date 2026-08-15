@@ -34,7 +34,7 @@ working artifact rather than an unknown one.
 | 02 | [Setup controller and the announced SmartScreen journey](phase-02-setup-controller-and-smartscreen-journey.md) | 01 | 🟡 Implemented; SmartScreen capture, Chrome/Edge LNA verification, and clean-account reboot rehearsal pending |
 | 03 | [Protected secrets and the diagnostics allowlist](phase-03-protected-secrets-and-diagnostics-allowlist.md) | — | 🟡 Implemented; live-install migration rehearsal pending |
 | 04 | [Enrollment, grants, and ADMIN bootstrap](phase-04-enrollment-grants-and-admin-bootstrap.md) | 02, 03 | 🟡 Implemented; offline-admin, real reboot, and live-database-copy rehearsals pending |
-| 05 | [Compatibility set, updates, and rollback](phase-05-compatibility-set-updates-and-rollback.md) | 01, 03 | 🟡 Ceremony verified; implementation complete in code — real reboot, Relay v12 publication, and live Windows rehearsal pending |
+| 05 | [Compatibility set, updates, and rollback](phase-05-compatibility-set-updates-and-rollback.md) | 01, 03 | 🟡 Ceremony verified; code complete and Relay v12 published with the installer rebuilt from it — real reboot and live Windows rehearsal pending |
 | 06 | [Conflicts, repair, uninstall, and gate rehearsal](phase-06-conflicts-repair-uninstall-and-gate-rehearsal.md) | 01–05 | 🟡 Lifecycle and setup-conflict engineering subsets pushed; live Windows and unfamiliar-operator matrices remain open |
 
 ## Current critical path — synced 15 August 2026
@@ -54,8 +54,9 @@ remain authoritative.
    activation, fault-injected convergence, bounded rollback, post-activation smoke, and revocation
    memory are implemented and covered. What remains is evidence, not engineering: a real Windows
    reboot during activation, and the live update/rollback rehearsal.
-4. Publish the verified Relay v12 ZIP to its immutable authenticated URL, then rebuild the installer
-   by fetching that published object. The current installer proves the local packaging path only.
+4. **Done 16 August 2026.** Relay v12 is published to its immutable authenticated URL, and the
+   Windows installer is rebuilt from that published object rather than from a local packaging path.
+   The build machine authenticates with a route-scoped token, never a session cookie.
 5. Run Phase 06 Windows matrices and the unfamiliar-operator rehearsal. Freeze the accepted MKB-03
    baseline only after every live and human gate is green, then begin the MKB-04 audit.
 
