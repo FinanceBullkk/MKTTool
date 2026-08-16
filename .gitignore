@@ -53,6 +53,7 @@ relay/dist/
 # sơ đồ kiến trúc sinh tự động từ mã nguồn + tài liệu. Xem được bằng trình duyệt, dựng lại được
 # bất cứ lúc nào — mà bản đã commit thì im lặng lỗi thời ngay lượt refactor kế tiếp.
 docs/system-diagrams.html
+docs/diagram-design-architecture.html
 
 # misc
 .DS_Store
