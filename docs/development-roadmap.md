@@ -1,6 +1,6 @@
 # Lộ trình phát triển
 
-**Updated:** 15 August 2026
+**Updated:** 16 August 2026
 
 Đây là **nguồn duy nhất về trạng thái** của dự án. Chi tiết thi công nằm ở
 [plan công cụ gốc](../plans/260801-2030-multi-account-posting-console/plan.md),
@@ -38,6 +38,16 @@ real accounts. The one-download onboarding journey, secure enrollment/migration,
 pilot duration, and real-account gates remain separate. Code signing is no longer among them: on
 12 August the owner decided v1 ships **unsigned** for the internal fleet, so SmartScreen appears once
 and the setup journey must announce it in advance.
+
+**Audit in progress, 16 August 2026.** A deep audit of the cryptographic protocols and the local
+control surface is running: Phase 01 is complete (20 hypotheses closed) and Phase 02 is part-done.
+It has fixed two identity-boundary defects — the proxy bridge accepting a destination that could
+rewrite the request sent to the proxy provider, and device revocation leaving an aliased second copy
+of a key usable — plus six cases where a guard existed but no test would have noticed it breaking.
+Nothing above P2 so far. **Operationally actionable now:** every MKT Browser build from `v0.2.0` to
+`v0.3.1` carries the unfixed bridge, so machines on an older build stay affected until they update.
+Findings and remaining open items are in [`plans/reports/`](../plans/reports/); this line will be
+replaced by a final statement when the audit closes.
 
 Phase 01 implementation now produces one installer carrying a pinned Relay archive and MKT
 Browser. Relay releases use retained `MKTTool-Relay-vN.zip` R2 objects, carry measured version, size,
