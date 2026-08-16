@@ -294,11 +294,12 @@ async function main(): Promise<void> {
               vaultKeyOperator: state.vaultKeyOperator,
               notConfiguredMessage: notConfiguredMessage(),
             }),
-      [RELAY_PATHS.encryptForVault]: (_request, body) =>
+      [RELAY_PATHS.encryptForVault]: (request, body) =>
         pendingRetirement
           ? retirementBlocked()
-          : handleEncryptForVault(body, {
+          : handleEncryptForVault(request, body, {
               vaultKeyOperator: state.vaultKeyOperator,
+              allowedOrigin: state.webOrigin || null,
               notConfiguredMessage: notConfiguredMessage(),
             }),
       [RELAY_PATHS.sealOperatorKey]: (request, body) =>
