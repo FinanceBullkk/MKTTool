@@ -157,6 +157,126 @@ describe("compatibility manifest release authority", () => {
       "not newer than the active compatibility set",
     );
   });
+
+  /**
+   * The chain, attacked at the delegation rather than at the manifest.
+   *
+   * Every case below produces a payload that is internally consistent: the manifest signature
+   * verifies against the key the delegation names, and the delegation verifies against the key
+   * that signed it. Only the pinned root separates them from a genuine release, which is exactly
+   * what makes them the interesting inputs — a verifier that checked "is this signed?" instead of
+   * "is this signed by the root?" would accept every one of them.
+   */
+  describe("forged delegation chains", () => {
+    it("rejects a delegation minted by an attacker's own root while naming the real root", () => {
+      const fixture = createFixture({ delegationRoot: "attacker", claimedRootKeyId: "real" });
+      expect(() => validateCompatibilityManifest(fixture.signed, fixture.options)).toThrow(
+        "delegation signature is invalid",
+      );
+    });
+
+    it("rejects a delegation that names the attacker's own root", () => {
+      const fixture = createFixture({ delegationRoot: "attacker", claimedRootKeyId: "attacker" });
+      expect(() => validateCompatibilityManifest(fixture.signed, fixture.options)).toThrow(
+        "wrong release root",
+      );
+    });
+
+    it("rejects a root-signed delegation whose delegated public key was swapped", () => {
+      const fixture = createFixture();
+      const attackerKey = privateKeyFromSeed(randomBytes(32));
+      const attackerPublicHex = publicKeyHex(attackerKey);
+      fixture.signed.delegation.delegation.delegatedPublicKeyHex = attackerPublicHex;
+      fixture.signed.delegation.delegation.delegatedKeyId = releaseKeyId(attackerPublicHex);
+      fixture.signed.manifest.delegatedKeyId = releaseKeyId(attackerPublicHex);
+      fixture.signed = signCompatibilityManifest(
+        attackerKey,
+        fixture.signed.delegation,
+        fixture.signed.manifest,
+        fixture.signed.signedAt,
+      );
+      expect(() => validateCompatibilityManifest(fixture.signed, fixture.options)).toThrow(
+        "delegation signature is invalid",
+      );
+    });
+
+    it("rejects a manifest that does not name the key its delegation carries", () => {
+      const fixture = createFixture();
+      fixture.signed.manifest.delegatedKeyId = "c".repeat(64);
+      expect(() => validateCompatibilityManifest(fixture.signed, fixture.options)).toThrow(
+        "does not name the key that signed it",
+      );
+    });
+
+    it("rejects a pinned root whose fingerprint does not match its own public key", () => {
+      const fixture = createFixture();
+      expect(() =>
+        validateCompatibilityManifest(fixture.signed, {
+          ...fixture.options,
+          rootTrust: { rootKeyId: "d".repeat(64), publicKeyHex: fixture.rootTrust.publicKeyHex },
+        }),
+      ).toThrow("pinned release root fingerprint is invalid");
+    });
+  });
+
+  describe("authority window", () => {
+    it("rejects a manifest signed under an expired delegation", () => {
+      const fixture = createFixture({ delegationExpiresAt: "2026-08-10T00:00:00.000Z" });
+      expect(() => validateCompatibilityManifest(fixture.signed, fixture.options)).toThrow(
+        "inactive or expired",
+      );
+    });
+
+    /**
+     * A delegated key must not be able to authorize a compatibility set that outlives the
+     * delegation itself. Without this rule, one manifest signed on the last valid day would keep
+     * a retired key's decision in force indefinitely.
+     */
+    it("rejects a manifest that expires after its delegation does", () => {
+      const fixture = createFixture({
+        delegationExpiresAt: "2026-09-01T00:00:00.000Z",
+        expiresAt: "2026-09-15T00:00:00.000Z",
+      });
+      expect(() => validateCompatibilityManifest(fixture.signed, fixture.options)).toThrow(
+        "inactive or expired",
+      );
+    });
+
+    it("rejects a manifest signed before its delegation became active", () => {
+      const fixture = createFixture({ delegationNotBefore: "2026-08-20T00:00:00.000Z" });
+      expect(() => validateCompatibilityManifest(fixture.signed, fixture.options)).toThrow(
+        "inactive or expired",
+      );
+    });
+  });
+
+  /**
+   * Revocation has to fail closed on a malformed or foreign-signed statement. Skipping an
+   * unverifiable statement and carrying on would let whoever serves the payload disarm the
+   * revocation check by corrupting the statement rather than omitting it.
+   */
+  it("rejects a revocation statement signed by a key other than the root", () => {
+    const fixture = createFixture();
+    const attackerRoot = privateKeyFromSeed(randomBytes(32));
+    const revocation = signDelegationRevocation(attackerRoot, {
+      schemaVersion: 1,
+      type: "mkttool.release-delegation-revocation",
+      rootKeyId: fixture.rootTrust.rootKeyId,
+      delegatedKeyId: "e".repeat(64),
+      revokedAt: "2026-08-15T12:00:00.000Z",
+      reason: "Forged revocation",
+    });
+    fixture.options.revocations = [revocation];
+    expect(() => validateCompatibilityManifest(fixture.signed, fixture.options)).toThrow(
+      "revocation statement is invalid",
+    );
+  });
+
+  it("rejects a manifest carrying an unknown field", () => {
+    const fixture = createFixture();
+    (fixture.signed.manifest as unknown as Record<string, unknown>).rolloutPercentage = 100;
+    expect(() => validateCompatibilityManifest(fixture.signed, fixture.options)).toThrow();
+  });
 });
 
 function createFixture(overrides: {
@@ -164,26 +284,33 @@ function createFixture(overrides: {
   fromSequence?: number;
   expiresAt?: string;
   browserContractVersion?: number;
+  /** Which key actually signs the delegation. The pinned root stays the real one either way. */
+  delegationRoot?: "real" | "attacker";
+  /** Which root the delegation claims to come from. */
+  claimedRootKeyId?: "real" | "attacker";
+  delegationNotBefore?: string;
+  delegationExpiresAt?: string;
 } = {}) {
   const rootPrivateKey = privateKeyFromSeed(randomBytes(32));
   const rootPublicHex = publicKeyHex(rootPrivateKey);
   const rootTrust = { rootKeyId: releaseKeyId(rootPublicHex), publicKeyHex: rootPublicHex } as const;
+  const attackerRootPrivateKey = privateKeyFromSeed(randomBytes(32));
+  const attackerRootKeyId = releaseKeyId(publicKeyHex(attackerRootPrivateKey));
   const delegatedPrivateKey = privateKeyFromSeed(randomBytes(32));
   const delegatedPublicHex = publicKeyHex(delegatedPrivateKey);
   const delegationRequest = buildDelegationRequest({
     publicHex: delegatedPublicHex,
     createdAt: "2026-08-14T00:00:00.000Z",
-    notBefore: "2026-08-14T00:00:00.000Z",
-    expiresAt: "2027-08-14T00:00:00.000Z",
+    notBefore: overrides.delegationNotBefore ?? "2026-08-14T00:00:00.000Z",
+    expiresAt: overrides.delegationExpiresAt ?? "2027-08-14T00:00:00.000Z",
     label: "test-owner",
   });
+  const signingRoot =
+    overrides.delegationRoot === "attacker" ? attackerRootPrivateKey : rootPrivateKey;
+  const claimedRootKeyId =
+    overrides.claimedRootKeyId === "attacker" ? attackerRootKeyId : rootTrust.rootKeyId;
   const delegation = signedDelegationSchema.parse(
-    signDelegation(
-      rootPrivateKey,
-      rootTrust.rootKeyId,
-      delegationRequest,
-      "2026-08-14T00:01:00.000Z",
-    ),
+    signDelegation(signingRoot, claimedRootKeyId, delegationRequest, "2026-08-14T00:01:00.000Z"),
   );
   const manifest = buildManifest(delegationRequest.delegatedKeyId, overrides);
   const signed = signCompatibilityManifest(
