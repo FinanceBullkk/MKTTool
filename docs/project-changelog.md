@@ -50,6 +50,22 @@ one TypeScript construct that runner cannot parse — which is why the module th
 identity-protection promise had never had a test. It now has one, including a check that a dying
 proxy breaks the profile instead of quietly sending traffic out on the machine's own address.
 
+## 16 August 2026 - Browser control and proxy identity audit continuation
+
+The MKT Browser audit found and fixed one unsafe raw-CDP edge: safe mode could send an untracked
+`*.enable` command without a reviewed paired disable. Unknown domains are now rejected, while the
+Relay token still cannot reach raw CDP at all. Managed launch was also re-proven to require and
+persist its proxy and fingerprint; hostile disable flags cannot replace either value.
+
+When a proxy geo probe is unavailable, the Browser now clears stale cached country state, records a
+stable diagnostic, and disables WebRTC rather than risking a direct WebRTC path. Launch remains
+allowed because an external geo service outage is not itself proof that the proxy is unusable; a
+timezone mismatch remains a visible detection-risk residual until the probe recovers.
+
+Finally, removing a proxy from an existing unmanaged profile requires explicit confirmation. The
+profile's cookies and fingerprint remain on disk, so the warning makes the resulting host-IP identity
+change visible before autosave.
+
 ## 16 August 2026 - Relay v12 published and the installer rebuilt from it
 
 Relay v12 is on the release bucket and served by the token-gated download route, so `/relay-download`
