@@ -12,6 +12,44 @@ Dự án chưa phát hành phiên bản (`0.1.0`, dùng nội bộ). Mốc chia 
 
 ---
 
+## 16 August 2026 - Two identity-boundary defects found by audit and fixed
+
+A deep audit of the cryptographic protocols and the local control surface found three defects worth
+recording. Two of them changed behaviour that protects an operator's identity, so they are written
+here rather than left in the audit reports.
+
+**MKT Browser: the proxy bridge accepted a destination that could rewrite the request sent to the
+proxy provider.** The bridge builds its upstream `CONNECT` request by pasting the requested hostname
+into an HTTP header block. It read that hostname from the local SOCKS5 request as raw bytes, so a
+name containing a carriage return or line feed appended lines of the caller's choosing to the request
+the real proxy received. Demonstrated end to end against a test proxy, which saw the injected headers
+arrive as genuine headers.
+
+Reaching it requires a program already running on the operator's machine: the bridge listens on
+loopback and, by design, accepts connections without authentication. MKT Browser itself never sends
+such a hostname. The destination is now checked against an allowlist of the characters a hostname may
+contain, applied before either upstream type, so anything that could act as a separator is refused.
+
+**Every MKT Browser build from `v0.2.0` to `v0.3.1` contains the unfixed bridge** — it has been
+present since the SOCKS5 bridge was introduced on 13 May 2026. The fix ships in the next build;
+machines still on an older build stay affected until they update.
+
+**MKTTool: revoking a device could leave a second copy of that device usable.** An X25519 public key
+ignores the top bit of its final byte, so two different 64-character strings can name the same key.
+The enrollment path folded case and whitespace but not that bit, and `RelayDevice.publicKey` is
+unique per string — so one machine's key could occupy two rows. Revoking the row an admin knew about
+left the other one live and still receiving tickets, decryptable with the same private key. Enrolling
+the second copy needs the enrollment screen, so this is an insider or lost-device scenario rather
+than a remote one.
+
+Non-canonical keys are now refused at enrollment. Nothing legitimate is affected: a real key always
+has that bit clear, so no existing device record changes.
+
+**Also fixed:** the proxy bridge could not be loaded by the desktop test runner at all — it used the
+one TypeScript construct that runner cannot parse — which is why the module that carries the
+identity-protection promise had never had a test. It now has one, including a check that a dying
+proxy breaks the profile instead of quietly sending traffic out on the machine's own address.
+
 ## 16 August 2026 - Relay v12 published and the installer rebuilt from it
 
 Relay v12 is on the release bucket and served by the token-gated download route, so `/relay-download`
