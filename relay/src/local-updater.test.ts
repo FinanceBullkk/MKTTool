@@ -1,5 +1,5 @@
 import { createHash, generateKeyPairSync, randomBytes } from "node:crypto";
-import { existsSync, mkdirSync, mkdtempSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -22,7 +22,7 @@ import {
   readCompatibilityUpdateMarker,
   updateRoot,
 } from "./compatibility-update-marker";
-import { ACTIVE_ENGINE_PIN_FILE, enginePinFromManifest } from "./active-engine-pin";
+import { ACTIVE_ENGINE_PIN_FILE, enginePinFromManifest, parseEnginePin } from "./active-engine-pin";
 import {
   activatePreparedCompatibilityUpdate,
   convergeCompatibilityUpdate,
@@ -401,6 +401,152 @@ describe("local compatibility updater", () => {
     expect(state?.usedRollbackAuthorizationIds).toContain(authorization.authorizationId);
   });
 
+  it("consumes rollback authorization when owned-process shutdown fails", async () => {
+    const fixture = createFixture();
+    stubArtifacts(fixture.payloads);
+    await prepare(fixture);
+    await activatePreparedCompatibilityUpdate(fixture.options);
+    fixture.platform.calls.length = 0;
+    fixture.platform.failStopOnce = true;
+    const server = generateKeyPairSync("ed25519");
+    const authorization = rollbackAuthorization(server.privateKey);
+
+    await expect(
+      rollbackCompatibilitySet(
+        authorization,
+        {
+          serverPublicKeyHex: publicKeyHex(server.publicKey),
+          deviceId: "device-1",
+          now: new Date("2026-08-16T00:00:30.000Z"),
+        },
+        fixture.options,
+      ),
+    ).rejects.toThrow("owned-process shutdown failed");
+
+    const recovered = readCompatibilityUpdateState(fixture.store);
+    expect(recovered?.current?.sequence).toBe(2);
+    expect(recovered?.pending).toBeNull();
+    expect(recovered?.usedRollbackAuthorizationIds).toContain(authorization.authorizationId);
+    expect(fixture.platform.calls).toEqual(["stop", "start"]);
+  });
+
+  it.each(artifactKinds())(
+    "restores the current tuple when rollback %s restoration fails",
+    async (failedKind) => {
+      const fixture = createFixture();
+      stubArtifacts(fixture.payloads);
+      await prepare(fixture);
+      await activatePreparedCompatibilityUpdate(fixture.options);
+      fixture.platform.calls.length = 0;
+      fixture.platform.failRestoreOnce = failedKind;
+      const server = generateKeyPairSync("ed25519");
+      const authorization = rollbackAuthorization(server.privateKey);
+
+      await expect(
+        rollbackCompatibilitySet(
+          authorization,
+          {
+            serverPublicKeyHex: publicKeyHex(server.publicKey),
+            deviceId: "device-1",
+            now: new Date("2026-08-16T00:00:30.000Z"),
+          },
+          fixture.options,
+        ),
+      ).rejects.toThrow(`partial ${failedKind} restoration`);
+
+      const recovered = readCompatibilityUpdateState(fixture.store);
+      expect(recovered?.current?.sequence).toBe(2);
+      expect(recovered?.retained?.sequence).toBe(1);
+      expect(recovered?.pending).toBeNull();
+      expect(recovered?.usedRollbackAuthorizationIds).toContain(authorization.authorizationId);
+      expect(fixture.platform.calls.at(-1)).toBe("start");
+    },
+  );
+
+  it("restores the current tuple and consumes authorization when rollback smoke fails", async () => {
+    const fixture = createFixture();
+    stubArtifacts(fixture.payloads);
+    await prepare(fixture);
+    await activatePreparedCompatibilityUpdate(fixture.options);
+    fixture.platform.calls.length = 0;
+    fixture.options.smoke = {
+      run: async () => {
+        throw new Error("rollback smoke rejected");
+      },
+    };
+    const server = generateKeyPairSync("ed25519");
+    const authorization = rollbackAuthorization(server.privateKey);
+
+    await expect(
+      rollbackCompatibilitySet(
+        authorization,
+        {
+          serverPublicKeyHex: publicKeyHex(server.publicKey),
+          deviceId: "device-1",
+          now: new Date("2026-08-16T00:00:30.000Z"),
+        },
+        fixture.options,
+      ),
+    ).rejects.toThrow("rollback smoke rejected");
+
+    const recovered = readCompatibilityUpdateState(fixture.store);
+    expect(recovered?.current?.sequence).toBe(2);
+    expect(recovered?.retained?.sequence).toBe(1);
+    expect(recovered?.pending).toBeNull();
+    expect(recovered?.usedRollbackAuthorizationIds).toContain(authorization.authorizationId);
+    expect(readCompatibilityUpdateMarker(fixture.home)).toBeNull();
+    expect(
+      parseEnginePin(
+        readFileSync(path.join(updateRoot(fixture.home), ACTIVE_ENGINE_PIN_FILE), "utf8"),
+      ).sequence,
+    ).toBe(2);
+    expect(fixture.platform.calls).toEqual([
+      "stop",
+      "restore:installer",
+      "restore:browser",
+      "restore:relay",
+      "restore:controlContract",
+      "restore:engine",
+      "restore:installer",
+      "restore:browser",
+      "restore:relay",
+      "restore:controlContract",
+      "restore:engine",
+      "start",
+    ]);
+
+    fixture.platform.calls.length = 0;
+    await expect(
+      prepareCompatibilityRollback(
+        authorization,
+        {
+          serverPublicKeyHex: publicKeyHex(server.publicKey),
+          deviceId: "device-1",
+          now: new Date("2026-08-16T00:00:30.000Z"),
+        },
+        fixture.options,
+      ),
+    ).rejects.toThrow(/already been used/i);
+    expect(fixture.platform.calls).toEqual([]);
+
+    const freshAuthorization = rollbackAuthorization(
+      server.privateKey,
+      "4d1971be-ae6e-4c2a-9a1b-92ba75c748ab",
+    );
+    await prepareCompatibilityRollback(
+      freshAuthorization,
+      {
+        serverPublicKeyHex: publicKeyHex(server.publicKey),
+        deviceId: "device-1",
+        now: new Date("2026-08-16T00:00:30.000Z"),
+      },
+      fixture.options,
+    );
+    expect(readCompatibilityUpdateState(fixture.store)?.pending?.authorizationId).toBe(
+      freshAuthorization.authorizationId,
+    );
+  });
+
   it("revalidates retained bytes before rollback stops owned processes", async () => {
     const fixture = createFixture();
     stubArtifacts(fixture.payloads);
@@ -612,12 +758,18 @@ function createSignedManifest() {
 class TestPlatform implements CompatibilityUpdatePlatform {
   open = false;
   failActivation: CompatibilityArtifactKind | null = null;
+  failRestoreOnce: CompatibilityArtifactKind | null = null;
+  failStopOnce = false;
   calls: string[] = [];
   async hasOpenProfiles() {
     return this.open;
   }
   async stopOwnedProcesses() {
     this.calls.push("stop");
+    if (this.failStopOnce) {
+      this.failStopOnce = false;
+      throw new Error("owned-process shutdown failed");
+    }
   }
   async activateArtifact(kind: CompatibilityArtifactKind) {
     this.calls.push(`activate:${kind}`);
@@ -625,6 +777,10 @@ class TestPlatform implements CompatibilityUpdatePlatform {
   }
   async restoreArtifact(kind: CompatibilityArtifactKind) {
     this.calls.push(`restore:${kind}`);
+    if (this.failRestoreOnce === kind) {
+      this.failRestoreOnce = null;
+      throw new Error(`partial ${kind} restoration`);
+    }
   }
   async startOwnedProcesses() {
     this.calls.push("start");
@@ -654,11 +810,14 @@ function sha256(value: Buffer): string {
   return createHash("sha256").update(value).digest("hex");
 }
 
-function rollbackAuthorization(privateKey: Parameters<typeof signRollbackAuthorization>[0]) {
+function rollbackAuthorization(
+  privateKey: Parameters<typeof signRollbackAuthorization>[0],
+  authorizationId = "3d1971be-ae6e-4c2a-9a1b-92ba75c748ab",
+) {
   return signRollbackAuthorization(privateKey, {
     schemaVersion: 1,
     type: "mkttool.compatibility-rollback-authorization",
-    authorizationId: "3d1971be-ae6e-4c2a-9a1b-92ba75c748ab",
+    authorizationId,
     adminUserId: "admin-1",
     authorizedRole: "ADMIN",
     deviceId: "device-1",

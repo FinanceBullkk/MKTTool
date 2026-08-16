@@ -71,30 +71,35 @@ export async function activateRollback(
     );
   }
   let state = markPhase(initialState, "stopping", options);
-  await options.platform.stopOwnedProcesses();
-  state = markPhase(state, "rollback", options);
-  for (const kind of RESTORE_ORDER) {
-    state = markActivated(state, kind, options);
-    await options.platform.restoreArtifact(kind, retainedSet.artifacts[kind]);
+  try {
+    await options.platform.stopOwnedProcesses();
+    state = markPhase(state, "rollback", options);
+    for (const kind of RESTORE_ORDER) {
+      state = markActivated(state, kind, options);
+      await options.platform.restoreArtifact(kind, retainedSet.artifacts[kind]);
+    }
+    activateEnginePin(options.home, retainedSet.directory);
+    state = markPhase(state, "smoke", options);
+    await runPostActivationSmoke(options.smoke, state.pending!.smokeProfileId);
+    const current = initialState.current;
+    const retained = initialState.retained;
+    if (!current || !retained) throw new Error("Rollback state lost its current or retained set.");
+    writeCompatibilityUpdateState(options.store, {
+      ...state,
+      current: retained,
+      retained: current,
+      pending: null,
+      usedRollbackAuthorizationIds: state.pending?.authorizationId
+        ? [...state.usedRollbackAuthorizationIds, state.pending.authorizationId]
+        : state.usedRollbackAuthorizationIds,
+    });
+    clearCompatibilityUpdateMarker(options.home);
+    await options.platform.startOwnedProcesses();
+    completeCompatibilityTransition(options.home);
+  } catch (error) {
+    await rollbackActivatedArtifacts(state, options);
+    throw error;
   }
-  activateEnginePin(options.home, retainedSet.directory);
-  state = markPhase(state, "smoke", options);
-  await runPostActivationSmoke(options.smoke, state.pending!.smokeProfileId);
-  const current = initialState.current;
-  const retained = initialState.retained;
-  if (!current || !retained) throw new Error("Rollback state lost its current or retained set.");
-  writeCompatibilityUpdateState(options.store, {
-    ...state,
-    current: retained,
-    retained: current,
-    pending: null,
-    usedRollbackAuthorizationIds: state.pending?.authorizationId
-      ? [...state.usedRollbackAuthorizationIds, state.pending.authorizationId]
-      : state.usedRollbackAuthorizationIds,
-  });
-  clearCompatibilityUpdateMarker(options.home);
-  await options.platform.startOwnedProcesses();
-  completeCompatibilityTransition(options.home);
 }
 
 export async function rollbackActivatedArtifacts(
@@ -112,7 +117,16 @@ export async function rollbackActivatedArtifacts(
     await options.platform.restoreArtifact(kind, retainedSet.artifacts[kind]);
   }
   activateEnginePin(options.home, directory);
-  writeCompatibilityUpdateState(options.store, { ...rollbackState, pending: null });
+  const authorizationId =
+    rollbackState.pending?.mode === "rollback" ? rollbackState.pending.authorizationId : undefined;
+  writeCompatibilityUpdateState(options.store, {
+    ...rollbackState,
+    pending: null,
+    usedRollbackAuthorizationIds:
+      authorizationId && !rollbackState.usedRollbackAuthorizationIds.includes(authorizationId)
+        ? [...rollbackState.usedRollbackAuthorizationIds, authorizationId]
+        : rollbackState.usedRollbackAuthorizationIds,
+  });
   clearCompatibilityUpdateMarker(options.home);
   await options.platform.startOwnedProcesses();
   completeCompatibilityTransition(options.home);
