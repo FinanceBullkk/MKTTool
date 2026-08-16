@@ -69,7 +69,3 @@ export async function loadFacebookTokenWarnings(
 
   return { broken, expiringSoon };
 }
-
-export function hasFacebookTokenWarnings(warnings: FacebookTokenWarnings): boolean {
-  return warnings.broken.length > 0 || warnings.expiringSoon.length > 0;
-}

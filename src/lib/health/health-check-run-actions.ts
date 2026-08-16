@@ -57,17 +57,3 @@ export const startHerdHealthCheck = guardedAction(async function startHerdHealth
       `30-90 giây giữa các nick — tải lại trang này để xem bảng đầy dần. Đóng tab cũng không sao.`,
   };
 });
-
-/**
- * Trạng thái lượt đang chạy.
- *
- * Hiện **không có chỗ nào gọi**: trang Sức khỏe là server component nên nó gọi thẳng
- * `readHealthCheckLockStatus()` chứ không cần đi vòng qua server action. Vẫn gác vì trong file
- * `"use server"` thì mọi export đều là một endpoint POST thật, dùng hay không dùng cũng vậy —
- * "không ai gọi" là chuyện của mã nguồn mình, không phải của người biết địa chỉ.
- */
-export const getHerdHealthCheckStatus = guardedAction(async function getHerdHealthCheckStatus(
-  _actor,
-) {
-  return readHealthCheckLockStatus();
-});

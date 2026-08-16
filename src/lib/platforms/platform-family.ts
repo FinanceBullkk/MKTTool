@@ -40,11 +40,6 @@ export const MANUAL_POST_PLATFORMS: readonly string[] = TARGET_PLATFORMS.filter(
   (platform) => !(AUTO_PUBLISH_PLATFORMS as readonly string[]).includes(platform),
 );
 
-/** Đích này có phải đăng tay không. Dùng ở bộ nhắc việc và ở bảng hàng đợi. */
-export function isManualPostPlatform(platform: string): boolean {
-  return MANUAL_POST_PLATFORMS.includes(platform);
-}
-
 /**
  * Dùng ở hai chỗ: bộ luật (rules-engine.ts) và form ghi tương tác tay
  * (interaction-actions.ts) — form đó gọi thẳng luật 8 chứ không đi qua engine.

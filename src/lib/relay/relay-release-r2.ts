@@ -119,22 +119,6 @@ export function headRelayRelease(
   return headObject({ config, key: relayReleaseR2Key(version), fetchImpl });
 }
 
-export function headRelayCompatibilityManifest(
-  config: R2Config,
-  version: number,
-  fetchImpl?: typeof fetch,
-): Promise<R2ObjectInfo | null> {
-  return headObject({ config, key: relayCompatibilityManifestR2Key(version), fetchImpl });
-}
-
-export function headRelayCompatibilityRevocations(
-  config: R2Config,
-  version: number,
-  fetchImpl?: typeof fetch,
-): Promise<R2ObjectInfo | null> {
-  return headObject({ config, key: relayCompatibilityRevocationsR2Key(version), fetchImpl });
-}
-
 export function headRelayCompatibilityArtifact(
   config: R2Config,
   version: number,
@@ -150,18 +134,6 @@ export async function openRelayCompatibilityManifest(
   fetchImpl?: typeof fetch,
 ): Promise<ReadableStream<Uint8Array>> {
   return (await getObject({ config, key: relayCompatibilityManifestR2Key(version), fetchImpl })).body;
-}
-
-export async function openRelayCompatibilityRevocations(
-  config: R2Config,
-  version: number,
-  fetchImpl?: typeof fetch,
-): Promise<ReadableStream<Uint8Array>> {
-  return (await getObject({
-    config,
-    key: relayCompatibilityRevocationsR2Key(version),
-    fetchImpl,
-  })).body;
 }
 
 export async function openRelayCompatibilityArtifact(

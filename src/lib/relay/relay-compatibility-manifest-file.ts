@@ -10,25 +10,12 @@ import {
 import { readRelayRelease, readRelayReleaseFromDisk, relayReleaseDir } from "./relay-release-file";
 
 export const RELAY_COMPATIBILITY_MANIFEST_NAME = "MKTTool-Relay.compatibility.json";
-export const RELAY_COMPATIBILITY_REVOCATIONS_NAME = "MKTTool-Relay.compatibility-revocations.json";
 const MAX_MANIFEST_BYTES = 1024 * 1024;
 
 export function relayCompatibilityManifestPath(): string {
   return (
     process.env.RELAY_COMPATIBILITY_MANIFEST_FILE?.trim() ||
     path.join(relayReleaseDir(), RELAY_COMPATIBILITY_MANIFEST_NAME)
-  );
-}
-
-export function relayCompatibilityRevocationsPath(): string {
-  return (
-    process.env.RELAY_COMPATIBILITY_REVOCATIONS_FILE?.trim() ||
-    path.join(
-      process.cwd(),
-      "plans",
-      "260812-1301-mkb-03-windows-onboarding-and-installer",
-      "release-authority-delegation-revocations.json",
-    )
   );
 }
 
@@ -61,12 +48,6 @@ export async function readRelayCompatibilityRelease(
     manifest: verifyRelayManifest(await streamJson(manifestBody), version, release, revocations),
     revocations,
   };
-}
-
-export async function readRelayCompatibilityManifestFromDisk(
-  version: number,
-): Promise<SignedCompatibilityManifest> {
-  return (await readRelayCompatibilityReleaseFromDisk(version)).manifest;
 }
 
 export async function readRelayCompatibilityReleaseFromDisk(
