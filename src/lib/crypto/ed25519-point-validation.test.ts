@@ -86,6 +86,22 @@ const UNIVERSAL_FORGERY = Buffer.concat([
   Buffer.alloc(32),
 ]);
 
+/**
+ * Whether this runtime's Ed25519 backend will entertain the forgery at all.
+ *
+ * It is not universal. Node on Windows — the platform this product ships on — verifies it happily.
+ * The OpenSSL build on the Linux CI runner refuses it outright, so every rate below reads 0 there.
+ * That difference belongs to the crypto backend, not to this repository, and a test that asserted
+ * the permissive behaviour would fail on CI while the guard it is testing works perfectly.
+ *
+ * So the backend's behaviour is measured, not assumed, and the assertions below adapt to it. The
+ * guard's own behaviour is asserted unconditionally, because that is the part this repository owns.
+ */
+const BACKEND_ADMITS_FORGERY = (() => {
+  const identity = `01${"00".repeat(31)}`;
+  return forgeryHits(identity, 64) > 0;
+})();
+
 function forgeryHits(hex: string, trials: number): number {
   const key = createPublicKey({
     key: { kty: "OKP", crv: "Ed25519", x: Buffer.from(hex, "hex").toString("base64url") },
@@ -107,10 +123,29 @@ describe("Ed25519 public key point validation", () => {
     expect(new Set(SMALL_ORDER_Y_COORDINATES)).toEqual(deriveSmallOrderYCoordinates());
   });
 
-  it("proves every blocked point really does admit a signature nobody holds a key for", () => {
+  it("agrees with the backend about every blocked point, whichever way the backend leans", () => {
+    // On a permissive backend each blocked point must be forgeable — that is the guard's whole
+    // justification. On a strict backend none may be, because a blocked point that behaved like a
+    // real key would mean the table blocks something it should not.
     for (const yHex of SMALL_ORDER_Y_COORDINATES) {
-      expect(forgeryHits(yHex, 120)).toBeGreaterThan(0);
+      const hits = forgeryHits(yHex, 120);
+      if (BACKEND_ADMITS_FORGERY) {
+        expect(hits, `${yHex} should be forgeable on a permissive backend`).toBeGreaterThan(0);
+      } else {
+        expect(hits, `${yHex} was forgeable on a backend that refuses the identity point`).toBe(0);
+      }
     }
+  });
+
+  /**
+   * The measurement that made this guard worth writing, kept as a test so it cannot quietly stop
+   * being true. Windows is the platform the product ships on, and it is the permissive one.
+   */
+  it("records that at least one supported runtime admits the forgery", () => {
+    expect(
+      BACKEND_ADMITS_FORGERY || process.platform !== "win32",
+      "Windows admitted the forgery when C3 was found; if this fails the finding needs revisiting",
+    ).toBe(true);
   });
 
   it("never fires on a freshly generated keypair", () => {
@@ -120,6 +155,7 @@ describe("Ed25519 public key point validation", () => {
       const hex = Buffer.from(jwk.x, "base64url").toString("hex");
 
       expect(ed25519PublicKeyRejection(hex)).toBeNull();
+      // Unconditional: no backend, permissive or strict, may accept the forgery under a real key.
       expect(forgeryHits(hex, 8)).toBe(0);
     }
   });

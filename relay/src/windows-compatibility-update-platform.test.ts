@@ -24,7 +24,20 @@ describe("Windows compatibility update platform", () => {
     ).toBe("D:\\Internal Apps\\MKTBrowser");
   });
 
-  it("atomically installs the signed engine archive into the stable runtime", async () => {
+  /**
+   * Windows-only, for the same reason `windows-secure-store.test.ts` is: the subject *is* the
+   * Windows-specific behaviour, not logic that happens to run there.
+   *
+   * `windows-engine-artifact-activation.ts` lays the runtime out with `path.win32` and moves it into
+   * place with directory renames. On Linux a backslash is an ordinary filename character, so every
+   * one of those paths collapses into a single flat name in one directory and the parent/child
+   * relationships the activation depends on stop existing. A version of this test rewritten to pass
+   * there would be asserting an arrangement that never occurs in production.
+   *
+   * The cross-platform route was taken where it was available — see `compatibility-local-identity.test.ts`,
+   * which tests business logic and now runs everywhere. This one has no such route.
+   */
+  it.skipIf(process.platform !== "win32")("atomically installs the signed engine archive into the stable runtime", async () => {
     const root = tempRoot();
     const localAppData = path.join(root, "LocalAppData");
     const staged = path.join(root, "staged");
@@ -57,7 +70,7 @@ describe("Windows compatibility update platform", () => {
       },
     });
 
-    const runtime = path.join(
+    const runtime = path.win32.join(
       localAppData,
       "MKTTool",
       "MKTBrowser",
@@ -65,8 +78,8 @@ describe("Windows compatibility update platform", () => {
       "cloakbrowser",
       "runtime",
     );
-    expect(readFileSync(path.join(runtime, "chrome.exe"), "utf8")).toBe("chrome");
-    expect(JSON.parse(readFileSync(path.join(runtime, ".mkt-runtime.json"), "utf8"))).toEqual({
+    expect(readFileSync(path.win32.join(runtime, "chrome.exe"), "utf8")).toBe("chrome");
+    expect(JSON.parse(readFileSync(path.win32.join(runtime, ".mkt-runtime.json"), "utf8"))).toEqual({
       version: "146.0.7680.177.5",
     });
   });

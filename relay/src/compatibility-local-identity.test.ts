@@ -23,14 +23,26 @@ describe("local compatibility identity detection", () => {
     expect(localCompatibilityIdentityDataExists(relay)).toBe(true);
 
     const browser = createFixture();
-    const profileRoot = path.join(
+    /**
+     * The profiles root is built with `path.win32.join` to match the source, and the profile inside
+     * it with the platform-native join.
+     *
+     * This is business logic — "is there identity data here" — so it must run on CI too, and the
+     * split is what makes that possible. The source is Windows-only and joins with `path.win32`. On
+     * Linux those separators are ordinary filename characters, so the whole win32 string is a single
+     * directory; joining the profile on with `path.win32` as well would create one deeper name and
+     * leave the directory the source actually reads non-existent. Creating the root as that single
+     * name, then the profile natively inside it, gives the source a readable directory with an entry
+     * in it on both platforms.
+     */
+    const profilesRoot = path.win32.join(
       browser.localAppData,
       "MKTTool",
       "MKTBrowser",
       "data",
       "profiles",
-      "profile-1",
     );
+    const profileRoot = path.join(profilesRoot, "profile-1");
     mkdirSync(profileRoot, { recursive: true });
     writeFileSync(path.join(profileRoot, "Cookies"), "identity");
     expect(localCompatibilityIdentityDataExists(browser)).toBe(true);
