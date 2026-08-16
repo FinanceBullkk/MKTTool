@@ -25,7 +25,7 @@
  *
  * Synthetic keys only. No device identity, no vault, no operational data.
  */
-import { randomBytes, sign, verify } from "node:crypto";
+import { createPublicKey, randomBytes, sign, verify, type KeyObject } from "node:crypto";
 import { describe, expect, it } from "vitest";
 
 // RFC 8032 test vector, matching the seed the sibling ticket tests use.
@@ -243,46 +243,53 @@ describe("H18: relay-side public key import", () => {
     Buffer.alloc(32),
   ]);
 
-  it("treats the identity point as a well-formed key today (finding C3 reproduction)", () => {
-    // Shape-only validation: 64 lowercase hex characters is all that is required, and the identity
-    // point satisfies it. Recorded as a fact so the forgery test below is unambiguous.
+  it("rejects the identity point at import", () => {
+    // Shape validation alone would accept it: 64 lowercase hex characters is all the old guard
+    // required. Both facts are asserted together so the reason for the rejection stays legible.
     expect(IDENTITY_POINT_HEX).toMatch(/^[0-9a-f]{64}$/);
-    expect(importsKey(IDENTITY_POINT_HEX)).toBe(true);
-  });
-
-  /**
-   * FINDING C3 (P3) — retest gate. See the C2 note above for why `it.fails` is used.
-   * Turns RED once a point-validity check lands, which is the prompt to make it a real assertion.
-   */
-  it.fails("does not yet reject the identity point, which makes every signature forgeable", () => {
     expect(importsKey(IDENTITY_POINT_HEX)).toBe(false);
+    expect(() => publicKeyFromHex(IDENTITY_POINT_HEX)).toThrow(/điểm bậc nhỏ/i);
   });
 
-  it("demonstrates the forgery the missing point check would prevent", () => {
+  it("still admits the forgery when the point check is bypassed, which is why the check exists", () => {
     /**
      * Differential: one artifact, two keys. Under a genuine server key it must be rejected; under
-     * the identity point it is accepted for arbitrary messages. The outcomes differing is the
-     * finding — a boolean on either key alone would prove nothing.
+     * the identity point it verifies for arbitrary messages. The identity key is built with a raw
+     * `createPublicKey` deliberately — going through `publicKeyFromHex` now throws, and asserting
+     * only that it throws would delete the evidence that the danger behind the guard is real.
      */
     const genuine = publicKeyFromHex(validPublicKeyHex);
-    const identity = publicKeyFromHex(IDENTITY_POINT_HEX);
+    const identity = createPublicKey({
+      key: {
+        kty: "OKP",
+        crv: "Ed25519",
+        x: Buffer.from(IDENTITY_POINT_HEX, "hex").toString("base64url"),
+      },
+      format: "jwk",
+    });
 
     for (const text of ["forged-authorization", "retire every device", ""]) {
       const message = Buffer.from(text, "utf8");
       expect(verify(null, message, genuine, UNIVERSAL_FORGERY)).toBe(false);
-      expect(
-        verify(null, message, identity, UNIVERSAL_FORGERY),
-        "identity point should have been rejected at import",
-      ).toBe(true);
+      expect(verify(null, message, identity, UNIVERSAL_FORGERY)).toBe(true);
     }
   });
 
-  /** The canonical Ed25519 small-order / non-canonical encodings, by their documented role. */
+  /**
+   * Small-order and non-canonical encodings, by role.
+   *
+   * The order-8 entries are the genuine order-8 points, derived in
+   * `src/lib/crypto/ed25519-point-validation.test.ts` from the curve equation. An earlier revision
+   * of this list labelled `00…0080` "order 8"; it is really the order-4 point carrying the opposite
+   * x-sign, and the derivation is what corrected it.
+   */
   const LOW_ORDER_POINTS: ReadonlyArray<readonly [string, string]> = [
     ["identity (order 1)", IDENTITY_POINT_HEX],
     ["order 2", "ecffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f"],
     ["y = 0 (order 4)", "00".repeat(32)],
-    ["order 8", "0000000000000000000000000000000000000000000000000000000000000080"],
+    ["y = 0 (order 4), opposite x-sign", "0000000000000000000000000000000000000000000000000000000000000080"],
+    ["order 8", "26e8958fc2b227b045c3f489f2ef98f0d5dfac05d3c63339b13802886d53fc05"],
+    ["order 8, opposite x-sign", "c7176a703d4dd84fba3c0b760d10670f2a2053fa2c39ccc64ec7fd7792ac037a"],
     ["non-canonical y = p", "edffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f"],
   ];
 
@@ -294,39 +301,53 @@ describe("H18: relay-side public key import", () => {
    * would make this survey a coin flip; the attacker simply searches, so the security-relevant
    * question is "does any message work", not "does this one".
    */
-  function survey(hex: string): { importable: boolean; forgeableForSomeMessage: boolean } {
-    let key;
-    try {
-      key = publicKeyFromHex(hex);
-    } catch {
-      return { importable: false, forgeableForSomeMessage: false };
-    }
+  function forgeableForSomeMessage(key: KeyObject): boolean {
     for (let i = 0; i < 64; i += 1) {
       try {
         if (verify(null, Buffer.from(`forged-authorization-${i}`, "utf8"), key, UNIVERSAL_FORGERY)) {
-          return { importable: true, forgeableForSomeMessage: true };
+          return true;
         }
       } catch {
         /* treat a throw as a rejection for this message and keep searching */
       }
     }
-    return { importable: true, forgeableForSomeMessage: false };
+    return false;
   }
 
-  it("pins which low-order points are importable and forgeable (finding C3 scope)", () => {
-    // Recorded as data rather than pass/fail so the finding's true breadth is unambiguous and any
-    // future change in this surface — wider or narrower — shows up as a diff.
+  function rawImport(hex: string): KeyObject {
+    return createPublicKey({
+      key: { kty: "OKP", crv: "Ed25519", x: Buffer.from(hex, "hex").toString("base64url") },
+      format: "jwk",
+    });
+  }
+
+  /**
+   * Both halves of the finding, kept side by side.
+   *
+   * Asserting only that import now throws would leave a future reader unable to tell whether these
+   * encodings were ever dangerous or whether someone blocked an arbitrary list. So each one is also
+   * shown to be forgeable when the guard is bypassed — the guard's justification and its effect,
+   * in one place.
+   */
+  it("refuses every low-order point at import, each of which is forgeable without the guard", () => {
     const surveyed = Object.fromEntries(
-      LOW_ORDER_POINTS.map(([label, hex]) => [label, survey(hex)]),
+      LOW_ORDER_POINTS.map(([label, hex]) => [
+        label,
+        {
+          importable: importsKey(hex),
+          forgeableWithoutGuard: forgeableForSomeMessage(rawImport(hex)),
+        },
+      ]),
     );
 
-    expect(surveyed).toEqual({
-      "identity (order 1)": { importable: true, forgeableForSomeMessage: true },
-      "order 2": { importable: true, forgeableForSomeMessage: true },
-      "y = 0 (order 4)": { importable: true, forgeableForSomeMessage: true },
-      "order 8": { importable: true, forgeableForSomeMessage: true },
-      "non-canonical y = p": { importable: true, forgeableForSomeMessage: true },
-    });
+    expect(surveyed).toEqual(
+      Object.fromEntries(
+        LOW_ORDER_POINTS.map(([label]) => [
+          label,
+          { importable: false, forgeableWithoutGuard: true },
+        ]),
+      ),
+    );
   });
 
   it("finds no such forgery under a genuine server key (differential control)", () => {
@@ -341,12 +362,12 @@ describe("H18: relay-side public key import", () => {
   });
 
   /**
-   * FINDING C3 (P3) — retest gate. Every low-order point should be refused at import.
-   * Green while the guard is absent; RED once it lands, prompting conversion to a real assertion.
+   * FINDING C3 (P3) — closed 17 August 2026. This was an `it.fails` retest gate while the guard was
+   * absent; it flipped red the moment the guard landed, which is exactly what it was for.
    */
-  it.fails("does not yet reject any low-order point at import", () => {
+  it("rejects every low-order point at import", () => {
     for (const [label, hex] of LOW_ORDER_POINTS) {
-      expect(survey(hex).importable, `${label} was importable`).toBe(false);
+      expect(importsKey(hex), `${label} was importable`).toBe(false);
     }
   });
 

@@ -1,4 +1,5 @@
 import { createHash, createPrivateKey, createPublicKey } from "node:crypto";
+import { ed25519PublicKeyRejection } from "../../src/lib/crypto/ed25519-point-validation.mjs";
 
 const ED25519_PKCS8_PREFIX = Buffer.from("302e020100300506032b657004220420", "hex");
 
@@ -37,6 +38,18 @@ export function publicKeyHex(key) {
 
 export function publicKeyFromHex(hex) {
   if (!/^[0-9a-f]{64}$/i.test(hex)) throw new Error("An Ed25519 public key must be 64 hex characters.");
+  const rejection = ed25519PublicKeyRejection(hex.toLowerCase());
+  if (rejection === "small-order") {
+    throw new Error(
+      "This Ed25519 public key is a small-order point. Signatures verify under it without the " +
+        "private key, so it can never be a release authority.",
+    );
+  }
+  if (rejection === "non-canonical") {
+    throw new Error(
+      "This Ed25519 public key uses a non-canonical encoding, which gives one key two spellings.",
+    );
+  }
   return createPublicKey({
     key: { kty: "OKP", crv: "Ed25519", x: Buffer.from(hex, "hex").toString("base64url") },
     format: "jwk",
