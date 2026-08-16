@@ -47,9 +47,9 @@ of a key usable — plus six cases where a guard existed but no test would have 
 Nothing above P2 so far. **Operationally actionable now:** every MKT Browser build from `v0.2.0` to
 `v0.3.1` carries the unfixed bridge, so machines on an older build stay affected until they update.
 Findings and remaining open items are in the workspace-level `plans/reports/` directory, which sits
-above both repositories because the audit spans them; it is **not** this repository's
-`plans/reports/`, and it is not under version control. This line will be replaced by a final
-statement when the audit closes.
+above both repositories because the audit spans them and is version-controlled there; it is **not**
+this repository's `plans/reports/`. This line will be replaced by a final statement when the audit
+closes.
 
 Phase 01 implementation now produces one installer carrying a pinned Relay archive and MKT
 Browser. Relay releases use retained `MKTTool-Relay-vN.zip` R2 objects, carry measured version, size,
