@@ -7,8 +7,9 @@ import { WINDOWS_RELEASE_ROOT_TRUST } from "./release-root-trust";
 
 const EVIDENCE_DIR = path.join(
   process.cwd(),
-  "plans",
-  "260812-1301-mkb-03-windows-onboarding-and-installer",
+  "src",
+  "lib",
+  "release",
   "release-authority-public-evidence",
 );
 

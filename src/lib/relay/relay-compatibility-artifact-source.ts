@@ -35,6 +35,29 @@ export function relayCompatibilityArtifactPath(
   );
 }
 
+/**
+ * Resolve an artifact for the download route, checked against the signed manifest.
+ *
+ * ## Why the R2 path compares metadata instead of hashing the bytes it serves
+ *
+ * On the R2 path the checksum comes from the object's stored metadata, not from the stream the
+ * route is about to send. That looks like a hole and is worth stating plainly: it is not the
+ * integrity control, and it was never load-bearing.
+ *
+ * Whoever could replace an object's bytes in the bucket holds write credentials, and the same
+ * credentials set that object's metadata. So hashing on the way out would not stop that adversary
+ * either — it would only cost a full re-read of a 280 MB engine on every request. What actually
+ * stops them is on the device: `compatibility-artifact-staging.ts` hashes every downloaded byte
+ * against the signed manifest as it streams, re-checks size and digest from disk afterwards, and
+ * `compatibility-set-integrity.ts` verifies the whole set again at activation.
+ *
+ * This comparison is therefore a publication sanity check — it catches a mismatched or half-replaced
+ * upload before a device wastes a download on it. Treat a failure here as an operational fault, not
+ * as an attack that was repelled.
+ *
+ * The local-file path below does hash, because there the file is cheap to read and there is no
+ * separately-maintained metadata to compare against.
+ */
 export async function readRelayCompatibilityArtifactSource(
   version: number,
   kind: RelayCompatibilityArtifactKind,

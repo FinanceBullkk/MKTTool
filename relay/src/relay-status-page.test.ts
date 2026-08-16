@@ -26,6 +26,29 @@ describe("trang trạng thái của cầu nối", () => {
   });
 
   /**
+   * The audit closed F6 — `mktBrowserToken` staying in plaintext `relay-config.json` — on the
+   * argument that the config field is only ever a development override, and that the status page
+   * says so out loud. That argument was carrying weight with no test behind it: the discovered
+   * source was asserted, the override branch was not. Whoever removed the distinction would have
+   * broken the reasoning without breaking the suite.
+   */
+  it("phân biệt token tự dò được với token dán tay trong file cấu hình", () => {
+    expect(page()).toContain("discovered automatically from MKT Browser");
+
+    const overridden = page({
+      config: {
+        deviceId: "device-abc",
+        webOrigin: "https://web.example",
+        hasMktBrowserToken: true,
+        mktBrowserTokenSource: "config-override",
+      },
+    });
+
+    expect(overridden).toContain("development override configured");
+    expect(overridden).not.toContain("discovered automatically from MKT Browser");
+  });
+
+  /**
    * Trang này từng nói khóa riêng nằm trong `relay-device-key.json`. Sau MKB-03 Phase 03 thì file
    * đó chỉ còn là bia mộ 93 byte, còn khóa nằm trong kho DPAPI — nên câu cũ chỉ người ta đi sao
    * lưu đúng cái file KHÔNG chứa gì. Bắt gặp ngay sau lượt di trú thật đầu tiên, 12/08/2026.
