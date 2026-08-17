@@ -47,6 +47,21 @@ export function ruleThreadCollision(ctx: ThreadCollisionContext): RuleVerdict {
 const REDDIT_POST_ID = /\/comments\/([a-z0-9]+)/;
 
 /**
+ * Link rút gọn của Reddit: `redd.it/1veg99o`. Phần path CHÍNH LÀ id bài, y hệt id nằm sau
+ * `/comments/`, nhưng không có `/comments/` để bắt nên nhánh trên bỏ qua nó.
+ *
+ * Đây là link mà nút Share của app Reddit phát ra, tức là dạng người dùng dán vào nhiều nhất.
+ * Bỏ sót nó nghĩa là cùng một thread cho ra hai khóa khác nhau, và luật 8 — luật DUY NHẤT không
+ * cho ghi đè — im lặng không thấy đụng độ. Kiểu hỏng tệ nhất: không có gì đỏ lên, chỉ có hai nick
+ * cùng nằm trong một thread.
+ *
+ * So khớp host chính xác chứ không tìm chuỗi "redd.it" trong URL: `notredd.it` và
+ * `redd.it.evil.com` đều chứa chuỗi đó mà không phải Reddit.
+ */
+const REDDIT_SHORTLINK_HOST = "redd.it";
+const REDDIT_SHORTLINK_ID = /^\/([a-z0-9]+)\/?$/;
+
+/**
  * Tham số chỉ dùng để theo dõi lượt bấm — bỏ đi thì mọi biến thể share link của cùng
  * một bài cho ra cùng một khóa.
  *
@@ -94,6 +109,43 @@ function meaningfulQuery(params: URLSearchParams): string {
 }
 
 /**
+ * Link share kiểu mới của Reddit: `reddit.com/r/<sub>/s/<id>`.
+ *
+ * Khác `redd.it/<id>` ở chỗ quyết định: phần `<id>` ở đây KHÔNG phải id bài, nó là một mã mờ chỉ
+ * phân giải được bằng cách đi theo redirect của Reddit. `normalizeThreadUrl` là hàm thuần, không
+ * gọi mạng, nên nó không rút được — và cũng không nên rút, vì hỏi mạng trong một hàm mà bộ luật
+ * gọi hàng chục lần mỗi lượt chấm là đổi một lỗ hổng lấy một chỗ treo.
+ *
+ * Nên chốt nằm ở ĐẦU VÀO: chặn lúc người ta dán, khi họ còn đang mở đúng cái link đó và mở ra lấy
+ * link đầy đủ chỉ mất một cú bấm. Nhận vào rồi mới phát hiện không so được thì cái giá là luật 8 —
+ * luật duy nhất không cho ghi đè — im lặng không thấy đụng độ.
+ */
+const REDDIT_SHARE_PATH = /^\/r\/[^/]+\/s\/[a-z0-9]+\/?$/;
+
+export const UNRESOLVABLE_SHARE_LINK_MESSAGE =
+  "Link share dạng /s/ không rút được về id bài, nên luật chặn đụng độ thread sẽ không nhận ra " +
+  "hai nick vào cùng một bài. Mở link đó ra rồi dán link đầy đủ (link có /comments/).";
+
+/** Người dùng vừa dán một link mà khóa đụng độ không thể phân giải. */
+export function isUnresolvableShareLink(raw: string): boolean {
+  const trimmed = raw.trim().toLowerCase();
+
+  // Có `/comments/` là rút được rồi, không cần xét gì thêm.
+  if (REDDIT_POST_ID.test(trimmed)) return false;
+
+  try {
+    const url = new URL(trimmed.startsWith("http") ? trimmed : `https://${trimmed}`);
+    const host = url.host.replace(/^www\./, "");
+    const isReddit = host === "reddit.com" || host.endsWith(".reddit.com");
+
+    return isReddit && REDDIT_SHARE_PATH.test(url.pathname);
+  } catch {
+    // Không phải URL đọc được thì đây không phải việc của hàm này — `z.string().url()` đã chặn.
+    return false;
+  }
+}
+
+/**
  * Rút URL về một khóa so sánh ổn định.
  *
  * Cùng một bài Reddit có vô số URL khác nhau (có/không slug, old.reddit, share link kèm tham số
@@ -107,8 +159,17 @@ export function normalizeThreadUrl(raw: string): string {
 
   try {
     const url = new URL(trimmed.startsWith("http") ? trimmed : `https://${trimmed}`);
+    const host = url.host.replace(/^www\./, "");
+
+    // Rút link ngắn về ĐÚNG khóa mà permalink đầy đủ cho ra, không phải một khóa riêng:
+    // hai dạng link của cùng một bài phải gặp nhau ở cùng một chỗ thì luật 8 mới thấy đụng độ.
+    if (host === REDDIT_SHORTLINK_HOST) {
+      const shortId = url.pathname.match(REDDIT_SHORTLINK_ID);
+      if (shortId) return `reddit:${shortId[1]}`;
+    }
+
     const path = url.pathname.replace(/\/+$/, "");
-    return `${url.host.replace(/^www\./, "")}${path}${meaningfulQuery(url.searchParams)}`;
+    return `${host}${path}${meaningfulQuery(url.searchParams)}`;
   } catch {
     return trimmed.replace(/\/+$/, "");
   }

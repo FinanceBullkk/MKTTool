@@ -52,14 +52,31 @@ describe.skipIf(process.platform !== "win32")("WindowsSecureStore", () => {
     expect(store.read(RELAY_SECRET_NAMES.devicePrivateKey)).toBe(secret);
   });
 
-  it("atomically replaces an existing protected value", () => {
+  it(
+    "atomically replaces an existing protected value",
+    () => {
+      const home = mkdtempSync(path.join(os.tmpdir(), "mkt-relay-dpapi-"));
+      homes.push(home);
+      const store = new WindowsSecureStore(home);
+
+      store.write(RELAY_SECRET_NAMES.operatorDomainKey, "d4".repeat(32));
+      store.write(RELAY_SECRET_NAMES.operatorDomainKey, "e5".repeat(32));
+
+      expect(store.read(RELAY_SECRET_NAMES.operatorDomainKey)).toBe("e5".repeat(32));
+    },
+    // Three Windows PowerShell + DPAPI process launches measure above five seconds on this host.
+    15_000,
+  );
+
+  it("removes a protected value idempotently", () => {
     const home = mkdtempSync(path.join(os.tmpdir(), "mkt-relay-dpapi-"));
     homes.push(home);
     const store = new WindowsSecureStore(home);
 
     store.write(RELAY_SECRET_NAMES.operatorDomainKey, "d4".repeat(32));
-    store.write(RELAY_SECRET_NAMES.operatorDomainKey, "e5".repeat(32));
+    store.remove(RELAY_SECRET_NAMES.operatorDomainKey);
+    store.remove(RELAY_SECRET_NAMES.operatorDomainKey);
 
-    expect(store.read(RELAY_SECRET_NAMES.operatorDomainKey)).toBe("e5".repeat(32));
+    expect(store.read(RELAY_SECRET_NAMES.operatorDomainKey)).toBeNull();
   });
 });

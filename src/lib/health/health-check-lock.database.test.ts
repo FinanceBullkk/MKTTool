@@ -95,6 +95,73 @@ describe("acquireHealthCheckLock", () => {
     await taken.release();
   });
 
+  /**
+   * Nhánh này là lý do cột `heartbeatAt` tồn tại.
+   *
+   * Ngưỡng mồ côi từng đo bằng `startedAt`, tức đo TỔNG thời gian chạy — mà thời gian chạy tăng
+   * theo số nick (nghỉ 30-90 giây mỗi nick). Ở khoảng 20 nick, một lượt hoàn toàn bình thường
+   * vượt 30 phút và lượt sau tưởng nó đã chết rồi chen vào chạy song song, đúng thứ khóa này sinh
+   * ra để chặn. Nay chỉ cần lượt đang chạy còn đập nhịp là nó giữ được khóa, dù chạy bao lâu.
+   */
+  it("lượt chạy dài nhưng còn đập nhịp thì KHÔNG bị coi là mồ côi", async () => {
+    const long = await acquireHealthCheckLock({ now: NOW });
+    const wayPastStale = new Date(NOW.getTime() + STALE_AFTER_MS * 3);
+
+    try {
+      // Vẫn đang dò, vừa xong một nick.
+      await long.renew(new Date(wayPastStale.getTime() - 60_000));
+
+      await expect(acquireHealthCheckLock({ now: wayPastStale })).rejects.toThrow(
+        HealthCheckBusyError,
+      );
+    } finally {
+      await long.release();
+    }
+  });
+
+  /** Ngừng đập nhịp = tiến trình đã chết. Đó mới là thứ đáng giành khóa. */
+  it("ngừng đập nhịp quá hạn thì vẫn giành được khóa", async () => {
+    const dead = await acquireHealthCheckLock({ now: NOW });
+    await dead.renew(new Date(NOW.getTime() + 60_000)); // nhịp cuối rồi tắt ngang
+
+    const muchLater = new Date(NOW.getTime() + 60_000 + STALE_AFTER_MS + 1_000);
+    const taken = await acquireHealthCheckLock({ now: muchLater });
+
+    await taken.release();
+  });
+
+  /**
+   * Nhịp tim phải khớp `token`, cùng lý do với `release()`: một lượt đã bị giành mất khóa mà còn
+   * đập nhịp được vào hàng của chủ mới thì nó giữ hộ khóa cho một tiến trình không còn quyền,
+   * và chủ mới bị đẩy sang mồ côi oan.
+   */
+  it("lượt đã bị giành khóa thì đập nhịp không chạm được hàng của chủ mới", async () => {
+    const stale = await acquireHealthCheckLock({ now: NOW });
+    const muchLater = new Date(NOW.getTime() + STALE_AFTER_MS + 60_000);
+    const fresh = await acquireHealthCheckLock({ now: muchLater });
+
+    const before = (await readRow())?.heartbeatAt;
+    await stale.renew(new Date(muchLater.getTime() + 10 * 60_000));
+
+    expect((await readRow())?.heartbeatAt).toEqual(before);
+    await fresh.release();
+  });
+
+  /** `startedAt` vẫn phải nói "giữ từ lúc nào" — nhịp tim không được nuốt mất câu đó. */
+  it("đập nhịp không đổi startedAt, nên câu 'giữ bao lâu rồi' vẫn đúng", async () => {
+    const held = await acquireHealthCheckLock({ now: NOW });
+
+    try {
+      await held.renew(new Date(NOW.getTime() + 10 * 60_000));
+
+      const row = await readRow();
+      expect(row?.startedAt).toEqual(NOW);
+      expect(row?.heartbeatAt).toEqual(new Date(NOW.getTime() + 10 * 60_000));
+    } finally {
+      await held.release();
+    }
+  });
+
   it("khóa vừa quá hạn một chút vẫn được tôn trọng, không giành ẩu", async () => {
     const first = await acquireHealthCheckLock({ now: NOW });
     const justUnder = new Date(NOW.getTime() + STALE_AFTER_MS - 1_000);

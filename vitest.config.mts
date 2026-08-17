@@ -49,7 +49,7 @@ export default defineConfig({
     environment: "node",
     // `relay/` là một chương trình riêng (GĐ4) nhưng test của nó chạy cùng một lượt: hai lệnh
     // test là một lệnh sẽ có ngày không ai chạy.
-    include: ["src/**/*.test.ts", "relay/**/*.test.ts"],
+    include: ["src/**/*.test.ts", "relay/**/*.test.ts", "scripts/**/*.test.ts"],
     /**
      * Chạy lần lượt từng file, KHÔNG song song.
      *

@@ -43,4 +43,8 @@ export class InMemorySecureStore implements SecureStore {
     this.values.set(name, value);
     return true;
   }
+
+  remove(name: RelaySecretName): void {
+    this.values.delete(name);
+  }
 }

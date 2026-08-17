@@ -171,7 +171,7 @@ proxy, không cần tài khoản nào, và kiểm tra được phần lớn ch�
 **Mở `/setup` là thấy đúng danh sách này kèm trạng thái thật của kho** — bước nào xong, bước nào
 còn dở, và bước tiếp theo phải làm gì. Không cần nhớ thứ tự dưới đây.
 
-0. **Máy chạy cầu nối** (`/relay-devices`) — cài cầu nối và đăng ký máy của từng người
+0. **Máy chạy cầu nối** (`/setup`) — cài bộ Windows và xác nhận máy bằng luồng hướng dẫn; `/relay-devices` dành cho quản trị và sửa lỗi
 1. **Proxy** (`/proxies`) — mua proxy TRƯỚC khi mua nick
 2. **Proxy quan sát viên** (`/proxies`) — con mắt người ngoài của bộ dò shadowban
 3. **Tài khoản** (`/accounts`) — gắn proxy, ghi giọng viết; cold-start 14 ngày điền sẵn
@@ -682,8 +682,8 @@ web. Mở profile thì gọi ngầm, không mở tab nào.
 
 ### Cài một máy mới: hai việc, không chép gì
 
-**Người dùng máy** chạy bộ cài, mở web app **trên chính máy đó**, vào `/relay-devices` bấm
-**"Tìm cầu nối"** rồi **"Đăng ký & cấu hình máy này"**. Xong phần của họ.
+**Người dùng máy** chạy bộ cài, mở web app **trên chính máy đó**, vào `/setup`, rồi làm theo nút
+chính để xác nhận và đăng ký máy. Không chép khóa, sửa JSON hay mở DevTools.
 
 **ADMIN** vào `/relay-devices` thấy mục **"Đang chờ cấp khóa"**, bấm **"Cấp khóa"**. Xong.
 
@@ -703,9 +703,13 @@ Vì hộp khóa bọc cho **đúng một máy**:
 
 - Máy chưa vào sổ **không xin được vé nào** — nút bấm nói thẳng phải đăng ký ở đâu.
 - Thu hồi một máy **trước khi nó kịp lấy hộp** thì khóa không bao giờ tới nơi.
-- Mất laptop thì **thu hồi** máy đó là xong trong vài giây, không phải xoay khóa của cả team.
-- Nhưng thu hồi **không** với tới ciphertext chiếc máy đó đã lấy về trước đó. Máy thật sự mất thì
-  vẫn phải xoay `VAULT_KEY_OPERATOR` — và sau mỗi lượt xoay thì bấm **"Cấp lại khóa"** cho từng máy.
+- Mất laptop thì **thu hồi ngay** để chặn vé mới và gỡ ghim nick; đây là bước khẩn cấp, không phải
+  remote wipe.
+- Nếu máy có thể đã nhận plaintext hoặc ciphertext vùng operator, xoay `VAULT_KEY_OPERATOR`; sau
+  mỗi lượt xoay, bấm **"Cấp lại khóa"** cho từng máy còn tin cậy.
+- PC còn truy cập được thì cập nhật Relay lên bản 11 trở lên, rồi dùng **Retire this PC** trên đúng
+  máy đó. Web kiểm tra version trước khi thu hồi server; flow sau đó xóa riêng Relay identity bằng
+  authorization đã ký, giữ receipt phục hồi, và không xóa MKT Browser profiles hay MultiZen data.
 
 > Cột **Khóa operator** trong sổ nói *"chưa cấp"*, không nói *"chưa có khóa"* — và khác biệt đó là
 > cố ý. Máy lấy khóa bằng cách dán tay thì máy chủ mù hoàn toàn cho tới khi chính chiếc máy ấy mở
@@ -991,31 +995,16 @@ Xong lệnh **chưa phải là xong**: phải tự sửa biến khóa của vùn
 app, rồi mở một nick bấm copy mật khẩu để kiểm. Giữ khóa cũ tới khi kiểm xong — bản sao lưu vừa
 tạo vẫn mã hóa bằng khóa cũ.
 
-### WebRTC — cần luật firewall, đừng bỏ
+### WebRTC — installer bắt buộc và launch fail closed
 
-MKT Browser che IP trong ICE candidate ở tầng JS (thay bằng chuỗi `auto`), nhưng **gói UDP vẫn rời
-máy bằng IP nhà**: cầu SOCKS5 của nó không chuyển tiếp UDP. Site tự chạy STUN/TURN server riêng
-thì thấy IP thật — đủ để nối mọi nick về một hộ gia đình. Không chỉnh được từ MKT Browser (không có
-trong MCP, file cấu hình, lẫn GUI).
+JavaScript spoofing và cờ Chromium không đủ ngăn STUN UDP lộ IP operator trong packaged Chrome for
+Testing. Bộ cài Windows nay yêu cầu một lần Administrator approval để cài hai outbound UDP block
+rules riêng cho CFT và CloakBrowser tại đường dẫn runtime ổn định, không chứa số phiên bản.
 
-Đã bịt 02/08/2026 bằng luật Windows Firewall chặn UDP ra ngoài cho `chrome.exe` của cloakbrowser.
-Đo lại: candidate `srflx` bằng 0, duyệt web không chậm đi (Chrome không dùng QUIC khi có proxy).
-
-> ⚠️ Đường dẫn trong luật có **số phiên bản chromium**. Nâng cấp MKT Browser là đường dẫn đổi và luật
-> **lặng lẽ hết tác dụng**. Sau mỗi lần nâng cấp: tạo lại luật rồi đo lại.
->
-> ⚠️ **Đường hỏng thứ hai: profile firewall của mạng đang dùng bị tắt.** Luật vẫn hiện
-> `Enabled: True` nên nhìn qua tưởng còn sống, nhưng Windows không lọc gì trên profile đã tắt.
-> Kiểm bằng hai lệnh, phải khớp nhau:
->
-> ```powershell
-> Get-NetConnectionProfile | Select-Object Name, NetworkCategory   # đang ở profile nào
-> Get-NetFirewallProfile   | Select-Object Name, Enabled           # profile đó có bật không
-> ```
->
-> Bấm "Cho phép máy này được phát hiện" là mạng chuyển Public → Private. Profile Private mà
-> đang tắt thì lớp chặn biến mất ngay lúc đó, không có gì báo.
-> Câu lệnh + cách đo: [báo cáo Chặng C](plans/reports/chang-c-260802-1443-proxy-push-verification.md).
+Mỗi lần mở profile có proxy, MKT Browser kiểm đúng executable, rule, protocol, direction, action và
+cả ba Windows firewall profiles trước khi mở website. Không cài hoặc không xác minh được protection
+thì profile không launch. Không cần và không nên tạo rule PowerShell thủ công sau update. CFT và
+CloakBrowser phải được human-test riêng; kết quả an toàn của engine này không chứng minh engine kia.
 
 ## Dò shadowban
 

@@ -40,6 +40,9 @@ export async function proxy(request: NextRequest) {
   if (check.ok) return NextResponse.next();
 
   const url = new URL("/login", request.url);
+  if (request.nextUrl.pathname === "/setup" && check.needsLogin) {
+    url.searchParams.set("callbackURL", "/setup");
+  }
 
   // Đã đăng nhập nhưng bị gỡ khỏi danh sách trắng: đẩy về /login mà không nói gì thì màn hình
   // chỉ mời đăng nhập lại — họ đăng nhập lại thành công, rồi lại bị đẩy về đây, vòng vô tận mà

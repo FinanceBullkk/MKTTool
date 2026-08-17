@@ -12,7 +12,7 @@
  */
 import { prisma } from "@/lib/db/prisma-client";
 import { autoLinkDiscoveredPosts } from "./auto-link-discovered-posts";
-import { acquireHealthCheckLock } from "./health-check-lock";
+import { type HeldLock, acquireHealthCheckLock } from "./health-check-lock";
 import {
   type AccountToCheck,
   countExpectedPosts,
@@ -144,6 +144,7 @@ export async function runHealthCheck(
       now,
       onProgress,
       startedAt,
+      lock,
     });
   } finally {
     await lock.release();
@@ -159,8 +160,9 @@ async function probeAll(input: {
   now: Date;
   onProgress: (line: string) => void;
   startedAt: number;
+  lock: HeldLock;
 }): Promise<HealthCheckRunResult> {
-  const { accounts, proxy, providedSession, spacing, now, onProgress, startedAt } = input;
+  const { accounts, proxy, providedSession, spacing, now, onProgress, startedAt, lock } = input;
 
   const session = providedSession ?? (await openObserverSession(proxy));
   const byVerdict: Partial<Record<string, number>> = {};
@@ -222,6 +224,11 @@ async function probeAll(input: {
       }
 
       byVerdict[verdict] = (byVerdict[verdict] ?? 0) + 1;
+
+      // Đập nhịp sau MỖI nick, kể cả nick vừa lỗi: nhịp tim nói "tiến trình còn sống", không nói
+      // "nick vừa rồi ổn". Đây là thứ giữ cho một lượt dò đàn lớn không bị lượt sau tưởng là đã
+      // chết rồi chen vào chạy song song — xem STALE_AFTER_MS ở health-check-lock.ts.
+      await lock.renew();
 
       const isLast = index === accounts.length - 1;
       if (!isLast) {

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { SmartScreenGuidance } from "@/components/setup/smartscreen-guidance";
 import { Card, EmptyState, PageHeading } from "@/components/ui/page-section";
 import { formatFullDateTime } from "@/lib/format/vietnamese-date-format";
 import {
@@ -8,6 +9,7 @@ import {
   relayDownloadFileName,
 } from "@/lib/relay/relay-release-file";
 import { RELAY_VERSION } from "@/lib/relay/relay-endpoints";
+import { readWindowsInstallerFile } from "@/lib/setup/windows-installer-file";
 
 export const dynamic = "force-dynamic";
 
@@ -34,6 +36,7 @@ const BUTTON_CLASS =
  * rồi đưa ra một nút bấm vào là 404.
  */
 export default async function RelayDownloadPage() {
+  const installer = readWindowsInstallerFile();
   const release = await readRelayRelease(RELAY_VERSION);
   // Truyền lại `release` để khỏi hỏi nguồn hai lần — với nguồn R2 đó là một request qua mạng.
   const checksum = await relayArchiveChecksum(release);
@@ -44,6 +47,21 @@ export default async function RelayDownloadPage() {
         title="Tải cầu nối"
         description="Cầu nối là chương trình chạy trên chính máy bạn. Nó giữ khóa mở bí mật nick — thứ mà máy chủ cố ý không có — nên không lấy được mật khẩu, mã OTP hay mở được profile nếu máy bạn chưa cài nó."
       />
+
+      <SmartScreenGuidance imagePath="/setup/mkb-03-smartscreen-more-info-run-anyway.png" />
+
+      <Card title="MKTTool for Windows">
+        {installer.available ? (
+          <a href="/api/setup/windows-installer" className={BUTTON_CLASS} download>
+            Download the Windows installer
+          </a>
+        ) : (
+          <EmptyState>
+            The combined Windows installer has not been published to this server yet. An administrator
+            must configure the release artifact before operator handoff.
+          </EmptyState>
+        )}
+      </Card>
 
       <Card title={release.available ? `Bản ${release.version}` : "Bản hiện tại"}>
         {release.available ? (

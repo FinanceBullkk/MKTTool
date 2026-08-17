@@ -16,8 +16,8 @@ const ADMIN_ID = "user-admin";
 const HA_ID = "user-ha";
 const NAM_ID = "user-nam";
 
-process.env.VAULT_KEY_SERVER = "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff";
-process.env.VAULT_KEY_OPERATOR = "ffeeddccbbaa99887766554433221100ffeeddccbbaa99887766554433221100";
+process.env.VAULT_KEY_SERVER = "27112efee5aeaa94963b0f1f9e0dabcdf2767c34ee483d8dc2c76f61bdd1186d";
+process.env.VAULT_KEY_OPERATOR = "a3d1e1576b7746dbd4481fb6fd16b16f7c7381301b8ab9ef8a3f2994c96150dc";
 process.env.ALLOWED_EMAILS = "admin@mkttool.local,ha@mkttool.local,nam@mkttool.local";
 process.env.ADMIN_EMAILS = "admin@mkttool.local";
 

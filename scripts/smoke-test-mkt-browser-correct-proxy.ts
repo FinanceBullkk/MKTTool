@@ -279,7 +279,7 @@ async function connectMcp(baseUrl: string, token: string, child: ChildProcess) {
     try {
       await client.initialize();
       const tools = await client.listTools();
-      for (const required of ["navigate", "evaluate_js", "delete_profile"]) {
+      for (const required of ["navigate", "evaluate_js"]) {
         if (!tools.includes(required)) {
           throw new Error(`The current MKT Browser build is missing required tool "${required}".`);
         }
@@ -524,23 +524,14 @@ async function main(): Promise<void> {
 
     await adapter.closeProfile(profileId);
     await waitForRunningState(adapter, profileId, false);
-    await client.callTool("delete_profile", { profile_id: profileId });
     profileId = null;
-    if ((await adapter.listProfiles()).length !== 0) {
-      throw new Error("The disposable profile store was not empty after deletion.");
-    }
-    console.log("Disposable profile closed and deleted; final profile count is zero.");
+    console.log("Disposable profile closed; the entire isolated data root will now be removed.");
   } finally {
     if (profileId && adapter && client) {
       try {
         await adapter.closeProfile(profileId);
       } catch {
-        // Continue to deletion and process cleanup.
-      }
-      try {
-        await client.callTool("delete_profile", { profile_id: profileId });
-      } catch {
-        cleanupError = new Error("Could not delete the disposable profile during cleanup.");
+        // Continue to process and isolated-root cleanup.
       }
     }
     await stopProcessTree(child);

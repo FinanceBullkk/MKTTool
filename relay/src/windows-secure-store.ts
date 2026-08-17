@@ -3,7 +3,11 @@ import { mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "
 import path from "node:path";
 import type { RelaySecretName, SecureStore } from "./secure-store";
 
-const STORE_DIRECTORY = "protected-secrets";
+/**
+ * Thư mục chứa blob đã bảo vệ. Export ra vì trang trạng thái phải in đúng tên này cho người dùng —
+ * để hai chỗ tự khai riêng là có ngày trang chỉ người ta đi tìm một thư mục không tồn tại.
+ */
+export const STORE_DIRECTORY = "protected-secrets";
 const POWERSHELL = process.env.SystemRoot
   ? path.join(process.env.SystemRoot, "System32", "WindowsPowerShell", "v1.0", "powershell.exe")
   : "powershell.exe";
@@ -99,6 +103,15 @@ export class WindowsSecureStore implements SecureStore {
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === "EEXIST") return false;
       throw new Error(`Cannot persist protected Relay secret ${name}: ${(error as Error).message}`);
+    }
+  }
+
+  remove(name: RelaySecretName): void {
+    try {
+      unlinkSync(this.filePath(name));
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") return;
+      throw new Error(`Cannot remove protected Relay secret ${name}: ${(error as Error).message}`);
     }
   }
 

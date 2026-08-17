@@ -37,6 +37,12 @@
     "relay:build": "tsx --env-file=.env scripts/build-relay-executable.ts",
     "relay:publish": "tsx --env-file=.env scripts/publish-relay-release.ts",
     "relay:verify": "tsx scripts/smoke-test-relay-executable.ts",
+    "release:delegation:prepare": "tsx scripts/release-authority/prepare-delegated-release-key.ts",
+    "release:manifest:sign": "tsx scripts/sign-compatibility-manifest.ts",
+    "release:manifest:publish": "tsx --env-file=.env scripts/publish-compatibility-manifest.ts",
+    "release:compatibility:publish": "tsx --env-file=.env scripts/publish-compatibility-manifest.ts",
+    "release:ceremony:bundle": "powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File scripts/release-authority/prepare-offline-ceremony-bundle.ps1",
+    "release:ceremony:verify": "tsx scripts/release-authority/verify-release-authority-ceremony.ts",
     "mkt-browser:smoke": "tsx scripts/smoke-test-mkt-browser-contract.ts",
     "mkt-browser:proxy-smoke": "tsx scripts/smoke-test-mkt-browser-correct-proxy.ts"
   },

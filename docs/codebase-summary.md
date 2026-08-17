@@ -53,7 +53,10 @@ src/
     │                           mới nhất quá cũ / lượt gần nhất hỏng / bật rồi mà chưa chạy
     ├── content/                Hằng số loại content, trạng thái job, loại tương tác
     ├── crypto/                 AES-256-GCM cho credential — hai vùng khóa (server / operator),
-    │                           registry khai vùng cho từng cột, key loader
+    │                           registry khai vùng cho từng cột, key loader. Kèm phép kiểm điểm
+    │                           Ed25519 dùng chung cho cả hai đường nạp khóa công khai: loại điểm
+    │                           bậc nhỏ (chữ ký giả nghiệm đúng mà không cần khóa riêng) và cách
+    │                           mã hóa không chuẩn tắc (một khóa hai cách viết)
     ├── dashboard/              Dữ liệu trang "Hôm nay" gom về một `Promise.all` — tách khỏi
     │                           `app/page.tsx` để hình dạng "mười lăm câu hỏi chạy song song"
     │                           nhìn thấy được, thay vì rải ra rồi có ngày ai đó await tuần tự
@@ -107,10 +110,14 @@ scripts/
 ├── smoke-test-content-rules.ts   Kiểm chứng Phase 02
 ├── smoke-test-account-health.ts  Kiểm chứng Phase 03 (có phần đọc HTML Reddit thật)
 ├── smoke-test-facebook-pages.ts  Kiểm chứng Phase 04 (không cần Meta App)
+├── release-authority/           Offline-root, DPAPI delegation, recovery-proof, and ceremony verifier tools
+├── sign-compatibility-manifest.ts  Signs a canonical Windows compatibility manifest with the delegated DPAPI key
 └── smoke-test-mkt-browser-correct-proxy.ts  Verifies the disposable MKT Browser correct-proxy
                                  path without printing or retaining proxy credentials
 relay/                          **Chương trình riêng**, chạy trên máy operator — không phải một
 ├── src/                        phần của web app. Nghe `127.0.0.1:47821`, giữ khóa vùng operator;
+│   ├── local-updater.ts        stages and atomically activates one signed compatibility tuple
+│   ├── update-state.ts         protects anti-downgrade, rollback-floor, and convergence state
 │   ├── relay-route-policy.ts   typed method/capability inventory for every owned JSON endpoint
 │   ├── operation-diagnostics.ts  keeps operation correlation and emits metadata-only support detail
 │   └── mkt-browser-token-discovery.ts  validates and reads the owned Windows MCP token on demand
@@ -147,7 +154,7 @@ Dockerfile                      Ảnh cho môi trường chạy thật (GĐ5) �
 | `User` | **Người dùng công cụ** — không phải nick mạng xã hội (nick là `Account` ở trên) | Hàng này chỉ chứng minh họ TỪNG đăng nhập được. Quyền vào và vai trò tính lại từ `ALLOWED_EMAILS`/`ADMIN_EMAILS` ở **mỗi request**, không đọc cột `role` |
 | `Session`, `AuthAccount`, `Verification` | Do Better Auth quy định hình dạng | `AuthAccount` đổi tên từ mặc định `Account` của thư viện — tên đó đã thuộc về nick từ Phase 01 |
 | `HealthCheckLock` | Khóa chặn hai lượt dò sức khỏe chạy chồng nhau | Tối đa MỘT hàng — `key @id` là thứ ép điều đó, cùng vai trò với cờ `wx` của bản khóa file cũ. `token` để `release()` chỉ xóa khóa của chính mình. Quá 30 phút thì coi là mồ côi và giành được |
-| `RelayDevice` | Một máy chạy cầu nối đã được ADMIN cho vào sổ | `publicKey @unique` (X25519, hex chữ thường) — cùng một khóa nằm hai hàng thì thu hồi một hàng vẫn còn hàng kia sống. `revokedAt` là mốc thời gian chứ không phải cờ, và thu hồi là **một chiều** |
+| `RelayDevice` | Một máy chạy cầu nối đã được ADMIN cho vào sổ | `publicKey @unique` (X25519, lowercase hex); `revokedAt` is one-way server revocation. Retirement metadata keeps one stable retirement id, recipient proof hash, short-lived cleanup authorization, one-use encrypted finalization seed while pending, durable signed completion receipt, and completion timestamp so server revocation cannot be confused with confirmed local Relay cleanup. |
 
 Quan hệ chính: `Account` → `Proxy` (1:1), `PostJob` → `Account` + `PlatformTarget` + `ContentItem`, `Interaction` → `Account` + `PlatformTarget`, `FacebookPage` → `FacebookConnection` (n:1) + `PlatformTarget` (1:1).
 
@@ -200,20 +207,49 @@ Click "Open profile" → POST /api/accounts/[id]/launch
   2. The server selects the bound device and issues a signed, recipient-encrypted ticket
   3. The Web browser sends the ticket to Relay at 127.0.0.1:47821
   4. Relay verifies signature, recipient, expiry, and replay state
-  5. Relay v7 preserves ticket jti as operationId and requires the current Browser runtime to be ready
-  6. MKT Browser contract v3 persists + reads back the proxy, then launches atomically
+  5. Relay v12 preserves ticket jti as operationId and requires the current Browser runtime to be ready
+  6. MKT Browser contract v4 persists + reads back the proxy, then launches atomically
   7. Relay accepts only a correlated metadata-only diagnostic and returns support detail to the Web
   8. The server records PROFILE_LAUNCH_TICKET_ISSUED; it does not claim the window opened
 ```
 
 Proxy persistence still must precede launch: changing it after Chromium starts does not change the
-running session. Contract v3 owns that ordering in `launch_managed_profile`; it rejects a running
+running session. Contract v4 retains that ordering in `launch_managed_profile`; it rejects a running
 profile whose active proxy differs and never falls back after an atomic rejection. Direct launch and
 ordinary proxy/fingerprint mutation are denied for managed profiles.
 
+The `/setup` readiness path adds one stricter requirement without changing Relay's operational
+minimum: packaged MKT Browser reports `local-install-ready-v1` only after the installer-owned
+PowerShell detector verifies expected process, fixed-port, MultiZen-process, and startup ownership.
+Missing or unavailable inspection routes setup to installer repair instead of `Ready`.
+
+## Relay device retirement flow
+
+```text
+ADMIN chooses planned retirement on the exact PC
+  1. Server revokes RelayDevice and unpins accounts in one transaction
+  2. Server creates a per-retirement finalization key and signs a short-lived cleanup authorization
+     bound to device id, device public key, proof hash, and finalization public key
+  3. Relay verifies signature and recipient, opens the recipient-only proof
+  4. Relay writes a DPAPI receipt and non-secret rollback guard, then removes Relay keys, grant
+     state, and config while retaining the legacy tombstone
+  5. Server validates proof, signs and stores a durable completion receipt, records
+     retirementCompletedAt, and erases the encrypted one-use finalization seed
+  6. Relay verifies the stored completion against the public key in its receipt, removes the receipt,
+     and closes; ticket-signing-key rotation does not affect recovery
+```
+
+`/setup` treats the receipt state as retirement recovery and cannot enroll or deliver a grant.
+After step 4 begins, retries use the already verified protected receipt rather than asking the
+current ticket key to authorize the same deletion again. Normal uninstall does not enter this flow.
+The web requires Relay v11 or later before step 1, so the pre-retirement v10 artifact cannot trigger
+server revocation and then fail at a missing local endpoint. Browser profile deletion is intentionally
+separate: contract v4 removes it from MCP, while the in-app typed-confirmation path uses profile
+schema v3 pending state and same-root quarantine to retry partial cleanup safely.
+
 | Provider | Proxy application path |
 |---|---|
-| MKT Browser | authenticated MCP tool `launch_managed_profile` on default port `47822`; contract v3 persists and verifies `proxy: { type: http\|socks5, host, port, username?, password? }` before launch, while responses expose no endpoint or credentials |
+| MKT Browser | authenticated MCP tool `launch_managed_profile` on default port `47822`; contract v4 persists and verifies `proxy: { type: http\|socks5, host, port, username?, password? }` before launch, removes profile deletion from MCP, and exposes no proxy endpoint or credentials in responses |
 | AdsPower | `POST /api/v1/user/update` with `user_proxy_config.proxy_soft = "other"`; the adapter spaces calls by 1.1 seconds to stay below the 1 request/second limit |
 
 Mật khẩu proxy dạng trần đi đúng một đường có kiểm soát:

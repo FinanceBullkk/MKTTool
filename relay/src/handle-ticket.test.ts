@@ -21,9 +21,17 @@ import { buildRelayIdentity } from "./relay-identity";
 import type { RelayAntidetect } from "./relay-antidetect";
 import { AntidetectNotConfiguredError } from "./relay-antidetect";
 import { publicKeyToHex, signingKeysFromSeed } from "../../src/lib/tickets/server-signing-key";
+import {
+  completeCompatibilityTransition,
+  withCompatibilityTransitionPreparationLock,
+} from "./compatibility-transition-preparation-lock";
 
-const SERVER_SEED = "11".repeat(32);
+// Hạt giống thật, cố định: `parseSigningSeed` từ chối khuôn mẫu điền tạm (FINDING C2), nên
+// một chuỗi kiểu "11".repeat(32) không còn dựng được khóa. Cố định chứ không ngẫu nhiên vì test
+// dưới đây suy ra khóa công khai kỳ vọng từ chính nó.
+const SERVER_SEED = "e40fcc2d2171ef9af68a69d386aa8f34be17646f3f4eda88ce4e505642e99b39";
 const DEVICE_ID = "device-abc";
+const RELAY_HOME = "C:\\MKTTool\\relay-ticket-tests";
 
 const PROXY = {
   protocol: "http" as const,
@@ -148,6 +156,7 @@ describe("handleTicketRequest — vé mở profile", () => {
     const result = await handleTicketRequest(requestBody(issueTicket(launchPayload(), recipient)), {
       identity,
       antidetect: fakeAntidetect(adapter),
+      home: RELAY_HOME,
       notConfiguredMessage: "chưa cấu hình",
     });
 
@@ -171,11 +180,37 @@ describe("handleTicketRequest — vé mở profile", () => {
     const result = await handleTicketRequest(requestBody(issueTicket(launchPayload(), recipient)), {
       identity,
       antidetect: fakeAntidetect(adapter),
+      home: RELAY_HOME,
       notConfiguredMessage: "not configured",
     });
 
     expect(result.ok).toBe(true);
     expect(calls).toEqual(["launchProfileWithProxy"]);
+  });
+
+  it("refuses a new profile mutation after compatibility handoff becomes durable", async () => {
+    const home = `${RELAY_HOME}-${Date.now()}`;
+    const { identity, recipient } = relaySetup();
+    const { adapter, calls } = fakeAdapter();
+    await withCompatibilityTransitionPreparationLock(home, async () => undefined);
+
+    try {
+      const result = await handleTicketRequest(
+        requestBody(issueTicket(launchPayload(), recipient)),
+        {
+          identity,
+          antidetect: fakeAntidetect(adapter),
+          home,
+          notConfiguredMessage: "not configured",
+        },
+      );
+
+      expect(result).toMatchObject({ ok: false });
+      expect(result.message).toMatch(/compatibility transition/i);
+      expect(calls).toEqual([]);
+    } finally {
+      completeCompatibilityTransition(home);
+    }
   });
 
   it("đẩy proxy hỏng thì KHÔNG mở profile — mở ra là nick chạy bằng IP nhà", async () => {
@@ -189,6 +224,7 @@ describe("handleTicketRequest — vé mở profile", () => {
     const result = await handleTicketRequest(requestBody(issueTicket(launchPayload(), recipient)), {
       identity,
       antidetect: fakeAntidetect(adapter),
+      home: RELAY_HOME,
       notConfiguredMessage: "chưa cấu hình",
     });
 
@@ -208,6 +244,7 @@ describe("handleTicketRequest — vé mở profile", () => {
     const result = await handleTicketRequest(requestBody(issueTicket(launchPayload(), recipient)), {
       identity,
       antidetect: fakeAntidetect(adapter),
+      home: RELAY_HOME,
       notConfiguredMessage: "chưa cấu hình",
     });
 
@@ -226,6 +263,7 @@ describe("handleTicketRequest — vé mở profile", () => {
     const result = await handleTicketRequest(requestBody(ticket), {
       identity,
       antidetect: fakeAntidetect(adapter),
+      home: RELAY_HOME,
       notConfiguredMessage: "chưa cấu hình",
     });
 
@@ -237,7 +275,12 @@ describe("handleTicketRequest — vé mở profile", () => {
     const { identity, recipient } = relaySetup();
     const { adapter } = fakeAdapter();
     const ticket = issueTicket(launchPayload(), recipient);
-    const deps = { identity, antidetect: fakeAntidetect(adapter), notConfiguredMessage: "x" };
+    const deps = {
+      identity,
+      antidetect: fakeAntidetect(adapter),
+      home: RELAY_HOME,
+      notConfiguredMessage: "x",
+    };
 
     expect((await handleTicketRequest(requestBody(ticket), deps)).ok).toBe(true);
 
@@ -256,6 +299,7 @@ describe("handleTicketRequest — vé mở profile", () => {
     const result = await handleTicketRequest(requestBody(ticket), {
       identity,
       antidetect: fakeAntidetect(adapter),
+      home: RELAY_HOME,
       notConfiguredMessage: "chưa cấu hình",
     });
 
@@ -266,13 +310,16 @@ describe("handleTicketRequest — vé mở profile", () => {
     const { identity, recipient } = relaySetup();
     const { adapter } = fakeAdapter();
 
-    process.env[SERVER_SIGNING_KEY_ENV] = "22".repeat(32);
+    // Khác SERVER_SEED, và cũng phải là hạt giống thật — đây là vế "khóa không phải khóa đã cấu hình".
+    process.env[SERVER_SIGNING_KEY_ENV] =
+      "4d1e56d78393e0b8edaddd3ff251044540fabd9748d6baedb56e49e04c180060";
     resetServerSigningKeysCache();
     const forged = issueTicket(launchPayload(), recipient);
 
     const result = await handleTicketRequest(requestBody(forged), {
       identity,
       antidetect: fakeAntidetect(adapter),
+      home: RELAY_HOME,
       notConfiguredMessage: "chưa cấu hình",
     });
 
@@ -296,6 +343,7 @@ describe("handleTicketRequest — vé mở profile", () => {
     const result = await handleTicketRequest(requestBody(ticket), {
       identity,
       antidetect: fakeAntidetect(adapter),
+      home: RELAY_HOME,
       notConfiguredMessage: "chưa cấu hình",
     });
 
@@ -308,6 +356,7 @@ describe("handleTicketRequest — vé mở profile", () => {
     const result = await handleTicketRequest(requestBody("bat-ky"), {
       identity: null,
       antidetect: fakeAntidetect(null),
+      home: RELAY_HOME,
       notConfiguredMessage: "Cầu nối chưa cấu hình xong, mở http://127.0.0.1:47821",
     });
 
@@ -321,6 +370,7 @@ describe("handleTicketRequest — vé mở profile", () => {
     const result = await handleTicketRequest(requestBody(issueTicket(launchPayload(), recipient)), {
       identity,
       antidetect: fakeAntidetect(null),
+      home: RELAY_HOME,
       notConfiguredMessage: "chưa cấu hình",
     });
 
@@ -335,6 +385,7 @@ describe("handleTicketRequest — vé mở profile", () => {
     const result = await handleTicketRequest("{}", {
       identity,
       antidetect: fakeAntidetect(adapter),
+      home: RELAY_HOME,
       notConfiguredMessage: "chưa cấu hình",
     });
 
@@ -357,6 +408,7 @@ describe("handleTicketRequest - managed create correlation", () => {
     const result = await handleTicketRequest(requestBody(ticket), {
       identity,
       antidetect: fakeAntidetect(adapter),
+      home: RELAY_HOME,
       notConfiguredMessage: "not configured",
     });
 

@@ -1,6 +1,6 @@
 # Lộ trình phát triển
 
-**Cập nhật:** 12/08/2026
+**Updated:** 16 August 2026
 
 Đây là **nguồn duy nhất về trạng thái** của dự án. Chi tiết thi công nằm ở
 [plan công cụ gốc](../plans/260801-2030-multi-account-posting-console/plan.md),
@@ -14,7 +14,7 @@ Dự án đang chạy **ba luồng song song**:
 |---|---|---|
 | **A — Công cụ** | 5 giai đoạn gốc: kho danh tính → hàng đợi → sức khỏe → Facebook → tự đăng Reddit | GĐ1-4 xong, GĐ0 kẹt ở tiền + cold-start, GĐ5 chưa bắt đầu |
 | **B — Web chung** | Biến app một máy thành web chung cho 5-6 người ở 5-6 nơi | **GĐ0-4 xong 06/08**, GĐ5 web **đã chạy thật trên Railway** cùng ngày |
-| **C — MKT Browser** | Fork the MultiZen desktop layer; Windows-only in v1 while Web, Relay, and upstream UX/UI remain intact | **MKB-00, MKB-W01, MKB-W02, MKB-01, MKB-01E, and MKB-02 verified on Windows x64**; MKB-03 is next; macOS deferred to MKB-07; [plan](../plans/260810-0244-mkt-browser-noi-bo/plan.md) |
+| **C — MKT Browser** | Fork the MultiZen desktop layer; Windows-only in v1 while Web, Relay, and upstream UX/UI remain intact | **MKB-00 through MKB-02 verified; MKB-03 Phases 01-05 complete in code plus the Phase 06 engineering subset pushed; live Windows and human gates open**; MKB-04 remains NO-GO; macOS deferred to MKB-07; [plan](../plans/260810-0244-mkt-browser-noi-bo/plan.md) |
 
 Luồng B sinh ra sau khi chốt bàn giao cho team — xem
 [plan web chung](../plans/260804-1752-web-chung-cho-team-phan-tan/plan.md). Nó **không thay thế**
@@ -31,7 +31,7 @@ owned, and no operator workflow depends on macOS today. The control against payi
 that the Relay keeps a shared core with thin OS adapters, so MKB-07 adds a platform instead of
 reopening one. V1 does not redesign MultiZen or develop a Chromium engine.
 
-**Immediate delivery target, 12 August 2026:** continue MKB-03 on top of the verified Windows x64
+**Immediate delivery target, 15 August 2026:** complete pre-MKB-04 remediation on top of the verified Windows x64
 managed-mode contract. An owner-led demonstration may use disposable profiles and show the
 Web → Relay → MKT Browser flow, but it is not a pilot, distribution approval, or permission to use
 real accounts. The one-download onboarding journey, secure enrollment/migration, controlled updates,
@@ -39,7 +39,44 @@ pilot duration, and real-account gates remain separate. Code signing is no longe
 12 August the owner decided v1 ships **unsigned** for the internal fleet, so SmartScreen appears once
 and the setup journey must announce it in advance.
 
-Phase 01 implementation now produces one installer carrying the pinned Relay v7 archive and MKT
+**Audit closed, 17 August 2026.** A deep audit spanning both repositories completed all six phases:
+fix re-verification, cryptographic protocols, the local control surface, Windows lifecycle, release
+authority, the data layer and business logic, and breadth completion. No P0, P1 or P2 findings
+remain, and the test suite has no expected failures.
+
+Three things are examined and sound rather than merely untested: the one-nick-one-proxy-one-profile
+invariant is enforced by database constraints and not only by application code; no secret reaches a
+log, an error message or the DOM unredacted on any traced route; and every server action passes
+through an authorization guard.
+
+**What the audit did not do**, because a clean report is worth nothing if it hides its own edges: the
+human Windows gates — Authenticode once signing is enabled, power loss during an update, and a
+withdrawn installer on a clean machine — remain unrun, and code cannot close them. The two-account
+Windows exercise was waived as an unsupported topology, which is a waiver and not a pass. The full
+list of what was left unexamined is in the closing coverage statement.
+
+Defects fixed so far include two identity-boundary ones — the proxy bridge accepting a destination
+that could rewrite the request sent to the proxy provider, and device revocation leaving an aliased
+second copy of a key usable — a rollback that could strand a device on a half-restored state, and two
+found on 17 August: public keys that make signatures forgeable were accepted at import, and an
+enrolled Relay's trust root could be replaced over `/configure`. Nothing above P2 has been found.
+
+**Operationally actionable now:** every MKT Browser build from `v0.2.0` to `v0.3.1` carries the
+unfixed bridge, so machines on an older build stay affected until they update.
+
+Two limits are worth stating rather than leaving implied. Cross-user Windows isolation is **not**
+verified; it is out of scope by an owner decision that the product supports one Windows user per PC,
+which would need revisiting if that ever changes. And the human Windows gates — Authenticode after
+signing is enabled, power-loss during an update, and a withdrawn installer on a clean machine —
+remain unrun; code cannot close them.
+
+Findings and remaining open items are in the workspace-level `plans/reports/` directory, which sits
+above both repositories because the audit spans them and is version-controlled there; it is **not**
+this repository's `plans/reports/`. The closing statement is
+`audit-260817-1333-coverage-statement.md`; the merged finding index is
+`260816-0507-full-codebase-deep-audit/findings-register.md`.
+
+Phase 01 implementation now produces one installer carrying a pinned Relay archive and MKT
 Browser. Relay releases use retained `MKTTool-Relay-vN.zip` R2 objects, carry measured version, size,
 and SHA-256 metadata, and refuse publication when the local build sidecar is missing, stale, or does
 not match the archive. The combined installer verifies pinned size before hashing, keeps its NSIS
@@ -47,6 +84,35 @@ include ASCII-only, and records whether Relay pre-existed so uninstall removes o
 unknown ownership preserves it. It writes only under `release/installer/` and leaves the frozen
 MKB-02 directory artifact unchanged. Clean-account install, reboot, and uninstall verification remain
 a human gate because this machine's live Relay and Browser must not be stopped.
+
+Current remediation advances Relay source and the combined-installer pin to v12. Relay v12 accepts
+Browser contract v4 while preserving the v11 minimum for planned retirement. Its local ZIP is
+34,181,785 bytes with SHA-256
+`fe6de7fcf23a811682226a765c2986d1dc7e0242ef247ec61f1e5bd56dcd998c`; its packaged smoke path
+passed crypto, signed cleanup, recovery health, and finalization. It is not published, and no
+operational distribution is claimed until the immutable authenticated v12 object exists. The fresh
+local Node 22 combined installer proves the packaging path without claiming that the release channel
+is available.
+
+The release-authority ceremony is complete and verified. The public receipt binds root key
+`a6d3237649c2586e48b6e4fa744f7a089160fd80250fd29360513f5f625b146c`, delegated key
+`6e5d47d894206e69e6464748333eb76c99b18da1f1b42ddafb2e3f265a7b786e`, and delegation expiry
+`2027-08-14T00:00:00.000Z`. Two encrypted root backups are in separate physical custody, and the
+required recovery rehearsal from backup B passed. The implementation consumes only the receipt and
+public evidence; private backups, the passphrase, and the DPAPI-protected delegated private key stay
+outside the repositories. Phase 05 is now complete in code — validation, activation, convergence,
+bounded rollback, smoke, and revocation memory — and remains the MKB-04 NO-GO gate until the live
+Windows evidence lands. See [release-signing-key-ceremony.md](release-signing-key-ceremony.md).
+
+Phase 06 setup-conflict integration is now implemented, verified, and pushed without changing Relay v12. The
+combined installer persists its standard-user PowerShell detector beside MKT Browser. Contract v4
+adds the runtime-dependent `local-install-ready-v1` capability only when that same detector accepts
+the expected running Browser and Relay and finds no foreign process, fixed-port, MultiZen-process,
+or startup-entry conflict. `/setup` requires the capability and sends a failed or unavailable
+inspection to installer repair instead of reporting `Ready`. Focused runtime tests pass 7/7,
+the complete Browser Node 22 installer suite passes 97/97 with packaging contracts at 24/24,
+focused MKTTool setup tests pass 28/28, and both repositories pass typecheck and lint. Clean-Windows
+matrices and the unfamiliar-operator gate remain open.
 
 **Team-installation boundary, reviewed 11 August 2026:** the owner-led demo may use the current
 technical artifacts, but team members must not be asked to install the Relay ZIP and Browser
@@ -57,12 +123,17 @@ confirm the detected PC, then reach the non-error `Waiting for administrator app
 Relay/MCP vocabulary, keys, tokens, ports, paths, archives, checksums, localhost pages, or commands.
 The first-device secret bootstrap remains a separate ADMIN-only local ceremony.
 
-The Windows technical package was regenerated after the MKB-02 gate on 12 August at
+The frozen MKB-02 Windows technical package was regenerated on 12 August at
 `E:\MKTWorkspace\MKTBrowser\apps\desktop\release\win-unpacked\MKTBrowser.exe`; its current SHA-256 is
 `238d5d6fd5e373b052c484ceab90698f6dc295205a59be6573f9928b01db4f42`. Node guards passed 2/2,
 W02 passed 8/8, MKB-01 passed 8/8, MKB-01E passed 7/7, MKB-02 passed 18/18, and
-Windows packaging guards passed 3/3. Typecheck, the current no-op lint command, the full Windows
-build, and packaged verification passed. The packaged verifier proves contract-v3 capability
+Windows packaging guards passed 3/3. That frozen checkpoint passed typecheck, build, and packaged
+verification. Current Phase 00 remediation adds real workspace lint and CI/package quality guards;
+23 packaging contracts, the complete Node 22 installer suite, lint, and typecheck pass on 14 August.
+The fresh unsigned installer at `release/installer/MKTBrowser-win-x64.exe` is 146,006,574 bytes with
+SHA-256 `b66c3cf89ac683063372d320c7a77193be1d90a3a0427066318fc6e849dc4f2b`.
+It embeds the exact Relay v12 archive and manifest, but remains local and unpublished. The packaged
+verifier proves contract-v4 capability
 reporting, a profile-management-only tool inventory, deterministic managed create/retry, correlated
 create/launch diagnostics, direct-launch and delete locks, endpoint-free proxy summaries, atomic
 managed launch, Windows Chrome launcher-PID handoff, process-confirmed close, and clean
@@ -121,7 +192,7 @@ repository. MKTTool retains only the consuming contract, Relay, and release page
 | MKB-01 | Windows compatibility and product identity | ✅ Verified 11 August | Copy-only first-launch importer preserves the MultiZen source; five primary-screen baselines captured; Windows CI runs W01/W02 guards, typecheck, package build, and packaged runtime-contract verification on every push/PR |
 | MKB-01E | Electron upgrade and renderer hardening | ✅ Verified 11 August | Electron 42.8.1 / ABI 146 package; native module rebuild; sandbox/CSP/default-deny IPC and MCP inventories; fixed-seed fingerprint unchanged and five visual baselines accepted |
 | MKB-02 | Managed mode | ✅ Verified 12 August | Contract v3 diagnostics, profile-token capability separation, managed proxy/fingerprint/delete/direct-launch locks, current-device Browser health, Relay v7 correlation, and cross-repository packaged verification are green |
-| MKB-03 | Windows onboarding, installer, and controlled updates | 🟡 Phases 01 and 03 implemented; human clean-account gate open — [execution plan](../plans/260812-1301-mkb-03-windows-onboarding-and-installer/plan.md) | Phase 01 provides immutable versioned Relay payloads and one installer. Phase 03 moves Relay secrets to DPAPI CurrentUser with crash-safe migration, a rollback floor/tombstone, and default-deny activity diagnostics. Verification used self-created temporary Relay homes only; no live install was migrated. Phases 02, 04, 05, and 06 plus clean-account gates remain. |
+| MKB-03 | Windows onboarding, installer, and controlled updates | 🟡 Phases 01-05 complete in code after verified release authority; lifecycle and setup-conflict engineering subsets pushed — [execution plan](../plans/260812-1301-mkb-03-windows-onboarding-and-installer/plan.md) | Local findings have code fixes for WebRTC containment, engine fallback, live Relay identity reconciliation, progress, guidance, pre-mutation conflict detection, ownership-aware uninstall cleanup, signed ADMIN Relay retirement, separate Browser-only profile deletion, and a setup-time verdict from the shared installer detector. MKT Browser contract v4 removes deletion from MCP and conditionally reports `local-install-ready-v1`; `/setup` fails closed to installer repair when it is absent. Relay v12 accepts contract v4, preserves the v11 retirement floor, and forwards the additive capability without a Relay rebuild. The root/delegation ceremony and backup-B recovery rehearsal are verified. Compatibility validation with all seven rejection cases, coordinated activation, fault-injected convergence, bounded rollback, post-activation smoke, and device-side revocation memory are implemented and covered; Relay v12 is published and the Windows installer is rebuilt from that published object; real-reboot activation, live Windows matrices, and unfamiliar-operator rehearsal remain open. |
 | MKB-04 | Technical pilot and one canary account | ⬜ Not started | An unfamiliar operator completes setup with zero developer intervention; two Windows devices remain green for seven days; one account completes a 14-day cold start |
 | MKB-05 | Team rollout | ⬜ Not started | Canary completes cold start; MKT Browser becomes default; rollback uses only the frozen W01 checkpoint and never restores a MultiZen adapter fallback |
 | MKB-06 | Custom UX/UI | ⏸ Deferred beyond v1 | Begin only from observed usage feedback; does not block MKB-00 through MKB-05 |
@@ -314,10 +385,11 @@ máy chủ bọc nội dung vé bằng khóa của đúng máy nhận, nên trì
 (khóa công khai lộ cũng không mất gì, còn giấu đi thì không ai tự trả lời được *"máy tôi vào sổ
 chưa?"*). Thu hồi là một chiều: khóa của máy đã mất coi như đã lộ.
 
-> **Thu hồi không phải là xong.** Nó chặn **vé mới**, nhưng không với tới ciphertext chiếc máy đó
-> đã lấy về từ trước — thứ đang nằm trên ổ cứng của chính chiếc laptop đã mất. Mất máy thì thu hồi
-> xong vẫn phải xoay `VAULT_KEY_OPERATOR`. Câu thông báo sau khi bấm nút nói đúng ranh giới này,
-> và có test canh nó.
+> **Emergency revoke is not remote wipe.** It blocks new tickets and clears server-side account
+> assignments, but it cannot erase data already present on a lost PC. Rotate `VAULT_KEY_OPERATOR`
+> when exposure is plausible. Planned retirement is a different ADMIN path: the exact reachable PC
+> removes Relay identity data only after a signed, device-bound authorization and returns recipient
+> proof. Browser profiles remain untouched in both paths.
 
 Và **bộ phát/xác minh vé** — mảnh cuối của phần nền. Máy chủ bọc ruột vé cho riêng máy nhận (cặp
 khóa dùng một lần cho mỗi tấm vé, X25519 → HKDF → AES-256-GCM), rồi ký Ed25519 phủ lên cả bao
@@ -380,7 +452,7 @@ và máy chủ tự `pg_dump` rồi tải lên Cloudflare R2 mỗi đêm.
 
 | Blocker | Nature | Owner |
 |---|---|---|
-| **MKB-03 zero-confusion Windows onboarding** | One installer, secure device enrollment, protected secret migration, and coordinated update/rollback are not implemented | Engineering |
+| **MKB-03 zero-confusion Windows onboarding** | Phases 01-04 are implemented in code; controlled updates/rollback, conflict repair, and real Windows/database rehearsal evidence remain | Engineering + responsible operator |
 | **MKB-04 pilot and canary** | An unfamiliar-operator setup test, two-device seven-day pilot, then one 14-day canary cold start are elapsed evidence gates | Engineering + responsible operator + time |
 | ~~**Windows code-signing certificate**~~ | Resolved 12 August 2026: v1 ships unsigned for the internal fleet. The accepted cost is one announced SmartScreen click-through and an installer binary backed only by a checksum from the same host; the offline manifest root still carries anti-downgrade authority | Closed — owner decision |
 | **Static proxies + accounts** | Procurement (VND 3–8 million once) | Budget owner |

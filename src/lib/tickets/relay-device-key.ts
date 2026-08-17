@@ -70,6 +70,26 @@ export function normalizeRelayPublicKey(raw: string): string {
     throw new RelayDeviceKeyError("Khóa công khai chỉ được chứa ký tự hex (0-9, a-f).");
   }
 
+  // RFC 7748 §5 ignores the most-significant bit of the final byte of a u-coordinate. Two hex
+  // strings differing only in that bit are therefore the *same key* and derive the *same* shared
+  // secret — which folding case and whitespace above does not catch.
+  //
+  // That matters here for the same reason the lowercase fold does, and it is the same failure the
+  // `@unique` comment on `RelayDevice.publicKey` describes: one key in two rows means revoking one
+  // row leaves the other alive, and the person revoking believes the device is blocked. Here it is
+  // worse than a duplicate paste, because both strings can be enrolled deliberately.
+  //
+  // Rejected rather than masked: masking would silently change the identity someone submitted.
+  // Nothing legitimate is refused — a real u-coordinate is < p = 2^255 - 19, so this bit is always
+  // clear on every generated key.
+  if ((Buffer.from(hex, "hex")[31] & 0x80) !== 0) {
+    throw new RelayDeviceKeyError(
+      "This public key is not in canonical form: the final byte has its top bit set, which X25519 " +
+        "ignores. Two keys differing only in that bit are the same key, so it cannot be used as a " +
+        "device identity. Copy the key exactly as the relay printed it at install time.",
+    );
+  }
+
   return hex;
 }
 

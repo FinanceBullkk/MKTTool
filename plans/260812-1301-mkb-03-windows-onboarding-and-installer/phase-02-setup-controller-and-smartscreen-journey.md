@@ -8,7 +8,7 @@
 ## Overview
 
 **Priority:** high — this is the phase an operator experiences.
-**Status:** ⬜ blocked on Phase 01.
+**Status:** 🟡 implemented in code; three human verification gates open.
 
 Replace `/setup`, `/relay-download`, and `/relay-devices` as a journey with one resumable controller
 that shows a single state and a single next action. The four-layer diagnostic view moves behind a
@@ -65,12 +65,19 @@ support/ADMIN disclosure.
 
 ## Todo list
 
-- [ ] `setup-state-machine.ts` with unit tests covering all six states and the failure branches
-- [ ] Six states rendered, one action each
-- [ ] Technical layers behind support disclosure
-- [ ] SmartScreen pre-announcement with screenshot
-- [ ] `Confirm this PC` gated on a real user click
-- [ ] Reload and reboot survive every state
+- [x] `setup-state-machine.ts` with unit tests covering all six states and the failure branches
+- [x] Live Relay update state feeds the controller; starting, required, and failed branches are tested
+- [x] Six states rendered, one action each
+- [x] Technical layers behind support disclosure
+- [x] Existing eight-step workspace preparation checklist remains on `/setup`
+- [ ] SmartScreen pre-announcement with screenshot — component and visible pending state implemented;
+  capture the real unsigned `MKTBrowser-win-x64.exe` SmartScreen screens on a disposable standard
+  Windows account, mark *More info* and *Run anyway*, save it as
+  `public/setup/mkb-03-smartscreen-more-info-run-anyway.png`, then verify the deployed page before
+  operator handoff. Do not use a generated or approximated image.
+- [x] `Confirm this PC` gated on a real user click
+- [x] Reload resume implemented through durable local device ID plus server reconciliation
+- [ ] Clean-account Windows reboot rehearsal verifies the same enrollment resumes without duplication
 - [ ] Chrome and Edge permission allow/deny/recover verified
 
 ## Success criteria

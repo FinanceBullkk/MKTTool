@@ -123,6 +123,14 @@ describe("máy chủ HTTP của cầu nối", () => {
     expect(echoCalls).toBe(0);
   });
 
+  it("rejects an oversized POST body before invoking a route handler", async () => {
+    const base = await startServer();
+    const response = await fetch(`${base}/echo`, { method: "POST", body: "x".repeat(1_000_001) });
+
+    expect(response.status).toBe(413);
+    expect(echoCalls).toBe(0);
+  });
+
   it("ok:false ra HTTP 400, để phía web phân biệt được với lỗi mạng", async () => {
     const base = await startServer();
     expect((await fetch(`${base}/no`)).status).toBe(400);

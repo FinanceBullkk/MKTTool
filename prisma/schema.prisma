@@ -167,8 +167,20 @@ model HealthCheckLock {
   host String
   pid  Int
 
-  /// Mốc bắt đầu. Quá `STALE_AFTER_MS` thì coi là khóa mồ côi và giành được.
+  /// Mốc bắt đầu. Chỉ để trả lời "giữ từ lúc nào" cho người đọc — KHÔNG dùng để đo mồ côi nữa.
   startedAt DateTime
+
+  /// Nhịp tim: lượt đang giữ tự đập lại cột này sau mỗi nick.
+  ///
+  /// Vì sao tách khỏi `startedAt`: đo mồ côi bằng `startedAt` là đo TỔNG THỜI GIAN CHẠY, mà thời
+  /// gian chạy tăng theo số nick (nghỉ 30-90 giây mỗi nick). Tới khoảng 20 nick là một lượt bình
+  /// thường vượt `STALE_AFTER_MS`, lượt sau tưởng lượt trước đã chết và chen vào chạy song song —
+  /// đúng thứ khóa này sinh ra để chặn, và hỏng lặng lẽ vì cả hai lượt đều ghi log như thường.
+  /// Ngưỡng phải đo "chủ khóa còn cựa quậy không", không phải "chủ khóa chạy lâu chưa".
+  ///
+  /// Nullable để hàng ghi trước lần nâng cấp này vẫn đọc được: thiếu nhịp thì lùi về `startedAt`,
+  /// tức đúng hành vi cũ, không phải một hàng vĩnh viễn mồ côi.
+  heartbeatAt DateTime?
 }
 
 /// Lượt gần nhất của một việc chạy theo lịch — thứ giữ cho bộ lịch bắn ĐÚNG MỘT LẦN mỗi ngày.
@@ -715,6 +727,16 @@ model RelayDevice {
   /// Mốc ADMIN bấm cấp. Giữ lại sau khi máy đã nhận, để sổ trả lời được "cấp lúc nào".
   operatorKeyGrantedAt DateTime?
 
+  /// Monotonic generation and stable grant identity prevent an older sealed key from replacing a
+  /// newer one. Hashes authenticate opaque ciphertext and the recipient-only completion proof.
+  operatorKeyGrantGeneration Int @default(0)
+  operatorKeyGrantId String?
+  operatorKeyGrantHash String?
+  operatorKeyCompletionHash String?
+  operatorKeyCompletionGrant String?
+  operatorKeyDeliveryAuthorization String?
+  operatorKeyDeliveryExpiresAt DateTime?
+
   /// Mốc **chính chiếc máy đó tự báo** rằng nó đã có khóa vùng operator. Lúc đó
   /// `operatorKeyGrant` bị **xóa** — hộp đã tới nơi thì giữ lại chỉ là thêm một thứ để rò nếu
   /// có ngày bản sao lưu lọt ra ngoài.
@@ -726,6 +748,25 @@ model RelayDevice {
   /// không suy ra từ việc đã cấp hay chưa. Sổ nói sai về việc một máy đã sẵn sàng hay chưa thì
   /// tệ hơn là sổ không nói gì.
   operatorKeyReadyAt DateTime?
+  operatorKeyCompletedGrantId String?
+  operatorKeyCompletedGeneration Int?
+
+  /// Latest first-device bootstrap ceremony. A newer generation supersedes an older authorization.
+  bootstrapAuthorizationId String?
+  bootstrapAuthorization String?
+  bootstrapAuthorizationExpiresAt DateTime?
+  bootstrapAuthorizationUsedAt DateTime?
+
+  /// ADMIN retirement revokes server authority first, then waits for a recipient-only local cleanup
+  /// proof. A stable retirement id and sealed proof survive retries without granting a second wipe.
+  retirementId String? @unique
+  retirementCompletionHash String?
+  retirementCompletionGrant String?
+  retirementAuthorization String?
+  retirementAuthorizationExpiresAt DateTime?
+  retirementFinalizationKeyEnc String? // vault:server
+  retirementFinalizationAuthorization String?
+  retirementCompletedAt DateTime?
 
   @@index([userId])
 }

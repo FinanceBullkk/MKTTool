@@ -18,18 +18,22 @@
  */
 
 /** Đường mà form gửi tới. Khai ở đây để script nội tuyến và bảng route không lệch nhau. */
-export function renderOperatorKeyForm(path: string, hasKey: boolean): string {
-  return `<h2>${hasKey ? "Đổi khóa vùng operator" : "Dán khóa vùng operator"}</h2>
+export function renderOperatorKeyForm(path: string, hasKey: boolean, bootstrapAuthorized: boolean, webOrigin: string): string {
+  if (!hasKey && !bootstrapAuthorized) {
+    return `<h2>Operator key bootstrap</h2>
+<p class="muted">An authenticated administrator must start the five-minute bootstrap from the MKTTool setup page before this form is enabled.</p>`;
+  }
+  return `<h2>${hasKey ? "Replace the operator key" : "Paste the operator key"}</h2>
 <p>${
     hasKey
-      ? "Máy này đã có khóa. Chỉ dán lại khi quản trị viên vừa xoay khóa của cả team."
-      : "Đây là thứ duy nhất phải điền bằng tay — <strong>máy chủ không có khóa này để gửi xuống</strong>, đó là cả điểm của thiết kế. Xin quản trị viên qua trình quản lý mật khẩu dùng chung, đừng qua chat."
+      ? "This PC already has a key. Paste again only when an administrator has just rotated the key for the whole team."
+      : "This is the only value that must be entered by hand — <strong>the server does not hold this key to send down</strong>, which is the entire point of the design. Ask an administrator for it through the shared password manager, not through chat."
   }</p>
 <form id="opform">
-  <label>Khóa vùng operator (64 ký tự hex)<br>
+  <label>Operator key (64 hex characters)<br>
     <input id="opkey" type="password" autocomplete="off" spellcheck="false" size="70"
-           placeholder="${"0".repeat(64)}"></label>
-  <p><button type="submit">Lưu vào máy này</button>
+           placeholder="64 hex characters (0-9, a-f)"></label>
+  <p><button type="submit">Save on this PC</button>
   <span id="opmsg" class="muted"></span></p>
 </form>
 <script>
@@ -39,7 +43,7 @@ export function renderOperatorKeyForm(path: string, hasKey: boolean): string {
 
   form.addEventListener("submit", function (event) {
     event.preventDefault();
-    msg.textContent = "Đang lưu…";
+    msg.textContent = "Saving…";
 
     fetch(${JSON.stringify(path)}, {
       method: "POST",
@@ -53,9 +57,13 @@ export function renderOperatorKeyForm(path: string, hasKey: boolean): string {
         msg.textContent = body.message;
         // Nạp lại trang khi đã lưu được: mọi huy hiệu ở trên vừa đổi nghĩa, và để nguyên màn
         // hình cũ bên dưới một dòng "đã lưu" là mời người ta tin vào thứ không còn đúng.
+        if (body.ok && body.proof && window.opener) {
+          window.opener.postMessage({ type: "mkttool-bootstrap-complete", grantId: body.grantId,
+            generation: body.generation, proof: body.proof }, ${JSON.stringify(webOrigin)});
+        }
         if (body.ok) setTimeout(function () { location.reload(); }, 1200);
       })
-      .catch(function (error) { msg.textContent = "Không gửi được: " + error.message; });
+      .catch(function (error) { msg.textContent = "Could not send: " + error.message; });
   });
 })();
 </script>`;

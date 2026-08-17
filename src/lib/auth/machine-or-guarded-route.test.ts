@@ -27,7 +27,7 @@ vi.mock("./require-actor", () => ({
   requireAdmin: () => requireActor(),
 }));
 
-const { machineOrGuardedRoute } = await import("./guarded-route");
+const { machineOrGuardedRoute, machineRoute } = await import("./guarded-route");
 
 const ACTOR = { userId: "u1", email: "a@b.test", role: "OPERATOR" as const };
 
@@ -96,5 +96,27 @@ describe("machineOrGuardedRoute", () => {
     await handler(new Request("https://x.test/v8"), { params: Promise.resolve({ version: "v8" }) });
 
     expect(seen).toEqual(["https://x.test/v8", { version: "v8" }]);
+  });
+});
+
+describe("machineRoute", () => {
+  it("serves only an explicitly authorized machine caller", async () => {
+    const handler = machineRoute(() => true, async () => new Response("artifact"));
+
+    const response = await handler(new Request("https://x.test/artifact"));
+
+    expect(response.status).toBe(200);
+    expect(await response.text()).toBe("artifact");
+    expect(requireActor).not.toHaveBeenCalled();
+  });
+
+  it("rejects a missing or invalid machine credential without a user-session fallback", async () => {
+    requireActor.mockResolvedValue(ACTOR);
+    const handler = machineRoute(() => false, async () => new Response("artifact"));
+
+    const response = await handler(new Request("https://x.test/artifact"));
+
+    expect(response.status).toBe(401);
+    expect(requireActor).not.toHaveBeenCalled();
   });
 });

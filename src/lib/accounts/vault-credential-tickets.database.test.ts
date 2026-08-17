@@ -16,8 +16,8 @@ import type { TicketPayload } from "@/lib/tickets/ticket-types";
 const OPERATOR_ID = "user-operator";
 const NGUOI_KHAC_ID = "user-nguoi-khac";
 
-const SERVER_KEY_HEX = "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff";
-const OPERATOR_KEY_HEX = "ffeeddccbbaa99887766554433221100ffeeddccbbaa99887766554433221100";
+const SERVER_KEY_HEX = "27112efee5aeaa94963b0f1f9e0dabcdf2767c34ee483d8dc2c76f61bdd1186d";
+const OPERATOR_KEY_HEX = "a3d1e1576b7746dbd4481fb6fd16b16f7c7381301b8ab9ef8a3f2994c96150dc";
 
 process.env.VAULT_KEY_SERVER = SERVER_KEY_HEX;
 process.env.VAULT_KEY_OPERATOR = OPERATOR_KEY_HEX;

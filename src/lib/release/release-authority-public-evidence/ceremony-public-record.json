@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "type": "mkttool.release-root-ceremony-public-record",
+  "rootKeyId": "a6d3237649c2586e48b6e4fa744f7a089160fd80250fd29360513f5f625b146c",
+  "delegatedKeyId": "6e5d47d894206e69e6464748333eb76c99b18da1f1b42ddafb2e3f265a7b786e",
+  "createdAt": "2026-08-15T01:29:52.097Z",
+  "backupHashes": {
+    "A": "8246413a25ff98db4289ef8187e770255e1cee32bfceb56d86e3a236267375f7",
+    "B": "c245a6c375bb38be05d2cec07f957f35c39cf0a7de31f0556897a30d24608785"
+  },
+  "recoveryRehearsalRequiredFrom": "B"
+}

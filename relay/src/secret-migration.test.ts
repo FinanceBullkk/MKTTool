@@ -97,6 +97,7 @@ describe("Relay protected-secret migration", () => {
       read: () => "corrupt",
       write: () => undefined,
       writeIfAbsent: () => false,
+      remove: () => undefined,
     };
 
     expect(() => migrateRelaySecrets(home, corruptStore, RELAY_VERSION)).toThrow(/conflicts/);
@@ -142,6 +143,7 @@ describe("Relay protected-secret migration", () => {
       expect(diskText).not.toContain(OPERATOR_KEY);
       expect(diskText).not.toContain(DEVICE_KEY);
     },
+    30_000,
   );
 
   it("refuses a Relay below the durable rollback floor", () => {

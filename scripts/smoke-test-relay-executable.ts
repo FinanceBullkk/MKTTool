@@ -23,8 +23,15 @@
  */
 import { existsSync } from "node:fs";
 import path from "node:path";
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { decryptCredential, encryptCredential } from "../src/lib/crypto/credential-encryption";
+import { issueGrantAuthorization } from "../src/lib/relay/enrollment/grant-authorization";
+import { hashGrantCompletionProof } from "../src/lib/relay/enrollment/grant-digests";
+import {
+  hashDeviceRetirementProof,
+  issueDeviceRetirementAuthorization,
+} from "../src/lib/relay/retirement/device-retirement-authorization";
+import { issueDeviceRetirementFinalization } from "../src/lib/relay/retirement/device-retirement-finalization";
 import { RELAY_ORIGIN, RELAY_PATHS, RELAY_VERSION } from "../src/lib/relay/relay-endpoints";
 import {
   publicKeyToHex,
@@ -32,6 +39,7 @@ import {
   signingKeysFromSeed,
 } from "../src/lib/tickets/server-signing-key";
 import { issueTicket } from "../src/lib/tickets/ticket-issuer";
+import { sealForDevice } from "../src/lib/tickets/ticket-sealed-box";
 import { TICKET_KINDS, TICKET_LIFETIME_MS } from "../src/lib/tickets/ticket-types";
 import {
   EXECUTABLE_FILE,
@@ -55,11 +63,12 @@ function check(name: string, passed: boolean, detail = "") {
 }
 
 /** Ký vé bằng một khóa máy chủ dựng riêng cho lượt chạy này, không đụng khóa thật trong `.env`. */
-function makeThrowawayServerKey(): string {
+function makeThrowawayServerKey() {
   const seed = randomBytes(32);
   process.env.TICKET_SIGNING_KEY = seed.toString("hex");
   resetServerSigningKeysCache();
-  return publicKeyToHex(signingKeysFromSeed(seed).publicKey);
+  const keys = signingKeysFromSeed(seed);
+  return { publicKey: publicKeyToHex(keys.publicKey), privateKey: keys.privateKey };
 }
 
 async function run() {
@@ -71,7 +80,7 @@ async function run() {
 
   const home = makeTempHome();
   const vaultKeyOperator = randomBytes(32);
-  const serverPublicKey = makeThrowawayServerKey();
+  const serverKeys = makeThrowawayServerKey();
 
   console.log(`\nNghiệm thu ${path.relative(process.cwd(), EXECUTABLE_FILE)}`);
   console.log(`Thư mục dữ liệu tạm: ${home}\n`);
@@ -102,7 +111,7 @@ async function run() {
 
     const wrongOrigin = await relayCall(
       RELAY_PATHS.configure,
-      { deviceId: DEVICE_ID, serverPublicKey },
+      { deviceId: DEVICE_ID, serverPublicKey: serverKeys.publicKey },
       { origin: "https://ke-tan-cong.example" },
     );
     // Nguồn lạ mà ghi được là cầu nối bị trỏ sang máy chủ khác — lúc đó nó thành máy giải mã thuê
@@ -111,7 +120,7 @@ async function run() {
 
     const configured = await relayCall(
       RELAY_PATHS.configure,
-      { deviceId: DEVICE_ID, serverPublicKey },
+      { deviceId: DEVICE_ID, serverPublicKey: serverKeys.publicKey },
       { origin: bakedOrigin },
     );
     check("nhận cấu hình từ đúng nguồn web", configured.ok === true, String(configured.message));
@@ -122,12 +131,50 @@ async function run() {
     // gửi xuống, nên đây là bước người dùng phải tự làm.
     check("vẫn báo chưa xong vì thiếu khóa operator", afterConfigure.ok === false);
 
+    const authorizationId = randomUUID();
+    const proof = randomBytes(32).toString("base64url");
+    const completion = sealForDevice({ proof }, devicePublicKey);
+    const bootstrapAuthorization = issueGrantAuthorization(
+      {
+        kind: "bootstrap",
+        authorizationId,
+        deviceId: DEVICE_ID,
+        recipientPublicKey: devicePublicKey,
+        grantId: authorizationId,
+        generation: 1,
+        grantHash: createHash("sha256").update(`bootstrap\n${authorizationId}`).digest("hex"),
+        completionHash: hashGrantCompletionProof(proof),
+        completionEphemeralPublicKey: completion.ephemeralPublicKey,
+        completionSealed: completion.sealed,
+      },
+      serverKeys.privateKey,
+      Date.now(),
+      300_000,
+    );
+    const authorized = await relayCall(
+      RELAY_PATHS.authorizeBootstrap,
+      { authorization: bootstrapAuthorization },
+      { origin: bakedOrigin },
+    );
+    check("accepts a server-signed bootstrap authorization", authorized.ok === true, String(authorized.message));
+
     const keySet = await relayCall(
       RELAY_PATHS.setOperatorKey,
       { vaultKeyOperator: vaultKeyOperator.toString("hex") },
       { origin: RELAY_ORIGIN },
     );
     check("nhận khóa operator từ trang của chính nó", keySet.ok === true, String(keySet.message));
+
+    const completionProof = await relayCall(
+      RELAY_PATHS.bootstrapCompletion,
+      undefined,
+      { origin: bakedOrigin },
+    );
+    check(
+      "returns the persisted bootstrap completion proof",
+      completionProof.ok === true && completionProof.proof === proof,
+      String(completionProof.message),
+    );
 
     const fromWeb = await relayCall(
       RELAY_PATHS.setOperatorKey,
@@ -240,6 +287,64 @@ async function run() {
       revealed.ok === true && revealed.secret === PASSWORD,
       revealed.ok === true ? "" : String(revealed.message),
     );
+
+    console.log("\nRetirement — packaged cleanup, recovery receipt, and finalization");
+    const retirementId = randomUUID();
+    const retirementProof = randomBytes(32).toString("base64url");
+    const retirementCompletion = sealForDevice({ proof: retirementProof }, devicePublicKey);
+    const finalizationSeed = randomBytes(32);
+    const finalizationKeys = signingKeysFromSeed(finalizationSeed);
+    const retirementAuthorization = issueDeviceRetirementAuthorization(
+      {
+        authorizationId: randomUUID(),
+        retirementId,
+        deviceId: DEVICE_ID,
+        recipientPublicKey: devicePublicKey,
+        completionHash: hashDeviceRetirementProof(retirementProof),
+        completionEphemeralPublicKey: retirementCompletion.ephemeralPublicKey,
+        completionSealed: retirementCompletion.sealed,
+        finalizationPublicKey: publicKeyToHex(finalizationKeys.publicKey),
+      },
+      serverKeys.privateKey,
+      Date.now(),
+      30_000,
+    );
+    const retired = await relayCall(
+      RELAY_PATHS.retireDevice,
+      { authorization: retirementAuthorization },
+      { origin: bakedOrigin },
+    );
+    check(
+      "removes packaged Relay identity and returns the recipient proof",
+      retired.ok === true &&
+        retired.retirementId === retirementId &&
+        retired.proof === retirementProof &&
+        retired.cleanupComplete === true,
+      String(retired.message),
+    );
+    const pending = await relayCall(RELAY_PATHS.health);
+    check(
+      "enters fail-closed retirement recovery",
+      pending.ok === false && pending.retirementPending === true && pending.deviceId === DEVICE_ID,
+      String(pending.message),
+    );
+    const finalization = issueDeviceRetirementFinalization(
+      {
+        authorizationId: randomUUID(),
+        retirementId,
+        deviceId: DEVICE_ID,
+        recipientPublicKey: devicePublicKey,
+        completionHash: hashDeviceRetirementProof(retirementProof),
+      },
+      finalizationKeys.privateKey,
+      Date.now(),
+    );
+    const finalized = await relayCall(
+      RELAY_PATHS.finalizeDeviceRetirement,
+      { authorization: finalization },
+      { origin: bakedOrigin },
+    );
+    check("accepts only the matching finalization and closes", finalized.ok === true, String(finalized.message));
   } catch (error) {
     console.error(`\nĐỏ giữa chừng: ${(error as Error).message}`);
     console.error(relay.output());

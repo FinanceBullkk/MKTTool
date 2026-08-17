@@ -17,6 +17,7 @@
  * `encryptCredential` / `decryptCredential`.
  */
 import type { VaultDomain } from "./encrypted-field-registry";
+import { describePlaceholderSecret } from "./placeholder-secret-detection";
 
 /** Độ dài khóa AES-256 tính theo byte. */
 export const VAULT_KEY_BYTES = 32;
@@ -47,13 +48,30 @@ const cachedKeys = new Map<VaultDomain, Buffer>();
 let warnedAboutIdenticalKeys = false;
 
 /**
+ * Nới phép kiểm khuôn mẫu cho **khóa sắp bị bỏ đi**, không bao giờ cho khóa sắp dùng.
+ *
+ * Ai lỡ chạy thật với `00…00` trước khi có chốt C33 thì lối ra duy nhất là `vault:rekey` — và
+ * script đó phải đọc được đúng khóa hỏng ấy mới mở nổi dữ liệu để mã hóa lại. Chặn luôn cả chỗ
+ * đó là nhốt người ta lại với chính lỗi mình vừa phát hiện: khóa xấu không dùng được, mà dữ liệu
+ * cũng không cứu ra được.
+ */
+export interface ParseVaultKeyOptions {
+  /** Chỉ đặt `true` ở đường ĐỌC khóa cũ để xoay/di trú. Không bao giờ ở đường nạp khóa để dùng. */
+  allowPlaceholder?: boolean;
+}
+
+/**
  * Phân tích một chuỗi hex thành khóa 32 byte.
  * Tách riêng khỏi loadVaultKey để test được mà không cần đụng vào process.env.
  *
  * `source` là tên biến môi trường hoặc tên tham số dòng lệnh — nó đi thẳng vào thông báo lỗi,
  * vì "khóa sai độ dài" mà không nói khóa nào thì có hai chỗ để mò thay vì một.
  */
-export function parseVaultKey(raw: string | undefined, source: string): Buffer {
+export function parseVaultKey(
+  raw: string | undefined,
+  source: string,
+  options: ParseVaultKeyOptions = {},
+): Buffer {
   if (!raw || raw.trim() === "") {
     throw new VaultKeyError(
       `Thiếu ${source}. Chạy \`npm run vault:keygen\` rồi dán giá trị vào file .env.`,
@@ -73,7 +91,30 @@ export function parseVaultKey(raw: string | undefined, source: string): Buffer {
     throw new VaultKeyError(`${source} chỉ được chứa ký tự hex (0-9, a-f).`);
   }
 
-  return Buffer.from(hex, "hex");
+  const key = Buffer.from(hex, "hex");
+
+  /**
+   * Chặn khóa điền tạm — FINDING C33. Cùng một lỗ mà C2 đã bịt cho hạt giống khóa ký, cùng một
+   * bộ luật (xem `placeholder-secret-detection.ts`), chỉ khác chỗ nó nằm.
+   *
+   * Nặng hơn C2 chứ không nhẹ hơn: đoán được hạt giống ký thì giả được quyền, còn đoán được
+   * `VAULT_KEY_OPERATOR` thì **mở thẳng ra chữ** mọi mật khẩu nick, mật khẩu email và mã TOTP
+   * trong mọi bản sao lưu từng rời khỏi máy. Một bản dump database lộ ra ngày nào đó cộng với
+   * một khóa `00…00` là bằng đúng chuyện lộ toàn bộ kho ở dạng chữ thường.
+   */
+  const placeholder = options.allowPlaceholder ? null : describePlaceholderSecret(key);
+  if (placeholder) {
+    throw new VaultKeyError(
+      `${source} trông như một khóa điền tạm (${placeholder}). Khóa này mở ra bí mật của nick — ` +
+        "đoán được nó thì mọi bản sao lưu lấy được đều đọc ra chữ.\n" +
+        "Máy chưa có dữ liệu thật: sinh khóa mới bằng `npm run vault:keygen` rồi dán vào .env.\n" +
+        "Đã lỡ chạy thật với khóa này: ĐỪNG đổi .env tay — dữ liệu đang mã hóa bằng đúng nó. " +
+        `Xoay sang khóa mới bằng \`npm run vault:rekey -- --domain=<vùng> --new-key=<hex>\`, ` +
+        "script đó vẫn đọc được khóa cũ.",
+    );
+  }
+
+  return key;
 }
 
 /**

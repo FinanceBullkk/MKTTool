@@ -23,6 +23,7 @@
  * Nên mọi thứ dẫn xuất từ cấu hình gom vào `RelayState` và dựng lại nguyên khối. Dựng lại nguyên
  * khối chứ không vá từng ô: một trạng thái nửa cũ nửa mới là thứ không ai suy luận nổi.
  */
+import os from "node:os";
 import { RELAY_ORIGIN, RELAY_PATHS, RELAY_VERSION } from "../../src/lib/relay/relay-endpoints";
 import { handleConfigure } from "./handle-configure";
 import { handleEncryptForVault } from "./handle-encrypt-for-vault";
@@ -30,12 +31,21 @@ import { handleReceiveOperatorKey } from "./handle-receive-operator-key";
 import { handleSealOperatorKey } from "./handle-seal-operator-key";
 import { handleSecretReveal } from "./handle-secret";
 import { handleSetOperatorKey } from "./handle-set-operator-key";
+import { handleAuthorizeBootstrap } from "./handle-authorize-bootstrap";
+import { handleReadBootstrapCompletion } from "./handle-read-bootstrap-completion";
+import { handleRetireDevice } from "./handle-retire-device";
+import { handleFinalizeDeviceRetirement } from "./handle-finalize-device-retirement";
+import { handleCompatibilityRollback } from "./handle-compatibility-rollback";
+import { handleCompatibilityUpdate } from "./handle-compatibility-update";
+import { BootstrapAuthorizationBroker } from "./bootstrap-authorization";
+import { readOperatorGrantState } from "./operator-grant-state";
 import { handleProfilesRequest } from "./handle-profiles";
 import { handleTicketRequest } from "./handle-ticket";
 import { RelayAntidetect } from "./relay-antidetect";
 import {
   loadRelayConfig,
   resolveDeviceId,
+  resolveServerPublicKey,
   resolveWebOrigin,
   type ConfigProblem,
 } from "./relay-config";
@@ -44,12 +54,26 @@ import { createRelayServer, listenOnLoopback } from "./relay-http-server";
 import { defineRelayRoutes } from "./relay-route-policy";
 import { resolveRelayHome } from "./relay-home";
 import type { RelayIdentity } from "../../src/lib/tickets/ticket-verifier";
+import { publicKeyFromHex } from "../../src/lib/tickets/server-signing-key";
 import { buildRelayIdentity } from "./relay-identity";
 import { renderStatusPage } from "./relay-status-page";
 import { SECRET_REVEAL_PATH, renderSecretPage } from "./secret-page";
 import { migrateRelaySecrets } from "./secret-migration";
 import type { SecureStore } from "./secure-store";
 import { WindowsSecureStore } from "./windows-secure-store";
+import {
+  loadPendingRetirementReceipt,
+  retirementBlocked,
+  retirementHealth,
+  runRetirementRecoveryServer,
+} from "./device-retirement-recovery-server";
+import type { DeviceRetirementReceipt } from "./device-retirement-receipt";
+import { handleWindowsCompatibilityStartup } from "./windows-compatibility-startup";
+import { coordinateCompatibilityUpdateHelper } from "./compatibility-update-helper";
+import { describeCompatibilityUpdateHealth } from "./compatibility-update-health";
+import { readCompatibilityUpdateState } from "./update-state";
+import { resolveWindowsCompatibilityInstallation } from "./windows-compatibility-installation";
+import { WindowsCompatibilityUpdatePlatform } from "./windows-compatibility-update-platform";
 
 /** Mọi thứ dẫn xuất từ file cấu hình. Dựng lại nguyên khối mỗi lần cấu hình đổi. */
 interface RelayState {
@@ -65,6 +89,8 @@ interface RelayState {
    */
   webOrigin: string;
   deviceId: string | null;
+  serverPublicKey: ReturnType<typeof publicKeyFromHex> | null;
+  serverPublicKeyHex: string | null;
 }
 
 function loadState(
@@ -97,6 +123,16 @@ function loadState(
     }
   }
 
+  const serverPublicKeyHex = resolveServerPublicKey(home);
+  let serverPublicKey: ReturnType<typeof publicKeyFromHex> | null = null;
+  if (serverPublicKeyHex) {
+    try {
+      serverPublicKey = publicKeyFromHex(serverPublicKeyHex);
+    } catch {
+      // The full config review reports the actionable field error.
+    }
+  }
+
   return {
     problems,
     identity,
@@ -111,17 +147,34 @@ function loadState(
     // Đọc thẳng từ file, không qua `config`: web app vừa ghi mã máy xuống và cần thấy nó tới nơi,
     // kể cả khi khóa vùng operator còn thiếu — mà thiếu nó thì `config` là `null`.
     deviceId: resolveDeviceId(home),
+    serverPublicKey,
+    serverPublicKeyHex,
   };
 }
 
 async function main(): Promise<void> {
   const home = resolveRelayHome();
   const secureStore = new WindowsSecureStore(home);
+  const retirementReceipt = loadPendingRetirementReceipt(secureStore);
+  if (retirementReceipt) {
+    await runRetirementRecoveryServer(home, secureStore, retirementReceipt);
+    return;
+  }
+  if (await handleWindowsCompatibilityStartup(home, secureStore)) return;
   migrateRelaySecrets(home, secureStore, RELAY_VERSION);
   const keypair = loadOrCreateDeviceKeypair(home, secureStore);
   migrateRelaySecrets(home, secureStore, RELAY_VERSION);
 
   let state = loadState(home, keypair, secureStore);
+  let pendingRetirement: DeviceRetirementReceipt | null = null;
+  const bootstrap = new BootstrapAuthorizationBroker(
+    () => state.deviceId,
+    keypair.publicKeyHex,
+    keypair.privateKey,
+    () => state.serverPublicKey,
+    Date.now,
+    () => readOperatorGrantState(secureStore)?.generation ?? null,
+  );
 
   const notConfiguredMessage = (): string =>
     `Cầu nối trên máy này chưa cấu hình xong (${state.problems.length} mục còn thiếu). ` +
@@ -144,7 +197,7 @@ async function main(): Promise<void> {
   }
 
   const server = createRelayServer({
-    allowedOrigin: () => state.webOrigin || null,
+    allowedOrigin: () => pendingRetirement?.webOrigin ?? (state.webOrigin || null),
     htmlPages: {
       "/": async () => {
         const tokenStatus = state.antidetect.tokenStatus();
@@ -166,15 +219,20 @@ async function main(): Promise<void> {
           // token the probe cannot run: `null` lets the page report "token not configured" instead
           // of "cannot connect".
           antidetectReady: tokenStatus.available ? await state.antidetect.isReady() : null,
+          bootstrapAuthorized: bootstrap.isAuthorized(),
         });
       },
       [RELAY_PATHS.secret]: renderSecretPage,
     },
     routes: defineRelayRoutes({
       [RELAY_PATHS.health]: async () => ({
+        ...(pendingRetirement
+          ? retirementHealth(pendingRetirement)
+          : {
         ok: state.problems.length === 0,
         message: state.problems.length === 0 ? "Cầu nối sẵn sàng." : notConfiguredMessage(),
         publicKey: keypair.publicKeyHex,
+        machineName: os.hostname(),
         // Web app cần biết máy này đã đăng ký chưa để vẽ đúng nút — "Đăng ký máy này" hay
         // "Đã đăng ký". Hỏi sổ trên máy chủ cũng ra, nhưng phải hỏi bằng khóa công khai và
         // vẫn không biết chiếc máy ĐANG NGỒI nghĩ mình là ai.
@@ -185,47 +243,183 @@ async function main(): Promise<void> {
         // Bốn tầng của CHÍNH máy này. Web dùng nó để nói đúng chỗ hỏng thay vì "không kết nối
         // được", và để chặn sớm một máy chạy bản hợp đồng khác.
         browser: await state.antidetect.describeRuntime(),
+        compatibilityUpdate: describeCompatibilityUpdateHealth(
+          readCompatibilityUpdateState(secureStore),
+        ),
+          }),
       }),
       [RELAY_PATHS.configure]: (request, body) =>
-        handleConfigure(request, body, {
-          allowedOrigin: state.webOrigin || null,
-          home,
-          onConfigured: reloadConfig,
-        }),
+        pendingRetirement
+          ? retirementBlocked()
+          : handleConfigure(request, body, {
+              allowedOrigin: state.webOrigin || null,
+              home,
+              onConfigured: reloadConfig,
+            }),
       [RELAY_PATHS.setOperatorKey]: (request, body) =>
-        handleSetOperatorKey(request, body, { home, onConfigured: reloadConfig }),
+        pendingRetirement
+          ? retirementBlocked()
+          : handleSetOperatorKey(request, body, {
+              home,
+              secureStore,
+              bootstrap: state.vaultKeyOperator ? undefined : bootstrap,
+              onConfigured: reloadConfig,
+            }),
+      [RELAY_PATHS.authorizeBootstrap]: (request, body) =>
+        pendingRetirement
+          ? retirementBlocked()
+          : handleAuthorizeBootstrap(request, body, state.webOrigin || null, bootstrap),
+      [RELAY_PATHS.bootstrapCompletion]: (request) =>
+        pendingRetirement
+          ? retirementBlocked()
+          : handleReadBootstrapCompletion(request, state.webOrigin || null, secureStore),
       [RELAY_PATHS.ticket]: (_request, body) =>
-        handleTicketRequest(body, {
-          identity: state.identity,
-          antidetect: state.antidetect,
-          notConfiguredMessage: notConfiguredMessage(),
-        }),
+        pendingRetirement
+          ? retirementBlocked()
+          : handleTicketRequest(body, {
+              identity: state.identity,
+              antidetect: state.antidetect,
+              home,
+              notConfiguredMessage: notConfiguredMessage(),
+            }),
       // Không cần vé, và không cần cả `identity`: đường này chỉ đọc danh sách profile của chính
       // máy đang chạy — xem chú thích đầu `handle-profiles.ts`.
-      [RELAY_PATHS.profiles]: () => handleProfilesRequest(state.antidetect),
+      [RELAY_PATHS.profiles]: () =>
+        pendingRetirement ? retirementBlocked() : handleProfilesRequest(state.antidetect),
       [SECRET_REVEAL_PATH]: (_request, body) =>
-        handleSecretReveal(body, {
-          identity: state.identity,
-          vaultKeyOperator: state.vaultKeyOperator,
-          notConfiguredMessage: notConfiguredMessage(),
-        }),
-      [RELAY_PATHS.encryptForVault]: (_request, body) =>
-        handleEncryptForVault(body, {
-          vaultKeyOperator: state.vaultKeyOperator,
-          notConfiguredMessage: notConfiguredMessage(),
-        }),
+        pendingRetirement
+          ? retirementBlocked()
+          : handleSecretReveal(body, {
+              identity: state.identity,
+              vaultKeyOperator: state.vaultKeyOperator,
+              notConfiguredMessage: notConfiguredMessage(),
+            }),
+      [RELAY_PATHS.encryptForVault]: (request, body) =>
+        pendingRetirement
+          ? retirementBlocked()
+          : handleEncryptForVault(request, body, {
+              vaultKeyOperator: state.vaultKeyOperator,
+              allowedOrigin: state.webOrigin || null,
+              notConfiguredMessage: notConfiguredMessage(),
+            }),
       [RELAY_PATHS.sealOperatorKey]: (request, body) =>
-        handleSealOperatorKey(request, body, {
-          allowedOrigin: state.webOrigin || null,
-          vaultKeyOperator: state.vaultKeyOperator,
-          notConfiguredMessage: notConfiguredMessage(),
-        }),
-      [RELAY_PATHS.receiveOperatorKey]: (_request, body) =>
-        handleReceiveOperatorKey(body, {
-          devicePrivateKey: keypair.privateKey,
+        pendingRetirement
+          ? retirementBlocked()
+          : handleSealOperatorKey(request, body, {
+              allowedOrigin: state.webOrigin || null,
+              vaultKeyOperator: state.vaultKeyOperator,
+              notConfiguredMessage: notConfiguredMessage(),
+            }),
+      [RELAY_PATHS.receiveOperatorKey]: (request, body) =>
+        pendingRetirement
+          ? retirementBlocked()
+          : handleReceiveOperatorKey(request, body, {
+              allowedOrigin: state.webOrigin || null,
+              deviceId: state.deviceId,
+              devicePublicKey: keypair.publicKeyHex,
+              devicePrivateKey: keypair.privateKey,
+              serverPublicKey: state.identity?.serverPublicKey ?? null,
+              secureStore,
+              onConfigured: reloadConfig,
+            }),
+      [RELAY_PATHS.retireDevice]: (request, body) =>
+        handleRetireDevice(request, body, {
+          allowedOrigin: pendingRetirement?.webOrigin ?? (state.webOrigin || null),
           home,
-          onConfigured: reloadConfig,
+          secureStore,
+          activeIdentity:
+            !pendingRetirement && state.deviceId && state.serverPublicKey
+              ? {
+                  deviceId: state.deviceId,
+                  devicePublicKey: keypair.publicKeyHex,
+                  devicePrivateKey: keypair.privateKey,
+                  serverPublicKey: state.serverPublicKey,
+                  webOrigin: state.webOrigin,
+                }
+              : null,
+          onRetired: () => {
+            pendingRetirement = loadPendingRetirementReceipt(secureStore);
+            state = loadState(home, keypair, secureStore);
+          },
         }),
+      [RELAY_PATHS.finalizeDeviceRetirement]: (request, body) =>
+        handleFinalizeDeviceRetirement(request, body, {
+          allowedOrigin: pendingRetirement?.webOrigin ?? (state.webOrigin || null),
+          home,
+          secureStore,
+          onFinalized: () => server.close(),
+        }),
+      [RELAY_PATHS.compatibilityUpdate]: (request, body) =>
+        pendingRetirement
+          ? retirementBlocked()
+          : handleCompatibilityUpdate(request, body, {
+              allowedOrigin: state.webOrigin || null,
+              home,
+              store: secureStore,
+              identity: state.identity,
+              antidetect: state.antidetect,
+              createPlatform: () => {
+                const installation = resolveWindowsCompatibilityInstallation();
+                return new WindowsCompatibilityUpdatePlatform({
+                  installation,
+                  hasOpenProfiles: async () => {
+                    const profiles = await state.antidetect.getAdapter().listProfiles();
+                    return profiles.some((profile) => profile.isRunning === true);
+                  },
+                });
+              },
+              serverPublicKeyHex: state.serverPublicKeyHex,
+              deviceId: state.deviceId,
+              onPrepared: () => {
+                setTimeout(() => {
+                  server.close();
+                  void coordinateCompatibilityUpdateHelper({
+                    home,
+                    argv: [],
+                    executablePath: process.execPath,
+                    converge: async () => {},
+                  }).catch((error: unknown) => {
+                    console.error(`Compatibility helper could not start: ${(error as Error).message}`);
+                    process.exitCode = 1;
+                  });
+                }, 100);
+              },
+            }),
+      [RELAY_PATHS.compatibilityRollback]: (request, body) => {
+        return pendingRetirement
+          ? retirementBlocked()
+          : handleCompatibilityRollback(request, body, {
+              allowedOrigin: state.webOrigin || null,
+              home,
+              store: secureStore,
+              createPlatform: () => {
+                const installation = resolveWindowsCompatibilityInstallation();
+                return new WindowsCompatibilityUpdatePlatform({
+                  installation,
+                  hasOpenProfiles: async () => {
+                    const profiles = await state.antidetect.getAdapter().listProfiles();
+                    return profiles.some((profile) => profile.isRunning === true);
+                  },
+                });
+              },
+              serverPublicKeyHex: state.serverPublicKeyHex,
+              deviceId: state.deviceId,
+              onPrepared: () => {
+                setTimeout(() => {
+                  server.close();
+                  void coordinateCompatibilityUpdateHelper({
+                    home,
+                    argv: [],
+                    executablePath: process.execPath,
+                    converge: async () => {},
+                  }).catch((error: unknown) => {
+                    console.error(`Compatibility helper could not start: ${(error as Error).message}`);
+                    process.exitCode = 1;
+                  });
+                }, 100);
+              },
+            });
+      },
     }),
   });
 

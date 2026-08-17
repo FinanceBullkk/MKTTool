@@ -18,14 +18,24 @@ import { INTERACTION_KINDS } from "@/lib/content/content-types";
 import { prisma } from "@/lib/db/prisma-client";
 import { isCommunityPlatform } from "@/lib/platforms/platform-family";
 import { loadSameTargetNeighbors, loadThreadCollisions } from "@/lib/rules/rule-context-queries";
-import { normalizeThreadUrl, ruleThreadCollision } from "@/lib/rules/rule-thread-collision";
+import {
+  UNRESOLVABLE_SHARE_LINK_MESSAGE,
+  isUnresolvableShareLink,
+  normalizeThreadUrl,
+  ruleThreadCollision,
+} from "@/lib/rules/rule-thread-collision";
 import { DEFAULT_RULE_THRESHOLDS, applyThresholdOverrides } from "@/lib/rules/rule-thresholds";
 import { ALLOW } from "@/lib/rules/rule-types";
 
 const interactionSchema = z.object({
   accountId: z.string().min(1, "Chọn nick"),
   targetId: z.string().min(1, "Chọn đích"),
-  threadUrl: z.string().url("Link thread không hợp lệ"),
+  threadUrl: z
+    .string()
+    .url("Link thread không hợp lệ")
+    // Chặn ở đây chứ không ở `normalizeThreadUrl`: lõi nhận cả permalink do bộ dò lấy về từ
+    // Reddit, thứ không cần kiểm. Chỗ cần kiểm là chuỗi người gõ.
+    .refine((value) => !isUnresolvableShareLink(value), UNRESOLVABLE_SHARE_LINK_MESSAGE),
   kind: z.enum(INTERACTION_KINDS),
   note: z.preprocess(
     (value) => (typeof value === "string" && value.trim() === "" ? undefined : value),

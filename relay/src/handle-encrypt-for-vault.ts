@@ -12,7 +12,21 @@
  * tờ giấy phép cho người ta mã hóa chuỗi của chính họ — không bảo vệ thêm gì, mà lại thêm một
  * vòng gọi vào đúng lúc form đang chờ.
  *
- * Cửa vào vẫn hẹp: CORS khai đúng một nguồn, và cầu nối chỉ nghe `127.0.0.1`.
+ * ## Why this route DOES check `Origin`
+ *
+ * An earlier version of this comment argued the entrance was already narrow because "CORS declares
+ * exactly one source". That reasoning is wrong, and `handle-configure.ts` and
+ * `handle-set-operator-key.ts` both spell out why: CORS blocks a page from *reading the response*,
+ * it does not stop the request from arriving. A malicious page can POST here with
+ * `content-type: text/plain` — a simple request, no preflight — and the handler runs.
+ *
+ * The consequence here is milder than on the configure route: the attacker gets a blind encryption
+ * oracle, sealing plaintext of their choosing under `VAULT_KEY_OPERATOR` without being able to read
+ * the ciphertext back. That is not a disclosure on its own, but it is a free chosen-plaintext
+ * primitive against the operator key, and it costs one comparison to remove.
+ *
+ * Bound to the web origin rather than `RELAY_ORIGIN`: the caller is `account-vault-form.tsx` in the
+ * web app, not the relay's own status page.
  *
  * ## Phép kiểm TOTP nằm ở ĐÂY, vì máy chủ đã mất nó
  *
@@ -21,6 +35,7 @@
  * trong kho cho tới **ngày cần OTP gấp** — kiểu hỏng đắt nhất trong cả hệ, vì lúc phát hiện thì
  * người ta đang đứng trước màn hình đăng nhập của nick.
  */
+import type { IncomingMessage } from "node:http";
 import { encryptCredential } from "../../src/lib/crypto/credential-encryption";
 import { isValidTotpSecret, normalizeTotpSecret } from "../../src/lib/totp/totp-code-generator";
 import type { RelayResponseBody } from "./relay-http-server";
@@ -41,13 +56,36 @@ const SECRET_FIELDS = [
 export interface EncryptForVaultDeps {
   /** Khóa vùng operator, 32 byte. `null` khi cấu hình chưa đủ. */
   vaultKeyOperator: Buffer | null;
+  /** Trusted web origin. `null` on a build with no origin baked in. */
+  allowedOrigin: string | null;
   notConfiguredMessage: string;
 }
 
 export async function handleEncryptForVault(
+  request: IncomingMessage,
   body: string,
   deps: EncryptForVaultDeps,
 ): Promise<RelayResponseBody> {
+  // Checked before the configuration check on purpose: an untrusted caller must not be able to
+  // probe whether this machine holds an operator key by reading which message comes back.
+  if (!deps.allowedOrigin) {
+    return {
+      ok: false,
+      message:
+        "This relay build has no web origin baked in, so it accepts configuration from nowhere. " +
+        "Download a current build from the relay download page.",
+    };
+  }
+
+  if (request.headers.origin !== deps.allowedOrigin) {
+    return {
+      ok: false,
+      message:
+        `Only ${deps.allowedOrigin} can seal secrets on this relay. The last call came from ` +
+        `${request.headers.origin ?? "an unnamed origin"}.`,
+    };
+  }
+
   if (!deps.vaultKeyOperator) {
     return { ok: false, message: deps.notConfiguredMessage };
   }

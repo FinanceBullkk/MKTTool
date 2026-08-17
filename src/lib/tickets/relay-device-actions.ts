@@ -21,12 +21,14 @@
  */
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { randomUUID } from "node:crypto";
 import { firstError, formToObject } from "@/lib/accounts/vault-form-schemas";
 import type { ActionResult } from "@/lib/actions/action-result";
 import { AUDIT_ACTIONS } from "@/lib/audit/audit-log-actions";
 import { isEmailAllowed, readEmailAccessList } from "@/lib/auth/allowed-emails";
 import { adminAction } from "@/lib/auth/guarded-action";
 import { prisma } from "@/lib/db/prisma-client";
+import { hashOperatorKeyGrant } from "@/lib/relay/enrollment/grant-digests";
 import { isUniqueConstraintError } from "@/lib/db/prisma-error-helpers";
 import { formatFullDateTime } from "@/lib/format/vietnamese-date-format";
 import {
@@ -212,7 +214,15 @@ export const revokeRelayDevice = adminAction(async function revokeRelayDevice(
   const [, unpinned] = await prisma.$transaction([
     prisma.relayDevice.update({
       where: { id: deviceId },
-      data: { revokedAt: new Date() },
+      data: {
+        revokedAt: new Date(),
+        operatorKeyGrant: null,
+        operatorKeyCompletionGrant: null,
+        operatorKeyDeliveryAuthorization: null,
+        operatorKeyDeliveryExpiresAt: null,
+        bootstrapAuthorization: null,
+        bootstrapAuthorizationExpiresAt: null,
+      },
     }),
     prisma.account.updateMany({
       where: { deviceId },
@@ -281,6 +291,13 @@ export const grantOperatorKeyToDevice = adminAction(async function grantOperator
   });
   if (!device) return { ok: false, message: "Không tìm thấy máy này trong sổ." };
 
+  if (device.retirementId) {
+    return {
+      ok: false,
+      message: `Device "${device.name}" is already in the retirement flow; no new key grant was stored.`,
+    };
+  }
+
   // Máy đã gạch tên thì không cấp. Cấp cho một chiếc máy đã thu hồi là tự tay dựng lại đúng thứ
   // vừa chặn đi — và tệ hơn, nó không xin được vé nên chẳng ai thấy gì bất thường cho tới lúc
   // đọc lại sổ.
@@ -302,13 +319,28 @@ export const grantOperatorKeyToDevice = adminAction(async function grantOperator
     };
   }
 
-  await prisma.relayDevice.update({
-    where: { id: deviceId },
+  const grant = { ephemeralPublicKey, sealed };
+  const committed = await prisma.relayDevice.updateMany({
+    where: { id: deviceId, revokedAt: null, retirementId: null },
     data: {
-      operatorKeyGrant: JSON.stringify({ ephemeralPublicKey, sealed }),
+      operatorKeyGrant: JSON.stringify(grant),
       operatorKeyGrantedAt: new Date(),
+      operatorKeyGrantGeneration: { increment: 1 },
+      operatorKeyGrantId: randomUUID(),
+      operatorKeyGrantHash: hashOperatorKeyGrant(grant),
+      operatorKeyCompletionHash: null,
+      operatorKeyCompletionGrant: null,
+      operatorKeyDeliveryAuthorization: null,
+      operatorKeyDeliveryExpiresAt: null,
+      operatorKeyReadyAt: null,
     },
   });
+  if (committed.count === 0) {
+    return {
+      ok: false,
+      message: `Device "${device.name}" became unavailable before the new key grant was stored.`,
+    };
+  }
 
   await prisma.auditLog.create({
     data: {

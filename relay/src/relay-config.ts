@@ -28,6 +28,7 @@ import { CONFIG_FILE, relayFilePath, resolveRelayHome } from "./relay-home";
 import { isMktBrowserToken } from "./mkt-browser-token-discovery";
 import { RELAY_SECRET_NAMES, type SecureStore } from "./secure-store";
 import { WindowsSecureStore } from "./windows-secure-store";
+import { readOperatorGrantState, retireLegacyOperatorKey } from "./operator-grant-state";
 
 /** Cấu hình đã kiểm xong, sẵn sàng dùng. */
 export interface RelayConfig {
@@ -72,8 +73,8 @@ const SERVER_PUBLIC_KEY_HEX_LENGTH = 64;
  * đọc trang trạng thái, không đọc tài liệu bàn giao.
  */
 export const CONFIG_TEMPLATE = {
-  deviceId: "<web app tự điền khi bấm \"Đăng ký máy này\">",
-  serverPublicKey: "<web app tự điền>",
+  deviceId: "<the web app fills this in when you click \"Register this PC\">",
+  serverPublicKey: "<the web app fills this in>",
   mktBrowserToken: "<optional development override; normally discovered from MKT Browser>",
   mktBrowserUrl: MKT_BROWSER_DEFAULT_MCP_URL,
 };
@@ -127,7 +128,7 @@ function hexProblem(
   whereToGetIt: string,
 ): ConfigProblem | null {
   if (typeof value !== "string" || value.trim() === "") {
-    return { field, message: `Thiếu "${field}" — ${whatItIs}. ${whereToGetIt}` };
+    return { field, message: `Missing "${field}" — ${whatItIs}. ${whereToGetIt}` };
   }
 
   const hex = value.trim().toLowerCase();
@@ -136,7 +137,7 @@ function hexProblem(
     return {
       field,
       message:
-        `"${field}" phải là ${length} ký tự hex (0-9, a-f), đang có ${hex.length} ký tự. ` +
+        `"${field}" must be ${length} hex characters (0-9, a-f); it currently has ${hex.length}. ` +
         whereToGetIt,
     };
   }
@@ -155,7 +156,7 @@ export function reviewRelayConfig(parsed: unknown, protectedVaultKey?: string | 
   if (typeof parsed !== "object" || parsed === null) {
     return {
       ok: false,
-      problems: [{ field: "file", message: "File cấu hình phải là một object JSON." }],
+      problems: [{ field: "file", message: "The configuration file must be a JSON object." }],
     };
   }
 
@@ -177,8 +178,8 @@ export function reviewRelayConfig(parsed: unknown, protectedVaultKey?: string | 
     "serverPublicKey",
     raw.serverPublicKey,
     SERVER_PUBLIC_KEY_HEX_LENGTH,
-    "khóa công khai của máy chủ, dùng để nhận ra vé thật",
-    "Chạy `npm run keys:server-pubkey` trên máy chủ rồi chép nguyên dòng nó in ra.",
+    "the public key of the server, used to recognise genuine tickets",
+    "Run `npm run keys:server-pubkey` on the server and copy the line it prints.",
   );
   if (serverKeyProblem) problems.push(serverKeyProblem);
 
@@ -186,8 +187,8 @@ export function reviewRelayConfig(parsed: unknown, protectedVaultKey?: string | 
     "vaultKeyOperator",
     vaultKey,
     VAULT_KEY_HEX_LENGTH,
-    "khóa mở bí mật nick. Không có nó thì cầu nối nhận được vé nhưng không đọc nổi ruột",
-    "Hỏi quản trị viên — khóa này KHÔNG nằm trên máy chủ, đó là toàn bộ mục đích của nó.",
+    "the key that opens account secrets. Without it the Relay receives tickets but cannot read what is inside",
+    "Ask an administrator — this key is NOT on the server, which is the entire point of it.",
   );
   if (vaultKeyProblem) problems.push(vaultKeyProblem);
 
@@ -281,7 +282,7 @@ function reviewWebOrigin(value: string): ConfigProblem | null {
   } catch {
     return {
       field: "webOrigin",
-      message: `"webOrigin" không phải một địa chỉ hợp lệ: ${value}. Ví dụ: https://mkttool.example.com`,
+      message: `"webOrigin" is not a valid address: ${value}. Example: https://mkttool.example.com`,
     };
   }
 
@@ -342,6 +343,14 @@ export function resolveWebOrigin(home: string = resolveRelayHome()): string {
 export function resolveDeviceId(home: string = resolveRelayHome()): string | null {
   const raw = readRawConfig(home).deviceId;
   return typeof raw === "string" && raw.trim() !== "" ? raw.trim() : null;
+}
+
+/** Server signing key is needed for bootstrap before the operator key makes the full config valid. */
+export function resolveServerPublicKey(home: string = resolveRelayHome()): string | null {
+  const raw = readRawConfig(home).serverPublicKey;
+  if (typeof raw !== "string") return null;
+  const value = raw.trim().toLowerCase();
+  return /^[0-9a-f]{64}$/.test(value) ? value : null;
 }
 
 /** File cấu hình dưới dạng thô. Chưa có file, hoặc hỏng JSON, đều thành object rỗng. */
@@ -406,31 +415,25 @@ export function loadRelayConfig(
       problems: [
         {
           field: "file",
-          message: `${filePath} không phải JSON hợp lệ — nhiều khả năng thừa hoặc thiếu một dấu phẩy.`,
+          message: `${filePath} is not valid JSON — most likely one comma too many or one missing.`,
         },
       ],
     };
   }
 
   try {
-    return reviewRelayConfig(parsed, secureStore.read(RELAY_SECRET_NAMES.operatorDomainKey));
+    const delivered = readOperatorGrantState(secureStore)?.operatorKey;
+    if (delivered) retireLegacyOperatorKey(secureStore);
+    return reviewRelayConfig(parsed, delivered ?? secureStore.read(RELAY_SECRET_NAMES.operatorDomainKey));
   } catch (error) {
     return {
       ok: false,
       problems: [
         {
           field: "vaultKeyOperator",
-          message: `Cannot read the operator key from Windows protected storage: ${(error as Error).message}`,
+          message: `Cannot load or retire the operator key in Windows protected storage: ${(error as Error).message}`,
         },
       ],
     };
   }
-}
-
-/** Test/helper seam for callers that need the protected operator key without parsing config JSON. */
-export function readProtectedOperatorKey(
-  home: string = resolveRelayHome(),
-  secureStore: SecureStore = new WindowsSecureStore(home),
-): string | null {
-  return secureStore.read(RELAY_SECRET_NAMES.operatorDomainKey);
 }

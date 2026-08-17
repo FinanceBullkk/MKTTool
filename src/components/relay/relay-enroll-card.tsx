@@ -1,368 +1,252 @@
 "use client";
 
-/**
- * Ghi danh chiếc máy đang ngồi bằng hai cú bấm, thay cho bốn lượt chép tay.
- *
- * ## Vì sao có nút "Tìm cầu nối" thay vì tự dò lúc mở trang
- *
- * Ràng buộc 1 của spike GĐ0: lời gọi **đầu tiên** xuống `127.0.0.1` trên mỗi máy phải nằm trong
- * trình xử lý cú bấm, nếu không hộp xin quyền mạng nội bộ không hiện ra và request bị nuốt im.
- * Dò tự động lúc mở trang là cách chắc chắn để mọi máy mới đều thấy "không tìm thấy cầu nối".
- *
- * ## Thứ tự hai lời gọi, và vì sao không đảo được
- *
- * `deviceId` chỉ tồn tại **sau** khi khóa công khai đi lên và máy chủ ghi vào sổ. Nên luồng là
- * hai chiều: đọc khóa từ cầu nối → gửi lên → nhận mã máy về → đẩy ngược xuống cầu nối. Trình
- * duyệt làm người đưa thư ở cả hai chiều, đúng vai nó đã làm với vé.
- *
- * ## Bốn trạng thái, và vì sao `deviceId` mới là thứ phân biệt "đã vào sổ"
- *
- * `configured` của `/health` là **đủ CẢ BA giá trị**, kể cả khóa vùng operator. Một chiếc máy vừa
- * đăng ký xong nhưng chưa được cấp khóa vẫn trả `configured: false` — đúng, vì nó chưa làm được
- * việc gì thật. Dùng cờ đó để trả lời câu *"đã vào sổ chưa"* là gộp hai câu hỏi khác nhau, và
- * hệ quả là chiếc máy đang chờ khóa sẽ bị mời đăng ký lại lần nữa.
- *
- * Nên: `deviceId` trả lời *"đã vào sổ chưa"*, `configured` trả lời *"làm việc được chưa"*.
- */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Field, SelectField } from "@/components/ui/form-controls";
+import { SetupPrimaryStateCard } from "@/components/setup/setup-primary-state-card";
+import { SetupSupportDetails } from "@/components/setup/setup-support-details";
+import { configureRelay, receiveOperatorKey } from "@/lib/relay/relay-browser-client";
+import type { RelayHealth } from "@/lib/relay/relay-endpoints";
+import { probeSetupRelay } from "@/lib/setup/setup-relay-probe";
+import { reconcileSavedSetupDevice } from "@/lib/setup/reconcile-saved-setup-device";
 import {
-  configureRelay,
-  describeRelayFailure,
-  pingRelay,
-  receiveOperatorKey,
-  type RelayOutcome,
-} from "@/lib/relay/relay-browser-client";
-import { RELAY_ORIGIN, type RelayHealth, type RelayReply } from "@/lib/relay/relay-endpoints";
-import type { RelayBrowserHealth } from "@/lib/relay/relay-endpoints";
-import { currentDeviceBrowserReadiness } from "@/lib/relay/current-device-browser-health";
+  setupStateMachine,
+  type SetupDeviceRegistry,
+  type SetupRelayHealth,
+} from "@/lib/setup/setup-state-machine";
+import { currentSetupUpdateState } from "@/lib/setup/setup-update-state";
+import { AdminBootstrapButton } from "@/components/setup/admin-bootstrap-button";
+import { enrollThisMachine } from "@/lib/tickets/relay-enrollment-actions";
 import {
-  enrollThisMachine,
-  markOperatorKeyReady,
-  readOperatorKeyGrant,
-} from "@/lib/tickets/relay-enrollment-actions";
+  completeOperatorKeyDelivery,
+  readOperatorKeyDelivery,
+} from "@/lib/enrollment/operator-key-delivery-actions";
 
-interface TeamMember {
-  id: string;
-  email: string;
-}
-
-/** Cầu nối trên máy này đang ở đâu trong quá trình cài. */
-type Found = {
-  publicKey: string;
-  configured: boolean;
-  deviceId: string | null;
-  browser: RelayBrowserHealth;
-};
-
-/**
- * Nhịp hỏi lại khi đang đợi quản trị viên cấp khóa.
- *
- * 10 giây: đủ thưa để không phải là một vòng lặp bận, đủ dày để người vừa được duyệt không phải
- * tự hỏi có nên tải lại trang không. Chỉ chạy ở đúng trạng thái đang chờ — xem `useEffect` bên dưới.
- */
-const GRANT_POLL_MS = 10_000;
-
-const NOTE_CLASS = "text-xs text-neutral-500";
-const BUTTON_CLASS =
-  "rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white transition " +
-  "hover:bg-neutral-700 disabled:opacity-50 dark:bg-neutral-100 dark:text-neutral-900";
-
-const OFFLINE_BROWSER: RelayBrowserHealth = {
-  ready: false,
-  provider: null,
-  appVersion: null,
-  contractVersion: null,
-  contractCompatible: false,
-  contractProblem: "",
-  engine: null,
-  capabilities: [],
-};
+const POLL_MS = 10_000;
+const STARTING_RETRY_MS = 5_000;
 
 export function RelayEnrollCard({
-  teamMembers,
-  isAdmin,
+  viewer,
 }: {
-  teamMembers: TeamMember[];
-  isAdmin: boolean;
+  viewer: { userId: string; email: string; isAdmin: boolean };
 }) {
+  const [relay, setRelay] = useState<SetupRelayHealth>({ status: "unchecked" });
+  const [device, setDevice] = useState<SetupDeviceRegistry>({ status: "unknown" });
+  const [health, setHealth] = useState<RelayHealth | null>(null);
   const [busy, setBusy] = useState(false);
-  const [found, setFound] = useState<Found | null>(null);
-  const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
-  /** Câu mô tả lượt đi lấy khóa gần nhất. Tách khỏi `message` vì nó tự đổi, không do ai bấm. */
-  const [keyNote, setKeyNote] = useState<string | null>(null);
-  /** Đã báo lên máy chủ rằng máy này có khóa chưa — chỉ báo một lần cho mỗi lượt mở trang. */
-  const reported = useRef(false);
-
-  /**
-   * Đi lấy hộp khóa nếu có, mở nó ra, rồi báo lại cho sổ.
-   *
-   * Ba lời gọi nhưng người dùng không bấm gì cả: máy chủ giữ hộ → cầu nối mở → sổ ghi nhận. Chỗ
-   * duy nhất khóa hiện ra dạng dùng được là bên trong cầu nối, đúng như mọi đường khác của GĐ3.
-   */
-  const pickUpKey = useCallback(async (deviceId: string) => {
-    const askForm = new FormData();
-    askForm.set("deviceId", deviceId);
-
-    const waiting = await readOperatorKeyGrant(null, askForm);
-    if (!waiting.ok) {
-      setKeyNote(waiting.message);
-      return;
-    }
-    // `guardedAction` có thể trả về lời từ chối của chính lớp gác — một `ActionResult` trần,
-    // không mang hộp khóa. Thu hẹp kiểu thay vì ép, đúng như `enroll` làm với `enrollment`.
-    const grant = "grant" in waiting ? waiting.grant : undefined;
-    if (!grant) {
-      setKeyNote(null);
-      return;
-    }
-
-    const opened = await receiveOperatorKey(grant);
-    if (opened.status !== "ok") {
-      setKeyNote(`Nhận được khóa nhưng cầu nối chưa lưu được: ${describeRelayFailure(opened)}`);
-      return;
-    }
-
-    // Chỉ báo lên sổ SAU khi cầu nối đã xác nhận lưu xong. Báo trước là xóa mất cái hộp của một
-    // chiếc máy chưa thật sự nhận được nó, và lúc đó chỉ còn đường xin cấp lại.
-    const doneForm = new FormData();
-    doneForm.set("deviceId", deviceId);
-    await markOperatorKeyReady(null, doneForm);
-
-    reported.current = true;
-    setFound((current) => (current ? { ...current, configured: true } : current));
-    setKeyNote(null);
+  const [detail, setDetail] = useState<string | null>(null);
+  const delivering = useRef(false);
+  const verdict = setupStateMachine({ session: { status: "signed-in", ...viewer }, device, relay,
+    update: currentSetupUpdateState(relay) });
+  const markReady = useCallback(() => {
+    setDevice((current) => ({ ...current, operatorKeyReady: true }));
+    setHealth((current) => (current ? { ...current, configured: true } : current));
+    setRelay((current) => current.status === "responded"
+      ? { status: "responded", health: { ...current.health, configured: true } } : current);
   }, []);
 
-  async function findRelay() {
-    setBusy(true);
-    setMessage(null);
-
-    const outcome: RelayOutcome<RelayHealth & RelayReply> = await pingRelay();
-
-    // `rejected` KHÔNG phải thất bại ở đây, và đó là điểm mấu chốt: cầu nối chưa cấu hình trả về
-    // `ok: false` kèm câu "chưa cấu hình xong" — tức đúng chiếc máy mà nút này sinh ra để phục vụ.
-    // Coi nó là lỗi thì tính năng này không bao giờ chạy được lần nào.
-    if (outcome.status === "ok" || outcome.status === "rejected") {
-      // Đọc thân ở CẢ hai nhánh. Máy vừa cài xong luôn đi ra bằng nhánh `rejected` — `/health`
-      // của nó trả `ok: false` vì cấu hình còn thiếu — nên chỉ đọc nhánh `ok` là bỏ đúng chiếc
-      // máy cần đăng ký, và đó là mọi chiếc máy ở lần đầu.
-      const data = outcome.data;
-      if (data?.publicKey) {
-        setFound({
-          publicKey: data.publicKey,
-          configured: data.configured ?? false,
-          deviceId: data.deviceId ?? null,
-          browser: data.browser ?? OFFLINE_BROWSER,
-        });
-      } else {
-        // Trả lời được mà không có khóa công khai thì thứ đang nghe ở cổng đó nhiều khả năng
-        // không phải cầu nối. Kèm luôn câu nó vừa nói — đó là manh mối duy nhất còn lại.
-        const said = outcome.status === "rejected" ? ` Nó nói: "${outcome.message}".` : "";
-        setMessage({
-          ok: false,
-          text:
-            "Có thứ gì đó đang trả lời ở cổng 47821 nhưng không khai khóa công khai, nên nhiều " +
-            `khả năng nó không phải cầu nối.${said} Mở http://127.0.0.1:47821 trên máy này để ` +
-            "xem trực tiếp.",
-        });
+  const deliverGrant = useCallback(async (deviceId: string) => {
+    if (delivering.current) return;
+    delivering.current = true;
+    try {
+      const form = new FormData();
+      form.set("deviceId", deviceId);
+      const waiting = await readOperatorKeyDelivery(null, form);
+      if (!waiting.ok) {
+        setDetail(waiting.message);
+        return;
       }
-    } else {
-      setMessage({ ok: false, text: describeRelayFailure(outcome) });
+      if (!("delivery" in waiting) || !waiting.delivery) return;
+      const stored = await receiveOperatorKey(waiting.delivery);
+      if (stored.status !== "ok") {
+        setDetail(stored.message);
+        return;
+      }
+      if (!stored.data.grantId || !stored.data.generation || !stored.data.proof) {
+        setDetail("Relay stored the grant but returned incomplete completion data. Check this PC again.");
+        return;
+      }
+      const completion = new FormData();
+      completion.set("deviceId", deviceId);
+      completion.set("grantId", stored.data.grantId);
+      completion.set("generation", String(stored.data.generation));
+      completion.set("proof", stored.data.proof);
+      const committed = await completeOperatorKeyDelivery(null, completion);
+      if (!committed.ok) {
+        setDetail(committed.message);
+        return;
+      }
+      setDetail(null);
+      markReady();
+    } finally {
+      delivering.current = false;
     }
+  }, [markReady]);
 
-    setBusy(false);
-  }
+  useEffect(() => {
+    let cancelled = false;
+    const savedDeviceId = window.localStorage.getItem("mkttool.setup.device-id");
+    if (!savedDeviceId) return;
 
-  async function enroll(formData: FormData) {
-    if (!found) return;
-    setBusy(true);
-    setMessage(null);
+    void probeSetupRelay()
+      .then((probed) => {
+        if (cancelled) return;
+        setRelay(probed.relay);
+        setHealth(probed.health);
+        if (probed.detail) setDetail(probed.detail);
+        if (!probed.device) return;
 
-    formData.set("publicKey", found.publicKey);
+        setDevice(probed.device);
+        const liveDeviceId = probed.health?.deviceId ?? null;
+        const reconciliation = reconcileSavedSetupDevice({
+          savedDeviceId,
+          liveDeviceId,
+          device: probed.device,
+          viewerUserId: viewer.userId,
+        });
+        if (reconciliation.storage === "clear") {
+          window.localStorage.removeItem("mkttool.setup.device-id");
+        } else if (reconciliation.storage === "replace") {
+          window.localStorage.setItem("mkttool.setup.device-id", reconciliation.deviceId);
+        }
 
-    const result = await enrollThisMachine(null, formData);
-    // `adminAction` có thể trả về lời từ chối của chính lớp gác — một `ActionResult` trần, không
-    // mang `enrollment`. Thu hẹp kiểu ở đây thay vì ép: câu từ chối đó là câu người dùng cần đọc.
-    const enrollment = "enrollment" in result ? result.enrollment : undefined;
-    if (!result.ok || !enrollment) {
-      setMessage({ ok: false, text: result.message });
-      setBusy(false);
-      return;
-    }
-
-    const pushed = await configureRelay(enrollment);
-    if (pushed.status !== "ok") {
-      setMessage({
-        ok: false,
-        text:
-          `Đã ghi máy vào sổ, nhưng chưa gửi được cấu hình xuống cầu nối: ` +
-          `${describeRelayFailure(pushed)} — bấm "Tìm cầu nối" rồi thử lại, sổ không bị ghi trùng.`,
+        const safeToResume =
+          probed.device.status === "enrolled" &&
+          probed.device.ownerUserId === viewer.userId &&
+          !probed.device.revoked &&
+          !probed.device.conflict;
+        if (safeToResume && liveDeviceId) void deliverGrant(liveDeviceId);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setRelay({ status: "unreachable" });
+        setHealth(null);
+        setDevice({ status: "inspection-failed" });
+        setDetail("MKTTool could not verify this PC safely.");
       });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [deliverGrant, viewer.userId]);
+
+  async function saveEnrollmentToRelay(currentHealth: RelayHealth) {
+    const enrollmentForm = new FormData();
+    enrollmentForm.set("name", currentHealth.machineName || "This Windows PC");
+    enrollmentForm.set("publicKey", currentHealth.publicKey);
+    const enrolled = await enrollThisMachine(null, enrollmentForm);
+    const enrollment = "enrollment" in enrolled ? enrolled.enrollment : undefined;
+    if (!enrolled.ok || !enrollment) {
+      setDevice({ status: "inspection-failed" });
+      setRelay({ status: "responded", health: currentHealth });
+      setDetail("MKTTool could not register this PC safely. An administrator must inspect the device record.");
+      return;
+    }
+
+    const configured = await configureRelay(enrollment);
+    if (configured.status !== "ok") {
+      setDevice({ status: "enrolled", ownerUserId: viewer.userId, operatorKeyReady: false });
+      setRelay({ status: "responded", health: currentHealth });
+      setDetail("Registration was saved, but local configuration did not finish. Confirm this PC again.");
+      return;
+    }
+
+    const nextDevice = { status: "enrolled", ownerUserId: viewer.userId, operatorKeyReady: false } as const;
+    const nextHealth = { ...currentHealth, deviceId: enrollment.deviceId };
+    window.localStorage.setItem("mkttool.setup.device-id", enrollment.deviceId);
+    setDevice(nextDevice);
+    setHealth(nextHealth);
+    setRelay({ status: "responded", health: nextHealth });
+    void deliverGrant(enrollment.deviceId);
+  }
+
+  async function confirmThisPc() {
+    setBusy(true);
+    setDetail(null);
+    setRelay({ status: "checking" });
+    const probed = await probeSetupRelay();
+    setRelay(probed.relay);
+    setHealth(probed.health);
+    const registry = probed.device;
+    if (!registry) {
+      setDetail(probed.detail ?? "This PC could not be checked.");
       setBusy(false);
       return;
     }
 
-    // KHÔNG đặt `configured: true` ở đây. Máy vừa vào sổ và vừa nhận `deviceId`, nhưng khóa vùng
-    // operator thì chưa — nó tới ở bước sau, và cờ này là thứ quyết định giao diện nói "xong" hay
-    // "đang chờ". Đặt sớm là hứa hộ một việc chưa xảy ra.
-    setFound({ ...found, deviceId: enrollment.deviceId });
-    setMessage({ ok: true, text: pushed.data.message });
-    setBusy(false);
+    if (registry.status === "not-enrolled") {
+      setDevice(registry);
+      setBusy(false);
+      return;
+    }
 
-    // Có thể quản trị viên đã cấp sẵn từ trước — hỏi luôn thay vì bắt đợi hết một nhịp.
-    void pickUpKey(enrollment.deviceId);
+    setDevice(registry);
+    if (!registry.conflict && probed.health && !probed.health.deviceId) {
+      await saveEnrollmentToRelay(probed.health);
+      setBusy(false);
+      return;
+    }
+    setBusy(false);
+    if (
+      probed.health?.deviceId &&
+      registry.status === "enrolled" &&
+      registry.ownerUserId === viewer.userId &&
+      !registry.revoked &&
+      !registry.conflict
+    ) {
+      window.localStorage.setItem("mkttool.setup.device-id", probed.health.deviceId);
+      void deliverGrant(probed.health.deviceId);
+    }
   }
 
-  /**
-   * Đang chờ khóa thì tự hỏi lại, không bắt người dùng tải trang.
-   *
-   * Chỉ chạy khi đã vào sổ mà chưa đủ cấu hình — tức đúng một trạng thái. Ràng buộc 1 (LNA) không
-   * bị vi phạm: tới được đây nghĩa là đã có một lượt ping thành công **từ một cú bấm**, nên quyền
-   * mạng nội bộ đã được cấp và các lời gọi nền sau đó đi lọt.
-   */
+  async function bindThisPc() {
+    if (!health) return;
+    setBusy(true);
+    setDetail(null);
+    try {
+      const registry = device;
+      if (registry.status !== "not-enrolled") return;
+      await saveEnrollmentToRelay(health);
+    } catch {
+      setDevice({ status: "inspection-failed" });
+      setRelay({ status: "responded", health });
+      setDetail("MKTTool could not register this PC safely. An administrator must inspect the device record.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   useEffect(() => {
-    const deviceId = found?.deviceId;
-    if (!deviceId || found?.configured) return;
+    const deviceId = health?.deviceId;
+    if (verdict.state !== "Waiting for administrator approval" || !deviceId) return;
+    const timer = setInterval(() => void deliverGrant(deviceId), POLL_MS);
+    return () => clearInterval(timer);
+  }, [deliverGrant, health?.deviceId, verdict.state]);
 
-    // Nhịp đầu đẩy sang tick sau thay vì gọi thẳng trong thân effect: gọi thẳng là dựng một
-    // chuỗi render nối đuôi nhau ngay lúc React đang commit, và đó cũng là thứ eslint chặn.
-    const first = setTimeout(() => void pickUpKey(deviceId), 0);
-    const timer = setInterval(() => void pickUpKey(deviceId), GRANT_POLL_MS);
-    return () => {
-      clearTimeout(first);
-      clearInterval(timer);
-    };
-  }, [found?.deviceId, found?.configured, pickUpKey]);
-
-  /**
-   * Máy đã đủ cấu hình mà sổ chưa biết → báo lên một lần.
-   *
-   * Đây là đường **dán tay**: chiếc máy đầu tiên của cả team lấy khóa ở trang trạng thái của cầu
-   * nối, và máy chủ không thấy được việc đó. Không báo thì sổ hiện "chưa có khóa" cho một chiếc
-   * máy đang chạy tốt — và người đọc sổ sẽ đi cấp lại một thứ đã có.
-   */
   useEffect(() => {
-    const deviceId = found?.deviceId;
-    if (!deviceId || !found?.configured || reported.current) return;
-
-    reported.current = true;
-    const form = new FormData();
-    form.set("deviceId", deviceId);
-    void markOperatorKeyReady(null, form);
-  }, [found?.deviceId, found?.configured]);
+    if (verdict.state !== "Starting" || relay.status !== "responded") return;
+    const timer = setTimeout(() => {
+      void probeSetupRelay().then((probed) => {
+        setRelay(probed.relay);
+        setHealth(probed.health);
+        if (probed.device) setDevice(probed.device);
+        if (probed.detail) setDetail(probed.detail);
+      });
+    }, STARTING_RETRY_MS);
+    return () => clearTimeout(timer);
+  }, [relay.status, verdict.state]);
 
   return (
-    <div className="space-y-4">
-      <p className="text-sm text-neutral-600 dark:text-neutral-400">
-        Cài <code className="font-mono text-xs">setup.bat</code> xong thì bấm nút dưới đây{" "}
-        <strong>ngay trên chiếc máy vừa cài</strong>. Web app tự đọc khóa công khai của nó, ghi vào
-        sổ, rồi gửi cấu hình ngược xuống — không phải chép tay giá trị nào.
-      </p>
-
-      {!found ? (
-        <div className="space-y-2">
-          <button type="button" className={BUTTON_CLASS} disabled={busy} onClick={findRelay}>
-            {busy ? "Đang tìm…" : "Tìm cầu nối trên máy này"}
-          </button>
-          <p className={NOTE_CLASS}>
-            Lần đầu trên mỗi máy, Chrome sẽ hỏi quyền truy cập mạng nội bộ — chọn{" "}
-            <strong>Cho phép</strong>.
-          </p>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          <p className="text-sm">
-            Thấy cầu nối.{" "}
-            <span className="font-mono text-xs text-neutral-500">
-              {found.publicKey.slice(0, 12)}…{found.publicKey.slice(-12)}
-            </span>
-          </p>
-
-          {found.configured && currentDeviceBrowserReadiness(found.browser).ready ? (
-            <p className="text-sm text-emerald-700 dark:text-emerald-400">
-              This PC is ready{found.deviceId ? ` (${found.deviceId})` : ""}. Relay, MKT Browser,
-              the browser engine, and the managed-profile contract are live on this device.
-            </p>
-          ) : found.configured ? (
-            <div className="space-y-2 rounded-md border border-red-200 bg-red-50 p-3 dark:border-red-900/50 dark:bg-red-950/30">
-              <p className="text-sm font-medium text-red-900 dark:text-red-200">This PC needs repair.</p>
-              <p className="text-sm text-red-800 dark:text-red-300">
-                {currentDeviceBrowserReadiness(found.browser).message}
-              </p>
-              <details className="text-xs text-neutral-600 dark:text-neutral-400">
-                <summary className="cursor-pointer">Support details</summary>
-                <div className="mt-2 space-y-1 font-mono">
-                  <p>Provider: {found.browser.provider ?? "not detected"}</p>
-                  <p>App: {found.browser.appVersion ?? "unknown"}</p>
-                  <p>Contract: {found.browser.contractVersion ?? "unknown"}</p>
-                  <p>
-                    Engine: {found.browser.engine?.kind ?? "unknown"} / {found.browser.engine?.version ?? "unknown"} / {found.browser.engine?.status ?? "offline"}
-                  </p>
-                </div>
-              </details>
-            </div>
-          ) : found.deviceId ? (
-            <div className="space-y-2 rounded-md border border-amber-200 bg-amber-50 p-3 dark:border-amber-900/50 dark:bg-amber-950/30">
-              <p className="text-sm text-amber-900 dark:text-amber-200">
-                Đã ghi máy này vào sổ. <strong>Đang chờ quản trị viên cấp khóa</strong> — khóa tự
-                về, trang này tự cập nhật, không phải làm gì thêm.
-              </p>
-              <p className={NOTE_CLASS}>
-                Cần dùng ngay mà không đợi được thì dán tay khóa vùng operator ở{" "}
-                <a className="underline" href={RELAY_ORIGIN} target="_blank" rel="noopener">
-                  trang của chính cầu nối
-                </a>
-                . Đó cũng là đường duy nhất cho chiếc máy đầu tiên của cả team — lúc đó chưa có cầu
-                nối nào khác để cấp khóa từ đó.
-              </p>
-              {keyNote ? (
-                <p className="text-xs text-red-700 dark:text-red-400">{keyNote}</p>
-              ) : null}
-            </div>
-          ) : (
-            <form action={enroll} className="space-y-4">
-              <Field
-                label="Tên máy"
-                name="name"
-                required
-                placeholder="Laptop Dell của Hà"
-                hint="Tới ngày phải thu hồi gấp, đây là thứ duy nhất để nhận ra máy nào là máy nào."
-              />
-              {/* OPERATOR không chọn chủ máy: máy họ đăng ký luôn thuộc về chính họ, và server
-                  action ép điều đó chứ không dựa vào việc ô này có hiện hay không. */}
-              {isAdmin ? (
-                <SelectField
-                  label="Người dùng máy"
-                  name="userId"
-                  required
-                  options={teamMembers.map((member) => ({ value: member.id, label: member.email }))}
-                  hint="Chỉ hiện người đã đăng nhập ít nhất một lần."
-                />
-              ) : (
-                <p className={NOTE_CLASS}>
-                  Máy này sẽ được ghi cho <strong>chính bạn</strong>. Cài hộ người khác là việc của
-                  quản trị viên.
-                </p>
-              )}
-              <button type="submit" className={BUTTON_CLASS} disabled={busy}>
-                {busy ? "Đang ghi…" : "Đăng ký & cấu hình máy này"}
-              </button>
-            </form>
-          )}
-        </div>
-      )}
-
-      {message ? (
-        <p
-          className={
-            message.ok
-              ? "text-sm text-emerald-700 dark:text-emerald-400"
-              : "text-sm text-red-700 dark:text-red-400"
-          }
-        >
-          {message.text}
-        </p>
+    <div className="space-y-5">
+      <SetupPrimaryStateCard
+        verdict={verdict}
+        health={health}
+        email={viewer.email}
+        busy={busy}
+        detail={detail}
+        onAction={verdict.action.kind === "CONFIRM" && health ? bindThisPc : confirmThisPc}
+      />
+      <SetupSupportDetails health={health} />
+      {viewer.isAdmin && verdict.state === "Waiting for administrator approval" && health?.deviceId ? (
+        <AdminBootstrapButton deviceId={health.deviceId} onReady={markReady} />
       ) : null}
     </div>
   );

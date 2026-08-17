@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { normalizeThreadUrl } from "./rule-thread-collision";
+import { HEALTH_VERDICTS } from "@/lib/health/health-verdict";
+import { isUnresolvableShareLink, normalizeThreadUrl } from "./rule-thread-collision";
 import { DEFAULT_RULE_THRESHOLDS, applyThresholdOverrides } from "./rule-thresholds";
 import type { RuleContext } from "./rule-types";
 import { deserializeEvaluation, evaluateRules, serializeEvaluation } from "./rules-engine";
@@ -222,6 +223,61 @@ describe("luật 10 — kết quả dò gần nhất", () => {
     });
     expect(levelOf(ctx, "health-check")).toBe("WARN");
     expect(reasonOf(ctx, "health-check")).toContain("Đã đăng");
+  });
+
+  /**
+   * Kết luận này CÓ THẬT trong `HEALTH_VERDICTS` nhưng luật 10 chưa từng nhắc tới, nên trước khi
+   * sửa nó rơi thẳng xuống `return ALLOW` cuối hàm — cho đăng, im lặng.
+   *
+   * Cảnh báo chứ không chặn, vì bản thân nick không sao: thứ thiếu là SỔ SÁCH của mình (xem
+   * `statusForcedBy` trong health-verdict.ts, nó cố ý không cách ly nick vì kết luận này). Nhưng
+   * cũng không được im, vì luật 4, 5 và 6 đang đếm thiếu đúng số bài mà bộ dò vừa nhìn thấy.
+   */
+  it("thấy bài mà kho không có thì cảnh báo — luật đếm số đang thiếu dữ liệu", () => {
+    const ctx = makeContext({
+      latestHealthCheck: { verdict: "UNTRACKED_POSTS", checkedAt: new Date(AT.getTime() - HOUR) },
+    });
+    expect(levelOf(ctx, "health-check")).toBe("WARN");
+    expect(reasonOf(ctx, "health-check")).toContain("đếm thiếu");
+  });
+
+  /**
+   * Luật 1 chặn mọi `status` nó không nhận ra; luật này từng làm ngược lại — cùng một họ dữ liệu,
+   * hai mặc định trái nhau, và cái mặc định sai nằm ở đúng luật đọc thứ người ngoài nhìn thấy.
+   */
+  it("kết luận lạ thì CHẶN, không cho qua", () => {
+    const ctx = makeContext({
+      latestHealthCheck: { verdict: "SOMETHING_NEW", checkedAt: new Date(AT.getTime() - HOUR) },
+    });
+    expect(levelOf(ctx, "health-check")).toBe("BLOCK");
+    expect(reasonOf(ctx, "health-check")).toContain("chưa biết cách chấm");
+  });
+
+  /**
+   * Nhánh "kết luận lạ" phải đứng TRƯỚC phép kiểm cũ/mới. Nếu đứng sau, một kết luận lạ mà lại cũ
+   * sẽ bị nhánh "số liệu cũ" nuốt mất và trả WARN — tức vẫn cho đăng, đúng lỗ hổng vừa bịt.
+   */
+  it("kết luận lạ mà lại cũ thì vẫn CHẶN, không rơi vào nhánh cảnh báo số liệu cũ", () => {
+    const ctx = makeContext({
+      latestHealthCheck: { verdict: "SOMETHING_NEW", checkedAt: new Date(AT.getTime() - 9 * DAY) },
+    });
+    expect(levelOf(ctx, "health-check")).toBe("BLOCK");
+  });
+
+  /**
+   * Chốt chặn cho người thêm kết luận mới vào bộ dò: gặp test đỏ ở máy mình, chứ không gặp cả đàn
+   * nick bị chặn trên máy chủ. Đây là nửa thứ hai của việc luật 10 giữ danh sách riêng — nửa đầu
+   * là chặn lúc chạy, nửa này là báo lúc phát triển.
+   */
+  it("mọi kết luận bộ dò phát ra đều được luật 10 chấm, không cái nào rơi vào nhánh lạ", () => {
+    for (const verdict of HEALTH_VERDICTS) {
+      const ctx = makeContext({
+        latestHealthCheck: { verdict, checkedAt: new Date(AT.getTime() - HOUR) },
+      });
+      expect(reasonOf(ctx, "health-check") ?? "", `kết luận ${verdict}`).not.toContain(
+        "chưa biết cách chấm",
+      );
+    }
   });
 });
 
@@ -487,6 +543,34 @@ describe("normalizeThreadUrl", () => {
     expect(key).toBe("reddit:1a2b3c");
   });
 
+  /**
+   * Link rút gọn là dạng nút Share của app Reddit phát ra, tức dạng người dùng dán vào nhiều
+   * nhất. Trước khi sửa, nó cho ra khóa `redd.it/1a2b3c` — khác hẳn `reddit:1a2b3c` của permalink
+   * đầy đủ, nên hai nick vào cùng một thread bằng hai dạng link thì luật 8 không thấy đụng độ.
+   * Mà luật 8 là luật DUY NHẤT không cho ghi đè, nên bỏ lọt ở đây là bỏ lọt hẳn.
+   */
+  it("link rút gọn redd.it ra cùng khóa với permalink đầy đủ", () => {
+    const key = normalizeThreadUrl("https://www.reddit.com/r/selfhosted/comments/1a2b3c/backup/");
+
+    expect(normalizeThreadUrl("https://redd.it/1a2b3c")).toBe(key);
+    expect(normalizeThreadUrl("https://redd.it/1a2b3c/")).toBe(key);
+    expect(normalizeThreadUrl("redd.it/1a2b3c")).toBe(key);
+  });
+
+  /** Khớp đúng host, không phải "có chứa chuỗi redd.it" — nếu không thì tên miền giả cũng lọt. */
+  it("host chỉ giống chứ không phải redd.it thì KHÔNG được coi là link Reddit", () => {
+    expect(normalizeThreadUrl("https://notredd.it/1a2b3c")).toBe("notredd.it/1a2b3c");
+    expect(normalizeThreadUrl("https://redd.it.evil.com/1a2b3c")).toBe("redd.it.evil.com/1a2b3c");
+  });
+
+  it("link share /s/ KHÔNG rút được, nên ra một khóa khác hẳn permalink", () => {
+    // Ghi lại hành vi thật để không ai tưởng nhầm là đã xử lý: mã sau /s/ là mã mờ, chỉ redirect
+    // của Reddit mới phân giải được. Vì vậy chốt nằm ở đầu vào, xem isUnresolvableShareLink.
+    expect(normalizeThreadUrl("https://www.reddit.com/r/trove/s/abcdefgh12")).not.toBe(
+      normalizeThreadUrl("https://www.reddit.com/r/trove/comments/1veg99o/tieu_de/"),
+    );
+  });
+
   it("URL thường thì bỏ www, tham số theo dõi và dấu / cuối", () => {
     expect(normalizeThreadUrl("https://www.facebook.com/pages/abc/?ref=bookmarks")).toBe(
       "facebook.com/pages/abc",
@@ -522,5 +606,46 @@ describe("normalizeThreadUrl", () => {
 
   it("chuỗi không phải URL vẫn dùng được làm khóa", () => {
     expect(normalizeThreadUrl("  Thread ABC  ")).toBe("thread abc");
+  });
+});
+
+/**
+ * H109 — chốt đầu vào cho link share không phân giải được.
+ *
+ * Nửa còn lại của C27. `normalizeThreadUrl` rút được `redd.it/<id>` vì phần path chính là id bài,
+ * nhưng `reddit.com/r/<sub>/s/<id>` thì không: mã đó mờ, chỉ đi theo redirect mới ra. Hàm thuần
+ * không gọi mạng được, nên chặn lúc người ta dán — lúc họ còn đang mở đúng cái link đó.
+ */
+describe("isUnresolvableShareLink", () => {
+  it("bắt link share /s/ của Reddit ở mọi biến thể host", () => {
+    expect(isUnresolvableShareLink("https://www.reddit.com/r/trove/s/AbCdEfGh12")).toBe(true);
+    expect(isUnresolvableShareLink("https://reddit.com/r/trove/s/abcdefgh12")).toBe(true);
+    expect(isUnresolvableShareLink("https://old.reddit.com/r/trove/s/abcdefgh12/")).toBe(true);
+    expect(isUnresolvableShareLink("reddit.com/r/trove/s/abcdefgh12")).toBe(true);
+  });
+
+  it("KHÔNG chặn những link vẫn rút được — nếu không thì chốt này chặn cả việc bình thường", () => {
+    expect(
+      isUnresolvableShareLink("https://www.reddit.com/r/trove/comments/1veg99o/tieu_de/"),
+    ).toBe(false);
+    // redd.it đã rút được từ C27, phải giữ nguyên đường đó.
+    expect(isUnresolvableShareLink("https://redd.it/1veg99o")).toBe(false);
+    expect(isUnresolvableShareLink("https://www.facebook.com/permalink.php?story_fbid=1&id=2")).toBe(
+      false,
+    );
+  });
+
+  /** Host chỉ trông giống Reddit thì không phải việc của chốt này. */
+  it("không nhận nhầm tên miền giả", () => {
+    expect(isUnresolvableShareLink("https://reddit.com.evil.test/r/x/s/abc")).toBe(false);
+    expect(isUnresolvableShareLink("https://notreddit.com/r/x/s/abc")).toBe(false);
+  });
+
+  /** Bài Reddit có sub đặt tên là "s" vẫn phải đăng được — path phải khớp đúng /r/<sub>/s/<id>. */
+  it("không chặn path chỉ tình cờ có đoạn s", () => {
+    expect(isUnresolvableShareLink("https://www.reddit.com/r/s/comments/1veg99o/tieu_de/")).toBe(
+      false,
+    );
+    expect(isUnresolvableShareLink("https://www.reddit.com/user/ai_do/s/abc/them/nua")).toBe(false);
   });
 });

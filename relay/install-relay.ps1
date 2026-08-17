@@ -30,6 +30,7 @@ $desktopDir = if ($env:RELAY_DESKTOP_DIR) { $env:RELAY_DESKTOP_DIR } else { Join
 
 $targetExe = Join-Path $relayDir $exeName
 $configFile = Join-Path $relayDir "relay-config.json"
+$shortcutSaveMaxAttempts = 5
 
 function Write-Step($index, $text) {
     Write-Host "  [$index/5] $text"
@@ -43,62 +44,141 @@ function Fail($text) {
 }
 
 <#
-Tạo một shortcut trỏ tới cầu nối.
+The shortcut name stays ASCII because WScript.Shell can pass its path through the machine ANSI
+code page. Saving directly also removes the shared staging-file rename that failed when Explorer
+or antivirus briefly held the old destination open.
 
-`WindowStyle = 7` là thu nhỏ. Cố ý **không ẩn hẳn**: cầu nối là tiến trình giữ khóa vùng operator
-và mở một cổng trên máy này — người ngồi đó phải nhìn thấy được là nó đang chạy, và tắt được mà
-không cần mở Task Manager.
-
-## Vì sao tạo tên ASCII rồi mới đổi tên
-
-`WScript.Shell` là COM đời cũ: mọi chuỗi đi qua nó bị ép về bảng mã ANSI của máy. Trên một máy
-Windows đặt tiếng Anh thì "Cầu nối" thành "C?u n?i" — mà `?` không hợp lệ trong tên file, nên
-`Save()` ném `FileNotFoundException` với câu chẳng liên quan gì tới nguyên nhân. Đổi tên sau đó
-bằng `Move-Item` thì không qua COM, và Unicode đi qua nguyên vẹn.
-
-Cùng lý do, **không đặt `Description`**: nó cũng bị ép ANSI, và một tooltip đọc ra "C?u n?i" trông
-như phần mềm hỏng. Tên shortcut và biểu tượng đã nói đủ.
+Only Windows sharing and lock violations are retryable. Access denied, invalid paths, and every
+other error fail immediately. The bounded retry keeps installation deterministic when a lock is
+not transient.
 #>
+function Test-RetryableShortcutError($errorRecord) {
+    $exception = $errorRecord.Exception
+    while ($exception) {
+        $windowsErrorCode = $exception.HResult -band 0xffff
+        if ($windowsErrorCode -in @(32, 33)) { return $true }
+        $exception = $exception.InnerException
+    }
+    return $false
+}
+
+function Test-RelayShortcut($linkPath) {
+    if (-not (Test-Path -LiteralPath $linkPath)) { return $false }
+
+    $shell = $null
+    $shortcut = $null
+    try {
+        $shell = New-Object -ComObject WScript.Shell
+        $shortcut = $shell.CreateShortcut($linkPath)
+        return [string]::Equals(
+            $shortcut.TargetPath,
+            $targetExe,
+            [StringComparison]::OrdinalIgnoreCase
+        )
+    } catch {
+        return $false
+    } finally {
+        if ($shortcut -and [Runtime.InteropServices.Marshal]::IsComObject($shortcut)) {
+            [void][Runtime.InteropServices.Marshal]::FinalReleaseComObject($shortcut)
+        }
+        if ($shell -and [Runtime.InteropServices.Marshal]::IsComObject($shell)) {
+            [void][Runtime.InteropServices.Marshal]::FinalReleaseComObject($shell)
+        }
+    }
+}
+
 function New-RelayShortcut($linkPath) {
-    $stagingPath = Join-Path (Split-Path $linkPath -Parent) "MKTTool-Relay-staging.lnk"
+    if (Test-RelayShortcut $linkPath) { return }
 
-    $shell = New-Object -ComObject WScript.Shell
-    $shortcut = $shell.CreateShortcut($stagingPath)
-    $shortcut.TargetPath = $targetExe
-    $shortcut.WorkingDirectory = $relayDir
-    $shortcut.WindowStyle = 7
-    $shortcut.Save()
+    for ($attempt = 1; $attempt -le $shortcutSaveMaxAttempts; $attempt++) {
+        $shell = $null
+        $shortcut = $null
+        $retry = $false
+        try {
+            $shell = New-Object -ComObject WScript.Shell
+            $shortcut = $shell.CreateShortcut($linkPath)
+            $shortcut.TargetPath = $targetExe
+            $shortcut.WorkingDirectory = $relayDir
+            $shortcut.WindowStyle = 7
+            $shortcut.Save()
+            return
+        } catch {
+            if (-not (Test-RetryableShortcutError $_) -or $attempt -eq $shortcutSaveMaxAttempts) {
+                throw
+            }
+            $retry = $true
+        } finally {
+            if ($shortcut -and [Runtime.InteropServices.Marshal]::IsComObject($shortcut)) {
+                [void][Runtime.InteropServices.Marshal]::FinalReleaseComObject($shortcut)
+            }
+            if ($shell -and [Runtime.InteropServices.Marshal]::IsComObject($shell)) {
+                [void][Runtime.InteropServices.Marshal]::FinalReleaseComObject($shell)
+            }
+        }
+        if ($retry) { Start-Sleep -Milliseconds (250 * $attempt) }
+    }
+}
 
-    Move-Item -Path $stagingPath -Destination $linkPath -Force
+function Remove-OwnedLegacyShortcut($linkPath) {
+    if (-not (Test-Path -LiteralPath $linkPath)) { return }
+
+    $shell = $null
+    $shortcut = $null
+    try {
+        $shell = New-Object -ComObject WScript.Shell
+        $shortcut = $shell.CreateShortcut($linkPath)
+        $legacyTarget = $shortcut.TargetPath
+    } catch {
+        Write-Warning "Could not inspect the legacy shortcut. It was preserved."
+        return
+    } finally {
+        if ($shortcut -and [Runtime.InteropServices.Marshal]::IsComObject($shortcut)) {
+            [void][Runtime.InteropServices.Marshal]::FinalReleaseComObject($shortcut)
+        }
+        if ($shell -and [Runtime.InteropServices.Marshal]::IsComObject($shell)) {
+            [void][Runtime.InteropServices.Marshal]::FinalReleaseComObject($shell)
+        }
+    }
+
+    if (-not [string]::Equals($legacyTarget, $targetExe, [StringComparison]::OrdinalIgnoreCase)) {
+        Write-Warning "The legacy shortcut does not belong to this Relay installation. It was preserved."
+        return
+    }
+
+    try {
+        Remove-Item -LiteralPath $linkPath -Force -ErrorAction Stop
+    } catch {
+        Write-Warning "Could not remove the legacy shortcut because another process is using it. Installation can continue."
+    }
 }
 
 Write-Host ""
-Write-Host "  Cài cầu nối MKTTool"
-Write-Host "  ───────────────────────────────────────────────────────────────"
+Write-Host "  Install MKTTool Relay"
+Write-Host "  ---------------------------------------------------------------"
 Write-Host ""
 
 if (-not (Test-Path $sourceExe)) {
-    Fail "Không thấy $exeName cạnh file này. Hai file phải nằm cùng một thư mục — giải nén lại gói tải về rồi chạy lại."
+    Fail "$exeName was not found beside this script. Extract the package again, then retry."
 }
 
 # Bản cũ đang chạy sẽ giữ file .exe và làm lệnh chép thất bại. Đây là đường nâng cấp nên phải tắt
 # trước; cầu nối không có đường thoát êm nào khác.
 $running = Get-Process -Name ([System.IO.Path]::GetFileNameWithoutExtension($exeName)) -ErrorAction SilentlyContinue
 if ($running) {
-    Write-Step 1 "Tắt cầu nối đang chạy…"
+    Write-Step 1 "Stopping the running Relay..."
     $running | Stop-Process -Force
     # Windows cần một nhịp mới nhả khóa file.
     Start-Sleep -Seconds 2
 } else {
-    Write-Step 1 "Chưa có cầu nối nào đang chạy."
+    Write-Step 1 "No running Relay was found."
 }
 
-Write-Step 2 "Chép vào $relayDir"
+Write-Step 2 "Copying files to $relayDir"
 if (-not (Test-Path $relayDir)) { New-Item -ItemType Directory -Path $relayDir -Force | Out-Null }
 try {
     Copy-Item -Path $sourceExe -Destination $targetExe -Force
 } catch {
-    Fail "Không chép được: $($_.Exception.Message)`n  Nhiều khả năng cầu nối vẫn đang chạy — kết thúc $exeName trong Task Manager rồi chạy lại."
+    Fail "Could not copy the Relay: $($_.Exception.Message)`n  The previous Relay may still be running. Close $exeName in Task Manager, then retry."
 }
 
 <#
@@ -119,9 +199,9 @@ File cấu hình dựng sẵn để người cài chỉ phải **điền**, khô
 đã nhận từ web. Operator key và device private key nằm trong DPAPI CurrentUser, không nằm trong JSON.
 #>
 if (Test-Path $configFile) {
-    Write-Step 3 "Giữ nguyên relay-config.json đã có."
+    Write-Step 3 "Preserving the existing relay-config.json."
 } else {
-    Write-Step 3 "Dựng relay-config.json rỗng để điền."
+    Write-Step 3 "Creating an empty relay-config.json."
     $template = [ordered]@{
         deviceId = ""
         serverPublicKey = ""
@@ -139,12 +219,14 @@ if (Test-Path $configFile) {
     [IO.File]::WriteAllText($configFile, ($template | ConvertTo-Json), (New-Object Text.UTF8Encoding $false))
 }
 
-Write-Step 4 "Tạo shortcut Startup + desktop"
+Write-Step 4 "Creating Startup and desktop shortcuts"
 foreach ($dir in @($startupDir, $desktopDir)) {
     if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
 }
-New-RelayShortcut (Join-Path $startupDir "Cầu nối MKTTool.lnk")
-New-RelayShortcut (Join-Path $desktopDir "Cầu nối MKTTool.lnk")
+New-RelayShortcut (Join-Path $startupDir "MKTTool Relay.lnk")
+New-RelayShortcut (Join-Path $desktopDir "MKTTool Relay.lnk")
+Remove-OwnedLegacyShortcut (Join-Path $startupDir "Cầu nối MKTTool.lnk")
+Remove-OwnedLegacyShortcut (Join-Path $desktopDir "Cầu nối MKTTool.lnk")
 
 <#
 Bật thử. **Bước này hỏng KHÔNG phải là cài hỏng.**
@@ -156,17 +238,17 @@ xong từ trước. Câu đó cử người đi cài lại một thứ đã cài
 
 Nên bắt lỗi tại chỗ và nói đúng hiện trạng: máy đã cài xong, chỉ là chưa bật được.
 #>
-Write-Step 5 "Bật cầu nối"
+Write-Step 5 "Starting the Relay"
 $launched = $true
 try {
     Start-Process -FilePath $targetExe -WorkingDirectory $relayDir -WindowStyle Minimized -ErrorAction Stop
 } catch {
     $launched = $false
     Write-Host ""
-    Write-Host "  Đã cài xong, nhưng chưa bật được cầu nối:" -ForegroundColor Yellow
+    Write-Host "  Installation finished, but the Relay could not start:" -ForegroundColor Yellow
     Write-Host "    $($_.Exception.Message)"
-    Write-Host "  Thường là Windows hỏi lại vì file tải từ mạng và câu trả lời là Không."
-    Write-Host "  Bấm đúp shortcut ""Cầu nối MKTTool"" ngoài desktop, chọn More info -> Run anyway."
+    Write-Host "  Windows may have blocked the downloaded application."
+    Write-Host "  Open the MKTTool Relay desktop shortcut, then choose More info -> Run anyway."
     Write-Host ""
 }
 
@@ -178,16 +260,11 @@ if ($launched) {
 }
 
 Write-Host ""
-Write-Host "  ───────────────────────────────────────────────────────────────"
-Write-Host "  Xong phần máy. Còn ba việc làm trên trang vừa mở:" -ForegroundColor Green
+Write-Host "  ---------------------------------------------------------------"
+Write-Host "  Local installation is complete." -ForegroundColor Green
 Write-Host ""
-Write-Host "  1. Chép KHÓA CÔNG KHAI trên trang đó, gửi quản trị viên ghi vào sổ"
-Write-Host "     tại /relay-devices trên web app."
-Write-Host "  2. Quản trị viên gửi lại MÃ MÁY. Mở file cấu hình rồi điền vào:"
-Write-Host "     $configFile"
-Write-Host "     Điền nốt serverPublicKey và webOrigin."
-Write-Host "     Khóa operator chỉ nhập trên trang trạng thái của cầu nối; nó không nằm trong JSON."
-Write-Host "  3. Tắt bật lại cầu nối bằng shortcut ngoài desktop — cấu hình chỉ"
-Write-Host "     được đọc lúc khởi động."
+Write-Host "  Continue onboarding at /setup in MKTTool."
+Write-Host "  The Relay status page is available at $statusUrl."
+Write-Host "  Operator secrets remain local and are never stored in relay-config.json."
 Write-Host ""
 exit 0

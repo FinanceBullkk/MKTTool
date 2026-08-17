@@ -18,6 +18,7 @@ Repo này có 12+ file tài liệu. Đừng đọc hết. Tra theo câu hỏi b�
 | MKT Browser contract, verified Windows slices, and what v1 still owes | [plan MKT Browser](../plans/260810-0244-mkt-browser-noi-bo/plan.md) |
 | Code nằm ở đâu, luồng nào gọi file nào | [codebase-summary.md](codebase-summary.md) |
 | Quy ước viết code, test, commit trước khi đóng góp | [code-standards.md](code-standards.md) |
+| Run the offline release-root and delegated-key ceremony | [release-signing-key-ceremony.md](release-signing-key-ceremony.md) |
 
 ## Ba vai, ba đường đọc
 

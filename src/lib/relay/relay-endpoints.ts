@@ -1,3 +1,5 @@
+import type { RollbackAuthorization } from "../release/rollback-authorization";
+
 /**
  * Hợp đồng HTTP giữa **trang web** và **cầu nối** chạy trên `127.0.0.1`.
  *
@@ -75,6 +77,12 @@ export const RELAY_PATHS = {
   sealOperatorKey: "/seal-operator-key",
   /** POST `{ ephemeralPublicKey, sealed }` — máy nhận mở hộp bằng khóa riêng của nó rồi lưu lại. */
   receiveOperatorKey: "/receive-operator-key",
+  authorizeBootstrap: "/authorize-bootstrap",
+  bootstrapCompletion: "/bootstrap-completion",
+  retireDevice: "/retire-device",
+  finalizeDeviceRetirement: "/finalize-device-retirement",
+  compatibilityUpdate: "/compatibility-update",
+  compatibilityRollback: "/compatibility-rollback",
 } as const;
 
 /**
@@ -115,6 +123,52 @@ export interface SealedOperatorKeyGrant {
   sealed: string;
 }
 
+export interface OperatorKeyDeliveryRequest {
+  grant: SealedOperatorKeyGrant;
+  authorization: string;
+}
+
+export interface OperatorKeyDeliveryReply extends RelayReply {
+  grantId?: string;
+  generation?: number;
+  proof?: string;
+}
+
+export interface BootstrapAuthorizationRequest {
+  authorization: string;
+}
+
+export interface BootstrapCompletionReply extends RelayReply {
+  grantId?: string;
+  generation?: number;
+  proof?: string;
+}
+
+export interface DeviceRetirementRequest {
+  authorization: string;
+}
+
+export interface DeviceRetirementReply extends RelayReply {
+  retirementId?: string;
+  proof?: string;
+  cleanupComplete?: boolean;
+  recovered?: boolean;
+}
+
+export interface FinalizeDeviceRetirementRequest {
+  authorization: string;
+}
+
+export interface CompatibilityRollbackRequest {
+  authorization: RollbackAuthorization;
+}
+
+export interface CompatibilityRollbackReply extends RelayReply {
+  rollbackStarted?: boolean;
+  currentSequence?: number;
+  retainedSequence?: number;
+}
+
 /** Thân của `POST /seal-operator-key`: khóa công khai của chiếc máy sẽ nhận. */
 export interface SealOperatorKeyRequest {
   /** `RelayDevice.publicKey` của máy nhận, hex. Công khai đúng nghĩa — lộ cũng không mất gì. */
@@ -144,6 +198,15 @@ export interface ConfigureRelayRequest {
  * nút không nghĩ là đã treo.
  */
 export const RELAY_TIMEOUT_MS = 4_000;
+
+/** DPAPI receipt persistence plus idempotent local cleanup may exceed the normal loopback timeout. */
+export const RELAY_RETIREMENT_TIMEOUT_MS = 30_000;
+
+/** Full-set staging can include the pinned Chromium engine and must outlive normal loopback calls. */
+export const RELAY_COMPATIBILITY_UPDATE_TIMEOUT_MS = 2 * 60 * 60 * 1000;
+
+/** Older v10 artifacts do not expose the signed retirement endpoints. */
+export const RELAY_DEVICE_RETIREMENT_MIN_VERSION = 11;
 
 /**
  * Timeout for calls that make MKT Browser perform **heavy work**: creating and launching profiles.
@@ -198,7 +261,7 @@ export const RELAY_PROFILE_WORK_TIMEOUT_MS = 60_000;
  * tăng bằng tay: tự sinh theo git hash thì nó đổi ở mọi lượt build, và một số đổi liên tục thì
  * cảnh báo "bản cũ" kêu liên tục cho tới lúc không ai còn nhìn.
  */
-export const RELAY_VERSION = 9;
+export const RELAY_VERSION = 12;
 
 /**
  * Một profile antidetect như cầu nối khai ra ở `GET /profiles`.
@@ -261,6 +324,8 @@ export interface RelayOperationDiagnostic {
 /** Những gì `/health` trả về. */
 export interface RelayHealth {
   relayVersion: number;
+  /** Friendly OS-reported PC name. It is not an authorization signal. */
+  machineName?: string;
   /** Khóa công khai X25519 của máy này, hex — để đối chiếu với sổ đăng ký khi nghi dán nhầm. */
   publicKey: string;
   /** Whether the Relay can connect to MKT Browser on the same machine. */
@@ -269,6 +334,9 @@ export interface RelayHealth {
   browser: RelayBrowserHealth;
   /** Cấu hình đã đủ chưa. Web app dùng để vẽ đúng nút thay vì đoán. */
   configured?: boolean;
+  /** Local Relay identity was removed and only the completion receipt remains. */
+  retirementPending?: boolean;
+  compatibilityUpdate?: RelayCompatibilityUpdateHealth;
   /**
    * Nguồn web mà cầu nối này tin — nung vào bản build, ghi đè được bằng file cấu hình.
    *
@@ -285,6 +353,30 @@ export interface RelayHealth {
    * quan tâm nhất — máy đã đăng ký nhưng chưa nhận được cấu hình.
    */
   deviceId?: string | null;
+}
+
+export interface RelayCompatibilityUpdateHealth {
+  initialized: boolean;
+  highestAcceptedSequence: number | null;
+  rollbackFloorSequence: number | null;
+  currentSequence: number | null;
+  retainedSequence: number | null;
+  rollbackAvailable: boolean;
+  pending: {
+    mode: "update" | "rollback";
+    phase: "staged" | "stopping" | "activating" | "smoke" | "rollback";
+    targetSequence: number;
+  } | null;
+}
+
+export interface CompatibilityUpdateRequest {
+  ticket: string;
+}
+
+export interface CompatibilityUpdateReply extends RelayReply {
+  updateStarted?: boolean;
+  targetSequence?: number;
+  repairInitialized?: boolean;
 }
 
 /** Phản hồi chung của cầu nối cho một lời gọi ngầm. */

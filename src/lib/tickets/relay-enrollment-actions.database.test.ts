@@ -20,7 +20,8 @@ const OTHER_EMAIL = "nguoikhac@mkttool.local";
 process.env.ALLOWED_EMAILS = `${ADMIN_EMAIL},${OPERATOR_EMAIL},${OTHER_EMAIL}`;
 process.env.ADMIN_EMAILS = ADMIN_EMAIL;
 // `enrollThisMachine` trả về khóa công khai của máy chủ, suy ra từ hạt giống này.
-process.env.TICKET_SIGNING_KEY = "11".repeat(32);
+process.env.TICKET_SIGNING_KEY =
+  "411a055f1c441462bbf17be08157633b7f4e99db8462b44fa680ddeb6e6c654e";
 
 const ADMIN_ID = "user-admin";
 const OPERATOR_ID = "user-operator";
@@ -154,6 +155,31 @@ describe("enrollThisMachine", () => {
     if (!("enrollment" in second) || !second.enrollment) throw new Error("thiếu enrollment");
     expect(second.enrollment.deviceId).toBe(first.enrollment.deviceId);
     expect(await prisma.relayDevice.count()).toBe(1);
+  });
+
+  it("recovers every caller when the same PC is enrolled concurrently", async () => {
+    const { publicKeyHex } = generateRelayDeviceKeyPair();
+
+    const results = await Promise.all(
+      Array.from({ length: 8 }, (_, index) => enroll({ name: `Concurrent PC ${index}`, publicKey: publicKeyHex })),
+    );
+
+    expect(results.every((result) => result.ok && "enrollment" in result && result.enrollment)).toBe(true);
+    const ids = results.map((result) => "enrollment" in result ? result.enrollment?.deviceId : undefined);
+    expect(new Set(ids).size).toBe(1);
+    expect(await prisma.relayDevice.count()).toBe(1);
+  });
+
+  it("does not return another owner's existing device configuration", async () => {
+    const { publicKeyHex } = generateRelayDeviceKeyPair();
+    await prisma.relayDevice.create({
+      data: { name: "Other owner's PC", userId: OTHER_ID, publicKey: publicKeyHex },
+    });
+
+    const result = await enroll({ name: "Claimed PC", publicKey: publicKeyHex });
+
+    expect(result.ok).toBe(false);
+    expect(result.message).toContain("administrator");
   });
 
   it("khóa đã thu hồi thì từ chối, kèm CÁCH sinh khóa mới", async () => {

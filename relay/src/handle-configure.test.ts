@@ -146,4 +146,55 @@ describe("handleConfigure", () => {
 
     expect(readConfig(home).serverPublicKey).toBe(SERVER_KEY);
   });
+
+  /**
+   * Gốc tin cậy của một máy đã cài xong thì không đổi qua đường này (C26).
+   *
+   * Phép kiểm `Origin` ở trên chặn trang lạ, nhưng không chặn được chính trang web đã tin. Đó mới
+   * là ca đáng sợ: web app dính XSS thì kẻ tấn công chạy mã **trong** nguồn hợp lệ, trỏ mọi cầu
+   * nối sang khóa của mình, và từ đó ký vé nào cũng được — trong khi cầu nối vẫn ôm
+   * `VAULT_KEY_OPERATOR`. Một lỗi tạm thời phía trình duyệt thành quyền thường trực trên máy.
+   */
+  describe("gốc tin cậy đã có thì không đổi được qua /configure (C26)", () => {
+    const OTHER_SERVER_KEY = "c3".repeat(32);
+
+    it("từ chối khóa máy chủ khác, và giữ nguyên khóa cũ trên đĩa", () => {
+      const home = makeHome({ deviceId: DEVICE_ID, serverPublicKey: SERVER_KEY });
+      const { result, onConfigured } = call(home, {
+        deviceId: "device-cua-ke-tan-cong",
+        serverPublicKey: OTHER_SERVER_KEY,
+      });
+
+      expect(result.ok).toBe(false);
+      expect(result.message).toContain("thu hồi máy này rồi đăng ký lại");
+      // Từ chối mà vẫn ghi đè thì phép kiểm chỉ là trang trí — nên kiểm cả đĩa lẫn phản hồi.
+      expect(readConfig(home)).toMatchObject({
+        deviceId: DEVICE_ID,
+        serverPublicKey: SERVER_KEY,
+      });
+      expect(onConfigured).not.toHaveBeenCalled();
+    });
+
+    it("vẫn nhận khi đăng ký lại đúng khóa cũ", () => {
+      // Chạy lại đường đăng ký là chuyện bình thường. Bắt nó đỏ chỉ dạy người ta bấm lại nhiều lần.
+      const home = makeHome({ deviceId: "device-cu", serverPublicKey: SERVER_KEY });
+      const { result } = call(home, {
+        deviceId: DEVICE_ID,
+        serverPublicKey: SERVER_KEY.toUpperCase(),
+      });
+
+      expect(result.ok).toBe(true);
+      expect(readConfig(home)).toMatchObject({ deviceId: DEVICE_ID, serverPublicKey: SERVER_KEY });
+    });
+
+    it("máy chưa có gốc tin cậy thì vẫn cấu hình được lần đầu", () => {
+      // Phép kiểm phải chặn việc ĐỔI, không phải chặn việc cài. Thiếu bài này thì một guard viết
+      // quá tay sẽ khóa luôn máy mới mà bộ test vẫn xanh.
+      const home = makeHome({ mktBrowserToken: "test-browser-token" });
+      const { result } = call(home, { deviceId: DEVICE_ID, serverPublicKey: SERVER_KEY });
+
+      expect(result.ok).toBe(true);
+      expect(readConfig(home)).toMatchObject({ serverPublicKey: SERVER_KEY });
+    });
+  });
 });

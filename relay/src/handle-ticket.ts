@@ -27,6 +27,10 @@ import type { RelayResponseBody } from "./relay-http-server";
 import { TicketPayloadError, reviewTicketPayload } from "./ticket-payload-schema";
 import { launchProfileFromTicket } from "./launch-profile";
 import { createProfileFromTicket } from "./create-profile";
+import {
+  CompatibilityTransitionInProgressError,
+  withCompatibilityProfileOperationLock,
+} from "./compatibility-transition-preparation-lock";
 
 /** Loại vé đường này nhận. Mọi loại khác bị từ chối **trước khi** ruột được mở ra. */
 const LOAI_VE_NHAN_O_DAY: readonly string[] = [
@@ -54,6 +58,7 @@ function readTicketField(body: string): string {
 export interface TicketHandlerDeps {
   identity: RelayIdentity | null;
   antidetect: RelayAntidetect;
+  home: string;
   /** Câu nói thiếu gì, dùng khi cấu hình chưa đủ nên chưa dựng nổi danh tính. */
   notConfiguredMessage: string;
 }
@@ -108,16 +113,21 @@ export async function handleTicketRequest(
   }
 
   try {
-    if (payload.kind === TICKET_KINDS.LAUNCH_PROFILE) {
-      return await launchProfileFromTicket(payload, deps.antidetect, verified.envelope.jti);
-    }
-    if (payload.kind === TICKET_KINDS.CREATE_PROFILE) {
-      return await createProfileFromTicket(payload, deps.antidetect, verified.envelope.jti);
-    }
-    // Không tới được: `reviewTicketPayload` soi theo đúng `kind` đã lọc ở trên. Có mặt để
-    // TypeScript thu hẹp kiểu mà không phải ép kiểu — ép kiểu ở đây là bỏ đúng lớp bảo vệ vừa dựng.
-    return { ok: false, message: "Ruột vé không khớp loại vé." };
+    return await withCompatibilityProfileOperationLock(deps.home, async () => {
+      if (payload.kind === TICKET_KINDS.LAUNCH_PROFILE) {
+        return launchProfileFromTicket(payload, deps.antidetect, verified.envelope.jti);
+      }
+      if (payload.kind === TICKET_KINDS.CREATE_PROFILE) {
+        return createProfileFromTicket(payload, deps.antidetect, verified.envelope.jti);
+      }
+      // Không tới được: `reviewTicketPayload` soi theo đúng `kind` đã lọc ở trên. Có mặt để
+      // TypeScript thu hẹp kiểu mà không phải ép kiểu — ép kiểu ở đây là bỏ đúng lớp bảo vệ vừa dựng.
+      return { ok: false, message: "Ruột vé không khớp loại vé." };
+    });
   } catch (error) {
+    if (error instanceof CompatibilityTransitionInProgressError) {
+      return { ok: false, message: error.message };
+    }
     if (error instanceof AntidetectNotConfiguredError) {
       return { ok: false, message: error.message };
     }

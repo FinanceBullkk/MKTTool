@@ -7,6 +7,11 @@ export const REQUIRED_MANAGED_BROWSER_CAPABILITIES = [
   "operation-diagnostics-v1",
 ] as const;
 
+export const REQUIRED_SETUP_BROWSER_CAPABILITIES = [
+  ...REQUIRED_MANAGED_BROWSER_CAPABILITIES,
+  "local-install-ready-v1",
+] as const;
+
 export type CurrentDeviceBrowserState =
   | "browser-offline"
   | "contract-mismatch"
@@ -22,6 +27,7 @@ export interface CurrentDeviceBrowserReadiness {
 
 export function currentDeviceBrowserReadiness(
   browser: RelayBrowserHealth | null | undefined,
+  requiredCapabilities: readonly string[] = REQUIRED_MANAGED_BROWSER_CAPABILITIES,
 ): CurrentDeviceBrowserReadiness {
   if (!browser?.ready || !browser.provider) {
     return {
@@ -47,10 +53,18 @@ export function currentDeviceBrowserReadiness(
     };
   }
 
-  const missing = REQUIRED_MANAGED_BROWSER_CAPABILITIES.filter(
+  const missing = requiredCapabilities.filter(
     (capability) => !browser.capabilities.includes(capability),
   );
   if (missing.length > 0) {
+    if (missing.includes("local-install-ready-v1")) {
+      return {
+        ready: false,
+        state: "capability-missing",
+        message:
+          "Run the current MKT Browser installer repair on this PC. MKTTool could not verify the installed Browser, Relay, fixed ports, and startup entries.",
+      };
+    }
     return {
       ready: false,
       state: "capability-missing",

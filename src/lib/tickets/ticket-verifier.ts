@@ -10,8 +10,11 @@
  *    phải mang hai số đó: cầu nối bản cũ cần nói được *"bản cầu nối quá cũ, tải lại"* thay vì
  *    chết ở bước giải mã kèm một câu vô nghĩa. Đặt hai phép kiểm này **sau** chữ ký nhưng
  *    **trước** mọi phép kiểm khác, để câu trả lời luôn là câu hữu ích nhất.
- * 3. Hạn, đúng máy, chưa tiêu.
- * 4. Cuối cùng mới giải mã.
+ * 3. **Loại vé phải là loại có thật** — phép tách miền của giao thức này; xem `isKnownTicketKind`.
+ *    Nằm sau hai phép kiểm phiên bản vì loại vé mới bao giờ cũng đi kèm một sàn phiên bản cao
+ *    hơn, và ở tình huống đó câu đúng phải là *"cầu nối quá cũ"*.
+ * 4. Hạn, đúng máy, chưa tiêu.
+ * 5. Cuối cùng mới giải mã.
  *
  * ## Vì sao trả lỗi có mã, không phải chuỗi
  *
@@ -23,12 +26,13 @@ import { verify } from "node:crypto";
 import type { KeyObject } from "node:crypto";
 import { openSealedPayload } from "./ticket-sealed-box";
 import type { TicketReplayGuard } from "./ticket-replay-guard";
-import { TICKET_FORMAT_VERSION, type TicketEnvelope } from "./ticket-types";
+import { TICKET_FORMAT_VERSION, TICKET_KINDS, type TicketEnvelope, type TicketKind } from "./ticket-types";
 
 export type TicketRejectionCode =
   | "MALFORMED"
   | "BAD_SIGNATURE"
   | "UNKNOWN_FORMAT"
+  | "UNKNOWN_KIND"
   | "RELAY_TOO_OLD"
   | "EXPIRED"
   | "WRONG_DEVICE"
@@ -63,6 +67,39 @@ export interface VerifiedTicket {
   envelope: TicketEnvelope;
   /** Chưa soi schema — chỗ gọi phải tự kiểm hình dạng theo `kind`. */
   payload: unknown;
+}
+
+const KNOWN_TICKET_KINDS = new Set<string>(Object.values(TICKET_KINDS));
+
+/**
+ * `kind` có phải một loại vé thật không — FINDING C1, nửa với tới được mà không phá định dạng.
+ *
+ * ## Đây là phép tách miền của giao thức vé
+ *
+ * Khóa ký của máy chủ ký cho **sáu** giao thức. Hai giao thức phát hành (cập nhật, lùi bản) mở
+ * đầu bằng một chuỗi miền có dấu cách và xuống dòng, nên byte của chúng không thể trùng byte của
+ * một chuỗi base64url. Ba giao thức còn lại — vé, giấy ủy quyền cấp khóa (`delivery`,
+ * `bootstrap`), và giấy ủy quyền thu hồi máy — **ký đúng cùng một dạng**:
+ * `base64url(JSON(...))`, không tiền tố miền nào.
+ *
+ * Trong ba cái đó, hai cái kia đều kiểm `kind` bằng một phép so bằng tường minh
+ * (`value.kind !== "device-retirement"` …). Vé thì trước đây chỉ đòi `typeof kind === "string"`,
+ * nên thứ giữ vé tách khỏi hai giao thức kia **không phải một phép kiểm nào cả** — mà là sự
+ * trùng hợp về tên trường: chúng đặt tên `completionEphemeralPublicKey` / `completionSealed`
+ * trong khi vé đòi `epk` / `sealed`.
+ *
+ * Trùng hợp đó mỏng hơn nó trông. `sealForDevice` trả về `{ ephemeralPublicKey, sealed }`, nên
+ * `epk` / `sealed` đúng là cách viết tắt tự nhiên nhất; một giao thức thứ tư nào đó bọc dữ liệu
+ * cho máy rồi đặt tên trường theo lối ấy — kèm `jti`, `minRelayVersion`, `deviceId`, `exp` — sẽ
+ * **thành một tấm vé hợp lệ**, bất kể `kind` của nó là gì, vì vé không thèm đọc `kind`.
+ *
+ * Phép so bằng dưới đây đóng đúng chỗ đó. Nó không đổi một byte nào trên dây: mọi tấm vé máy chủ
+ * từng phát đều mang `kind` lấy từ `TICKET_KINDS`, nên chốt này không từ chối thứ gì hợp lệ —
+ * nó chỉ biến một sự trùng hợp thành một phép kiểm. Phần còn lại của C1 (đặt tiền tố miền thật
+ * cho cả sáu) vẫn là một lượt phá định dạng và vẫn hoãn; xem sổ ghi.
+ */
+function isKnownTicketKind(kind: string): kind is TicketKind {
+  return KNOWN_TICKET_KINDS.has(kind);
 }
 
 /** Bao ngoài có đủ trường đúng kiểu không. Dữ liệu từ ngoài vào, không tin hình dạng nào. */
@@ -131,6 +168,22 @@ export function verifyTicket(
     throw new TicketRejected(
       "RELAY_TOO_OLD",
       `Bản cầu nối này quá cũ (${relay.version}); máy chủ đang phát vé cần bản ${envelope.minRelayVersion} trở lên. Tải lại cầu nối từ web app.`,
+    );
+  }
+
+  /**
+   * SAU `minRelayVersion`, có chủ ý — xem QĐ 11 ở đầu file.
+   *
+   * Loại vé mới luôn mang một `minRelayVersion` cao hơn, nên cầu nối bản cũ gặp nó phải nghe
+   * *"bản cầu nối quá cũ, tải lại"*. Đặt phép kiểm này lên trước thì cùng tình huống ấy trả về
+   * *"loại vé không nhận ra"* — một câu đúng chữ nhưng chỉ sai đường: người dùng đi tìm lỗi ở
+   * tấm vé, trong khi việc cần làm là cập nhật cầu nối.
+   */
+  if (!isKnownTicketKind(envelope.kind)) {
+    throw new TicketRejected(
+      "UNKNOWN_KIND",
+      `Vé mang loại "${envelope.kind}", không phải loại vé nào bản cầu nối này biết. ` +
+        "Tải lại cầu nối từ web app; nếu vẫn vậy thì báo lại, vì máy chủ không phát loại vé nào như thế.",
     );
   }
 

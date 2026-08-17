@@ -1,15 +1,8 @@
-/**
- * Trang Chuẩn bị đọc trạng thái **thật** từ kho, không phải một danh sách viết cứng.
- *
- * Đó là toàn bộ lý do nó tồn tại: hướng dẫn viết cứng trong tài liệu thì đúng vào ngày viết ra,
- * còn cái này thì không bao giờ nói sai về việc đã làm tới đâu. Nên thứ cần canh là **phép đọc**,
- * và riêng bước "phân công cụm" phải đếm bằng đúng `describeAccountReadiness()` mà `/accounts`
- * dùng — hai chỗ đếm khác nhau thì sớm muộn hai chỗ nói hai kiểu.
- */
+/** Checklist đọc trạng thái thật từ kho; bước phân công dùng chung phép chấm với `/accounts`. */
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 
-process.env.VAULT_KEY_SERVER = "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff";
-process.env.VAULT_KEY_OPERATOR = "ffeeddccbbaa99887766554433221100ffeeddccbbaa99887766554433221100";
+process.env.VAULT_KEY_SERVER = "27112efee5aeaa94963b0f1f9e0dabcdf2767c34ee483d8dc2c76f61bdd1186d";
+process.env.VAULT_KEY_OPERATOR = "a3d1e1576b7746dbd4481fb6fd16b16f7c7381301b8ab9ef8a3f2994c96150dc";
 
 const { prisma } = await import("@/lib/db/prisma-client");
 const { encryptCredential } = await import("@/lib/crypto/credential-encryption");
@@ -18,7 +11,6 @@ const { loadSetupChecklist } = await import("./setup-checklist");
 
 const HA_ID = "user-ha";
 
-/** Trạng thái của một bước theo id — gọn hơn là lôi cả mảng ra so. */
 async function stateOf(id: string) {
   const { steps } = await loadSetupChecklist();
   const step = steps.find((entry) => entry.id === id);
@@ -26,7 +18,6 @@ async function stateOf(id: string) {
   return step;
 }
 
-/** Cổng tăng dần: `@@unique([host, port, username])` chặn hai proxy trùng nhau. */
 let nextProxyPort = 8080;
 
 async function seedNick(fields: { username: string; ownerId?: string; deviceId?: string }) {
@@ -160,7 +151,6 @@ describe("bước phân công cụm", () => {
     expect(step.status).toContain("0/1");
   });
 
-  /** Ca hay gặp nhất khi bàn giao: gán được vài nick rồi bỏ dở. */
   it("gán một nửa thì là ĐANG DỞ, không phải xong", async () => {
     const device = await prisma.relayDevice.create({
       data: { name: "Laptop Dell", userId: HA_ID, publicKey: "c".repeat(64) },
@@ -182,11 +172,6 @@ describe("bước phân công cụm", () => {
     expect((await stateOf("clusters")).state).toBe("done");
   });
 
-  /**
-   * Đếm bằng `describeAccountReadiness()` chứ không đếm `ownerId != null`: một nick ghim vào máy
-   * đã thu hồi thì cả hai cột đều có giá trị, nhưng nó KHÔNG dùng được. Đếm thô là báo xong cho
-   * một việc chưa xong.
-   */
   it("nick ghim máy đã thu hồi không tính là đã gán", async () => {
     const device = await prisma.relayDevice.create({
       data: {
@@ -208,7 +193,7 @@ describe("bước phân công cụm", () => {
     await prisma.account.update({ where: { id: anna.id }, data: { status: "DEAD" } });
 
     const step = await stateOf("clusters");
-    // Không còn nick nào để phân công, nên bước lùi về "chưa có nick" chứ không báo 0/1.
-    expect(step.status).toContain("chưa có nick");
+    // Không còn nick nào để phân công, nên bước lùi về trạng thái rỗng chứ không báo 0/1.
+    expect(step.status).toContain("No accounts");
   });
 });

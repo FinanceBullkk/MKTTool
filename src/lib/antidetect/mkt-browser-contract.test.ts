@@ -12,6 +12,7 @@ import {
   describeMktBrowserCompatibility,
   resolveMktBrowserMcpUrl,
 } from "./mkt-browser-contract";
+import { RELAY_VERSION } from "../relay/relay-endpoints";
 
 const RUNTIME_INFO: MktBrowserRuntimeInfo = {
   provider: "mkt-browser",
@@ -52,7 +53,14 @@ describe("MKT Browser consumer contract", () => {
 describe("MKT Browser compatibility verdict", () => {
   it("names the runtime tool and the versions this build drives", () => {
     expect(MKT_BROWSER_RUNTIME_INFO_TOOL).toBe("get_runtime_info");
-    expect([...MKT_BROWSER_SUPPORTED_CONTRACT_VERSIONS]).toEqual([1, 2, 3]);
+    expect([...MKT_BROWSER_SUPPORTED_CONTRACT_VERSIONS]).toEqual([1, 2, 3, 4]);
+  });
+
+  it("pins the Relay release paired with the current Browser contract", () => {
+    expect({
+      browserContract: MKT_BROWSER_SUPPORTED_CONTRACT_VERSIONS.at(-1),
+      relayVersion: RELAY_VERSION,
+    }).toEqual({ browserContract: 4, relayVersion: 12 });
   });
 
   it("accepts a device on a supported contract version", () => {
@@ -71,9 +79,9 @@ describe("MKT Browser compatibility verdict", () => {
   });
 
   it("refuses a newer contract version instead of assuming newer is safe", () => {
-    const verdict = describeMktBrowserCompatibility({ ...RUNTIME_INFO, contractVersion: 4 });
+    const verdict = describeMktBrowserCompatibility({ ...RUNTIME_INFO, contractVersion: 5 });
     expect(verdict.compatible).toBe(false);
-    expect(verdict.reason).toContain("contract version 4");
+    expect(verdict.reason).toContain("contract version 5");
   });
 
   it("refuses an endpoint that answers as another product", () => {

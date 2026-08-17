@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "type": "mkttool.release-authority-ceremony-receipt",
+  "status": "verified",
+  "verifiedAt": "2026-08-15T02:04:37.294Z",
+  "rootKeyId": "a6d3237649c2586e48b6e4fa744f7a089160fd80250fd29360513f5f625b146c",
+  "delegatedKeyId": "6e5d47d894206e69e6464748333eb76c99b18da1f1b42ddafb2e3f265a7b786e",
+  "delegationExpiresAt": "2027-08-14T00:00:00.000Z",
+  "recoveredFromBackup": "B",
+  "signedDelegationSha256": "0774b7a65491504a442c24f6f1195a139b73cf95d55994d6534dd88f3c3301e7",
+  "recoveryProofSha256": "7d40eb1c0e1017305dfc07357a61ede8d726ebe5a19353bb858a7b3d962fa6c7"
+}

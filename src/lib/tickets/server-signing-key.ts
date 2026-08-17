@@ -16,6 +16,8 @@
  * Sinh khóa: npm run keys:server-keygen
  */
 import { type KeyObject, createPrivateKey, createPublicKey } from "node:crypto";
+import { ed25519PublicKeyRejection } from "../crypto/ed25519-point-validation.mjs";
+import { describePlaceholderSecret } from "../crypto/placeholder-secret-detection";
 
 /** Biến môi trường giữ hạt giống khóa riêng. */
 export const SERVER_SIGNING_KEY_ENV = "TICKET_SIGNING_KEY";
@@ -78,7 +80,17 @@ export function parseSigningSeed(raw: string | undefined, source: string): Buffe
     throw new ServerSigningKeyError(`${source} chỉ được chứa ký tự hex (0-9, a-f).`);
   }
 
-  return Buffer.from(hex, "hex");
+  const seed = Buffer.from(hex, "hex");
+  const placeholder = describePlaceholderSecret(seed);
+  if (placeholder) {
+    throw new ServerSigningKeyError(
+      `${source} trông như một hạt giống điền tạm (${placeholder}). Hạt giống này suy ra khóa ký ` +
+        "của máy chủ — đoán được nó là ký được vé, quyền cập nhật và quyền lùi bản. " +
+        "Sinh hạt giống thật bằng `npm run keys:server-keygen`.",
+    );
+  }
+
+  return seed;
 }
 
 /** Dựng cặp khóa từ hạt giống. Khóa công khai suy ra từ khóa riêng, không nhận từ ngoài. */
@@ -131,6 +143,27 @@ export function publicKeyFromHex(hexKey: string): KeyObject {
     throw new ServerSigningKeyError(
       `Khóa công khai của máy chủ phải là ${SIGNING_SEED_HEX_LENGTH} ký tự hex. ` +
         `Chạy \`npm run keys:server-pubkey\` trên máy chủ rồi chép lại nguyên dòng.`,
+    );
+  }
+
+  /**
+   * Đúng độ dài và đúng bảng chữ vẫn chưa đủ. Xem `ed25519-point-validation.mjs`: có 8 điểm mà
+   * chữ ký `(R = identity, S = 0)` nghiệm đúng cho vô số thông điệp — ai dán được một trong số đó
+   * vào đây thì **giả mọi tấm vé mà không cần khóa riêng nào**. Không khóa thật nào rơi vào đó,
+   * nên từ chối chúng không làm hỏng đường nào đang chạy.
+   */
+  const rejection = ed25519PublicKeyRejection(hex);
+  if (rejection === "small-order") {
+    throw new ServerSigningKeyError(
+      "Chuỗi này là một điểm bậc nhỏ của Ed25519, không phải khóa công khai thật: chữ ký giả " +
+        "nghiệm đúng dưới nó mà không cần khóa riêng. Lấy lại khóa bằng " +
+        "`npm run keys:server-pubkey` trên máy chủ.",
+    );
+  }
+  if (rejection === "non-canonical") {
+    throw new ServerSigningKeyError(
+      "Chuỗi này dùng cách mã hóa không chuẩn tắc, khiến một khóa có hai cách viết. " +
+        "Chép lại nguyên dòng do `npm run keys:server-pubkey` in ra.",
     );
   }
 

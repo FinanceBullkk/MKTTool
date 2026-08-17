@@ -21,7 +21,12 @@ export const ACTION_GUARDS = ["guardedAction", "adminAction"] as const;
  * hai cái kia. Nó có tên ở đây vì quyết định "ai được gọi" vẫn nằm trong module xác thực; đường
  * sai là xuất một handler trần rồi tự kiểm ở thân hàm, vì dòng đó quên được và lách được.
  */
-export const ROUTE_GUARDS = ["guardedRoute", "adminRoute", "machineOrGuardedRoute"] as const;
+export const ROUTE_GUARDS = [
+  "guardedRoute",
+  "adminRoute",
+  "machineOrGuardedRoute",
+  "machineRoute",
+] as const;
 
 /**
  * Route cố ý KHÔNG gác.

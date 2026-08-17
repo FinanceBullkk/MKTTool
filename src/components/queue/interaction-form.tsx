@@ -39,7 +39,7 @@ export function InteractionForm({
         name="threadUrl"
         required
         placeholder="https://www.reddit.com/r/selfhosted/comments/…"
-        hint="Dán nguyên link, công cụ tự rút về id bài để so"
+        hint="Dán nguyên link, công cụ tự rút về id bài để so. Link share dạng /s/ thì mở ra lấy link đầy đủ — dạng đó không rút được."
       />
       <SelectField
         label="Kiểu"

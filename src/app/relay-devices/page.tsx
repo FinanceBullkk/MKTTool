@@ -1,6 +1,9 @@
 import { RelayDeviceIdCell } from "@/components/relay/relay-device-id-cell";
+import { RelayCompatibilityRollbackButton } from "@/components/relay/relay-compatibility-rollback-button";
+import { RelayCompatibilityUpdateButton } from "@/components/relay/relay-compatibility-update-button";
 import { RelayDeviceRevokeButton } from "@/components/relay/relay-device-revoke-button";
-import { RelayEnrollCard } from "@/components/relay/relay-enroll-card";
+import { RelayDeviceRetirementButton } from "@/components/relay/relay-device-retirement-button";
+import { RelayDeviceRetirementReceiptButton } from "@/components/relay/relay-device-retirement-receipt-button";
 import { RelayGrantKeyButton } from "@/components/relay/relay-grant-key-button";
 import { ActionForm, Field, SelectField } from "@/components/ui/form-controls";
 import { Card, DataTable, EmptyState, PageHeading, StatusBadge } from "@/components/ui/page-section";
@@ -204,9 +207,9 @@ export default async function RelayDevicesPage() {
                   )}
                 </td>
                 <td className="py-2 pr-4 text-right">
-                  {isAdmin && !device.revokedAt ? (
+                  {isAdmin ? (
                     <div className="space-y-2">
-                      {device.operatorKeyReadyAt || device.operatorKeyGrant ? (
+                      {!device.revokedAt && (device.operatorKeyReadyAt || device.operatorKeyGrant) ? (
                         <RelayGrantKeyButton
                           deviceId={device.id}
                           devicePublicKey={device.publicKey}
@@ -214,10 +217,46 @@ export default async function RelayDevicesPage() {
                           alreadyReady={Boolean(device.operatorKeyReadyAt)}
                         />
                       ) : null}
-                      <RelayDeviceRevokeButton
-                        action={revokeRelayDevice.bind(null, device.id)}
-                        deviceName={device.name}
-                      />
+                      {!device.revokedAt ? (
+                        <RelayCompatibilityUpdateButton
+                          deviceId={device.id}
+                          devicePublicKey={device.publicKey}
+                        />
+                      ) : null}
+                      {!device.revokedAt ? (
+                        <RelayCompatibilityRollbackButton
+                          deviceId={device.id}
+                          deviceName={device.name}
+                          devicePublicKey={device.publicKey}
+                        />
+                      ) : null}
+                      {!device.revokedAt ? (
+                        <RelayDeviceRevokeButton
+                          action={revokeRelayDevice.bind(null, device.id)}
+                          deviceName={device.name}
+                        />
+                      ) : null}
+                      {!device.retirementCompletedAt ? (
+                        <RelayDeviceRetirementButton
+                          deviceId={device.id}
+                          deviceName={device.name}
+                          devicePublicKey={device.publicKey}
+                        />
+                      ) : (
+                        <div className="space-y-2">
+                          <StatusBadge
+                            label={`local cleanup confirmed ${formatFullDateTime(device.retirementCompletedAt)}`}
+                            className="bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400"
+                          />
+                          {device.retirementId ? (
+                            <RelayDeviceRetirementReceiptButton
+                              deviceId={device.id}
+                              devicePublicKey={device.publicKey}
+                              retirementId={device.retirementId}
+                            />
+                          ) : null}
+                        </div>
+                      )}
                     </div>
                   ) : null}
                 </td>
@@ -245,7 +284,10 @@ export default async function RelayDevicesPage() {
           nhập hộ trên máy mình là dựng lại đúng vòng chờ mà nút này sinh ra để dẹp. Ranh giới nằm
           ở chủ máy — OPERATOR chỉ đăng ký được máy của chính họ. */}
       <Card title="Cài máy này (Máy bạn đang ngồi)">
-        <RelayEnrollCard teamMembers={teamMembers} isAdmin={isAdmin} />
+        <p className="text-sm text-neutral-600 dark:text-neutral-400">
+          The guided current-PC controller now lives on <a href="/setup" className="underline">/setup</a>.
+          This registry remains available for administrator approval, revocation, and support.
+        </p>
       </Card>
 
       {isAdmin ? (

@@ -10,7 +10,7 @@
 import { useState } from "react";
 import { authClient } from "@/lib/auth/auth-client";
 
-export function GoogleSignInButton() {
+export function GoogleSignInButton({ callbackURL = "/" }: { callbackURL?: string }) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -21,7 +21,7 @@ export function GoogleSignInButton() {
     const { error: failure } = await authClient.signIn.social({
       provider: "google",
       /** Đăng nhập xong về trang Hôm nay. */
-      callbackURL: "/",
+      callbackURL,
       /**
        * Google từ chối hoặc máy chủ dựng tài khoản hỏng thì quay về đúng màn hình này kèm
        * `?error=`, thay vì rơi vào trang lỗi mặc định của Better Auth — trang đó bằng tiếng
