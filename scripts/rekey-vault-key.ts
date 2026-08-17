@@ -220,7 +220,10 @@ async function main() {
     );
   }
 
-  const oldKey = parseVaultKey(process.env[envName], envName);
+  // Khóa CŨ đọc với `allowPlaceholder`: chính script này là lối thoát cho ai lỡ chạy thật bằng
+  // một khóa điền tạm, nên nó phải mở được thứ mà chốt C33 vừa cấm dùng tiếp. Khóa MỚI thì không
+  // nới — điểm của cả lượt xoay là đi tới một khóa thật.
+  const oldKey = parseVaultKey(process.env[envName], envName, { allowPlaceholder: true });
   const newKey = parseVaultKey(newKeyHex, "--new-key");
 
   // Chép nhầm khóa của vùng KIA. Hai biến nằm cạnh nhau trong .env, cùng 64 ký tự hex, và người
@@ -233,7 +236,9 @@ async function main() {
   const otherEnvName = VAULT_KEY_ENV[otherDomain];
   const otherRaw = process.env[otherEnvName]?.trim();
 
-  if (otherRaw && newKey.equals(parseVaultKey(otherRaw, otherEnvName))) {
+  // Cũng nới: đây chỉ là phép so sánh, không nạp khóa vùng kia để dùng. Vùng kia đang giữ khóa
+  // xấu không phải lý do để chặn việc xoay vùng này — đó lại đúng là lúc cần xoay nhất.
+  if (otherRaw && newKey.equals(parseVaultKey(otherRaw, otherEnvName, { allowPlaceholder: true }))) {
     throw new RekeyError(
       `Khóa mới đang trùng ${otherEnvName} — đó là khóa của vùng ${otherDomain}, không phải khóa mới.\n\n` +
         `Xoay như vậy là nhập hai vùng khóa làm một, tức bỏ đúng thứ việc chia vùng sinh ra để bảo vệ: ` +

@@ -17,6 +17,7 @@
  */
 import { type KeyObject, createPrivateKey, createPublicKey } from "node:crypto";
 import { ed25519PublicKeyRejection } from "../crypto/ed25519-point-validation.mjs";
+import { describePlaceholderSecret } from "../crypto/placeholder-secret-detection";
 
 /** Biến môi trường giữ hạt giống khóa riêng. */
 export const SERVER_SIGNING_KEY_ENV = "TICKET_SIGNING_KEY";
@@ -35,18 +36,6 @@ export const SIGNING_SEED_HEX_LENGTH = SIGNING_SEED_BYTES * 2;
  * đúng, không cần kéo thêm thư viện ASN.1 vào chỉ để dựng 16 byte không bao giờ đổi.
  */
 const PKCS8_ED25519_PREFIX = Buffer.from("302e020100300506032b657004220420", "hex");
-
-/**
- * Dưới ngần này giá trị byte khác nhau thì coi là điền tạm.
- *
- * 32 byte ngẫu nhiên thật cho ra khoảng 30 giá trị khác nhau; rơi xuống dưới 8 là chuyện xác suất
- * cỡ 10^-38. Ngưỡng đặt thấp có chủ ý: mục tiêu là bắt thứ người ta gõ tay, không phải chấm điểm
- * chất lượng nguồn ngẫu nhiên.
- */
-const MIN_DISTINCT_SEED_BYTES = 8;
-
-/** Khối lặp dài tới ngần này thì vẫn bắt được (`abab…`, `0123 0123 …`). */
-const MAX_CHECKED_SEED_PERIOD = 8;
 
 export class ServerSigningKeyError extends Error {
   constructor(message: string) {
@@ -92,7 +81,7 @@ export function parseSigningSeed(raw: string | undefined, source: string): Buffe
   }
 
   const seed = Buffer.from(hex, "hex");
-  const placeholder = describePlaceholderSeed(seed);
+  const placeholder = describePlaceholderSecret(seed);
   if (placeholder) {
     throw new ServerSigningKeyError(
       `${source} trông như một hạt giống điền tạm (${placeholder}). Hạt giống này suy ra khóa ký ` +
@@ -102,58 +91,6 @@ export function parseSigningSeed(raw: string | undefined, source: string): Buffe
   }
 
   return seed;
-}
-
-/**
- * Chặn hạt giống điền tạm — FINDING C2.
- *
- * Chỉ bắt **khuôn mẫu**, không đo entropy thống kê. Đo entropy trên 32 byte cho ra ngưỡng vừa dễ
- * lọt vừa dễ chặn nhầm một khóa thật, mà chặn nhầm khóa thật là hỏng nặng hơn nhiều so với thứ
- * đang phòng. Ba luật dưới đây đều là những thứ **không bao giờ** xuất hiện từ một nguồn ngẫu
- * nhiên thật, nên xác suất dương tính giả là số không đáng nói (dưới 10^-30 cho luật lỏng nhất).
- *
- * Đây không phải phép chặn kẻ tấn công — kẻ tấn công không điền biến môi trường của ta. Nó chặn
- * **sai sót có chủ ý của người vận hành**: dán `00…00` cho qua lúc dựng máy dev rồi để nguyên.
- * Cùng một lối nghĩ với ô nhập bí mật khóa cứng tới khi hydrate xong: đặt phép chặn vào chỗ không
- * quên được, thay vì tin rằng không ai làm thế.
- *
- * `.env.example` để trống chứ không cài sẵn giá trị mồi, nên chốt này là lưới thứ hai, không phải
- * lưới duy nhất.
- */
-function describePlaceholderSeed(seed: Buffer): string | null {
-  const distinct = new Set(seed).size;
-  if (distinct < MIN_DISTINCT_SEED_BYTES) {
-    return `chỉ có ${distinct} giá trị byte khác nhau trên ${seed.length} byte`;
-  }
-
-  for (let period = 1; period <= MAX_CHECKED_SEED_PERIOD; period += 1) {
-    if (seed.length % period !== 0) continue;
-    if (isRepeatingBlock(seed, period)) {
-      return `lặp lại một khối ${period} byte`;
-    }
-  }
-
-  if (isCounterRun(seed)) return "một dãy đếm tăng hoặc giảm đều";
-
-  return null;
-}
-
-function isRepeatingBlock(seed: Buffer, period: number): boolean {
-  for (let i = period; i < seed.length; i += 1) {
-    if (seed[i] !== seed[i - period]) return false;
-  }
-  return true;
-}
-
-/** `00 01 02 …` và `ff fe fd …` — cuộn qua 0 vẫn tính là dãy đếm. */
-function isCounterRun(seed: Buffer): boolean {
-  const step = (seed[1] - seed[0] + 256) % 256;
-  if (step !== 1 && step !== 255) return false;
-
-  for (let i = 2; i < seed.length; i += 1) {
-    if ((seed[i] - seed[i - 1] + 256) % 256 !== step) return false;
-  }
-  return true;
 }
 
 /** Dựng cặp khóa từ hạt giống. Khóa công khai suy ra từ khóa riêng, không nhận từ ngoài. */
