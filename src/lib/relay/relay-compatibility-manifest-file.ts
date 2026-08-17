@@ -1,6 +1,19 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import bundledRevocations from "../../../plans/260812-1301-mkb-03-windows-onboarding-and-installer/release-authority-delegation-revocations.json";
+/**
+ * Danh sách thu hồi ủy quyền, nằm CẠNH module chứ không nằm dưới `plans/`.
+ *
+ * FINDING C23 đã chuyển bốn file bằng chứng của buổi lễ khóa sang
+ * `release-authority-public-evidence/` vì `plans/` là khu hồ sơ — được sắp xếp lại tự do và chỉ
+ * được soi như tài liệu (xem `release-root-trust.ts`). File này bị bỏ sót lại, và nó là file
+ * **nhạy cảm nhất trong nhóm**: nó nói ủy quyền nào đã bị thu hồi.
+ *
+ * Cái giá của việc bỏ sót không phải lý thuyết — nó làm **gãy mọi lượt deploy**, vì `plans/` không
+ * được copy vào Docker image, trong khi dưới máy lập trình thư mục ấy luôn có nên `tsc`, test và
+ * cả `npm run build` đều xanh. Xem `src-imports-stay-inside-the-image.test.ts`, thứ giờ canh cả
+ * lớp lỗi này chứ không riêng file này.
+ */
+import bundledRevocations from "../release/release-authority-public-evidence/release-authority-delegation-revocations.json";
 import { validateCompatibilityManifest, type SignedCompatibilityManifest } from "../release/compatibility-manifest";
 import { signedDelegationRevocationSchema, type SignedDelegationRevocation } from "../release/compatibility-manifest-schema";
 import {
