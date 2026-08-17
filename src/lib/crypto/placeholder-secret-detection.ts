@@ -22,6 +22,20 @@
  * nguồn ngẫu nhiên thật, nên xác suất dương tính giả là số không đáng nói (dưới 10^-30 cho luật
  * lỏng nhất).
  *
+ * ## Gọi chốt này Ở ĐÂU — luật quan trọng hơn bản thân ba luật trên
+ *
+ * **Kiểm một bí mật lúc nó được NHẬN VÀO, không bao giờ lúc nó được DÙNG.**
+ *
+ * Nhận vào là chỗ một con người vừa chọn một giá trị, và từ chối ở đó chỉ tốn một lần dán lại.
+ * Dùng là chỗ từ chối lấy đi cái máy đang chạy được hoặc dữ liệu của người ta. Cùng một phép
+ * kiểm, đặt ở hai chỗ, cho ra hai mức thiệt hại khác hẳn nhau.
+ *
+ * Vì thế: `parseVaultKey` chốt ở đường env vào tiến trình, còn `allowPlaceholder` mở cho đúng
+ * đường đọc khóa cũ để xoay. Cầu nối chốt ở ô dán tay, nhưng **không** chốt ở đường nhận khóa
+ * đã bọc từ máy khác, và **không** chốt lúc nạp khóa đã lưu — chốt ở đó sẽ biến một máy đang
+ * làm việc thành máy chưa cấu hình (`main.ts:102`), tức là mất trắng vì một khóa yếu nhưng vẫn
+ * chạy. Và lúc khởi động máy chủ cũng không kiểm: khởi động là dùng, không phải nhận vào.
+ *
  * ## Chỗ luật này CỐ Ý không với tới
  *
  * Không đo entropy, nên một khóa "trông ngẫu nhiên" mà thật ra lấy từ nguồn kém — `Math.random()`
