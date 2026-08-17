@@ -136,26 +136,35 @@ export const createPostJob = guardedAction(async function createPostJob(
     contentItemId = content.input.contentItemId;
   }
 
-  const created = await prisma.postJob.create({
-    data: {
-      ...job,
-      contentItemId,
-      status: "PENDING",
-      ruleVerdicts: serializeEvaluation(evaluation),
-      overrideReason: evaluation.level === "BLOCK" ? (overrideReason ?? null) : null,
-    },
-  });
-
-  if (evaluation.level === "BLOCK") {
-    await prisma.auditLog.create({
+  // Job và dòng nhật ký ghi đè phải cùng sống hoặc cùng không có. Trước đây là hai lệnh rời, nên
+  // một lần chết máy giữa chúng để lại một bài ĐÃ GHI ĐÈ LUẬT mà không ai biết ai bấm và vì sao —
+  // đúng câu hỏi mà dòng nhật ký đó sinh ra để trả lời. Giao dịch tương tác (không phải mảng) vì
+  // phần `detail` cần chính id của job vừa tạo.
+  await prisma.$transaction(async (tx) => {
+    const postJob = await tx.postJob.create({
       data: {
-        accountId: job.accountId,
-        action: AUDIT_ACTIONS.RULE_OVERRIDDEN,
-        detail: `job ${created.id} — ${joinReasons(evaluation)} — lý do: ${overrideReason}`.slice(0, 900),
-        actorId: actor.userId,
+        ...job,
+        contentItemId,
+        status: "PENDING",
+        ruleVerdicts: serializeEvaluation(evaluation),
+        overrideReason: evaluation.level === "BLOCK" ? (overrideReason ?? null) : null,
       },
     });
-  }
+
+    if (evaluation.level === "BLOCK") {
+      await tx.auditLog.create({
+        data: {
+          accountId: job.accountId,
+          action: AUDIT_ACTIONS.RULE_OVERRIDDEN,
+          detail: `job ${postJob.id} — ${joinReasons(evaluation)} — lý do: ${overrideReason}`.slice(
+            0,
+            900,
+          ),
+          actorId: actor.userId,
+        },
+      });
+    }
+  });
 
   revalidatePath("/queue");
   // Trang Hôm nay nhắc bài đăng tay trong 24 tiếng tới — job vừa xếp có thể thuộc luôn nhóm đó.

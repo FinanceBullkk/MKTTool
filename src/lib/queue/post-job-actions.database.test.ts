@@ -187,6 +187,47 @@ describe("createPostJob — nguồn content", () => {
     expect(job?.contentItemId).toBe(seeded.contentId);
   });
 
+  /**
+   * Ghi đè luật là thao tác nhạy cảm nhất của hàng đợi, và dòng nhật ký là thứ DUY NHẤT trả lời
+   * được "ai bấm, vì sao" về sau. Trước đây job và dòng nhật ký là hai lệnh rời nhau, nên một lần
+   * chết máy giữa chúng để lại bài đã ghi đè mà không ai truy được.
+   *
+   * Test này giữ bất biến người dùng nhìn thấy: có job ghi đè thì phải có dòng nhật ký trỏ đúng
+   * vào nó. Tính "cùng sống hoặc cùng không" khi tiến trình chết giữa chừng là do giao dịch bảo
+   * đảm — không dựng lại được trong test vì `AuditLog` không có ràng buộc nào để ép nó hỏng.
+   */
+  it("job ghi đè luật luôn kèm một dòng nhật ký trỏ đúng vào nó", async () => {
+    // Nick đang cách ly → luật 1 chặn, và luật 1 CHO ghi đè.
+    await prisma.account.update({
+      where: { id: seeded.accountId },
+      data: { status: "CHECKPOINT" },
+    });
+
+    const result = await createPostJob(
+      null,
+      draftForm(seeded, { overrideReason: "khách đang chờ bài này, chấp nhận rủi ro" }),
+    );
+
+    expect(result.ok).toBe(true);
+
+    const job = await prisma.postJob.findFirstOrThrow();
+    expect(job.overrideReason).toContain("chấp nhận rủi ro");
+
+    const entries = await prisma.auditLog.findMany({ where: { action: "RULE_OVERRIDDEN" } });
+    expect(entries).toHaveLength(1);
+    expect(entries[0]?.detail).toContain(job.id);
+    expect(entries[0]?.actorId).toBe("test-actor");
+    expect(entries[0]?.accountId).toBe(seeded.accountId);
+  });
+
+  /** Không ghi đè thì không có gì để ghi nhật ký — sổ chỉ nên có dòng khi thật sự có chuyện. */
+  it("job bình thường không đẻ ra dòng nhật ký ghi đè", async () => {
+    const result = await createPostJob(null, draftForm(seeded));
+
+    expect(result.ok).toBe(true);
+    expect(await prisma.auditLog.count({ where: { action: "RULE_OVERRIDDEN" } })).toBe(0);
+  });
+
   it("form không khai contentMode thì vẫn hiểu là chọn từ kho", async () => {
     const result = await createPostJob(
       null,
