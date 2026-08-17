@@ -19,7 +19,7 @@
  *
  * Synthetic keys only. No device identity, no vault, no operational data.
  */
-import { randomBytes, verify } from "node:crypto";
+import { randomBytes, sign, verify } from "node:crypto";
 import { describe, expect, it, beforeEach } from "vitest";
 
 // RFC 8032 test vector, matching the seed the sibling ticket tests use.
@@ -275,6 +275,84 @@ describe("server signing key — cross-protocol separation (H01, H02, H03)", () 
         NOW + 1_000,
       ),
     ).toThrow();
+  });
+
+  /**
+   * FINDING C1, the half that was reachable without breaking the wire format.
+   *
+   * The matrix above passes because the three shapes are disjoint *today*. The header says that is
+   * not a security argument, and this block is where that stops being an abstract worry: of the
+   * three protocols sharing the byte space, two check `kind` with an explicit equality and the
+   * ticket verifier used to check only `typeof kind === "string"`. So the ticket protocol was held
+   * apart from the other two by nothing but field naming — they spell it
+   * `completionEphemeralPublicKey` / `completionSealed`, the ticket spells it `epk` / `sealed`.
+   *
+   * `sealForDevice` returns `{ ephemeralPublicKey, sealed }`, so `epk` / `sealed` is the natural
+   * abbreviation and a fourth protocol that seals to a device could pick it without a second
+   * thought. Then its authorization would be a valid ticket, and the relay would open the sealed
+   * body as ticket payload — the `kind` it declared would never be read.
+   *
+   * The envelope below is that fourth protocol in miniature: a real ticket with only `kind`
+   * changed to another protocol's domain, re-signed with the genuine server key. Every other field
+   * is untouched and valid, so nothing but a domain check can refuse it.
+   */
+  function resignWithKind(kind: string): string {
+    const [encoded] = artifacts.ticket.split(".");
+    const envelope = JSON.parse(Buffer.from(encoded!, "base64url").toString("utf8"));
+    const forged = Buffer.from(JSON.stringify({ ...envelope, kind }), "utf8").toString("base64url");
+    const signature = sign(null, Buffer.from(forged, "utf8"), loadServerSigningKeys().privateKey);
+    return `${forged}.${signature.toString("base64url")}`;
+  }
+
+  it.each(["bootstrap", "delivery", "device-retirement", "mkttool.some-future-protocol"])(
+    "refuses a ticket-shaped envelope claiming the %s domain",
+    (kind) => {
+      const forged = resignWithKind(kind);
+
+      // The signature is genuine — this is not a forgery test. Asserted so a future reader cannot
+      // mistake the rejection for a signature failure, which would prove nothing about domains.
+      const [encoded, signature] = forged.split(".");
+      expect(
+        verify(
+          null,
+          Buffer.from(encoded!, "utf8"),
+          loadServerSigningKeys().publicKey,
+          Buffer.from(signature!, "base64url"),
+        ),
+      ).toBe(true);
+
+      expect(() => verifiers.verifyTicket(forged)).toThrow(/loại/i);
+    },
+  );
+
+  it("still accepts every genuine ticket kind — the guard must not narrow the product", () => {
+    // The other half, and the one that would hurt: a domain check that rejects real ticket kinds
+    // takes working features away. Every kind the issuer can emit is walked through.
+    for (const kind of Object.values(TICKET_KINDS)) {
+      expect(() => verifiers.verifyTicket(resignWithKind(kind)), kind).not.toThrow();
+    }
+  });
+
+  it("tells an out-of-date relay to update, rather than blaming the ticket", () => {
+    /**
+     * Ordering, and the reason the check sits after the version gates rather than before.
+     *
+     * A new ticket kind always ships with a higher `minRelayVersion`, so the first relay to meet
+     * one is an old relay. If the domain check ran first, that relay would answer "unrecognised
+     * ticket kind" — true, and pointed at the wrong thing: the operator would go looking at the
+     * ticket while the actual fix is to update the relay.
+     */
+    const [encoded] = artifacts.ticket.split(".");
+    const envelope = JSON.parse(Buffer.from(encoded!, "base64url").toString("utf8"));
+    const future = Buffer.from(
+      JSON.stringify({ ...envelope, kind: "FUTURE_KIND", minRelayVersion: 999 }),
+      "utf8",
+    ).toString("base64url");
+    const signature = sign(null, Buffer.from(future, "utf8"), loadServerSigningKeys().privateKey);
+
+    expect(() => verifiers.verifyTicket(`${future}.${signature.toString("base64url")}`)).toThrow(
+      /quá cũ/,
+    );
   });
 
   it("does not let a swapped signature travel between protocols", () => {
