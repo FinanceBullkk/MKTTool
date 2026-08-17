@@ -3,7 +3,8 @@ import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthorizationError } from "@/lib/auth/require-actor";
 
 vi.mock("next/cache", () => ({ revalidatePath: () => {} }));
-process.env.TICKET_SIGNING_KEY = "19".repeat(32);
+process.env.TICKET_SIGNING_KEY =
+  "d0e8f8e9db83cb4084c00acf3be92e7bcc2871900019cb4b84cf25045bdcbeb4";
 process.env.VAULT_KEY_SERVER = "21".repeat(32);
 process.env.VAULT_KEY_OPERATOR = "29".repeat(32);
 
@@ -40,7 +41,8 @@ const {
 
 beforeEach(async () => {
   role = "ADMIN";
-  process.env.TICKET_SIGNING_KEY = "19".repeat(32);
+  process.env.TICKET_SIGNING_KEY =
+  "d0e8f8e9db83cb4084c00acf3be92e7bcc2871900019cb4b84cf25045bdcbeb4";
   resetServerSigningKeysCache();
   await prisma.auditLog.deleteMany();
   await prisma.account.deleteMany();
@@ -55,7 +57,8 @@ beforeEach(async () => {
 });
 
 afterAll(async () => {
-  process.env.TICKET_SIGNING_KEY = "19".repeat(32);
+  process.env.TICKET_SIGNING_KEY =
+  "d0e8f8e9db83cb4084c00acf3be92e7bcc2871900019cb4b84cf25045bdcbeb4";
   resetServerSigningKeysCache();
   await prisma.$disconnect();
 });
@@ -172,7 +175,8 @@ describe("ADMIN Relay device retirement", () => {
       ),
     ).toThrow(/signature/i);
 
-    process.env.TICKET_SIGNING_KEY = "39".repeat(32);
+    process.env.TICKET_SIGNING_KEY =
+  "46a342d3084b5c8788d32377a8dc7cd74f038e5679347be5f41b70759f4f1416";
     resetServerSigningKeysCache();
     const recovered = await issueRelayDeviceRetirementFinalization(
       null,

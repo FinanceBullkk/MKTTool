@@ -2,7 +2,8 @@ import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthorizationError } from "@/lib/auth/require-actor";
 
 vi.mock("next/cache", () => ({ revalidatePath: () => {} }));
-process.env.TICKET_SIGNING_KEY = "11".repeat(32);
+process.env.TICKET_SIGNING_KEY =
+  "411a055f1c441462bbf17be08157633b7f4e99db8462b44fa680ddeb6e6c654e";
 const ADMIN = { userId: "admin", email: "admin@example.com", role: "ADMIN" as const };
 let role: "ADMIN" | "OPERATOR" = "ADMIN";
 vi.mock("@/lib/auth/require-actor", async (original) => ({

@@ -8,7 +8,8 @@ vi.mock("@/lib/relay/relay-compatibility-manifest-file", () => ({
   readRelayCompatibilityRelease: releaseFixture.read,
 }));
 
-process.env.TICKET_SIGNING_KEY = "41".repeat(32);
+process.env.TICKET_SIGNING_KEY =
+  "126fa4e495c62ce4d00b8778dbf10d53cb649026bd648c2c86a686c1379f2b69";
 process.env.VAULT_KEY_SERVER = "42".repeat(32);
 process.env.RELAY_WEB_ORIGIN = "https://mkt.example";
 process.env.COMPATIBILITY_SMOKE_OBSERVER_PROXY_LABEL = "Observer1";
@@ -44,7 +45,8 @@ const { issueCompatibilityUpdateTicket } = await import("./compatibility-update-
 
 beforeEach(async () => {
   role = "ADMIN";
-  process.env.TICKET_SIGNING_KEY = "41".repeat(32);
+  process.env.TICKET_SIGNING_KEY =
+  "126fa4e495c62ce4d00b8778dbf10d53cb649026bd648c2c86a686c1379f2b69";
   process.env.VAULT_KEY_SERVER = "42".repeat(32);
   process.env.RELAY_WEB_ORIGIN = "https://mkt.example";
   process.env.COMPATIBILITY_SMOKE_OBSERVER_PROXY_LABEL = "Observer1";

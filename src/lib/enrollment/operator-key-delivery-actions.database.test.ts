@@ -2,7 +2,8 @@ import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { hashGrantCompletionProof, hashOperatorKeyGrant } from "@/lib/relay/enrollment/grant-digests";
 
 vi.mock("next/cache", () => ({ revalidatePath: () => {} }));
-process.env.TICKET_SIGNING_KEY = "11".repeat(32);
+process.env.TICKET_SIGNING_KEY =
+  "411a055f1c441462bbf17be08157633b7f4e99db8462b44fa680ddeb6e6c654e";
 process.env.ALLOWED_EMAILS = "operator@example.com";
 const ACTOR = { userId: "operator", email: "operator@example.com", role: "OPERATOR" as const };
 let actor: { userId: string; email: string; role: "ADMIN" | "OPERATOR" } = ACTOR;

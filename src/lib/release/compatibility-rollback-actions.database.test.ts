@@ -1,7 +1,8 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthorizationError } from "@/lib/auth/require-actor";
 
-process.env.TICKET_SIGNING_KEY = "41".repeat(32);
+process.env.TICKET_SIGNING_KEY =
+  "126fa4e495c62ce4d00b8778dbf10d53cb649026bd648c2c86a686c1379f2b69";
 
 const ADMIN = { userId: "admin", email: "admin@example.com", role: "ADMIN" as const };
 const OWNER = { id: "owner", email: "owner@example.com" };
@@ -27,7 +28,8 @@ const { issueCompatibilityRollbackAuthorization } = await import(
 
 beforeEach(async () => {
   role = "ADMIN";
-  process.env.TICKET_SIGNING_KEY = "41".repeat(32);
+  process.env.TICKET_SIGNING_KEY =
+  "126fa4e495c62ce4d00b8778dbf10d53cb649026bd648c2c86a686c1379f2b69";
   resetServerSigningKeysCache();
   await prisma.auditLog.deleteMany();
   await prisma.relayDevice.deleteMany();

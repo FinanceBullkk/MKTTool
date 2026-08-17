@@ -20,7 +20,8 @@ const OTHER_EMAIL = "nguoikhac@mkttool.local";
 process.env.ALLOWED_EMAILS = `${ADMIN_EMAIL},${OPERATOR_EMAIL},${OTHER_EMAIL}`;
 process.env.ADMIN_EMAILS = ADMIN_EMAIL;
 // `enrollThisMachine` trả về khóa công khai của máy chủ, suy ra từ hạt giống này.
-process.env.TICKET_SIGNING_KEY = "11".repeat(32);
+process.env.TICKET_SIGNING_KEY =
+  "411a055f1c441462bbf17be08157633b7f4e99db8462b44fa680ddeb6e6c654e";
 
 const ADMIN_ID = "user-admin";
 const OPERATOR_ID = "user-operator";
