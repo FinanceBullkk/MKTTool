@@ -189,10 +189,12 @@ async function run() {
     check("báo sẵn sàng", ready.ok === true, String(ready.message));
 
     console.log("\nBọc bí mật bằng khóa vùng operator (đường tạo/sửa nick)");
-    // Origin bắt buộc — FINDING F4 đã bắt đường này phải kiểm `Origin`, vì thiếu nó thì mọi trang
-    // web đang mở đều dùng được cầu nối làm máy mã hóa thuê cho ciphertext của chính nó. Bài kiểm
-    // này không được cập nhật theo lúc F4 vào, nên nó đỏ từ đó tới nay mà không ai thấy: nó cần
-    // một `.exe` build trên Windows nên không nằm trong CI.
+    // The origin is mandatory — F4 made this route check `Origin`, because without it every page
+    // the operator has open can use the Relay as a rented encryption engine for ciphertext of its
+    // own choosing. This suite was not updated when F4 landed, so it had been red for days with
+    // nobody watching: it needs a Windows-built `.exe`, and at the time nothing built one except a
+    // person. That is no longer true — the `relay-executable` job in `.github/workflows/ci.yml`
+    // builds and runs this suite on `windows-latest` for every pull request (C37).
     const sealed = await relayCall(RELAY_PATHS.encryptForVault, {
       password: PASSWORD,
       totpSecret: `${TOTP_SECRET.toLowerCase()}  `,
