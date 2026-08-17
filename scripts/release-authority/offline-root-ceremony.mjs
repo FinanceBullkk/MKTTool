@@ -186,7 +186,11 @@ async function main() {
   throw new Error(usage());
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+// `process.argv[1]` is the script path when this file is run directly, and **undefined** when it is
+// merely imported, which is what a test runner does. `pathToFileURL(undefined)` throws, so without
+// the first clause the module cannot be imported at all: the failure happens at load, before any
+// test in the importing file can run, and it takes the whole suite file with it.
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   main().catch((error) => {
     console.error((error instanceof Error ? error.message : String(error)).replaceAll(/\r?\n/g, " "));
     process.exitCode = 1;
