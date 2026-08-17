@@ -189,10 +189,14 @@ async function run() {
     check("báo sẵn sàng", ready.ok === true, String(ready.message));
 
     console.log("\nBọc bí mật bằng khóa vùng operator (đường tạo/sửa nick)");
+    // Origin bắt buộc — FINDING F4 đã bắt đường này phải kiểm `Origin`, vì thiếu nó thì mọi trang
+    // web đang mở đều dùng được cầu nối làm máy mã hóa thuê cho ciphertext của chính nó. Bài kiểm
+    // này không được cập nhật theo lúc F4 vào, nên nó đỏ từ đó tới nay mà không ai thấy: nó cần
+    // một `.exe` build trên Windows nên không nằm trong CI.
     const sealed = await relayCall(RELAY_PATHS.encryptForVault, {
       password: PASSWORD,
       totpSecret: `${TOTP_SECRET.toLowerCase()}  `,
-    });
+    }, { origin: bakedOrigin });
     check("nhận lời", sealed.ok === true, String(sealed.message));
     check(
       "mật khẩu bọc xong mở lại ra đúng nguyên văn",
@@ -208,7 +212,7 @@ async function run() {
     const halfway = await relayCall(RELAY_PATHS.encryptForVault, {
       password: PASSWORD,
       totpSecret: "khong-phai-base32!!",
-    });
+    }, { origin: bakedOrigin });
     check("TOTP hỏng thì KHÔNG bọc nửa vời", halfway.ok === false && halfway.passwordEnc === undefined);
 
     console.log("\nVé mở profile");
