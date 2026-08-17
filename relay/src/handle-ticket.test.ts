@@ -26,7 +26,10 @@ import {
   withCompatibilityTransitionPreparationLock,
 } from "./compatibility-transition-preparation-lock";
 
-const SERVER_SEED = "11".repeat(32);
+// Hạt giống thật, cố định: `parseSigningSeed` từ chối khuôn mẫu điền tạm (FINDING C2), nên
+// một chuỗi kiểu "11".repeat(32) không còn dựng được khóa. Cố định chứ không ngẫu nhiên vì test
+// dưới đây suy ra khóa công khai kỳ vọng từ chính nó.
+const SERVER_SEED = "e40fcc2d2171ef9af68a69d386aa8f34be17646f3f4eda88ce4e505642e99b39";
 const DEVICE_ID = "device-abc";
 const RELAY_HOME = "C:\\MKTTool\\relay-ticket-tests";
 
@@ -307,7 +310,9 @@ describe("handleTicketRequest — vé mở profile", () => {
     const { identity, recipient } = relaySetup();
     const { adapter } = fakeAdapter();
 
-    process.env[SERVER_SIGNING_KEY_ENV] = "22".repeat(32);
+    // Khác SERVER_SEED, và cũng phải là hạt giống thật — đây là vế "khóa không phải khóa đã cấu hình".
+    process.env[SERVER_SIGNING_KEY_ENV] =
+      "4d1e56d78393e0b8edaddd3ff251044540fabd9748d6baedb56e49e04c180060";
     resetServerSigningKeysCache();
     const forged = issueTicket(launchPayload(), recipient);
 

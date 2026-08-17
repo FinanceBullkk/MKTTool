@@ -20,7 +20,10 @@ import { TICKET_KINDS, TICKET_LIFETIME_MS } from "../../src/lib/tickets/ticket-t
 import { handleSecretReveal } from "./handle-secret";
 import { buildRelayIdentity } from "./relay-identity";
 
-const SERVER_SEED = "11".repeat(32);
+// Hạt giống thật, cố định: `parseSigningSeed` từ chối khuôn mẫu điền tạm (FINDING C2), nên
+// một chuỗi kiểu "11".repeat(32) không còn dựng được khóa. Cố định chứ không ngẫu nhiên vì test
+// dưới đây suy ra khóa công khai kỳ vọng từ chính nó.
+const SERVER_SEED = "05b8f5f0dc4f2da6b082d470b82473c58d8bbd60aaa93db528272a151853fe1d";
 const OPERATOR_KEY = Buffer.from("ab".repeat(32), "hex");
 const SERVER_KEY = Buffer.from("cd".repeat(32), "hex");
 const DEVICE_ID = "device-abc";

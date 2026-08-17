@@ -153,28 +153,42 @@ describe("H18: placeholder and low-entropy seeds", () => {
   ];
 
   /**
-   * FINDING C2 (P3) — retest gate. There is no entropy/placeholder policy on the signing seed.
+   * FINDING C2 (P3) — closed 17 August 2026. These were `it.fails` retest gates while no
+   * placeholder policy existed; they turned RED the moment the guard landed and are now ordinary
+   * assertions. The assertion never changed — only the code under it did.
    *
-   * `it.fails` pins the gap honestly: it is green while the guard is absent and turns RED the
-   * moment someone adds one, which is the prompt to convert these into ordinary assertions. The
-   * assertion itself is the one we actually want to hold — it is not weakened to obtain green.
-   *
-   * Contrast `release-download-token.ts:44`, which does enforce a minimum strength
-   * (`MIN_RELEASE_DOWNLOAD_TOKEN_LENGTH = 32`) on a far less powerful secret.
+   * Each seed here is well-formed hex of exactly the right length, so nothing but a placeholder
+   * policy can reject it. That is the point: length and charset were never the missing check.
    */
-  it.fails.each(placeholders)("does not yet reject the %s seed", (_label, raw) => {
+  it.each(placeholders)("rejects the %s seed", (_label, raw) => {
     expect(raw).toHaveLength(SIGNING_SEED_HEX_LENGTH);
-    // Well-formed hex of the right length — nothing but an entropy policy can reject these.
     expect(Buffer.from(raw, "hex")).toHaveLength(SIGNING_SEED_BYTES);
 
     expect(acceptsEndToEnd(raw)).toBe(false);
   });
 
-  it("accepts them today, deriving a usable key from a guessable seed", () => {
-    // The concrete consequence, asserted rather than asserted-about: a placeholder seed yields a
-    // working server signing key, so anyone who guesses the placeholder signs every protocol.
-    const keys = signingKeysFromSeed(parseSigningSeed("00".repeat(SIGNING_SEED_BYTES), SOURCE));
-    expect(keys.publicKeyHex).toHaveLength(SIGNING_SEED_HEX_LENGTH);
+  it("names the placeholder pattern and points at the keygen script", () => {
+    // A rejection nobody can act on gets worked around. The message has to say which rule fired
+    // and what to run instead.
+    expect(() => parseSigningSeed("00".repeat(SIGNING_SEED_BYTES), SOURCE)).toThrow(
+      /keys:server-keygen/,
+    );
+    expect(() => parseSigningSeed("00".repeat(SIGNING_SEED_BYTES), SOURCE)).toThrow(/byte/);
+  });
+
+  /**
+   * The other half of the guard, and the one that would hurt if it were wrong: a real seed must
+   * still pass. A placeholder policy that rejects genuine keys is worse than the gap it closes.
+   */
+  it("accepts real random seeds — 200 of them, no false rejection", () => {
+    for (let i = 0; i < 200; i += 1) {
+      const raw = randomBytes(SIGNING_SEED_BYTES).toString("hex");
+      expect(acceptsEndToEnd(raw), `random seed ${raw}`).toBe(true);
+    }
+  });
+
+  it("accepts the RFC 8032 test vector seed", () => {
+    expect(acceptsEndToEnd(VALID_SEED_HEX)).toBe(true);
   });
 });
 

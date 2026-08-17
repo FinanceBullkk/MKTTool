@@ -11,7 +11,8 @@ vi.mock("@/lib/relay/relay-compatibility-artifact-source", () => ({
   readRelayCompatibilityArtifactSource: mocks.readSource,
 }));
 
-process.env.TICKET_SIGNING_KEY = "51".repeat(32);
+process.env.TICKET_SIGNING_KEY =
+  "bd28078ecf461400eac90b567bf4a4f875b42f40ffbe2b0f9b8f178a473b8177";
 
 const { encodeCompatibilityArtifactAuthorization, signCompatibilityUpdateAuthorization } =
   await import("@/lib/release/compatibility-update-authorization");
@@ -22,7 +23,8 @@ const { GET } = await import("./route");
 
 beforeEach(() => {
   vi.clearAllMocks();
-  process.env.TICKET_SIGNING_KEY = "51".repeat(32);
+  process.env.TICKET_SIGNING_KEY =
+  "bd28078ecf461400eac90b567bf4a4f875b42f40ffbe2b0f9b8f178a473b8177";
   resetServerSigningKeysCache();
   mocks.readRelease.mockResolvedValue(release());
   mocks.readSource.mockResolvedValue({
