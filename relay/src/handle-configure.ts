@@ -20,7 +20,7 @@
  */
 import type { IncomingMessage } from "node:http";
 import type { RelayResponseBody } from "./relay-http-server";
-import { writeRelayConfig } from "./relay-config";
+import { resolveServerPublicKey, writeRelayConfig } from "./relay-config";
 
 /** Khóa công khai Ed25519 xuất ra hex là 32 byte. */
 const SERVER_PUBLIC_KEY_HEX_LENGTH = 64;
@@ -87,6 +87,35 @@ export function handleConfigure(
     return {
       ok: false,
       message: `"serverPublicKey" phải là ${SERVER_PUBLIC_KEY_HEX_LENGTH} ký tự hex.`,
+    };
+  }
+
+  /**
+   * Một cầu nối đã có gốc tin cậy thì **không đổi gốc qua đường này**.
+   *
+   * Kiểm `Origin` ở trên chặn trang lạ, nhưng nó không chặn được chính trang web đã tin — và đó
+   * mới là chỗ đau. Nếu web app dính XSS, kẻ tấn công chỉ cần một lần chạy được mã trong trang đó
+   * là trỏ được **mọi** cầu nối sang khóa của mình. Cầu nối vẫn giữ `VAULT_KEY_OPERATOR`, nên từ
+   * lúc đó nó nhận vé do kẻ kia ký và giải mã thuê cho họ. Một lỗi tạm thời phía trình duyệt biến
+   * thành quyền thường trực trên máy người dùng.
+   *
+   * Ghi lại đúng khóa đang có thì vẫn cho qua: đường đăng ký chạy lại là chuyện bình thường, và
+   * bắt nó đỏ chỉ dạy người ta bấm lại cho tới khi được.
+   *
+   * Đây là mẫu hình `handle-set-operator-key.ts` đã dùng — nó cũng chỉ mở đường bootstrap khi máy
+   * **chưa** có khóa vùng operator. Chỗ này thiếu đúng một phép kiểm đó.
+   *
+   * Đổi khóa ký của máy chủ hiện **không có** đường phân phối nào: `configureRelay` chỉ được gọi
+   * một lần lúc đăng ký. Nếu sau này cần xoay khóa thật, nó phải đi bằng một tuyên bố có chữ ký
+   * của khóa cũ chứ không phải bằng một POST không ký — và phép kiểm này là thứ buộc điều đó.
+   */
+  const existingServerPublicKey = resolveServerPublicKey(deps.home);
+  if (existingServerPublicKey && existingServerPublicKey !== serverPublicKey) {
+    return {
+      ok: false,
+      message:
+        "Máy này đã gắn với một khóa máy chủ khác. Cầu nối không đổi gốc tin cậy qua đường cấu " +
+        "hình. Muốn chuyển máy sang máy chủ khác thì thu hồi máy này rồi đăng ký lại.",
     };
   }
 
