@@ -18,6 +18,7 @@
  */
 import type { IncomingMessage } from "node:http";
 import { RELAY_ORIGIN } from "../../src/lib/relay/relay-endpoints";
+import { describePlaceholderSecret } from "../../src/lib/crypto/placeholder-secret-detection";
 import type { RelayResponseBody } from "./relay-http-server";
 import { writeRelayConfig } from "./relay-config";
 import { RELAY_SECRET_NAMES, type SecureStore } from "./secure-store";
@@ -80,6 +81,29 @@ export function handleSetOperatorKey(
           `${key.length} ký tự. Chép lại nguyên văn từ trình quản lý mật khẩu của team.`,
       };
     }
+
+    /**
+     * Chặn khóa điền tạm — FINDING C33, nửa phía cầu nối.
+     *
+     * Ô ngay trên đây là **nơi khóa operator thật sự sống** khi GĐ3 đã xong: máy chủ không giữ
+     * nó nữa. Bịt lỗ ở `parseVaultKey` mà bỏ trống chỗ này thì chốt chỉ canh con đường đang bị
+     * bỏ đi, còn con đường ở lại thì mở. Ô nhập lại còn gợi ý sẵn `000…0` làm placeholder, tức
+     * là giá trị dễ gõ nhất cũng đúng là giá trị tệ nhất.
+     *
+     * Ở đây không nhắc `vault:keygen`: người đứng trước màn hình này là nhân viên đang dán khóa
+     * do quản trị viên phát, không phải người sinh khóa. Bảo họ chạy script là chỉ sai cửa.
+     */
+    const placeholder = describePlaceholderSecret(Buffer.from(key, "hex"));
+    if (placeholder) {
+      return {
+        ok: false,
+        message:
+          `Chuỗi này trông như khóa điền tạm (${placeholder}) chứ không phải khóa thật của team. ` +
+          "Chép lại nguyên văn từ trình quản lý mật khẩu; nếu đúng là chuỗi quản trị viên gửi thì " +
+          "báo lại — khóa đó cần được thay chứ không nên dùng.",
+      };
+    }
+
     patch.vaultKeyOperator = key;
   }
 

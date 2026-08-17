@@ -32,7 +32,7 @@ export function renderOperatorKeyForm(path: string, hasKey: boolean, bootstrapAu
 <form id="opform">
   <label>Operator key (64 hex characters)<br>
     <input id="opkey" type="password" autocomplete="off" spellcheck="false" size="70"
-           placeholder="${"0".repeat(64)}"></label>
+           placeholder="64 hex characters (0-9, a-f)"></label>
   <p><button type="submit">Save on this PC</button>
   <span id="opmsg" class="muted"></span></p>
 </form>

@@ -8,7 +8,7 @@
  *  2. **Không đạp lên `deviceId` / `serverPublicKey`** mà web app vừa ghi xuống. Hai đường ghi
  *     vào cùng một file từ hai phía; đường nào cũng ghi đè cả file là đường nào cũng phá đường kia.
  */
-import { generateKeyPairSync } from "node:crypto";
+import { generateKeyPairSync, randomBytes } from "node:crypto";
 import type { IncomingMessage } from "node:http";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -26,7 +26,13 @@ import { sealForDevice } from "../../src/lib/tickets/ticket-sealed-box";
 import { BootstrapAuthorizationBroker } from "./bootstrap-authorization";
 import { readOperatorGrantState } from "./operator-grant-state";
 
-const OPERATOR_KEY = "c4".repeat(32);
+/**
+ * Khóa giả nhưng phải trông như hàng thật: từ FINDING C33 handler từ chối khuôn mẫu điền tạm, và
+ * `"c4".repeat(32)` — giá trị bài này dùng trước đây — chính là một trong số đó. Giá trị cố định
+ * chứ không `randomBytes`: bài test cần lặp lại được, và một khóa rút ngẫu nhiên mỗi lần chạy sẽ
+ * biến một lần đỏ thành thứ không dựng lại nổi.
+ */
+const OPERATOR_KEY = "500492c4cba32f2a2f5e5c9f0a002c5998c98ea1f0f93afc862a02a7059e8e77";
 const homes: string[] = [];
 
 function makeHome(seed?: Record<string, unknown>): string {
@@ -108,6 +114,45 @@ describe("handleSetOperatorKey", () => {
   it("bắt khóa đúng độ dài nhưng không phải hex", () => {
     const home = makeHome();
     expect(call(home, { vaultKeyOperator: "z".repeat(64) }).result.ok).toBe(false);
+  });
+
+  /**
+   * FINDING C33, nửa phía cầu nối.
+   *
+   * Đây mới là nơi khóa vùng operator sống khi GĐ3 xong — máy chủ không giữ nó nữa. Mọi chuỗi
+   * dưới đây đều đúng 64 ký tự hex, nên độ dài và bảng chữ không bao giờ bắt được chúng; chỉ một
+   * chính sách khuôn mẫu mới bắt được. `"0".repeat(64)` từng là placeholder in sẵn trong chính ô
+   * nhập ấy, tức giá trị dễ dán nhất cũng là giá trị tệ nhất.
+   *
+   * Không chỉ kiểm `ok === false`: một lượt từ chối mà vẫn ghi khóa xuống kho là tệ hơn không
+   * từ chối, vì nó vừa báo hỏng vừa để lại đúng thứ vừa cấm.
+   */
+  it.each([
+    ["toàn số 0", "0".repeat(64)],
+    ["toàn 0xff", "ff".repeat(32)],
+    ["một byte lặp lại", "c4".repeat(32)],
+    ["khối 2 byte lặp lại", "dead".repeat(16)],
+    ["dãy đếm tăng", Array.from({ length: 32 }, (_, i) => i.toString(16).padStart(2, "0")).join("")],
+  ])("từ chối khóa điền tạm (%s) và không ghi gì xuống kho", (_label, key) => {
+    expect(key).toMatch(/^[0-9a-f]{64}$/);
+
+    const home = makeHome();
+    const { result, onConfigured, secureStore } = call(home, { vaultKeyOperator: key });
+
+    expect(result.ok).toBe(false);
+    expect(result.message).toContain("điền tạm");
+    expect(secureStore.read(RELAY_SECRET_NAMES.operatorDomainKey)).toBeNull();
+    expect(onConfigured).not.toHaveBeenCalled();
+  });
+
+  it("vẫn nhận khóa thật — chốt trên không được chặn nhầm hàng thật", () => {
+    // Nửa còn lại của chốt, và là nửa đau hơn nếu sai: từ chối nhầm một khóa thật là khóa nhân
+    // viên ra ngoài chính kho dữ liệu của họ.
+    for (let i = 0; i < 50; i += 1) {
+      const home = makeHome();
+      const key = randomBytes(32).toString("hex");
+      expect(call(home, { vaultKeyOperator: key }).result.ok, key).toBe(true);
+    }
   });
 
   it("reports that both fields are empty instead of claiming they were saved", () => {
