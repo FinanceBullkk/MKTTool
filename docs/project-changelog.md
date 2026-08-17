@@ -12,6 +12,36 @@ Dự án chưa phát hành phiên bản (`0.1.0`, dùng nội bộ). Mốc chia 
 
 ---
 
+## 17 August 2026 - Two ways to hand a Relay the wrong authority, both closed
+
+The audit reached release authority and the trust chain. Both defects below let someone decide what a
+Relay would believe, so they change behaviour and belong here.
+
+**A Relay accepted public keys under which signatures verify without a private key.** Ed25519 has
+eight points that break the maths: give one of them to a verifier as a public key and a signature of
+essentially nothing verifies for a large share of messages, forged by anyone, with no key involved.
+The key import checked length and character set, not whether the value was one of these. Measured
+against Node: the worst of them verified a forged signature for 200 out of 200 random messages, the
+mildest for 19 out of 200 — and one working message is all an attacker needs, because they choose it.
+
+Anyone able to set a Relay's `serverPublicKey` to such a value could forge every ticket that Relay
+accepts. Both key-import paths now refuse small-order points and non-canonical encodings, the second
+being the same aliasing that let a revoked device key return wearing different bytes. The blocked
+values are derived from the curve equation rather than copied from a list, and the test re-derives
+them on each run, so a typo fails the suite instead of quietly narrowing the guard. No genuine key is
+affected: 64 freshly generated keypairs matched none of them.
+
+**A Relay that was already enrolled would change its trust root on request.** `/configure` writes
+`deviceId` and `serverPublicKey` from the web app, and it never checked whether the Relay already had
+a trust root. The Origin check stops a foreign page, but not the trusted one — so an XSS in the web
+app could repoint every Relay at an attacker's key while each Relay still held `VAULT_KEY_OPERATOR`,
+turning a transient browser-side compromise into standing authority on operator machines.
+
+Re-sending the key already on disk still succeeds, because re-running enrollment is ordinary. Only a
+change is refused, and the message points at the supported path: retire the device, then register it
+again. This does not affect server key rotation, because no rotation distribution exists today; if
+one is built it must travel as a statement signed by the outgoing key rather than an unsigned POST.
+
 ## 16 August 2026 - Two identity-boundary defects found by audit and fixed
 
 A deep audit of the cryptographic protocols and the local control surface found three defects worth

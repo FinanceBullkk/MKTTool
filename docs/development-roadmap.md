@@ -39,13 +39,26 @@ pilot duration, and real-account gates remain separate. Code signing is no longe
 12 August the owner decided v1 ships **unsigned** for the internal fleet, so SmartScreen appears once
 and the setup journey must announce it in advance.
 
-**Audit in progress, 16 August 2026.** A deep audit of the cryptographic protocols and the local
-control surface is running: Phase 01 is complete (20 hypotheses closed) and Phase 02 is part-done.
-It has fixed two identity-boundary defects — the proxy bridge accepting a destination that could
-rewrite the request sent to the proxy provider, and device revocation leaving an aliased second copy
-of a key usable — plus six cases where a guard existed but no test would have noticed it breaking.
-Nothing above P2 so far. **Operationally actionable now:** every MKT Browser build from `v0.2.0` to
-`v0.3.1` carries the unfixed bridge, so machines on an older build stay affected until they update.
+**Audit in progress, 17 August 2026.** A deep audit spanning both repositories has closed phases 00
+to 04: fix re-verification, cryptographic protocols, the local control surface, Windows lifecycle,
+and release authority. Phases 05 (data layer and business logic) and 06 (breadth completion) have not
+started, so nothing should be read as clean there — unexamined is not the same as sound.
+
+Defects fixed so far include two identity-boundary ones — the proxy bridge accepting a destination
+that could rewrite the request sent to the proxy provider, and device revocation leaving an aliased
+second copy of a key usable — a rollback that could strand a device on a half-restored state, and two
+found on 17 August: public keys that make signatures forgeable were accepted at import, and an
+enrolled Relay's trust root could be replaced over `/configure`. Nothing above P2 has been found.
+
+**Operationally actionable now:** every MKT Browser build from `v0.2.0` to `v0.3.1` carries the
+unfixed bridge, so machines on an older build stay affected until they update.
+
+Two limits are worth stating rather than leaving implied. Cross-user Windows isolation is **not**
+verified; it is out of scope by an owner decision that the product supports one Windows user per PC,
+which would need revisiting if that ever changes. And the human Windows gates — Authenticode after
+signing is enabled, power-loss during an update, and a withdrawn installer on a clean machine —
+remain unrun; code cannot close them.
+
 Findings and remaining open items are in the workspace-level `plans/reports/` directory, which sits
 above both repositories because the audit spans them and is version-controlled there; it is **not**
 this repository's `plans/reports/`. This line will be replaced by a final statement when the audit

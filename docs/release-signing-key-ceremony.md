@@ -144,6 +144,13 @@ root-recovery-proof.json
 Do not copy either encrypted root backup to the build disk. Encrypted backups remain on devices A and
 B, which should be removed from the build machine immediately after public evidence is transferred.
 
+These four files are committed to `src/lib/release/release-authority-public-evidence/`. That location
+is load-bearing, not filing: `release-root-trust.ts` imports `root-public.json` from it, so it is the
+trust anchor every device uses to accept engine and Relay updates. It lived under `plans/` until
+17 August 2026, which put the root of trust behind a path that documentation housekeeping could move
+or rewrite. Keep it beside the module that reads it, and expect `release-root-trust.test.ts` to fail
+if the evidence and the pinned constant ever disagree.
+
 ## 6. Verify against the DPAPI delegated key
 
 Run from the MKTTool repository:

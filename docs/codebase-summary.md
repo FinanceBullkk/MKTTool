@@ -53,7 +53,10 @@ src/
     │                           mới nhất quá cũ / lượt gần nhất hỏng / bật rồi mà chưa chạy
     ├── content/                Hằng số loại content, trạng thái job, loại tương tác
     ├── crypto/                 AES-256-GCM cho credential — hai vùng khóa (server / operator),
-    │                           registry khai vùng cho từng cột, key loader
+    │                           registry khai vùng cho từng cột, key loader. Kèm phép kiểm điểm
+    │                           Ed25519 dùng chung cho cả hai đường nạp khóa công khai: loại điểm
+    │                           bậc nhỏ (chữ ký giả nghiệm đúng mà không cần khóa riêng) và cách
+    │                           mã hóa không chuẩn tắc (một khóa hai cách viết)
     ├── dashboard/              Dữ liệu trang "Hôm nay" gom về một `Promise.all` — tách khỏi
     │                           `app/page.tsx` để hình dạng "mười lăm câu hỏi chạy song song"
     │                           nhìn thấy được, thay vì rải ra rồi có ngày ai đó await tuần tự
