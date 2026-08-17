@@ -12,6 +12,7 @@
 import { revalidatePath } from "next/cache";
 import type { ActionResult } from "@/lib/actions/action-result";
 import { adminAction, guardedAction } from "@/lib/auth/guarded-action";
+import { requireNickOwner } from "@/lib/auth/require-actor";
 import { prisma } from "@/lib/db/prisma-client";
 import { describeUnexpectedDbError } from "@/lib/db/prisma-error-helpers";
 import { blockDeleteWhenReferenced } from "@/lib/db/reference-guard";
@@ -56,10 +57,28 @@ export const deleteProxy = adminAction(async function deleteProxy(
   return { ok: true, message: `Đã xóa proxy "${proxy.label}".` };
 });
 
+/**
+ * Xóa một nick — FINDING C31.
+ *
+ * Cùng một chốt với đường lấy bí mật của chính nick đó (`requireNickOwner`: chủ nick, hoặc ADMIN;
+ * nick chưa có chủ thì chỉ ADMIN). Lý do dùng đúng chốt ấy chứ không phải `adminAction`: xóa hàng
+ * này **phá hủy đúng những thứ mà chốt kia canh** — mật khẩu nick, mật khẩu email và TOTP secret
+ * vùng operator nằm trong chính hàng đó, và với một nick vừa nhập thì kho không còn bản nào khác.
+ * Ai được phép đọc chúng thì được phép hủy chúng; ai không thì không.
+ *
+ * Trước 17/08/2026 đây chỉ là `guardedAction`, tức bất kỳ ai đăng nhập cũng xóa được nick của
+ * người khác — trong khi xóa một cái *proxy* lại đòi ADMIN. Bất đối xứng đó ngược với thứ tự mà
+ * schema tự tuyên bố: "Nick là tài sản, đăng ký máy là quyền".
+ *
+ * Tầm nhìn vẫn không đổi: mọi người vẫn thấy nick, job và lịch sử của nhau. Chốt này chỉ chặn
+ * đường HỦY, đúng như chốt kia chỉ chặn đường ĐỌC BÍ MẬT.
+ */
 export const deleteAccount = guardedAction(async function deleteAccount(
-  _actor,
+  actor,
   accountId: string,
 ): Promise<ActionResult> {
+  await requireNickOwner(actor, accountId);
+
   const account = await prisma.account.findUnique({
     where: { id: accountId },
     include: {
