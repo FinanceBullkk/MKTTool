@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { HEALTH_VERDICTS } from "@/lib/health/health-verdict";
-import { normalizeThreadUrl } from "./rule-thread-collision";
+import { isUnresolvableShareLink, normalizeThreadUrl } from "./rule-thread-collision";
 import { DEFAULT_RULE_THRESHOLDS, applyThresholdOverrides } from "./rule-thresholds";
 import type { RuleContext } from "./rule-types";
 import { deserializeEvaluation, evaluateRules, serializeEvaluation } from "./rules-engine";
@@ -563,6 +563,14 @@ describe("normalizeThreadUrl", () => {
     expect(normalizeThreadUrl("https://redd.it.evil.com/1a2b3c")).toBe("redd.it.evil.com/1a2b3c");
   });
 
+  it("link share /s/ KHÔNG rút được, nên ra một khóa khác hẳn permalink", () => {
+    // Ghi lại hành vi thật để không ai tưởng nhầm là đã xử lý: mã sau /s/ là mã mờ, chỉ redirect
+    // của Reddit mới phân giải được. Vì vậy chốt nằm ở đầu vào, xem isUnresolvableShareLink.
+    expect(normalizeThreadUrl("https://www.reddit.com/r/trove/s/abcdefgh12")).not.toBe(
+      normalizeThreadUrl("https://www.reddit.com/r/trove/comments/1veg99o/tieu_de/"),
+    );
+  });
+
   it("URL thường thì bỏ www, tham số theo dõi và dấu / cuối", () => {
     expect(normalizeThreadUrl("https://www.facebook.com/pages/abc/?ref=bookmarks")).toBe(
       "facebook.com/pages/abc",
@@ -598,5 +606,46 @@ describe("normalizeThreadUrl", () => {
 
   it("chuỗi không phải URL vẫn dùng được làm khóa", () => {
     expect(normalizeThreadUrl("  Thread ABC  ")).toBe("thread abc");
+  });
+});
+
+/**
+ * H109 — chốt đầu vào cho link share không phân giải được.
+ *
+ * Nửa còn lại của C27. `normalizeThreadUrl` rút được `redd.it/<id>` vì phần path chính là id bài,
+ * nhưng `reddit.com/r/<sub>/s/<id>` thì không: mã đó mờ, chỉ đi theo redirect mới ra. Hàm thuần
+ * không gọi mạng được, nên chặn lúc người ta dán — lúc họ còn đang mở đúng cái link đó.
+ */
+describe("isUnresolvableShareLink", () => {
+  it("bắt link share /s/ của Reddit ở mọi biến thể host", () => {
+    expect(isUnresolvableShareLink("https://www.reddit.com/r/trove/s/AbCdEfGh12")).toBe(true);
+    expect(isUnresolvableShareLink("https://reddit.com/r/trove/s/abcdefgh12")).toBe(true);
+    expect(isUnresolvableShareLink("https://old.reddit.com/r/trove/s/abcdefgh12/")).toBe(true);
+    expect(isUnresolvableShareLink("reddit.com/r/trove/s/abcdefgh12")).toBe(true);
+  });
+
+  it("KHÔNG chặn những link vẫn rút được — nếu không thì chốt này chặn cả việc bình thường", () => {
+    expect(
+      isUnresolvableShareLink("https://www.reddit.com/r/trove/comments/1veg99o/tieu_de/"),
+    ).toBe(false);
+    // redd.it đã rút được từ C27, phải giữ nguyên đường đó.
+    expect(isUnresolvableShareLink("https://redd.it/1veg99o")).toBe(false);
+    expect(isUnresolvableShareLink("https://www.facebook.com/permalink.php?story_fbid=1&id=2")).toBe(
+      false,
+    );
+  });
+
+  /** Host chỉ trông giống Reddit thì không phải việc của chốt này. */
+  it("không nhận nhầm tên miền giả", () => {
+    expect(isUnresolvableShareLink("https://reddit.com.evil.test/r/x/s/abc")).toBe(false);
+    expect(isUnresolvableShareLink("https://notreddit.com/r/x/s/abc")).toBe(false);
+  });
+
+  /** Bài Reddit có sub đặt tên là "s" vẫn phải đăng được — path phải khớp đúng /r/<sub>/s/<id>. */
+  it("không chặn path chỉ tình cờ có đoạn s", () => {
+    expect(isUnresolvableShareLink("https://www.reddit.com/r/s/comments/1veg99o/tieu_de/")).toBe(
+      false,
+    );
+    expect(isUnresolvableShareLink("https://www.reddit.com/user/ai_do/s/abc/them/nua")).toBe(false);
   });
 });

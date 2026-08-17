@@ -12,12 +12,21 @@ import type { ActionResult } from "@/lib/actions/action-result";
 import { guardedAction } from "@/lib/auth/guarded-action";
 import { isOpenJobStatus } from "@/lib/content/content-types";
 import { prisma } from "@/lib/db/prisma-client";
+import {
+  UNRESOLVABLE_SHARE_LINK_MESSAGE,
+  isUnresolvableShareLink,
+} from "@/lib/rules/rule-thread-collision";
 import { summarizeEvaluation } from "@/lib/rules/rules-engine";
 import { markPostJobPosted } from "./post-job-mark-posted";
 import { revertPostJobToPending } from "./post-job-revert";
 import { recheckOneJob } from "./recheck-jobs-batch";
 
-const urlSchema = z.string().url("Link bài đăng không hợp lệ");
+const urlSchema = z
+  .string()
+  .url("Link bài đăng không hợp lệ")
+  // Cùng chốt với form ghi tương tác: `markPostJobPosted` ghi kèm một Interaction, nên một link
+  // không rút được về id bài để lại đúng loại dấu vết mà luật 8 không đối chiếu được.
+  .refine((value) => !isUnresolvableShareLink(value), UNRESOLVABLE_SHARE_LINK_MESSAGE);
 
 /**
  * Đánh dấu đã đăng. Ghi luôn một Interaction cho chính bài đó: từ giờ nick khác đụng vào

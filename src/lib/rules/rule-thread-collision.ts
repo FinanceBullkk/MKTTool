@@ -109,6 +109,43 @@ function meaningfulQuery(params: URLSearchParams): string {
 }
 
 /**
+ * Link share kiểu mới của Reddit: `reddit.com/r/<sub>/s/<id>`.
+ *
+ * Khác `redd.it/<id>` ở chỗ quyết định: phần `<id>` ở đây KHÔNG phải id bài, nó là một mã mờ chỉ
+ * phân giải được bằng cách đi theo redirect của Reddit. `normalizeThreadUrl` là hàm thuần, không
+ * gọi mạng, nên nó không rút được — và cũng không nên rút, vì hỏi mạng trong một hàm mà bộ luật
+ * gọi hàng chục lần mỗi lượt chấm là đổi một lỗ hổng lấy một chỗ treo.
+ *
+ * Nên chốt nằm ở ĐẦU VÀO: chặn lúc người ta dán, khi họ còn đang mở đúng cái link đó và mở ra lấy
+ * link đầy đủ chỉ mất một cú bấm. Nhận vào rồi mới phát hiện không so được thì cái giá là luật 8 —
+ * luật duy nhất không cho ghi đè — im lặng không thấy đụng độ.
+ */
+const REDDIT_SHARE_PATH = /^\/r\/[^/]+\/s\/[a-z0-9]+\/?$/;
+
+export const UNRESOLVABLE_SHARE_LINK_MESSAGE =
+  "Link share dạng /s/ không rút được về id bài, nên luật chặn đụng độ thread sẽ không nhận ra " +
+  "hai nick vào cùng một bài. Mở link đó ra rồi dán link đầy đủ (link có /comments/).";
+
+/** Người dùng vừa dán một link mà khóa đụng độ không thể phân giải. */
+export function isUnresolvableShareLink(raw: string): boolean {
+  const trimmed = raw.trim().toLowerCase();
+
+  // Có `/comments/` là rút được rồi, không cần xét gì thêm.
+  if (REDDIT_POST_ID.test(trimmed)) return false;
+
+  try {
+    const url = new URL(trimmed.startsWith("http") ? trimmed : `https://${trimmed}`);
+    const host = url.host.replace(/^www\./, "");
+    const isReddit = host === "reddit.com" || host.endsWith(".reddit.com");
+
+    return isReddit && REDDIT_SHARE_PATH.test(url.pathname);
+  } catch {
+    // Không phải URL đọc được thì đây không phải việc của hàm này — `z.string().url()` đã chặn.
+    return false;
+  }
+}
+
+/**
  * Rút URL về một khóa so sánh ổn định.
  *
  * Cùng một bài Reddit có vô số URL khác nhau (có/không slug, old.reddit, share link kèm tham số
