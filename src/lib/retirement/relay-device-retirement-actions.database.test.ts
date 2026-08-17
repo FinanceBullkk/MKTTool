@@ -5,8 +5,14 @@ import { AuthorizationError } from "@/lib/auth/require-actor";
 vi.mock("next/cache", () => ({ revalidatePath: () => {} }));
 process.env.TICKET_SIGNING_KEY =
   "d0e8f8e9db83cb4084c00acf3be92e7bcc2871900019cb4b84cf25045bdcbeb4";
-process.env.VAULT_KEY_SERVER = "21".repeat(32);
-process.env.VAULT_KEY_OPERATOR = "29".repeat(32);
+// Khóa giả nhưng phải trông như hàng thật: chốt C33 từ chối khuôn mẫu điền tạm, và
+// `"21".repeat(32)` — giá trị bài này dùng trước đây — là một byte lặp 32 lần. Giá trị cố định
+// chứ không `randomBytes`: một khóa rút ngẫu nhiên mỗi lần chạy biến một lần đỏ thành thứ không
+// dựng lại nổi. Hai vùng vẫn phải khác nhau, vì bài này canh đúng chuyện tách vùng.
+process.env.VAULT_KEY_SERVER =
+  "ca7f4274ff3ec1ae147a8c15c50d282e549cb75b540228ae591669a8b151b0af";
+process.env.VAULT_KEY_OPERATOR =
+  "29301f912d87a15d2aa202f7bdcca5db6e774c117bfd18f79b0a5afe8137354c";
 
 const ADMIN = { userId: "admin", email: "admin@example.com", role: "ADMIN" as const };
 const OWNER = { id: "owner", email: "owner@example.com" };

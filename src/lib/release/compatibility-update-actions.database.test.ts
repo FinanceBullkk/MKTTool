@@ -8,9 +8,18 @@ vi.mock("@/lib/relay/relay-compatibility-manifest-file", () => ({
   readRelayCompatibilityRelease: releaseFixture.read,
 }));
 
+/**
+ * Khóa giả nhưng phải trông như hàng thật: chốt C33 từ chối khuôn mẫu điền tạm, và `"42".repeat(32)`
+ * — giá trị bài này dùng trước đây — là một byte lặp 32 lần. Cố định chứ không `randomBytes`, để
+ * một lần đỏ còn dựng lại được. Khai một chỗ vì `beforeEach` đặt lại đúng biến này; hai bản chép
+ * tay là hẹn ngày chúng lệch nhau.
+ */
+const VAULT_KEY_SERVER_HEX =
+  "80abb1295489b1829cdc7ea52219632df9d0dc9477a1684ab0594a9afbd45b42";
+
 process.env.TICKET_SIGNING_KEY =
   "126fa4e495c62ce4d00b8778dbf10d53cb649026bd648c2c86a686c1379f2b69";
-process.env.VAULT_KEY_SERVER = "42".repeat(32);
+process.env.VAULT_KEY_SERVER = VAULT_KEY_SERVER_HEX;
 process.env.RELAY_WEB_ORIGIN = "https://mkt.example";
 process.env.COMPATIBILITY_SMOKE_OBSERVER_PROXY_LABEL = "Observer1";
 
@@ -47,7 +56,7 @@ beforeEach(async () => {
   role = "ADMIN";
   process.env.TICKET_SIGNING_KEY =
   "126fa4e495c62ce4d00b8778dbf10d53cb649026bd648c2c86a686c1379f2b69";
-  process.env.VAULT_KEY_SERVER = "42".repeat(32);
+  process.env.VAULT_KEY_SERVER = VAULT_KEY_SERVER_HEX;
   process.env.RELAY_WEB_ORIGIN = "https://mkt.example";
   process.env.COMPATIBILITY_SMOKE_OBSERVER_PROXY_LABEL = "Observer1";
   resetServerSigningKeysCache();
