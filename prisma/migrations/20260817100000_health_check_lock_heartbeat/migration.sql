@@ -1,0 +1,13 @@
+-- Nhịp tim cho khóa dò sức khỏe.
+--
+-- Chỉ THÊM một cột nullable — không đụng vào dữ liệu đang có, không có câu nào xóa. Đảo ngược
+-- được bằng `ALTER TABLE "HealthCheckLock" DROP COLUMN "heartbeatAt";` nếu cần lùi bản.
+--
+-- Vì sao cần: trước đây "khóa mồ côi" đo bằng `startedAt`, tức đo TỔNG thời gian chạy. Thời gian
+-- chạy tăng theo số nick (nghỉ 30-90 giây giữa các nick), nên tới khoảng 20 nick là một lượt bình
+-- thường vượt ngưỡng 30 phút và lượt sau chen vào chạy song song. Hai lượt cùng bắn qua một proxy
+-- quan sát viên là đúng thứ khóa sinh ra để chặn.
+--
+-- Hàng cũ để NULL: chỗ đọc lùi về `startedAt`, tức giữ nguyên hành vi cũ. Điền sẵn một mốc nào đó
+-- còn tệ hơn — hàng của một tiến trình đã chết sẽ trông như vừa mới đập nhịp.
+ALTER TABLE "HealthCheckLock" ADD COLUMN "heartbeatAt" TIMESTAMP(3);

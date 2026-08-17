@@ -30,11 +30,16 @@ import { isUniqueConstraintError } from "../db/prisma-error-helpers";
 export const HEALTH_CHECK_LOCK_KEY = "health-check";
 
 /**
- * Quá ngần này thì coi như khóa mồ côi và giành lấy.
+ * Quá ngần này KHÔNG CÓ NHỊP TIM MỚI thì coi như khóa mồ côi và giành lấy.
  *
- * Một lượt 8 nick nghỉ tối đa 90 giây mỗi lần mất chưa tới 15 phút, nên 30 phút là dư. Cần
- * ngưỡng này vì tiến trình bị tắt ngang (Ctrl+C, mất điện, Railway thay container) sẽ để lại
+ * Cần ngưỡng này vì tiến trình bị tắt ngang (Ctrl+C, mất điện, Railway thay container) sẽ để lại
  * hàng không ai dọn — và một bộ dò tự khóa mình vĩnh viễn thì cũng mù y như bị Reddit chặn.
+ *
+ * Đo theo NHỊP TIM chứ không theo `startedAt`, và khác biệt đó là cả vấn đề: đo `startedAt` là đo
+ * tổng thời gian chạy, mà tổng thời gian chạy tăng theo số nick (nghỉ 30-90 giây mỗi nick). Bản
+ * trước ghi "8 nick mất chưa tới 15 phút nên 30 phút là dư" — đúng ở 8 nick, và tự hỏng ở khoảng
+ * 20 nick, tức là hỏng đúng lúc đội nick lớn lên. Nay ngưỡng chỉ trả lời "chủ khóa còn cựa quậy
+ * không", nên nó không còn dính gì tới số nick nữa.
  */
 export const STALE_AFTER_MS = 30 * 60_000;
 
@@ -46,6 +51,13 @@ export class HealthCheckBusyError extends Error {
 }
 
 export interface HeldLock {
+  /**
+   * Báo "tôi còn sống" — gọi sau mỗi nick trong vòng dò.
+   *
+   * Cập nhật theo `token`, nên một lượt đã BỊ GIÀNH MẤT khóa không đập nhịp lại được vào hàng của
+   * chủ mới: `updateMany` khớp 0 hàng và im lặng không làm gì, đúng như mong muốn.
+   */
+  renew(now?: Date): Promise<void>;
   release(): Promise<void>;
 }
 
@@ -72,13 +84,25 @@ interface LockRow {
   host: string;
   pid: number;
   startedAt: Date;
+  /** `null` với hàng ghi trước khi có nhịp tim — xem `lastSignOfLife`. */
+  heartbeatAt: Date | null;
 }
 
 function readLock(): Promise<LockRow | null> {
   return prisma.healthCheckLock.findUnique({
     where: { key: HEALTH_CHECK_LOCK_KEY },
-    select: { token: true, host: true, pid: true, startedAt: true },
+    select: { token: true, host: true, pid: true, startedAt: true, heartbeatAt: true },
   });
+}
+
+/**
+ * Dấu hiệu sống gần nhất của chủ khóa.
+ *
+ * Thiếu nhịp thì lùi về `startedAt` — hàng của bản cũ vẫn hết hạn đúng như trước, không có hàng
+ * nào thành mồ côi vĩnh viễn chỉ vì được ghi trước lần nâng cấp.
+ */
+function lastSignOfLife(row: LockRow): Date {
+  return row.heartbeatAt ?? row.startedAt;
 }
 
 function minutesSince(startedAt: Date, now: Date): number {
@@ -86,7 +110,7 @@ function minutesSince(startedAt: Date, now: Date): number {
 }
 
 function isStale(row: LockRow, now: Date): boolean {
-  return now.getTime() - row.startedAt.getTime() > STALE_AFTER_MS;
+  return now.getTime() - lastSignOfLife(row).getTime() > STALE_AFTER_MS;
 }
 
 /**
@@ -144,6 +168,9 @@ export async function acquireHealthCheckLock(
     host: hostname(),
     pid: process.pid,
     startedAt: now,
+    // Nhịp đầu tiên đặt ngay lúc giành: một lượt chưa kịp đi hết nick đầu vẫn phải trông như đang
+    // sống, chứ không phải như một hàng chưa bao giờ đập nhịp.
+    heartbeatAt: now,
   };
 
   try {
@@ -186,6 +213,7 @@ async function retryAfterClearing(mine: {
   host: string;
   pid: number;
   startedAt: Date;
+  heartbeatAt: Date;
 }): Promise<HeldLock> {
   try {
     await prisma.healthCheckLock.create({ data: mine });
@@ -201,6 +229,16 @@ async function retryAfterClearing(mine: {
 
 function heldLock(token: string): HeldLock {
   return {
+    async renew(now = new Date()) {
+      // Mặc định là ĐỒNG HỒ THẬT, không phải mốc `now` bơm vào lượt chạy: nhịp tim trả lời "bây
+      // giờ còn sống không", nên nó phải đo thời gian thật kể cả khi phần còn lại của lượt dò
+      // đang chạy với một mốc cố định.
+      await prisma.healthCheckLock.updateMany({
+        where: { key: HEALTH_CHECK_LOCK_KEY, token },
+        data: { heartbeatAt: now },
+      });
+    },
+
     async release() {
       // Xóa theo `token`, tức chỉ xóa khóa của CHÍNH MÌNH, và quyết trong một lệnh. Bản khóa
       // file phải đọc rồi so rồi mới xóa — ba bước, và giữa chúng có khe cho người khác chen
