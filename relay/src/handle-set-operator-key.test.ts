@@ -132,6 +132,7 @@ describe("handleSetOperatorKey", () => {
     ["toàn 0xff", "ff".repeat(32)],
     ["một byte lặp lại", "c4".repeat(32)],
     ["khối 2 byte lặp lại", "dead".repeat(16)],
+    ["khối 16 byte lặp lại", "00112233445566778899aabbccddeeff".repeat(2)],
     ["dãy đếm tăng", Array.from({ length: 32 }, (_, i) => i.toString(16).padStart(2, "0")).join("")],
   ])("từ chối khóa điền tạm (%s) và không ghi gì xuống kho", (_label, key) => {
     expect(key).toMatch(/^[0-9a-f]{64}$/);

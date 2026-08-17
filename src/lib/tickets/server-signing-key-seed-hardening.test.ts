@@ -149,6 +149,14 @@ describe("H18: placeholder and low-entropy seeds", () => {
     ["all-zero", "00".repeat(SIGNING_SEED_BYTES)],
     ["all-0xff", "ff".repeat(SIGNING_SEED_BYTES)],
     ["single repeated byte", "ab".repeat(SIGNING_SEED_BYTES)],
+    /**
+     * Two identical 16-byte halves — the longest block that can still repeat inside 32 bytes.
+     *
+     * The original C2 rules stopped at period 8 and let this through. It was not a theoretical
+     * shape: this exact string was the vault-key fixture in `ci.yml` and eleven test files until
+     * 17 August 2026, which is the strongest available evidence that people do type it.
+     */
+    ["two identical 16-byte halves", "00112233445566778899aabbccddeeff".repeat(2)],
     ["ascending counter", Array.from({ length: SIGNING_SEED_BYTES }, (_, i) => i.toString(16).padStart(2, "0")).join("")],
   ];
 

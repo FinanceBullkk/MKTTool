@@ -51,6 +51,14 @@ const PLACEHOLDERS: ReadonlyArray<readonly [string, string]> = [
   ["một byte lặp lại", "ab".repeat(VAULT_KEY_BYTES)],
   ["khối 2 byte lặp lại", "dead".repeat(VAULT_KEY_BYTES / 2)],
   ["khối 4 byte lặp lại", "deadbeef".repeat(VAULT_KEY_BYTES / 4)],
+  /**
+   * Khối 16 byte — hai nửa giống hệt nhau, chu kỳ dài nhất còn lặp được trong 32 byte.
+   *
+   * Đây từng là điểm mù: luật cũ chỉ xét tới chu kỳ 8. Và nó không phải khuôn lý thuyết — đúng
+   * chuỗi này là fixture của `ci.yml` và mười một file test trong repo cho tới 17/08/2026, tức
+   * bằng chứng rõ nhất rằng người ta thật sự gõ ra khuôn đó.
+   */
+  ["khối 16 byte lặp lại", "00112233445566778899aabbccddeeff".repeat(2)],
   [
     "dãy đếm tăng",
     Array.from({ length: VAULT_KEY_BYTES }, (_, i) => i.toString(16).padStart(2, "0")).join(""),

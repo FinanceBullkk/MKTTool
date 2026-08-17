@@ -24,10 +24,12 @@
  *
  * ## Chỗ luật này CỐ Ý không với tới
  *
- * Khối lặp dài hơn `MAX_CHECKED_PERIOD` byte thì lọt — ví dụ một khối 16 byte lặp hai lần. Ngưỡng
- * này giữ nguyên từ C2 và không nới ở C33: nới nó là đổi hành vi của một chốt đã kiểm chứng xong,
- * đổi lấy việc bắt thêm một khuôn mà chưa ai gõ nhầm bao giờ. `.env.example` để trống chứ không
- * cài sẵn giá trị mồi, nên chốt này là lưới thứ hai chứ không phải lưới duy nhất.
+ * Không đo entropy, nên một khóa "trông ngẫu nhiên" mà thật ra lấy từ nguồn kém — `Math.random()`
+ * chẳng hạn — vẫn lọt. Đó là đánh đổi có chủ ý, không phải sót: bắt được nó đòi hỏi một phép đo
+ * thống kê, mà phép đo ấy chính là thứ có thể chặn nhầm khóa thật.
+ *
+ * `.env.example` để trống chứ không cài sẵn giá trị mồi, nên chốt này là lưới thứ hai chứ không
+ * phải lưới duy nhất.
  */
 
 /** Số byte của mọi bí mật đi qua đây. Ngưỡng bên dưới hiệu chỉnh theo đúng độ dài này. */
@@ -42,8 +44,22 @@ export const PLACEHOLDER_CHECK_BYTES = 32;
  */
 const MIN_DISTINCT_BYTES = 8;
 
-/** Khối lặp dài tới ngần này thì vẫn bắt được (`abab…`, `0123 0123 …`). */
-const MAX_CHECKED_PERIOD = 8;
+/**
+ * Chu kỳ lặp lớn nhất còn xét: **một nửa** độ dài bí mật.
+ *
+ * Không phải hằng số tùy chọn mà là giới hạn tự nhiên — khối dài hơn nửa thì không lặp nổi lần
+ * nào trong 32 byte, nên `length / 2` chính là dạng đầy đủ của luật: "bí mật này có phải một khối
+ * ngắn hơn lặp lại không". Con số 8 hồi C2 là tùy tiện, và nó để lọt đúng khuôn hay gặp nhất —
+ * `00112233445566778899aabbccddeeff` viết hai lần, thứ chính repo này dùng làm fixture ở
+ * `ci.yml` và mười file test. Một chốt sinh ra để bắt thứ người gõ tay mà để lọt khuôn người gõ
+ * tay nhiều nhất thì mới là thứ cần sửa.
+ *
+ * Không có rủi ro chặn nhầm: xác suất một khóa ngẫu nhiên thật có hai nửa 16 byte giống hệt nhau
+ * là 2^-128.
+ */
+function maxCheckedPeriod(length: number): number {
+  return Math.floor(length / 2);
+}
 
 /**
  * Trả về câu tả khuôn mẫu bắt được, hoặc `null` nếu bí mật trông như hàng thật.
@@ -57,7 +73,7 @@ export function describePlaceholderSecret(secret: Buffer): string | null {
     return `chỉ có ${distinct} giá trị byte khác nhau trên ${secret.length} byte`;
   }
 
-  for (let period = 1; period <= MAX_CHECKED_PERIOD; period += 1) {
+  for (let period = 1; period <= maxCheckedPeriod(secret.length); period += 1) {
     if (secret.length % period !== 0) continue;
     if (isRepeatingBlock(secret, period)) {
       return `lặp lại một khối ${period} byte`;
