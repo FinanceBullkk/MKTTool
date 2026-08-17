@@ -12,6 +12,51 @@ Dự án chưa phát hành phiên bản (`0.1.0`, dùng nội bộ). Mốc chia 
 
 ---
 
+## 17 August 2026 - Six safety rules that could pass a bad thing, all closed
+
+The audit reached the data layer, the business rules and the breadth sweep. Everything below changes
+what the tool accepts or refuses, which is why it is here; the audit records themselves are not.
+
+**Two nicks could touch the same Reddit thread without the tool noticing.** Rule 8 blocks that, and
+it is the only rule with no override, because two of your accounts in one thread is the clearest
+coordination signal a platform can catch. It recognised threads by their link, and understood only
+the long `/comments/` form. A `redd.it` short link — the one the Reddit app's Share button produces —
+produced a different key, so the same thread looked like two. Short links now resolve to the same
+key. The newer `/r/<sub>/s/<id>` share links cannot be resolved without asking Reddit, so the two
+places you paste a link by hand now refuse that format and ask for the full permalink instead.
+
+**Rule 10 approved a health verdict it did not recognise.** The shadowban prober has six verdicts and
+the rule enumerated five, so `UNTRACKED_POSTS` — outsiders can see posts your ledger does not have —
+fell through to "post away", and that is precisely the verdict meaning the daily cap, spacing and
+promo-ratio counts are running short. It now warns and names the fix. Any verdict the rule does not
+recognise is refused outright rather than allowed, matching how rule 1 already treats an unknown
+account status.
+
+**Deleting a nick needed no more permission than viewing one.** Anyone signed in could delete another
+person's nick, while deleting a proxy required an administrator. Deletion now uses the same check
+that guards that nick's password, email password and TOTP secret — because deleting the row destroys
+exactly those, and for a nick added minutes ago the vault holds no other copy. Nicks with any history
+were already undeletable and still are.
+
+**A placeholder signing key was accepted.** The server signing seed was checked for length and
+character set but not content, so `00…00`, `ff…ff` and an ascending counter each produced a working
+key — one that signs tickets, update authorizations and rollback authorizations alike. Seeds that
+look filled-in-for-now are now refused, with a message naming the pattern and pointing at
+`npm run keys:server-keygen`.
+
+**The shadowban prober's lock would have stopped working as the herd grows.** It treated a run as
+dead after thirty minutes, but a run takes thirty to ninety seconds per nick, so at around twenty
+nicks a perfectly healthy run would be declared dead and a second one would start alongside it —
+both probing through the single observer proxy, which is the one thing the lock exists to prevent.
+The run now reports that it is alive as it goes, so the threshold measures liveness instead of
+elapsed time.
+
+**Overriding a rule could leave no record of who did it.** The job and its audit entry were two
+separate writes; they are now one transaction.
+
+**The Relay status page reads as one language.** It previously mixed English and Vietnamese inside a
+single screen.
+
 ## 17 August 2026 - Two ways to hand a Relay the wrong authority, both closed
 
 The audit reached release authority and the trust chain. Both defects below let someone decide what a

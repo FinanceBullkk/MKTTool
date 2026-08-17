@@ -39,10 +39,21 @@ pilot duration, and real-account gates remain separate. Code signing is no longe
 12 August the owner decided v1 ships **unsigned** for the internal fleet, so SmartScreen appears once
 and the setup journey must announce it in advance.
 
-**Audit in progress, 17 August 2026.** A deep audit spanning both repositories has closed phases 00
-to 04: fix re-verification, cryptographic protocols, the local control surface, Windows lifecycle,
-and release authority. Phases 05 (data layer and business logic) and 06 (breadth completion) have not
-started, so nothing should be read as clean there — unexamined is not the same as sound.
+**Audit closed, 17 August 2026.** A deep audit spanning both repositories completed all six phases:
+fix re-verification, cryptographic protocols, the local control surface, Windows lifecycle, release
+authority, the data layer and business logic, and breadth completion. No P0, P1 or P2 findings
+remain, and the test suite has no expected failures.
+
+Three things are examined and sound rather than merely untested: the one-nick-one-proxy-one-profile
+invariant is enforced by database constraints and not only by application code; no secret reaches a
+log, an error message or the DOM unredacted on any traced route; and every server action passes
+through an authorization guard.
+
+**What the audit did not do**, because a clean report is worth nothing if it hides its own edges: the
+human Windows gates — Authenticode once signing is enabled, power loss during an update, and a
+withdrawn installer on a clean machine — remain unrun, and code cannot close them. The two-account
+Windows exercise was waived as an unsupported topology, which is a waiver and not a pass. The full
+list of what was left unexamined is in the closing coverage statement.
 
 Defects fixed so far include two identity-boundary ones — the proxy bridge accepting a destination
 that could rewrite the request sent to the proxy provider, and device revocation leaving an aliased
@@ -61,8 +72,9 @@ remain unrun; code cannot close them.
 
 Findings and remaining open items are in the workspace-level `plans/reports/` directory, which sits
 above both repositories because the audit spans them and is version-controlled there; it is **not**
-this repository's `plans/reports/`. This line will be replaced by a final statement when the audit
-closes.
+this repository's `plans/reports/`. The closing statement is
+`audit-260817-1333-coverage-statement.md`; the merged finding index is
+`260816-0507-full-codebase-deep-audit/findings-register.md`.
 
 Phase 01 implementation now produces one installer carrying a pinned Relay archive and MKT
 Browser. Relay releases use retained `MKTTool-Relay-vN.zip` R2 objects, carry measured version, size,
