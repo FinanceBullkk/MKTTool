@@ -141,3 +141,78 @@ jobs:
       # machine's job from here.
       - name: Verify the packaged executable
         run: npm run relay:verify
+
+  # Confirm the merge actually reached production (C38).
+  #
+  # Railway deploys from master, so merging is deploying — and until now nothing checked whether
+  # the deploy worked. On 17 August two of five deploys failed. One was C23 and was noticed because
+  # production broke visibly. The other was PR #27's, and it went unseen for nine hours: it carried
+  # `RELAY_VERSION = 12 -> 13`, which drives both the "your Relay is outdated" prompt and the
+  # download route, so Relay 13 was published while production still served and advertised 12.
+  #
+  # **Do not simplify this to "look for a failure status."** Railway posted `in_progress` for that
+  # deployment and then never posted anything again — no failure, no success. A check for an
+  # explicit failure state would have called it fine, which is the exact defect this whole class of
+  # findings is about. Success is the only thing that counts as success; everything else, including
+  # silence and including no deployment at all, is a failure here.
+  #
+  # Proven in both directions before being committed, against real history: 141cde3 (#28, deployed)
+  # passes, 6bf3985 (#27, the silent failure) fails and names the stuck-in_progress signature.
+  #
+  # Needs no secrets — Railway's GitHub integration already publishes deployment status, so the
+  # default token can read it. If this job starts failing with "no deployment was ever created",
+  # suspect that integration rather than the build.
+  deploy-verification:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+
+    permissions:
+      deployments: read
+
+    steps:
+      - name: Wait for the production deployment of this commit to succeed
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+          # Observed successful deploys take 1m28s to 1m55s. Ten minutes is roughly five times the
+          # slowest, which is enough headroom that a red here means something real rather than a
+          # busy builder.
+          TIMEOUT_SECONDS: "600"
+        run: |
+          set -uo pipefail
+          deadline=$(( $(date +%s) + TIMEOUT_SECONDS ))
+          echo "Waiting for a production deployment of $SHA to reach success."
+
+          while :; do
+            # The `sha` filter needs the full 40-character SHA; a short one silently matches
+            # nothing and reads as "never deployed". Found while testing this check.
+            ids=$(gh api "repos/$REPO/deployments?sha=$SHA" --jq '.[].id' 2>/dev/null)
+
+            for id in $ids; do
+              states=$(gh api "repos/$REPO/deployments/$id/statuses" --jq '.[].state' 2>/dev/null)
+              if echo "$states" | grep -qx "success"; then
+                echo "Deployment $id reports success."
+                exit 0
+              fi
+              if echo "$states" | grep -qxE "failure|error"; then
+                echo "::error::Deployment $id failed for $SHA. Production is still serving the previous image."
+                exit 1
+              fi
+            done
+
+            if [ "$(date +%s)" -ge "$deadline" ]; then
+              echo "::error::No production deployment of $SHA reached success within ${TIMEOUT_SECONDS}s."
+              if [ -z "${ids:-}" ]; then
+                echo "No deployment was ever created — check Railway's GitHub integration."
+              else
+                echo "A deployment exists but never left in_progress. States seen:"
+                for id in $ids; do
+                  echo "  $id: $(gh api "repos/$REPO/deployments/$id/statuses" --jq '[.[].state] | join(",")' 2>/dev/null)"
+                done
+              fi
+              exit 1
+            fi
+
+            sleep 20
+          done
