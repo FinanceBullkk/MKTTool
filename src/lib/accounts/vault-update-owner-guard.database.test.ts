@@ -16,9 +16,9 @@ const OPERATOR_ID = "user-operator";
 const OWNER_ID = "user-chu-nick";
 
 process.env.VAULT_KEY_SERVER =
-  "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff";
+  "27112efee5aeaa94963b0f1f9e0dabcdf2767c34ee483d8dc2c76f61bdd1186d";
 process.env.VAULT_KEY_OPERATOR =
-  "ffeeddccbbaa99887766554433221100ffeeddccbbaa99887766554433221100";
+  "a3d1e1576b7746dbd4481fb6fd16b16f7c7381301b8ab9ef8a3f2994c96150dc";
 
 /** Phiên OPERATOR — vai trò khác hẳn các test kho khác, và đó là toàn bộ mục đích file này. */
 vi.mock("@/lib/auth/require-actor", async (importOriginal) => ({

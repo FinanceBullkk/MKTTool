@@ -48,8 +48,8 @@ vi.mock("@/lib/auth/require-actor", async (importOriginal) => ({
 
 // Hai khóa KHÁC NHAU, cố ý: nếu chỗ nào mã hóa cột vùng operator bằng khóa vùng server thì
 // bài test phải đỏ. Đặt trùng nhau là tự bịt mắt mình đúng thứ cần canh.
-process.env.VAULT_KEY_SERVER = "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff";
-process.env.VAULT_KEY_OPERATOR = "ffeeddccbbaa99887766554433221100ffeeddccbbaa99887766554433221100";
+process.env.VAULT_KEY_SERVER = "27112efee5aeaa94963b0f1f9e0dabcdf2767c34ee483d8dc2c76f61bdd1186d";
+process.env.VAULT_KEY_OPERATOR = "a3d1e1576b7746dbd4481fb6fd16b16f7c7381301b8ab9ef8a3f2994c96150dc";
 
 const { prisma } = await import("@/lib/db/prisma-client");
 const { encryptCredential, decryptCredential } = await import(
