@@ -56,11 +56,19 @@ describe("MKT Browser compatibility verdict", () => {
     expect([...MKT_BROWSER_SUPPORTED_CONTRACT_VERSIONS]).toEqual([1, 2, 3, 4]);
   });
 
+  /**
+   * Ghim này là một **phép bắt thay đổi có chủ ý**: đổi một trong hai số buộc người đổi phải nhìn
+   * sang số kia và nói ra vì sao chúng vẫn đi được với nhau.
+   *
+   * Cầu nối 12 → 13 (17/08/2026): bản phát hành mang chốt từ chối khóa vùng operator điền tạm,
+   * phép kiểm loại vé, và ô nhập không còn gợi ý một dãy số 0. Cả ba đều nằm gọn trong cầu nối —
+   * **không đụng vào hợp đồng với MKT Browser**, nên `browserContract` giữ nguyên ở 4.
+   */
   it("pins the Relay release paired with the current Browser contract", () => {
     expect({
       browserContract: MKT_BROWSER_SUPPORTED_CONTRACT_VERSIONS.at(-1),
       relayVersion: RELAY_VERSION,
-    }).toEqual({ browserContract: 4, relayVersion: 12 });
+    }).toEqual({ browserContract: 4, relayVersion: 13 });
   });
 
   it("accepts a device on a supported contract version", () => {
