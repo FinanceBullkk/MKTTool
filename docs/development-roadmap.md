@@ -44,6 +44,15 @@ fix re-verification, cryptographic protocols, the local control surface, Windows
 authority, the data layer and business logic, and breadth completion. No P0, P1 or P2 findings
 remain, and the test suite has no expected failures.
 
+Five further findings (C33–C37) were raised and closed **after** the phases closed, so the total is
+37 rather than the 32 the first closing statement counted. Four of the five share one shape — the
+check that would have caught the problem was not the check that runs — and the durable output is a
+rule now recorded in the findings register: *a check not proven to run in the environment its
+artifact lives in does not exist.* Two of those closures changed how this project is operated rather
+than what its code does: the Relay acceptance suite now runs on a Windows CI runner instead of
+relying on someone remembering it, and the pre-deploy database backup is possible again after nine
+days in which the rule was documented but its tool was broken.
+
 Three things are examined and sound rather than merely untested: the one-nick-one-proxy-one-profile
 invariant is enforced by database constraints and not only by application code; no secret reaches a
 log, an error message or the DOM unredacted on any traced route; and every server action passes
@@ -475,6 +484,8 @@ Danh sách này là ranh giới giữa "code có chạy" và "đã chạy thật
 | Đẩy proxy vào profile, IP trong profile khớp proxy | 02/08/2026 |
 | Bộ dò shadowban đọc HTML Reddit thật (bắt được 2 lỗi parser) | 03/08/2026 |
 | Đăng thật lên Fanpage qua Graph API | 03/08/2026 |
+| Posture GĐ3 đo thật trên production: máy chủ **không** giữ `VAULT_KEY_OPERATOR` — đọc qua Railway CLI, giá trị không lọt ra log hay file nào | 17/08/2026 |
+| Sao lưu production kéo về được sau 9 ngày công cụ hỏng: client Postgres 18.4, 71 KB, 120 hàng / 14 bảng | 17/08/2026 |
 
 **Chưa kiểm chứng:** đăng bằng nick Reddit thật, và lượt `npm run health` đầy đủ với nick thật +
 proxy quan sát viên.
@@ -484,7 +495,7 @@ proxy quan sát viên.
 | Mốc | Điều kiện đạt |
 |---|---|
 | **M0B — Fork tương thích** | Windows build từ nguồn ghim mở được profile qua **proxy thật**, IP ra khớp |
-| **M0C — Desktop pilot** | Bộ cài Windows đã ký + managed mode + rollback xanh trên hai máy Windows trong 7 ngày |
+| **M0C — Desktop pilot** | Bộ cài Windows + managed mode + rollback xanh trên hai máy Windows trong 7 ngày. (Sửa 17/08/2026: điều kiện này ghi "đã ký", mâu thuẫn với quyết định 12/08 ở bảng blocker phía trên — v1 phát hành **không ký** cho đội nội bộ. Bỏ chữ "đã ký"; SmartScreen hiện một lần và hành trình cài phải báo trước.) |
 | **M0D — Nick thăm dò** | Một nick ít quan trọng đi hết 14 ngày cold-start, không sai IP/profile |
 | **M1 — Kho danh tính có nick thật** | 8 nick Reddit + 3 nick FB đã nhập, mỗi nick một proxy tĩnh, cold-start đang chạy |
 | **M2 — Bài đầu tiên lên Reddit** | Hết cold-start, xếp lịch qua hàng đợi, bộ luật cho qua, đăng tay thành công |

@@ -565,6 +565,14 @@ vụ database dưới máy:
 PG_DUMP_PATH="C:\Program Files\PostgreSQL\18\bin\pg_dump.exe"
 ```
 
+> **Done on the admin machine, 17 August 2026 (C36).** `PG_DUMP_PATH` is set and a real backup was
+> taken to prove it — 71 KB, 120 rows across 14 tables. The client installed is **not** the path
+> above: it is the EDB *binaries zip* extracted to `E:\tools\pgsql-18\pgsql\bin\pg_dump.exe`, which
+> needs no installer, no administrator, no Windows service and no registry entry, and is undone by
+> deleting the directory. Prefer that form when setting up another machine — the full installer adds
+> a second Postgres service competing with the local 17 instance for no benefit, since only the
+> client tools are wanted here.
+
 **Cách xử ngay khi chưa kịp cài** — mượn `pg_dump` từ một container, cần Docker đang chạy:
 
 ```bash

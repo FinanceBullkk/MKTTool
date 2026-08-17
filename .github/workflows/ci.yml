@@ -70,3 +70,74 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+
+  # Acceptance-test the packaged Relay `.exe` itself, not its source.
+  #
+  # Why this job exists — C37, 17 August 2026. F4 made `/encrypt-for-vault` require the trusted
+  # `Origin`; `scripts/smoke-test-relay-executable.ts` was never updated to send one, so its two
+  # sealing calls had been failing for days and nobody saw it, because this suite had never run
+  # anywhere except by hand. It surfaced only because Relay 13 happened to be verified before
+  # publishing. The findings register recorded that as un-automatable; that was wrong, and this job
+  # is the correction.
+  #
+  # Why it needs no secrets: the suite mints a throwaway `TICKET_SIGNING_KEY` and a per-run
+  # operator vault key (`smoke-test-relay-executable.ts:68,82`), runs the Relay against a temp
+  # RELAY_HOME, and reads the origin to trust out of the executable's own `/health` reply. Nothing
+  # here touches a production key or the real database.
+  #
+  # Why a separate job instead of a step in `check`: SEA embeds the runtime of the machine doing
+  # the build, so a Linux build produces an ELF named `.exe` that only fails once it reaches an
+  # operator (see the header of `scripts/build-relay-executable.ts`). `check` has to stay on ubuntu
+  # because it needs the Postgres service. So the two cannot share a runner.
+  #
+  # Why there is deliberately no `paths:` filter, even though a Windows runner bills at 2x. The
+  # suite imports from `src/lib/crypto`, `src/lib/tickets` and `src/lib/relay` — a change outside
+  # `relay/` breaks it, which is exactly what F4 did. Narrowing the trigger to relay paths would
+  # rebuild the blind spot this job was added to close, for a saving of a few runner minutes.
+  relay-executable:
+    runs-on: windows-latest
+
+    # Pull requests only, unlike `check`, which also runs on pushes to master. This repository is
+    # private, so Windows runner minutes bill at 2x, and the post-merge push run would be near-pure
+    # duplication: GitHub builds a `pull_request` event against the *merge commit* — the PR head
+    # already merged into the base — so the PR run has verified the exact tree master is about to
+    # become. Paying twice for one tree is the wrong place to spend the allowance.
+    #
+    # Two residuals, stated rather than discovered later. A commit pushed straight to master skips
+    # this job entirely; every change since #23 has arrived by pull request, so that path is
+    # unusual, but it is not blocked. And if master advances between the PR run and the merge, the
+    # merge commit tested was stale — a semantic conflict would reach master unverified by this
+    # job. Both are cheap to close by deleting this condition if the trade ever stops being worth
+    # it. F10 governs `check`'s triggers and is unaffected.
+    if: github.event_name == 'pull_request'
+
+    env:
+      # `postinstall` runs `prisma generate`, which wants this variable to exist. The acceptance
+      # suite itself never opens a database — it runs without `--env-file` at all.
+      DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/postgres"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      # The baked origin is a placeholder on purpose. The Relay never *calls* its web origin —
+      # there is no outbound `fetch` in `relay/src` — it only compares the value against the
+      # `Origin` header of each incoming call, and the suite reads the baked value back out of
+      # `/health`. Measured 17 August 2026: 27/27 checks green with `https://ci.invalid`.
+      #
+      # Deliberately NOT the real Railway origin: a CI-built executable pointing at production is
+      # an artifact that should not exist, and if one ever escaped the runner it would be
+      # indistinguishable from a release build.
+      - name: Build the Relay executable
+        run: npm run relay:build -- --web-origin=https://ci.invalid --compatibility-floor=1
+
+      # This is `relay:verify` — the step the release checklist asks a human to remember. It is a
+      # machine's job from here.
+      - name: Verify the packaged executable
+        run: npm run relay:verify
