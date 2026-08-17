@@ -71,6 +71,12 @@ separate writes; they are now one transaction.
 **The Relay status page reads as one language.** It previously mixed English and Vietnamese inside a
 single screen.
 
+**Relay 13 is published, and you have to update to get any of the Relay-side changes above.** The
+web app updated itself the moment the work merged, but the operator-key guard, the ticket-kind check
+and the corrected paste box all live inside the `.exe` on your PC. Download the new one from
+*Relay download*; until you do, your machine keeps the old behaviour. It is still unsigned, so
+Windows SmartScreen asks once on each PC the first time — expected, not a fault.
+
 ## 17 August 2026 - Two ways to hand a Relay the wrong authority, both closed
 
 The audit reached release authority and the trust chain. Both defects below let someone decide what a
