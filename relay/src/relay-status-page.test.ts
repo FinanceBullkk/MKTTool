@@ -62,8 +62,8 @@ describe("trang trạng thái của cầu nối", () => {
 
     expect(html).toContain("protected-secrets");
     expect(html).not.toContain("relay-device-key.json");
-    expect(html).toMatch(/tài khoản Windows/);
-    expect(html).toMatch(/không phải[\s\S]{0,40}bản sao lưu/);
+    expect(html).toMatch(/signed-in Windows account/);
+    expect(html).toMatch(/not[\s\S]{0,40}backup/);
   });
 
   it("hiện mã máy và nguồn web — hai giá trị sai thì hỏng theo kiểu khó đoán nhất", () => {
@@ -75,12 +75,12 @@ describe("trang trạng thái của cầu nối", () => {
 
   it("liệt kê từng mục còn thiếu kèm mẫu file cấu hình", () => {
     const html = page({
-      problems: [{ field: "deviceId", message: "Thiếu deviceId — mã chiếc máy này." }],
+      problems: [{ field: "deviceId", message: "Missing deviceId — the id of this PC." }],
       config: null,
     });
 
-    expect(html).toContain("Thiếu deviceId");
-    expect(html).toContain("CHƯA ĐỦ");
+    expect(html).toContain("Missing deviceId");
+    expect(html).toContain("INCOMPLETE");
     // Mẫu phải nằm ngay trên trang: người sửa lỗi lúc 11 giờ đêm không đọc tài liệu bàn giao.
     expect(html).toContain("serverPublicKey");
   });

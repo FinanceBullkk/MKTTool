@@ -73,8 +73,8 @@ const SERVER_PUBLIC_KEY_HEX_LENGTH = 64;
  * đọc trang trạng thái, không đọc tài liệu bàn giao.
  */
 export const CONFIG_TEMPLATE = {
-  deviceId: "<web app tự điền khi bấm \"Đăng ký máy này\">",
-  serverPublicKey: "<web app tự điền>",
+  deviceId: "<the web app fills this in when you click \"Register this PC\">",
+  serverPublicKey: "<the web app fills this in>",
   mktBrowserToken: "<optional development override; normally discovered from MKT Browser>",
   mktBrowserUrl: MKT_BROWSER_DEFAULT_MCP_URL,
 };
@@ -128,7 +128,7 @@ function hexProblem(
   whereToGetIt: string,
 ): ConfigProblem | null {
   if (typeof value !== "string" || value.trim() === "") {
-    return { field, message: `Thiếu "${field}" — ${whatItIs}. ${whereToGetIt}` };
+    return { field, message: `Missing "${field}" — ${whatItIs}. ${whereToGetIt}` };
   }
 
   const hex = value.trim().toLowerCase();
@@ -137,7 +137,7 @@ function hexProblem(
     return {
       field,
       message:
-        `"${field}" phải là ${length} ký tự hex (0-9, a-f), đang có ${hex.length} ký tự. ` +
+        `"${field}" must be ${length} hex characters (0-9, a-f); it currently has ${hex.length}. ` +
         whereToGetIt,
     };
   }
@@ -156,7 +156,7 @@ export function reviewRelayConfig(parsed: unknown, protectedVaultKey?: string | 
   if (typeof parsed !== "object" || parsed === null) {
     return {
       ok: false,
-      problems: [{ field: "file", message: "File cấu hình phải là một object JSON." }],
+      problems: [{ field: "file", message: "The configuration file must be a JSON object." }],
     };
   }
 
@@ -178,8 +178,8 @@ export function reviewRelayConfig(parsed: unknown, protectedVaultKey?: string | 
     "serverPublicKey",
     raw.serverPublicKey,
     SERVER_PUBLIC_KEY_HEX_LENGTH,
-    "khóa công khai của máy chủ, dùng để nhận ra vé thật",
-    "Chạy `npm run keys:server-pubkey` trên máy chủ rồi chép nguyên dòng nó in ra.",
+    "the public key of the server, used to recognise genuine tickets",
+    "Run `npm run keys:server-pubkey` on the server and copy the line it prints.",
   );
   if (serverKeyProblem) problems.push(serverKeyProblem);
 
@@ -187,8 +187,8 @@ export function reviewRelayConfig(parsed: unknown, protectedVaultKey?: string | 
     "vaultKeyOperator",
     vaultKey,
     VAULT_KEY_HEX_LENGTH,
-    "khóa mở bí mật nick. Không có nó thì cầu nối nhận được vé nhưng không đọc nổi ruột",
-    "Hỏi quản trị viên — khóa này KHÔNG nằm trên máy chủ, đó là toàn bộ mục đích của nó.",
+    "the key that opens account secrets. Without it the Relay receives tickets but cannot read what is inside",
+    "Ask an administrator — this key is NOT on the server, which is the entire point of it.",
   );
   if (vaultKeyProblem) problems.push(vaultKeyProblem);
 
@@ -282,7 +282,7 @@ function reviewWebOrigin(value: string): ConfigProblem | null {
   } catch {
     return {
       field: "webOrigin",
-      message: `"webOrigin" không phải một địa chỉ hợp lệ: ${value}. Ví dụ: https://mkttool.example.com`,
+      message: `"webOrigin" is not a valid address: ${value}. Example: https://mkttool.example.com`,
     };
   }
 
@@ -415,7 +415,7 @@ export function loadRelayConfig(
       problems: [
         {
           field: "file",
-          message: `${filePath} không phải JSON hợp lệ — nhiều khả năng thừa hoặc thiếu một dấu phẩy.`,
+          message: `${filePath} is not valid JSON — most likely one comma too many or one missing.`,
         },
       ],
     };

@@ -100,26 +100,26 @@ export function renderStatusPage(input: StatusPageInput): string {
   const configured = input.problems.length === 0;
 
   return `<!doctype html>
-<html lang="vi"><head><meta charset="utf-8">
-<title>Cầu nối MKTTool — bản ${RELAY_VERSION}</title>
+<html lang="en"><head><meta charset="utf-8">
+<title>MKTTool Relay — version ${RELAY_VERSION}</title>
 <style>${STYLE}</style></head><body>
-<h1>Cầu nối MKTTool</h1>
-<p class="muted">Bản ${RELAY_VERSION} · thư mục dữ liệu <code>${escapeHtml(input.home)}</code></p>
+<h1>MKTTool Relay</h1>
+<p class="muted">Version ${RELAY_VERSION} · data directory <code>${escapeHtml(input.home)}</code></p>
 
-<div class="row"><span class="tag ok">đang chạy</span><span>Mở được trang này nghĩa là cầu nối đang nghe.</span></div>
+<div class="row"><span class="tag ok">running</span><span>Reaching this page means the Relay is listening.</span></div>
 <div class="row"><span class="tag ${antidetect.tone}">MKT Browser</span><span>${escapeHtml(antidetect.text)}</span></div>
-<div class="row"><span class="tag ${configured ? "ok" : "bad"}">cấu hình</span><span>${
-    configured ? "đủ — cầu nối làm việc được" : "CHƯA ĐỦ — mọi nút trên web sẽ bị từ chối"
+<div class="row"><span class="tag ${configured ? "ok" : "bad"}">configuration</span><span>${
+    configured ? "complete — the Relay can work" : "INCOMPLETE — every action from the web app is rejected"
   }</span></div>
 
-<h2>Khóa công khai của máy này</h2>
-<p>Chép nguyên dòng này sang trang <strong>Máy cầu nối</strong> trên web app để đăng ký.
-Đây là khóa <strong>công khai</strong>. Khóa riêng nằm trong kho bảo vệ của Windows
-(<code>${escapeHtml(STORE_DIRECTORY)}\\</code>) và không bao giờ rời máy này.</p>
-<p class="muted">Kho đó gắn với <strong>tài khoản Windows đang đăng nhập</strong>. Chép mấy file
-trong đó sang máy khác hay tài khoản khác thì không mở ra được — nên chúng <strong>không phải
-một bản sao lưu</strong>. Mất tài khoản này là mất khóa riêng, và đường chữa là đăng ký lại máy
-trên web app rồi thu hồi khóa cũ, không phải khôi phục từ bản chép.</p>
+<h2>Public key of this PC</h2>
+<p>Copy this line into the <strong>Relay devices</strong> page of the web app to register.
+This is the <strong>public</strong> key. The private key lives in Windows protected storage
+(<code>${escapeHtml(STORE_DIRECTORY)}\\</code>) and never leaves this PC.</p>
+<p class="muted">That storage is bound to the <strong>signed-in Windows account</strong>. Copying those
+files to another PC or another account will not open them, so they are <strong>not a backup</strong>.
+Losing this account means losing the private key, and the way out is registering this PC again in the
+web app and revoking the old key — not restoring from a copy.</p>
 <code class="key">${escapeHtml(input.publicKeyHex)}</code>
 
 ${configured ? renderActiveConfig(input.config) : renderProblems(input.problems, input.webOrigin)}
@@ -142,14 +142,15 @@ ${renderOperatorKeyForm(RELAY_PATHS.setOperatorKey, configured, input.bootstrapA
 function renderActiveConfig(config: StatusPageInput["config"]): string {
   if (!config) return "";
 
-  return `<h2>Cấu hình đang dùng</h2>
+  return `<h2>Active configuration</h2>
 <ul>
-  <li>Mã máy: <code>${escapeHtml(config.deviceId)}</code> — sai mã thì mọi vé báo "phát cho máy khác"</li>
-  <li>Nhận lời gọi từ: <code>${escapeHtml(config.webOrigin)}</code> — chỉ đúng một nguồn này</li>
+  <li>Device id: <code>${escapeHtml(config.deviceId)}</code> — a wrong id makes every ticket report "issued for another device"</li>
+  <li>Accepts calls from: <code>${escapeHtml(config.webOrigin)}</code> — this origin only</li>
   <li>MKT Browser access: ${describeMktBrowserToken(config)}</li>
 </ul>
-<p class="muted">Khóa vùng operator và token không in ra đây. Còn khóa công khai của máy chủ thì
-đúng hay sai chỉ biết được khi có tấm vé đầu tiên: sai khóa thì vé nào cũng báo chữ ký không hợp lệ.</p>`;
+<p class="muted">The operator vault key and the token are not printed here. Whether the server public
+key is correct only shows on the first ticket: with the wrong key, every ticket reports an invalid
+signature.</p>`;
 }
 
 function describeMktBrowserToken(config: NonNullable<StatusPageInput["config"]>): string {
