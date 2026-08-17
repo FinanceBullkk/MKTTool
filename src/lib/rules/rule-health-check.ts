@@ -15,6 +15,28 @@
 import { MS_PER_DAY, formatDayMonth } from "@/lib/format/vietnamese-date-format";
 import { ALLOW, type RuleContext, type RuleVerdict, block, warn } from "./rule-types";
 
+/**
+ * Những kết luận luật này BIẾT CÁCH chấm. Cố ý là danh sách RIÊNG, không import
+ * `HEALTH_VERDICTS` của bộ dò — và đó là toàn bộ giá trị của nó.
+ *
+ * Import danh sách kia thì thêm một kết luận mới ở bộ dò là nó tự động được coi như "đã biết",
+ * rơi xuống `ALLOW` cuối hàm, và luật 10 lặng lẽ ngừng bảo vệ đúng loại nick vừa sinh ra. Giữ
+ * danh sách riêng thì chuyện ngược lại xảy ra: kết luận lạ bị CHẶN cho tới khi có người dạy luật
+ * này cách chấm nó. Bắt phải nghĩ, giống hệt dấu `vault:` của mỗi cột mã hóa.
+ *
+ * `rule-health-check.test.ts` đối chiếu hai danh sách, nên người thêm kết luận mới gặp test đỏ ở
+ * máy mình chứ không gặp cả đàn nick bị chặn trên máy chủ.
+ */
+const JUDGEABLE_VERDICTS = new Set([
+  "HEALTHY",
+  "WARN",
+  "SHADOWBANNED",
+  "CHECKPOINT",
+  "ERROR",
+  "NO_BASELINE",
+  "UNTRACKED_POSTS",
+]);
+
 export function ruleHealthCheck(ctx: RuleContext): RuleVerdict {
   const latest = ctx.latestHealthCheck;
 
@@ -30,6 +52,17 @@ export function ruleHealthCheck(ctx: RuleContext): RuleVerdict {
       `Lần dò gần nhất (${formatDayMonth(latest.checkedAt)}) kết luận nick đang ở tình trạng ` +
         `"${latest.verdict}". Trạng thái nick có thể đã được gỡ cách ly bằng tay, nhưng chưa có ` +
         "lần dò nào chứng minh nick đã hồi phục. Chạy `npm run health` cho nick này trước.",
+    );
+  }
+
+  // Đặt TRƯỚC phép kiểm cũ/mới: một kết luận lạ mà lại cũ thì nhánh "số liệu cũ" nuốt mất nó và
+  // trả WARN, tức vẫn cho đăng. Không hiểu kết luận là không kết luận được, và chuyện đó không
+  // phụ thuộc kết luận đó cũ hay mới.
+  if (!JUDGEABLE_VERDICTS.has(latest.verdict)) {
+    return block(
+      `Lần dò gần nhất (${formatDayMonth(latest.checkedAt)}) trả về kết luận "${latest.verdict}" ` +
+        "mà luật này chưa biết cách chấm. Không hiểu kết quả thì không được coi là khỏe — " +
+        "dạy luật 10 cách chấm kết luận đó (rule-health-check.ts) rồi đăng lại.",
     );
   }
 
@@ -60,6 +93,17 @@ export function ruleHealthCheck(ctx: RuleContext): RuleVerdict {
     return warn(
       `Lần dò gần nhất thấy ít bài hơn số đã đăng (${formatDayMonth(latest.checkedAt)}). ` +
         "Có thể chỉ là mod xóa bài, cũng có thể là bị ẩn từng bài — xem chi tiết ở /health.",
+    );
+  }
+
+  // Nick khỏe, SỔ SÁCH của mình mới là thứ thiếu — nên cảnh báo chứ không chặn, cùng lý do
+  // `statusForcedBy` cố ý không cách ly nick vì kết luận này (xem health-verdict.ts). Nhưng cũng
+  // KHÔNG được im: luật 4, 5 và 6 đang đếm thiếu đúng số bài mà bộ dò vừa nhìn thấy.
+  if (latest.verdict === "UNTRACKED_POSTS") {
+    return warn(
+      `Lần dò gần nhất (${formatDayMonth(latest.checkedAt)}) thấy bài mà kho không có. ` +
+        "Nick không sao, nhưng hạn mức ngày, giãn cách và tỷ lệ promo đang đếm thiếu — " +
+        "vào /queue ghi lại những bài đó trước khi xếp thêm.",
     );
   }
 

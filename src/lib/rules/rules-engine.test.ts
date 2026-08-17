@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { HEALTH_VERDICTS } from "@/lib/health/health-verdict";
 import { normalizeThreadUrl } from "./rule-thread-collision";
 import { DEFAULT_RULE_THRESHOLDS, applyThresholdOverrides } from "./rule-thresholds";
 import type { RuleContext } from "./rule-types";
@@ -222,6 +223,61 @@ describe("luật 10 — kết quả dò gần nhất", () => {
     });
     expect(levelOf(ctx, "health-check")).toBe("WARN");
     expect(reasonOf(ctx, "health-check")).toContain("Đã đăng");
+  });
+
+  /**
+   * Kết luận này CÓ THẬT trong `HEALTH_VERDICTS` nhưng luật 10 chưa từng nhắc tới, nên trước khi
+   * sửa nó rơi thẳng xuống `return ALLOW` cuối hàm — cho đăng, im lặng.
+   *
+   * Cảnh báo chứ không chặn, vì bản thân nick không sao: thứ thiếu là SỔ SÁCH của mình (xem
+   * `statusForcedBy` trong health-verdict.ts, nó cố ý không cách ly nick vì kết luận này). Nhưng
+   * cũng không được im, vì luật 4, 5 và 6 đang đếm thiếu đúng số bài mà bộ dò vừa nhìn thấy.
+   */
+  it("thấy bài mà kho không có thì cảnh báo — luật đếm số đang thiếu dữ liệu", () => {
+    const ctx = makeContext({
+      latestHealthCheck: { verdict: "UNTRACKED_POSTS", checkedAt: new Date(AT.getTime() - HOUR) },
+    });
+    expect(levelOf(ctx, "health-check")).toBe("WARN");
+    expect(reasonOf(ctx, "health-check")).toContain("đếm thiếu");
+  });
+
+  /**
+   * Luật 1 chặn mọi `status` nó không nhận ra; luật này từng làm ngược lại — cùng một họ dữ liệu,
+   * hai mặc định trái nhau, và cái mặc định sai nằm ở đúng luật đọc thứ người ngoài nhìn thấy.
+   */
+  it("kết luận lạ thì CHẶN, không cho qua", () => {
+    const ctx = makeContext({
+      latestHealthCheck: { verdict: "SOMETHING_NEW", checkedAt: new Date(AT.getTime() - HOUR) },
+    });
+    expect(levelOf(ctx, "health-check")).toBe("BLOCK");
+    expect(reasonOf(ctx, "health-check")).toContain("chưa biết cách chấm");
+  });
+
+  /**
+   * Nhánh "kết luận lạ" phải đứng TRƯỚC phép kiểm cũ/mới. Nếu đứng sau, một kết luận lạ mà lại cũ
+   * sẽ bị nhánh "số liệu cũ" nuốt mất và trả WARN — tức vẫn cho đăng, đúng lỗ hổng vừa bịt.
+   */
+  it("kết luận lạ mà lại cũ thì vẫn CHẶN, không rơi vào nhánh cảnh báo số liệu cũ", () => {
+    const ctx = makeContext({
+      latestHealthCheck: { verdict: "SOMETHING_NEW", checkedAt: new Date(AT.getTime() - 9 * DAY) },
+    });
+    expect(levelOf(ctx, "health-check")).toBe("BLOCK");
+  });
+
+  /**
+   * Chốt chặn cho người thêm kết luận mới vào bộ dò: gặp test đỏ ở máy mình, chứ không gặp cả đàn
+   * nick bị chặn trên máy chủ. Đây là nửa thứ hai của việc luật 10 giữ danh sách riêng — nửa đầu
+   * là chặn lúc chạy, nửa này là báo lúc phát triển.
+   */
+  it("mọi kết luận bộ dò phát ra đều được luật 10 chấm, không cái nào rơi vào nhánh lạ", () => {
+    for (const verdict of HEALTH_VERDICTS) {
+      const ctx = makeContext({
+        latestHealthCheck: { verdict, checkedAt: new Date(AT.getTime() - HOUR) },
+      });
+      expect(reasonOf(ctx, "health-check") ?? "", `kết luận ${verdict}`).not.toContain(
+        "chưa biết cách chấm",
+      );
+    }
   });
 });
 
@@ -485,6 +541,26 @@ describe("normalizeThreadUrl", () => {
       key,
     );
     expect(key).toBe("reddit:1a2b3c");
+  });
+
+  /**
+   * Link rút gọn là dạng nút Share của app Reddit phát ra, tức dạng người dùng dán vào nhiều
+   * nhất. Trước khi sửa, nó cho ra khóa `redd.it/1a2b3c` — khác hẳn `reddit:1a2b3c` của permalink
+   * đầy đủ, nên hai nick vào cùng một thread bằng hai dạng link thì luật 8 không thấy đụng độ.
+   * Mà luật 8 là luật DUY NHẤT không cho ghi đè, nên bỏ lọt ở đây là bỏ lọt hẳn.
+   */
+  it("link rút gọn redd.it ra cùng khóa với permalink đầy đủ", () => {
+    const key = normalizeThreadUrl("https://www.reddit.com/r/selfhosted/comments/1a2b3c/backup/");
+
+    expect(normalizeThreadUrl("https://redd.it/1a2b3c")).toBe(key);
+    expect(normalizeThreadUrl("https://redd.it/1a2b3c/")).toBe(key);
+    expect(normalizeThreadUrl("redd.it/1a2b3c")).toBe(key);
+  });
+
+  /** Khớp đúng host, không phải "có chứa chuỗi redd.it" — nếu không thì tên miền giả cũng lọt. */
+  it("host chỉ giống chứ không phải redd.it thì KHÔNG được coi là link Reddit", () => {
+    expect(normalizeThreadUrl("https://notredd.it/1a2b3c")).toBe("notredd.it/1a2b3c");
+    expect(normalizeThreadUrl("https://redd.it.evil.com/1a2b3c")).toBe("redd.it.evil.com/1a2b3c");
   });
 
   it("URL thường thì bỏ www, tham số theo dõi và dấu / cuối", () => {
