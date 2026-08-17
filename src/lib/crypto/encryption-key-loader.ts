@@ -48,13 +48,6 @@ const cachedKeys = new Map<VaultDomain, Buffer>();
 let warnedAboutIdenticalKeys = false;
 
 /**
- * Phân tích một chuỗi hex thành khóa 32 byte.
- * Tách riêng khỏi loadVaultKey để test được mà không cần đụng vào process.env.
- *
- * `source` là tên biến môi trường hoặc tên tham số dòng lệnh — nó đi thẳng vào thông báo lỗi,
- * vì "khóa sai độ dài" mà không nói khóa nào thì có hai chỗ để mò thay vì một.
- */
-/**
  * Nới phép kiểm khuôn mẫu cho **khóa sắp bị bỏ đi**, không bao giờ cho khóa sắp dùng.
  *
  * Ai lỡ chạy thật với `00…00` trước khi có chốt C33 thì lối ra duy nhất là `vault:rekey` — và
@@ -67,6 +60,13 @@ export interface ParseVaultKeyOptions {
   allowPlaceholder?: boolean;
 }
 
+/**
+ * Phân tích một chuỗi hex thành khóa 32 byte.
+ * Tách riêng khỏi loadVaultKey để test được mà không cần đụng vào process.env.
+ *
+ * `source` là tên biến môi trường hoặc tên tham số dòng lệnh — nó đi thẳng vào thông báo lỗi,
+ * vì "khóa sai độ dài" mà không nói khóa nào thì có hai chỗ để mò thay vì một.
+ */
 export function parseVaultKey(
   raw: string | undefined,
   source: string,
