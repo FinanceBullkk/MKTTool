@@ -44,6 +44,20 @@ key — one that signs tickets, update authorizations and rollback authorization
 look filled-in-for-now are now refused, with a message naming the pattern and pointing at
 `npm run keys:server-keygen`.
 
+**The same hole was open on the vault keys, which is the worse place for it.** `VAULT_KEY_SERVER` and
+`VAULT_KEY_OPERATOR` were checked for length and character set only, exactly as the signing seed had
+been, so `00…00` was a working key. A guessable signing seed lets someone forge authority, and
+rotating the key ends it; a guessable `VAULT_KEY_OPERATOR` decrypts every nick password, email
+password and TOTP secret, and rotating changes nothing for backups already made — they still open
+under the old key. The same three pattern checks now guard both, and they are one shared piece of
+code rather than two copies.
+
+The Relay's own paste box had the identical hole, and that is where this key really lives once the
+server has given it up — so it is guarded too, and its input no longer suggests a row of zeros as an
+example. If you have already been running with a filled-in-for-now key, **do not edit `.env`**: your
+data is encrypted under that key, and the tool will tell you to move to a real key with
+`npm run vault:rekey`, which still reads the old one.
+
 **The shadowban prober's lock would have stopped working as the herd grows.** It treated a run as
 dead after thirty minutes, but a run takes thirty to ninety seconds per nick, so at around twenty
 nicks a perfectly healthy run would be declared dead and a second one would start alongside it —
