@@ -79,7 +79,7 @@ export function setupStateMachine(input: SetupStateMachineInput): SetupStateResu
   if (input.update.status === "required") {
     return result(
       "Needs repair",
-      { kind: "UPDATE", label: "Download the current installer", href: "/relay-download" },
+      { kind: "UPDATE", label: "Download the current installer", href: "/setup#download" },
       "This PC needs the current MKTTool for Windows release.",
     );
   }
@@ -111,7 +111,7 @@ export function setupStateMachine(input: SetupStateMachineInput): SetupStateResu
   if (input.relay.status === "unreachable") {
     return result(
       "Needs repair",
-      { kind: "UPDATE", label: "Download the Windows installer", href: "/relay-download" },
+      { kind: "UPDATE", label: "Download the Windows installer", href: "/setup#download" },
       "MKTTool is not running on this PC.",
     );
   }
@@ -179,7 +179,7 @@ export function setupStateMachine(input: SetupStateMachineInput): SetupStateResu
         )
       : result(
           "Needs repair",
-          { kind: "UPDATE", label: "Download the current installer", href: "/relay-download" },
+          { kind: "UPDATE", label: "Download the current installer", href: "/setup#download" },
           browser.message,
         );
   }

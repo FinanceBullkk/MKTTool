@@ -32,6 +32,11 @@ $targetExe = Join-Path $relayDir $exeName
 $configFile = Join-Path $relayDir "relay-config.json"
 $shortcutSaveMaxAttempts = 5
 
+# Bản mà gói này mang theo. Bộ build thay số vào đúng dòng dưới (build-relay-executable.ts); giá
+# trị 0 nghĩa là "chạy thẳng từ mã nguồn, chưa qua build" và chốt hạ cấp sẽ tự bỏ qua.
+$incomingVersion = 0
+$versionFile = Join-Path $relayDir "relay-installed-version.txt"
+
 function Write-Step($index, $text) {
     Write-Host "  [$index/5] $text"
 }
@@ -161,6 +166,33 @@ if (-not (Test-Path $sourceExe)) {
     Fail "$exeName was not found beside this script. Extract the package again, then retry."
 }
 
+<#
+Không đè lên một bản MỚI HƠN.
+
+18/08/2026: trình cài MKT Browser gọi script này ở **mọi** lần cài, và không chỗ nào trên đường đó
+so phiên bản. Payload của nó ghim Relay 12 trong khi sàn của máy chủ đã lên 13, nên cài MKT Browser
+là hạ cầu nối xuống một bản bị từ chối mọi tấm vé — im lặng, không câu báo nào. Cài bản mới trước
+cũng không cứu được: lần cài MKT Browser kế tiếp lại kéo nó xuống.
+
+Bỏ qua chứ KHÔNG dừng với lỗi, và đây là chỗ đáng cân nhắc nhất. `installer.nsh` của MKT Browser
+huỷ toàn bộ lượt cài nếu script này thất bại; báo lỗi ở đây sẽ làm không cài nổi MKT Browser trên
+một chiếc máy có cầu nối mới hơn. Ngữ nghĩa đúng là "để yên cái mới hơn rồi báo thành công", vì
+việc người ta đang làm — cài trình duyệt — vẫn làm được và vẫn đúng.
+
+Không có file mốc nghĩa là máy cài từ trước khi có nó: không đoán, cứ cài. Fail-open đúng một lần
+cho mỗi máy cũ, và không có cách nào biết hơn thế.
+#>
+if ($incomingVersion -gt 0 -and (Test-Path $versionFile)) {
+    $installedRaw = (Get-Content -LiteralPath $versionFile -TotalCount 1 -ErrorAction SilentlyContinue)
+    $installedVersion = 0
+    if ([int]::TryParse(("" + $installedRaw).Trim(), [ref]$installedVersion) -and $installedVersion -gt $incomingVersion) {
+        Write-Host "  Relay $installedVersion is already installed and is newer than the Relay $incomingVersion in this package."
+        Write-Host "  Leaving it in place. Nothing was changed."
+        Write-Host ""
+        exit 0
+    }
+}
+
 # Bản cũ đang chạy sẽ giữ file .exe và làm lệnh chép thất bại. Đây là đường nâng cấp nên phải tắt
 # trước; cầu nối không có đường thoát êm nào khác.
 $running = Get-Process -Name ([System.IO.Path]::GetFileNameWithoutExtension($exeName)) -ErrorAction SilentlyContinue
@@ -179,6 +211,13 @@ try {
     Copy-Item -Path $sourceExe -Destination $targetExe -Force
 } catch {
     Fail "Could not copy the Relay: $($_.Exception.Message)`n  The previous Relay may still be running. Close $exeName in Task Manager, then retry."
+}
+
+# Ghi mốc NGAY SAU khi chép xong, không phải ở cuối: từ đây trở đi thư mục đã mang bản mới, nên một
+# lượt cài hỏng ở bước sau vẫn phải để lại đúng số. Ghi sớm mà hỏng thì chốt trên bảo vệ nhầm một
+# bản chưa cài xong; ghi muộn mà hỏng thì lần sau hạ cấp được — hướng thứ hai tệ hơn.
+if ($incomingVersion -gt 0) {
+    Set-Content -LiteralPath $versionFile -Value $incomingVersion -Encoding ascii
 }
 
 <#

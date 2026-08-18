@@ -149,29 +149,36 @@ Mọi việc khác vẫn chạy bình thường khi cầu nối tắt — kể c
 
 > Máy của bạn phải nằm trong sổ trước khi dùng được, nhưng **bạn tự ghi được máy mình đang ngồi**
 > ở `/setup` — không phải chờ ADMIN. Chưa ghi thì nút bấm sẽ nói thẳng phải làm gì. Tải cầu nối ở
-> `/relay-download` sau khi đăng nhập.
+> `/setup` sau khi đăng nhập — cùng trang bạn sẽ ghi máy vào sổ ở bước sau.
 >
 > Nếu bạn có **hai máy** trong sổ, công cụ sẽ hỏi bạn đang ngồi máy nào trước khi bấm. Chọn đúng —
 > chọn sai là phát ra một tấm vé chắc chắn hỏng, phải làm lại.
 
 ### Cài cầu nối — ba bước
 
-1. Giải nén cả ba file vào một thư mục, bấm đúp **`setup.bat`**.
-2. Vẫn trên máy đó, mở **`/setup`** rồi làm theo thẻ hướng dẫn: nó tự tìm cầu nối, đọc khóa của
-   nó, ghi máy vào sổ và gửi cấu hình ngược xuống.
-3. Quay lại trang trạng thái của cầu nối (`http://127.0.0.1:47821`), dán **khóa vùng operator**.
+Cả ba bước ở **cùng một trang**: `/setup`.
+
+1. Mở **`/setup`**, tải gói ở phần đầu trang.
+2. Giải nén cả ba file vào một thư mục, bấm đúp **`setup.bat`**.
+3. Quay lại **`/setup`** và **ở lại đó**. Thẻ hướng dẫn tự tìm cầu nối, ghi máy vào sổ, rồi tự lấy
+   **khóa vùng operator** về khi ADMIN bấm cấp. Thẻ chuyển xanh là xong.
+
+> **Ở lại trang `/setup` cho tới khi thẻ xanh.** Việc lấy khóa chỉ chạy khi trang đó đang mở — đi
+> sang trang khác thì hộp khóa cứ nằm trên máy chủ đợi. Ngày 18/08/2026 chuyện này làm một chiếc
+> máy đợi vô ích, và một chiếc khác đợi **mười ngày** mà không ai nhận ra.
 
 > **Không phải `/relay-devices`.** Trang đó giờ chỉ còn là sổ tra cứu và các việc của ADMIN
-> (duyệt, thu hồi, đăng ký hộ một máy bạn không ngồi được). Thẻ hướng dẫn cho *máy bạn đang ngồi*
-> đã chuyển sang `/setup`.
+> (duyệt, thu hồi, đăng ký hộ một máy bạn không ngồi được).
 
-Bước 3 là thứ duy nhất phải gõ tay, và nó phải như vậy: **máy chủ không có khóa đó để gửi xuống** —
-đó là cả điểm của thiết kế. Xin ADMIN qua trình quản lý mật khẩu dùng chung, đừng qua chat.
+**Bạn không phải gõ tay chuỗi nào.** Khóa đi xuống trong một cái hộp mà cầu nối của ADMIN bọc riêng
+cho đúng máy bạn; máy chủ chỉ giữ hộ và không mở được. Đường chép tay — dán khóa ở
+`http://127.0.0.1:47821` — chỉ còn là **dự phòng** cho lúc đường trên không chạy, và khi dùng nó thì
+xin ADMIN qua trình quản lý mật khẩu dùng chung, đừng qua chat.
 
 > Bước 2 **ai cũng bấm được** — máy bạn đăng ký sẽ thuộc về chính bạn. Cài hộ người khác thì
 > vẫn phải là ADMIN, và thu hồi máy cũng vậy.
 
-> **Đang chạy bản cũ?** Tải lại ở `/relay-download` rồi chạy `setup.bat` lần nữa. Nó giữ nguyên
+> **Đang chạy bản cũ?** Tải lại ở `/setup` rồi chạy `setup.bat` lần nữa. Nó giữ nguyên
 > cấu hình cũ — không phải đăng ký lại máy, không phải xin lại khóa.
 
 ### Bốn bước đăng một bài
@@ -360,7 +367,7 @@ báo càng nhiều thứ phải làm lại.
    - **Chép tay** — đưa khóa qua trình quản lý mật khẩu dùng chung, họ tự dán ở
      `http://127.0.0.1:47821`. Dùng khi đường trên không chạy. **Không bao giờ qua chat**: khóa dán
      trong chat là khóa nằm trong lịch sử chat của một công ty khác, vĩnh viễn.
-3. **Người mới tự cài lấy** theo mục 5: tải ở `/relay-download`, chạy `setup.bat`, rồi mở `/setup`
+3. **Người mới tự cài lấy** theo mục 5: mở `/setup`, tải gói ở ngay đầu trang, chạy `setup.bat`, rồi quay lại chính trang đó
    để ghi máy mình vào sổ. Bước này **không cần ADMIN** — máy họ ghi sẽ thuộc về chính họ.
 
 > Việc 1 phải xong trước việc 3. Ghi máy vào sổ cho một email chưa được phép đăng nhập thì công cụ
@@ -399,8 +406,7 @@ Nick họ từng phụ trách **không bị xóa theo**, chỉ mất chủ — A
 | Nick, karma, trạng thái, gỡ cách ly | `/accounts` |
 | Kết quả dò shadowban, biểu đồ karma | `/health` |
 | Kết nối Fanpage, kiểm token | `/facebook` |
-| Tải cầu nối | `/relay-download` |
-| Ghi máy bạn đang ngồi vào sổ | `/setup` |
+| Tải cầu nối, ghi máy vào sổ | `/setup` |
 | Sổ máy đã đăng ký, phát khóa, thu hồi (ADMIN) | `/relay-devices` |
 
 ---

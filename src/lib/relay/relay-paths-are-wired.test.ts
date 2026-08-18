@@ -43,3 +43,45 @@ describe("RELAY_PATHS", () => {
     expect(JSON.stringify(RELAY_PATHS)).not.toContain("consume-invite");
   });
 });
+
+/**
+ * Đường giao khóa vùng operator không được đọc khóa máy chủ qua `identity`.
+ *
+ * `identity` chỉ dựng được khi cấu hình **hợp lệ trọn vẹn**, và "trọn vẹn" bao gồm
+ * `vaultKeyOperator` — đúng thứ mà đường này sinh ra để mang xuống. Nối vào `identity` là khép một
+ * vòng tròn: máy chưa có khóa thì không nhận được khóa.
+ *
+ * Ca này đã xảy ra thật, 18/08/2026. Một chiếc máy đã đăng ký, đã được cấp khóa **hai lần**, vẫn
+ * trả về *"This Relay is not enrolled yet."* — câu chỉ nhầm hoàn toàn nguyên nhân, vì nó nói về
+ * việc đăng ký trong khi thứ thiếu là một field khác. Máy chính của người viết cũng dính, và không
+ * ai thấy: khoảng cách giữa lúc cấp và lúc nhận của nó là **mười ngày**, và nó chỉ xong khi khóa
+ * về bằng đường chép tay.
+ *
+ * Đọc hình dạng mã nguồn chứ không gọi thử, cùng lý lẽ với phần trên: `main.ts` bật một cầu nối
+ * thật ngay lúc import. Phép kiểm đơn vị của bản thân handler **không** bắt được ca này — handler
+ * nhận `serverPublicKey` qua tham số nên nó luôn đúng; chỗ sai là chỗ chọn nguồn.
+ */
+describe("giao khóa vùng operator", () => {
+  const KHOI_GIAO_KHOA = MAIN.slice(MAIN.indexOf("RELAY_PATHS.receiveOperatorKey"));
+  // Bỏ dòng chú thích: khối này được giải thích khá dài ngay tại chỗ, và câu giải thích **phải**
+  // nhắc tới `state.identity` để nói ra vì sao không dùng nó. Khẳng định trên mã đã bỏ chú thích
+  // thì lời giải thích không tự làm đỏ phép kiểm mà nó đang giải thích.
+  const deps = KHOI_GIAO_KHOA.slice(0, KHOI_GIAO_KHOA.indexOf("}),"))
+    .split("\n")
+    .filter((dong) => !dong.trim().startsWith("//"))
+    .join("\n");
+
+  it("lấy khóa máy chủ từ state, không qua identity", () => {
+    expect(
+      deps.includes("serverPublicKey: state.serverPublicKey"),
+      'Đường "receiveOperatorKey" phải nhận `serverPublicKey: state.serverPublicKey`.\n\n' +
+        "Nối nó vào `state.identity` là khép vòng tròn: `identity` cần cấu hình đủ, cấu hình đủ " +
+        "cần `vaultKeyOperator`, và `vaultKeyOperator` là thứ đường này mang xuống. Máy sẽ báo " +
+        '"This Relay is not enrolled yet." dù nó đã ở trong sổ.',
+    ).toBe(true);
+  });
+
+  it("không đọc identity ở đường này nữa", () => {
+    expect(deps).not.toContain("state.identity");
+  });
+});

@@ -63,12 +63,26 @@ describe("MKT Browser compatibility verdict", () => {
    * Cầu nối 12 → 13 (17/08/2026): bản phát hành mang chốt từ chối khóa vùng operator điền tạm,
    * phép kiểm loại vé, và ô nhập không còn gợi ý một dãy số 0. Cả ba đều nằm gọn trong cầu nối —
    * **không đụng vào hợp đồng với MKT Browser**, nên `browserContract` giữ nguyên ở 4.
+   *
+   * Cầu nối 13 → 14 (18/08/2026): đúng một dòng, ở đường nhận khóa vùng operator. Nó đọc khóa máy
+   * chủ qua `identity`, mà `identity` chỉ dựng được khi cấu hình đủ — kể cả khóa vùng operator,
+   * thứ chính đường này mang xuống. Máy trắng vì thế không bao giờ nhận được khóa và báo "This
+   * Relay is not enrolled yet." dù đã ở trong sổ. Nay đọc `state.serverPublicKey` như broker
+   * bootstrap vẫn làm. **Không đụng vào hợp đồng với MKT Browser** — đường này không đi qua trình
+   * duyệt, `browserContract` vẫn là 4.
+   *
+   * Cầu nối 14 → 15 (18/08/2026): bộ cài từ chối đè lên một cầu nối mới hơn. Đây là bản duy nhất
+   * trong ba bản này **có đụng tới MKT Browser**, nên nói rõ: `installer.nsh` gọi
+   * `install-relay.ps1` ở mọi lần cài, và từ nay script đó có thể **bỏ qua** thay vì cài. Nó thoát
+   * 0 khi bỏ qua, đúng vì `installer.nsh` huỷ cả lượt cài nếu script thất bại — báo lỗi ở đây sẽ
+   * làm không cài nổi trình duyệt trên máy có cầu nối mới hơn. Hợp đồng *dữ liệu* giữa hai bên
+   * không đổi, `browserContract` vẫn là 4.
    */
   it("pins the Relay release paired with the current Browser contract", () => {
     expect({
       browserContract: MKT_BROWSER_SUPPORTED_CONTRACT_VERSIONS.at(-1),
       relayVersion: RELAY_VERSION,
-    }).toEqual({ browserContract: 4, relayVersion: 13 });
+    }).toEqual({ browserContract: 4, relayVersion: 15 });
   });
 
   it("accepts a device on a supported contract version", () => {
