@@ -322,11 +322,11 @@ export function AccountVaultActionsPanel({
       {nickDeviceName === null && relayDevices.length === 0 ? (
         <p className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-300">
           Máy bạn đang ngồi chưa có trong sổ cầu nối, nên chưa lấy được mật khẩu, mã OTP hay mở
-          được profile. Cài cầu nối rồi nhờ quản trị viên ghi khóa công khai của nó vào sổ ở{" "}
-          <a href="/relay-devices" className="underline">
-            /relay-devices
-          </a>
-          .
+          được profile. Cài cầu nối rồi tự ghi máy này vào sổ ở{" "}
+          <a href="/setup" className="underline">
+            /setup
+          </a>{" "}
+          — không phải nhờ quản trị viên.
         </p>
       ) : null}
 
