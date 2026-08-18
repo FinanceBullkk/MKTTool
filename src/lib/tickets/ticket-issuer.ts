@@ -52,9 +52,17 @@ export function issueTicket(
 
   const envelope: TicketEnvelope = {
     v: TICKET_FORMAT_VERSION,
-    // Theo LOẠI vé, không phải một sàn chung: một loại vé mới không được kéo theo việc cầu nối
-    // bản cũ từ chối cả vé mật khẩu lẫn vé mở profile. Xem `MIN_RELAY_VERSION_BY_KIND`.
-    minRelayVersion: MIN_RELAY_VERSION_BY_KIND[payload.kind] ?? MIN_RELAY_VERSION,
+    // Per ticket KIND, so that a new ticket kind does not make old Relays refuse credential and
+    // profile tickets as well. See `MIN_RELAY_VERSION_BY_KIND`.
+    //
+    // `Math.max`, not `??`. The per-kind entry raises the floor for that kind; it must never be
+    // able to lower it below the global one. Written as `?? MIN_RELAY_VERSION` this read as a
+    // fallback, but every kind is present in the map — a property another test pins deliberately —
+    // so the fallback could never fire and `MIN_RELAY_VERSION` was dead. It would have stayed dead
+    // exactly until someone raised it to force a fleet off a vulnerable Relay, at which point four
+    // of five kinds, profile launch included, would have silently kept the old floor. A control
+    // that only fails on the day it is first needed is worse than no control. See C39.
+    minRelayVersion: Math.max(MIN_RELAY_VERSION, MIN_RELAY_VERSION_BY_KIND[payload.kind] ?? 0),
     jti: randomUUID(),
     deviceId: recipient.deviceId,
     kind: payload.kind,
