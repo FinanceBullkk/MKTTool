@@ -197,7 +197,50 @@ export function relaySupportsDeviceRetirement(relayVersion: number | undefined):
  * để giải thích vì sao lời gọi thật hỏng, nên cứ giữ promise lại rồi await sau.
  */
 export function pingRelay(): Promise<RelayOutcome<RelayHealth & RelayReply>> {
-  return callRelay<RelayHealth & RelayReply>(RELAY_PATHS.health);
+  const outcome = callRelay<RelayHealth & RelayReply>(RELAY_PATHS.health);
+  void reportRelayVersion(outcome);
+  return outcome;
+}
+
+/**
+ * Cái đã báo rồi trong phiên trang này, dạng `deviceId:version`.
+ *
+ * `pingRelay()` chạy ở dòng đầu của **mọi** trình xử lý cú bấm, nên không có cái chặn này thì mỗi
+ * lần bấm là một lượt ghi database cho một con số hầu như không bao giờ đổi. Chỉ giữ trong bộ nhớ
+ * và chỉ trong một lần tải trang: tải lại trang thì báo lại một lượt, và đó chính là thứ làm
+ * `lastSeenAt` có nghĩa.
+ */
+const daBao = new Set<string>();
+
+/**
+ * Đẩy bản cầu nối vừa thấy về máy chủ. **Bắn rồi quên, nuốt mọi lỗi.**
+ *
+ * Đây là quan trắc chứ không phải điều khiển (xem `relay-device-version-reporting.ts`): thứ quyết
+ * định một cầu nối cũ làm được gì là `minRelayVersion` trong từng tấm vé, do chính cầu nối đối
+ * chiếu. Nên đường này không được phép làm hỏng thao tác người dùng đang thực sự làm — nó nằm trên
+ * đường bấm nút, và một lượt ghi hỏng ở đây mà nổi lên thành lỗi thì đắt hơn nhiều lần cái nó mua.
+ */
+async function reportRelayVersion(
+  outcome: Promise<RelayOutcome<RelayHealth & RelayReply>>,
+): Promise<void> {
+  try {
+    const ket_qua = await outcome;
+    // Cả nhánh `ok` lẫn nhánh `rejected` đều mang `relayVersion` — và nhánh bị từ chối mới là
+    // nhánh đáng quan tâm, vì một cầu nối dưới sàn bị từ chối chính là chiếc cần nhìn thấy nhất.
+    if (ket_qua.status !== "ok" && ket_qua.status !== "rejected") return;
+    const relayVersion = ket_qua.relayVersion;
+    const deviceId = ket_qua.data?.deviceId;
+    if (!deviceId || typeof relayVersion !== "number") return;
+
+    const khoa = `${deviceId}:${relayVersion}`;
+    if (daBao.has(khoa)) return;
+    daBao.add(khoa);
+
+    const { recordRelayDeviceVersion } = await import("@/lib/tickets/relay-device-version-reporting");
+    await recordRelayDeviceVersion({ deviceId, relayVersion });
+  } catch {
+    // Có chủ đích: không log, không hiện gì. Xem chú thích trên.
+  }
 }
 
 /** Đưa một tấm vé mở profile xuống cầu nối. */
