@@ -22,8 +22,7 @@ import { randomUUID, sign } from "node:crypto";
 import { loadServerSigningKeys } from "./server-signing-key";
 import { sealForDevice } from "./ticket-sealed-box";
 import {
-  MIN_RELAY_VERSION,
-  MIN_RELAY_VERSION_BY_KIND,
+  effectiveMinRelayVersion,
   TICKET_FORMAT_VERSION,
   TICKET_LIFETIME_MS,
   type SignedTicket,
@@ -52,9 +51,14 @@ export function issueTicket(
 
   const envelope: TicketEnvelope = {
     v: TICKET_FORMAT_VERSION,
-    // Theo LOẠI vé, không phải một sàn chung: một loại vé mới không được kéo theo việc cầu nối
-    // bản cũ từ chối cả vé mật khẩu lẫn vé mở profile. Xem `MIN_RELAY_VERSION_BY_KIND`.
-    minRelayVersion: MIN_RELAY_VERSION_BY_KIND[payload.kind] ?? MIN_RELAY_VERSION,
+    // The higher of the security floor and this kind's capability floor. See
+    // `effectiveMinRelayVersion`, which is the only place that rule is written down.
+    //
+    // This used to read `MIN_RELAY_VERSION_BY_KIND[kind] ?? MIN_RELAY_VERSION`, which looks like a
+    // fallback and behaves as an override. Every kind is in the table, so the fallback could never
+    // fire and the security floor was dead code — harmless at 1, and useless on the one day it
+    // would ever be raised. See C39.
+    minRelayVersion: effectiveMinRelayVersion(payload.kind),
     jti: randomUUID(),
     deviceId: recipient.deviceId,
     kind: payload.kind,

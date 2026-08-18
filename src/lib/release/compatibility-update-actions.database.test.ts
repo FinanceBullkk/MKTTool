@@ -1,6 +1,7 @@
 import { generateKeyPairSync } from "node:crypto";
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthorizationError } from "@/lib/auth/require-actor";
+import { MIN_RELAY_VERSION } from "@/lib/tickets/ticket-types";
 import type { RelayCompatibilityRelease } from "@/lib/relay/relay-compatibility-manifest-file";
 
 const releaseFixture = vi.hoisted(() => ({ read: vi.fn() }));
@@ -101,7 +102,9 @@ describe("ADMIN compatibility update ticket", () => {
     expect(result.ticket).not.toContain("10.0.0.8");
     const verified = verifyTicket(result.ticket, {
       deviceId: device.id,
-      version: 12,
+      // Derived, not literal -- see MIN_RELAY_VERSION. A pinned number here is a fixture that
+      // expires without telling anyone.
+      version: MIN_RELAY_VERSION,
       privateKey: deviceKeys.privateKey,
       serverPublicKey: loadServerSigningKeys().publicKey,
       replayGuard: new TicketReplayGuard(),

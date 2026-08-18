@@ -33,9 +33,25 @@ export const TICKET_FORMAT_VERSION = 1;
  * so với phiên bản của chính nó; nhỏ hơn thì từ chối kèm câu bảo người dùng tải bản mới.
  *
  * Đây là **sàn chung** cho mọi loại vé. Loại nào đòi cao hơn thì khai riêng ở
- * `MIN_RELAY_VERSION_BY_KIND` — đừng nâng số này lên vì một loại vé mới.
+ * `MIN_RELAY_VERSION_BY_KIND` — đừng nâng số này lên vì một loại vé mới. Raise it for a
+ * **security** reason: to stop talking to Relay builds with a known hole.
+ *
+ * Raised from 1 to 13 on 18 August 2026, the first time this value has moved since it was written.
+ *
+ * Relay 13 is the first build carrying the C26 fix: an enrolled Relay would replace its trust root
+ * on request over `/configure`, which turns an XSS in the web app into persistent trust-root
+ * replacement on every operator device and leaves the Relay a decryption oracle for whoever
+ * re-points it. Ranked P2. Until this moved, that fix existed in the repository and on no machine —
+ * the only pressure to update was an advisory notice, and C38 showed the notice can silently stop
+ * working for nine hours.
+ *
+ * Raised now rather than later because the cost of enforcing only grows: pre-pilot, no real
+ * accounts, an internal fleet, and a download page already serving 13. An operator below this is
+ * refused with a message naming the version they have, the version needed, and where to get it
+ * (`ticket-verifier.ts:167`) — a rejection at use rather than adoption, accepted here because the
+ * way out is named and works.
  */
-export const MIN_RELAY_VERSION = 1;
+export const MIN_RELAY_VERSION = 13;
 
 /** Vé sống bao lâu. Đủ để bấm nút rồi cầu nối nhận, không đủ để ai đó nhặt lại dùng sau. */
 export const TICKET_LIFETIME_MS = 30_000;
@@ -91,6 +107,24 @@ export const MIN_RELAY_VERSION_BY_KIND: Record<TicketKind, number> = {
   /** Requires the protected Phase 05 updater and dedicated smoke-profile contract. */
   [TICKET_KINDS.COMPATIBILITY_UPDATE]: 12,
 };
+
+/**
+ * The floor a ticket of this kind actually carries.
+ *
+ * Two different things feed it and they must not be confused. `MIN_RELAY_VERSION` is a **security**
+ * floor: the oldest Relay the fleet is willing to talk to at all. `MIN_RELAY_VERSION_BY_KIND` is a
+ * **capability** floor: the version that first understood this kind of ticket. A capability entry
+ * may sit below the security floor — `LAUNCH_PROFILE` still records 7, because 7 is when the
+ * managed-browser contract arrived, and that stays true no matter how far the security floor moves.
+ *
+ * The higher of the two wins. Reading the table alone was the C39 defect: it made the security
+ * floor unreachable, so raising it did nothing for any kind listed in the table, which is all of
+ * them. Anything that needs to know what a ticket will demand must call this rather than index the
+ * table, so there is exactly one place the rule lives.
+ */
+export function effectiveMinRelayVersion(kind: TicketKind): number {
+  return Math.max(MIN_RELAY_VERSION, MIN_RELAY_VERSION_BY_KIND[kind] ?? 0);
+}
 
 /** Bí mật nào của nick đang được hỏi. Khớp tên cột trong `Account`. */
 export type CredentialField = "password" | "emailPassword";
