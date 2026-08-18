@@ -44,14 +44,19 @@ fix re-verification, cryptographic protocols, the local control surface, Windows
 authority, the data layer and business logic, and breadth completion. No P0, P1 or P2 findings
 remain, and the test suite has no expected failures.
 
-Five further findings (C33–C37) were raised and closed **after** the phases closed, so the total is
-37 rather than the 32 the first closing statement counted. Four of the five share one shape — the
-check that would have caught the problem was not the check that runs — and the durable output is a
-rule now recorded in the findings register: *a check not proven to run in the environment its
-artifact lives in does not exist.* Two of those closures changed how this project is operated rather
-than what its code does: the Relay acceptance suite now runs on a Windows CI runner instead of
-relying on someone remembering it, and the pre-deploy database backup is possible again after nine
-days in which the rule was documented but its tool was broken.
+Findings kept arriving **after** the phases closed, and the running total is deliberately not
+restated here — it was copied into two documents and went stale in both, twice, within a day. The
+findings register is where the count and the per-finding state are maintained.
+
+What those late findings share is worth more than their number. Most are one shape — *the check that
+would have caught the problem was not the check that runs* — and the durable output is a rule now
+recorded in the register: **a check not proven to run in the environment its artifact lives in does
+not exist.** Several changed how this project is operated rather than what its code does: the Relay
+acceptance suite runs on a Windows CI runner instead of relying on someone remembering it; a failed
+production deploy now turns the build red instead of going unnoticed for nine hours; the pre-deploy
+database backup works again after nine days in which the rule was documented but its tool was
+broken; and `MIN_RELAY_VERSION` was raised for the first time in the product's life, after the lever
+for doing so turned out to have been broken since it was written.
 
 Three things are examined and sound rather than merely untested: the one-nick-one-proxy-one-profile
 invariant is enforced by database constraints and not only by application code; no secret reaches a
