@@ -11,6 +11,7 @@
  */
 import { createPrivateKey } from "node:crypto";
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { MIN_RELAY_VERSION } from "@/lib/tickets/ticket-types";
 import type { TicketPayload } from "@/lib/tickets/ticket-types";
 
 const OPERATOR_ID = "user-operator";
@@ -63,7 +64,9 @@ const asOperatorKey = (plaintext: string) => encryptCredential(plaintext, loadVa
 function openAtRelay(ticket: string) {
   return verifyTicket(ticket, {
     deviceId,
-    version: 1,
+    // Derived, not literal: a fixture pinned to an old number silently breaks the day the
+    // security floor moves, and this suite needs Postgres so CI is where that shows up.
+    version: MIN_RELAY_VERSION,
     privateKey: createPrivateKey({
       key: {
         kty: "OKP",

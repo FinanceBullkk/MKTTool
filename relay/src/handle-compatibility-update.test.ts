@@ -24,7 +24,7 @@ import {
   signingKeysFromSeed,
 } from "../../src/lib/tickets/server-signing-key";
 import { TicketReplayGuard } from "../../src/lib/tickets/ticket-replay-guard";
-import { TICKET_KINDS } from "../../src/lib/tickets/ticket-types";
+import { MIN_RELAY_VERSION, TICKET_KINDS } from "../../src/lib/tickets/ticket-types";
 import { handleCompatibilityUpdate } from "./handle-compatibility-update";
 import { InMemorySecureStore } from "./in-memory-secure-store";
 import type { CompatibilityUpdatePlatform } from "./local-updater";
@@ -159,7 +159,9 @@ function createFixture(repairMissingState: boolean) {
       store,
       identity: {
         deviceId: "device-1",
-        version: 12,
+        // The security floor, not a literal. Hard-coded fixture versions are what broke three
+        // suites when MIN_RELAY_VERSION was raised on 18 Aug 2026 -- the C35 lesson, one layer up.
+        version: MIN_RELAY_VERSION,
         privateKey: deviceKeys.privateKey,
         serverPublicKey: serverKeys.publicKey,
         replayGuard: new TicketReplayGuard(),

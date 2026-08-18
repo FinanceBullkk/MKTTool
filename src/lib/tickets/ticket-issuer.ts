@@ -22,8 +22,7 @@ import { randomUUID, sign } from "node:crypto";
 import { loadServerSigningKeys } from "./server-signing-key";
 import { sealForDevice } from "./ticket-sealed-box";
 import {
-  MIN_RELAY_VERSION,
-  MIN_RELAY_VERSION_BY_KIND,
+  effectiveMinRelayVersion,
   TICKET_FORMAT_VERSION,
   TICKET_LIFETIME_MS,
   type SignedTicket,
@@ -52,17 +51,14 @@ export function issueTicket(
 
   const envelope: TicketEnvelope = {
     v: TICKET_FORMAT_VERSION,
-    // Per ticket KIND, so that a new ticket kind does not make old Relays refuse credential and
-    // profile tickets as well. See `MIN_RELAY_VERSION_BY_KIND`.
+    // The higher of the security floor and this kind's capability floor. See
+    // `effectiveMinRelayVersion`, which is the only place that rule is written down.
     //
-    // `Math.max`, not `??`. The per-kind entry raises the floor for that kind; it must never be
-    // able to lower it below the global one. Written as `?? MIN_RELAY_VERSION` this read as a
-    // fallback, but every kind is present in the map — a property another test pins deliberately —
-    // so the fallback could never fire and `MIN_RELAY_VERSION` was dead. It would have stayed dead
-    // exactly until someone raised it to force a fleet off a vulnerable Relay, at which point four
-    // of five kinds, profile launch included, would have silently kept the old floor. A control
-    // that only fails on the day it is first needed is worse than no control. See C39.
-    minRelayVersion: Math.max(MIN_RELAY_VERSION, MIN_RELAY_VERSION_BY_KIND[payload.kind] ?? 0),
+    // This used to read `MIN_RELAY_VERSION_BY_KIND[kind] ?? MIN_RELAY_VERSION`, which looks like a
+    // fallback and behaves as an override. Every kind is in the table, so the fallback could never
+    // fire and the security floor was dead code — harmless at 1, and useless on the one day it
+    // would ever be raised. See C39.
+    minRelayVersion: effectiveMinRelayVersion(payload.kind),
     jti: randomUUID(),
     deviceId: recipient.deviceId,
     kind: payload.kind,

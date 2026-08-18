@@ -21,9 +21,8 @@ const KHOA_KY = generateKeyPairSync("ed25519");
 vi.mock("./server-signing-key", () => ({ loadServerSigningKeys: () => KHOA_KY }));
 
 const { issueTicket } = await import("./ticket-issuer");
-const { MIN_RELAY_VERSION, MIN_RELAY_VERSION_BY_KIND, TICKET_KINDS } = await import(
-  "./ticket-types"
-);
+const { MIN_RELAY_VERSION, MIN_RELAY_VERSION_BY_KIND, TICKET_KINDS, effectiveMinRelayVersion } =
+  await import("./ticket-types");
 const { generateRelayDeviceKeyPair } = await import("./relay-device-key");
 
 const recipient = { deviceId: "device-1", publicKey: generateRelayDeviceKeyPair().publicKeyHex };
@@ -84,8 +83,14 @@ describe("managed profile operations require Relay version 7", () => {
       recipient,
     );
 
-    expect(minRelayVersionOf(ticket)).toBe(7);
-    expect(minRelayVersionOf(ticket)).toBeGreaterThan(MIN_RELAY_VERSION);
+    // The capability requirement is still 7 — that is when the managed-browser contract arrived,
+    // and it does not change. What the ticket *carries* is the higher of that and the security
+    // floor, so assert the table and the wire separately rather than assuming they are equal.
+    // They were equal until MIN_RELAY_VERSION was raised to 13 on 18 August 2026; conflating them
+    // is what C39 was.
+    expect(MIN_RELAY_VERSION_BY_KIND[_kind]).toBe(7);
+    expect(minRelayVersionOf(ticket)).toBe(effectiveMinRelayVersion(_kind));
+    expect(minRelayVersionOf(ticket)).toBeGreaterThanOrEqual(MIN_RELAY_VERSION);
   });
 
   /** Thêm loại vé mà quên khai bảng thì nó âm thầm lấy sàn chung — bài này bắt chuyện đó. */
@@ -112,6 +117,12 @@ describe("compatibility updates require Relay version 12", () => {
       },
       recipient,
     );
-    expect(minRelayVersionOf(ticket)).toBe(12);
+    // 12 is the capability requirement and stays recorded as such; what the ticket carries is the
+    // higher of that and the security floor. The two were the same number until MIN_RELAY_VERSION
+    // was raised to 13 on 18 August 2026 — see C39 for why conflating them was a defect.
+    expect(MIN_RELAY_VERSION_BY_KIND[TICKET_KINDS.COMPATIBILITY_UPDATE]).toBe(12);
+    expect(minRelayVersionOf(ticket)).toBe(
+      effectiveMinRelayVersion(TICKET_KINDS.COMPATIBILITY_UPDATE),
+    );
   });
 });
