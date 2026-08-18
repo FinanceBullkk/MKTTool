@@ -8,7 +8,8 @@ import {
   relayDownloadFileName,
 } from "@/lib/relay/relay-release-file";
 import { RELAY_VERSION } from "@/lib/relay/relay-endpoints";
-import { readWindowsInstallerFile } from "@/lib/setup/windows-installer-file";
+import { WINDOWS_INSTALLER_FILE_NAME } from "@/lib/setup/windows-installer-file";
+import { readWindowsInstallerRelease } from "@/lib/setup/windows-installer-release";
 
 const BUTTON_CLASS =
   "inline-block rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white transition " +
@@ -43,7 +44,7 @@ const BUTTON_CLASS =
  * một nút bấm vào là 404.
  */
 export async function RelayDownloadSection() {
-  const installer = readWindowsInstallerFile();
+  const installer = await readWindowsInstallerRelease();
   const release = await readRelayRelease(RELAY_VERSION);
   // Truyền lại `release` để khỏi hỏi nguồn hai lần — với nguồn R2 đó là một request qua mạng.
   const checksum = await relayArchiveChecksum(release);
@@ -55,15 +56,50 @@ export async function RelayDownloadSection() {
     <section id="download" className="space-y-6 scroll-mt-6">
       <SmartScreenGuidance imagePath="/setup/mkb-03-smartscreen-more-info-run-anyway.png" />
 
-      <Card title="MKTTool for Windows">
+      <Card title={installer.version ? `MKT Browser ${installer.version}` : "MKT Browser cho Windows"}>
         {installer.available ? (
-          <a href="/api/setup/windows-installer" className={BUTTON_CLASS} download>
-            Download the Windows installer
-          </a>
+          <div className="space-y-4">
+            <p className="text-sm text-neutral-600 dark:text-neutral-400">
+              Cài cái này <strong>trước</strong>. Nó mang sẵn một bản cầu nối, và bản đó có thể cũ
+              hơn bản dưới — nên tải tiếp gói cầu nối rồi chạy <code className="font-mono">setup.bat</code>{" "}
+              là xong. Từ cầu nối bản 15, bộ cài không đè lên một bản mới hơn nữa.
+            </p>
+
+            <dl className="grid gap-x-8 gap-y-2 text-sm sm:grid-cols-[auto_1fr]">
+              <dt className="text-neutral-500">Dung lượng</dt>
+              <dd>{formatFileSize(installer.sizeBytes ?? 0)}</dd>
+              {installer.publishedAt ? (
+                <>
+                  <dt className="text-neutral-500">Phát hành lúc</dt>
+                  <dd>{formatFullDateTime(installer.publishedAt)}</dd>
+                </>
+              ) : null}
+            </dl>
+
+            <a href="/api/setup/windows-installer" className={BUTTON_CLASS} download>
+              Tải {WINDOWS_INSTALLER_FILE_NAME}
+            </a>
+
+            {installer.checksum ? (
+              <div className="space-y-1 border-t border-neutral-200 pt-4 dark:border-neutral-800">
+                <p className="text-xs font-medium text-neutral-600 dark:text-neutral-400">
+                  SHA-256 của gói
+                </p>
+                <code className="block select-all break-all rounded bg-neutral-100 px-2 py-1 font-mono text-xs dark:bg-neutral-800">
+                  {installer.checksum}
+                </code>
+              </div>
+            ) : null}
+          </div>
         ) : (
           <EmptyState>
-            The combined Windows installer has not been published to this server yet. An administrator
-            must configure the release artifact before operator handoff.
+            Máy chủ này chưa có gói cài MKT Browser nào — đã tìm ở{" "}
+            <code className="font-mono text-xs">{installer.expectedPath}</code>.
+            <br />
+            <br />
+            Người quản trị dựng trên máy Windows rồi đẩy lên bằng{" "}
+            <code className="font-mono">npm run browser:publish -- --file=&lt;đường dẫn .exe&gt;
+            --version=&lt;số hiệu&gt;</code>.
           </EmptyState>
         )}
       </Card>

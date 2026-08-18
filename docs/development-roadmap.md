@@ -144,7 +144,7 @@ W02 passed 8/8, MKB-01 passed 8/8, MKB-01E passed 7/7, MKB-02 passed 18/18, and
 Windows packaging guards passed 3/3. That frozen checkpoint passed typecheck, build, and packaged
 verification. Current Phase 00 remediation adds real workspace lint and CI/package quality guards;
 23 packaging contracts, the complete Node 22 installer suite, lint, and typecheck pass on 14 August.
-The fresh unsigned installer at `release/installer/MKTBrowser-win-x64.exe` is 146,006,574 bytes with
+The fresh unsigned installer at `release/MKTBrowser-win-x64.exe` is 146,006,574 bytes with
 SHA-256 `b66c3cf89ac683063372d320c7a77193be1d90a3a0427066318fc6e849dc4f2b`.
 It embeds the exact Relay v12 archive and manifest, but remains local and unpublished. The packaged
 verifier proves contract-v4 capability
