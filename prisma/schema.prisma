@@ -689,6 +689,30 @@ model RelayDevice {
   /// Ngày đăng ký.
   createdAt DateTime @default(now())
 
+  /// Bản cầu nối chiếc máy này khai lần gần nhất, và lúc nó khai.
+  ///
+  /// Nullable vì mọi máy đã đăng ký trước 18/08/2026 chưa từng khai — `null` nghĩa là **chưa
+  /// biết**, không phải "bản cũ". Đừng đọc `null` thành số.
+  ///
+  /// ## Vì sao phải lưu, khi con số vốn đã chạy ngang qua
+  ///
+  /// Cầu nối đóng dấu `relayVersion` vào **mọi** phản hồi, kể cả phản hồi bị từ chối. Trình duyệt
+  /// đọc nó, vẽ cảnh báo "bản cũ", rồi vứt. Không ai lưu, nên máy chủ mù hoàn toàn về việc đội
+  /// đang chạy bản nào.
+  ///
+  /// Điều đó vô hại cho tới 18/08/2026, khi `MIN_RELAY_VERSION` lên 13 và mọi máy dưới bản đó bị
+  /// chặn — lúc ấy không ai trả lời được *vừa chặn những ai*, *đội cập nhật xong chưa*, *còn ai
+  /// kẹt không*. Người dùng biết bằng cách bị từ chối. Đó là C40.
+  ///
+  /// Không phải dấu vết kiểm toán: hai cột này bị ghi đè mỗi lần, giữ ảnh hiện tại chứ không giữ
+  /// lịch sử. Muốn lịch sử thì dùng `AuditLog`, nơi vốn để làm việc đó.
+  relayVersion Int?
+
+  /// Lần gần nhất chiếc máy này trả lời. Đi kèm `relayVersion` và được ghi cùng lúc — một con số
+  /// phiên bản không có mốc thời gian không phân biệt được "đang chạy bản 12" với "đã tắt từ
+  /// tháng trước ở bản 12".
+  lastSeenAt DateTime?
+
   /// Mốc thu hồi. `null` = còn dùng được.
   ///
   /// Mốc thời gian chứ không phải cờ boolean: cùng trả lời được câu "còn dùng không", nhưng
