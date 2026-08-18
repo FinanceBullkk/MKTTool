@@ -318,7 +318,18 @@ async function main(): Promise<void> {
               deviceId: state.deviceId,
               devicePublicKey: keypair.publicKeyHex,
               devicePrivateKey: keypair.privateKey,
-              serverPublicKey: state.identity?.serverPublicKey ?? null,
+              // `state.serverPublicKey`, KHÔNG phải `state.identity` — và đây là cả cái bẫy.
+              //
+              // `identity` chỉ dựng được khi cấu hình **hợp lệ trọn vẹn**, mà "trọn vẹn" bao gồm
+              // `vaultKeyOperator`. Đường này tồn tại để **mang khóa đó xuống**. Đọc khóa máy chủ
+              // qua `identity` nghĩa là: máy chưa có khóa thì không nhận được khóa — một vòng tròn
+              // khép kín, và câu nó phát ra là "This Relay is not enrolled yet." trên một chiếc máy
+              // đã đăng ký đàng hoàng, nên không ai lần ra được.
+              //
+              // Cùng đúng một lý lẽ với `deviceId` ở `loadState`: đọc thẳng nguồn thô, không qua
+              // `config`, vì thiếu khóa vùng operator là `config` thành `null`. Chỗ đó đã làm đúng
+              // từ đầu; chỗ này thì không.
+              serverPublicKey: state.serverPublicKey,
               secureStore,
               onConfigured: reloadConfig,
             }),
