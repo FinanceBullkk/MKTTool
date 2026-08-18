@@ -506,7 +506,7 @@ it preserves the binary, shortcuts, and `relay-config.json`. Missing markers fai
 The publisher now refuses a missing/stale sidecar or archive bytes that do not match it before any R2
 request.
 
-The reviewed installer was rebuilt at `release/installer/MKTBrowser-win-x64.exe`: 145,896,567 bytes,
+The reviewed installer was rebuilt at `release/MKTBrowser-win-x64.exe`: 145,896,567 bytes,
 SHA-256 `c0f619fa1e3686bca5b0be572c3ce17e85f047a6dec17bf8e65e6968b68264b4`. The frozen MKB-02
 `release/win-unpacked/MKTBrowser.exe` remained
 `238d5d6fd5e373b052c484ceab90698f6dc295205a59be6573f9928b01db4f42`. Full MKTTool verification

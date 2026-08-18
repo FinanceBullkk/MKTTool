@@ -1,26 +1,25 @@
 import { guardedRoute } from "@/lib/auth/guarded-route";
-import { Readable } from "node:stream";
+import { WINDOWS_INSTALLER_FILE_NAME } from "@/lib/setup/windows-installer-file";
 import {
-  openWindowsInstaller,
-  readWindowsInstallerFile,
-  WINDOWS_INSTALLER_FILE_NAME,
-} from "@/lib/setup/windows-installer-file";
+  openWindowsInstallerStream,
+  readWindowsInstallerRelease,
+} from "@/lib/setup/windows-installer-release";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export const GET = guardedRoute(async function GET() {
-  const installer = readWindowsInstallerFile();
-  if (!installer.available) {
+  const release = await readWindowsInstallerRelease();
+  if (!release.available) {
     return Response.json(
       { ok: false, message: "The combined Windows installer has not been published to this server." },
       { status: 404 },
     );
   }
 
-  const opened = await openWindowsInstaller(installer);
+  const opened = await openWindowsInstallerStream(release);
 
-  return new Response(Readable.toWeb(opened.stream) as ReadableStream, {
+  return new Response(opened.stream, {
     headers: {
       "cache-control": "private, no-store",
       "content-disposition": `attachment; filename="${WINDOWS_INSTALLER_FILE_NAME}"`,
