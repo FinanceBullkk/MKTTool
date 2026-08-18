@@ -249,7 +249,33 @@ for (const fileName of ["setup.bat", "install-relay.ps1"]) {
  * trong khi màn hình duy nhất mà người cài đọc thì không đọc được. Một cú lưu file bằng biên
  * tập viên đặt sai mặc định là đủ để mất BOM, và không có gì kêu lên.
  */
-const installerBytes = readFileSync(path.join(DIST_DIR, "install-relay.ps1"));
+/**
+ * Nung số bản vào bộ cài, để nó từ chối đè lên một cầu nối MỚI HƠN.
+ *
+ * Script nguồn giữ `$incomingVersion = 0` — chạy thẳng từ `relay/` thì chốt tự bỏ qua, đúng thứ
+ * người sửa mã muốn. Chỉ bản đã đóng gói mới biết mình là bản mấy.
+ *
+ * Thay trên **chuỗi**, rồi ghi lại kèm BOM bằng tay: `readFileSync(…, "utf8")` nuốt BOM vào thành
+ * ký tự U+FEFF đầu chuỗi, và ghi thẳng chuỗi đó ra sẽ giữ nó — nhưng chỉ khi không ai `trim()` ở
+ * giữa. Kiểm BOM ngay dưới đây là chốt chặn cho đúng chuyện đó.
+ */
+const INSTALLER_PATH = path.join(DIST_DIR, "install-relay.ps1");
+const installerSource = readFileSync(INSTALLER_PATH, "utf8");
+const VERSION_PLACEHOLDER = "$incomingVersion = 0";
+if (!installerSource.includes(VERSION_PLACEHOLDER)) {
+  console.error(
+    `\nrelay/install-relay.ps1 không còn dòng "${VERSION_PLACEHOLDER}".\n\n` +
+      "Đó là chỗ bộ build nung số bản vào, và thiếu nó thì bộ cài không biết mình là bản mấy —\n" +
+      "chốt chặn hạ cấp im lặng, và lỗi 18/08/2026 quay lại nguyên vẹn.\n",
+  );
+  process.exit(1);
+}
+writeFileSync(
+  INSTALLER_PATH,
+  installerSource.replace(VERSION_PLACEHOLDER, `$incomingVersion = ${RELAY_VERSION}`),
+);
+
+const installerBytes = readFileSync(INSTALLER_PATH);
 if (installerBytes[0] !== 0xef || installerBytes[1] !== 0xbb || installerBytes[2] !== 0xbf) {
   console.error(
     "\nrelay/install-relay.ps1 mất BOM UTF-8. PowerShell 5.1 sẽ đọc nó theo bảng mã ANSI và\n" +

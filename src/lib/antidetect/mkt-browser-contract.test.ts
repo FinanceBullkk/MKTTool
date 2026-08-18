@@ -70,12 +70,19 @@ describe("MKT Browser compatibility verdict", () => {
    * Relay is not enrolled yet." dù đã ở trong sổ. Nay đọc `state.serverPublicKey` như broker
    * bootstrap vẫn làm. **Không đụng vào hợp đồng với MKT Browser** — đường này không đi qua trình
    * duyệt, `browserContract` vẫn là 4.
+   *
+   * Cầu nối 14 → 15 (18/08/2026): bộ cài từ chối đè lên một cầu nối mới hơn. Đây là bản duy nhất
+   * trong ba bản này **có đụng tới MKT Browser**, nên nói rõ: `installer.nsh` gọi
+   * `install-relay.ps1` ở mọi lần cài, và từ nay script đó có thể **bỏ qua** thay vì cài. Nó thoát
+   * 0 khi bỏ qua, đúng vì `installer.nsh` huỷ cả lượt cài nếu script thất bại — báo lỗi ở đây sẽ
+   * làm không cài nổi trình duyệt trên máy có cầu nối mới hơn. Hợp đồng *dữ liệu* giữa hai bên
+   * không đổi, `browserContract` vẫn là 4.
    */
   it("pins the Relay release paired with the current Browser contract", () => {
     expect({
       browserContract: MKT_BROWSER_SUPPORTED_CONTRACT_VERSIONS.at(-1),
       relayVersion: RELAY_VERSION,
-    }).toEqual({ browserContract: 4, relayVersion: 14 });
+    }).toEqual({ browserContract: 4, relayVersion: 15 });
   });
 
   it("accepts a device on a supported contract version", () => {
