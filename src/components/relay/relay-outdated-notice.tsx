@@ -23,7 +23,7 @@ export function RelayOutdatedNotice({ relayVersion }: { relayVersion: number }) 
     <p className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-300">
       Cầu nối trên máy này là <strong>bản {relayVersion}</strong>, cũ hơn bản máy chủ đang phát
       hành. Mọi thứ vẫn chạy, nhưng nên cập nhật trước khi một tấm vé bị từ chối:{" "}
-      <Link href="/relay-download" className="underline">
+      <Link href="/setup#download" className="underline">
         tải bản mới
       </Link>{" "}
       rồi chạy lại <code className="font-mono text-xs">setup.bat</code> — cấu hình của máy được

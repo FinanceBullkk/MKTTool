@@ -240,8 +240,8 @@ export function AntidetectProfileCard({
     return (
       <p className="text-sm text-neutral-600 dark:text-neutral-400">
         Cầu nối trên máy này là bản cũ nên chưa tạo được profile từ đây. Tải bản mới ở{" "}
-        <a href="/relay-download" className="underline">
-          /relay-download
+        <a href="/setup#download" className="underline">
+          /setup
         </a>{" "}
         — trong lúc chờ, vẫn dán id profile vào thẻ &quot;Sửa nick&quot; như trước.
       </p>

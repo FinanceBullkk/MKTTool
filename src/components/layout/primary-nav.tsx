@@ -36,7 +36,6 @@ const STORE_ITEMS = [
 const SETUP_ITEMS = [
   { href: "/setup", label: "Chuẩn bị" },
   { href: "/relay-devices", label: "Máy cầu nối" },
-  { href: "/relay-download", label: "Tải cầu nối" },
   { href: "/facebook", label: "Facebook" },
 ];
 
