@@ -128,18 +128,17 @@ export default async function RelayDownloadPage() {
           </li>
           <li>
             Vẫn trên máy đó, mở{" "}
-            <Link href="/relay-devices" className="underline">
-              /relay-devices
+            <Link href="/setup" className="underline">
+              /setup
             </Link>{" "}
-            và bấm <strong>Tìm cầu nối trên máy này</strong> → <strong>Đăng ký &amp; cấu hình</strong>
-            . Web app tự đọc khóa công khai của cầu nối, ghi máy vào sổ, rồi gửi mã máy cùng khóa
-            máy chủ ngược xuống — không phải chép tay giá trị nào.
+            và làm theo thẻ hướng dẫn. Web app tự đọc khóa công khai của cầu nối, ghi máy vào sổ,
+            rồi gửi mã máy cùng khóa máy chủ ngược xuống — không phải chép tay giá trị nào.
           </li>
           <li>
             <strong>Đợi quản trị viên bấm &quot;Cấp khóa&quot;</strong> — không phải làm gì thêm.
-            Thẻ ở <Link href="/relay-devices" className="underline">/relay-devices</Link> tự chuyển
-            xanh khi khóa về tới máy, thường trong vài giây. Bạn <strong>không</strong> cần xin ai
-            một chuỗi nào để dán.
+            Thẻ ở <Link href="/setup" className="underline">/setup</Link> tự chuyển xanh khi khóa về
+            tới máy, thường trong vài giây. Bạn <strong>không</strong> cần xin ai một chuỗi nào để
+            dán.
           </li>
         </ol>
         <p className="mt-4 text-xs text-neutral-500">

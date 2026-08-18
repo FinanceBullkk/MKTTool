@@ -1,0 +1,11 @@
+# Module .mjs phải giữ nguyên xuống dòng LF khi lấy về, kể cả trên Windows.
+#
+# `core.autocrlf=true` đổi LF thành CRLF lúc checkout. Vô hại với hầu hết file, trừ module có
+# dòng shebang: `offline-root-ceremony.mjs` mở đầu bằng `#!/usr/bin/env node`, và khi dòng đó kết
+# thúc bằng CRLF thì bước biến đổi của vitest làm hỏng nó — cả file chết với
+# `SyntaxError: Invalid or unexpected token`, không kèm tên file nào để lần ra.
+#
+# Hậu quả là hai bộ test đỏ trên máy Windows và xanh trên CI (Linux, checkout LF): đúng cái kiểu
+# hỏng dạy người đọc quen với "đỏ là bình thường". Kho lưu LF sẵn rồi, nên dòng này chỉ tắt phần
+# đổi lúc checkout chứ không đụng tới nội dung đã commit.
+*.mjs text eol=lf

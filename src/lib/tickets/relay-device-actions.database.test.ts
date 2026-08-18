@@ -49,6 +49,7 @@ vi.mock("@/lib/auth/require-actor", async (importOriginal) => ({
 }));
 
 const { prisma } = await import("@/lib/db/prisma-client");
+const { hashOperatorKeyGrant } = await import("@/lib/relay/enrollment/grant-digests");
 const { generateRelayDeviceKeyPair } = await import("./relay-device-key");
 const { grantOperatorKeyToDevice, registerRelayDevice, revokeRelayDevice } = await import(
   "./relay-device-actions"
@@ -87,7 +88,130 @@ afterAll(async () => {
   await prisma.$disconnect();
 });
 
+/**
+ * Đường phát khóa vùng operator, nhìn từ phía máy chủ.
+ *
+ * Trước 18/08/2026 chỗ này chỉ có đúng một bài, và nó kiểm một ca biên (máy đang thu hồi). Đường
+ * đi thật — ADMIN bọc khóa, máy chủ giữ hộ, máy nhận tới lấy — **chưa bao giờ được chạy ở đây**,
+ * kể cả khi tài liệu vận hành đã dựng nó thành lựa chọn đầu tiên cho người mới. Hai đầu phía cầu
+ * nối thì có (`handle-seal-operator-key`, `handle-receive-operator-key`,
+ * `operator-key-grant-substitution`); khúc giữa thì không.
+ *
+ * Ba nhóm dưới đây nhắm vào chỗ hỏng thì hỏng ÂM THẦM — sổ vẫn trông đúng, chỉ có chiếc máy là
+ * nhận nhầm thứ nó không nên nhận:
+ *  1. Hộp khóa phải được giữ **nguyên vẹn từng byte**, kèm đủ mã và vân tay để bên nhận đối
+ *     chiếu. Giữ thiếu một mảnh thì máy nhận không có cách nào biết mình vừa mở đúng hộp hay không.
+ *  2. Cấp lại phải **xóa sạch dấu vết lần cấp trước**. Còn sót `operatorKeyReadyAt` hay vân tay
+ *     hoàn tất cũ là để một chiếc máy đọc lần giao cũ như thể nó vừa xong — hỏng không kèm lỗi.
+ *  3. Hai cánh cửa đóng: máy đã thu hồi, và chủ máy đã rời `ALLOWED_EMAILS`. Cả hai đều là ca sẽ
+ *     gặp thật trong lần onboard đầu tiên nếu tài khoản mới bị dựng sai thứ tự.
+ */
 describe("grantOperatorKeyToDevice", () => {
+  /** Máy đang sống, thuộc một người còn trong danh sách trắng — điều kiện để được cấp khóa. */
+  async function activeDevice(name = "Laptop của Operator") {
+    const { publicKeyHex } = generateRelayDeviceKeyPair();
+    return prisma.relayDevice.create({
+      data: { name, userId: OPERATOR_ID, publicKey: publicKeyHex },
+    });
+  }
+
+  /** Hộp khóa đã bọc, hình dạng đúng như cầu nối của ADMIN gửi lên. */
+  function grantForm(deviceId: string, grant: { ephemeralPublicKey: string; sealed: string }) {
+    const form = new FormData();
+    form.set("deviceId", deviceId);
+    form.set("ephemeralPublicKey", grant.ephemeralPublicKey);
+    form.set("sealed", grant.sealed);
+    return form;
+  }
+
+  const GRANT = { ephemeralPublicKey: "cd".repeat(32), sealed: "hop-khoa-da-boc" };
+
+  it("giữ nguyên hộp khóa, kèm mã và vân tay để bên nhận đối chiếu", async () => {
+    const device = await activeDevice();
+
+    const result = await grantOperatorKeyToDevice(null, grantForm(device.id, GRANT));
+
+    expect(result.ok).toBe(true);
+    const stored = await prisma.relayDevice.findUniqueOrThrow({ where: { id: device.id } });
+
+    // Ruột hộp máy chủ không đọc được, nên thứ duy nhất kiểm được là nó ra đúng như lúc vào.
+    expect(JSON.parse(stored.operatorKeyGrant ?? "null")).toEqual(GRANT);
+    expect(stored.operatorKeyGrantHash).toBe(hashOperatorKeyGrant(GRANT));
+    expect(stored.operatorKeyGrantId).toEqual(expect.any(String));
+    expect(stored.operatorKeyGrantedAt).toBeInstanceOf(Date);
+    expect(stored.operatorKeyGrantGeneration).toBe(1);
+
+    // Không có dòng nhật ký thì không ai trả lời được "khóa đã đi xuống máy nào, do ai, lúc nào".
+    const logged = await prisma.auditLog.findMany({
+      where: { action: "RELAY_OPERATOR_KEY_GRANTED" },
+    });
+    expect(logged).toHaveLength(1);
+    expect(logged[0]?.detail).toContain(device.name);
+  });
+
+  it("cấp lại thì xóa sạch dấu vết lần giao trước", async () => {
+    const device = await activeDevice();
+    await grantOperatorKeyToDevice(null, grantForm(device.id, GRANT));
+
+    // Giả lập lần giao trước đã đi tới cuối: máy nhận xong, máy chủ ghi lại vân tay hoàn tất.
+    await prisma.relayDevice.update({
+      where: { id: device.id },
+      data: {
+        operatorKeyReadyAt: new Date(),
+        operatorKeyCompletionHash: "van-tay-hoan-tat-cu",
+        operatorKeyCompletionGrant: "hop-cu",
+        operatorKeyDeliveryAuthorization: "giay-phep-cu",
+        operatorKeyDeliveryExpiresAt: new Date(Date.now() + 60_000),
+      },
+    });
+
+    const lanHai = { ephemeralPublicKey: "ef".repeat(32), sealed: "hop-khoa-lan-hai" };
+    const result = await grantOperatorKeyToDevice(null, grantForm(device.id, lanHai));
+
+    expect(result.ok).toBe(true);
+    const stored = await prisma.relayDevice.findUniqueOrThrow({ where: { id: device.id } });
+
+    expect(JSON.parse(stored.operatorKeyGrant ?? "null")).toEqual(lanHai);
+    expect(stored.operatorKeyGrantHash).toBe(hashOperatorKeyGrant(lanHai));
+    // Thế hệ tăng — đây là thứ để bên nhận biết hộp trong tay nó đã cũ.
+    expect(stored.operatorKeyGrantGeneration).toBe(2);
+
+    // Bốn cột dưới đây còn sót lại là đủ để một chiếc máy đọc lần giao cũ như thể nó vừa xong.
+    expect(stored.operatorKeyReadyAt).toBeNull();
+    expect(stored.operatorKeyCompletionHash).toBeNull();
+    expect(stored.operatorKeyCompletionGrant).toBeNull();
+    expect(stored.operatorKeyDeliveryAuthorization).toBeNull();
+    expect(stored.operatorKeyDeliveryExpiresAt).toBeNull();
+  });
+
+  it("không cấp cho máy đã thu hồi", async () => {
+    const device = await activeDevice("Máy đã mất");
+    await prisma.relayDevice.update({
+      where: { id: device.id },
+      data: { revokedAt: new Date() },
+    });
+
+    const result = await grantOperatorKeyToDevice(null, grantForm(device.id, GRANT));
+
+    expect(result.ok).toBe(false);
+    const stored = await prisma.relayDevice.findUniqueOrThrow({ where: { id: device.id } });
+    expect(stored.operatorKeyGrant).toBeNull();
+  });
+
+  it("không cấp cho máy của người đã rời ALLOWED_EMAILS", async () => {
+    const { publicKeyHex } = generateRelayDeviceKeyPair();
+    const device = await prisma.relayDevice.create({
+      data: { name: "Máy người đã nghỉ", userId: REMOVED_ID, publicKey: publicKeyHex },
+    });
+
+    const result = await grantOperatorKeyToDevice(null, grantForm(device.id, GRANT));
+
+    expect(result.ok).toBe(false);
+    expect(result.message).toContain(REMOVED_EMAIL);
+    const stored = await prisma.relayDevice.findUniqueOrThrow({ where: { id: device.id } });
+    expect(stored.operatorKeyGrant).toBeNull();
+  });
+
   it("does not restore a key grant after device retirement has started", async () => {
     const { publicKeyHex } = generateRelayDeviceKeyPair();
     const device = await prisma.relayDevice.create({
