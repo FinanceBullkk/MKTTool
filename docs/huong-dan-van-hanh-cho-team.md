@@ -147,8 +147,9 @@ Ba việc bắt buộc phải có cầu nối đang chạy:
 
 Mọi việc khác vẫn chạy bình thường khi cầu nối tắt — kể cả sửa karma, trạng thái, proxy của nick.
 
-> Máy của bạn phải được ADMIN ghi vào sổ trước khi dùng được. Chưa ghi thì nút bấm sẽ nói thẳng
-> phải làm gì. Tải cầu nối ở `/relay-download` sau khi đăng nhập.
+> Máy của bạn phải nằm trong sổ trước khi dùng được, nhưng **bạn tự ghi được máy mình đang ngồi**
+> ở `/setup` — không phải chờ ADMIN. Chưa ghi thì nút bấm sẽ nói thẳng phải làm gì. Tải cầu nối ở
+> `/relay-download` sau khi đăng nhập.
 >
 > Nếu bạn có **hai máy** trong sổ, công cụ sẽ hỏi bạn đang ngồi máy nào trước khi bấm. Chọn đúng —
 > chọn sai là phát ra một tấm vé chắc chắn hỏng, phải làm lại.
@@ -156,9 +157,13 @@ Mọi việc khác vẫn chạy bình thường khi cầu nối tắt — kể c
 ### Cài cầu nối — ba bước
 
 1. Giải nén cả ba file vào một thư mục, bấm đúp **`setup.bat`**.
-2. Vẫn trên máy đó, mở `/relay-devices` → **Tìm cầu nối trên máy này** → **Đăng ký & cấu hình**.
-   Web app tự đọc khóa của cầu nối và gửi cấu hình ngược xuống.
+2. Vẫn trên máy đó, mở **`/setup`** rồi làm theo thẻ hướng dẫn: nó tự tìm cầu nối, đọc khóa của
+   nó, ghi máy vào sổ và gửi cấu hình ngược xuống.
 3. Quay lại trang trạng thái của cầu nối (`http://127.0.0.1:47821`), dán **khóa vùng operator**.
+
+> **Không phải `/relay-devices`.** Trang đó giờ chỉ còn là sổ tra cứu và các việc của ADMIN
+> (duyệt, thu hồi, đăng ký hộ một máy bạn không ngồi được). Thẻ hướng dẫn cho *máy bạn đang ngồi*
+> đã chuyển sang `/setup`.
 
 Bước 3 là thứ duy nhất phải gõ tay, và nó phải như vậy: **máy chủ không có khóa đó để gửi xuống** —
 đó là cả điểm của thiết kế. Xin ADMIN qua trình quản lý mật khẩu dùng chung, đừng qua chat.
@@ -340,7 +345,30 @@ báo càng nhiều thứ phải làm lại.
 
 ---
 
-## 10. Khi có người rời team
+## 10. Khi có người mới vào team
+
+Đối xứng với mục 11. Ba việc, theo thứ tự — hai việc đầu của ADMIN, việc thứ ba người mới tự làm.
+
+1. **ADMIN thêm email của họ vào danh sách cho phép** (`ALLOWED_EMAILS`) rồi khởi động lại máy chủ.
+   Chưa có bước này thì họ đăng nhập Google xong vẫn bị chặn ở mọi cú bấm — danh sách được kiểm ở
+   từng lần bấm, không phải chỉ lúc đăng nhập. Muốn họ làm được việc của ADMIN thì thêm cả vào
+   `ADMIN_EMAILS`, và email đó **vẫn phải nằm trong** `ALLOWED_EMAILS`.
+2. **ADMIN đưa khóa vùng operator xuống máy họ.** Hai đường, chọn một:
+   - **Gửi qua sổ** — trên `/relay-devices`, ADMIN bấm nút phát khóa cho máy đó. Cầu nối của ADMIN
+     bọc khóa bằng chính khóa công khai của máy nhận, máy chủ chỉ giữ hộ cái hộp đã bọc và không
+     mở được. Đường này **khóa thô không đi qua tay ai**.
+   - **Chép tay** — đưa khóa qua trình quản lý mật khẩu dùng chung, họ tự dán ở
+     `http://127.0.0.1:47821`. Dùng khi đường trên không chạy. **Không bao giờ qua chat**: khóa dán
+     trong chat là khóa nằm trong lịch sử chat của một công ty khác, vĩnh viễn.
+3. **Người mới tự cài lấy** theo mục 5: tải ở `/relay-download`, chạy `setup.bat`, rồi mở `/setup`
+   để ghi máy mình vào sổ. Bước này **không cần ADMIN** — máy họ ghi sẽ thuộc về chính họ.
+
+> Việc 1 phải xong trước việc 3. Ghi máy vào sổ cho một email chưa được phép đăng nhập thì công cụ
+> từ chối thẳng, kèm câu giải thích đúng lý do — nhưng đó là một vòng đi lại không cần thiết.
+
+---
+
+## 11. Khi có người rời team
 
 Ba việc, phải làm **cả ba**, theo thứ tự:
 
@@ -372,7 +400,8 @@ Nick họ từng phụ trách **không bị xóa theo**, chỉ mất chủ — A
 | Kết quả dò shadowban, biểu đồ karma | `/health` |
 | Kết nối Fanpage, kiểm token | `/facebook` |
 | Tải cầu nối | `/relay-download` |
-| Sổ máy đã đăng ký (ADMIN) | `/relay-devices` |
+| Ghi máy bạn đang ngồi vào sổ | `/setup` |
+| Sổ máy đã đăng ký, phát khóa, thu hồi (ADMIN) | `/relay-devices` |
 
 ---
 
