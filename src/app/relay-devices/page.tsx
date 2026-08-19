@@ -4,6 +4,7 @@ import { RelayCompatibilityUpdateButton } from "@/components/relay/relay-compati
 import { RelayDeviceRevokeButton } from "@/components/relay/relay-device-revoke-button";
 import { RelayDeviceRetirementButton } from "@/components/relay/relay-device-retirement-button";
 import { RelayDeviceRetirementReceiptButton } from "@/components/relay/relay-device-retirement-receipt-button";
+import { RelayDeviceVersionCell } from "@/components/relay/relay-device-version-cell";
 import { RelayGrantKeyButton } from "@/components/relay/relay-grant-key-button";
 import { ActionForm, Field, SelectField } from "@/components/ui/form-controls";
 import { Card, DataTable, EmptyState, PageHeading, StatusBadge } from "@/components/ui/page-section";
@@ -12,6 +13,7 @@ import { readActor } from "@/lib/auth/require-actor";
 import { prisma } from "@/lib/db/prisma-client";
 import { formatFullDateTime } from "@/lib/format/vietnamese-date-format";
 import { registerRelayDevice, revokeRelayDevice } from "@/lib/tickets/relay-device-actions";
+import { MIN_RELAY_VERSION } from "@/lib/tickets/ticket-types";
 
 export const dynamic = "force-dynamic";
 
@@ -151,6 +153,7 @@ export default async function RelayDevicesPage() {
               "Khóa công khai",
               "Đăng ký",
               "Trạng thái",
+              "Cầu nối",
               "Khóa operator",
               "",
             ]}
@@ -200,6 +203,9 @@ export default async function RelayDevicesPage() {
                       className="bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400"
                     />
                   )}
+                </td>
+                <td className="py-2 pr-4">
+                  <RelayDeviceVersionCell device={device} floor={MIN_RELAY_VERSION} />
                 </td>
                 <td className="py-2 pr-4">
                   {device.revokedAt ? null : (
