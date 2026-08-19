@@ -27,7 +27,7 @@ export function AppShell({
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-[#0a0b0f] text-[#f1f5f9] font-sans antialiased">
       {/* 1. Left Rail (56px) */}
-      <LeftRail onCmdK={() => {}} />
+      <LeftRail />
 
       {/* 2. Main Content Canvas */}
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">

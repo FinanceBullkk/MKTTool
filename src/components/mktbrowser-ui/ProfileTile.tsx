@@ -151,7 +151,7 @@ export function ProfileTile({
                 MANAGED
               </span>
             </div>
-            <span className="font-mono text-[11px] text-neutral-500 mt-0.5">{shortId}</span>
+            <span className="font-mono text-[11px] text-neutral-400 mt-0.5">{shortId}</span>
           </div>
         </div>
 
@@ -194,7 +194,7 @@ export function ProfileTile({
               <span className="font-medium text-neutral-200">
                 {profile.proxy.country === "VN" ? "Vietnam" : profile.proxy.country}
               </span>
-              <span className="font-mono text-[11px] text-neutral-500">
+              <span className="font-mono text-[11px] text-neutral-400">
                 ({profile.proxy.lastExitIp || `${profile.proxy.host}:${profile.proxy.port}`})
               </span>
             </div>
@@ -203,7 +203,7 @@ export function ProfileTile({
             </span>
           </div>
         ) : (
-          <div className="flex items-center justify-between text-xs text-neutral-500">
+          <div className="flex items-center justify-between text-xs text-neutral-400">
             <span>Direct — no proxy</span>
             <span className="font-mono text-[11px]">host DNS</span>
           </div>
@@ -211,7 +211,7 @@ export function ProfileTile({
       </div>
 
       {/* 4. Footer OS & Device */}
-      <div className="flex items-center justify-between text-[11px] text-neutral-500 mb-3 px-1">
+      <div className="flex items-center justify-between text-[11px] text-neutral-400 mb-3 px-1">
         <span className="flex items-center gap-1.5">
           <span>🪟 Windows</span>
           <span>·</span>

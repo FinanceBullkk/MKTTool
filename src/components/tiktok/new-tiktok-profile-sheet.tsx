@@ -49,7 +49,11 @@ export function NewTikTokProfileSheet({
       <div className="absolute inset-0" onClick={onClose} />
 
       {/* Slide-in Sheet */}
-      <div className="relative z-10 h-full w-full max-w-lg overflow-y-auto bg-[#0d0e12] border-l border-white/[0.08] p-6 shadow-2xl flex flex-col justify-between animate-in slide-in-from-right duration-200">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Tạo profile TikTok mới"
+        className="relative z-10 h-full w-full max-w-lg overflow-y-auto bg-[#0d0e12] border-l border-white/[0.08] p-6 shadow-2xl flex flex-col justify-between animate-in slide-in-from-right duration-200">
         <div>
           {/* Header */}
           <div className="flex items-center justify-between pb-4 border-b border-white/[0.06] mb-6">
@@ -78,12 +82,13 @@ export function NewTikTokProfileSheet({
             <div className="space-y-4 text-xs">
               {/* Tên Profile */}
               <div>
-                <label className="block font-medium text-neutral-300 mb-1.5">
+                <label className="block font-medium text-neutral-300 mb-1.5" htmlFor="username">
                   Tên Profile / Kênh <span className="text-purple-400">*</span>
                 </label>
                 <input
                   type="text"
                   name="username"
+                  id="username"
                   required
                   placeholder="Ví dụ: TikTok_Shop_01 hoặc @kenh_review"
                   className="w-full rounded-xl bg-white/[0.03] border border-white/[0.08] px-3.5 py-2 text-sm text-white placeholder:text-neutral-600 focus:border-purple-500/50 focus:bg-white/[0.05] focus:outline-none transition"
@@ -92,12 +97,13 @@ export function NewTikTokProfileSheet({
 
               {/* Gán Proxy */}
               <div>
-                <label className="block font-medium text-neutral-300 mb-1.5">
+                <label className="block font-medium text-neutral-300 mb-1.5" htmlFor="proxyId">
                   Gán Proxy / IP 4G <span className="text-purple-400">*</span>
                 </label>
                 {freeProxies.length > 0 ? (
                   <select
                     name="proxyId"
+                    id="proxyId"
                     required
                     className="w-full rounded-xl bg-[#14151b] border border-white/[0.08] px-3.5 py-2 text-sm text-white focus:border-purple-500/50 focus:outline-none transition"
                   >
@@ -118,9 +124,10 @@ export function NewTikTokProfileSheet({
               {/* Ghim Máy */}
               {devices.length > 0 ? (
                 <div>
-                  <label className="block font-medium text-neutral-300 mb-1.5">Ghim vào Máy vận hành</label>
+                  <label className="block font-medium text-neutral-300 mb-1.5" htmlFor="deviceId">Ghim vào Máy vận hành</label>
                   <select
                     name="deviceId"
+                    id="deviceId"
                     className="w-full rounded-xl bg-[#14151b] border border-white/[0.08] px-3.5 py-2 text-sm text-white focus:border-purple-500/50 focus:outline-none transition"
                   >
                     <option value="">-- Để trống hoặc chọn máy --</option>
@@ -136,19 +143,21 @@ export function NewTikTokProfileSheet({
               {/* Ngách & Tag */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-medium text-neutral-300 mb-1.5">Ngách nội dung</label>
+                  <label className="block font-medium text-neutral-300 mb-1.5" htmlFor="voice">Ngách nội dung</label>
                   <input
                     type="text"
                     name="voice"
+                    id="voice"
                     placeholder="Ví dụ: Đồ gia dụng"
                     className="w-full rounded-xl bg-white/[0.03] border border-white/[0.08] px-3 py-2 text-sm text-white placeholder:text-neutral-600 focus:border-purple-500/50 focus:outline-none transition"
                   />
                 </div>
                 <div>
-                  <label className="block font-medium text-neutral-300 mb-1.5">Chủ đề / Góc tiếp cận</label>
+                  <label className="block font-medium text-neutral-300 mb-1.5" htmlFor="contentAngle">Chủ đề / Góc tiếp cận</label>
                   <input
                     type="text"
                     name="contentAngle"
+                    id="contentAngle"
                     placeholder="Ví dụ: Review chân thực"
                     className="w-full rounded-xl bg-white/[0.03] border border-white/[0.08] px-3 py-2 text-sm text-white placeholder:text-neutral-600 focus:border-purple-500/50 focus:outline-none transition"
                   />
@@ -157,10 +166,11 @@ export function NewTikTokProfileSheet({
 
               {/* Giai đoạn Làm ấm */}
               <div>
-                <label className="block font-medium text-neutral-300 mb-1.5">Mốc kết thúc làm ấm (Cold-start)</label>
+                <label className="block font-medium text-neutral-300 mb-1.5" htmlFor="coldStartUntil">Mốc kết thúc làm ấm (Cold-start)</label>
                 <input
                   type="date"
                   name="coldStartUntil"
+                  id="coldStartUntil"
                   defaultValue={defaultColdDate}
                   className="w-full rounded-xl bg-[#14151b] border border-white/[0.08] px-3.5 py-2 text-sm text-white focus:border-purple-500/50 focus:outline-none transition font-mono"
                 />
@@ -171,9 +181,10 @@ export function NewTikTokProfileSheet({
 
               {/* Ghi chú */}
               <div>
-                <label className="block font-medium text-neutral-300 mb-1.5">Ghi chú ban đầu</label>
+                <label className="block font-medium text-neutral-300 mb-1.5" htmlFor="purchaseNote">Ghi chú ban đầu</label>
                 <textarea
                   name="purchaseNote"
+                  id="purchaseNote"
                   rows={2}
                   placeholder="Ví dụ: Nuôi 15p/ngày trên máy MSI, phát 4G iPhone"
                   className="w-full rounded-xl bg-white/[0.03] border border-white/[0.08] px-3.5 py-2 text-sm text-white placeholder:text-neutral-600 focus:border-purple-500/50 focus:outline-none transition"
@@ -194,39 +205,43 @@ export function NewTikTokProfileSheet({
               {showAdvanced ? (
                 <div className="space-y-3 p-3.5 rounded-xl bg-white/[0.02] border border-white/[0.06] animate-in fade-in duration-150">
                   <div>
-                    <label className="block font-medium text-neutral-400 mb-1">Email đăng ký nick</label>
+                    <label className="block font-medium text-neutral-400 mb-1" htmlFor="emailAddress">Email đăng ký nick</label>
                     <input
                       type="text"
                       name="emailAddress"
+                      id="emailAddress"
                       placeholder="user@gmail.com"
                       className="w-full rounded-lg bg-white/[0.03] border border-white/[0.08] px-3 py-1.5 text-xs text-white focus:border-purple-500/50 focus:outline-none transition font-mono"
                     />
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <label className="block font-medium text-neutral-400 mb-1">Mật khẩu nick</label>
+                      <label className="block font-medium text-neutral-400 mb-1" htmlFor="password">Mật khẩu nick</label>
                       <input
                         type="password"
                         name="password"
+                        id="password"
                         placeholder="••••••••"
                         className="w-full rounded-lg bg-white/[0.03] border border-white/[0.08] px-3 py-1.5 text-xs text-white focus:border-purple-500/50 focus:outline-none transition"
                       />
                     </div>
                     <div>
-                      <label className="block font-medium text-neutral-400 mb-1">Mật khẩu Email</label>
+                      <label className="block font-medium text-neutral-400 mb-1" htmlFor="emailPassword">Mật khẩu Email</label>
                       <input
                         type="password"
                         name="emailPassword"
+                        id="emailPassword"
                         placeholder="••••••••"
                         className="w-full rounded-lg bg-white/[0.03] border border-white/[0.08] px-3 py-1.5 text-xs text-white focus:border-purple-500/50 focus:outline-none transition"
                       />
                     </div>
                   </div>
                   <div>
-                    <label className="block font-medium text-neutral-400 mb-1">Mã 2FA Secret</label>
+                    <label className="block font-medium text-neutral-400 mb-1" htmlFor="totpSecret">Mã 2FA Secret</label>
                     <input
                       type="text"
                       name="totpSecret"
+                      id="totpSecret"
                       placeholder="JBSWY3DPEHPK3PXP"
                       className="w-full rounded-lg bg-white/[0.03] border border-white/[0.08] px-3 py-1.5 text-xs text-white focus:border-purple-500/50 focus:outline-none transition font-mono"
                     />

@@ -18,7 +18,9 @@ export function OnboardingStepper({
   viewer: { userId: string; email: string; isAdmin: boolean };
   checklist: SetupChecklist;
   installerDownloadUrl: string;
-  installerSize: string;
+  /** Null when the installer's real size could not be read — the label then
+   *  omits it rather than showing a figure with no source. */
+  installerSize: string | null;
   enrollCard?: ReactNode;
   checklistView?: ReactNode;
 }) {
@@ -134,7 +136,7 @@ export function OnboardingStepper({
               className="brand-btn px-5 py-2.5 rounded-xl text-xs font-semibold text-white inline-flex items-center gap-2 shadow-lg shadow-purple-500/25"
             >
               <Download size={14} />
-              <span>Tải MKTBrowser-win-x64.exe ({installerSize})</span>
+              <span>Tải MKTBrowser-win-x64.exe{installerSize ? ` (${installerSize})` : ""}</span>
             </a>
           </div>
 

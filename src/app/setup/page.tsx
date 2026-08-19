@@ -17,7 +17,10 @@ export default async function SetupPage() {
 
   if (!viewer) return null;
 
-  const size = installer.available && installer.sizeBytes ? formatFileSize(installer.sizeBytes) : "139.4 MB";
+  // No invented size: a number with no source is worse than no number, because
+  // it reads as measured. Callers render the label only when this is non-null.
+  const size =
+    installer.available && installer.sizeBytes ? formatFileSize(installer.sizeBytes) : null;
   const downloadUrl = "/api/setup/windows-installer";
 
   return (

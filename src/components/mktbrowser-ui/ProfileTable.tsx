@@ -23,13 +23,13 @@ export function ProfileTable({
       <div className="overflow-x-auto">
         <table className="w-full text-left border-collapse">
           <thead>
-            <tr className="border-b border-white/[0.06] bg-white/[0.03] text-[11px] font-semibold uppercase tracking-wider text-neutral-500 font-mono">
-              <th className="py-3 px-4">Profile & Kênh</th>
-              <th className="py-3 px-4">Trạng thái</th>
-              <th className="py-3 px-4">Tags & Ngách</th>
-              <th className="py-3 px-4">Proxy / IP</th>
-              <th className="py-3 px-4">Thiết bị</th>
-              <th className="py-3 px-4 text-right">Hành động</th>
+            <tr className="border-b border-white/[0.06] bg-white/[0.03] text-[11px] font-semibold uppercase tracking-wider text-neutral-400 font-mono">
+              <th scope="col" className="py-3 px-4">Profile & Kênh</th>
+              <th scope="col" className="py-3 px-4">Trạng thái</th>
+              <th scope="col" className="py-3 px-4">Tags & Ngách</th>
+              <th scope="col" className="py-3 px-4">Proxy / IP</th>
+              <th scope="col" className="py-3 px-4">Thiết bị</th>
+              <th scope="col" className="py-3 px-4 text-right">Hành động</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-white/[0.04] text-sm">
@@ -115,7 +115,7 @@ function ProfileTableRow({
                 MANAGED
               </span>
             </div>
-            <span className="font-mono text-[10px] text-neutral-500">{profile.id.slice(0, 8)}</span>
+            <span className="font-mono text-[10px] text-neutral-400">{profile.id.slice(0, 8)}</span>
           </div>
         </div>
       </td>
@@ -163,7 +163,7 @@ function ProfileTableRow({
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
           </div>
         ) : (
-          <span className="text-xs text-neutral-500">Direct — no proxy</span>
+          <span className="text-xs text-neutral-400">Direct — no proxy</span>
         )}
       </td>
 

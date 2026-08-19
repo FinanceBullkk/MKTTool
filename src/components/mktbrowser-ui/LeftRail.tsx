@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Boxes, Plug, MonitorSmartphone, Settings, Command } from "lucide-react";
+import { Boxes, Plug, MonitorSmartphone, Settings } from "lucide-react";
 
 interface NavItem {
   href: string;
@@ -22,7 +22,7 @@ function isActive(pathname: string, href: string): boolean {
   return href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export function LeftRail({ onCmdK }: { onCmdK?: () => void }) {
+export function LeftRail() {
   const pathname = usePathname();
 
   return (
@@ -42,7 +42,7 @@ export function LeftRail({ onCmdK }: { onCmdK?: () => void }) {
           <Link
             key={item.href}
             href={item.href}
-            title={`${item.label} · ⌘${item.kbd}`}
+            title={`${item.label} · Ctrl+${item.kbd}`}
             className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all ${
               active
                 ? "text-purple-300 bg-purple-500/15 shadow-[inset_0_0_0_1px_rgba(168,85,247,0.3)]"
@@ -57,14 +57,6 @@ export function LeftRail({ onCmdK }: { onCmdK?: () => void }) {
       <div className="flex-1" />
 
       {/* Bottom Command Palette shortcut */}
-      <button
-        type="button"
-        title="Tìm kiếm & Phím tắt · ⌘K"
-        onClick={onCmdK}
-        className="mb-4 w-9 h-9 rounded-xl flex items-center justify-center text-neutral-500 hover:text-neutral-200 hover:bg-white/[0.05] transition-colors cursor-pointer"
-      >
-        <Command size={16} strokeWidth={1.5} />
-      </button>
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Space_Grotesk, JetBrains_Mono } from "next/font/google";
 import { AppShell } from "@/components/mktbrowser-ui/AppShell";
 import { OpsAlertTray } from "@/components/layout/ops-alert-tray";
 import { SessionBadge } from "@/components/auth/session-badge";
@@ -6,6 +7,13 @@ import { readActor } from "@/lib/auth/require-actor";
 import { prisma } from "@/lib/db/prisma-client";
 import { relayStatusLabel } from "@/lib/relay/relay-status-label";
 import "./globals.css";
+
+// globals.css named these two families but nothing ever loaded them: no
+// next/font, no <link>. Every screen has been rendering in the Segoe UI
+// fallback. Self-hosted through next/font rather than an @import from a CDN,
+// because an operator machine may have no route to the internet.
+const sans = Space_Grotesk({ subsets: ["latin", "vietnamese"], variable: "--font-sans-loaded" });
+const mono = JetBrains_Mono({ subsets: ["latin", "vietnamese"], variable: "--font-mono-loaded" });
 
 export const metadata: Metadata = {
   title: "MKT Browser / Tool — Multi-Profile Console",
@@ -28,7 +36,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const viewer = await readActor();
 
   return (
-    <html lang="vi" className="dark">
+    <html lang="vi" className={`dark ${sans.variable} ${mono.variable}`}>
       <body
         suppressHydrationWarning
         className="bg-[#0a0b0f] text-[#f1f5f9] min-h-screen overflow-hidden"

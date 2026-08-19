@@ -46,15 +46,15 @@ export function TopBar({
           <div
             className="w-full flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-white/[0.03] border border-white/[0.06] focus-within:border-purple-500/40 focus-within:bg-white/[0.05] transition-all"
           >
-            <Search size={14} className="text-neutral-500 flex-shrink-0" />
+            <Search size={14} className="text-neutral-400 flex-shrink-0" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
               placeholder="Search profiles, tags, urls…"
-              className="flex-1 bg-transparent text-[13px] text-white placeholder:text-neutral-500 focus:outline-none"
+              className="flex-1 bg-transparent text-[13px] text-white placeholder:text-neutral-400 focus:outline-none"
             />
-            <Kbd>⌘ K</Kbd>
+            <Kbd>Ctrl K</Kbd>
           </div>
         </div>
 

@@ -73,7 +73,12 @@ export function Constellation({
   }, [profiles, searchQuery, filter]);
 
   return (
-    <div className="flex-1 flex flex-col min-w-0 min-h-0 p-6 overflow-y-auto max-w-6xl mx-auto w-full">
+    <div
+      // No scroll container here: `main` in AppShell already owns the vertical
+      // scroll. Two nested scrollers meant the wheel stopped at an inner
+      // boundary and the page looked stuck.
+      className="flex-1 flex flex-col min-w-0 min-h-0 p-6 max-w-6xl mx-auto w-full"
+    >
       {/* 1. Header Row */}
       <div className="flex items-center justify-between gap-4 mb-4">
         <div className="flex items-baseline gap-2.5">
@@ -92,7 +97,7 @@ export function Constellation({
               type="button"
               onClick={() => setViewMode("grid")}
               className={`p-1.5 rounded-md transition cursor-pointer ${
-                viewMode === "grid" ? "bg-white/[0.08] text-white" : "text-neutral-500 hover:text-neutral-300"
+                viewMode === "grid" ? "bg-white/[0.08] text-white" : "text-neutral-400 hover:text-neutral-300"
               }`}
               title="Grid view"
             >
@@ -102,7 +107,7 @@ export function Constellation({
               type="button"
               onClick={() => setViewMode("list")}
               className={`p-1.5 rounded-md transition cursor-pointer ${
-                viewMode === "list" ? "bg-white/[0.08] text-white" : "text-neutral-500 hover:text-neutral-300"
+                viewMode === "list" ? "bg-white/[0.08] text-white" : "text-neutral-400 hover:text-neutral-300"
               }`}
               title="List view"
             >
@@ -118,7 +123,7 @@ export function Constellation({
           >
             <Plus size={15} strokeWidth={2.5} />
             <span>New profile</span>
-            <Kbd>⌘ N</Kbd>
+            <Kbd>Ctrl N</Kbd>
           </button>
         </div>
       </div>
@@ -145,7 +150,7 @@ export function Constellation({
               {chip.id === "error" && <span className="w-1.5 h-1.5 rounded-full bg-rose-400" />}
               {chip.id === "idle" && <span className="w-1.5 h-1.5 rounded-full bg-neutral-400" />}
               <span>{chip.label}</span>
-              <span className="font-mono text-[11px] text-neutral-500">{count}</span>
+              <span className="font-mono text-[11px] text-neutral-400">{count}</span>
             </button>
           );
         })}
