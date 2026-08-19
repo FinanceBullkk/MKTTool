@@ -404,7 +404,7 @@ hướng khác.
 
 | Mã | Nghĩa thật | Làm gì |
 |---|---|---|
-| **76** | Hết số phiên của gói. Gói free chỉ **1 trình duyệt cùng lúc** | Đóng profile đang mở. Nếu chắc chắn không mở cái nào: bạn vừa đóng cứng (Task Manager / tắt máy) nên phiên còn treo trên server — **chờ vài phút**, đừng cài lại gì cả |
+| **76** | Hết số phiên của gói. Gói free chỉ **1 trình duyệt cùng lúc** | Đóng profile đang mở. Nếu chắc chắn không mở cái nào: bạn vừa đóng cứng (Task Manager / tắt máy) nên phiên còn treo trên server — **chờ 10–15 phút** (đo được ngày 19/08), đừng cài lại gì cả |
 | **77** | Khóa license thiếu, sai, hoặc hết hạn | Kiểm lại khóa ở Cài đặt |
 | **78** | **Không tra được tên miền của máy chủ license** | Gần như luôn là tường lửa chặn UDP 53, không phải mạng hỏng và không phải khóa sai. Xem dưới |
 | **79** | Không ghi được trạng thái license dưới máy | Kiểm quyền thư mục |
@@ -417,6 +417,7 @@ Người đọc sẽ đi kiểm mạng và kiểm khóa — cả hai đều đan
 **Cách xử: cài bản 0.3.4 trở lên.** Luật mới chỉ chừa UDP 53 và 443, phần còn lại vẫn chặn.
 
 Đóng profile **bằng nút trong ứng dụng**, đừng tắt cứng — tắt cứng để lại phiên treo và mã 76.
+Gói free chỉ **1 phiên**, nên một lần tắt cứng là khoá cả người khác lẫn chính mình trong 10–15 phút.
 
 ---
 
