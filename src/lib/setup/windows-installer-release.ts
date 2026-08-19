@@ -38,6 +38,32 @@ export const WINDOWS_INSTALLER_R2_KEY = WINDOWS_INSTALLER_FILE_NAME;
 /** Phiên bản MKT Browser, dạng chuỗi tự do (semver). Máy chủ chỉ hiển thị, không so sánh. */
 export const WINDOWS_INSTALLER_VERSION_METADATA_KEY = "browser-version";
 
+/**
+ * Bản cầu nối mà gói cài này **mang sẵn trong ruột**. Số nguyên, so sánh được.
+ *
+ * ## Vì sao phải cất, khi số hiệu trình duyệt đã có sẵn
+ *
+ * Hai con số trả lời hai câu khác nhau, và ghép chúng làm một là đúng cái đã đẻ ra lỗi tệ nhất
+ * của đợt pilot: MKT Browser 0.3.1 mang cầu nối bản 12 trong khi sàn đã lên 13, nên máy vừa cài
+ * xong là bị từ chối. Không chỗ nào trong hệ thống biết được điều đó, vì không chỗ nào cất con
+ * số này.
+ *
+ * Có nó rồi thì trang chuẩn bị nói được **đúng** việc phải làm: bản trong ruột cũ hơn thì bảo tải
+ * thêm gói cầu nối, bằng hoặc mới hơn thì im — thay vì bắt mọi người làm một bước thừa mãi mãi
+ * chỉ vì trang không biết.
+ *
+ * `null` = gói phát hành trước khi có khoá này, hoặc phát hành từ đĩa. Đọc `null` thành "không
+ * biết" và giữ lời dặn thận trọng, đừng đọc thành "khớp rồi".
+ */
+export const WINDOWS_INSTALLER_RELAY_VERSION_METADATA_KEY = "bundled-relay-version";
+
+/** Đọc số bản cầu nối trong metadata. Rác hay thiếu đều thành `null`, không bao giờ thành số bịa. */
+export function parseBundledRelayVersion(raw: string | undefined): number | null {
+  if (raw === undefined) return null;
+  const parsed = Number(raw);
+  return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : null;
+}
+
 export interface WindowsInstallerRelease {
   available: boolean;
   source?: "r2" | "disk";
@@ -45,6 +71,8 @@ export interface WindowsInstallerRelease {
   /** Mốc phát hành. Trên đĩa là mốc sửa file; trên R2 là mốc ghi object. */
   publishedAt?: Date;
   version?: string | null;
+  /** Bản cầu nối nằm sẵn trong gói cài. `null` là **chưa biết**, không phải "khớp". */
+  bundledRelayVersion?: number | null;
   checksum?: string | null;
   /** Chỗ đã tìm. Chỉ để hiện khi chưa có gói — không lộ chìa, chỉ lộ tên ngăn. */
   expectedPath: string;
@@ -82,6 +110,9 @@ async function readFromR2(config: R2Config): Promise<WindowsInstallerRelease> {
     sizeBytes: info.sizeBytes,
     publishedAt: info.lastModified,
     version: info.metadata[WINDOWS_INSTALLER_VERSION_METADATA_KEY] ?? null,
+    bundledRelayVersion: parseBundledRelayVersion(
+      info.metadata[WINDOWS_INSTALLER_RELAY_VERSION_METADATA_KEY],
+    ),
     checksum: info.metadata[CHECKSUM_METADATA_KEY] ?? null,
     expectedPath,
   };
@@ -100,6 +131,7 @@ function readFromDisk(): WindowsInstallerRelease {
     // Trên đĩa không có chỗ nào cất số hiệu, và bịa ra một file `.version` cạnh nó chỉ để hiển
     // thị là thêm một thứ nữa có thể lệch. Đường đĩa là đường dev.
     version: null,
+    bundledRelayVersion: null,
     checksum: null,
     expectedPath: file.path,
   };

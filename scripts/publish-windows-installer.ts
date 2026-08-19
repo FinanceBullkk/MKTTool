@@ -1,7 +1,7 @@
 /**
  * Đẩy gói cài MKT Browser lên ngăn phát hành trên R2.
  *
- * Chạy: `npm run browser:publish -- --file=<đường dẫn .exe> --version=<số hiệu>`
+ * Chạy: `npm run browser:publish -- --file=<.exe> --version=<số hiệu> --relay-version=<bản cầu nối>`
  *
  * ## Vì sao là lệnh riêng, không nối vào bộ build của MKTBrowser
  *
@@ -29,8 +29,10 @@ import { CHECKSUM_METADATA_KEY } from "../src/lib/relay/relay-release-r2";
 import { formatFileSize } from "../src/lib/relay/relay-release-file";
 import {
   WINDOWS_INSTALLER_R2_KEY,
+  WINDOWS_INSTALLER_RELAY_VERSION_METADATA_KEY,
   WINDOWS_INSTALLER_VERSION_METADATA_KEY,
 } from "../src/lib/setup/windows-installer-release";
+import { MIN_RELAY_VERSION } from "../src/lib/tickets/ticket-types";
 
 function flag(name: string): string | undefined {
   return process.argv.find((arg) => arg.startsWith(`--${name}=`))?.slice(name.length + 3);
@@ -39,13 +41,37 @@ function flag(name: string): string | undefined {
 async function main(): Promise<void> {
   const filePath = flag("file")?.trim();
   const version = flag("version")?.trim();
+  const relayVersionRaw = flag("relay-version")?.trim();
 
-  if (!filePath || !version) {
+  if (!filePath || !version || !relayVersionRaw) {
     console.error(
       "\nThiếu tham số.\n\n" +
-        "  npm run browser:publish -- --file=<đường dẫn .exe> --version=<số hiệu>\n\n" +
+        "  npm run browser:publish -- --file=<đường dẫn .exe> --version=<số hiệu> " +
+        "--relay-version=<bản cầu nối trong ruột>\n\n" +
         "Số hiệu là thứ hiện trên trang chuẩn bị để người cài biết mình đang tải bản nào —\n" +
-        "lấy đúng version của bản vừa dựng bên MKTBrowser, đừng tự đặt.\n",
+        "lấy đúng version của bản vừa dựng bên MKTBrowser, đừng tự đặt.\n\n" +
+        "--relay-version là bản cầu nối gói này MANG SẴN, đọc ở `apps/desktop/relay-release.json`\n" +
+        "bên MKTBrowser. Bắt buộc, vì thiếu nó thì trang chuẩn bị phải dặn thận trọng mãi mãi và\n" +
+        "người cài phải làm một bước thừa ở mỗi lần cài.\n",
+    );
+    process.exit(1);
+  }
+
+  const relayVersion = Number(relayVersionRaw);
+  if (!Number.isSafeInteger(relayVersion) || relayVersion <= 0) {
+    console.error(`\n--relay-version phải là số nguyên dương, nhận được "${relayVersionRaw}".\n`);
+    process.exit(1);
+  }
+
+  // Chốt chặn dựng lên từ lỗi tệ nhất của đợt pilot 18/08/2026: MKT Browser 0.3.1 mang cầu nối bản
+  // 12 trong khi sàn đã lên 13, nên mọi máy cài xong đều bị từ chối — và đường phát hành đi ngang
+  // qua đây mà không hề biết. Nay nó biết, và nó dừng lại.
+  if (relayVersion < MIN_RELAY_VERSION) {
+    console.error(
+      `\n⛔ Gói này mang cầu nối bản ${relayVersion}, dưới sàn ${MIN_RELAY_VERSION} máy chủ đang đòi.\n\n` +
+        "Máy nào cài xong cũng bị từ chối mọi tấm vé, và cài một cầu nối mới TRƯỚC cũng không cứu\n" +
+        "được — lần cài trình duyệt kế tiếp lại kéo nó xuống. Ghim lại payload rồi dựng lại gói.\n\n" +
+        "KHÔNG phát hành.\n",
     );
     process.exit(1);
   }
@@ -85,8 +111,9 @@ async function main(): Promise<void> {
   const sha256 = createHash("sha256").update(body).digest("hex");
 
   console.log(`Đang đẩy ${path.basename(resolved)} — ${formatFileSize(sizeBytes)}`);
-  console.log(`  bản     ${version}`);
-  console.log(`  SHA-256 ${sha256}`);
+  console.log(`  bản        ${version}`);
+  console.log(`  cầu nối    ${relayVersion} (sàn hiện tại ${MIN_RELAY_VERSION})`);
+  console.log(`  SHA-256    ${sha256}`);
 
   await putObject({
     config,
@@ -96,6 +123,7 @@ async function main(): Promise<void> {
     metadata: {
       [CHECKSUM_METADATA_KEY]: sha256,
       [WINDOWS_INSTALLER_VERSION_METADATA_KEY]: version,
+      [WINDOWS_INSTALLER_RELAY_VERSION_METADATA_KEY]: String(relayVersion),
     },
   });
 

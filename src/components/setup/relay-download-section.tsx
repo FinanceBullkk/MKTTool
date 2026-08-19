@@ -49,6 +49,23 @@ export async function RelayDownloadSection() {
   // Truyền lại `release` để khỏi hỏi nguồn hai lần — với nguồn R2 đó là một request qua mạng.
   const checksum = await relayArchiveChecksum(release);
 
+  /**
+   * Bản cầu nối trong ruột gói cài, so với bản đang phát hành — **ba** trạng thái, không phải hai.
+   *
+   * Gộp "chưa biết" vào "cũ hơn" là tiện tay và sai đúng theo kiểu đang được sửa ở đây: câu chữ sẽ
+   * khẳng định một điều nó không kiểm được. `null` xảy ra thật (gói lên ngăn trước khi có metadata
+   * này, hoặc đọc từ đĩa lúc dev), nên nhánh đó phải giữ nguyên lối nói chừng mực của bản cũ —
+   * *có thể* cũ hơn — và vẫn dặn tải thêm, vì bảo thừa một bước tốn vài phút còn bỏ sót một bước
+   * thì máy cài xong bị từ chối mọi tấm vé mà không ai hiểu vì sao.
+   *
+   * `>=` chứ không phải `===`: gói mang bản MỚI hơn bản máy chủ đang phát hành là chuyện bình
+   * thường ở khoảng giữa hai lần phát hành, và bắt người ta tải một bản cũ hơn về đè lên là lời
+   * khuyên ngược.
+   */
+  const bundled = installer.bundledRelayVersion ?? null;
+  const bundledState =
+    bundled === null ? "unknown" : bundled >= RELAY_VERSION ? "current" : "older";
+
   return (
     // Mốc neo: mọi chỗ từng trỏ tới `/relay-download` nay trỏ `/setup#download`, nên khi người ta
     // tới từ dải "cầu nối bản cũ" hay từ trang nick, họ rơi đúng vào nút tải chứ không phải đầu
@@ -60,9 +77,26 @@ export async function RelayDownloadSection() {
         {installer.available ? (
           <div className="space-y-4">
             <p className="text-sm text-neutral-600 dark:text-neutral-400">
-              Cài cái này <strong>trước</strong>. Nó mang sẵn một bản cầu nối, và bản đó có thể cũ
-              hơn bản dưới — nên tải tiếp gói cầu nối rồi chạy <code className="font-mono">setup.bat</code>{" "}
-              là xong. Từ cầu nối bản 15, bộ cài không đè lên một bản mới hơn nữa.
+              Cài cái này <strong>trước</strong>.{" "}
+              {bundledState === "current" ? (
+                <>
+                  Nó mang sẵn cầu nối bản {bundled} — đúng bản đang phát hành, nên{" "}
+                  <strong>không phải tải thêm gì ở dưới</strong>. Phần bên dưới để dành cho lúc cần
+                  cài lại riêng cầu nối.
+                </>
+              ) : bundledState === "older" ? (
+                <>
+                  Nó mang sẵn cầu nối bản {bundled}, cũ hơn bản {RELAY_VERSION} ở dưới — nên tải
+                  tiếp gói cầu nối rồi chạy <code className="font-mono">setup.bat</code> là xong.
+                </>
+              ) : (
+                <>
+                  Nó mang sẵn một bản cầu nối, và bản đó <strong>có thể</strong> cũ hơn bản dưới —
+                  gói này lên ngăn phát hành trước khi máy chủ biết cách hỏi. Cứ tải tiếp gói cầu
+                  nối rồi chạy <code className="font-mono">setup.bat</code> cho chắc.
+                </>
+              )}{" "}
+              Từ cầu nối bản 15, bộ cài không đè lên một bản mới hơn nữa.
             </p>
 
             <dl className="grid gap-x-8 gap-y-2 text-sm sm:grid-cols-[auto_1fr]">

@@ -15,7 +15,9 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-const { readWindowsInstallerRelease } = await import("./windows-installer-release");
+const { readWindowsInstallerRelease, parseBundledRelayVersion } = await import(
+  "./windows-installer-release"
+);
 
 let thuMuc: string;
 const bienCu = process.env.MKT_BROWSER_INSTALLER_PATH;
@@ -57,5 +59,42 @@ describe("readWindowsInstallerRelease — đường đĩa", () => {
     // Thiếu câu này thì người quản trị chỉ biết "chưa có gói" mà không biết đặt file vào đâu, và
     // đó đúng là trạng thái đã kéo dài nhiều tháng.
     expect(release.expectedPath).toBe(duongDan);
+  });
+});
+
+/**
+ * Bản cầu nối trong ruột gói cài — con số mà nếu có từ trước đã chặn được lỗi tệ nhất của pilot.
+ *
+ * Ràng buộc quan trọng nhất không phải là đọc đúng số, mà là **rác không bao giờ thành số**. Trang
+ * chuẩn bị so con số này với bản đang phát hành để quyết định có bảo người ta tải thêm hay không;
+ * một `NaN` lọt qua thành phép so sánh `false` và trang lặng lẽ dặn thừa mãi mãi, còn một số bịa
+ * lớn hơn thật thì trang bảo "khỏi tải" cho một gói mang cầu nối bị từ chối.
+ */
+describe("parseBundledRelayVersion", () => {
+  it("đọc số nguyên dương", () => {
+    expect(parseBundledRelayVersion("15")).toBe(15);
+  });
+
+  it("thiếu metadata là CHƯA BIẾT, không phải 0", () => {
+    // Gói 0.3.2 đã nằm trên ngăn trước khi có khoá này, nên nhánh `undefined` là nhánh chạy thật
+    // cho tới lần phát hành kế tiếp — không phải nhánh phòng xa.
+    expect(parseBundledRelayVersion(undefined)).toBeNull();
+  });
+
+  it.each(["", "mười lăm", "15.5", "0", "-13", "1e999", "  "])(
+    "rác không thành số: %j",
+    (raw) => {
+      expect(parseBundledRelayVersion(raw)).toBeNull();
+    },
+  );
+
+  it("đọc từ đĩa thì không có số nào — và null đó phải là null, không phải undefined lọt lưới", async () => {
+    const file = path.join(thuMuc, "MKT-Browser-Setup.exe");
+    writeFileSync(file, "giả lập");
+    process.env.MKT_BROWSER_INSTALLER_PATH = file;
+
+    const release = await readWindowsInstallerRelease();
+    expect(release.available).toBe(true);
+    expect(release.bundledRelayVersion).toBeNull();
   });
 });
