@@ -15,7 +15,7 @@ const config = [
     // `relay-bundle.cjs`, một file `.cjs` không khớp glob của eslint-config-next. Hệ quả là
     // ESLint đổ ngay từ bước dựng cấu hình ("không tìm thấy plugin react-hooks") thay vì báo một
     // lỗi lint, tức cả `npm run lint` chết chỉ vì có người vừa build.
-    ignores: [".next/**", "node_modules/**", "data/**", "prisma/migrations/**", "relay/dist/**"],
+    ignores: [".next/**", "node_modules/**", "data/**", "prisma/migrations/**", "relay/dist/**", "parked/**"],
   },
   ...next,
   ...nextTypescript,
