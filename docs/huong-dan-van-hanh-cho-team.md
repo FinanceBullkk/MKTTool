@@ -396,6 +396,30 @@ Nick họ từng phụ trách **không bị xóa theo**, chỉ mất chủ — A
 
 ---
 
+## Profile không mở được — đọc mã thoát trước khi đoán
+
+Trình duyệt từ chối khởi động thì nó **có nói lý do**, bằng một mã số. Tra bảng này trước, đừng
+đoán — ba trong bốn mã dưới đây từng làm mất nửa buổi vì lời khuyên trong thông báo chỉ sang
+hướng khác.
+
+| Mã | Nghĩa thật | Làm gì |
+|---|---|---|
+| **76** | Hết số phiên của gói. Gói free chỉ **1 trình duyệt cùng lúc** | Đóng profile đang mở. Nếu chắc chắn không mở cái nào: bạn vừa đóng cứng (Task Manager / tắt máy) nên phiên còn treo trên server — **chờ vài phút**, đừng cài lại gì cả |
+| **77** | Khóa license thiếu, sai, hoặc hết hạn | Kiểm lại khóa ở Cài đặt |
+| **78** | **Không tra được tên miền của máy chủ license** | Gần như luôn là tường lửa chặn UDP 53, không phải mạng hỏng và không phải khóa sai. Xem dưới |
+| **79** | Không ghi được trạng thái license dưới máy | Kiểm quyền thư mục |
+
+**Riêng mã 78.** Bản cài trước **0.3.4** đặt luật tường lửa chặn **mọi cổng UDP** của trình duyệt
+để chống rò WebRTC — chặn luôn DNS. Duyệt web vẫn được vì Chrome quay sang bộ phân giải của
+Windows, nhưng đường kiểm license không có đường lui nên chết, và báo "không tới được máy chủ".
+Người đọc sẽ đi kiểm mạng và kiểm khóa — cả hai đều đang đúng, nên bế tắc.
+
+**Cách xử: cài bản 0.3.4 trở lên.** Luật mới chỉ chừa UDP 53 và 443, phần còn lại vẫn chặn.
+
+Đóng profile **bằng nút trong ứng dụng**, đừng tắt cứng — tắt cứng để lại phiên treo và mã 76.
+
+---
+
 ## Bảng tra nhanh
 
 | Việc | Ở đâu |
