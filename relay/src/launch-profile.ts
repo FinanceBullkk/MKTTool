@@ -120,8 +120,17 @@ const REMEDY_BY_CODE: Record<string, string> = {
   ENGINE_UNAVAILABLE:
     "The browser engine is not ready. Open MKT Browser, wait for the engine to finish, then retry.",
   PROXY_REJECTED: "The local proxy path could not start. Check whether the account proxy is alive.",
+  // Câu cũ là "Ask an ADMIN before creating or moving it." — sai đường ra. `requestCreateProfileTicket`
+  // là `guardedAction`, nên chính người vừa bị từ chối bấm được nút "Tạo profile trên máy này" ngay
+  // trên trang nick họ đang đứng. Gặp thật ngày 19/08/2026, ở đúng bước đầu tiên của lượt onboard
+  // một chiếc máy mới, và nó cử người đi hỏi một người không cần hỏi.
+  //
+  // Nói ra hệ quả thay vì giấu: tạo profile ở đây **ghim nick vào máy này** — profile chỉ tồn tại
+  // cục bộ, nên máy này thành máy duy nhất mở được nick đó. Đó là thứ đáng cân nhắc một nhịp, và là
+  // lý do đúng đắn duy nhất để hỏi ai đó trước.
   PROFILE_NOT_FOUND:
-    "This PC does not have that profile. Ask an ADMIN before creating or moving it.",
+    'This PC does not have that profile. Open the account page and press "Tạo profile trên máy này" ' +
+    "— you can do it yourself. It pins the account to this PC, because the profile only exists here.",
   PROFILE_NOT_RUNNING: "The profile is not open. Launch it before controlling the page.",
   PROFILE_ALREADY_RUNNING:
     "This profile is already running with a different proxy. Close it, then try again.",
