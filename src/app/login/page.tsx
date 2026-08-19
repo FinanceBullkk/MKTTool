@@ -30,11 +30,11 @@ export default async function LoginPage({
   if (await readActor()) redirect("/");
 
   return (
-    <div className="mx-auto max-w-md py-10">
+    <div className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-6 py-10">
       <h1 className="mb-2 text-2xl font-semibold">Đăng nhập</h1>
-      <p className="mb-6 text-sm text-neutral-600 dark:text-neutral-400">
+      <p className="mb-6 text-sm text-neutral-400">
         Công cụ dùng tài khoản Google, và chỉ email đã khai trong{" "}
-        <code className="rounded bg-neutral-100 px-1 py-0.5 text-xs dark:bg-neutral-800">
+        <code className="rounded bg-white/[0.06] px-1 py-0.5 text-xs text-neutral-300">
           ALLOWED_EMAILS
         </code>{" "}
         mới vào được.
@@ -49,7 +49,7 @@ export default async function LoginPage({
 
       <GoogleSignInButton callbackURL={callbackURL === "/setup" ? "/setup" : "/"} />
 
-      <p className="mt-6 text-xs text-neutral-500">
+      <p className="mt-6 text-xs text-neutral-400">
         Cấu hình hỏng thì <code>npm run auth:check</code> chỉ ra thiếu biến nào — trừ{" "}
         <code>GOOGLE_CLIENT_SECRET</code>, thứ chỉ kiểm được bằng cách bấm thử đúng nút trên.
       </p>
