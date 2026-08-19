@@ -80,6 +80,36 @@ describe("validatePlatformAccountFields", () => {
   it("Facebook để trống mật khẩu lúc SỬA thì cho qua", () => {
     expect(validatePlatformAccountFields("FACEBOOK", {}, { creating: false })).toBeNull();
   });
+
+  /**
+   * TikTok (19/08/2026) đứng giữa hai nền tảng cũ: bắt buộc proxy như Reddit, nhưng CÓ mật khẩu
+   * riêng như Facebook. Ca dễ trượt nhất là để nó rơi vào nhánh cuối cùng của hàm — nhánh đó
+   * viết cho Facebook và sẽ đòi mật khẩu, tức chặn mọi nick TikTok đăng nhập bằng số điện thoại.
+   */
+  it("TikTok có proxy thì cho qua, kể cả khi không có mật khẩu nick", () => {
+    expect(validatePlatformAccountFields("TIKTOK", { proxyId: "proxy-1" }, CREATING)).toBeNull();
+  });
+
+  it("TikTok thiếu proxy thì chặn, và nói rõ hậu quả", () => {
+    const message = validatePlatformAccountFields("TIKTOK", { proxyId: "" }, CREATING);
+    expect(message).toContain("IP nhà");
+  });
+
+  it("TikTok ĐƯỢC PHÉP có mật khẩu nick — khác Reddit", () => {
+    expect(
+      validatePlatformAccountFields(
+        "TIKTOK",
+        { proxyId: "proxy-1", passwordEnc: "v1.aa.bb.cc" },
+        CREATING,
+      ),
+    ).toBeNull();
+  });
+
+  it("TikTok bị đòi proxy ở cả đường sửa", () => {
+    expect(
+      validatePlatformAccountFields("TIKTOK", { proxyId: "" }, { creating: false }),
+    ).not.toBeNull();
+  });
 });
 
 /**
@@ -101,6 +131,7 @@ const BASE_FORM = {
 
 const REDDIT_FORM = { ...BASE_FORM, platform: "REDDIT", proxyId: "proxy-1" };
 const FACEBOOK_FORM = { ...BASE_FORM, platform: "FACEBOOK", passwordEnc: CIPHERTEXT };
+const TIKTOK_FORM = { ...BASE_FORM, platform: "TIKTOK", proxyId: "proxy-1" };
 
 describe("accountCreateSchema gắn luật theo nền tảng", () => {
   it("nick Reddit thiếu proxy thì không parse được", () => {
@@ -137,6 +168,27 @@ describe("accountCreateSchema gắn luật theo nền tảng", () => {
   it("nick Facebook thiếu mật khẩu nick thì bị chặn", () => {
     const result = accountCreateSchema.safeParse({ ...FACEBOOK_FORM, passwordEnc: "" });
     expect(result.success).toBe(false);
+  });
+
+  /**
+   * Ca này canh đúng lỗi đã xảy ra thật: giao diện mới gửi lên `platform="TIKTOK"` trong khi
+   * `accountCreateSchema` mới chỉ khai `["REDDIT","FACEBOOK"]`, nên nút tạo profile im lặng
+   * không tạo được gì. Enum ở schema và giá trị form gửi lên phải khớp — đây là chỗ canh.
+   */
+  it("nick TikTok parse được — enum ở schema phải nhận nền tảng thứ ba", () => {
+    const result = accountCreateSchema.safeParse(TIKTOK_FORM);
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.platform).toBe("TIKTOK");
+  });
+
+  it("nick TikTok thiếu proxy thì không parse được", () => {
+    const result = accountCreateSchema.safeParse({ ...TIKTOK_FORM, proxyId: "" });
+    expect(result.success).toBe(false);
+  });
+
+  it("nick TikTok gửi kèm mật khẩu nick vẫn parse được", () => {
+    const result = accountCreateSchema.safeParse({ ...TIKTOK_FORM, passwordEnc: CIPHERTEXT });
+    expect(result.success).toBe(true);
   });
 });
 

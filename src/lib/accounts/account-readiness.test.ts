@@ -188,3 +188,45 @@ describe("chờ khác với thiếu", () => {
     expect(codesOf(redditNick({ status: "DEAD" }))).toContain("STATUS");
   });
 });
+
+/**
+ * TikTok (19/08/2026) — nền tảng thứ ba, và là ca canh chính xác cái bẫy của `needsBrowserStack()`.
+ *
+ * Hàm đó từng hỏi `platformFamily(platform) === "REDDIT"`, nên nền tảng mới thêm vào rơi thẳng
+ * vào nhánh "không cần trình duyệt": nick TikTok không proxy, không profile, không máy vẫn được
+ * chấm là SẴN SÀNG. Đó là kiểu nói dối tệ nhất mà cột này có thể mắc — nó bảo mở được đúng cái
+ * nick sẽ chạy bằng IP nhà.
+ */
+describe("nick TikTok — mở bằng trình duyệt, đòi đủ như Reddit", () => {
+  const tiktokNick = (overrides: Partial<ReadinessInput> = {}): ReadinessInput =>
+    redditNick({ platform: "TIKTOK", ...overrides });
+
+  it("đủ điều kiện thì sẵn sàng", () => {
+    const result = describeAccountReadiness(tiktokNick());
+
+    expect(result.ready).toBe(true);
+    expect(result.blockers).toEqual([]);
+  });
+
+  it("thiếu proxy KHÔNG được chấm là sẵn sàng", () => {
+    const codes = codesOf(tiktokNick({ proxy: null }));
+
+    expect(codes).toContain("NO_PROXY");
+  });
+
+  it("thiếu profile antidetect thì chặn", () => {
+    expect(codesOf(tiktokNick({ antidetectProfileId: null }))).toContain("NO_PROFILE");
+  });
+
+  it("chưa ghim máy thì chặn — id profile chỉ có nghĩa trên đúng máy tạo ra nó", () => {
+    expect(codesOf(tiktokNick({ device: null }))).toContain("NO_DEVICE");
+  });
+
+  it("có profile nhưng chưa đăng nhập lần nào thì chặn", () => {
+    expect(codesOf(tiktokNick({ firstLoginAt: null }))).toContain("NOT_LOGGED_IN");
+  });
+
+  it("proxy hỏng thì chặn, không phải chỉ cảnh báo", () => {
+    expect(codesOf(tiktokNick({ proxy: { lastCheckVerdict: "DEAD" } }))).toContain("PROXY_BROKEN");
+  });
+});

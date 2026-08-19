@@ -225,7 +225,7 @@ model ScheduledJobRun {
 
 model Account {
   id       String @id @default(cuid())
-  platform String // REDDIT | FACEBOOK
+  platform String // REDDIT | FACEBOOK | TIKTOK
   username String
 
   // credential — tất cả đều mã hóa, và tất cả đều thuộc vùng operator: không luồng nghiệp vụ

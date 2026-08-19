@@ -266,3 +266,53 @@ describe("hình dạng ciphertext", () => {
     expect(account.totpSecretEnc).toBeNull();
   });
 });
+
+/**
+ * Nền tảng thứ ba đi hết đường tạo, không dừng ở zod.
+ *
+ * Bài này canh một lỗi đã xảy ra thật (19/08/2026): giao diện mới gửi lên `platform="TIKTOK"`
+ * trong khi `accountCreateSchema` mới chỉ khai `["REDDIT","FACEBOOK"]`. Nút "Tạo Profile" im
+ * lặng không tạo được gì, và **1848 bài test vẫn xanh** — vì không bài nào dựng FormData rồi
+ * gọi `createAccount`, chúng chỉ gọi thẳng các hàm lib bên dưới.
+ *
+ * Nên bài này cố tình đi qua đúng cửa mà giao diện đi: FormData → `createAccount` → database.
+ */
+describe("nick TikTok đi hết đường tạo", () => {
+  it("tạo được và ghi đúng nền tảng xuống database", async () => {
+    const result = await createAccount(
+      null,
+      createForm({ platform: "TIKTOK", proxyId, ownerId: NAM_ID }),
+    );
+
+    expect(result.ok).toBe(true);
+
+    const account = await prisma.account.findFirstOrThrow();
+    expect(account.platform).toBe("TIKTOK");
+    expect(account.proxyId).toBe(proxyId);
+    // Khác Reddit: nick TikTok CÓ mật khẩu riêng, và nó vẫn phải nằm ở vùng khóa operator.
+    expect(decryptCredential(account.passwordEnc ?? "", loadVaultKey("operator"))).toBe(
+      "mat-khau-nick",
+    );
+  });
+
+  /** Proxy bắt buộc — cùng lý do với Reddit, và phải chặn TRƯỚC khi ghi gì xuống. */
+  it("thiếu proxy thì bị chặn, không ghi bản ghi nào", async () => {
+    const result = await createAccount(null, createForm({ platform: "TIKTOK", proxyId: "" }));
+
+    expect(result.ok).toBe(false);
+    expect(result.message).toContain("IP nhà");
+    expect(await prisma.account.count()).toBe(0);
+  });
+
+  /** Đăng nhập bằng số điện thoại / Google: không có mật khẩu nick, và đó không phải lỗi. */
+  it("không có mật khẩu nick vẫn tạo được", async () => {
+    const result = await createAccount(
+      null,
+      createForm({ platform: "TIKTOK", proxyId, passwordEnc: "" }),
+    );
+
+    expect(result.ok).toBe(true);
+    const account = await prisma.account.findFirstOrThrow();
+    expect(account.passwordEnc).toBeNull();
+  });
+});

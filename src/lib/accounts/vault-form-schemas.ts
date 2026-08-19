@@ -231,6 +231,22 @@ export function validatePlatformAccountFields(
     return null;
   }
 
+  /**
+   * TikTok (19/08/2026) — nick chạy bằng trình duyệt như Reddit, nhưng có mật khẩu riêng.
+   *
+   * Proxy bắt buộc, cùng lý do với Reddit: mở nick bằng IP nhà là cách nhanh nhất để cả cụm
+   * dính chùm. Mật khẩu thì **không** bắt buộc — nick TikTok đăng nhập được bằng mật khẩu,
+   * bằng số điện thoại, hoặc bằng Google, và ép một cách ở đây là chặn hai cách còn lại ngay
+   * ô nhập đầu tiên. Thiếu bí mật là chuyện chấm ở `describeAccountReadiness()`, không phải
+   * chuyện chặn lúc khai — đúng ranh giới mà chú thích đầu hàm này nói tới.
+   */
+  if (platform === "TIKTOK") {
+    if (!values.proxyId?.trim()) {
+      return "Nick TikTok bắt buộc gắn một proxy — thiếu nó là nick chạy bằng IP nhà.";
+    }
+    return null;
+  }
+
   if (options.creating && !values.passwordEnc?.trim()) {
     return "Nick Facebook phải có mật khẩu nick.";
   }
@@ -249,7 +265,7 @@ function withPlatformAccountCheck<T extends z.ZodTypeAny>(schema: T, platform: s
 
 const accountCreateBase = z.object({
   ...accountShape,
-  platform: z.enum(["REDDIT", "FACEBOOK"]),
+  platform: z.enum(["REDDIT", "FACEBOOK", "TIKTOK"]),
   /**
    * Nick mới **luôn** bắt đầu ở `COLD_START`, nên form tạo không hỏi nữa (07/08/2026).
    *

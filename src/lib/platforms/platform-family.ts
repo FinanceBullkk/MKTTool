@@ -6,10 +6,17 @@
  * Fanpage và Group đều là Facebook — đăng trùng giữa chúng vẫn bị Meta nhìn thấy.
  */
 
-export const PLATFORM_FAMILIES = ["REDDIT", "FACEBOOK"] as const;
+export const PLATFORM_FAMILIES = ["REDDIT", "FACEBOOK", "TIKTOK"] as const;
 export type PlatformFamily = (typeof PLATFORM_FAMILIES)[number];
 
-/** Mọi loại đích đăng được. Dùng chung cho form và bộ luật để hai nơi không lệch nhau. */
+/**
+ * Mọi loại đích đăng được. Dùng chung cho form và bộ luật để hai nơi không lệch nhau.
+ *
+ * TIKTOK **không** có mặt ở đây dù là một họ nền tảng hợp lệ: nó là nơi nick sống, không phải
+ * đích mà pipeline đăng bài nhắm tới. Pipeline (hàng đợi, đích đăng, bộ luật) đang tạm gác từ
+ * 19/08/2026 — xem `plans/260819-1059-tiktok-only-ui-rescope/`. Thêm TIKTOK vào danh sách này
+ * là bật lại cả bộ luật giữ nhịp cho một nền tảng chưa có bộ đăng nào.
+ */
 export const TARGET_PLATFORMS = ["REDDIT", "FACEBOOK_PAGE", "FACEBOOK_GROUP"] as const;
 export type TargetPlatform = (typeof TARGET_PLATFORMS)[number];
 
@@ -52,6 +59,7 @@ export function isCommunityPlatform(platform: string): boolean {
 export function platformFamily(platform: string): PlatformFamily | string {
   if (platform === "REDDIT") return "REDDIT";
   if (platform.startsWith("FACEBOOK")) return "FACEBOOK";
+  if (platform === "TIKTOK") return "TIKTOK";
   return platform;
 }
 

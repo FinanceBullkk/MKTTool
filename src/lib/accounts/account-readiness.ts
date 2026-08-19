@@ -86,13 +86,22 @@ export interface ReadinessInput {
 }
 
 /**
- * Nick Facebook cần proxy / profile / máy không.
+ * Nick này có phải mở bằng trình duyệt antidetect không — tức có cần proxy / profile / máy.
  *
- * Không: Fanpage đăng bằng Graph API. Khai thêm thì vẫn dùng được (README cho phép), nhưng
- * **không khai cũng không phải thiếu sót** — nên chỉ đòi khi đã khai một nửa (xem `NO_DEVICE`).
+ * Hỏi ngược: **chỉ Facebook là không cần.** Fanpage đăng bằng Graph API có token chính thức,
+ * không mở trình duyệt, không giả vân tay, không đi qua proxy. Khai thêm thì vẫn dùng được
+ * (README cho phép), nhưng không khai cũng không phải thiếu sót — nên chỉ đòi khi đã khai một
+ * nửa (xem `NO_DEVICE`).
+ *
+ * Viết dạng loại trừ chứ không liệt kê (19/08/2026, lúc thêm TIKTOK). Bản cũ hỏi
+ * `=== "REDDIT"`, nên nền tảng thứ ba vừa thêm vào đã lặng lẽ rơi vào nhánh "không cần trình
+ * duyệt": nick TikTok không proxy, không profile, không máy vẫn được chấm là **sẵn sàng** —
+ * một lời nói dối đúng vào chỗ nguy hiểm nhất. Dạng loại trừ cho mặc định AN TOÀN: nền tảng
+ * mới thêm sau này rơi vào nhánh chặt, và nếu sai thì sai theo hướng đòi thừa chứ không phải
+ * thả lỏng.
  */
 function needsBrowserStack(platform: string): boolean {
-  return platformFamily(platform) === "REDDIT";
+  return platformFamily(platform) !== "FACEBOOK";
 }
 
 export function describeAccountReadiness(input: ReadinessInput): AccountReadiness {
@@ -139,7 +148,7 @@ export function describeAccountReadiness(input: ReadinessInput): AccountReadines
     blockers.push({
       code: "NO_PROXY",
       label: "chưa gắn proxy",
-      fix: "Gán proxy ở thẻ Sửa nick. Nick Reddit không proxy là nick chạy bằng IP nhà.",
+      fix: "Gán proxy ở thẻ Sửa nick. Nick mở bằng trình duyệt mà không proxy là chạy bằng IP nhà.",
     });
   } else if (input.proxy && PROBLEM_VERDICTS.includes(input.proxy.lastCheckVerdict as never)) {
     // Proxy hỏng chặn mở profile ở `launch/route.ts`, nên nó là chặn thật chứ không phải cảnh báo.
