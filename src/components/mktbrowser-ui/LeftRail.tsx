@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Boxes, Plug, Settings, Command } from "lucide-react";
+import { Boxes, Plug, MonitorSmartphone, Settings, Command } from "lucide-react";
 
 interface NavItem {
   href: string;
@@ -14,6 +14,7 @@ interface NavItem {
 const ITEMS: NavItem[] = [
   { href: "/", icon: Boxes, label: "Kênh / Profiles", kbd: "1" },
   { href: "/proxies", icon: Plug, label: "Proxy / IP", kbd: "2" },
+  { href: "/relay-devices", icon: MonitorSmartphone, label: "Máy / Relay", kbd: "3" },
   { href: "/setup", icon: Settings, label: "Cài đặt / Setup", kbd: "," },
 ];
 

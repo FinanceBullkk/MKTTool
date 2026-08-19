@@ -1,3 +1,4 @@
+import { ParkedScopeBanner } from "@/components/layout/parked-scope-banner";
 import Link from "next/link";
 import { InteractionForm } from "@/components/queue/interaction-form";
 import { PromoRatioTable } from "@/components/queue/promo-ratio-table";
@@ -52,6 +53,7 @@ export default async function QueuePage({
 
   return (
     <>
+      <ParkedScopeBanner what="hàng đợi đăng bài" />
       <PageHeading
         title="Hàng đợi"
         description="Mỗi dòng là một lần đăng đã được bộ luật chấm. Đăng xong nhớ bấm 'Đã đăng' — dữ liệu đó nuôi chính bộ luật."

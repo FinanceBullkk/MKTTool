@@ -1,3 +1,4 @@
+import { ParkedScopeBanner } from "@/components/layout/parked-scope-banner";
 import Link from "next/link";
 import { ActionForm } from "@/components/ui/form-controls";
 import { Card, DataTable, EmptyState, PageHeading, StatusBadge } from "@/components/ui/page-section";
@@ -14,6 +15,7 @@ export default async function TargetsPage() {
 
   return (
     <>
+      <ParkedScopeBanner what="target Reddit/Facebook" />
       <PageHeading
         title="Đích đăng"
         description="Subreddit hoặc Fanpage/Group. Các ngưỡng ở đây là đầu vào cho bộ luật an toàn ở Phase 02 — nhập đúng luật thật của từng sub."

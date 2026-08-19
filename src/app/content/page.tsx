@@ -1,3 +1,4 @@
+import { ParkedScopeBanner } from "@/components/layout/parked-scope-banner";
 import Link from "next/link";
 import { ContentItemForm } from "@/components/content/content-item-form";
 import { Card, DataTable, EmptyState, PageHeading, StatusBadge } from "@/components/ui/page-section";
@@ -24,6 +25,7 @@ export default async function ContentPage() {
 
   return (
     <>
+      <ParkedScopeBanner what="kho nội dung và pipeline đăng bài" />
       <PageHeading
         title="Kho content"
         description="Team viết ở đâu cũng được, nhưng phải nằm ở đây thì bộ luật mới so trùng được. Content chưa xếp lịch thì chưa tính vào tỷ lệ nào cả."

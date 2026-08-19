@@ -1,3 +1,4 @@
+import { ParkedScopeBanner } from "@/components/layout/parked-scope-banner";
 import Link from "next/link";
 import { CheckTokensButton } from "@/components/facebook/facebook-connection-actions";
 import { FacebookConnectionTable } from "@/components/facebook/facebook-connection-table";
@@ -44,6 +45,7 @@ export default async function FacebookPage({
 
   return (
     <>
+      <ParkedScopeBanner what="Facebook" />
       <PageHeading
         title="Facebook"
         description="Fanpage đăng bằng Graph API chính thức — miễn phí và không vi phạm chính sách. Group phải đăng tay: Meta đã gỡ quyền tự đăng group từ 04/2024."

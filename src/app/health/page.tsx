@@ -1,3 +1,4 @@
+import { ParkedScopeBanner } from "@/components/layout/parked-scope-banner";
 import Link from "next/link";
 import { AccountHealthTable } from "@/components/health/account-health-table";
 import { DailyScheduleSummary } from "@/components/health/daily-schedule-summary";
@@ -31,6 +32,7 @@ export default async function HealthPage() {
 
   return (
     <>
+      <ParkedScopeBanner what="dò shadowban Reddit" />
       <PageHeading
         title="Sức khỏe nick"
         description="Dò từ góc nhìn người ngoài, qua proxy quan sát viên. Shadowban im lặng — không đo thì ba tháng sau mới biết cả cụm đã chết."
