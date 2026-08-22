@@ -1,6 +1,6 @@
 # MKTTool — Tài liệu sản phẩm
 
-**Cập nhật:** 11/08/2026 · **Trạng thái:** [development-roadmap.md](development-roadmap.md)
+**Cập nhật:** 22/08/2026 · **Trạng thái:** [development-roadmap.md](development-roadmap.md)
 
 Tài liệu này trả lời "vì sao" và "phạm vi tới đâu". Chi tiết thi công nằm ở
 [plan công cụ gốc](../plans/260801-2030-multi-account-posting-console/plan.md),
@@ -12,8 +12,8 @@ Thuật ngữ tra ở [domain-glossary.md](domain-glossary.md); mục lục tài
 
 ## 1. Vấn đề
 
-Team marketing muốn tăng nhận diện thương hiệu và kiếm lead trên Reddit và Facebook bằng cách
-vận hành nhiều tài khoản. Vận hành nhiều nick có đúng **hai cách chết**:
+The marketing team manages multiple Reddit and TikTok browser identities plus Facebook Pages. The
+browser-backed identities have exactly **two failure classes**:
 
 | Cách chết | Nguyên nhân | Phần nào lo |
 |---|---|---|
@@ -37,6 +37,7 @@ Giai đoạn 1 công cụ chạy trên **máy bàn của bạn MKT**, nghe local
 ## 3. Quy mô giai đoạn 1
 
 - 5-8 nick Reddit *(nền tảng chính, ~80% công sức)*
+- TikTok profiles for isolated, human-controlled browser use; no TikTok posting volume is approved
 - 1-3 Fanpage Facebook *(qua Graph API chính thức)*
 - 2-3 nick Facebook cá nhân *(để quản trị Page và seeding group thủ công)*
 - Mục tiêu vận hành: **15-20 bài/ngày trong khoảng 1 tiếng**
@@ -54,6 +55,7 @@ spam farm — thứ vừa vô đạo đức vừa chết nhanh.
 | **Tự giải captcha** | Gặp captcha nghĩa là nick ĐÃ bị nghi ngờ. Tự giải để chui vào tiếp biến cảnh báo mềm thành khóa vĩnh viễn |
 | **Tự động đăng Facebook Group** | Groups API bị Meta khai tử 04/2024. Không tool nào làm được nữa. Group đăng tay |
 | **Bot chạy 24/7 không người giám sát** | Phase 05 là "bán tự động": máy soạn sẵn, người bấm nút cuối |
+| **TikTok warmup or posting automation** | The 19 August rescope activated identity/profile management only. Content, scheduling, warmup, and posting remain parked until separately planned and approved |
 | **Dùng chung proxy giữa các nick** | Ràng buộc 1:1 do database ép, không lách được |
 | **Đưa nick thật lên proxy datacenter giá rẻ** | Proxy rẻ để test kỹ thuật thì được, đưa nick thật vào là giết nick |
 
@@ -109,10 +111,15 @@ Nếu sau này có ai đề xuất thêm một trong các mục trên, đây là
     state is pinned. An internal PKI was considered and rejected: pushing a private root to six
     unmanaged WORKGROUP machines needs an administrator on each one and still would not clear
     SmartScreen. Revisit if distribution ever reaches outside the known team.
+12. **TikTok is an identity scope, not a posting scope (decided 19 August 2026).** TikTok accounts
+    use the same static-proxy, managed-profile, Relay-device, and human-login boundaries as Reddit.
+    They are valid account records and visible in the profile console, but they are intentionally
+    absent from `TARGET_PLATFORMS`; no TikTok content, queue, warmup, or publishing behavior follows.
 
 ## 6. Nguyên tắc bất di bất dịch
 
-> **Mỗi nick Reddit có đúng 1 proxy tĩnh, 1 vân tay/profile, 1 máy giữ và 1 người phụ trách.**
+> **Every browser-backed Reddit or TikTok account has exactly 1 static proxy, 1 managed
+> fingerprint/profile, 1 Relay device, and 1 responsible operator.**
 
 Database ép hai nick không thể dùng chung proxy/profile (`Account.proxyId` và
 `Account.antidetectProfileId` đều `@unique`). Quan hệ chủ nick/máy giữ được kiểm lại ở các action
@@ -161,6 +168,7 @@ thực, không có cách nào đi tắt. Phần mềm xong sớm không giúp g�
 |---|---|---|
 | 0 | Chuẩn bị & kiểm chứng khả thi | 🔄 Chặng B + C đạt 02/08/2026; còn mua proxy/nick + cold-start |
 | 0B | Internal MKT Browser | 🟡 Windows x64 is the only v1/demo platform; MKB-00/W01/W02/01/01E/02 verified; MKB-03 installer/onboarding and MKB-04 pilot/canary still gate real accounts and rollout; retain upstream UX/UI in v1 |
+| 0C | TikTok identity console | 🟡 Account/profile/manual-browser scope implemented 19/08/2026; content, scheduling, warmup, posting, real-account use, and rollout remain out of scope or gated |
 | 1 | Kho danh tính | ✅ 01/08/2026 |
 | 2 | Hàng đợi content + bộ luật an toàn | ✅ 02/08/2026 |
 | 3 | Theo dõi sức khỏe tài khoản | ✅ 03/08/2026 — bộ dò đọc được Reddit thật. Proxy quan sát viên đã có và kiểm sống trên máy chủ (06/08/2026); **vẫn chưa chạy với nick thật** vì kho trên máy chủ chưa có nick Reddit |

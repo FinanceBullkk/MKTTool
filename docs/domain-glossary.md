@@ -1,6 +1,6 @@
 # Từ điển thuật ngữ nghiệp vụ
 
-**Updated:** 11/08/2026
+**Updated:** 22/08/2026
 
 Bộ luật an toàn là tri thức nghiệp vụ được mã hóa thành code. Tài liệu này giải thích
 từng khái niệm để 6 tháng nữa vẫn hiểu vì sao ngưỡng Jaccard là 0.70 chứ không phải 0.85.
@@ -15,7 +15,7 @@ Tra cứu thêm: [mục lục tài liệu](README.md) · [tài liệu sản ph�
 
 | Thuật ngữ | Định nghĩa | Vì sao quan trọng | Nơi xuất hiện |
 |---|---|---|---|
-| **Nick / tài khoản** | Một tài khoản trên Reddit hoặc Facebook. Đơn vị gắn 1:1 với proxy và vân tay. | Toàn bộ bộ luật xoay quanh việc giữ mỗi nick "sạch". | `prisma/schema.prisma` → model `Account` |
+| **Nick / account** | A Reddit, Facebook, or TikTok account. Browser-backed Reddit/TikTok accounts bind 1:1 to a static proxy, managed profile, and Relay device; API-only Facebook Page administrators may omit those browser fields. | Prevents a new platform from silently inheriting the wrong identity or posting rules. | `prisma/schema.prisma` → model `Account`; `account-readiness.ts` |
 | **Giọng viết + mảng nội dung** | Hai câu ghi chú trên chính nick: nó nói kiểu gì, nó viết về cái gì. | Cú hích **trước khi viết**: người ôm mười nick mà không có gì nhắc làn thì viết cả mười bài bằng giọng tự nhiên của mình, rồi bị luật 7 chặn ở phút cuối. **Lưu ý:** bộ luật KHÔNG đọc hai cột này — luật 7 so trùng văn bản thật, xét mọi nick cùng họ nền tảng. Thiếu thì `describeAccountReadiness()` báo `NO_VOICE`. | `schema.prisma` → `Account.voice`, `Account.contentAngle` |
 | **Vân tay (fingerprint)** | Tổ hợp đặc điểm trình duyệt (canvas, WebGL, font, timezone…) dùng để nhận diện thiết bị. | Hai nick chung vân tay = cùng một người = shadowban. | Do antidetect browser quản lý, MKTTool chỉ lưu `antidetectProfileId` |
 | **Antidetect browser** | A desktop application that gives each account an isolated browser profile and fingerprint. MKT Browser is the production Relay target; AdsPower remains a secondary adapter. | It is the hardware/browser isolation layer between accounts. | `src/lib/antidetect/` |
@@ -60,7 +60,7 @@ Tra cứu thêm: [mục lục tài liệu](README.md) · [tài liệu sản ph�
 | **Trạng thái job** | `PENDING` (chờ đăng) · `BLOCKED` (bị luật chặn) · `POSTED` (đã đăng) · `FAILED` (lỗi) · `SKIPPED` (bỏ qua). | Chỉ job `PENDING` và `POSTED` chiếm chỗ trong lịch — dùng để đếm hạn mức, tỷ lệ promo, so trùng. | `PostJob.status`; `content-types.ts` → `ACTIVE_JOB_STATUSES` |
 | **Tương tác (interaction)** | Mọi lần nick chạm vào một thread: đăng bài, bình luận, upvote. | Dữ liệu này nuôi luật đụng độ thread (luật 8). Không ghi thì luật không có gì để so. | `schema.prisma` → `Interaction` |
 | **Ghi đè (override)** | Người dùng bỏ qua cảnh báo/chặn, bắt buộc nhập lý do, ghi `AuditLog`. | Cho phép linh hoạt nhưng để lại dấu vết. Luật 8 KHÔNG cho ghi đè. | `PostJob.overrideReason`; `rules-engine.ts` → `overridable` |
-| **Họ nền tảng (platform family)** | Gom các loại đích về một nhóm: `REDDIT` / `FACEBOOK` (gồm `FACEBOOK_PAGE` + `FACEBOOK_GROUP`). | So trùng chỉ trong cùng họ — các nền tảng không chia sẻ dữ liệu, đăng cùng bài lên Reddit và Facebook là bình thường; nhưng Fanpage và Group đều là Facebook. | `src/lib/platforms/platform-family.ts` |
+| **Platform family** | Groups account/target values as `REDDIT`, `FACEBOOK` (Page + Group), or `TIKTOK`. TikTok is a valid account family but intentionally not a posting target. | Similarity checks stay within one family, while adding a TikTok identity cannot accidentally enable its parked queue or publishing pipeline. | `src/lib/platforms/platform-family.ts` → `PLATFORM_FAMILIES`, `TARGET_PLATFORMS` |
 
 ## Bộ luật
 
@@ -109,7 +109,7 @@ nhóm này: **chiếm được máy chủ thì lấy được gì?** Đáp án p
 | **Cấp khóa operator** | ADMIN bấm một nút, cầu nối trên máy ADMIN bọc `VAULT_KEY_OPERATOR` cho đúng máy nhận; máy chủ giữ hộ tới khi máy đó mở web app. | Không có mã nào để gửi cho nhau. Sổ ghi *"chưa cấp"* chứ không ghi *"chưa có khóa"* — máy dán khóa bằng tay thì máy chủ mù cho tới khi chính nó khai. | `RelayDevice.operatorKeyGrant`, `operatorKeyReadyAt` |
 | **Ghim nick vào máy** | Mỗi nick thuộc về đúng một máy. `Account.deviceId` quyết định vé bay về đâu — **không phải người đang bấm nút**. | Profile antidetect chỉ tồn tại trên một máy, nên một nick mở được ở máy khác là chuyện không có thật. Nút tạo profile tự ghim luôn nick vào máy vừa tạo. ADMIN cũng không có ngoại lệ ở nút mở profile. | `Account.deviceId`; `ticket-recipient-lookup.ts` |
 | **ADMIN / OPERATOR** | Hai vai trò. ADMIN: phân công cụm, đăng ký/thu hồi máy, cấp khóa, **giữ kho proxy**. OPERATOR: mọi thứ còn lại, trừ bí mật của nick không phải mình phụ trách. | **Tầm nhìn không chia** — ai cũng thấy nick và job của người khác, vì luật đụng độ thread phải nêu đúng tên nick đồng nghiệp thì người đọc mới xử lý được. Thứ bị chia là **quyền ghi** và **bí mật nick**, và chặn nằm ở tầng phát vé chứ không phải ẩn nút. | `ALLOWED_EMAILS`, `ADMIN_EMAILS`; `src/lib/auth/require-actor.ts` |
-| **Sẵn sàng (readiness)** | Phép chấm *"nick này dùng được chưa"*. Reddit đòi tám điều kiện, Facebook chỉ hai. Ba màu: 🟢 sẵn sàng, 🟡 đang chờ, 🔴 chưa dùng được. | Phân biệt **chờ** với **thiếu** là chủ ý: gộp chung thì một nick đang cold-start đúng lịch trông y hệt một nick quên gắn proxy. | `src/lib/accounts/account-readiness.ts` → `ReadinessBlockerCode` |
+| **Readiness** | The verdict for whether an account can be used. Browser-backed Reddit and TikTok accounts require the proxy/profile/device/manual-login boundary; API-only Facebook accounts use the lighter Page path. | Separates a legitimate wait from missing identity infrastructure, and prevents new browser platforms from defaulting to the weaker Facebook branch. | `src/lib/accounts/account-readiness.ts` → `ReadinessBlockerCode` |
 | **Đăng nhập lần đầu** | Chặng 3 của luồng nhập nick: mở profile vừa dựng, đăng nhập nick vào đó, rồi bấm *"Đã đăng nhập được"*. | Nút tạo profile sinh ra một **trình duyệt trắng** — có proxy, có vân tay, chưa một cookie nào. Một nick khoe màu xanh mà chưa ai đăng nhập là lời nói dối chỉ lộ ra vào hôm định đăng bài. | `Account.firstLoginAt`; blocker `NOT_LOGGED_IN` |
 
 ---

@@ -1,6 +1,6 @@
 # Kiến trúc hệ thống
 
-**Updated:** 14 August 2026
+**Updated:** 22 August 2026
 
 Tài liệu này trả lời: hệ thống **chạy ở đâu**, **tin ai**, **phụ thuộc gì**, và **hỏng thì hỏng
 thế nào**. Code nằm ở đâu thì tra [codebase-summary.md](codebase-summary.md); thuật ngữ tra
@@ -37,7 +37,7 @@ flowchart LR
         Relay["Cầu nối (Relay .exe)<br/>(chứa VAULT_KEY_OPERATOR)"]
         MktBrowser["MKT Browser<br/>MCP 127.0.0.1:47822"]
         ProxyTinh["Proxy tĩnh"]
-        Reddit["Reddit"]
+        Reddit["Reddit / TikTok"]
 
         Browser -- "chuyển vé qua<br/>127.0.0.1:47821" --> Relay
         Relay --> MktBrowser
@@ -56,13 +56,18 @@ flowchart LR
 
 Ba đường ra internet đi qua **ba IP khác nhau và không được lẫn**: nick đi bằng proxy tĩnh của chính nó (từ máy bàn), bộ dò đi bằng proxy quan sát viên (từ máy chủ), Graph API đi bằng IP máy chủ. Lẫn đường nào cũng phá đúng thứ nó đang bảo vệ.
 
+TikTok belongs to the browser-identity path, not the posting pipeline. TikTok accounts use the same
+account → static proxy → managed profile → Relay device ownership boundary as Reddit, but their
+current action is human-controlled profile use only. `TARGET_PLATFORMS` still excludes TikTok, so
+the queue, posting rules, warmup, and publishing paths do not silently activate for it.
+
 > **Current W02 boundary:** production Relay constructs `MktBrowserAdapter` and calls the owned
 > contract on loopback port `47822` by default. The path remains
 > `Web → Relay → authenticated MCP → MKT Browser`; operator keys stay in Relay and profiles/cookies
 > stay on the operator device. There is no MultiZen provider or configuration fallback.
 
 > **Current managed boundary:** contract version `4` advertises idempotent create, atomic launch,
-> managed-profile locking, operation diagnostics, and no MCP profile deletion. Relay v12 preserves
+> managed-profile locking, operation diagnostics, and no MCP profile deletion. Relay v15 preserves
 > ticket `jti` as
 > `operationId`, calls `launch_managed_profile`, and accepts the result only when correlation matches.
 > The Browser persists and reads back the requested proxy before Chromium starts; a running session
@@ -80,6 +85,11 @@ Ba đường ra internet đi qua **ba IP khác nhau và không được lẫn**:
 > expected Browser and Relay ownership, ports `47821`/`47822`, MultiZen process state, and startup
 > entries. `/setup` requires this runtime-dependent capability and routes absence to installer repair;
 > ordinary Relay profile operations retain the base managed-capability requirement.
+
+> **P0 rollout boundary:** automated proxy-egress, lease-journal, and readiness checks are green, but
+> `license-capacity-v1` is not advertised because vendor start/heartbeat/end state is not connected
+> to the journal. Real proxy/DNS/WebRTC evidence, human login/input, second-PC setup, crash/reboot
+> recovery, and the canary remain outside what code-only evidence can prove.
 
 > **“Relay” does not mean an edge proxy here.** It exposes no public tunnel, target-forwarding API,
 > or proxy pool. It verifies recipient-bound tickets, opens operator-domain secrets locally, and calls
@@ -188,7 +198,7 @@ Toàn bộ `data/` và `.env` đều nằm trong `.gitignore`. Repo **không bao
 | Phụ thuộc | Dùng để | Hỏng thì biểu hiện | Xử lý đã cài sẵn |
 |---|---|---|---|
 | **MKT Browser** (authenticated local MCP, default `127.0.0.1:47822`) | Open browser profiles and apply their static proxies | HTTP 401/403, desktop app stopped, contract/engine/CPU mismatch, or missing WebRTC containment | One transport re-handshake is allowed; proxy/tool failures remain fail-closed. MKB-02 enforces managed controls and token separation. MKB-03 now also requires exact per-engine outbound UDP protection before any proxied Windows launch; the installer owns elevation and stable runtime paths. BrowserLeaks/runtime-update retest, engine pinning, signed updates/rollback, and installer recovery remain gates; Mac arm64 belongs to MKB-07 |
-| **Proxy tĩnh** (nhà cung cấp) | Đường ra của từng nick | Đẩy vào profile vẫn "thành công" dù proxy đã chết | Không tự phát hiện được — phải mở `ipinfo.io` kiểm IP sau mỗi lần mở profile mới |
+| **Proxy tĩnh** (nhà cung cấp) | Đường ra của từng nick | Egress probe unavailable, empty, malformed, or different from the assigned route | Managed launch fails closed before success. Real in-browser equality plus DNS/WebRTC evidence remains a rollout gate rather than an assumption from the probe alone |
 | **Proxy quan sát viên** | Dò shadowban | Chưa nhập thì `npm run health` dừng ngay từ đầu | Cố ý dừng: dò bằng IP nhà còn tệ hơn không dò |
 | **HTML `old.reddit.com`** | Nguồn dữ liệu dò shadowban + karma | Reddit đổi giao diện → parser hỏng | Hỏng thì kết luận **`ERROR` ("Không dò được")**, tuyệt đối không bao giờ là `HEALTHY`. `npm run health:smoke` đối chiếu Reddit thật |
 | **Facebook Graph API** | Đăng Fanpage | Token hết hạn/bị thu hồi | Chấm sức khỏe token **trước khi gọi mạng**; Facebook từ chối thì ghi `tokenValid=false` ngay |

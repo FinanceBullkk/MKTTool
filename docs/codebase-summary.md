@@ -1,6 +1,6 @@
 # Bản đồ mã nguồn
 
-**Cập nhật:** 10/08/2026
+**Cập nhật:** 22/08/2026
 
 Tài liệu dành cho người mới và AI agent định vị nhanh trong codebase — **code nằm ở đâu**.
 Hệ thống chạy ở đâu và phụ thuộc gì thì xem [system-architecture.md](system-architecture.md);
@@ -38,7 +38,9 @@ src/
 │   │                           nhắc việc đăng tay (Reddit + Group)
 │   ├── facebook/               Bảng Page: gán nick quản trị, kiểm token, ngắt kết nối
 │   ├── health/                 Bảng sức khỏe, nút dò lại, biểu đồ karma, quản lý proxy quan sát viên
+│   ├── mktbrowser-ui/          Dark profile console shell, grid/table views, runtime inventory
 │   ├── relay/                  Nút thu hồi máy cầu nối (hỏi lại trước khi gạch tên)
+│   ├── tiktok/                 TikTok profile-creation sheet; no TikTok posting pipeline
 │   └── content/                Form nhập content
 └── lib/
     ├── accounts/               Server actions + quy tắc trạng thái nick
@@ -70,7 +72,8 @@ src/
     ├── ops-alerts/             Khay cảnh báo vận hành dưới thanh đầu trang: hai vùng khóa chung
     │                           một khóa, máy chủ còn giữ khóa operator, cầu nối bản cũ, lịch dò
     │                           / lịch sao lưu khai thiếu hoặc khai sai dạng. Lọc theo vai trò
-    ├── platforms/              Gộp họ nền tảng (REDDIT / FACEBOOK)
+    ├── platforms/              Gộp họ nền tảng (REDDIT / FACEBOOK / TIKTOK); posting targets
+    │                           deliberately exclude TikTok while that pipeline is parked
     ├── proxies/                Kiểm proxy sống, báo cáo băng thông
     ├── queue/                  Server actions: tạo job, đổi trạng thái, ghi tương tác, tóm tắt promo
     ├── relay/                  Phía web của cầu nối: client gọi xuống `127.0.0.1:47821`, danh sách
@@ -207,7 +210,7 @@ Click "Open profile" → POST /api/accounts/[id]/launch
   2. The server selects the bound device and issues a signed, recipient-encrypted ticket
   3. The Web browser sends the ticket to Relay at 127.0.0.1:47821
   4. Relay verifies signature, recipient, expiry, and replay state
-  5. Relay v12 preserves ticket jti as operationId and requires the current Browser runtime to be ready
+  5. Relay v15 preserves ticket jti as operationId and requires the current Browser runtime to be ready
   6. MKT Browser contract v4 persists + reads back the proxy, then launches atomically
   7. Relay accepts only a correlated metadata-only diagnostic and returns support detail to the Web
   8. The server records PROFILE_LAUNCH_TICKET_ISSUED; it does not claim the window opened
@@ -218,8 +221,9 @@ running session. Contract v4 retains that ordering in `launch_managed_profile`; 
 profile whose active proxy differs and never falls back after an atomic rejection. Direct launch and
 ordinary proxy/fingerprint mutation are denied for managed profiles.
 
-The `/setup` readiness path adds one stricter requirement without changing Relay's operational
-minimum: packaged MKT Browser reports `local-install-ready-v1` only after the installer-owned
+The `/setup` readiness path adds one stricter requirement without changing the signed-retirement
+endpoint's historical v11 floor. Normal profile readiness compares the running Relay with the
+current v15 release. Packaged MKT Browser reports `local-install-ready-v1` only after the installer-owned
 PowerShell detector verifies expected process, fixed-port, MultiZen-process, and startup ownership.
 Missing or unavailable inspection routes setup to installer repair instead of `Ready`.
 

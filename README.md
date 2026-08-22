@@ -1,29 +1,33 @@
 # MKTTool
 
-Bảng điều khiển nhiều tài khoản cho team marketing — đăng content lên Reddit và Facebook Pages
-mà không bị shadowban hay bóp tương tác.
+MKTTool is the team's identity and posting-safety console. It manages browser-backed Reddit and
+TikTok identities plus Facebook Pages, while keeping account, proxy, profile, and operator-device
+ownership explicit.
 
-**Trạng thái:** Phase 01 (Kho danh tính), Phase 02 (Hàng đợi content + Bộ luật an toàn),
-Phase 03 (Dò shadowban + theo dõi karma) và Phase 04 (Facebook Pages) đã xong —
-Phase 04 đã đăng thật lên Fanpage qua Graph API ngày 03/08/2026.
-Chi tiết ở [lộ trình phát triển](docs/development-roadmap.md).
+**Current status, 22 August 2026:** the original identity vault, Reddit/Facebook posting-safety
+pipeline, health checks, and Facebook Pages publisher are implemented. TikTok account creation,
+readiness, proxy assignment, and manual profile launch are implemented; TikTok content, scheduling,
+warmup, and posting automation are parked. Browser/Relay P0 automated hardening is green, but real
+proxy, human input, live vendor recovery, second-PC, and canary gates keep rollout at **NO-GO**.
+See the [development roadmap](docs/development-roadmap.md).
 
-File này là **cẩm nang vận hành** — cài, chạy, dùng từng màn hình. Tài liệu dự án (vì sao làm,
-kiến trúc, bản đồ code, quy ước, nhật ký thay đổi) nằm ở [docs/](docs/README.md).
+This file is the operational handbook for installing, running, and using the product. Product intent,
+architecture, code maps, conventions, and history live under [docs/](docs/README.md).
 
-## Đây là gì
+## What it is
 
-Không phải bot farm. Là "tủ hồ sơ + bảng điều khiển" dùng chung cho team; mỗi nick có đúng một
-người phụ trách và một máy giữ profile. Team vận hành 5-8 nick Reddit cùng 1-3 Fanpage, tự viết
-content; công cụ lo phần danh tính và an toàn.
+This is not a bot farm. It is a shared identity vault and operator console: every browser-backed
+account has one responsible person and one PC that owns the local profile. The team writes the
+content; MKTTool protects identity separation, readiness, and posting-safety records.
 
-Nguyên tắc bất di bất dịch: **1 nick = 1 proxy tĩnh = 1 vân tay.**
-Ràng buộc này do database ép, không lách được.
+For every browser-backed Reddit or TikTok identity: **1 account = 1 static proxy = 1 managed
+profile = 1 assigned Relay device.** Database and server-side authorization enforce the ownership
+boundaries; no UI path may bypass them.
 
-> Nguyên tắc trên là **cho nick Reddit**. Nick Facebook quản trị Fanpage thì bỏ trống proxy và
-> profile antidetect được, vì Fanpage đăng bằng Graph API có token chính thức — không mở trình
-> duyệt, không giả vân tay, không đi qua proxy. Database vẫn chặn hai nick dùng chung một proxy
-> thật; chỉ là không bắt phải có.
+> Facebook accounts used only to administer Pages may leave proxy and antidetect profile empty,
+> because Page publishing uses the official Graph API without opening a browser or impersonating a
+> fingerprint. The database still prevents two accounts from sharing a real proxy; it simply does
+> not require one for this API-only case.
 
 ## Yêu cầu
 
@@ -440,8 +444,9 @@ the upstream UX/UI.
 
 That discovered token is **profile-management only**. It cannot navigate, click, type, read pages,
 access cookies, or send raw CDP, and the current build issues no page-control token. MKT Browser
-contract version `3` advertises managed-profile locking and correlated operation diagnostics in
-addition to idempotent create and atomic launch. Relay v7 preserves each ticket `jti` as the
+contract version `4` advertises managed-profile locking, correlated operation diagnostics,
+local-install readiness, and no MCP profile deletion in addition to idempotent create and atomic
+launch. Relay v15 preserves each ticket `jti` as the
 `operationId`; mismatched diagnostics fail closed and support detail contains only stage, code,
 duration, and runtime versions.
 
@@ -1138,9 +1143,12 @@ chuyển xấu từ lúc nào.
 
 ## Việc chưa làm
 
-- **Cầu nối trên máy operator → GĐ4.** Chưa có nó thì không lấy được mật khẩu/OTP, không mở được
-  profile, và không tạo/sửa được nick có nhập bí mật mới — xem [Cầu nối](#cầu-nối)
-- Tự động đăng Reddit → Phase 05
+- **Browser/Relay rollout gates:** live vendor session integration, real proxy/DNS/WebRTC evidence,
+  human-controlled login/input, second-PC recovery, packaged crash/reboot recovery, and the canary.
+- **TikTok publishing:** content, scheduling, warmup, and posting automation remain parked; only the
+  identity/profile/manual-browser workflow is active.
+- **Semi-automated Reddit posting:** Phase 05 has not started; the operator still performs the final
+  posting action.
 
 ## Đã kiểm chứng bằng thực tế
 

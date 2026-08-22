@@ -1,6 +1,6 @@
 # Hướng dẫn vận hành cho team
 
-**Cập nhật:** 06/08/2026 | Dành cho **người dùng công cụ**, không phải người cài nó
+**Cập nhật:** 22/08/2026 | Dành cho **người dùng công cụ**, không phải người cài nó
 
 > File này là thứ bạn đọc để *dùng*. Cài đặt, biến môi trường, cách dựng máy chủ nằm ở
 > [README.md](../README.md) — đó là việc của ADMIN, bạn không cần mở.
@@ -20,11 +20,11 @@ danh sách cho phép: nhắn ADMIN, đừng thử lại nhiều lần.
 | Bạn làm | Phải cài gì trên máy | Đọc mục nào |
 |---|---|---|
 | **Fanpage + viết content** | **Không cài gì cả**, chỉ cần Chrome | 1 → 2 → 3 → 4 → 6 |
-| **Nick Reddit** (và TikTok sau này) | MultiZen + cầu nối, ADMIN cài hộ | tất cả |
+| **Reddit / TikTok browser profiles** | MKT Browser + Relay, owner/ADMIN-led installation only | all identity/profile sections |
 
-Điểm khác nhau gọn lại một câu: **Fanpage đăng được bằng một nút, Reddit phải đăng tay.** Không
-phải công cụ thiếu tính năng — Reddit không có đường API dùng được, và Facebook Group thì Meta đã
-gỡ quyền tự đăng từ 04/2024.
+Fanpage posts through the official Graph API. Reddit still uses a human posting flow. TikTok currently
+supports account creation, proxy/device readiness, managed profile launch, manual login, and manual
+browsing only; its content, queue, warmup, and posting automation are parked.
 
 ---
 
@@ -132,7 +132,11 @@ thẻ "Đăng tay". Dòng job có nút **"Copy nội dung"** (group chỉ có m�
 
 ---
 
-## 5. Nhóm Reddit — mở profile, đăng tay, rồi bấm "Đã đăng"
+## 5. Browser-backed accounts — Reddit posting and TikTok manual use
+
+The Reddit posting steps remain below. For TikTok, create or select the profile from the main profile
+console, open it through Relay, complete login manually, and browse manually. Do not create TikTok
+jobs in `/queue`: TikTok is not a posting target and the current profile UI is not rollout approval.
 
 ### Trước khi bắt đầu: cầu nối phải đang chạy
 
@@ -147,47 +151,33 @@ Ba việc bắt buộc phải có cầu nối đang chạy:
 
 Mọi việc khác vẫn chạy bình thường khi cầu nối tắt — kể cả sửa karma, trạng thái, proxy của nick.
 
-> Máy của bạn phải nằm trong sổ trước khi dùng được, nhưng **bạn tự ghi được máy mình đang ngồi**
-> ở `/setup` — không phải chờ ADMIN. Chưa ghi thì nút bấm sẽ nói thẳng phải làm gì. Tải cầu nối ở
-> `/setup` sau khi đăng nhập — cùng trang bạn sẽ ghi máy vào sổ ở bước sau.
+> Your PC must be registered before it can receive a ticket. `/setup` shows the local readiness and
+> enrollment state, but new self-installation is paused while rollout is NO-GO. Do not download an
+> old Relay ZIP, run a legacy `setup.bat`, or copy local keys/tokens by hand.
 >
 > Nếu bạn có **hai máy** trong sổ, công cụ sẽ hỏi bạn đang ngồi máy nào trước khi bấm. Chọn đúng —
 > chọn sai là phát ra một tấm vé chắc chắn hỏng, phải làm lại.
 
-### Cài cầu nối — ba bước
+### Current installation gate
 
-Cả ba bước ở **cùng một trang**: `/setup`.
+The supported package is one Windows installer containing MKT Browser and pinned Relay v15. The
+installer in the engineering tree predates the final 22 August hardening and is not approved for
+team distribution. Until the owner records GO, only an owner-led disposable technical machine may
+be installed or repaired; a new operator should stop here and contact the owner/ADMIN.
 
-1. Mở **`/setup`**, tải gói ở phần đầu trang.
-2. Giải nén cả ba file vào một thư mục, bấm đúp **`setup.bat`**.
-3. Quay lại **`/setup`** và **ở lại đó**. Thẻ hướng dẫn tự tìm cầu nối, ghi máy vào sổ, rồi tự lấy
-   **khóa vùng operator** về khi ADMIN bấm cấp. Thẻ chuyển xanh là xong.
-
-> **Ở lại trang `/setup` cho tới khi thẻ xanh.** Việc lấy khóa chỉ chạy khi trang đó đang mở — đi
-> sang trang khác thì hộp khóa cứ nằm trên máy chủ đợi. Ngày 18/08/2026 chuyện này làm một chiếc
-> máy đợi vô ích, và một chiếc khác đợi **mười ngày** mà không ai nhận ra.
-
-> **Không phải `/relay-devices`.** Trang đó giờ chỉ còn là sổ tra cứu và các việc của ADMIN
-> (duyệt, thu hồi, đăng ký hộ một máy bạn không ngồi được).
-
-**Bạn không phải gõ tay chuỗi nào.** Khóa đi xuống trong một cái hộp mà cầu nối của ADMIN bọc riêng
-cho đúng máy bạn; máy chủ chỉ giữ hộ và không mở được. Đường chép tay — dán khóa ở
-`http://127.0.0.1:47821` — chỉ còn là **dự phòng** cho lúc đường trên không chạy, và khi dùng nó thì
-xin ADMIN qua trình quản lý mật khẩu dùng chung, đừng qua chat.
-
-> Bước 2 **ai cũng bấm được** — máy bạn đăng ký sẽ thuộc về chính bạn. Cài hộ người khác thì
-> vẫn phải là ADMIN, và thu hồi máy cũng vậy.
-
-> **Đang chạy bản cũ?** Tải lại ở `/setup` rồi chạy `setup.bat` lần nữa. Nó giữ nguyên
-> cấu hình cũ — không phải đăng ký lại máy, không phải xin lại khóa.
+After an approved installer exists, the intended flow remains: open `/setup`, confirm the detected
+PC, wait for ADMIN approval/key delivery, and stay on that page until it reports `Ready`. Operators
+must never handle Relay/MCP tokens, ports, archives, checksums, or raw operator keys.
 
 ### Bốn bước đăng một bài
 
-**Bước 1 — Bấm "Mở profile"** ngay trên dòng job ở thẻ "Đăng tay". Nó tự đẩy proxy vào profile rồi
-mở MultiZen. Không phải sang trang nick tìm lại.
+**Bước 1 — Bấm "Mở profile"** ngay trên dòng job ở thẻ "Đăng tay". It sends the signed ticket
+through Relay, verifies the assigned proxy path, and opens MKT Browser. Không phải sang trang nick
+tìm lại.
 
-**Bước 2 — Kiểm IP.** Vào `ipinfo.io` trong chính cửa sổ vừa mở, xác nhận IP khớp proxy của nick.
-**Đây là bước không được bỏ**, lý do ở mục 6.
+**Bước 2 — Kiểm IP.** Managed launch now fails closed when the egress probe is unavailable or
+malformed, but rollout still requires human in-browser equality plus DNS/WebRTC evidence. For the
+current disposable gate, open `ipinfo.io` in that exact profile and verify the assigned route.
 
 **Bước 3 — Đăng.** Dòng job có sẵn hai nút **"Copy tiêu đề"** và **"Copy thân bài"** (form Reddit
 có hai ô rời). Thân bài đã kèm link ở cuối, dán vào là đủ — không bị lặp tiêu đề.
@@ -367,8 +357,9 @@ báo càng nhiều thứ phải làm lại.
    - **Chép tay** — đưa khóa qua trình quản lý mật khẩu dùng chung, họ tự dán ở
      `http://127.0.0.1:47821`. Dùng khi đường trên không chạy. **Không bao giờ qua chat**: khóa dán
      trong chat là khóa nằm trong lịch sử chat của một công ty khác, vĩnh viễn.
-3. **Người mới tự cài lấy** theo mục 5: mở `/setup`, tải gói ở ngay đầu trang, chạy `setup.bat`, rồi quay lại chính trang đó
-   để ghi máy mình vào sổ. Bước này **không cần ADMIN** — máy họ ghi sẽ thuộc về chính họ.
+3. **Do not self-install while rollout is NO-GO.** The owner/ADMIN must use the approved combined
+   installer after the technical and human gates close, then the operator completes `/setup` on the
+   detected PC.
 
 > Việc 1 phải xong trước việc 3. Ghi máy vào sổ cho một email chưa được phép đăng nhập thì công cụ
 > từ chối thẳng, kèm câu giải thích đúng lý do — nhưng đó là một vòng đi lại không cần thiết.
@@ -404,7 +395,7 @@ hướng khác.
 
 | Mã | Nghĩa thật | Làm gì |
 |---|---|---|
-| **76** | Hết số phiên của gói. Gói free chỉ **1 trình duyệt cùng lúc** | Đóng profile đang mở. Nếu chắc chắn không mở cái nào: bạn vừa đóng cứng (Task Manager / tắt máy) nên phiên còn treo trên server — **chờ 10–15 phút** (đo được ngày 19/08), đừng cài lại gì cả |
+| **76** | The selected licence key has no free session | Close another profile. MKT Browser may try another configured key, but current capacity is not vendor-authoritative; if none is available, wait for the vendor hold to clear instead of reinstalling or repeatedly launching |
 | **77** | Khóa license thiếu, sai, hoặc hết hạn | Kiểm lại khóa ở Cài đặt |
 | **78** | **Không tra được tên miền của máy chủ license** | Gần như luôn là tường lửa chặn UDP 53, không phải mạng hỏng và không phải khóa sai. Xem dưới |
 | **79** | Không ghi được trạng thái license dưới máy | Kiểm quyền thư mục |
@@ -414,7 +405,8 @@ hướng khác.
 Windows, nhưng đường kiểm license không có đường lui nên chết, và báo "không tới được máy chủ".
 Người đọc sẽ đi kiểm mạng và kiểm khóa — cả hai đều đang đúng, nên bế tắc.
 
-**Cách xử: cài bản 0.3.4 trở lên.** Luật mới chỉ chừa UDP 53 và 443, phần còn lại vẫn chặn.
+**Cách xử:** use the current reviewed desktop build (`0.3.12` at this checkpoint). Builds before
+`0.3.4` had the firewall defect; no old package is a valid rollout substitute.
 
 Đóng profile **bằng nút trong ứng dụng**, đừng tắt cứng — tắt cứng để lại phiên treo và mã 76.
 Gói free chỉ **1 phiên**, nên một lần tắt cứng là khoá cả người khác lẫn chính mình trong 10–15 phút.
@@ -429,9 +421,10 @@ Gói free chỉ **1 phiên**, nên một lần tắt cứng là khoá cả ngư�
 | Viết / sửa content | `/content` |
 | Xếp lịch, ghi tương tác, bấm "Đã đăng" | `/queue` |
 | Nick, karma, trạng thái, gỡ cách ly | `/accounts` |
+| Create or open a TikTok managed profile | Main profile console / account detail |
 | Kết quả dò shadowban, biểu đồ karma | `/health` |
 | Kết nối Fanpage, kiểm token | `/facebook` |
-| Tải cầu nối, ghi máy vào sổ | `/setup` |
+| Read local readiness/enrollment; install only after GO | `/setup` |
 | Sổ máy đã đăng ký, phát khóa, thu hồi (ADMIN) | `/relay-devices` |
 
 ---
@@ -444,4 +437,4 @@ Ghi ra để không ai tưởng đã đủ:
       Từ chối — **không** phải để cấp lần đầu. Lần đầu là người cài bấm hộ ngay trong buổi cài máy,
       đừng để người dùng gặp hộp này lần đầu khi ngồi một mình.
 - [ ] Ảnh chụp thẻ "Đăng tay" và checklist luật, để đối chiếu khi đọc mục 2 và 3.
-- [ ] Mục TikTok — viết khi đợt TikTok làm xong.
+- [x] TikTok identity/profile scope is documented; posting automation remains explicitly parked.

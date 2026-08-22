@@ -41,6 +41,45 @@ desktop build, and packaged runtime/profile-lifecycle verification under Node 22
 WebRTC proof, human login/input, live lease recovery, second-PC setup, crash/reboot evidence, and the
 seven-day canary remain required before rollout.
 
+## 20 August 2026 - Licensed engine lifecycle and DNS hardening reach desktop 0.3.12
+
+MKT Browser now treats licence capacity as one concurrent engine session per configured key. It can
+rotate away from a key refused with exit 76, records which profile holds each local key, and reports
+licence refusal as an operator action rather than disguising it as a Chromium crash. Startup closes
+orphaned profile browsers it owns, while a detached engine process can survive an Electron crash long
+enough for deterministic recovery instead of consuming a seat invisibly.
+
+DNS and network-privacy switches now apply consistently to every profile and have a dedicated
+regression test after two fixes moved them accidentally. These changes shipped in desktop package
+version `0.3.12`, but they did not make local key-pool state vendor-authoritative; that is why the
+later P0 checkpoint still withholds `license-capacity-v1`.
+
+## 19 August 2026 - TikTok becomes an identity scope and the console is reskinned around profiles
+
+The account domain now accepts `TIKTOK`, requires its static proxy, applies the browser-backed
+readiness boundary, and supports managed profile creation and manual launch. The console gained the
+dark profile grid/table shell, a TikTok creation sheet, bulk proxy entry, and a setup stepper. A
+server-side regression covers the full TikTok create action after the first UI attempt failed because
+the form enum and server schema did not agree.
+
+This was a deliberate UI and identity rescope, not a TikTok publishing launch. TikTok remains absent
+from `TARGET_PLATFORMS`; content, queue, posting rules, warmup, and publishing code are parked. The
+legacy Reddit/Facebook routes remain available but show their parked-scope state instead of implying
+that the TikTok profile console automates those actions.
+
+## 18 August 2026 - Relay 14 and 15 fix key delivery and make installer upgrades version-aware
+
+Relay 14 removed a bootstrap deadlock where accepting the sealed operator-key grant incorrectly
+required the operator key that the grant was meant to deliver. Relay 15 then added its version to the
+installer contract, refuses to overwrite a newer installed Relay, and became the Browser combined-
+installer pin. The current immutable v15 archive is 34,285,450 bytes with SHA-256
+`cfeefc7f1284492a64f5cf8b29603b3e9a36e5d488ac676d2d109b2c4364b261`.
+
+MKTTool also began recording the Relay version each device reports and blocks publication of a
+Windows installer whose embedded Relay is below the configured floor. `/setup` became the single
+operator onboarding surface, replacing the split download-page path. These changes supersede the
+17 August changelog's then-current Relay 13 instruction; current operators require Relay v15.
+
 ## 17 August 2026 - Six safety rules that could pass a bad thing, all closed
 
 The audit reached the data layer, the business rules and the breadth sweep. Everything below changes
@@ -100,11 +139,12 @@ separate writes; they are now one transaction.
 **The Relay status page reads as one language.** It previously mixed English and Vietnamese inside a
 single screen.
 
-**Relay 13 is published, and you have to update to get any of the Relay-side changes above.** The
+**Historical 17 August checkpoint: Relay 13 was published and required for the changes above.** The
 web app updated itself the moment the work merged, but the operator-key guard, the ticket-kind check
 and the corrected paste box all live inside the `.exe` on your PC. Download the new one from
 *Relay download*; until you do, your machine keeps the old behaviour. It is still unsigned, so
-Windows SmartScreen asks once on each PC the first time — expected, not a fault.
+Windows SmartScreen asks once on each PC the first time — expected, not a fault. Relay 15 superseded
+this instruction on 18 August.
 
 ## 17 August 2026 - Two ways to hand a Relay the wrong authority, both closed
 
