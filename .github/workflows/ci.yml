@@ -69,6 +69,11 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
+
+      # Sàn coverage đường trọng yếu. Xem `vitest.config.mts` để biết module nào được bảo vệ và
+      # vì sao. Một hợp đồng không được lệnh nào gọi thì không tồn tại.
+      - run: npm run test:critical-coverage
+
       - run: npm run build
 
   # Acceptance-test the packaged Relay `.exe` itself, not its source.

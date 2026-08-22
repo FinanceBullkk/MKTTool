@@ -63,6 +63,44 @@ export default defineConfig({
     fileParallelism: false,
     // Dựng schema test một lần cho cả lượt chạy, dọn sạch khi xong.
     globalSetup: ["./vitest.global-setup.ts"],
+    /**
+     * Sàn coverage cho các module mà lỗi ở đó XUYÊN QUA ranh giới danh tính.
+     *
+     * Cố ý KHÔNG lấy phần trăm toàn repo. Con số toàn repo tăng khi ai đó thêm test cho một
+     * helper định dạng, và giảm khi ai đó thêm một nhánh chưa test vào đường cấp proxy — nó
+     * không phân biệt được hai việc đó, nên nó không bảo vệ được gì.
+     *
+     * Danh sách dưới đây là chỗ mà một hồi quy làm lẫn nick, lộ IP thật, hỏng quyền sở hữu
+     * thiết bị, hoặc ký một vé không được phép ký.
+     *
+     * Ngưỡng = baseline đo ngày 22/08/2026 làm tròn xuống 1 điểm:
+     * 82.47 dòng / 75.38 nhánh / 80.23 hàm / 79.78 câu lệnh.
+     * Được phép nâng. Hạ xuống là một cuộc thảo luận trong code review, không phải một biến môi
+     * trường.
+     */
+    coverage: {
+      provider: "v8",
+      reporter: ["text-summary"],
+      include: [
+        "src/lib/auth/**/*.ts",
+        "src/lib/crypto/**/*.ts",
+        "src/lib/tickets/**/*.ts",
+        "src/lib/relay/**/*.ts",
+        "src/lib/release/**/*.ts",
+        "src/lib/proxies/**/*.ts",
+        "src/lib/enrollment/**/*.ts",
+        "src/lib/antidetect/**/*.ts",
+      ],
+      // Đo code chạy thật, không đo chính bộ test — đếm cả test thì mọi con số đều đẹp lên mà
+      // không có gì được bảo vệ thêm.
+      exclude: ["**/*.test.ts"],
+      thresholds: {
+        lines: 81,
+        branches: 74,
+        functions: 79,
+        statements: 78,
+      },
+    },
     env: {
       /**
        * Đặt ở đây chứ không trong `beforeAll`: `env` của vitest có mặt từ trước khi file test
