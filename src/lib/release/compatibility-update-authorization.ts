@@ -25,7 +25,7 @@ const authorizationSchema = z
     sequence: z.number().int().positive().safe(),
     manifestDigest: z.string().regex(SHA256),
     repairMissingState: z.boolean(),
-    authenticatedArtifactPaths: z.array(z.string().regex(ARTIFACT_PATH)).max(4),
+    authenticatedArtifactPaths: z.array(z.string().regex(ARTIFACT_PATH)).max(5),
     issuedAt: z.iso.datetime({ offset: true }),
     commandExpiresAt: z.iso.datetime({ offset: true }),
     artifactExpiresAt: z.iso.datetime({ offset: true }),

@@ -220,7 +220,7 @@ function release(): RelayCompatibilityRelease {
           relay: { ...artifact("relay", `${base}/relay`), supportedBrowserContract: { min: 4, max: 4 }, secureStoreSchemaVersion: 1 },
           browser: { ...artifact("browser", `${base}/browser`), contractVersion: 4, profileSchemaVersion: 3, engineKind: "cloakbrowser" },
           controlContract: { ...artifact("control-contract", `${base}/control-contract`), contractVersion: 4 },
-          engine: { ...artifact("engine", "https://github.example/engine.zip"), engineKind: "cloakbrowser" },
+          engine: { ...artifact("engine", `${base}/engine`), engineKind: "cloakbrowser" },
         },
       },
     },

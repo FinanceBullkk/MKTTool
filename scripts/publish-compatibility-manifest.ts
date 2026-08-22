@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import { validateCompatibilityControlContract } from "../src/lib/release/compatibility-control-contract";
 import { validateCompatibilityManifest } from "../src/lib/release/compatibility-manifest";
 import { signedDelegationRevocationSchema } from "../src/lib/release/compatibility-manifest-schema";
@@ -11,13 +12,14 @@ import {
   relayCompatibilityArtifactR2Key,
   relayCompatibilityManifestR2Key,
   relayCompatibilityRevocationsR2Key,
+  RELAY_COMPATIBILITY_ARTIFACT_KINDS,
   type RelayCompatibilityArtifactKind,
 } from "../src/lib/relay/relay-release-r2";
 
-const artifactKinds = ["installer", "relay", "browser", "control-contract"] as const;
+export const COMPATIBILITY_PUBLISH_ARTIFACT_KINDS = RELAY_COMPATIBILITY_ARTIFACT_KINDS;
 
 async function main(): Promise<void> {
-  const args = parseArgs(process.argv.slice(2));
+  const args = parseCompatibilityPublishArgs(process.argv.slice(2));
   const config = readR2Config(process.env, RELAY_RELEASE_R2_ENV);
   if (!config) throw new Error("The Relay release R2 write configuration is missing.");
   const signedInput = JSON.parse(readFileSync(args.manifest, "utf8"));
@@ -49,12 +51,13 @@ async function main(): Promise<void> {
     relay: args.relay,
     browser: args.browser,
     "control-contract": args.controlContract,
+    engine: args.engine,
   };
   validateCompatibilityControlContract(
     readFileSync(args.controlContract, "utf8"),
     signed.manifest,
   );
-  for (const kind of artifactKinds) {
+  for (const kind of COMPATIBILITY_PUBLISH_ARTIFACT_KINDS) {
     const manifestArtifact =
       kind === "control-contract"
         ? signed.manifest.artifacts.controlContract
@@ -148,13 +151,14 @@ function digest(body: Buffer): string {
   return createHash("sha256").update(body).digest("hex");
 }
 
-function parseArgs(values: string[]): {
+export function parseCompatibilityPublishArgs(values: string[]): {
   manifest: string;
   revocations: string;
   installer: string;
   relay: string;
   browser: string;
   controlContract: string;
+  engine: string;
 } {
   const parsed = new Map<string, string>();
   for (let index = 0; index < values.length; index += 2) {
@@ -163,7 +167,15 @@ function parseArgs(values: string[]): {
     if (!name?.startsWith("--") || !value) throw new Error(usage());
     parsed.set(name.slice(2), value);
   }
-  const required = ["manifest", "revocations", "installer", "relay", "browser", "control-contract"];
+  const required = [
+    "manifest",
+    "revocations",
+    "installer",
+    "relay",
+    "browser",
+    "control-contract",
+    "engine",
+  ];
   if (required.some((name) => !parsed.get(name))) throw new Error(usage());
   return {
     manifest: path.resolve(parsed.get("manifest")!),
@@ -172,17 +184,20 @@ function parseArgs(values: string[]): {
     relay: path.resolve(parsed.get("relay")!),
     browser: path.resolve(parsed.get("browser")!),
     controlContract: path.resolve(parsed.get("control-contract")!),
+    engine: path.resolve(parsed.get("engine")!),
   };
 }
 
 function usage(): string {
   return (
     "Usage: npm run release:manifest:publish -- --manifest <signed.json> --revocations <json> " +
-    "--installer <file> --relay <file> --browser <file> --control-contract <file>"
+    "--installer <file> --relay <file> --browser <file> --control-contract <file> --engine <file>"
   );
 }
 
-main().catch((error: unknown) => {
-  console.error(error instanceof Error ? error.message : String(error));
-  process.exitCode = 1;
-});
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main().catch((error: unknown) => {
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exitCode = 1;
+  });
+}

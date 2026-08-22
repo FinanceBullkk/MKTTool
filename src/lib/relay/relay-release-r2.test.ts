@@ -17,6 +17,7 @@ import { RELAY_VERSION } from "./relay-endpoints";
 import {
   checksumOf,
   readRelayReleaseR2Config,
+  RELAY_COMPATIBILITY_ARTIFACT_KINDS,
   relayCompatibilityManifestR2Key,
   relayCompatibilityArtifactR2Key,
   relayCompatibilityRevocationsR2Key,
@@ -127,6 +128,13 @@ describe("immutable compatibility manifest object", () => {
       "MKTTool-Compatibility-v12-control-contract.artifact",
     );
     expect(() => relayCompatibilityRevocationsR2Key(0)).toThrow("positive integer");
+  });
+
+  it("publishes the licensed engine through the authenticated compatibility channel", () => {
+    expect(RELAY_COMPATIBILITY_ARTIFACT_KINDS).toContain("engine");
+    expect(relayCompatibilityArtifactR2Key(12, "engine")).toBe(
+      "MKTTool-Compatibility-v12-engine.artifact",
+    );
   });
 });
 

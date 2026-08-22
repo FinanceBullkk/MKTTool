@@ -52,6 +52,23 @@ describe("authenticated immutable compatibility artifact route", () => {
     }));
   });
 
+  it("serves the licensed engine through the same authenticated route", async () => {
+    const path = "/api/relay/download/v12/artifact/engine";
+    const response = await GET(
+      new Request(`https://mkt.example${path}`, {
+        headers: { authorization: authorization(path) },
+      }),
+      { params: Promise.resolve({ version: "v12", kind: "engine" }) },
+    );
+
+    expect(response.status).toBe(200);
+    expect(mocks.readSource).toHaveBeenCalledWith(
+      12,
+      "engine",
+      expect.objectContaining({ url: `https://mkt.example${path}` }),
+    );
+  });
+
   it("rejects missing credentials and a valid credential scoped to another artifact", async () => {
     const path = "/api/relay/download/v12/artifact/relay";
     const missing = await GET(new Request(`https://mkt.example${path}`), {
@@ -111,7 +128,7 @@ function release() {
           relay: artifact("relay"),
           browser: artifact("browser"),
           controlContract: artifact("control-contract"),
-          engine: { ...artifact("engine"), url: "https://github.example/engine.zip" },
+          engine: artifact("engine"),
         },
       },
     },

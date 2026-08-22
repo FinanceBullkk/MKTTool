@@ -10,6 +10,7 @@ export function managedCompatibilityArtifactPaths(
     artifacts.relay,
     artifacts.browser,
     artifacts.controlContract,
+    artifacts.engine,
   ].map((artifact) => {
     const url = new URL(artifact.url);
     if (url.origin !== origin) {

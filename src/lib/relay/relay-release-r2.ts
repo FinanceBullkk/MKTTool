@@ -62,6 +62,7 @@ export const RELAY_COMPATIBILITY_ARTIFACT_KINDS = [
   "relay",
   "browser",
   "control-contract",
+  "engine",
 ] as const;
 export type RelayCompatibilityArtifactKind =
   (typeof RELAY_COMPATIBILITY_ARTIFACT_KINDS)[number];

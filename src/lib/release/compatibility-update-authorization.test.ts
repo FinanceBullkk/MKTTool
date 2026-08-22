@@ -41,6 +41,29 @@ describe("compatibility update authorization", () => {
     ).toBe(false);
   });
 
+  it("authorizes the complete five-artifact compatibility tuple", () => {
+    const paths = [
+      "/api/relay/download/v12/artifact/installer",
+      "/api/relay/download/v12/artifact/relay",
+      "/api/relay/download/v12/artifact/browser",
+      "/api/relay/download/v12/artifact/control-contract",
+      "/api/relay/download/v12/artifact/engine",
+    ];
+    const fixture = createFixture({ authenticatedArtifactPaths: paths });
+
+    expect(verify(fixture)).toEqual(fixture.authorization);
+    const header = encodeCompatibilityArtifactAuthorization(fixture.authorization);
+    for (const requestPath of paths) {
+      expect(
+        compatibilityArtifactAuthorizationMatches(header, {
+          serverPublicKeyHex: fixture.publicKeyHex,
+          requestPath,
+          now: NOW,
+        }),
+      ).toBe(true);
+    }
+  });
+
   it("rejects tampering, wrong manifests, non-ADMIN repair, and unrelated artifact paths", () => {
     const fixture = createFixture();
     expect(() =>
@@ -78,6 +101,7 @@ function createFixture(
     type: "pkcs8",
   });
   const path = "/api/relay/download/v12/artifact/installer";
+  const authenticatedArtifactPaths = overrides.authenticatedArtifactPaths ?? [path];
   const authorization = signCompatibilityUpdateAuthorization(privateKey, {
     schemaVersion: 1,
     type: "mkttool.compatibility-update-authorization",
@@ -88,7 +112,7 @@ function createFixture(
     sequence: 2,
     manifestDigest: "a".repeat(64),
     repairMissingState: true,
-    authenticatedArtifactPaths: [path],
+    authenticatedArtifactPaths,
     issuedAt: NOW.toISOString(),
     commandExpiresAt: new Date(NOW.getTime() + 60_000).toISOString(),
     artifactExpiresAt: new Date(NOW.getTime() + 60 * 60 * 1000).toISOString(),
@@ -100,7 +124,9 @@ function createFixture(
     deviceId: "device-1",
     sequence: 2,
     manifestDigest: "a".repeat(64),
-    manifestArtifactUrls: [`https://mkttool.example.com${path}`],
+    manifestArtifactUrls: authenticatedArtifactPaths.map(
+      (artifactPath) => `https://mkttool.example.com${artifactPath}`,
+    ),
     path,
   };
 }

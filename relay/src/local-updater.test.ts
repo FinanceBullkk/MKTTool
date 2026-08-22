@@ -1,5 +1,5 @@
 import { createHash, generateKeyPairSync, randomBytes } from "node:crypto";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -34,6 +34,10 @@ import {
 } from "./local-updater";
 import type { PostActivationSmoke } from "./post-activation-smoke";
 import { InMemorySecureStore } from "./in-memory-secure-store";
+import { activateWindowsEngineArtifact } from "./windows-engine-artifact-activation";
+import type { WindowsCompatibilityInstallation } from "./windows-compatibility-installation";
+import { WindowsCompatibilityUpdatePlatform } from "./windows-compatibility-update-platform";
+import { WindowsPostActivationSmoke } from "./windows-post-activation-smoke";
 import {
   compatibilitySetRecord,
   readCompatibilityUpdateState,
@@ -377,6 +381,111 @@ describe("local compatibility updater", () => {
     ]);
   });
 
+  it.skipIf(process.platform !== "win32")(
+    "downloads, activates, starts, and rolls back a synthetic engine on disposable Windows roots",
+    async () => {
+      const fixture = createFixture();
+      const root = path.dirname(fixture.home);
+      const localAppData = path.join(root, "LocalAppData");
+      const installation = createDisposableInstallation(root);
+      const currentDirectory = path.join(updateRoot(fixture.home), "sets", "1");
+      copyFileSync(path.join(currentDirectory, "browser.artifact"), installation.browserPayload);
+      copyFileSync(path.join(currentDirectory, "relay.artifact"), installation.packagedRelayArchive);
+
+      const events: string[] = [];
+      const activateEngine = async (
+        options: Parameters<typeof activateWindowsEngineArtifact>[0],
+      ) => {
+        await activateWindowsEngineArtifact({
+          ...options,
+          extractArchive: async (archivePath, destination) => {
+            const archive = JSON.parse(readFileSync(archivePath, "utf8")) as { version: string };
+            const bundle = path.win32.join(destination, "synthetic-engine");
+            mkdirSync(bundle, { recursive: true });
+            writeFileSync(path.win32.join(bundle, "chrome.exe"), `chrome-${archive.version}`);
+            writeFileSync(path.win32.join(bundle, "resources.pak"), `resources-${archive.version}`);
+          },
+        });
+        events.push(`engine:${readRuntimeVersion(localAppData)}`);
+      };
+      await activateEngine({
+        archivePath: path.join(currentDirectory, "engine.artifact"),
+        pinPath: path.join(currentDirectory, ACTIVE_ENGINE_PIN_FILE),
+        localAppData,
+      });
+
+      const platform = new WindowsCompatibilityUpdatePlatform({
+        installation,
+        localAppData,
+        hasOpenProfiles: async () => false,
+        stopOwnedProcesses: async () => void events.push("stop"),
+        activateEngine,
+        runInstaller: async (installerPath) => {
+          const setDirectory = path.dirname(installerPath);
+          copyFileSync(path.join(setDirectory, "browser.artifact"), installation.browserPayload);
+          copyFileSync(path.join(setDirectory, "relay.artifact"), installation.packagedRelayArchive);
+          events.push("installer");
+        },
+        startRelay: async () => void events.push("start-relay"),
+        startBrowser: async () => void events.push("start-browser"),
+      });
+      const smokeVersions: string[] = [];
+      const smoke = new WindowsPostActivationSmoke({
+        home: fixture.home,
+        browserExecutable: installation.browserExecutable,
+        runBrowser: async (_executable, args) => {
+          expect(args[0]).toMatch(/^--mkt-compatibility-smoke=/);
+          smokeVersions.push(readRuntimeVersion(localAppData));
+        },
+      });
+      const options: LocalUpdaterOptions = {
+        ...fixture.options,
+        platform,
+        smoke,
+      };
+      const fetchMock = stubArtifacts(fixture.payloads);
+
+      await prepareCompatibilityUpdate(fixture.signed, fixture.validation, options);
+      const stagedEngine = path.join(updateRoot(fixture.home), "staging", "2", "engine.artifact");
+      expect(readFileSync(stagedEngine)).toEqual(fixture.payloads[fixture.signed.manifest.artifacts.engine.url]);
+      expect(fetchMock).toHaveBeenCalledWith(
+        fixture.signed.manifest.artifacts.engine.url,
+        expect.objectContaining({ redirect: "error" }),
+      );
+      await activatePreparedCompatibilityUpdate(options);
+
+      const server = generateKeyPairSync("ed25519");
+      await rollbackCompatibilitySet(
+        rollbackAuthorization(server.privateKey),
+        {
+          serverPublicKeyHex: publicKeyHex(server.publicKey),
+          deviceId: "device-1",
+          now: new Date("2026-08-16T00:00:30.000Z"),
+        },
+        options,
+      );
+
+      expect(smokeVersions).toEqual(["145", "144"]);
+      expect(events).toEqual([
+        "engine:144",
+        "stop",
+        "engine:145",
+        "installer",
+        "start-relay",
+        "start-browser",
+        "stop",
+        "installer",
+        "engine:144",
+        "start-relay",
+        "start-browser",
+      ]);
+      expect(readCompatibilityUpdateState(fixture.store)?.current?.sequence).toBe(1);
+      expect(readFileSync(path.win32.join(engineRuntime(localAppData), "chrome.exe"), "utf8")).toBe(
+        "chrome-144",
+      );
+    },
+  );
+
   it("finishes a prepared ADMIN rollback after Relay restarts", async () => {
     const fixture = createFixture();
     stubArtifacts(fixture.payloads);
@@ -592,6 +701,7 @@ function createFixture() {
   const currentManifest = structuredClone(authority.signed.manifest);
   currentManifest.sequence = 1;
   currentManifest.transition = { fromSequences: [0], retainedSequence: null };
+  currentManifest.artifacts.engine.version = "144";
   for (const artifact of Object.values(currentManifest.artifacts)) {
     artifact.url = artifact.url.replace("/2/", "/1/");
   }
@@ -645,6 +755,9 @@ function fixturePayloads(
 ): Record<string, Buffer> {
   const payloads = Object.fromEntries(
     artifactKinds().map((kind) => [manifest.artifacts[kind].url, Buffer.from(kind)]),
+  );
+  payloads[manifest.artifacts.engine.url] = Buffer.from(
+    JSON.stringify({ version: manifest.artifacts.engine.version }),
   );
   payloads[manifest.artifacts.controlContract.url] = Buffer.from(
     JSON.stringify({
@@ -804,6 +917,42 @@ function stubArtifacts(payloads: Record<string, Buffer>) {
 
 function artifactKinds(): CompatibilityArtifactKind[] {
   return ["installer", "relay", "browser", "controlContract", "engine"];
+}
+
+function createDisposableInstallation(root: string): WindowsCompatibilityInstallation {
+  const browserDirectory = path.join(root, "installed-browser");
+  const relayDirectory = path.join(root, "installed-relay");
+  mkdirSync(path.join(browserDirectory, "resources", "relay"), { recursive: true });
+  mkdirSync(relayDirectory, { recursive: true });
+  const browserExecutable = path.join(browserDirectory, "MKTBrowser.exe");
+  const relayExecutable = path.join(relayDirectory, "MKTTool-Relay.exe");
+  writeFileSync(browserExecutable, "browser-executable");
+  writeFileSync(relayExecutable, "relay-executable");
+  return {
+    browserDirectory,
+    browserExecutable,
+    browserPayload: path.join(browserDirectory, "resources", "app.asar"),
+    packagedRelayArchive: path.join(browserDirectory, "resources", "relay", "MKTTool-Relay.zip"),
+    relayExecutable,
+  };
+}
+
+function engineRuntime(localAppData: string): string {
+  return path.win32.join(
+    localAppData,
+    "MKTTool",
+    "MKTBrowser",
+    "chromium",
+    "cft",
+    "runtime",
+  );
+}
+
+function readRuntimeVersion(localAppData: string): string {
+  const marker = JSON.parse(
+    readFileSync(path.win32.join(engineRuntime(localAppData), ".mkt-runtime.json"), "utf8"),
+  ) as { version: string };
+  return marker.version;
 }
 
 function sha256(value: Buffer): string {

@@ -63,9 +63,8 @@ describe("compatibility update Relay endpoint", () => {
     expect(fixture.dependencies.onPrepared).toHaveBeenCalledOnce();
     for (const [input, init] of fixture.fetchMock.mock.calls) {
       const header = new Headers(init?.headers).get("authorization");
-      expect(header?.startsWith("MKTTool-Compatibility ") ?? false).toBe(
-        !String(input).includes("github.example"),
-      );
+      expect(String(input)).toMatch(/^https:\/\/mkt\.example\/api\/relay\/download\//);
+      expect(header?.startsWith("MKTTool-Compatibility ") ?? false).toBe(true);
     }
   });
 
@@ -97,7 +96,7 @@ function createFixture(repairMissingState: boolean) {
   const serverKeys = signingKeysFromSeed(serverSeed);
   const deviceKeys = generateKeyPairSync("x25519");
   const release = createRelease(now);
-  const paths = ["installer", "relay", "browser", "control-contract"].map(
+  const paths = ["installer", "relay", "browser", "control-contract", "engine"].map(
     (kind) => `/api/relay/download/v12/artifact/${kind}`,
   );
   const authorization = signCompatibilityUpdateAuthorization(serverKeys.privateKey, {
@@ -213,7 +212,7 @@ function createRelease(now: Date) {
       relay: { ...artifact("relay", `${origin}/relay`), kind: "relay" as const, supportedBrowserContract: { min: 4, max: 4 }, secureStoreSchemaVersion: 1 },
       browser: { ...artifact("browser", `${origin}/browser`), kind: "browser" as const, contractVersion: 4, profileSchemaVersion: 3, engineKind: "cloakbrowser" },
       controlContract: { ...artifact("control-contract", `${origin}/control-contract`), kind: "control-contract" as const, contractVersion: 4 },
-      engine: { ...artifact("engine", "https://github.example/cloakbrowser.zip"), kind: "engine" as const, engineKind: "cloakbrowser" },
+      engine: { ...artifact("engine", `${origin}/engine`), kind: "engine" as const, engineKind: "cloakbrowser" },
     },
   };
   const controlContract = JSON.stringify({
