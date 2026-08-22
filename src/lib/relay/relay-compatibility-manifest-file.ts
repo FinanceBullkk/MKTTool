@@ -66,7 +66,10 @@ export async function readRelayCompatibilityRelease(
 export async function readRelayCompatibilityReleaseFromDisk(
   version: number,
 ): Promise<RelayCompatibilityRelease> {
-  const raw = readFileSync(relayCompatibilityManifestPath(), "utf8");
+  const raw = readFileSync(
+    /* turbopackIgnore: true */ relayCompatibilityManifestPath(),
+    "utf8",
+  );
   if (Buffer.byteLength(raw, "utf8") > MAX_MANIFEST_BYTES) {
     throw new Error("The Relay compatibility manifest is unexpectedly large.");
   }

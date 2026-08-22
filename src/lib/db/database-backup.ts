@@ -154,7 +154,7 @@ function runPgDump(
 ): Promise<void> {
   return new Promise((resolve, reject) => {
     const child = spawn(
-      PG_DUMP_COMMAND,
+      /* turbopackIgnore: true */ PG_DUMP_COMMAND,
       ["--file", filePath, "--format=plain", "--no-owner", "--no-privileges"],
       { env: { ...process.env, ...toolEnv }, shell: false },
     );
