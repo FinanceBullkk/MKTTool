@@ -1,23 +1,16 @@
 /**
- * Sao lưu database ra data/backups/.
+ * Write a plain-SQL database dump under data/backups/.
  *
- * Chạy:
- *   npm run db:backup           sao lưu database của MÁY NÀY (DATABASE_URL)
- *   npm run db:backup:remote    hút bản sao từ MÁY CHỦ THẬT về máy này
- *                               (PRODUCTION_DATABASE_URL — xem src/lib/db/backup-source.ts)
+ * Commands:
+ *   npm run db:backup           back up this machine's DATABASE_URL
+ *   npm run db:backup:remote    pull PRODUCTION_DATABASE_URL to this machine
  *
- * Chạy được khi app đang mở. Nên chạy trước mỗi lần migrate và trước khi đụng vào dữ liệu thật.
+ * The command can run while the app is open. Run the remote form before every schema-changing
+ * deployment and before risky production-data work.
  *
- * ## Vì sao bản sao lưu KHÔNG tự chạy trên máy chủ
- *
- * Nghe hợp lý: đã có bộ lịch trong app rồi (GĐ5), thêm một việc `db:backup` hằng đêm là xong.
- * Nhưng trong container, `data/backups/` là **ổ tạm** — nó biến mất sau mỗi lần deploy. Một bản
- * sao lưu chết cùng lúc với thứ nó bảo vệ thì tệ hơn là không có, vì nó *trông như* có: bảng
- * điều khiển hiện file, log nói "đã sao lưu", và sự thật chỉ lộ ra vào ngày cần khôi phục.
- *
- * Nên hai nửa nằm ở hai chỗ, đúng như phần còn lại của kiến trúc: **Railway tự sao lưu ổ đĩa**
- * (bật trong bảng điều khiển của dịch vụ Postgres), còn lệnh này kéo một bản về **máy người
- * quản trị** — nơi không mất theo máy chủ.
+ * The server does not keep backups under data/backups/: container storage disappears on deploy and
+ * would fail with the system it is meant to protect. The scheduled server layer uploads to a
+ * private Cloudflare R2 bucket; this command creates the separately controlled administrator copy.
  */
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";

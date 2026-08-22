@@ -5,7 +5,7 @@ Thư mục này có **hai loại file, đừng lẫn chúng với nhau**:
 | File | Là gì |
 |---|---|
 | `Technical_Analysis_And_Risk_Assessment.md`, `X_Twitter_Automation_Blueprint.md` | **bản trước khi xoay hướng** (tháng 7/2026) — hướng đi đã bỏ |
-| [`project-changelog-den-04-08-2026.md`](project-changelog-den-04-08-2026.md) | **lịch sử thật của dự án hiện tại**, phần đã cũ của nhật ký thay đổi |
+| [`project-changelog-07-to-11-august-2026.md`](project-changelog-07-to-11-august-2026.md), [`project-changelog-05-to-06-august-2026.md`](project-changelog-05-to-06-august-2026.md), [`project-changelog-den-04-08-2026.md`](project-changelog-den-04-08-2026.md) | Historical sections of the current product changelog, not superseded design material |
 
 Phần còn lại của trang này nói về **loại thứ nhất**.
 

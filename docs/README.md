@@ -1,6 +1,6 @@
 # Tài liệu MKTTool — bắt đầu từ đâu
 
-**Cập nhật:** 10/08/2026
+**Updated:** 22 August 2026
 
 Repo này có 12+ file tài liệu. Đừng đọc hết. Tra theo câu hỏi bạn đang có:
 
@@ -14,6 +14,7 @@ Repo này có 12+ file tài liệu. Đừng đọc hết. Tra theo câu hỏi b�
 | Làm tới đâu rồi, tiếp theo làm gì, cái gì đang chặn | [development-roadmap.md](development-roadmap.md) |
 | Đã đổi những gì, ngày nào | [project-changelog.md](project-changelog.md) |
 | Đưa web lên máy chủ thật (Railway) | [deployment-guide.md](deployment-guide.md) |
+| Production backups, R2, and restore proof | [database-backup-and-restore.md](database-backup-and-restore.md) |
 | Hệ thống chạy ở đâu, phụ thuộc cái gì, hỏng thì hỏng thế nào | [system-architecture.md](system-architecture.md) |
 | MKT Browser contract, verified Windows slices, and what v1 still owes | [plan MKT Browser](../plans/260810-0244-mkt-browser-noi-bo/plan.md) |
 | Code nằm ở đâu, luồng nào gọi file nào | [codebase-summary.md](codebase-summary.md) |
@@ -68,7 +69,7 @@ Bằng chứng cho các tuyên bố "đã chạy thật" — không phải tài 
 Twitter/X, VPS + Docker). **Không dùng làm căn cứ cho quyết định hiện tại** — file
 [archive/README.md](archive/README.md) giải thích rõ đã bỏ gì và vì sao.
 
-Cùng thư mục còn
-[phần nhật ký thay đổi tới hết 04/08/2026](archive/project-changelog-den-04-08-2026.md), cắt ra
-ngày 06/08/2026 khi file sống chạm ngưỡng 800 dòng. File đó **vẫn là lịch sử của dự án hiện tại**
-— khác hẳn hai file trên — chỉ là phần đã cũ đủ để không cần mở mỗi ngày.
+The same directory also contains older sections of the [project changelog](project-changelog.md),
+split by date so the live file and every archive remain below 800 lines. They are still history of
+the current product, unlike the two superseded design documents; they are only old enough to stay
+out of the daily reading path.

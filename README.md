@@ -932,7 +932,7 @@ chứa dữ liệu máy dev — bản sao nói dối, và chỉ lộ ra vào ng�
 
 **Lớp không cần ai nhớ: máy chủ tự đẩy bản sao lên Cloudflare R2 mỗi đêm.** Bật bằng
 `BACKUP_DAILY_AT` + bốn biến `R2_*` (cách khai ở
-[deployment-guide.md](docs/deployment-guide.md#lớp-tự-động-app-tự-đẩy-bản-sao-lên-r2-mỗi-đêm)).
+[database-backup-and-restore.md](docs/database-backup-and-restore.md#automated-cloudflare-r2-backups)).
 Bốn biến `R2_*` phải **đủ cả bốn hoặc rỗng cả bốn** — khai một nửa thì app dừng, vì "chạy một nửa"
 ở đây nghĩa là tin rằng mình có bản sao mà thật ra không.
 
