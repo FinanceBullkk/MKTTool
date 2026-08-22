@@ -55,6 +55,14 @@ MKTTool passes 1,903 tests plus typecheck, lint, and a warning-free production b
 passes typecheck and lint with zero warnings, the complete automated installer suite, desktop build,
 and packaged runtime/profile-lifecycle verification under Node 22.
 
+**Release-readiness extraction checkpoint, 22 August 2026:** Phase 1 is verified locally on Windows.
+The vulnerable direct packaged dependency `extract-zip@2.0.1` is gone. Engine ZIP and signed CRX/ZIP
+extension paths use one owned `yauzl@3.4.0` boundary with path, link, collision, size, compression,
+CRC, cleanup, and final-tree containment checks. The production dependency audit reports no
+suggestions, and the packaged verifier now inspects `app.asar` to reject `extract-zip` and require the
+pinned replacement. This removes one release blocker; it does not close packaged-CI, signing, live
+Windows/network/recovery, or canary gates.
+
 This checkpoint is still **NO-GO for rollout**. `license-capacity-v1` is deliberately not advertised
 because the journal is not connected to a measured vendor start/heartbeat/end lifecycle. Live vendor
 schema capture, sidecar/driver integration, two real disposable proxy/profile assignments, in-browser
@@ -167,7 +175,7 @@ Windows packaging guards passed 3/3. That frozen checkpoint passed typecheck, bu
 verification. Current Phase 00 remediation adds real workspace lint and CI/package quality guards;
 23 packaging contracts, the complete Node 22 installer suite, lint, and typecheck pass on 14 August.
 The current desktop package is version `0.3.12`; its 22 August directory build is 221,933,568 bytes
-with SHA-256 `26074de0477d5401c4998e6cc1e5c20f727868e1d2b39deffb63cabfbbde9ce3`.
+with SHA-256 `6a3809d6ec83ad4f01459821b3de7cb0072483f42d67520dee8e729bdd2d2c69`.
 The combined installer last built on 21 August embeds the exact Relay v15 archive and manifest but
 predates the final 22 August P0 hardening, so it is not an approved rollout artifact. The packaged
 verifier proves contract-v4 capability

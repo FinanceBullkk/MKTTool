@@ -17,6 +17,25 @@ the archive location.
 
 ---
 
+## 22 August 2026 - Vulnerable packaged ZIP extraction is removed
+
+MKT Browser no longer ships the vulnerable direct runtime dependency `extract-zip@2.0.1`. Engine
+ZIPs and verified CRX/ZIP extensions now use one owned fail-closed extraction boundary built on
+pinned `yauzl@3.4.0`. It rejects traversal and absolute paths, Windows device names, links and
+special entries, case-folded collisions, excessive entry/file/archive sizes, extreme compression,
+truncation, and CRC mismatch; failed extraction removes staging and never publishes partial state.
+
+The Windows CI workflow now runs a production-only high-severity dependency audit. The packaged
+runtime verifier inspects `resources/app.asar` and its `package.json`, requiring `yauzl@3.4.0` and
+rejecting direct `extract-zip` metadata or files. Local Node 22 verification passed the production
+audit, typecheck, zero-warning lint, MKB-02, MKB-03, the complete installer suite, the Windows
+directory build, and packaged runtime/profile lifecycle. The rebuilt unsigned `0.3.12` executable is
+221,933,568 bytes with SHA-256
+`6a3809d6ec83ad4f01459821b3de7cb0072483f42d67520dee8e729bdd2d2c69`.
+
+This closes release-readiness Phase 1 only. Packaged-CI determinism, merge enforcement, signing,
+real Windows/network/recovery proof, and the seven-day canary remain open, so rollout stays NO-GO.
+
 ## 22 August 2026 - P0 browser and proxy technical hardening is green; rollout remains NO-GO
 
 MKT Browser now refuses a proxied launch when its egress probe is unavailable, empty, or malformed.
