@@ -63,6 +63,16 @@ suggestions, and the packaged verifier now inspects `app.asar` to reject `extrac
 pinned replacement. This removes one release blocker; it does not close packaged-CI, signing, live
 Windows/network/recovery, or canary gates.
 
+**Release-readiness packaged-CI checkpoint, 22 August 2026:** Phase 2 implementation is locally
+verified but remains in progress. MKT Browser now uses an OS-assigned DevTools port, accepts only a
+fresh bounded port record whose loopback listener belongs to the owned profile process, preserves one
+total 15-second operator budget, records sanitized process/listener failure evidence, and bounds every
+verifier health/RPC request. The Windows workflow builds one directory package, hashes and uploads it,
+then downloads and tests that exact archive in a fresh job. The rebuilt package passed 5/5 cold
+lifecycle iterations while ports 9222 and 9223 were occupied. The required PR artifact run and seven
+independent 20/20 Windows runner runs have not happened, so packaged-CI stability is not yet a closed
+release gate.
+
 This checkpoint is still **NO-GO for rollout**. `license-capacity-v1` is deliberately not advertised
 because the journal is not connected to a measured vendor start/heartbeat/end lifecycle. Live vendor
 schema capture, sidecar/driver integration, two real disposable proxy/profile assignments, in-browser
@@ -174,15 +184,19 @@ W02 passed 8/8, MKB-01 passed 8/8, MKB-01E passed 7/7, MKB-02 passed 18/18, and
 Windows packaging guards passed 3/3. That frozen checkpoint passed typecheck, build, and packaged
 verification. Current Phase 00 remediation adds real workspace lint and CI/package quality guards;
 23 packaging contracts, the complete Node 22 installer suite, lint, and typecheck pass on 14 August.
-The current desktop package is version `0.3.12`; its 22 August directory build is 221,933,568 bytes
-with SHA-256 `6a3809d6ec83ad4f01459821b3de7cb0072483f42d67520dee8e729bdd2d2c69`.
+The current desktop package is version `0.3.12`; its reviewed 22 August directory build is
+221,933,568 bytes with SHA-256
+`b62642a57c2651c071a59fe210fa2fe9633df584d16fa49e3abd855e747bc1a7`. Packaged `app.asar` SHA-256
+is `8a2310fbd9341b0b45ae829a45b9fdbb40a31da5aa821513fb01e9209a919da7`.
 The combined installer last built on 21 August embeds the exact Relay v15 archive and manifest but
 predates the final 22 August P0 hardening, so it is not an approved rollout artifact. The packaged
 verifier proves contract-v4 capability
 reporting, a profile-management-only tool inventory, deterministic managed create/retry, correlated
 create/launch diagnostics, direct-launch and delete locks, endpoint-free proxy summaries, atomic
-managed launch, Windows Chrome launcher-PID handoff, process-confirmed close, and clean
-application/profile cleanup with no disposable Chrome process left behind. Packaging retries
+managed launch, Windows Chrome launcher-PID handoff, OS-assigned owned DevTools discovery,
+per-iteration engine/timing evidence, sanitized process/listener failure snapshots,
+process-confirmed close, and clean application/profile cleanup with no disposable Chrome process
+left behind. Packaging retries
 `rcedit` only for the transient `Unable to commit changes` failure; every other edit failure stops
 immediately. The executable is still unsigned, so this is technical checkpoint evidence, not a
 release, distribution approval, or pilot approval. The earlier dedicated-proxy exit-IP match remains

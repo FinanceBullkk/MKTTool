@@ -17,6 +17,33 @@ the archive location.
 
 ---
 
+## 22 August 2026 - Packaged runtime CI adopts owned OS-assigned DevTools endpoints
+
+MKT Browser no longer allocates monotonically increasing ports from 9222. Chromium requests port
+zero and publishes its selected endpoint through a bounded `DevToolsActivePort` record in the owned
+profile directory. Launch accepts the endpoint only when the record is fresh, the browser process
+uses that exact data directory, and the listener belongs to the selected primary process on
+`127.0.0.1`. Discovery and staged CDP attach share one 15-second operator readiness budget; startup
+orphan recovery separately bounds and cancels its polite CDP close before allowing a new launch. The
+packaged verifier alone receives a 60-second cold-run budget.
+
+The Windows workflow now separates quality, build-once package, and fresh-job packaged-contract
+jobs. It hashes and uploads one directory-package archive, verifies the manifest after download, and
+runs five cold iterations on push/pull request or twenty on schedule/manual runs. Failure evidence
+contains bounded redacted application output plus PID/parent/listener snapshots; timing JSON records
+the executable, `app.asar`, Chrome version, and Chrome hashes without profile data or tokens. Every
+health probe and MCP RPC has its own hard deadline, so a half-open local request cannot hang the CI
+job past evidence generation.
+
+Local Node 22 verification passed the complete installer suite, typecheck, zero-warning lint, the
+production directory build, an expected-failure cleanup/redaction smoke, and 5/5 cold lifecycle runs
+while ports 9222 and 9223 were occupied. The unsigned `0.3.12` executable remains 221,933,568 bytes
+with SHA-256 `b62642a57c2651c071a59fe210fa2fe9633df584d16fa49e3abd855e747bc1a7`; packaged `app.asar`
+SHA-256 is `8a2310fbd9341b0b45ae829a45b9fdbb40a31da5aa821513fb01e9209a919da7`.
+
+Release-readiness Phase 2 remains in progress. The required PR artifact run and seven independent
+20/20 Windows runner runs remain open, so rollout stays NO-GO.
+
 ## 22 August 2026 - Vulnerable packaged ZIP extraction is removed
 
 MKT Browser no longer ships the vulnerable direct runtime dependency `extract-zip@2.0.1`. Engine
