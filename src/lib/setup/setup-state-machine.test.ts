@@ -136,7 +136,8 @@ describe("setupStateMachine", () => {
     });
 
     expect(output.state).toBe("Needs repair");
-    expect(output.message).toContain("Missing capabilities");
+    expect(output.message).toContain("Update MKT Browser");
+    expect(output.message).not.toContain("local-install-ready-v1");
   });
 
   it("routes a failed shared install inspection to installer repair", () => {
@@ -157,7 +158,7 @@ describe("setupStateMachine", () => {
 
     expect(output.state).toBe("Needs repair");
     expect(output.action.kind).toBe("UPDATE");
-    expect(output.message).toContain("installer repair");
+    expect(output.message).toContain("Repair");
   });
 
   it("keeps waiting as a durable success when registration exists but approval does not", () => {

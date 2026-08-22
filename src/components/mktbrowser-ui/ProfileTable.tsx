@@ -2,21 +2,29 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Play, Square, MoreHorizontal, Loader2 } from "lucide-react";
+import { Play, MoreHorizontal, Loader2 } from "lucide-react";
 import { Avatar, Flag } from "./Atoms";
 import type { ProfileItemData } from "./ProfileTile";
-import {
-  pingRelay,
-  sendTicketToRelay,
-  describeRelayFailure,
-  describeSlowRelayFailure,
-} from "@/lib/relay/relay-browser-client";
+import { pingRelay, sendTicketToRelay } from "@/lib/relay/relay-browser-client";
 import { RELAY_PROFILE_WORK_TIMEOUT_MS } from "@/lib/relay/relay-endpoints";
+import {
+  describeProfileLaunchFailure,
+  describeProfileTicketFailure,
+  profileLaunchReadiness,
+  safeProxyPresentation,
+  type LocalLaunchReadiness,
+} from "@/lib/relay/profile-launch-readiness";
 
 export function ProfileTable({
   profiles,
+  localReadiness,
+  runningProfileIds,
+  onOpened,
 }: {
   profiles: ProfileItemData[];
+  localReadiness: LocalLaunchReadiness;
+  runningProfileIds: ReadonlySet<string>;
+  onOpened: (profileId: string | null) => void;
 }) {
   return (
     <div className="rounded-2xl overflow-hidden border border-white/[0.06] bg-white/[0.02] backdrop-blur-xl">
@@ -24,12 +32,12 @@ export function ProfileTable({
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="border-b border-white/[0.06] bg-white/[0.03] text-[11px] font-semibold uppercase tracking-wider text-neutral-400 font-mono">
-              <th scope="col" className="py-3 px-4">Profile & Kênh</th>
-              <th scope="col" className="py-3 px-4">Trạng thái</th>
-              <th scope="col" className="py-3 px-4">Tags & Ngách</th>
-              <th scope="col" className="py-3 px-4">Proxy / IP</th>
-              <th scope="col" className="py-3 px-4">Thiết bị</th>
-              <th scope="col" className="py-3 px-4 text-right">Hành động</th>
+              <th scope="col" className="py-3 px-4">Profile & channel</th>
+              <th scope="col" className="py-3 px-4">Status</th>
+              <th scope="col" className="py-3 px-4">Tags & niche</th>
+              <th scope="col" className="py-3 px-4">Proxy</th>
+              <th scope="col" className="py-3 px-4">Device</th>
+              <th scope="col" className="py-3 px-4 text-right">Action</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-white/[0.04] text-sm">
@@ -37,6 +45,12 @@ export function ProfileTable({
               <ProfileTableRow
                 key={profile.id}
                 profile={profile}
+                localReadiness={localReadiness}
+                isRunning={Boolean(
+                  profile.antidetectProfileId &&
+                    runningProfileIds.has(profile.antidetectProfileId)
+                )}
+                onOpened={() => onOpened(profile.antidetectProfileId)}
               />
             ))}
           </tbody>
@@ -48,50 +62,54 @@ export function ProfileTable({
 
 function ProfileTableRow({
   profile,
+  localReadiness,
+  isRunning,
+  onOpened,
 }: {
   profile: ProfileItemData;
+  localReadiness: LocalLaunchReadiness;
+  isRunning: boolean;
+  onOpened: () => void;
 }) {
-  const [isRunning, setIsRunning] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const isCold = profile.coldStartDaysRemaining > 0;
-  const isDead = profile.status === "DEAD";
-  const canLaunch = !isDead && profile.proxy !== null;
+  const launchReadiness = profileLaunchReadiness(
+    {
+      status: profile.status,
+      antidetectProfileId: profile.antidetectProfileId,
+      device: profile.device,
+      proxy: profile.proxy,
+      isRunning,
+    },
+    localReadiness,
+  );
+  const canLaunch = launchReadiness.ready;
+  const proxyPresentation = profile.proxy ? safeProxyPresentation(profile.proxy) : null;
 
   async function handleToggleLaunch() {
     if (busy || !canLaunch) return;
-
-    if (isRunning) {
-      setIsRunning(false);
-      return;
-    }
-
-    const ping = pingRelay();
+    void pingRelay();
     setBusy(true);
 
     try {
       const response = await fetch(`/api/accounts/${profile.id}/launch`, { method: "POST" });
-      const body = (await response.json()) as { ok: boolean; message: string; ticket?: string };
+      const body = (await response.json()) as { ok: boolean; ticket?: string };
 
       if (!body.ok || !body.ticket) {
-        alert(body.message);
+        alert(describeProfileTicketFailure(response.status));
         return;
       }
 
       const sent = await sendTicketToRelay(body.ticket, RELAY_PROFILE_WORK_TIMEOUT_MS);
       if (sent.status === "ok") {
-        setIsRunning(true);
+        onOpened();
         return;
       }
 
-      const health = await ping;
-      alert(
-        sent.status === "no-permission"
-          ? `${describeSlowRelayFailure(sent, "mở profile")}`
-          : describeRelayFailure(sent, health)
-      );
+      alert(describeProfileLaunchFailure(sent));
     } catch {
-      alert("Không thể gửi lệnh mở profile qua Relay.");
+      alert("Could not send the profile launch request to Relay.");
     } finally {
       setBusy(false);
     }
@@ -129,7 +147,7 @@ function ProfileTableRow({
           </span>
         ) : isCold ? (
           <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-medium bg-amber-500/10 text-amber-300 border border-amber-500/20">
-            🟡 Nuôi ({profile.coldStartDaysRemaining}d)
+            Warmup ({profile.coldStartDaysRemaining}d)
           </span>
         ) : (
           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-white/[0.04] text-neutral-400">
@@ -157,13 +175,16 @@ function ProfileTableRow({
         {profile.proxy ? (
           <div className="flex items-center gap-2">
             <Flag country={profile.proxy.country} />
-            <span className="font-mono text-xs text-neutral-300">
-              {profile.proxy.lastExitIp || `${profile.proxy.host}:${profile.proxy.port}`}
-            </span>
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+            <span className="text-xs text-neutral-300">{proxyPresentation?.label}</span>
+            <span className="text-[10px] text-neutral-500">{proxyPresentation?.status}</span>
+            <span
+              className={`w-1.5 h-1.5 rounded-full ${
+                proxyPresentation?.healthy ? "bg-emerald-400" : "bg-amber-400"
+              }`}
+            />
           </div>
         ) : (
-          <span className="text-xs text-neutral-400">Direct — no proxy</span>
+          <span className="text-xs text-neutral-400">Proxy not assigned</span>
         )}
       </td>
 
@@ -190,10 +211,7 @@ function ProfileTableRow({
             {busy ? (
               <Loader2 size={12} className="animate-spin" />
             ) : isRunning ? (
-              <>
-                <Square size={10} fill="currentColor" />
-                <span>Stop</span>
-              </>
+              <span>Running</span>
             ) : (
               <>
                 <Play size={10} fill="currentColor" />
@@ -209,6 +227,11 @@ function ProfileTableRow({
             <MoreHorizontal size={13} />
           </Link>
         </div>
+        {!canLaunch && !busy ? (
+          <div className="mt-1.5 max-w-xs text-[10px] leading-4 text-amber-300">
+            {launchReadiness.message}
+          </div>
+        ) : null}
       </td>
     </tr>
   );

@@ -305,6 +305,13 @@ export interface RelayBrowserHealth {
   contractProblem: string;
   engine: { kind: string; version: string | null; status: string } | null;
   capabilities: string[];
+  licenseCapacity?: {
+    total: number;
+    free: number;
+    active: number;
+    pendingRecovery: number;
+    cooling: number;
+  } | null;
 }
 
 export interface RelayOperationDiagnostic {
@@ -383,6 +390,8 @@ export interface CompatibilityUpdateReply extends RelayReply {
 export interface RelayReply {
   ok: boolean;
   message: string;
+  /** Stable machine-readable failure code when the Relay can classify a rejection. */
+  code?: string;
   /** Cầu nối gửi kèm phiên bản trong **mọi** phản hồi — QĐ 11. */
   relayVersion: number;
   /** Present for accepted profile operations; never contains tickets, proxy data, or secrets. */

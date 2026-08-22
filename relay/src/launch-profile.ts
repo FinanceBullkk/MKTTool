@@ -11,7 +11,10 @@
  */
 import { AntidetectError } from "../../src/lib/antidetect/antidetect-browser-adapter";
 import { TICKET_KINDS, type TicketPayload } from "../../src/lib/tickets/ticket-types";
-import type { RelayAntidetect } from "./relay-antidetect";
+import {
+  AntidetectRuntimeNotReadyError,
+  type RelayAntidetect,
+} from "./relay-antidetect";
 import type { RelayResponseBody } from "./relay-http-server";
 import type { RelayOperationDiagnostic } from "../../src/lib/relay/relay-endpoints";
 import { relayOperationDiagnostic } from "./operation-diagnostics";
@@ -28,10 +31,17 @@ export async function launchProfileFromTicket(
   try {
     await antidetect.requireOperationalRuntime();
   } catch (error) {
+    const code = error instanceof AntidetectRuntimeNotReadyError ? error.code : undefined;
     return {
       ok: false,
       message: error instanceof Error ? error.message : String(error),
-      diagnostic: relayOperationDiagnostic({ operationId, startedAt, stage: "browser-health" }),
+      ...(code ? { code } : {}),
+      diagnostic: relayOperationDiagnostic({
+        operationId,
+        startedAt,
+        stage: "browser-health",
+        code,
+      }),
     };
   }
   const adapter = antidetect.getAdapter();
@@ -46,16 +56,18 @@ export async function launchProfileFromTicket(
       );
     } catch (error) {
       antidetect.forgetProbe();
+      const code = error instanceof AntidetectError ? error.code : undefined;
       return {
         ok: false,
         message:
           `Could not safely open the profile with proxy "${payload.proxyLabel}". ` +
           `${describe(error)}`,
+        ...(code ? { code } : {}),
         diagnostic: relayOperationDiagnostic({
           operationId,
           startedAt,
           stage: "launch-profile",
-          code: error instanceof AntidetectError ? error.code : undefined,
+          code,
           browser: error instanceof AntidetectError ? error.diagnostic : undefined,
         }),
       };
@@ -83,6 +95,7 @@ export async function launchProfileFromTicket(
       message:
         `Could not apply proxy "${payload.proxyLabel}", so the profile was NOT opened. ` +
         `${describe(error)}`,
+      ...(error instanceof AntidetectError && error.code ? { code: error.code } : {}),
     };
   }
 
@@ -93,6 +106,7 @@ export async function launchProfileFromTicket(
     return {
       ok: false,
       message: `Proxy "${payload.proxyLabel}" was applied, but the profile could not open. ${describe(error)}`,
+      ...(error instanceof AntidetectError && error.code ? { code: error.code } : {}),
     };
   }
 
@@ -129,7 +143,7 @@ const REMEDY_BY_CODE: Record<string, string> = {
   // cục bộ, nên máy này thành máy duy nhất mở được nick đó. Đó là thứ đáng cân nhắc một nhịp, và là
   // lý do đúng đắn duy nhất để hỏi ai đó trước.
   PROFILE_NOT_FOUND:
-    'This PC does not have that profile. Open the account page and press "Tạo profile trên máy này" ' +
+    'This PC does not have that profile. Open the account page and press "Create profile on this PC" ' +
     "— you can do it yourself. It pins the account to this PC, because the profile only exists here.",
   PROFILE_NOT_RUNNING: "The profile is not open. Launch it before controlling the page.",
   PROFILE_ALREADY_RUNNING:

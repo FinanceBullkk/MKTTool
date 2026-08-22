@@ -269,6 +269,20 @@ describe("MktBrowserAdapter profile operations", () => {
     expect(calls.filter((call) => call.method === "tools/call")).toHaveLength(1);
   });
 
+  it("drops unrecognized failure codes at the local Browser boundary", async () => {
+    installFakeMcpServer({
+      failingTool: "launch_managed_profile",
+      failingToolCode: "cb_live_secret_key",
+    });
+    const error = await new MktBrowserAdapter(MKT_BROWSER_DEFAULT_MCP_URL, "t")
+      .launchProfileWithProxy(PROFILE_ID, PROXY)
+      .catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(AntidetectError);
+    if (!(error instanceof AntidetectError)) throw new Error("Expected launch to fail.");
+    expect(error.code).toBeUndefined();
+  });
+
   it("sends the exact proxy payload and snake_case profile id", async () => {
     const calls = installFakeMcpServer();
     await new MktBrowserAdapter(MKT_BROWSER_DEFAULT_MCP_URL, "t").applyProxy(PROFILE_ID, PROXY);
@@ -473,7 +487,70 @@ describe("MktBrowserAdapter runtime reporting", () => {
       profileSchemaVersion: 1,
       engine: { kind: "cloakbrowser", version: "145.0.0.0", status: "ready" },
       capabilities: ["profile-contract-v1", "runtime-info-v1"],
+      licenseCapacity: null,
     });
+  });
+
+  it("accepts a complete aggregate license-capacity report", async () => {
+    installFakeMcpServer({
+      tools: RUNTIME_TOOLS,
+      toolBodies: {
+        get_runtime_info: {
+          provider: "mkt-browser",
+          appVersion: "0.3.1",
+          contractVersion: 1,
+          profileSchemaVersion: 1,
+          engine: { kind: "cloakbrowser", version: "145.0.0.0", status: "ready" },
+          capabilities: ["profile-contract-v1", "runtime-info-v1", "license-capacity-v1"],
+          licenseCapacity: {
+            total: 4,
+            free: 1,
+            active: 1,
+            pendingRecovery: 1,
+            cooling: 1,
+          },
+        },
+      },
+    });
+
+    await expect(
+      new MktBrowserAdapter(MKT_BROWSER_DEFAULT_MCP_URL, "t").runtimeInfo(),
+    ).resolves.toMatchObject({
+      licenseCapacity: {
+        total: 4,
+        free: 1,
+        active: 1,
+        pendingRecovery: 1,
+        cooling: 1,
+      },
+    });
+  });
+
+  it("rejects malformed license-capacity counts without discarding runtime identity", async () => {
+    installFakeMcpServer({
+      tools: RUNTIME_TOOLS,
+      toolBodies: {
+        get_runtime_info: {
+          provider: "mkt-browser",
+          appVersion: "0.3.1",
+          contractVersion: 1,
+          profileSchemaVersion: 1,
+          engine: { kind: "cloakbrowser", version: "145.0.0.0", status: "ready" },
+          capabilities: ["profile-contract-v1", "runtime-info-v1", "license-capacity-v1"],
+          licenseCapacity: {
+            total: 3,
+            free: 1,
+            active: 1,
+            pendingRecovery: 1,
+            cooling: 1,
+          },
+        },
+      },
+    });
+
+    await expect(
+      new MktBrowserAdapter(MKT_BROWSER_DEFAULT_MCP_URL, "t").runtimeInfo(),
+    ).resolves.toMatchObject({ provider: "mkt-browser", licenseCapacity: null });
   });
 
   it("reports null for a build that predates the runtime tool", async () => {

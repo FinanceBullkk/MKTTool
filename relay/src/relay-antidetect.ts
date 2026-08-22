@@ -9,7 +9,11 @@ import {
 } from "../../src/lib/antidetect/mkt-browser-contract";
 import type { RelayConfig } from "./relay-config";
 import type { RelayBrowserHealth } from "../../src/lib/relay/relay-endpoints";
-import { currentDeviceBrowserReadiness } from "../../src/lib/relay/current-device-browser-health";
+import {
+  currentDeviceBrowserFailureCode,
+  currentDeviceBrowserReadiness,
+  type CurrentDeviceBrowserFailureCode,
+} from "../../src/lib/relay/current-device-browser-health";
 import {
   resolveMktBrowserToken,
   type MktBrowserTokenSource,
@@ -38,7 +42,10 @@ export class AntidetectNotConfiguredError extends Error {
 }
 
 export class AntidetectRuntimeNotReadyError extends Error {
-  constructor(message: string) {
+  constructor(
+    message: string,
+    readonly code: CurrentDeviceBrowserFailureCode,
+  ) {
     super(message);
     this.name = "AntidetectRuntimeNotReadyError";
   }
@@ -118,6 +125,7 @@ export class RelayAntidetect {
       contractProblem: "",
       engine: null,
       capabilities: [],
+      licenseCapacity: null,
     };
 
     if (!this.token) return offline;
@@ -141,13 +149,17 @@ export class RelayAntidetect {
       contractProblem: compatibility.reason,
       engine: info?.engine ?? null,
       capabilities: info?.capabilities ?? [],
+      licenseCapacity: info?.licenseCapacity ?? null,
     };
   }
 
   async requireOperationalRuntime(): Promise<AntidetectRuntimeHealth> {
     const health = await this.describeRuntime();
     const readiness = currentDeviceBrowserReadiness(health);
-    if (!readiness.ready) throw new AntidetectRuntimeNotReadyError(readiness.message);
+    const code = currentDeviceBrowserFailureCode(readiness.state);
+    if (!readiness.ready && code) {
+      throw new AntidetectRuntimeNotReadyError(readiness.message, code);
+    }
     return health;
   }
 

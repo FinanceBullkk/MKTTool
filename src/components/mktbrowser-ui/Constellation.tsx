@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Grid3x3, List, Plus } from "lucide-react";
 import { ProfileTile, type ProfileItemData } from "./ProfileTile";
 import { ProfileTable } from "./ProfileTable";
@@ -10,11 +10,23 @@ import {
   type FreeProxyOption,
 } from "@/components/tiktok/new-tiktok-profile-sheet";
 import { Kbd } from "./Atoms";
+import { fetchRelayProfiles, pingRelay } from "@/lib/relay/relay-browser-client";
+import {
+  currentRelayLaunchReadiness,
+  localProfileInventorySnapshot,
+  type LocalLaunchReadiness,
+} from "@/lib/relay/profile-launch-readiness";
+import {
+  isProfileRunning,
+  profileListCounts,
+  profileMatchesListFilter,
+  type ProfileListFilter,
+} from "./profile-list-state";
 
 type ViewMode = "grid" | "list";
 
 interface FilterChip {
-  id: "all" | "running" | "warmup" | "error" | "idle";
+  id: ProfileListFilter;
   label: string;
 }
 
@@ -40,16 +52,51 @@ export function Constellation({
   const [filter, setFilter] = useState<FilterChip["id"]>("all");
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [checkingLocal, setCheckingLocal] = useState(true);
+  const [localReadiness, setLocalReadiness] = useState<LocalLaunchReadiness>(() =>
+    currentRelayLaunchReadiness(null),
+  );
+  const [runningProfileIds, setRunningProfileIds] = useState<Set<string>>(() => new Set());
+  const refreshSequence = useRef(0);
 
-  const counts = useMemo(() => {
-    return {
-      all: profiles.length,
-      running: 0, // dynamic
-      warmup: profiles.filter((p) => p.coldStartDaysRemaining > 0).length,
-      error: profiles.filter((p) => p.status === "CHECKPOINT" || p.status === "DEAD").length,
-      idle: profiles.filter((p) => p.status === "ALIVE" && p.coldStartDaysRemaining === 0).length,
+  const refreshLocalState = useCallback(async () => {
+    const sequence = ++refreshSequence.current;
+    setCheckingLocal(true);
+    const healthPromise = pingRelay();
+    const profilesPromise = fetchRelayProfiles();
+    const [health, localProfiles] = await Promise.all([healthPromise, profilesPromise]);
+    if (sequence !== refreshSequence.current) return;
+
+    const inventory = localProfileInventorySnapshot(
+      currentRelayLaunchReadiness(health),
+      localProfiles,
+    );
+    setLocalReadiness(inventory.readiness);
+    if (inventory.runningProfileIds) setRunningProfileIds(inventory.runningProfileIds);
+    setCheckingLocal(false);
+  }, []);
+
+  useEffect(() => {
+    const initial = window.setTimeout(() => void refreshLocalState(), 0);
+    const timer = window.setInterval(() => void refreshLocalState(), 15_000);
+    return () => {
+      refreshSequence.current += 1;
+      window.clearTimeout(initial);
+      window.clearInterval(timer);
     };
-  }, [profiles]);
+  }, [refreshLocalState]);
+
+  const markProfileRunning = useCallback((profileId: string | null) => {
+    if (!profileId) return;
+    refreshSequence.current += 1;
+    setCheckingLocal(false);
+    setRunningProfileIds((current) => new Set(current).add(profileId));
+  }, []);
+
+  const counts = useMemo(
+    () => profileListCounts(profiles, runningProfileIds),
+    [profiles, runningProfileIds],
+  );
 
   const filtered = useMemo(() => {
     return profiles.filter((p) => {
@@ -63,14 +110,9 @@ export function Constellation({
         if (!matchName && !matchVoice && !matchProxy && !matchNotes) return false;
       }
 
-      // Status
-      if (filter === "warmup") return p.coldStartDaysRemaining > 0;
-      if (filter === "error") return p.status === "CHECKPOINT" || p.status === "DEAD" || !p.proxy;
-      if (filter === "idle") return p.coldStartDaysRemaining === 0 && p.status !== "DEAD";
-
-      return true;
+      return profileMatchesListFilter(p, filter, runningProfileIds);
     });
-  }, [profiles, searchQuery, filter]);
+  }, [profiles, searchQuery, filter, runningProfileIds]);
 
   return (
     <div
@@ -165,15 +207,44 @@ export function Constellation({
         </span>
       </div>
 
+      <div
+        className="mb-4 flex items-center justify-between gap-3 rounded-xl border border-white/[0.06] bg-white/[0.025] px-3 py-2 text-xs"
+        role="status"
+      >
+        <div className="flex min-w-0 items-center gap-2">
+          <span
+            className={`h-2 w-2 shrink-0 rounded-full ${
+              localReadiness.ready ? "bg-emerald-400" : "bg-amber-400"
+            }`}
+          />
+          <span className="truncate text-neutral-300">
+            {checkingLocal && localReadiness.state === "checking"
+              ? "Checking local browser readiness..."
+              : localReadiness.message}
+          </span>
+        </div>
+        {!localReadiness.ready ? (
+          <button
+            type="button"
+            disabled={checkingLocal}
+            onClick={() => void refreshLocalState()}
+            className="shrink-0 rounded-lg border border-white/[0.08] bg-white/[0.04] px-2.5 py-1 text-neutral-200 transition hover:bg-white/[0.08] disabled:cursor-wait disabled:opacity-50"
+          >
+            {checkingLocal ? "Checking..." : "Check again"}
+          </button>
+        ) : null}
+      </div>
+
       {/* 3. Cards Grid or List View */}
       {filtered.length === 0 ? (
         <div className="flex-1 flex flex-col items-center justify-center p-12 text-center rounded-2xl bg-white/[0.01] border border-white/[0.04]">
           <div className="w-12 h-12 rounded-2xl bg-white/[0.03] border border-white/[0.06] flex items-center justify-center text-2xl mb-3">
             🎬
           </div>
-          <h3 className="text-sm font-semibold text-white">Chưa có profile nào</h3>
+          <h3 className="text-sm font-semibold text-white">No profiles yet</h3>
           <p className="mt-1 text-xs text-neutral-400 max-w-sm">
-            Bấm nút <strong>&quot;New profile&quot;</strong> để tạo môi trường trình duyệt cách ly mới kèm Proxy 4G.
+            Select <strong>&quot;New profile&quot;</strong> to create an isolated browser profile with
+            its assigned proxy.
           </p>
           <button
             type="button"
@@ -181,12 +252,15 @@ export function Constellation({
             className="brand-btn mt-4 px-4 py-2 rounded-xl text-xs font-semibold text-white inline-flex items-center gap-1.5 cursor-pointer"
           >
             <Plus size={14} />
-            <span>Tạo Profile đầu tiên</span>
+            <span>Create first profile</span>
           </button>
         </div>
       ) : viewMode === "list" ? (
         <ProfileTable
           profiles={filtered}
+          localReadiness={localReadiness}
+          runningProfileIds={runningProfileIds}
+          onOpened={markProfileRunning}
         />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -194,6 +268,9 @@ export function Constellation({
             <ProfileTile
               key={profile.id}
               profile={profile}
+              localReadiness={localReadiness}
+              isRunning={isProfileRunning(profile, runningProfileIds)}
+              onOpened={() => markProfileRunning(profile.antidetectProfileId)}
             />
           ))}
         </div>

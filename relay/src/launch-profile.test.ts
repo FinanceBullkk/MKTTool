@@ -9,7 +9,10 @@ import type { AntidetectAdapter } from "../../src/lib/antidetect/antidetect-brow
 import { AntidetectError } from "../../src/lib/antidetect/antidetect-browser-adapter";
 import { TICKET_KINDS } from "../../src/lib/tickets/ticket-types";
 import { launchProfileFromTicket } from "./launch-profile";
-import type { RelayAntidetect } from "./relay-antidetect";
+import {
+  AntidetectRuntimeNotReadyError,
+  type RelayAntidetect,
+} from "./relay-antidetect";
 
 const INTERNAL_SENTENCE = "resolveBinaryPath failed: Chromium not ready: missing";
 
@@ -59,6 +62,26 @@ function antidetectThatFails(
 }
 
 describe("launchProfileFromTicket error copy", () => {
+  it("returns a stable code when measured capacity is still recovering", async () => {
+    const antidetect = {
+      requireOperationalRuntime: async () => {
+        throw new AntidetectRuntimeNotReadyError(
+          "MKT Browser is recovering a prior browser session. Retry after recovery finishes.",
+          "RECOVERY_PENDING",
+        );
+      },
+    } as unknown as RelayAntidetect;
+
+    const result = await launchProfileFromTicket(payload(), antidetect, "operation-capacity");
+
+    expect(result.ok).toBe(false);
+    expect(result.code).toBe("RECOVERY_PENDING");
+    expect(result.diagnostic).toMatchObject({
+      stage: "browser-health",
+      code: "RECOVERY_PENDING",
+    });
+  });
+
   it("turns a proxy refusal into the proxy remedy, not the desktop's sentence", async () => {
     const error = new AntidetectError(INTERNAL_SENTENCE, "MKT Browser", {
       code: "PROXY_REJECTED",
@@ -133,6 +156,7 @@ describe("launchProfileFromTicket error copy", () => {
     } as unknown as RelayAntidetect, "operation-5");
 
     expect(result.ok).toBe(false);
+    expect(result.code).toBe("PROFILE_ALREADY_RUNNING");
     expect(result.message).toContain("already running with a different proxy");
     expect(result.message).not.toContain(INTERNAL_SENTENCE);
   });

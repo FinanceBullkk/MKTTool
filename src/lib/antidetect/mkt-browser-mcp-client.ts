@@ -1,6 +1,9 @@
 /** Minimal JSON-RPC client for MKT Browser's Streamable HTTP MCP endpoint. */
 
-import { MKT_BROWSER_MCP_TOKEN_ENV } from "./mkt-browser-contract";
+import {
+  isMktBrowserErrorCode,
+  MKT_BROWSER_MCP_TOKEN_ENV,
+} from "./mkt-browser-contract";
 
 const PROTOCOL_VERSION = "2025-06-18";
 const REQUEST_TIMEOUT_MS = 30_000;
@@ -69,7 +72,7 @@ function parseErrorBody(result: McpToolResult): { code?: string; diagnostic?: un
     if (!error || typeof error !== "object") return {};
     const code = (error as { code?: unknown }).code;
     return {
-      ...(typeof code === "string" && code !== "" ? { code } : {}),
+      ...(isMktBrowserErrorCode(code) ? { code } : {}),
       diagnostic: (parsed as { diagnostic?: unknown }).diagnostic,
     };
   } catch {

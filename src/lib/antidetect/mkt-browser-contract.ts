@@ -19,24 +19,39 @@ export const MKT_BROWSER_SUPPORTED_CONTRACT_VERSIONS = [1, 2, 3, 4] as const;
  * Mirrors the desktop contract's codes. MKTTool branches on these; it must never match a
  * human-readable message, which the desktop is free to reword.
  */
-export type MktBrowserErrorCode =
-  | "INVALID_INPUT"
-  | "FORBIDDEN"
-  | "PROFILE_NOT_FOUND"
-  | "PROFILE_NOT_RUNNING"
-  | "PROFILE_ALREADY_RUNNING"
-  | "PROXY_REJECTED"
-  | "ENGINE_UNAVAILABLE"
-  | "UNKNOWN_TOOL"
-  | "MANAGED_PROFILE_LOCKED"
-  | "PROFILE_DELETION_PENDING"
-  | "INTERNAL_ERROR";
+export const MKT_BROWSER_ERROR_CODES = [
+  "INVALID_INPUT",
+  "FORBIDDEN",
+  "PROFILE_NOT_FOUND",
+  "PROFILE_NOT_RUNNING",
+  "PROFILE_ALREADY_RUNNING",
+  "PROXY_REJECTED",
+  "ENGINE_UNAVAILABLE",
+  "UNKNOWN_TOOL",
+  "MANAGED_PROFILE_LOCKED",
+  "PROFILE_DELETION_PENDING",
+  "INTERNAL_ERROR",
+] as const;
+
+export type MktBrowserErrorCode = (typeof MKT_BROWSER_ERROR_CODES)[number];
+
+export function isMktBrowserErrorCode(value: unknown): value is MktBrowserErrorCode {
+  return MKT_BROWSER_ERROR_CODES.includes(value as MktBrowserErrorCode);
+}
 
 export interface MktBrowserEngineInfo {
   kind: string;
   /** `null` while the engine is missing or still being prepared. */
   version: string | null;
   status: string;
+}
+
+export interface MktBrowserLicenseCapacity {
+  total: number;
+  free: number;
+  active: number;
+  pendingRecovery: number;
+  cooling: number;
 }
 
 export interface MktBrowserRuntimeInfo {
@@ -46,6 +61,7 @@ export interface MktBrowserRuntimeInfo {
   profileSchemaVersion: number;
   engine: MktBrowserEngineInfo;
   capabilities: string[];
+  licenseCapacity: MktBrowserLicenseCapacity | null;
 }
 
 export interface MktBrowserCompatibility {

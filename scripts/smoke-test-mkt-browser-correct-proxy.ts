@@ -2,10 +2,10 @@
  * Close the MKB-00 positive-path gate without exposing proxy credentials.
  *
  * The script reads one proxy from either a selected vault or the fixed local handoff file, keeps
- * its credentials only in memory, probes its exit IP independently, and then runs a disposable
- * MKT Browser profile through the same proxy. It never prints the proxy endpoint, credentials,
- * bearer token, database URL, or observed IP. The local handoff file is removed immediately after
- * it is parsed, before any network or browser action.
+ * its credentials only in memory, probes it independently, and then sends signed create and launch
+ * tickets through the real Relay handler to a disposable MKT Browser root. It never exposes page
+ * control tools or prints the proxy endpoint, credentials, bearer token, database URL, or observed
+ * IP. The local handoff file is removed before any network or browser action.
  *
  * Usage:
  *   npm run mkt-browser:proxy-smoke -- --database=local --inspect
@@ -16,34 +16,43 @@
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
 import { execFile, spawn, type ChildProcess } from "node:child_process";
+import { randomBytes, randomUUID } from "node:crypto";
 import { access, cp, lstat, mkdtemp, readFile, rm, unlink } from "node:fs/promises";
 import net from "node:net";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { loadEnvFile } from "node:process";
 import { promisify } from "node:util";
-import type { AntidetectProxyConfig } from "../src/lib/antidetect/antidetect-browser-adapter";
-import { MktBrowserAdapter } from "../src/lib/antidetect/mkt-browser-adapter";
-import {
-  type McpToolResult,
-  MktBrowserMcpClient,
-  extractText,
-} from "../src/lib/antidetect/mkt-browser-mcp-client";
+import type {
+  AntidetectAdapter,
+  AntidetectProfileSummary,
+  AntidetectProxyConfig,
+} from "../src/lib/antidetect/antidetect-browser-adapter";
 import { buildProxyConfig } from "../src/lib/antidetect/proxy-config-builder";
 import {
   probeDirectExitIp,
   probeExitIpThroughProxy,
 } from "../src/lib/proxies/proxy-exit-ip-probe";
+import {
+  generateRelayDeviceKeyPair,
+  relayPrivateKeyToKeyObject,
+} from "../src/lib/tickets/relay-device-key";
+import { issueTicket } from "../src/lib/tickets/ticket-issuer";
+import {
+  publicKeyToHex,
+  resetServerSigningKeysCache,
+  SERVER_SIGNING_KEY_ENV,
+  signingKeysFromSeed,
+} from "../src/lib/tickets/server-signing-key";
+import { TICKET_KINDS } from "../src/lib/tickets/ticket-types";
+import { handleTicketRequest } from "../relay/src/handle-ticket";
+import { RelayAntidetect } from "../relay/src/relay-antidetect";
+import { buildRelayIdentity } from "../relay/src/relay-identity";
 
 const execFileAsync = promisify(execFile);
 const DEFAULT_LABEL = "MKB-00 TEST";
 const STARTUP_TIMEOUT_MS = 45_000;
 const RUNNING_TIMEOUT_MS = 30_000;
-const EXIT_IP_URLS = [
-  "https://api.ipify.org?format=json",
-  "https://api64.ipify.org?format=json",
-  "https://ipinfo.io/json",
-] as const;
 const SENSITIVE_ENV_MARKERS = [
   "ACCESS_KEY",
   "API_KEY",
@@ -269,22 +278,17 @@ async function waitForToken(tokenPath: string, child: ChildProcess): Promise<str
   throw new Error("Timed out waiting for the disposable MKT Browser MCP token.");
 }
 
-async function connectMcp(baseUrl: string, token: string, child: ChildProcess) {
+async function waitForProfileInventory(
+  adapter: AntidetectAdapter,
+  child: ChildProcess,
+): Promise<AntidetectProfileSummary[]> {
   const deadline = Date.now() + STARTUP_TIMEOUT_MS;
   while (Date.now() < deadline) {
     if (child.exitCode !== null) {
       throw new Error("The disposable MKT Browser process exited before MCP became ready.");
     }
-    const client = new MktBrowserMcpClient(baseUrl, token);
     try {
-      await client.initialize();
-      const tools = await client.listTools();
-      for (const required of ["navigate", "evaluate_js"]) {
-        if (!tools.includes(required)) {
-          throw new Error(`The current MKT Browser build is missing required tool "${required}".`);
-        }
-      }
-      return client;
+      return await adapter.listProfiles();
     } catch {
       await delay(300);
     }
@@ -293,7 +297,7 @@ async function connectMcp(baseUrl: string, token: string, child: ChildProcess) {
 }
 
 async function waitForRunningState(
-  adapter: MktBrowserAdapter,
+  adapter: AntidetectAdapter,
   profileId: string,
   expected: boolean,
 ): Promise<void> {
@@ -306,51 +310,36 @@ async function waitForRunningState(
   throw new Error(`The disposable profile did not reach running=${expected}.`);
 }
 
-function toolBody(result: McpToolResult): Record<string, unknown> {
-  const text = extractText(result).trim();
-  if (!text) return {};
-  const parsed: unknown = JSON.parse(text);
-  if (!parsed || typeof parsed !== "object") return {};
-  return parsed as Record<string, unknown>;
-}
+function createEphemeralTicketHarness(baseUrl: string, token: string) {
+  const signingSeed = randomBytes(32);
+  const deviceKeys = generateRelayDeviceKeyPair();
+  const vaultKeyOperator = randomBytes(32).toString("hex");
+  const deviceId = `p0-proxy-smoke-${randomUUID()}`;
+  const previousSigningSeed = process.env[SERVER_SIGNING_KEY_ENV];
 
-function runtimeValue(result: McpToolResult): unknown {
-  const body = toolBody(result);
-  const runtimeResult = body.result;
-  if (!runtimeResult || typeof runtimeResult !== "object") return undefined;
-  return (runtimeResult as Record<string, unknown>).value;
-}
+  addSensitive(signingSeed.toString("hex"), deviceKeys.privateKeyHex, vaultKeyOperator, token);
+  process.env[SERVER_SIGNING_KEY_ENV] = signingSeed.toString("hex");
+  resetServerSigningKeysCache();
 
-function parseExitIp(pageText: unknown): string | null {
-  if (typeof pageText !== "string") return null;
-  try {
-    const parsed = JSON.parse(pageText) as Record<string, unknown>;
-    const value = typeof parsed.ip === "string" ? parsed.ip : parsed.query;
-    if (typeof value === "string" && net.isIP(value.trim()) !== 0) return value.trim();
-  } catch {
-    if (net.isIP(pageText.trim()) !== 0) return pageText.trim();
-  }
-  return null;
-}
+  const config = {
+    deviceId,
+    serverPublicKey: publicKeyToHex(signingKeysFromSeed(signingSeed).publicKey),
+    vaultKeyOperator,
+    webOrigin: "http://127.0.0.1",
+    mktBrowserToken: token,
+    mktBrowserUrl: baseUrl,
+  };
 
-async function observeBrowserExitIp(
-  client: MktBrowserMcpClient,
-  profileId: string,
-): Promise<string> {
-  for (const url of EXIT_IP_URLS) {
-    try {
-      await client.callTool("navigate", { profile_id: profileId, url });
-      const evaluated = await client.callTool("evaluate_js", {
-        profile_id: profileId,
-        expression: "document.body ? document.body.innerText : ''",
-      });
-      const ip = parseExitIp(runtimeValue(evaluated));
-      if (ip) return ip;
-    } catch {
-      // Try the next independent lookup endpoint without exposing provider or proxy details.
-    }
-  }
-  throw new Error("The browser could not obtain an exit IP from any verification endpoint.");
+  return {
+    identity: buildRelayIdentity(config, relayPrivateKeyToKeyObject(deviceKeys.privateKeyHex)),
+    recipient: { deviceId, publicKey: deviceKeys.publicKeyHex },
+    antidetect: new RelayAntidetect(config),
+    restoreSigningEnvironment(): void {
+      if (previousSigningSeed === undefined) delete process.env[SERVER_SIGNING_KEY_ENV];
+      else process.env[SERVER_SIGNING_KEY_ENV] = previousSigningSeed;
+      resetServerSigningKeysCache();
+    },
+  };
 }
 
 async function stopProcessTree(child: ChildProcess): Promise<void> {
@@ -488,52 +477,98 @@ async function main(): Promise<void> {
     windowsHide: true,
   });
 
-  let client: MktBrowserMcpClient | null = null;
-  let adapter: MktBrowserAdapter | null = null;
+  let adapter: AntidetectAdapter | null = null;
   let profileId: string | null = null;
   let cleanupError: Error | null = null;
+  let restoreSigningEnvironment: (() => void) | null = null;
 
   try {
     const token = await waitForToken(path.join(dataRoot, "mcp-token"), child);
     addSensitive(token);
     const baseUrl = `http://127.0.0.1:${port}`;
-    client = await connectMcp(baseUrl, token, child);
-    adapter = new MktBrowserAdapter(baseUrl, token);
+    const harness = createEphemeralTicketHarness(baseUrl, token);
+    restoreSigningEnvironment = harness.restoreSigningEnvironment;
+    adapter = harness.antidetect.getAdapter();
 
-    const initialProfiles = await adapter.listProfiles();
+    const initialProfiles = await waitForProfileInventory(adapter, child);
     if (initialProfiles.length !== 0) {
       throw new Error("The disposable MKT Browser root was not empty at startup.");
     }
 
-    profileId = (await adapter.createProfile({
-      name: `MKB-00 disposable ${Date.now()}`,
-      notes: "Disposable correct-proxy verification. No account data.",
-      tags: ["mkb-00", "disposable"],
-    })).profileId;
-    await adapter.applyProxy(profileId, proxy);
-    await adapter.launchProfile(profileId);
-    await waitForRunningState(adapter, profileId, true);
-
-    const observedIp = await observeBrowserExitIp(client, profileId);
-    addSensitive(observedIp);
-    if (observedIp.toLowerCase() !== independent.ip.toLowerCase()) {
-      throw new Error("The browser exit IP did not match the independently probed proxy exit IP.");
+    const accountId = `p0-proxy-smoke-${randomUUID()}`;
+    const requestId = `create-profile:${accountId}`;
+    const profileName = `P0 proxy smoke ${Date.now()}`;
+    const relayDeps = {
+      identity: harness.identity,
+      antidetect: harness.antidetect,
+      home: path.join(dataRoot, "relay-smoke"),
+      notConfiguredMessage: "The disposable Relay identity is not configured.",
+    };
+    const created = await handleTicketRequest(
+      JSON.stringify({
+        ticket: issueTicket(
+          {
+            kind: TICKET_KINDS.CREATE_PROFILE,
+            accountId,
+            requestId,
+            profileName,
+            proxy,
+            fingerprint: {
+              device: "windows-laptop-amd",
+              localeId: "en-US",
+              timezone: "America/Denver",
+              screen: { width: 1680, height: 1050 },
+            },
+            seed: accountId,
+          },
+          harness.recipient,
+        ),
+      }),
+      relayDeps,
+    );
+    if (!created.ok || typeof created.profileId !== "string" || !created.profileId) {
+      throw new Error(`The signed create-profile ticket was rejected. ${created.message}`);
     }
+    const createdProfileId = created.profileId;
+    profileId = createdProfileId;
 
-    console.log("MKT Browser launch passed; observed exit IP matched the independent proxy probe.");
+    const launched = await handleTicketRequest(
+      JSON.stringify({
+        ticket: issueTicket(
+          {
+            kind: TICKET_KINDS.LAUNCH_PROFILE,
+            accountId,
+            antidetectProfileId: createdProfileId,
+            proxyLabel: options.label,
+            proxy,
+          },
+          harness.recipient,
+        ),
+      }),
+      relayDeps,
+    );
+    if (!launched.ok) {
+      throw new Error(`The signed launch-profile ticket was rejected. ${launched.message}`);
+    }
+    await waitForRunningState(adapter, createdProfileId, true);
 
-    await adapter.closeProfile(profileId);
-    await waitForRunningState(adapter, profileId, false);
+    console.log(
+      "Signed Relay launch passed after MKT Browser verified proxy egress and started its contained bridge.",
+    );
+
+    await adapter.closeProfile(createdProfileId);
+    await waitForRunningState(adapter, createdProfileId, false);
     profileId = null;
     console.log("Disposable profile closed; the entire isolated data root will now be removed.");
   } finally {
-    if (profileId && adapter && client) {
+    if (profileId && adapter) {
       try {
         await adapter.closeProfile(profileId);
       } catch {
         // Continue to process and isolated-root cleanup.
       }
     }
+    restoreSigningEnvironment?.();
     await stopProcessTree(child);
     try {
       await removeDisposableRoot(dataRoot);

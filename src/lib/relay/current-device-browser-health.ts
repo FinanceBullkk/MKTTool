@@ -17,7 +17,38 @@ export type CurrentDeviceBrowserState =
   | "contract-mismatch"
   | "engine-not-ready"
   | "capability-missing"
+  | "capacity-unknown"
+  | "recovery-pending"
+  | "no-capacity"
   | "ready";
+
+export type CurrentDeviceBrowserFailureCode =
+  | "BROWSER_OFFLINE"
+  | "CONTRACT_MISMATCH"
+  | "ENGINE_NOT_READY"
+  | "CAPABILITY_MISSING"
+  | "CAPACITY_UNKNOWN"
+  | "RECOVERY_PENDING"
+  | "NO_CAPACITY";
+
+const FAILURE_CODE_BY_STATE: Record<
+  Exclude<CurrentDeviceBrowserState, "ready">,
+  CurrentDeviceBrowserFailureCode
+> = {
+  "browser-offline": "BROWSER_OFFLINE",
+  "contract-mismatch": "CONTRACT_MISMATCH",
+  "engine-not-ready": "ENGINE_NOT_READY",
+  "capability-missing": "CAPABILITY_MISSING",
+  "capacity-unknown": "CAPACITY_UNKNOWN",
+  "recovery-pending": "RECOVERY_PENDING",
+  "no-capacity": "NO_CAPACITY",
+};
+
+export function currentDeviceBrowserFailureCode(
+  state: CurrentDeviceBrowserState,
+): CurrentDeviceBrowserFailureCode | null {
+  return state === "ready" ? null : FAILURE_CODE_BY_STATE[state];
+}
 
 export interface CurrentDeviceBrowserReadiness {
   ready: boolean;
@@ -33,7 +64,7 @@ export function currentDeviceBrowserReadiness(
     return {
       ready: false,
       state: "browser-offline",
-      message: "Open MKT Browser on this PC and make sure MCP is enabled.",
+      message: "Open MKT Browser on this PC, then check again.",
     };
   }
 
@@ -41,7 +72,7 @@ export function currentDeviceBrowserReadiness(
     return {
       ready: false,
       state: "contract-mismatch",
-      message: browser.contractProblem || "Install the matching MKT Browser release on this PC.",
+      message: "Install the matching MKT Browser release on this PC.",
     };
   }
 
@@ -53,23 +84,51 @@ export function currentDeviceBrowserReadiness(
     };
   }
 
-  const missing = requiredCapabilities.filter(
-    (capability) => !browser.capabilities.includes(capability),
-  );
+  const capabilities = Array.isArray(browser.capabilities)
+    ? browser.capabilities.filter((capability): capability is string => typeof capability === "string")
+    : [];
+  const missing = requiredCapabilities.filter((capability) => !capabilities.includes(capability));
   if (missing.length > 0) {
     if (missing.includes("local-install-ready-v1")) {
       return {
         ready: false,
         state: "capability-missing",
-        message:
-          "Run the current MKT Browser installer repair on this PC. MKTTool could not verify the installed Browser, Relay, fixed ports, and startup entries.",
+        message: "Repair the current MKT Browser installation on this PC, then check again.",
       };
     }
     return {
       ready: false,
       state: "capability-missing",
-      message: `Update MKT Browser on this PC. Missing capabilities: ${missing.join(", ")}.`,
+      message: "Update MKT Browser on this PC before continuing.",
     };
+  }
+
+  if (
+    browser.engine.kind === "cloakbrowser" &&
+    capabilities.includes("license-capacity-v1")
+  ) {
+    const capacity = browser.licenseCapacity;
+    if (!capacity) {
+      return {
+        ready: false,
+        state: "capacity-unknown",
+        message: "MKT Browser could not verify available browser capacity. Open it and retry recovery.",
+      };
+    }
+    if (capacity.free === 0 && capacity.pendingRecovery > 0) {
+      return {
+        ready: false,
+        state: "recovery-pending",
+        message: "MKT Browser is recovering a prior browser session. Retry after recovery finishes.",
+      };
+    }
+    if (capacity.free === 0) {
+      return {
+        ready: false,
+        state: "no-capacity",
+        message: "All browser capacity is in use or cooling. Close a running profile, then retry.",
+      };
+    }
   }
 
   return { ready: true, state: "ready", message: "MKT Browser is ready on this PC." };

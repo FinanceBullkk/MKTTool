@@ -2,15 +2,17 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Play, Square, MoreHorizontal, Loader2 } from "lucide-react";
+import { Play, MoreHorizontal, Loader2 } from "lucide-react";
 import { Avatar, Flag } from "./Atoms";
-import {
-  pingRelay,
-  sendTicketToRelay,
-  describeRelayFailure,
-  describeSlowRelayFailure,
-} from "@/lib/relay/relay-browser-client";
+import { pingRelay, sendTicketToRelay } from "@/lib/relay/relay-browser-client";
 import { RELAY_PROFILE_WORK_TIMEOUT_MS } from "@/lib/relay/relay-endpoints";
+import {
+  describeProfileLaunchFailure,
+  describeProfileTicketFailure,
+  profileLaunchReadiness,
+  safeProxyPresentation,
+  type LocalLaunchReadiness,
+} from "@/lib/relay/profile-launch-readiness";
 
 export interface ProfileItemData {
   id: string;
@@ -55,10 +57,15 @@ function getEmojiForProfile(id: string, name: string): string {
 
 export function ProfileTile({
   profile,
+  localReadiness,
+  isRunning,
+  onOpened,
 }: {
   profile: ProfileItemData;
+  localReadiness: LocalLaunchReadiness;
+  isRunning: boolean;
+  onOpened: () => void;
 }) {
-  const [isRunning, setIsRunning] = useState(false);
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -79,48 +86,48 @@ export function ProfileTile({
       ? "0 0 32px rgba(239, 68, 68, 0.15), inset 0 0 0 1px rgba(239, 68, 68, 0.3)"
       : "0 24px 48px -16px rgba(0, 0, 0, 0.5), inset 0 0 0 1px rgba(255, 255, 255, 0.05)";
 
-  const canLaunch = !isDead && profile.proxy !== null;
+  const launchReadiness = profileLaunchReadiness(
+    {
+      status: profile.status,
+      antidetectProfileId: profile.antidetectProfileId,
+      device: profile.device,
+      proxy: profile.proxy,
+      isRunning,
+    },
+    localReadiness,
+  );
+  const canLaunch = launchReadiness.ready;
+  const proxyPresentation = profile.proxy ? safeProxyPresentation(profile.proxy) : null;
   const shortId = profile.id.slice(0, 8);
 
   async function handleToggleLaunch() {
     if (busy || !canLaunch) return;
-
-    if (isRunning) {
-      setIsRunning(false);
-      setFeedback({ kind: "ok", text: "Đã đánh dấu dừng profile." });
-      return;
-    }
-
-    const ping = pingRelay();
+    void pingRelay();
     setBusy(true);
     setFeedback(null);
 
     try {
       const response = await fetch(`/api/accounts/${profile.id}/launch`, { method: "POST" });
-      const body = (await response.json()) as { ok: boolean; message: string; ticket?: string };
+      const body = (await response.json()) as { ok: boolean; ticket?: string };
 
       if (!body.ok || !body.ticket) {
-        setFeedback({ kind: "error", text: body.message });
+        setFeedback({ kind: "error", text: describeProfileTicketFailure(response.status) });
         return;
       }
 
       const sent = await sendTicketToRelay(body.ticket, RELAY_PROFILE_WORK_TIMEOUT_MS);
       if (sent.status === "ok") {
-        setIsRunning(true);
-        setFeedback({ kind: "ok", text: "Chromium đã mở qua Relay!" });
+        onOpened();
+        setFeedback({ kind: "ok", text: "Browser opened on this PC." });
         return;
       }
 
-      const health = await ping;
       setFeedback({
         kind: "error",
-        text:
-          sent.status === "no-permission"
-            ? `${describeSlowRelayFailure(sent, "mở profile")} Kiểm tra xem trình duyệt đã mở chưa.`
-            : describeRelayFailure(sent, health),
+        text: describeProfileLaunchFailure(sent),
       });
     } catch {
-      setFeedback({ kind: "error", text: "Không thể gửi lệnh mở profile qua Relay." });
+      setFeedback({ kind: "error", text: "Could not send the profile launch request to Relay." });
     } finally {
       setBusy(false);
     }
@@ -180,7 +187,7 @@ export function ProfileTile({
         ) : null}
         {isCold ? (
           <span className="px-2 py-0.5 rounded-md bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-300">
-            🟡 Nuôi ({profile.coldStartDaysRemaining}d)
+            Warmup ({profile.coldStartDaysRemaining}d)
           </span>
         ) : null}
       </div>
@@ -192,20 +199,22 @@ export function ProfileTile({
             <div className="flex items-center gap-2">
               <Flag country={profile.proxy.country} />
               <span className="font-medium text-neutral-200">
-                {profile.proxy.country === "VN" ? "Vietnam" : profile.proxy.country}
-              </span>
-              <span className="font-mono text-[11px] text-neutral-400">
-                ({profile.proxy.lastExitIp || `${profile.proxy.host}:${profile.proxy.port}`})
+                {proxyPresentation?.label}
               </span>
             </div>
             <span className="inline-flex items-center gap-1 text-[11px] text-neutral-400 font-mono">
-              proxy <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+              {proxyPresentation?.status}
+              <span
+                className={`w-1.5 h-1.5 rounded-full ${
+                  proxyPresentation?.healthy ? "bg-emerald-400" : "bg-amber-400"
+                }`}
+              />
             </span>
           </div>
         ) : (
           <div className="flex items-center justify-between text-xs text-neutral-400">
-            <span>Direct — no proxy</span>
-            <span className="font-mono text-[11px]">host DNS</span>
+            <span>Proxy not assigned</span>
+            <span className="font-mono text-[11px]">Blocked</span>
           </div>
         )}
       </div>
@@ -237,13 +246,10 @@ export function ProfileTile({
           {busy ? (
             <>
               <Loader2 size={13} className="animate-spin" />
-              <span>Đang mở Chromium...</span>
+              <span>Opening browser...</span>
             </>
           ) : isRunning ? (
-            <>
-              <Square size={12} fill="currentColor" />
-              <span>Stop</span>
-            </>
+            <span>Running</span>
           ) : (
             <>
               <Play size={12} fill="currentColor" />
@@ -257,7 +263,7 @@ export function ProfileTile({
             type="button"
             onClick={() => setMenuOpen(!menuOpen)}
             className="w-9 h-9 rounded-xl flex items-center justify-center bg-white/[0.03] border border-white/[0.06] text-neutral-400 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer"
-            title="Tùy chọn"
+            title="Options"
           >
             <MoreHorizontal size={15} />
           </button>
@@ -269,21 +275,21 @@ export function ProfileTile({
                 className="px-3 py-2 rounded-lg hover:bg-white/[0.06] hover:text-white flex items-center gap-2 transition"
               >
                 <span>🔑</span>
-                <span>Xem mật khẩu & TOTP</span>
+                <span>View password and TOTP</span>
               </Link>
               <Link
                 href={`/accounts/${profile.id}`}
                 className="px-3 py-2 rounded-lg hover:bg-white/[0.06] hover:text-white flex items-center gap-2 transition"
               >
                 <span>⚙️</span>
-                <span>Cấu hình & Đổi Proxy</span>
+                <span>Account and proxy settings</span>
               </Link>
               <button
                 type="button"
                 onClick={() => {
                   navigator.clipboard.writeText(profile.id);
                   setMenuOpen(false);
-                  setFeedback({ kind: "ok", text: "Đã copy ID profile vào clipboard!" });
+                  setFeedback({ kind: "ok", text: "Profile ID copied to the clipboard." });
                 }}
                 className="px-3 py-2 rounded-lg hover:bg-white/[0.06] hover:text-white flex items-center gap-2 text-left transition cursor-pointer"
               >
@@ -294,6 +300,12 @@ export function ProfileTile({
           ) : null}
         </div>
       </div>
+
+      {!canLaunch && !busy ? (
+        <div className="mt-2.5 rounded-lg border border-amber-500/20 bg-amber-950/30 p-2 text-[11px] text-amber-200">
+          {launchReadiness.message}
+        </div>
+      ) : null}
 
       {/* Feedback Alert */}
       {feedback ? (

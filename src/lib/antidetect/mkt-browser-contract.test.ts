@@ -21,6 +21,7 @@ const RUNTIME_INFO: MktBrowserRuntimeInfo = {
   profileSchemaVersion: 1,
   engine: { kind: "cloakbrowser", version: "145.0.0.0", status: "ready" },
   capabilities: ["profile-contract-v1", "runtime-info-v1"],
+  licenseCapacity: null,
 };
 
 describe("MKT Browser consumer contract", () => {

@@ -37,6 +37,28 @@ describe("currentDeviceBrowserReadiness", () => {
     );
   });
 
+  it("keeps contract and capability internals out of operator-facing readiness copy", () => {
+    const contract = currentDeviceBrowserReadiness({
+      ...READY,
+      contractCompatible: false,
+      contractProblem:
+        'The local MCP endpoint on 47822 answered as "cloakbrowser" with contract version 99.',
+    });
+    const capability = currentDeviceBrowserReadiness({
+      ...READY,
+      capabilities: [],
+    });
+    const copy = `${contract.message}\n${capability.message}`;
+
+    expect(contract.state).toBe("contract-mismatch");
+    expect(capability.state).toBe("capability-missing");
+    expect(copy).not.toMatch(/cloakbrowser|\bMCP\b|47822|contract version|capabilit/i);
+
+    expect(
+      currentDeviceBrowserReadiness({ ...READY, capabilities: undefined as never }).state,
+    ).toBe("capability-missing");
+  });
+
   it("requires the shared local-install verdict only for setup readiness", () => {
     expect(currentDeviceBrowserReadiness(READY).ready).toBe(true);
 
@@ -45,7 +67,7 @@ describe("currentDeviceBrowserReadiness", () => {
       REQUIRED_SETUP_BROWSER_CAPABILITIES,
     );
     expect(setupReadiness.state).toBe("capability-missing");
-    expect(setupReadiness.message).toContain("installer repair");
+    expect(setupReadiness.message).toContain("Repair");
 
     expect(
       currentDeviceBrowserReadiness(
@@ -53,5 +75,33 @@ describe("currentDeviceBrowserReadiness", () => {
         REQUIRED_SETUP_BROWSER_CAPABILITIES,
       ).ready,
     ).toBe(true);
+  });
+
+  it("fails closed on measured licensed-engine capacity without guessing a cooldown", () => {
+    const licensed = {
+      ...READY,
+      engine: { kind: "cloakbrowser", version: "145.0.0.0", status: "ready" },
+      capabilities: [...READY.capabilities, "license-capacity-v1"],
+      licenseCapacity: { total: 2, free: 0, active: 1, pendingRecovery: 1, cooling: 0 },
+    };
+
+    expect(currentDeviceBrowserReadiness(licensed).state).toBe("recovery-pending");
+    expect(currentDeviceBrowserReadiness(licensed).message).toContain("recovery");
+    expect(
+      currentDeviceBrowserReadiness({
+        ...licensed,
+        licenseCapacity: { total: 2, free: 0, active: 2, pendingRecovery: 0, cooling: 0 },
+      }).state,
+    ).toBe("no-capacity");
+    expect(currentDeviceBrowserReadiness({ ...licensed, licenseCapacity: null }).state).toBe(
+      "capacity-unknown",
+    );
+    expect(
+      currentDeviceBrowserReadiness({
+        ...licensed,
+        licenseCapacity: { total: 2, free: 1, active: 1, pendingRecovery: 0, cooling: 0 },
+      }).ready,
+    ).toBe(true);
+    expect(currentDeviceBrowserReadiness({ ...READY, licenseCapacity: null }).ready).toBe(true);
   });
 });
