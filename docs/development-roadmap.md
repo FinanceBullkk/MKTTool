@@ -1,6 +1,6 @@
 # Lộ trình phát triển
 
-**Updated:** 16 August 2026
+**Updated:** 22 August 2026
 
 Đây là **nguồn duy nhất về trạng thái** của dự án. Chi tiết thi công nằm ở
 [plan công cụ gốc](../plans/260801-2030-multi-account-posting-console/plan.md),
@@ -14,7 +14,7 @@ Dự án đang chạy **ba luồng song song**:
 |---|---|---|
 | **A — Công cụ** | 5 giai đoạn gốc: kho danh tính → hàng đợi → sức khỏe → Facebook → tự đăng Reddit | GĐ1-4 xong, GĐ0 kẹt ở tiền + cold-start, GĐ5 chưa bắt đầu |
 | **B — Web chung** | Biến app một máy thành web chung cho 5-6 người ở 5-6 nơi | **GĐ0-4 xong 06/08**, GĐ5 web **đã chạy thật trên Railway** cùng ngày |
-| **C — MKT Browser** | Fork the MultiZen desktop layer; Windows-only in v1 while Web, Relay, and upstream UX/UI remain intact | **MKB-00 through MKB-02 verified; MKB-03 Phases 01-05 complete in code plus the Phase 06 engineering subset pushed; live Windows and human gates open**; MKB-04 remains NO-GO; macOS deferred to MKB-07; [plan](../plans/260810-0244-mkt-browser-noi-bo/plan.md) |
+| **C — MKT Browser** | Fork the MultiZen desktop layer; Windows-only in v1 while Web, Relay, and upstream UX/UI remain intact | **MKB-00 through MKB-02 verified; MKB-03 engineering complete with live Windows gates open; P0 proxy/lease/readiness automated hardening is green but vendor, real-proxy, second-PC, and canary evidence remain open**; MKB-04 remains NO-GO; macOS deferred to MKB-07; [plan](../plans/260810-0244-mkt-browser-noi-bo/plan.md) |
 
 Luồng B sinh ra sau khi chốt bàn giao cho team — xem
 [plan web chung](../plans/260804-1752-web-chung-cho-team-phan-tan/plan.md). Nó **không thay thế**
@@ -38,6 +38,22 @@ real accounts. The one-download onboarding journey, secure enrollment/migration,
 pilot duration, and real-account gates remain separate. Code signing is no longer among them: on
 12 August the owner decided v1 ships **unsigned** for the internal fleet, so SmartScreen appears once
 and the setup journey must announce it in advance.
+
+**P0 technical checkpoint, 22 August 2026:** the automatically verifiable browser/proxy foundation
+is green. MKT Browser fails closed before launch when proxy egress is unavailable or malformed; its
+lease journal is atomic, schema-validated, mutation-serialized, crash-recoverable, and redacts both
+normal and short keys; capacity reports expose aggregate counts only. Relay launch results carry
+allowlisted stable codes. The profile grid/table polls current Browser inventory, blocks unknown
+state, marks actual running profiles, and prevents stale polls from undoing a successful launch.
+MKTTool passes 1,903 tests plus typecheck, lint, and a warning-free production build. MKT Browser
+passes typecheck and lint with zero warnings, the complete automated installer suite, desktop build,
+and packaged runtime/profile-lifecycle verification under Node 22.
+
+This checkpoint is still **NO-GO for rollout**. `license-capacity-v1` is deliberately not advertised
+because the journal is not connected to a measured vendor start/heartbeat/end lifecycle. Live vendor
+schema capture, sidecar/driver integration, two real disposable proxy/profile assignments, in-browser
+egress plus DNS/WebRTC proof, human-controlled login/input, second-PC setup, crash/reboot recovery,
+and the seven-day canary remain open.
 
 **Audit closed, 17 August 2026.** A deep audit spanning both repositories completed all six phases:
 fix re-verification, cryptographic protocols, the local control surface, Windows lifecycle, release

@@ -12,6 +12,35 @@ Dự án chưa phát hành phiên bản (`0.1.0`, dùng nội bộ). Mốc chia 
 
 ---
 
+## 22 August 2026 - P0 browser and proxy technical hardening is green; rollout remains NO-GO
+
+MKT Browser now refuses a proxied launch when its egress probe is unavailable, empty, or malformed.
+The disposable correct-proxy smoke follows the signed MKTTool ticket and Relay handler path, waits
+for the local Browser listener, and does not open page-control, cookie, or raw-CDP tools.
+
+The licensed-engine recovery foundation now has a crash-safe versioned journal, last-committed
+recovery, strict transition/schema checks, serialized concurrent writes, and deterministic recovery
+fixtures. Full keys never enter the journal or runtime capacity response; short keys are masked too.
+Aggregate capacity excludes pending recovery and cooling seats from free capacity.
+
+Relay and the Web UI now use current Browser profile inventory and allowlisted stable failure codes.
+Launch is blocked when local profile state is unknown, running filters/counts reflect actual Browser
+profile IDs, stale polling cannot overwrite a successful launch, and operator messages no longer
+expose capability IDs, contract internals, engine details, paths, ports, proxy endpoints, or local
+exception text. The Browser renderer also closes three React lifecycle warnings, including an
+autosave cleanup that could use the prior profile's managed-state boundary.
+
+`license-capacity-v1` remains deliberately unadvertised. The vendor session protocol has not been
+captured with owner-controlled disposable keys, so the journal and recovery state machine are not
+yet wired into a sidecar or the Chromium driver lifecycle. Advertising capacity now could claim a
+seat is free while the vendor still holds it.
+
+Automated evidence is green: MKTTool passes 207 files / 1,903 tests, typecheck, lint, and production
+build; MKT Browser passes typecheck and zero-warning lint, the full automated installer suite,
+desktop build, and packaged runtime/profile-lifecycle verification under Node 22. Real proxy/DNS/
+WebRTC proof, human login/input, live lease recovery, second-PC setup, crash/reboot evidence, and the
+seven-day canary remain required before rollout.
+
 ## 17 August 2026 - Six safety rules that could pass a bad thing, all closed
 
 The audit reached the data layer, the business rules and the breadth sweep. Everything below changes
