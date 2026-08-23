@@ -79,6 +79,26 @@ schema capture, sidecar/driver integration, two real disposable proxy/profile as
 egress plus DNS/WebRTC proof, human-controlled login/input, second-PC setup, crash/reboot recovery,
 and the seven-day canary remain open.
 
+**Vendor and network gates measured, 23 August 2026.** Still **NO-GO for rollout**, but four of the
+gates above moved from unknown to measured, and one blocker was found and fixed while measuring.
+
+| Gate | State after 23 August |
+|---|---|
+| Vendor session protocol | Measured. `start` → `lease_id`, TTL 900s, heartbeat 300s, `end` → `{"ok":true}`. Sessions are counted **per licence**, not per account or per install: two keys granted two concurrent sessions on one `install_id`. N concurrent profiles cost N keys on one machine, not N machines |
+| Per-profile network identity | Passed on two profiles measured **sequentially**. Each browser's egress matched only its own proxy probe, each resolved DNS at that proxy rather than the operator's ISP resolver, WebRTC gathered no candidates, and the operator's real address appeared nowhere |
+| Concurrent two-profile isolation | **Still open.** Sequential measurement cannot exclude cross-wiring between two live profiles, and a second seat was not reliably available during the run |
+| Normal close returns the seat | Passed, measured twice. Seconds, not the 900s lease |
+| Crash, hard kill, Relay restart, reboot | Not run |
+| Capacity advertised to operators | Still withheld. `license-capacity-v1` stays unadvertised until the recovery half is measured too |
+
+The blocker: the Browser declared a launch successful before the engine's licence verdict arrived,
+so a refused key came back as a running profile and the key-rotation loop never ran. Holding a
+second key bought nothing. Fixed and verified on hardware — a held primary now rotates to a free key
+and the profile opens. A second gap fixed alongside it: nothing in the Browser UI could enter a
+second key at all, so the N-key cost model had no route into the product.
+
+Evidence: [`ket-qua-260823-1910-gate-cach-ly-va-loi-khong-xoay-khoa.md`](../../plans/reports/ket-qua-260823-1910-gate-cach-ly-va-loi-khong-xoay-khoa.md).
+
 **Audit closed, 17 August 2026.** A deep audit spanning both repositories completed all six phases:
 fix re-verification, cryptographic protocols, the local control surface, Windows lifecycle, release
 authority, the data layer and business logic, and breadth completion. No P0, P1 or P2 findings
