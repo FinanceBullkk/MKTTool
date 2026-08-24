@@ -89,6 +89,7 @@ gates above moved from unknown to measured, and one blocker was found and fixed 
 | Concurrent two-profile isolation | **Still open.** Sequential measurement cannot exclude cross-wiring between two live profiles, and a second seat was not reliably available during the run |
 | Normal close returns the seat | Passed, measured twice. Seconds, not the 900s lease |
 | Crash, hard kill, Relay restart, reboot | Not run |
+| Clean second-machine install and uninstall | **Passed 24 August** on a Windows 11 Home guest that had never held the product. The published hash matched again after transfer, the silent install produced 129 files and a working uninstaller, the app started in the operator's own session and served its control port, and first run provisioned its own token, data directory and profile store - no Node, no hand-written JSON, no port chosen by anyone. Uninstall removed every file, the shortcut and the registry entry while leaving the operator's data intact. Repair is still not exercised |
 | Capacity advertised to operators | Still withheld. `license-capacity-v1` stays unadvertised until the recovery half is measured too |
 
 The blocker: the Browser declared a launch successful before the engine's licence verdict arrived,
