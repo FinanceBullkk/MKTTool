@@ -6,7 +6,7 @@
  * ## Vì sao cần
  *
  * `WindowsSecureStore` gọi DPAPI qua PowerShell, và `runDpapi` ném ngay khi không phải Windows.
- * CI của repo chạy `ubuntu-latest`, nên mọi test chạm vào kho thật đều đỏ ở đó — đã xảy ra thật
+ * CI runs on self-hosted Linux, so tests that touch the real store fail there. This happened
  * ngày 12/08/2026, sau khi Phase 03 đổi ba file test sang gọi thẳng kho thật.
  *
  * Cách chữa **không** phải là cho ba file đó `skipIf` không-phải-Windows: chúng kiểm *logic

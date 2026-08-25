@@ -7,9 +7,10 @@ on:
 
 jobs:
   check:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, X64]
 
     # Bộ test cần một Postgres THẬT, không giả lập được.
+    # The self-hosted Linux runner must provide Docker because job services are container-backed.
     #
     # Lý do đầy đủ ở `vitest.global-setup.ts`, tóm tắt: tầng `rule-context-queries.ts` chỉ gồm
     # truy vấn Prisma. Giả lập Prisma chỉ chứng minh được "mình gọi hàm đúng như mình nghĩ",
@@ -92,21 +93,23 @@ jobs:
   #
   # Why a separate job instead of a step in `check`: SEA embeds the runtime of the machine doing
   # the build, so a Linux build produces an ELF named `.exe` that only fails once it reaches an
-  # operator (see the header of `scripts/build-relay-executable.ts`). `check` has to stay on ubuntu
-  # because it needs the Postgres service. So the two cannot share a runner.
+  # operator (see the header of `scripts/build-relay-executable.ts`). `check` has to run on a
+  # self-hosted Linux runner with Docker because it needs the Postgres service. So the two cannot
+  # share a runner.
   #
-  # Why there is deliberately no `paths:` filter, even though a Windows runner bills at 2x. The
-  # suite imports from `src/lib/crypto`, `src/lib/tickets` and `src/lib/relay` — a change outside
+  # Why there is deliberately no `paths:` filter, even though the Windows job consumes scarce
+  # self-hosted capacity. The suite imports from `src/lib/crypto`, `src/lib/tickets` and
+  # `src/lib/relay` — a change outside
   # `relay/` breaks it, which is exactly what F4 did. Narrowing the trigger to relay paths would
-  # rebuild the blind spot this job was added to close, for a saving of a few runner minutes.
+  # rebuild the blind spot this job was added to close.
   relay-executable:
-    runs-on: windows-latest
+    runs-on: [self-hosted, Windows, X64]
 
-    # Pull requests only, unlike `check`, which also runs on pushes to master. This repository is
-    # private, so Windows runner minutes bill at 2x, and the post-merge push run would be near-pure
-    # duplication: GitHub builds a `pull_request` event against the *merge commit* — the PR head
+    # Pull requests only, unlike `check`, which also runs on pushes to master. The post-merge push
+    # run would be near-pure duplication: GitHub builds a `pull_request` event against the *merge
+    # commit* — the PR head
     # already merged into the base — so the PR run has verified the exact tree master is about to
-    # become. Paying twice for one tree is the wrong place to spend the allowance.
+    # become. Running twice for one tree is the wrong place to spend runner capacity.
     #
     # Two residuals, stated rather than discovered later. A commit pushed straight to master skips
     # this job entirely; every change since #23 has arrived by pull request, so that path is
@@ -169,13 +172,14 @@ jobs:
   # suspect that integration rather than the build.
   deploy-verification:
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, X64]
 
     permissions:
       deployments: read
 
     steps:
       - name: Wait for the production deployment of this commit to succeed
+        # The self-hosted Linux runner must provide the GitHub CLI (`gh`).
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}

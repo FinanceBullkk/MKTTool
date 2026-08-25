@@ -194,7 +194,7 @@ async function run() {
     // own choosing. This suite was not updated when F4 landed, so it had been red for days with
     // nobody watching: it needs a Windows-built `.exe`, and at the time nothing built one except a
     // person. That is no longer true — the `relay-executable` job in `.github/workflows/ci.yml`
-    // builds and runs this suite on `windows-latest` for every pull request (C37).
+    // builds and runs this suite on self-hosted Windows for every pull request (C37).
     const sealed = await relayCall(RELAY_PATHS.encryptForVault, {
       password: PASSWORD,
       totpSecret: `${TOTP_SECRET.toLowerCase()}  `,
