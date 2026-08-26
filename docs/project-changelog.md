@@ -18,6 +18,33 @@ the archive location.
 
 ---
 
+## 26 August 2026 - The installer lifecycle closes on a clean guest and two recovery gates fail by name
+
+Removing the `HNetCfg.FwPolicy2` firewall reader and moving nine call sites off
+`-ExecutionPolicy Bypass` was enough to clear the Defender behavioural block. On a guest restored
+from an updated-Defender snapshot (engine `1.1.26070.7`, signatures `1.457.331.0`), the
+current-source candidate passed clean combined install 9/9, repair 13/13 and combined uninstall
+15/15, with no detection and no Defender event 1116/1117 in any gate window. Repair restored the
+exact Browser tree digest, both shortcuts and Publisher while operator token, profile database and
+Relay config survived. Uninstall removed Browser payload, shortcuts, both firewall rules and the
+Browser-owned Relay executable while leaving operator data intact. The artifact is unsigned and
+unattested, so this closes the lifecycle slice only.
+
+Startup crash recovery now binds to the seat it owns. An active Electron crash previously left the
+licensed browser running with the lease stuck active, because sweep outcomes carried only PIDs.
+Startup now returns a profile-scoped verdict for the exact owned engine path, converges the lease to
+`confirmed-released` and frees the seat; anything unmatched stays pending rather than guessing free.
+A second false-free path was closed alongside it: a Windows launcher can exit 0 while the browser
+runs under another PID, so a clean exit only releases a seat when the exiting child is the owned
+browser. Anything ambiguous cools.
+
+Two gates fail and are named rather than summarised. Relay restart loses spent-ticket replay
+protection because spent JTI state is process-memory-only. A host reboot fails closed as
+`REBOOT_LEASE_STUCK_PENDING_RECOVERY`: no false-free seat, but no convergence either. Under the
+one-seat cap that second failure costs the whole application for up to the measured 15.1-minute
+lease expiry, which makes ending the vendor session explicitly on shutdown the highest-value
+remaining fix. Rollout remains NO-GO.
+
 ## 25 August 2026 - Concurrency is capped at one profile and the second machine is a VM
 
 Three scope questions left open by the 24-25 August evidence were decided by the owner, and each

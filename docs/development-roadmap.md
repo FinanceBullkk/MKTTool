@@ -1,6 +1,6 @@
 # Lộ trình phát triển
 
-**Updated:** 24 August 2026
+**Updated:** 26 August 2026
 
 Đây là **nguồn duy nhất về trạng thái** của dự án. Chi tiết thi công nằm ở
 [plan công cụ gốc](../plans/260801-2030-multi-account-posting-console/plan.md),
@@ -86,10 +86,10 @@ gates above moved from unknown to measured, and one blocker was found and fixed 
 |---|---|
 | Vendor session protocol | Measured. `start` → `lease_id`, TTL 900s, heartbeat 300s, `end` → `{"ok":true}`. Sessions are counted **per licence**, not per account or per install: two keys granted two concurrent sessions on one `install_id`. N concurrent profiles cost N keys on one machine, not N machines |
 | Per-profile network identity | Passed on two profiles measured **sequentially**. Each browser's egress matched only its own proxy probe, each resolved DNS at that proxy rather than the operator's ISP resolver, WebRTC gathered no candidates, and the operator's real address appeared nowhere |
-| Concurrent two-profile isolation | **Still open.** Sequential measurement cannot exclude cross-wiring between two live profiles, and a second seat was not reliably available during the run |
+| Concurrent two-profile isolation | **Deferred out of v1, 25 August.** Only one licence seat is free, so the owner capped v1 at one profile at a time. The gate cannot run and leaves the release path; isolation is proved sequentially instead |
 | Normal close returns the seat | Passed, measured twice. Seconds, not the 900s lease |
-| Crash, hard kill, Relay restart, reboot | Still open. A 24 August process-control preflight returned Win32 error 5 for the disposable engine tree and Browser main process; Relay was not running; host reboot was not separately authorized |
-| Clean second-machine install and uninstall | **Reopened 24 August.** Clean preflight and receive-side hash remain valid, and Browser component first-run/data-preservation observations remain useful. The old harness stopped at Browser-file appearance before mandatory firewall/Relay completion. Fresh evidence had 129 Browser files but no Relay, no firewall rules, no startup shortcut, no Publisher, and no Relay ownership metadata. Supported combined install/repair/uninstall is not proven |
+| Crash, hard kill, Relay restart, reboot | **Half closed, 25 August.** Browser hard kill cools the seat and blocks a same-key relaunch before spawn; an active Electron crash is now recovered at startup, which closes the owned orphan, converges the journal to `confirmed-released`, and frees the seat. Relay restart **fails** `RELAY-RESTART-FORGETS-SPENT-TICKET` - spent JTI state is process-memory-only, so a restarted Relay accepts a consumed ticket again. The owner-approved host reboot **fails closed** as `REBOOT_LEASE_STUCK_PENDING_RECOVERY` - no false-free seat, but no convergence either, and launch stays blocked |
+| Clean second-machine install and uninstall | **Passed 25 August** on the VM guest acting as PC B, recorded as virtual. From snapshot `clean-with-ssh-defender-20260825` with Defender engine `1.1.26070.7` and signatures `1.457.331.0`, current-source candidate `7849947` / tree `b060da0` passed clean combined install 9/9, repair 13/13, and combined uninstall 15/15, with no detection and no Defender event 1116/1117 in any gate window. The artifact is unsigned, unattested, and not releasable, so this closes the lifecycle slice only, not rollout |
 | Capacity advertised to operators | Still withheld. `license-capacity-v1` stays unadvertised until the recovery half is measured too |
 
 The blocker: the Browser declared a launch successful before the engine's licence verdict arrived,
@@ -113,6 +113,31 @@ custom-install work was incomplete. Defender was not disabled or allow-listed. T
 and repair harnesses now require installer exit zero, Browser payload, pinned Relay, both WebRTC
 firewall rules, both shortcuts, Publisher, and Relay ownership metadata before launch. Evidence:
 [`lifecycle-installer-repair-evidence-20260824.md`](../../plans/260821-1925-antidetect-browser-proxy-p0/reports/lifecycle-installer-repair-evidence-20260824.md).
+
+**Lifecycle and installer continuation, 25-26 August 2026.** The Defender block above was diagnosed
+as a behavioural COM-stager match rather than any script's contents. Removing the
+`HNetCfg.FwPolicy2` firewall reader and moving nine call sites off `-ExecutionPolicy Bypass` was
+enough: on an updated-Defender snapshot the same guest passed clean combined install 9/9, repair
+13/13, and combined uninstall 15/15 with no detection. Repair restored the exact Browser tree
+digest, both shortcuts and Publisher while operator token, profile database and Relay config
+survived; uninstall removed Browser payload, shortcuts, both firewall rules and the Browser-owned
+Relay executable while leaving operator data intact.
+
+Recovery moved too. Browser hard kill and an active Electron crash now both converge, the second
+after startup was taught to bind a sweep verdict to the exact owned engine path instead of a bare
+PID. Two failures remain and are named rather than summarised: Relay restart loses spent-ticket
+replay protection, and a host reboot strands the lease in `pending` with no route back.
+
+Three owner decisions on 25 August narrow v1: one profile at a time, unsigned reaffirmed, and the
+clean VM guest serves as PC B. The one-seat cap raises the cost of the reboot failure sharply -
+with a single key a stranded seat costs the whole application for up to the measured 15.1-minute
+lease expiry, so ending the vendor session explicitly on shutdown is now the highest-value
+remaining fix. Still **NO-GO** for rollout.
+
+Two harness defects were found and fixed rather than hidden: the repair harness hashed `profiles.db`
+while an installer-triggered relaunch held it open, and the uninstall harness checked before the
+temporary NSIS worker converged. Failed-attempt evidence is retained separately and is not counted
+as a product verdict.
 
 **Audit closed, 17 August 2026.** A deep audit spanning both repositories completed all six phases:
 fix re-verification, cryptographic protocols, the local control surface, Windows lifecycle, release
@@ -219,17 +244,22 @@ W02 passed 8/8, MKB-01 passed 8/8, MKB-01E passed 7/7, MKB-02 passed 18/18, and
 Windows packaging guards passed 3/3. That frozen checkpoint passed typecheck, build, and packaged
 verification. Current Phase 00 remediation adds real workspace lint and CI/package quality guards;
 23 packaging contracts, the complete Node 22 installer suite, lint, and typecheck pass on 14 August.
-The current local desktop package is version `0.3.12`; measured 24 August it is 221,933,568 bytes
-with SHA-256 `9c269536b6203f7fda54214813074c8ccb964a637b658225ec0afd928f8bae7b`.
-Packaged `app.asar` SHA-256 is
-`37ba4a0aa551404f77e42184c37c7d6531c01b11279f0c4a564b313c19b20f8c`. The active checkout is
-`c802fabb` / tree `bd87f752`; sandbox process restrictions prevent a cryptographic PID-to-image-path
-binding, so the local lifecycle record is not release provenance.
+The desktop package is version `0.3.12`. Two distinct artifacts carry the current evidence and
+neither is releasable. The VM installer lifecycle passed on the local candidate built from source
+`7849947` / tree `b060da0`, installer SHA-256
+`ad1af433cea4070b5860a3c841d170bb1ef91ec3df33e2c11309acd0ba5d945c`. The 25 August recovery gates
+ran on a dirty-source directory build, executable SHA-256 `50b0ccb3...5469` and `app.asar`
+`7160c85a...a557`. Sandbox process restrictions prevent a cryptographic PID-to-image-path binding,
+so the local lifecycle record is not release provenance.
+
+That dirty source is now committed, and it was rebased onto the self-hosted verifier hardening, so
+no commit reproduces those two hashes exactly. The behavioural difference is confined to dead-field
+removal in DevTools port discovery plus CI workflow files, so the recovery verdicts still stand -
+but the hashes must be regenerated from the frozen tree before any artifact is attested.
 
 The attested combined installer was built 23 August from older source `eac77f8f` / tree `cce7b897`
-and embeds the exact Relay v15 archive and manifest. It predates four local Browser fixes, and its
-supported combined install/repair/uninstall gate is open after the 24 August harness reconciliation,
-so it is not an approved rollout artifact. The packaged verifier proves contract-v4 capability
+and embeds the exact Relay v15 archive and manifest. It now trails the Browser fixes above and stays
+quarantined, so it is not an approved rollout artifact. The packaged verifier proves contract-v4 capability
 reporting, a profile-management-only tool inventory, deterministic managed create/retry, correlated
 create/launch diagnostics, direct-launch and delete locks, endpoint-free proxy summaries, atomic
 managed launch, Windows Chrome launcher-PID handoff, OS-assigned owned DevTools discovery,
@@ -290,7 +320,7 @@ repository. MKTTool retains only the consuming contract, Relay, and release page
 | MKB-01 | Windows compatibility and product identity | ✅ Verified 11 August | Copy-only first-launch importer preserves the MultiZen source; five primary-screen baselines captured; Windows CI runs W01/W02 guards, typecheck, package build, and packaged runtime-contract verification on every push/PR |
 | MKB-01E | Electron upgrade and renderer hardening | ✅ Verified 11 August | Electron 42.8.1 / ABI 146 package; native module rebuild; sandbox/CSP/default-deny IPC and MCP inventories; fixed-seed fingerprint unchanged and five visual baselines accepted |
 | MKB-02 | Managed mode | ✅ Verified 12 August | Contract v3 introduced diagnostics and correlation; the current v4 runtime, profile-token capability separation, managed proxy/fingerprint/delete/direct-launch locks, current-device Browser health, Relay v15, and cross-repository packaged verification are green |
-| MKB-03 | Windows onboarding, installer, and controlled updates | 🟡 Phases 01-05 complete in code after verified release authority; lifecycle and setup-conflict engineering subsets pushed — [execution plan](../plans/260812-1301-mkb-03-windows-onboarding-and-installer/plan.md) | Local findings have code fixes for WebRTC containment, engine fallback, live Relay identity reconciliation, progress, guidance, pre-mutation conflict detection, ownership-aware uninstall cleanup, signed ADMIN Relay retirement, separate Browser-only profile deletion, and a setup-time verdict from the shared installer detector. MKT Browser contract v4 removes deletion from MCP and conditionally reports `local-install-ready-v1`; `/setup` fails closed to installer repair when it is absent. Relay v15 accepts contract v4, preserves the v11 retirement floor, and forwards the additive capability. The root/delegation ceremony and backup-B recovery rehearsal are verified. Compatibility validation with all seven rejection cases, coordinated activation, fault-injected convergence, bounded rollback, post-activation smoke, and device-side revocation memory are implemented and covered; Relay v15 is published and pinned. A current-source installer rebuild is still required. The older candidate's receive hash passes, but clean combined install/repair/uninstall reopened after the harness stopped before mandatory Relay/firewall completion; real-reboot activation, live Windows matrices, and unfamiliar-operator rehearsal remain open. |
+| MKB-03 | Windows onboarding, installer, and controlled updates | 🟡 Phases 01-05 complete in code after verified release authority; lifecycle and setup-conflict engineering subsets pushed — [execution plan](../plans/260812-1301-mkb-03-windows-onboarding-and-installer/plan.md) | Local findings have code fixes for WebRTC containment, engine fallback, live Relay identity reconciliation, progress, guidance, pre-mutation conflict detection, ownership-aware uninstall cleanup, signed ADMIN Relay retirement, separate Browser-only profile deletion, and a setup-time verdict from the shared installer detector. MKT Browser contract v4 removes deletion from MCP and conditionally reports `local-install-ready-v1`; `/setup` fails closed to installer repair when it is absent. Relay v15 accepts contract v4, preserves the v11 retirement floor, and forwards the additive capability. The root/delegation ceremony and backup-B recovery rehearsal are verified. Compatibility validation with all seven rejection cases, coordinated activation, fault-injected convergence, bounded rollback, post-activation smoke, and device-side revocation memory are implemented and covered; Relay v15 is published and pinned. A current-source local candidate now passes clean combined install 9/9, repair 13/13 and combined uninstall 15/15 on an updated-Defender VM guest, closing the reopened lifecycle gate; the artifact is still unsigned and unattested, so an attested rebuild from a frozen tree is required before distribution. Real-reboot lease convergence, Relay spent-ticket durability, live Windows matrices, and unfamiliar-operator rehearsal remain open. |
 | MKB-04 | Technical pilot and one canary account | ⬜ Not started | An unfamiliar operator completes setup with zero developer intervention; two Windows devices remain green for seven days; one account completes a 14-day cold start |
 | MKB-05 | Team rollout | ⬜ Not started | Canary completes cold start; MKT Browser becomes default; rollback uses only the frozen W01 checkpoint and never restores a MultiZen adapter fallback |
 | MKB-06 | Custom UX/UI | ⏸ Deferred beyond v1 | Begin only from observed usage feedback; does not block MKB-00 through MKB-05 |
