@@ -255,7 +255,15 @@ async function run() {
         proxy: { protocol: "http", host: "127.0.0.1", port: 1080 },
       },
       { deviceId: DEVICE_ID, publicKey: devicePublicKey },
-      Date.now() - TICKET_LIFETIME_MS - 1,
+      // Expired by a whole lifetime, not by one millisecond. `exp` is computed here and compared
+      // against `Date.now()` inside a separate process, so the old `- 1` made this a wall-clock
+      // race: any backward clock step between the two reads left the ticket still valid, it then
+      // passed verification and died at browser launch instead — which returns no rejection code
+      // at all, so the check failed with nothing to explain it. Self-hosted runners are virtual
+      // machines and virtual machines step their clocks; CI run 32947403735 is what that looks
+      // like. The exact boundary is asserted in `ticket-lifecycle.test.ts` against an injected
+      // clock, which is the only place that comparison is deterministic enough to be worth making.
+      Date.now() - TICKET_LIFETIME_MS * 2,
     );
     // Every other check here reports what it saw. This one asserts on `rejectionCode`, so a bare
     // FAIL cannot distinguish "accepted an expired ticket" from "rejected it for another reason" —
