@@ -8,15 +8,19 @@
  *
  * ## Sổ chống dùng lại sống cùng danh tính
  *
- * `TicketReplayGuard` giữ trong bộ nhớ và **phải là đúng một cái** cho cả tiến trình: hai sổ
- * song song thì một tấm vé tiêu được hai lần, mỗi lần ở một sổ. Buộc nó vào danh tính là cách
- * làm điều đó mà không cần một biến toàn cục nào.
+ * `TicketReplayGuard` **phải là đúng một cái** cho cả tiến trình: hai sổ song song thì một tấm vé
+ * tiêu được hai lần, mỗi lần ở một sổ. Buộc nó vào danh tính là cách làm điều đó mà không cần một
+ * biến toàn cục nào.
+ *
+ * Có `home` thì sổ được nạp lại từ lần chạy trước và ghi tiếp xuống đó; không có `home` thì nó
+ * chỉ sống trong bộ nhớ. Test dựng danh tính trực tiếp đi đường thứ hai và không chạm đĩa.
  */
 import type { KeyObject } from "node:crypto";
 import { publicKeyFromHex } from "../../src/lib/tickets/server-signing-key";
 import { TicketReplayGuard } from "../../src/lib/tickets/ticket-replay-guard";
 import type { RelayIdentity } from "../../src/lib/tickets/ticket-verifier";
 import type { RelayConfig } from "./relay-config";
+import { readSpentTickets, writeSpentTickets } from "./spent-ticket-journal";
 import { RELAY_VERSION } from "../../src/lib/relay/relay-endpoints";
 
 /**
@@ -26,12 +30,37 @@ import { RELAY_VERSION } from "../../src/lib/relay/relay-endpoints";
  * `loadOrCreateDeviceKeypair` dựng sẵn, và dựng lại lần nữa từ chuỗi là mở đường cho hai bản
  * khác nhau của cùng một khóa trong cùng tiến trình.
  */
-export function buildRelayIdentity(config: RelayConfig, privateKey: KeyObject): RelayIdentity {
+export function buildRelayIdentity(
+  config: RelayConfig,
+  privateKey: KeyObject,
+  home?: string,
+): RelayIdentity {
   return {
     deviceId: config.deviceId,
     version: RELAY_VERSION,
     privateKey,
     serverPublicKey: publicKeyFromHex(config.serverPublicKey),
-    replayGuard: new TicketReplayGuard(),
+    replayGuard: buildReplayGuard(home),
   };
+}
+
+/**
+ * Lỗi ghi sổ không được làm hỏng một lần mở profile.
+ *
+ * Ghi hỏng nghĩa là lần khởi động sau mất trí nhớ chống dùng lại — đúng bằng tình trạng cũ. Còn
+ * ném lỗi lên thì `verifyTicket` đổ, và người vận hành mất đường mở profile vì một cái file. Sổ
+ * trong bộ nhớ vẫn bảo vệ nguyên vẹn tiến trình đang chạy, nên ghi log rồi đi tiếp.
+ */
+function buildReplayGuard(home?: string): TicketReplayGuard {
+  if (!home) return new TicketReplayGuard();
+
+  const guard = new TicketReplayGuard((records) => {
+    try {
+      writeSpentTickets(home, records);
+    } catch (error) {
+      console.error(`[relay] spent-ticket journal write failed: ${(error as Error).message}`);
+    }
+  });
+  guard.restore(readSpentTickets(home));
+  return guard;
 }

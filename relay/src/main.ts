@@ -117,7 +117,7 @@ function loadState(
   let identity: RelayIdentity | null = null;
   if (config) {
     try {
-      identity = buildRelayIdentity(config, keypair.privateKey);
+      identity = buildRelayIdentity(config, keypair.privateKey, home);
     } catch (error) {
       problems.push({ field: "serverPublicKey", message: (error as Error).message });
     }

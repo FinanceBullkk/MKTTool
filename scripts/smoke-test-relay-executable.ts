@@ -41,6 +41,7 @@ import {
 import { issueTicket } from "../src/lib/tickets/ticket-issuer";
 import { sealForDevice } from "../src/lib/tickets/ticket-sealed-box";
 import { TICKET_KINDS, TICKET_LIFETIME_MS } from "../src/lib/tickets/ticket-types";
+import { SPENT_TICKET_JOURNAL_FILE, readSpentTickets } from "../relay/src/spent-ticket-journal";
 import {
   EXECUTABLE_FILE,
   makeTempHome,
@@ -245,6 +246,27 @@ async function run() {
 
     const replayed = await relayCall(RELAY_PATHS.ticket, { ticket: launchTicket });
     check("vé dùng lại bị chặn", replayed.rejectionCode === "ALREADY_USED", String(replayed.message));
+
+    /**
+     * Chặn được vé dùng lại **trong cùng một lượt chạy** chỉ chứng minh sổ trong bộ nhớ hoạt động.
+     * Gate `G3-RECOVERY` hỏi câu khó hơn: sổ có sống qua một lần khởi động lại không.
+     *
+     * Ở đây kiểm nửa mà `.exe` chịu trách nhiệm — nó có thật sự ghi jti vừa tiêu xuống đĩa hay
+     * không. Nửa còn lại, "nạp sổ lên thì vé cũ vẫn bị chặn", là `ticket-replay-guard.test.ts`.
+     * Tách vậy vì tắt/bật lại `.exe` giữa bài sẽ dựng thêm một cuộc đua cổng, mà bài này vốn là
+     * bài duy nhất chứng minh cấu hình nạp nóng không cần khởi động lại lần nào.
+     */
+    const spentJti = (
+      JSON.parse(
+        Buffer.from(launchTicket.split(".")[0], "base64url").toString("utf8"),
+      ) as { jti: string }
+    ).jti;
+    const journalled = readSpentTickets(home);
+    check(
+      "vé đã tiêu được ghi xuống sổ trên đĩa",
+      journalled.some((record) => record.jti === spentJti),
+      `${journalled.length} mục trong ${SPENT_TICKET_JOURNAL_FILE}`,
+    );
 
     const expired = issueTicket(
       {
