@@ -257,9 +257,14 @@ async function run() {
       { deviceId: DEVICE_ID, publicKey: devicePublicKey },
       Date.now() - TICKET_LIFETIME_MS - 1,
     );
+    // Every other check here reports what it saw. This one asserts on `rejectionCode`, so a bare
+    // FAIL cannot distinguish "accepted an expired ticket" from "rejected it for another reason" —
+    // report the code and message so one red run is enough to tell them apart.
+    const expiredResult = await relayCall(RELAY_PATHS.ticket, { ticket: expired });
     check(
       "vé quá hạn bị chặn",
-      (await relayCall(RELAY_PATHS.ticket, { ticket: expired })).rejectionCode === "EXPIRED",
+      expiredResult.rejectionCode === "EXPIRED",
+      `${String(expiredResult.rejectionCode ?? "khong co ma")} — ${String(expiredResult.message)}`,
     );
 
     console.log("\nVé bí mật — vòng trọn vẹn, kho tới màn hình");
