@@ -1,6 +1,6 @@
 # Lộ trình phát triển
 
-**Updated:** 26 August 2026
+**Updated:** 27 August 2026
 
 Đây là **nguồn duy nhất về trạng thái** của dự án. Chi tiết thi công nằm ở
 [plan công cụ gốc](../plans/260801-2030-multi-account-posting-console/plan.md),
@@ -74,10 +74,10 @@ independent 20/20 Windows runner runs have not happened, so packaged-CI stabilit
 release gate.
 
 This checkpoint is still **NO-GO for rollout**. `license-capacity-v1` is deliberately not advertised
-because the journal is not connected to a measured vendor start/heartbeat/end lifecycle. Live vendor
-schema capture, sidecar/driver integration, two real disposable proxy/profile assignments, in-browser
-egress plus DNS/WebRTC proof, human-controlled login/input, second-PC setup, crash/reboot recovery,
-and the seven-day canary remain open.
+because live vendor schema capture and sidecar/driver integration are not yet release-ready. Two real
+disposable proxy/profile assignments, in-browser egress plus DNS/WebRTC proof, human-controlled
+login/input, second-PC setup, and the seven-day canary remain open. Crash and reboot recovery are now
+covered by the final G3 evidence below.
 
 **Vendor and network gates measured, 23 August 2026.** Still **NO-GO for rollout**, but four of the
 gates above moved from unknown to measured, and one blocker was found and fixed while measuring.
@@ -88,9 +88,9 @@ gates above moved from unknown to measured, and one blocker was found and fixed 
 | Per-profile network identity | Passed on two profiles measured **sequentially**. Each browser's egress matched only its own proxy probe, each resolved DNS at that proxy rather than the operator's ISP resolver, WebRTC gathered no candidates, and the operator's real address appeared nowhere |
 | Concurrent two-profile isolation | **Deferred out of v1, 25 August.** Only one licence seat is free, so the owner capped v1 at one profile at a time. The gate cannot run and leaves the release path; isolation is proved sequentially instead |
 | Normal close returns the seat | Passed, measured twice. Seconds, not the 900s lease |
-| Crash, hard kill, Relay restart, reboot | **Half closed, 25 August.** Browser hard kill cools the seat and blocks a same-key relaunch before spawn; an active Electron crash is now recovered at startup, which closes the owned orphan, converges the journal to `confirmed-released`, and frees the seat. Relay restart **fails** `RELAY-RESTART-FORGETS-SPENT-TICKET` - spent JTI state is process-memory-only, so a restarted Relay accepts a consumed ticket again. The owner-approved host reboot **fails closed** as `REBOOT_LEASE_STUCK_PENDING_RECOVERY` - no false-free seat, but no convergence either, and launch stays blocked |
+| Crash, hard kill, Relay restart, reboot | **Passed 27 August on the final bounded recovery rerun.** Normal close, hard-kill cooling, and active Electron-crash startup recovery remain green. Packaged Relay v15 preserved device identity, rejected the spent ticket as `ALREADY_USED`, and accepted a fresh ticket. The final Browser `55b8587` disposable-VM run validated `active` with capacity `1/0/1/0/0`, performed one real VirtualBox poweroff, observed no Browser process after boot while the exact lease remained `active`, moved it to `cooling` with `pendingRecovery=0`, returned to `1 free / 0 active / 0 pendingRecovery / 0 cooling` after TTL, relaunched the same profile, and cleanly released it. Evidence: `local-test-artifacts/phase5/real-power-cycle-recovery-evidence-20260827-ownership-fix-r2.json`. `G3-RECOVERY` is **PASS**; rollout remains **NO-GO** because the other gates remain open |
 | Clean second-machine install and uninstall | **Passed 25 August** on the VM guest acting as PC B, recorded as virtual. From snapshot `clean-with-ssh-defender-20260825` with Defender engine `1.1.26070.7` and signatures `1.457.331.0`, current-source candidate `7849947` / tree `b060da0` passed clean combined install 9/9, repair 13/13, and combined uninstall 15/15, with no detection and no Defender event 1116/1117 in any gate window. The artifact is unsigned, unattested, and not releasable, so this closes the lifecycle slice only, not rollout |
-| Capacity advertised to operators | Still withheld. `license-capacity-v1` stays unadvertised until the recovery half is measured too |
+| Capacity advertised to operators | Still withheld. `license-capacity-v1` stays unadvertised until live vendor schema/sidecar integration and the remaining rollout gates close |
 
 The blocker: the Browser declared a launch successful before the engine's licence verdict arrived,
 so a refused key came back as a running profile and the key-rotation loop never ran. Holding a
@@ -125,14 +125,56 @@ Relay executable while leaving operator data intact.
 
 Recovery moved too. Browser hard kill and an active Electron crash now both converge, the second
 after startup was taught to bind a sweep verdict to the exact owned engine path instead of a bare
-PID. Two failures remain and are named rather than summarised: Relay restart loses spent-ticket
-replay protection, and a host reboot strands the lease in `pending` with no route back.
+PID. The Relay restart subset then passed on 27 August with packaged Relay v15: a process restart
+preserved identity, replay of the consumed ticket returned `ALREADY_USED`, and a fresh ticket still
+reached the Browser-operation boundary. The first 27 August real power-cycle attempt was blocked
+before an active lease because the disposable VM could not attribute the DevTools listener to the
+live Browser process (`portOwnerPids=none`). A follow-up proved listener ownership after warming the
+Windows provider, but its one-shot scheduled arm task ran twice and invalidated the checkpoint. The
+owner-approved rerun removed future task triggers and warmed both providers immediately before
+launch; the packaged Browser still failed closed with a live child and `portOwnerPids=none` before
+an active checkpoint could be retained. Cleanup returned `confirmed-released`, then capacity
+returned after cooldown to `1 free / 0 active / 0 pendingRecovery / 0 cooling`. No recovery power cut
+was made; the later VM poweroff was cleanup only. At that point `G3-RECOVERY` was **OPEN** on
+`VM_PRECUT_ACTIVE_CHECKPOINT_UNAVAILABLE`, and the host reboot blocker remained named rather than
+silently converted to a pass.
+
+The next root-cause rerun reviewed Browser source `55b8587` with bounded native Windows process and
+listener discovery plus fail-closed identity rechecks. Local Node `22.23.2` verification is green,
+but the VM gate stopped before an active checkpoint: scheduled task filenames did not match the
+transferred files, and a PowerShell UTF-8 BOM made the settings JSON unreadable, yielding capacity
+`total=0`. Those harness defects are fixed locally, yet no checkpoint-qualified recovery power-cycle
+was made; preparation and cleanup poweroffs are excluded. The disposable clone was deleted.
+`G3-RECOVERY` was **OPEN** at that point; a fresh owner-reviewed run required the exact pre-cut tuple. The owner
+chose to keep the existing licence key; no key value is retained in evidence, and later gates must
+continue to stream it without logging.
+
+The next bounded rerun reached the active tuple and performed one real VirtualBox poweroff only after
+`ValidateCut` returned `checkpointValid=true`, with `active` journal, `1/0/1/0/0` capacity, live
+Browser/profile processes, and demand-only tasks. After boot, the exact lease was still `active` and
+the Browser process table was empty, but the `cutCheckpoint` update had disappeared from
+`gate-state.json`. This exposed a harness durability defect, not a recovery verdict. The gate now uses
+a write-through file handle plus `Flush(true)` and requires the persisted checkpoint after boot.
+Evidence: `local-test-artifacts/phase5/real-power-cycle-recovery-evidence-20260827-durable-checkpoint-review.json`.
+`G3-RECOVERY` was **OPEN** at that point on `GATE_STATE_NOT_DURABLE_ACROSS_POWER_CYCLE`; no rollout
+phase proceeded from that run.
+
+The final owner-approved bounded rerun then passed the complete power-cycle gate. Evidence
+`local-test-artifacts/phase5/real-power-cycle-recovery-evidence-20260827-ownership-fix-r2.json`
+validated the exact pre-cut tuple (`active`, capacity `1/0/1/0/0`, live pinned Browser/profile
+processes, demand-only tasks), performed one real VirtualBox poweroff, observed the exact lease still
+`active` with no Browser process after boot, then observed `cooling` with `pendingRecovery=0`, free
+capacity after the vendor TTL, same-profile reuse, and final `confirmed-released` cleanup. This
+supersedes/resolves `REBOOT_LEASE_STUCK_PENDING_RECOVERY`,
+`VM_PRECUT_ACTIVE_CHECKPOINT_UNAVAILABLE`, and `GATE_STATE_NOT_DURABLE_ACROSS_POWER_CYCLE`.
+`G3-RECOVERY` is now **PASS**. The existing real key was kept; no revoke or rotation was performed,
+and no key value is retained in evidence. Rollout remains **NO-GO**, and no Phase 2, Phase 5, or
+Phase 6 work starts.
 
 Three owner decisions on 25 August narrow v1: one profile at a time, unsigned reaffirmed, and the
-clean VM guest serves as PC B. The one-seat cap raises the cost of the reboot failure sharply -
-with a single key a stranded seat costs the whole application for up to the measured 15.1-minute
-lease expiry, so ending the vendor session explicitly on shutdown is now the highest-value
-remaining fix. Still **NO-GO** for rollout.
+clean VM guest serves as PC B. At that point the one-seat cap raised the cost of a reboot failure
+sharply; the final 27 August power-cycle evidence above closes that recovery risk. The decisions
+themselves remain in force. Still **NO-GO** for rollout.
 
 Two harness defects were found and fixed rather than hidden: the repair harness hashed `profiles.db`
 while an installer-triggered relaunch held it open, and the uninstall harness checked before the
@@ -320,7 +362,7 @@ repository. MKTTool retains only the consuming contract, Relay, and release page
 | MKB-01 | Windows compatibility and product identity | ✅ Verified 11 August | Copy-only first-launch importer preserves the MultiZen source; five primary-screen baselines captured; Windows CI runs W01/W02 guards, typecheck, package build, and packaged runtime-contract verification on every push/PR |
 | MKB-01E | Electron upgrade and renderer hardening | ✅ Verified 11 August | Electron 42.8.1 / ABI 146 package; native module rebuild; sandbox/CSP/default-deny IPC and MCP inventories; fixed-seed fingerprint unchanged and five visual baselines accepted |
 | MKB-02 | Managed mode | ✅ Verified 12 August | Contract v3 introduced diagnostics and correlation; the current v4 runtime, profile-token capability separation, managed proxy/fingerprint/delete/direct-launch locks, current-device Browser health, Relay v15, and cross-repository packaged verification are green |
-| MKB-03 | Windows onboarding, installer, and controlled updates | 🟡 Phases 01-05 complete in code after verified release authority; lifecycle and setup-conflict engineering subsets pushed — [execution plan](../plans/260812-1301-mkb-03-windows-onboarding-and-installer/plan.md) | Local findings have code fixes for WebRTC containment, engine fallback, live Relay identity reconciliation, progress, guidance, pre-mutation conflict detection, ownership-aware uninstall cleanup, signed ADMIN Relay retirement, separate Browser-only profile deletion, and a setup-time verdict from the shared installer detector. MKT Browser contract v4 removes deletion from MCP and conditionally reports `local-install-ready-v1`; `/setup` fails closed to installer repair when it is absent. Relay v15 accepts contract v4, preserves the v11 retirement floor, and forwards the additive capability. The root/delegation ceremony and backup-B recovery rehearsal are verified. Compatibility validation with all seven rejection cases, coordinated activation, fault-injected convergence, bounded rollback, post-activation smoke, and device-side revocation memory are implemented and covered; Relay v15 is published and pinned. A current-source local candidate now passes clean combined install 9/9, repair 13/13 and combined uninstall 15/15 on an updated-Defender VM guest, closing the reopened lifecycle gate; the artifact is still unsigned and unattested, so an attested rebuild from a frozen tree is required before distribution. Real-reboot lease convergence, Relay spent-ticket durability, live Windows matrices, and unfamiliar-operator rehearsal remain open. |
+| MKB-03 | Windows onboarding, installer, and controlled updates | 🟡 Phases 01-05 complete in code after verified release authority; lifecycle and setup-conflict engineering subsets pushed — [execution plan](../plans/260812-1301-mkb-03-windows-onboarding-and-installer/plan.md) | Local findings have code fixes for WebRTC containment, engine fallback, live Relay identity reconciliation, progress, guidance, pre-mutation conflict detection, ownership-aware uninstall cleanup, signed ADMIN Relay retirement, separate Browser-only profile deletion, and a setup-time verdict from the shared installer detector. MKT Browser contract v4 removes deletion from MCP and conditionally reports `local-install-ready-v1`; `/setup` fails closed to installer repair when it is absent. Relay v15 accepts contract v4, preserves the v11 retirement floor, and forwards the additive capability. The root/delegation ceremony and backup-B recovery rehearsal are verified. Compatibility validation with all seven rejection cases, coordinated activation, fault-injected convergence, bounded rollback, post-activation smoke, and device-side revocation memory are implemented and covered; Relay v15 is published and pinned. A current-source local candidate now passes clean combined install 9/9, repair 13/13 and combined uninstall 15/15 on an updated-Defender VM guest, closing the reopened lifecycle gate; the artifact is still unsigned and unattested, so an attested rebuild from a frozen tree is required before distribution. Relay spent-ticket durability and real power-cycle lease convergence now pass on packaged v15/Browser `55b8587`; live Windows matrices and unfamiliar-operator rehearsal remain open. |
 | MKB-04 | Technical pilot and one canary account | ⬜ Not started | An unfamiliar operator completes setup with zero developer intervention; two Windows devices remain green for seven days; one account completes a 14-day cold start |
 | MKB-05 | Team rollout | ⬜ Not started | Canary completes cold start; MKT Browser becomes default; rollback uses only the frozen W01 checkpoint and never restores a MultiZen adapter fallback |
 | MKB-06 | Custom UX/UI | ⏸ Deferred beyond v1 | Begin only from observed usage feedback; does not block MKB-00 through MKB-05 |

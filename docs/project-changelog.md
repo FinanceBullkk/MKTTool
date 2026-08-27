@@ -18,6 +18,106 @@ the archive location.
 
 ---
 
+## 27 August 2026 - Real power-cycle recovery passes and closes G3
+
+The root-cause Browser candidate at source `55b8587` replaces the slow Windows listener/process
+provider path with bounded native `netstat.exe`, absolute system PowerShell, and double process and
+listener snapshots. Identity or ownership changes, ambiguous inspection, invalid system roots,
+timeouts, and oversized output continue to fail closed. Fresh Node `22.23.2` verification passed
+`test:mkb02` 135/135, targeted Windows ownership/runtime tests 42/42, typecheck, and lint.
+
+The final owner-approved disposable-VM rerun passed the real power-cycle gate. Before the cut, the
+exact lease was `active`, capacity was `total=1/free=0/active=1/pendingRecovery=0/cooling=0`, the
+pinned Browser/profile processes were alive, and every gate task was demand-only. The host then
+issued one `VBoxManage controlvm poweroff`. Before app startup after boot, the boot identity had
+changed, no Browser process remained, and the exact lease was still stranded `active`. Startup moved
+it to `cooling` with `pendingRecovery=0`; capacity returned to one free seat after the vendor TTL;
+the same profile relaunched and then closed to `confirmed-released` with no profile Browser process
+remaining.
+
+Evidence:
+`local-test-artifacts/phase5/real-power-cycle-recovery-evidence-20260827-ownership-fix-r2.json`.
+This supersedes/resolves `REBOOT_LEASE_STUCK_PENDING_RECOVERY`,
+`VM_PRECUT_ACTIVE_CHECKPOINT_UNAVAILABLE`, and `GATE_STATE_NOT_DURABLE_ACROSS_POWER_CYCLE` as current
+blockers. `G3-RECOVERY` is **PASS**. The existing licence key was kept; no revoke or rotation was
+performed, and no key value is retained in evidence. Rollout remains **NO-GO** because other gates
+remain open; no Phase 2, Phase 5, or Phase 6 work starts.
+
+## 27 August 2026 - Ownership-fix power-cycle rerun stopped before the gate
+
+The Browser ownership candidate at source `55b8587` replaces the slow per-query
+`Get-NetTCPConnection` child with bounded native `netstat.exe`, uses absolute Windows system tools,
+and rechecks both process identity and listener ownership to keep the DevTools boundary fail closed.
+Fresh Node `22.23.2` verification passed `test:mkb02` 135/135, typecheck, and lint.
+
+The bounded disposable VM continuation did not produce recovery evidence. Review found that the
+scheduled task actions named files that were not transferred under those names, and that the
+PowerShell settings writer emitted a UTF-8 BOM which `SettingsStore` rejected, producing capacity
+`total=0`. Both harness defects were corrected locally, and native `tar.exe` replaced a pathological
+`Expand-Archive` preparation path. No `gate-state.json` with an active lease was validated, so no
+checkpoint-qualified recovery power-cycle was made; preparation and cleanup poweroffs are excluded.
+The disposable clone was reset, powered off, and deleted.
+
+Evidence: `local-test-artifacts/phase5/real-power-cycle-recovery-evidence-20260827-root-cause-review.json`.
+`G3-RECOVERY` remains **OPEN** and rollout remains **NO-GO**. The owner chose to keep the existing
+licence key; no key value is retained in evidence, and later gates must stream it without logging.
+
+## 27 August 2026 - Real cut rejected because the checkpoint was not durable
+
+The bounded root-fix rerun reached a real active lease and returned the complete pre-cut tuple before
+the host issued one `VBoxManage controlvm poweroff`: `checkpointValid=true`, `active`, capacity
+`total=1/free=0/active=1/pendingRecovery=0/cooling=0`, pinned Browser/profile processes alive, and
+demand-only tasks. After boot, the exact lease was still `active` and no Browser process survived, but
+the `cutCheckpoint` update was absent from `gate-state.json`. The state writer had acknowledged the
+write without forcing it through the guest filesystem, so the power-cycle cannot be accepted as
+recovery evidence. This is a harness durability blocker, not a product recovery PASS or FAIL.
+
+The gate now writes checkpoints with a write-through handle and `Flush(true)`, and post-boot requires
+the persisted checkpoint plus a bounded boot window. Evidence:
+`local-test-artifacts/phase5/real-power-cycle-recovery-evidence-20260827-durable-checkpoint-review.json`.
+`G3-RECOVERY` remains **OPEN** with `GATE_STATE_NOT_DURABLE_ACROSS_POWER_CYCLE`; rollout remains
+**NO-GO**, and no Phase 2, Phase 5, or Phase 6 work starts.
+
+## 27 August 2026 - Packaged Relay v15 preserves spent tickets across restart
+
+The real packaged Relay v15 process was stopped and started with an isolated disposable home.
+The device identity stayed stable across the restart, replay of the previously consumed ticket was
+rejected as `ALREADY_USED`, and a fresh ticket still reached the Browser-operation boundary.
+Evidence: `local-test-artifacts/phase5/relay-spent-ticket-restart-evidence-20260827.json`.
+The evidence is redacted and contains no secret values. This closes only the Relay restart/spent-ticket
+subset; `G3-RECOVERY` remains **OPEN** pending the real power-cycle/licence-key gate and owner review.
+
+The same-day real power-cycle continuation was attempted on the disposable VM with Browser source
+`137a849` and Relay v15. The first run had the package and real-key setup present, but launch stopped
+before an active lease because the VM could not attribute the live DevTools listener
+(`portOwnerPids=none`). A fresh follow-up warmed the Windows listener provider, then proved listener
+ownership and single-key capacity without changing Browser code. That rerun was still invalid: the
+scheduled arm task was started immediately and retained its one-minute trigger, so it ran twice and
+lost the stable active-lease checkpoint. Cleanup recorded `0 active / 0 pendingRecovery / 1 cooling`
+and no profile Browser process. No power cut was made after either failed precondition.
+
+Redacted evidence is retained at
+`local-test-artifacts/phase5/real-power-cycle-recovery-evidence-20260827.json` and
+`local-test-artifacts/phase5/real-power-cycle-recovery-evidence-20260827-rerun.json`. These are
+environment/harness blockers, not recovery verdicts. `G3-RECOVERY` remains **OPEN** pending an
+owner-approved rerun after vendor cooldown and owner evidence review. The approved continuation is
+recorded in the dated entry below.
+
+## 27 August 2026 - Approved power-cycle rerun remained blocked before cut
+
+The owner-approved disposable rerun used Browser source `137a849`, packaged Relay v15, a real
+licence key through a non-recording guest path, demand-only scheduled tasks, and Windows provider
+warm-up. The launch reached a live CloakBrowser child and `DevToolsActivePort`, but the packaged
+ownership query returned `portOwnerPids=none` and Browser failed closed before writing an active
+checkpoint. The lease cleanup recorded `confirmed-released`; after the measured cooldown, capacity
+returned to `1 free / 0 active / 0 pendingRecovery / 0 cooling`. No recovery power-cycle was made.
+
+Evidence: `local-test-artifacts/phase5/real-power-cycle-recovery-evidence-20260827-final.json`.
+The later `VBoxManage controlvm poweroff` stopped the already-clean disposable clone and is recorded
+as cleanup only, not as a recovery observation. `G3-RECOVERY` remains **OPEN** with blocker
+`VM_PRECUT_ACTIVE_CHECKPOINT_UNAVAILABLE`; this result is not promoted to PASS or hidden by the
+successful Relay spent-ticket restart subset.
+
 ## 26 August 2026 - The installer lifecycle closes on a clean guest and two recovery gates fail by name
 
 Removing the `HNetCfg.FwPolicy2` firewall reader and moving nine call sites off

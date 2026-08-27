@@ -4,11 +4,12 @@ MKTTool is the team's identity and posting-safety console. It manages browser-ba
 TikTok identities plus Facebook Pages, while keeping account, proxy, profile, and operator-device
 ownership explicit.
 
-**Current status, 22 August 2026:** the original identity vault, Reddit/Facebook posting-safety
+**Current status, 27 August 2026:** the original identity vault, Reddit/Facebook posting-safety
 pipeline, health checks, and Facebook Pages publisher are implemented. TikTok account creation,
 readiness, proxy assignment, and manual profile launch are implemented; TikTok content, scheduling,
-warmup, and posting automation are parked. Browser/Relay P0 automated hardening is green, but real
-proxy, human input, live vendor recovery, second-PC, and canary gates keep rollout at **NO-GO**.
+warmup, and posting automation are parked. Browser/Relay P0 automated hardening, packaged Relay v15
+restart recovery, and the real disposable-VM power-cycle recovery gate are green. Real proxy, human
+input, live vendor sidecar/schema, second-PC, and canary gates keep rollout at **NO-GO**.
 See the [development roadmap](docs/development-roadmap.md).
 
 This file is the operational handbook for installing, running, and using the product. Product intent,
@@ -1143,8 +1144,10 @@ chuyển xấu từ lúc nào.
 
 ## Việc chưa làm
 
-- **Browser/Relay rollout gates:** live vendor session integration, real proxy/DNS/WebRTC evidence,
-  human-controlled login/input, second-PC recovery, packaged crash/reboot recovery, and the canary.
+- **Browser/Relay rollout gates:** live vendor session/schema integration, real proxy/DNS/WebRTC
+  evidence, human-controlled login/input, second-PC setup/recovery, and the canary. Packaged
+  crash/reboot recovery and Relay v15 spent-ticket restart recovery are verified, but do not close
+  these remaining rollout gates.
 - **TikTok publishing:** content, scheduling, warmup, and posting automation remain parked; only the
   identity/profile/manual-browser workflow is active.
 - **Semi-automated Reddit posting:** Phase 05 has not started; the operator still performs the final

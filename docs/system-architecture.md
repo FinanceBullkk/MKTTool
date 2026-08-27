@@ -88,8 +88,9 @@ the queue, posting rules, warmup, and publishing paths do not silently activate 
 
 > **P0 rollout boundary:** automated proxy-egress, lease-journal, and readiness checks are green, but
 > `license-capacity-v1` is not advertised because vendor start/heartbeat/end state is not connected
-> to the journal. Real proxy/DNS/WebRTC evidence, human login/input, second-PC setup, crash/reboot
-> recovery, and the canary remain outside what code-only evidence can prove.
+> to the journal. Packaged Relay restart and real disposable-VM power-cycle recovery have sanitized,
+> hash-bound evidence; real proxy/DNS/WebRTC completion, the remaining human login/input sessions,
+> second-PC setup, vendor sidecar/schema integration, and the canary remain open.
 
 > **“Relay” does not mean an edge proxy here.** It exposes no public tunnel, target-forwarding API,
 > or proxy pool. It verifies recipient-bound tickets, opens operator-domain secrets locally, and calls
