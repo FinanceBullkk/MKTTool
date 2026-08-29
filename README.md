@@ -12,6 +12,15 @@ restart recovery, and the real disposable-VM power-cycle recovery gate are green
 input, live vendor sidecar/schema, second-PC, and canary gates keep rollout at **NO-GO**.
 See the [development roadmap](docs/development-roadmap.md).
 
+### Internal beta boundary — 29 August 2026
+
+The Web/Facebook surface is ready for normal internal use. A current Windows x64 MKT Browser +
+Relay installer (`0.3.12`) is published for a controlled, admin-led beta: one profile at a time,
+human-operated actions, and no manual handling of tokens or keys. Read the [internal beta release
+guide](docs/internal-beta-release.md) before onboarding. This narrows the immediate delivery scope;
+the broader Browser rollout remains **NO-GO** while the identity, network, vendor, second-PC, and
+canary gates remain open.
+
 This file is the operational handbook for installing, running, and using the product. Product intent,
 architecture, code maps, conventions, and history live under [docs/](docs/README.md).
 

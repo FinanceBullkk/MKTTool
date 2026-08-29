@@ -16,6 +16,15 @@ Dự án đang chạy **ba luồng song song**:
 | **B — Web chung** | Biến app một máy thành web chung cho 5-6 người ở 5-6 nơi | **GĐ0-4 xong 06/08**, GĐ5 web **đã chạy thật trên Railway** cùng ngày |
 | **C — MKT Browser** | Fork the MultiZen desktop layer; Windows-only in v1 while Web, Relay, and upstream UX/UI remain intact | **MKB-00 through MKB-02 verified; MKB-03 engineering complete with live Windows gates open; P0 proxy/lease/readiness automated hardening is green but vendor, real-proxy, second-PC, and canary evidence remain open**; MKB-04 remains NO-GO; macOS deferred to MKB-07; [plan](../plans/260810-0244-mkt-browser-noi-bo/plan.md) |
 
+**Internal beta scope freeze, 29 August 2026:** Web/Facebook is the supported team handoff now.
+The Windows x64 Browser/Relay candidate `0.3.12` is published for a controlled, admin-led beta with
+one profile at a time and human-operated actions. This is intentionally smaller than MKB-04/MKB-05:
+it does not promote the Reddit/TikTok real-account lane, close the identity or vendor gates, or
+authorize unattended automation. The exact artifact and operator path live in
+[internal-beta-release.md](internal-beta-release.md). The custom Chromium/prebuilt-engine tracks,
+macOS, concurrency, updater, and broad canary remain deferred until there is a concrete need and a
+fresh owner decision.
+
 **TikTok scope decision, 19 August 2026:** TikTok is now a first-class account and manual browser
 identity in the console. Creating the account, assigning its static proxy and Relay device, checking
 readiness, and opening its managed profile are active. TikTok is deliberately absent from

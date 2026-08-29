@@ -18,6 +18,23 @@ the archive location.
 
 ---
 
+## 29 August 2026 - Controlled internal beta published and scope frozen
+
+MKTTool Web/Facebook is the normal internal handoff. MKT Browser `0.3.12` was rebuilt from clean
+source `6d1b0a2` / tree `db389a54`, verified under Node `22.23.2`, and published to the authenticated
+R2 setup channel with installer SHA-256
+`d570ccc3326b5a046d91b7b677f4232ab76908f2fb034c60799e31695f43fc4b`. R2 read-back confirmed the
+version, size, checksum, and bundled Relay v15 metadata. The packaged runtime/profile lifecycle
+contract passed `1/1`, MKB-02 passed `135/135`, MKB-03 passed `31/31`, packaging contracts passed 34
+with the explicit live-machine check skipped, and the production dependency audit reported no
+suggestions. MKTTool passed 1,922 tests, typecheck, lint, and production build.
+
+The release is a controlled Windows x64 beta: admin-led enrollment, one profile at a time, human
+login/posting, and no token/key copying. Broad Browser rollout remains NO-GO: G1 input, G2 network,
+G3 licence, G4 operator, and G5 canary remain open, while G2 identity remains FAIL. Custom Chromium,
+the prebuilt-engine orchestrator, macOS, concurrency, updater/signing, and posting automation are
+deferred. See [internal-beta-release.md](internal-beta-release.md).
+
 ## 27 August 2026 - Real power-cycle recovery passes and closes G3
 
 The root-cause Browser candidate at source `55b8587` replaces the slow Windows listener/process

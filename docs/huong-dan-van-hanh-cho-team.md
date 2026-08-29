@@ -1,6 +1,6 @@
 # Hướng dẫn vận hành cho team
 
-**Cập nhật:** 22/08/2026 | Dành cho **người dùng công cụ**, không phải người cài nó
+**Cập nhật:** 29/08/2026 | Dành cho **người dùng công cụ**, không phải người cài nó
 
 > File này là thứ bạn đọc để *dùng*. Cài đặt, biến môi trường, cách dựng máy chủ nằm ở
 > [README.md](../README.md) — đó là việc của ADMIN, bạn không cần mở.
@@ -160,14 +160,19 @@ Mọi việc khác vẫn chạy bình thường khi cầu nối tắt — kể c
 
 ### Current installation gate
 
-The supported package is one Windows installer containing MKT Browser and pinned Relay v15. The
-installer in the engineering tree predates the final 22 August hardening and is not approved for
-team distribution. Until the owner records GO, only an owner-led disposable technical machine may
-be installed or repaired; a new operator should stop here and contact the owner/ADMIN.
+The current internal-beta package is MKT Browser `0.3.12` with pinned Relay v15. It is published in
+the authenticated `/setup` flow for a **controlled, admin-led Windows x64 beta**: one profile at a
+time, one static proxy per browser-backed account, and human-controlled login/posting. The exact
+SHA-256 and the remaining rollout gates are in [internal-beta-release.md](internal-beta-release.md).
 
-After an approved installer exists, the intended flow remains: open `/setup`, confirm the detected
-PC, wait for ADMIN approval/key delivery, and stay on that page until it reports `Ready`. Operators
-must never handle Relay/MCP tokens, ports, archives, checksums, or raw operator keys.
+Open `/setup`, confirm the detected PC, wait for ADMIN approval/key delivery, and stay on that page
+until it reports `Ready`. Download only the installer shown there; expect the announced SmartScreen
+warning because the binary is unsigned. Operators must never handle Relay/MCP tokens, ports,
+archives, checksums, raw operator keys, or `.env` values.
+
+The beta does not authorize unattended automation or broad Reddit/TikTok real-account rollout. If a
+proxy, engine, contract, or licence check is not `Ready`, stop and contact ADMIN instead of opening
+another profile or changing the proxy locally.
 
 ### Bốn bước đăng một bài
 
