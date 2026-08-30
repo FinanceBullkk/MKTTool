@@ -7,6 +7,7 @@ Repo này có 12+ file tài liệu. Đừng đọc hết. Tra theo câu hỏi b�
 | Bạn muốn biết | Đọc file |
 |---|---|
 | **Dùng công cụ hằng ngày** (không cài gì, không sửa code) | [huong-dan-van-hanh-cho-team.md](huong-dan-van-hanh-cho-team.md) — cẩm nang cho người dùng cuối |
+| **Internal beta boundary and current installer** | [internal-beta-release.md](internal-beta-release.md) — supported scope, exact hash, operator path, and open gates |
 | Cài và chạy công cụ, dùng từng màn hình | [../README.md](../README.md) — cẩm nang vận hành, đọc trước tiên |
 | Deferred macOS reference (not v1) | [macos-development-setup.md](macos-development-setup.md) — retained for MKB-07, not the current demo path |
 | Dự án giải quyết vấn đề gì, cho ai, không làm gì | [project-overview-pdr.md](project-overview-pdr.md) |

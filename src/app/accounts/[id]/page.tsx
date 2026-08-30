@@ -137,6 +137,11 @@ export default async function AccountDetailPage({
 
       <PageHeading title={account.username} />
 
+      <p className="mb-4 text-sm text-neutral-600 dark:text-neutral-400">
+        Các trạng thái bên dưới chỉ phản ánh cấu hình và quyền thao tác hiện tại. Chúng không chứng
+        minh cô lập danh tính của trình duyệt; đăng nhập và nhập liệu vẫn do người vận hành thực hiện.
+      </p>
+
       <div className="mb-6 flex flex-wrap items-center gap-3">
         <StatusBadge label={presentation.label} className={presentation.className} />
         {coldDays > 0 ? (
@@ -253,7 +258,8 @@ export default async function AccountDetailPage({
             <strong>Moving to another machine:</strong> MKT Browser profiles do not move
             automatically. Export on the old machine -&gt; import on the new machine -&gt;{" "}
             <strong>delete the copy on the old machine</strong>. Skipping the last step leaves the
-            account active on two machines at once: one session with two device-signal sets.
+            two local copies active and they can diverge. Keep one authoritative copy and remove the
+            old local copy after a verified transfer.
           </p>
 
           {teamMembers.length === 0 ? (

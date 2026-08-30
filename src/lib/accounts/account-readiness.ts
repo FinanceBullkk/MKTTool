@@ -13,7 +13,7 @@
  *
  * ## Điều kiện KHÁC NHAU theo nền tảng, và đó là điểm chính
  *
- * Nick Reddit phải lén: mỗi nick một proxy, một vân tay, một máy. Fanpage đăng bằng Graph API có
+ * Nick Reddit cần một proxy, một profile cấu hình và một máy được gán. Fanpage đăng bằng Graph API có
  * token chính thức — không mở trình duyệt, không proxy, không profile, nên **không có máy nào để
  * ghim**. Đòi đủ tám điều kiện cho nick Facebook là bịa ra bốn lỗi vĩnh viễn không sửa được, và
  * người đọc sẽ học cách phớt lờ cả cột.
@@ -89,7 +89,7 @@ export interface ReadinessInput {
  * Nick này có phải mở bằng trình duyệt antidetect không — tức có cần proxy / profile / máy.
  *
  * Hỏi ngược: **chỉ Facebook là không cần.** Fanpage đăng bằng Graph API có token chính thức,
- * không mở trình duyệt, không giả vân tay, không đi qua proxy. Khai thêm thì vẫn dùng được
+ * không mở trình duyệt, không cần profile cấu hình, không đi qua proxy. Khai thêm thì vẫn dùng được
  * (README cho phép), nhưng không khai cũng không phải thiếu sót — nên chỉ đòi khi đã khai một
  * nửa (xem `NO_DEVICE`).
  *
@@ -165,12 +165,13 @@ export function describeAccountReadiness(input: ReadinessInput): AccountReadines
       label: "chưa có profile antidetect",
       fix:
         'Bấm "Tạo profile trên máy này" ở trang chi tiết nick — công cụ dựng profile mang sẵn ' +
-        "proxy và vân tay khớp quốc gia, rồi ghim nick vào chính máy đó.",
+        "proxy và các cài đặt locale/múi giờ theo quốc gia, rồi ghim nick vào chính máy đó. " +
+        "Đây là cấu hình vận hành, không phải bằng chứng cô lập danh tính.",
     });
   } else if (browserNick && !input.firstLoginAt) {
     // Profile có rồi nhưng chưa ai đăng nhập. Trạng thái này CHỈ tồn tại từ 07/08/2026: trước đó
     // id profile được dán vào sau khi đã đăng nhập tay xong, nên hai việc trùng nhau. Nút "Tạo
-    // profile" đẻ ra một trình duyệt trắng tinh — có proxy, có vân tay, không một cookie nào.
+    // profile" đẻ ra một trình duyệt trắng tinh — có proxy và cài đặt profile, không một cookie nào.
     //
     // `else if` chứ không phải điều kiện rời: chưa có profile thì chưa có gì để đăng nhập vào, và
     // hiện hai dòng cùng lúc là bắt người đọc tự suy ra thứ tự giữa chúng.
@@ -178,8 +179,8 @@ export function describeAccountReadiness(input: ReadinessInput): AccountReadines
       code: "NOT_LOGGED_IN",
       label: "chưa đăng nhập lần nào",
       fix:
-        "Mở profile, đăng nhập nick vào đó, rồi bấm \"Đã đăng nhập được\" ở thẻ Đăng nhập lần " +
-        "đầu. Làm ngay đầu cold-start — đăng nhập lần đầu là lúc hay bị đòi xác minh nhất.",
+        "Mở profile, tự đăng nhập nick vào đó, rồi bấm \"Đã đăng nhập được\" ở thẻ Đăng nhập lần " +
+        "đầu. Làm ngay đầu cold-start — đăng nhập lần đầu là lúc hay bị đòi xác minh nhất; công cụ không tự động hóa bước này.",
     });
   }
 

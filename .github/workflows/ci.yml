@@ -7,9 +7,10 @@ on:
 
 jobs:
   check:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, X64]
 
     # Bộ test cần một Postgres THẬT, không giả lập được.
+    # The self-hosted Linux runner must provide Docker because job services are container-backed.
     #
     # Lý do đầy đủ ở `vitest.global-setup.ts`, tóm tắt: tầng `rule-context-queries.ts` chỉ gồm
     # truy vấn Prisma. Giả lập Prisma chỉ chứng minh được "mình gọi hàm đúng như mình nghĩ",
@@ -76,6 +77,105 @@ jobs:
 
       - run: npm run build
 
+  # The new database contracts need Node 22 and a real disposable PostgreSQL service. The
+  # preflight is intentionally fail-closed: if this self-hosted runner cannot provision Node 22,
+  # the helper records BLOCKED instead of silently running the probe under another runtime or a
+  # mock database.
+  contracts:
+    runs-on: [self-hosted, Linux, X64]
+    timeout-minutes: 20
+    permissions:
+      contents: read
+
+    services:
+      postgres:
+        # Pin the contract service; this is the real-Postgres lane from Phase 2, separate from the
+        # broader application check above (which remains on the repository's PostgreSQL 17 image).
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      # CI-only disposable service credentials. They are not production credentials and are never
+      # passed on a command line; the contracts runner forwards them only to child processes.
+      # Prisma runs during `npm ci`/postinstall and requires DATABASE_URL even though the contract
+      # helper receives its dedicated connection through CONTRACTS_DATABASE_URL.
+      DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/postgres"
+      CONTRACTS_DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/postgres"
+      TEST_DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/postgres"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Provision Node 22
+        id: node22
+        uses: actions/setup-node@v4
+        continue-on-error: true
+        with:
+          node-version: 22
+          cache: npm
+
+      # Keep the executable selected by setup-node explicit. Some self-hosted runner shells do not
+      # carry the action-managed PATH into a later `if: always()` step; falling back to the machine
+      # default would make the Node-22 contract silently run under another runtime.
+      - name: Capture Node 22 executable
+        id: node22_path
+        if: steps.node22.outcome == 'success'
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --version
+          node_bin="$(command -v node)"
+          test -x "$node_bin"
+          echo "NODE22_BIN=$node_bin" >> "$GITHUB_ENV"
+
+      - name: Install dependencies for the Node 22 contract run
+        id: contracts_install
+        if: steps.node22_path.outcome == 'success'
+        run: npm ci
+
+      - name: Run real PostgreSQL restore and rate-limit contracts
+        if: steps.contracts_install.outcome == 'success'
+        env:
+          PSQL_PATH: ${{ github.workspace }}/scripts/ci/psql-docker-wrapper.sh
+        run: |
+          "$NODE22_BIN" scripts/ci/run-postgres-contracts.cjs
+
+      - name: Record an unavailable Node 22 contract environment
+        if: steps.node22_path.outcome != 'success' || steps.contracts_install.outcome != 'success'
+        shell: bash
+        run: |
+          {
+            echo '### CI gate: mkttool-postgres-contracts'
+            echo
+            echo '- **Status:** `BLOCKED`'
+            echo '- **Reason:** Node 22 provisioning or dependency installation did not complete; the real PostgreSQL contract was not substituted.'
+            echo '- **Owner:** mkttool-ci'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit 1
+
+  # Scan the source/evidence trees without printing matched values. `plans/` is workspace-level and
+  # may not be present in a repository-only checkout; the scanner records that scope explicitly.
+  secret-scan:
+    runs-on: [self-hosted, Linux, X64]
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Scan source and evidence for high-confidence secrets
+        run: node scripts/ci/secret-scan.cjs --root=plans --root=src --root=relay --root=scripts --root=.github
+
   # Acceptance-test the packaged Relay `.exe` itself, not its source.
   #
   # Why this job exists — C37, 17 August 2026. F4 made `/encrypt-for-vault` require the trusted
@@ -92,21 +192,23 @@ jobs:
   #
   # Why a separate job instead of a step in `check`: SEA embeds the runtime of the machine doing
   # the build, so a Linux build produces an ELF named `.exe` that only fails once it reaches an
-  # operator (see the header of `scripts/build-relay-executable.ts`). `check` has to stay on ubuntu
-  # because it needs the Postgres service. So the two cannot share a runner.
+  # operator (see the header of `scripts/build-relay-executable.ts`). `check` has to run on a
+  # self-hosted Linux runner with Docker because it needs the Postgres service. So the two cannot
+  # share a runner.
   #
-  # Why there is deliberately no `paths:` filter, even though a Windows runner bills at 2x. The
-  # suite imports from `src/lib/crypto`, `src/lib/tickets` and `src/lib/relay` — a change outside
+  # Why there is deliberately no `paths:` filter, even though the Windows job consumes scarce
+  # self-hosted capacity. The suite imports from `src/lib/crypto`, `src/lib/tickets` and
+  # `src/lib/relay` — a change outside
   # `relay/` breaks it, which is exactly what F4 did. Narrowing the trigger to relay paths would
-  # rebuild the blind spot this job was added to close, for a saving of a few runner minutes.
+  # rebuild the blind spot this job was added to close.
   relay-executable:
-    runs-on: windows-latest
+    runs-on: [self-hosted, Windows, X64]
 
-    # Pull requests only, unlike `check`, which also runs on pushes to master. This repository is
-    # private, so Windows runner minutes bill at 2x, and the post-merge push run would be near-pure
-    # duplication: GitHub builds a `pull_request` event against the *merge commit* — the PR head
+    # Pull requests only, unlike `check`, which also runs on pushes to master. The post-merge push
+    # run would be near-pure duplication: GitHub builds a `pull_request` event against the *merge
+    # commit* — the PR head
     # already merged into the base — so the PR run has verified the exact tree master is about to
-    # become. Paying twice for one tree is the wrong place to spend the allowance.
+    # become. Running twice for one tree is the wrong place to spend runner capacity.
     #
     # Two residuals, stated rather than discovered later. A commit pushed straight to master skips
     # this job entirely; every change since #23 has arrived by pull request, so that path is
@@ -140,12 +242,30 @@ jobs:
       # an artifact that should not exist, and if one ever escaped the runner it would be
       # indistinguishable from a release build.
       - name: Build the Relay executable
+        id: relay_build
         run: npm run relay:build -- --web-origin=https://ci.invalid --compatibility-floor=1
 
       # This is `relay:verify` — the step the release checklist asks a human to remember. It is a
-      # machine's job from here.
-      - name: Verify the packaged executable
-        run: npm run relay:verify
+      # machine's job from here. Both paths are explicit: the verifier must never pick up an old
+      # archive or sidecar left in a runner workspace.
+      - name: Verify the explicit Relay archive, metadata, and restart replay
+        id: relay_verify
+        if: always()
+        continue-on-error: true
+        run: npm run relay:verify -- --archive=relay/dist/MKTTool-Relay.zip --metadata=relay/dist/MKTTool-Relay.metadata.json
+
+      - name: Record Relay gate status
+        if: always()
+        env:
+          BUILD_OUTCOME: ${{ steps.relay_build.outcome }}
+          VERIFY_OUTCOME: ${{ steps.relay_verify.outcome }}
+        shell: pwsh
+        run: |
+          if ($env:VERIFY_OUTCOME -eq 'success') {
+            node scripts/ci/gate-status.cjs --gate=relay-archive-replay --status=PASS --reason='Explicit archive and metadata binding plus packaged restart replay passed.' --owner=mkttool-ci
+          } else {
+            node scripts/ci/gate-status.cjs --gate=relay-archive-replay --status=FAIL --reason="Relay build outcome: $env:BUILD_OUTCOME; explicit archive/metadata/replay outcome: $env:VERIFY_OUTCOME." --owner=mkttool-ci
+          }
 
   # Confirm the merge actually reached production (C38).
   #
@@ -169,13 +289,14 @@ jobs:
   # suspect that integration rather than the build.
   deploy-verification:
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, X64]
 
     permissions:
       deployments: read
 
     steps:
       - name: Wait for the production deployment of this commit to succeed
+        # The self-hosted Linux runner must provide the GitHub CLI (`gh`).
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}

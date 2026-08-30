@@ -1,6 +1,6 @@
 # Bản đồ mã nguồn
 
-**Cập nhật:** 22/08/2026
+**Cập nhật:** 30/08/2026
 
 Tài liệu dành cho người mới và AI agent định vị nhanh trong codebase — **code nằm ở đâu**.
 Hệ thống chạy ở đâu và phụ thuộc gì thì xem [system-architecture.md](system-architecture.md);
@@ -8,6 +8,25 @@ quy ước viết code ở [code-standards.md](code-standards.md).
 Thuật ngữ tra ở [domain-glossary.md](domain-glossary.md). Cách cài và chạy xem [README](../README.md).
 
 ---
+
+## Consolidation modules — 30 August 2026
+
+The current release branch adds or hardens these boundary modules:
+
+| Path | Responsibility |
+|---|---|
+| `src/lib/auth/trusted-proxy-config.ts` and `trusted-proxy-resolution.test.ts` | allowlisted proxy headers/CIDRs and safe client-IP resolution |
+| `src/lib/db/restore-database-verification.ts` | sanitized aggregate/hash comparison for disposable restores |
+| `src/lib/tickets/spent-ticket-journal.ts` and tests | durable, atomic replay protection across restart/termination |
+| `src/lib/tickets/ticket-rate-limit.ts` and related tests | PostgreSQL-backed per-client rate-limit durability/concurrency |
+| `src/app/api/healthz/route.ts` and tests | unauthenticated bounded readiness for DB/release state |
+| `src/lib/setup/windows-installer-release.ts` and `windows-installer-release-metadata.ts` | explicit disk/R2 release source and installer metadata validation |
+| `src/lib/relay/relay-release-*.ts` and `relay/src/spent-ticket-journal.ts` | immutable Relay artifact metadata, publication boundaries, and local durability |
+| `scripts/ci/gate-status.cjs`, `run-postgres-contracts.cjs`, `secret-scan.cjs` | machine-readable fail-closed CI contracts |
+
+The license-key pool remains in the MKTBrowser desktop tree (`apps/desktop/src/main/license-key-pool`)
+and is deliberately not a server-side secret store. These modules enforce operational isolation;
+none claims stealth, unique fingerprint identity, or vendor-level identity isolation.
 
 ## Cây thư mục
 
@@ -145,7 +164,7 @@ Dockerfile                      Ảnh cho môi trường chạy thật (GĐ5) �
 | `Proxy` | Proxy tĩnh gắn 1:1 với nick | `label @unique`; `@@unique([host, port, username])`; `type` = cách mua (STATIC_ISP/MOBILE), `protocol` = giao thức mạng (http/socks5) — hai thứ khác nhau |
 | `ObserverProxy` | Proxy dò shadowban, KHÔNG được dùng đăng nhập | `label @unique`. Tách hẳn khỏi `Proxy` chứ không thêm cờ: bản ghi nằm ở bảng này thì **không có đường nào** gắn vào nick |
 | `HealthCheck` | Một lần dò sức khỏe nick từ góc nhìn người ngoài | Giữ cả `visiblePosts` lẫn `expectedPosts`, không chỉ giữ kết luận — khi Reddit đổi HTML thì hai số này là thứ duy nhất cho biết bộ dò sai từ lúc nào. Không parse được **phải** là `ERROR`, tuyệt đối không phải `HEALTHY` |
-| `Account` | Nick Reddit/Facebook | `antidetectProfileId @unique` và `proxyId @unique` — ép 1 nick : 1 profile : 1 proxy. Cả hai **nullable**: bắt buộc với Reddit, bỏ trống được với Facebook (xem mục riêng bên dưới); `@@unique([platform, username])`. `voice` + `contentAngle` là ghi chú làn viết cho người soạn bài — bộ luật KHÔNG đọc, thiếu thì `NO_VOICE` |
+| `Account` | Nick Reddit/Facebook | `antidetectProfileId @unique` và `proxyId @unique` — ép 1 nick : 1 profile cấu hình : 1 proxy. Cả hai **nullable**: bắt buộc với Reddit, bỏ trống được với Facebook (xem mục riêng bên dưới); `@@unique([platform, username])`. Đây là ràng buộc dữ liệu, không phải bằng chứng cô lập danh tính. `voice` + `contentAngle` là ghi chú làn viết cho người soạn bài — bộ luật KHÔNG đọc, thiếu thì `NO_VOICE` |
 | `PlatformTarget` | Đích đăng: sub/page/group kèm luật riêng | `@@unique([platform, name])` |
 | `ContentItem` | Bài do team viết | `type`: VALUE hoặc PROMO |
 | `PostJob` | Một lần đăng đã xếp lịch | `ruleVerdicts`: JSON kết quả luật tại lúc tạo; `overrideReason`: bắt buộc nếu ghi đè |
@@ -210,7 +229,7 @@ Click "Open profile" → POST /api/accounts/[id]/launch
   2. The server selects the bound device and issues a signed, recipient-encrypted ticket
   3. The Web browser sends the ticket to Relay at 127.0.0.1:47821
   4. Relay verifies signature, recipient, expiry, and replay state
-  5. Relay v15 preserves ticket jti as operationId and requires the current Browser runtime to be ready
+  5. Relay v16 preserves ticket jti as operationId and requires the current Browser runtime to pass technical checks
   6. MKT Browser contract v4 persists + reads back the proxy, then launches atomically
   7. Relay accepts only a correlated metadata-only diagnostic and returns support detail to the Web
   8. The server records PROFILE_LAUNCH_TICKET_ISSUED; it does not claim the window opened
@@ -219,13 +238,14 @@ Click "Open profile" → POST /api/accounts/[id]/launch
 Proxy persistence still must precede launch: changing it after Chromium starts does not change the
 running session. Contract v4 retains that ordering in `launch_managed_profile`; it rejects a running
 profile whose active proxy differs and never falls back after an atomic rejection. Direct launch and
-ordinary proxy/fingerprint mutation are denied for managed profiles.
+ordinary proxy/profile-configuration mutation are denied for managed profiles; this is an ownership
+control, not proof of identity isolation.
 
 The `/setup` readiness path adds one stricter requirement without changing the signed-retirement
 endpoint's historical v11 floor. Normal profile readiness compares the running Relay with the
-current v15 release. Packaged MKT Browser reports `local-install-ready-v1` only after the installer-owned
+current v16 candidate. Packaged MKT Browser reports `local-install-ready-v1` only after the installer-owned
 PowerShell detector verifies expected process, fixed-port, MultiZen-process, and startup ownership.
-Missing or unavailable inspection routes setup to installer repair instead of `Ready`.
+Missing or unavailable inspection routes setup to installer repair instead of a technical `Ready` state.
 
 ## Relay device retirement flow
 

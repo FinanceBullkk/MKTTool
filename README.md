@@ -1,39 +1,54 @@
 # MKTTool
 
-MKTTool is the team's identity and posting-safety console. It manages browser-backed Reddit and
-TikTok identities plus Facebook Pages, while keeping account, proxy, profile, and operator-device
-ownership explicit.
+MKTTool is the team's account and posting-safety console. It manages browser-backed Reddit and
+TikTok accounts plus Facebook Pages, while keeping account, proxy, profile, and operator-device
+ownership explicit. Profile and proxy controls are operational boundaries; they are not a promise
+of unique or isolated browser identity.
 
-**Current status, 22 August 2026:** the original identity vault, Reddit/Facebook posting-safety
-pipeline, health checks, and Facebook Pages publisher are implemented. TikTok account creation,
-readiness, proxy assignment, and manual profile launch are implemented; TikTok content, scheduling,
-warmup, and posting automation are parked. Browser/Relay P0 automated hardening is green, but real
-proxy, human input, live vendor recovery, second-PC, and canary gates keep rollout at **NO-GO**.
+**Current status, 30 August 2026:** the account vault, Reddit/Facebook posting-safety pipeline,
+health checks, and Facebook Pages publisher are implemented. TikTok account/profile setup and manual
+launch are available for a controlled technical pilot; TikTok content, scheduling, warmup, and
+posting automation remain parked. Relay v16 replay recovery is verified locally and its immutable
+R2 object has a full byte/hash read-back, but the deployed route/floor and Browser installer still
+need the downstream gates. Real proxy, human input, live vendor sidecar/schema, second-PC, identity,
+and canary gates keep Browser/Relay rollout at **NO-GO**.
 See the [development roadmap](docs/development-roadmap.md).
+
+### Internal beta boundary — 29 August 2026
+
+The Web/Facebook surface remains a conditional low-risk internal pilot for authorized operators. The
+next Windows x64 MKT Browser candidate is `0.3.13` with bundled Relay v16; it is a draft tuple until
+the installer/provenance and release-authority gates close. Use one profile at a time, keep login,
+OTP/CAPTCHA, and typing human-controlled, and never infer identity isolation from local checks. The
+old `0.3.12`/v15 installer is quarantined historical evidence, not a current release. Read the
+[internal beta release guide](docs/internal-beta-release.md) before onboarding; Browser/Relay rollout
+remains **NO-GO** while identity, network, vendor, second-PC, and canary gates are open.
 
 This file is the operational handbook for installing, running, and using the product. Product intent,
 architecture, code maps, conventions, and history live under [docs/](docs/README.md).
 
 ## What it is
 
-This is not a bot farm. It is a shared identity vault and operator console: every browser-backed
+This is not a bot farm. It is a shared account vault and operator console: every browser-backed
 account has one responsible person and one PC that owns the local profile. The team writes the
-content; MKTTool protects identity separation, readiness, and posting-safety records.
+content; MKTTool records ownership, technical readiness, and posting-safety checks. It does not
+certify browser identity isolation.
 
-For every browser-backed Reddit or TikTok identity: **1 account = 1 static proxy = 1 managed
+For every browser-backed Reddit or TikTok account: **1 account = 1 static proxy = 1 managed
 profile = 1 assigned Relay device.** Database and server-side authorization enforce the ownership
 boundaries; no UI path may bypass them.
 
 > Facebook accounts used only to administer Pages may leave proxy and antidetect profile empty,
-> because Page publishing uses the official Graph API without opening a browser or impersonating a
-> fingerprint. The database still prevents two accounts from sharing a real proxy; it simply does
+> because Page publishing uses the official Graph API without opening a browser or applying a
+> browser profile configuration. The database still prevents two accounts from sharing a real proxy; it simply does
 > not require one for this API-only case.
 
 ## Yêu cầu
 
-- Node.js 22+ (dự án đang chạy trên 24)
+- Node.js 22.x for release builds (local development may use a separately verified version)
 - **PostgreSQL 17** — bản cài native, không cần Docker
-- MKT Browser technical build (preferred) or AdsPower as the secondary adapter
+- MKT Browser technical build for the controlled Windows candidate (preferred); AdsPower remains a
+  secondary compatibility adapter, not a Browser/Relay rollout path
 - Proxy tĩnh (static ISP), mỗi nick một IP
 
 ## Cài đặt
@@ -197,16 +212,16 @@ hiện ra khi tới lượt:
 | Chặng | Làm ở đâu | Xong thì có gì |
 |---|---|---|
 | 1. **Khai nick** | `/accounts` → *Thêm nick* | proxy, giọng viết, bí mật, và **người phụ trách** |
-| 2. **Dựng profile** | thẻ *Việc tiếp theo — dựng profile antidetect* | profile mang sẵn proxy + vân tay, nick **tự ghim vào máy vừa tạo** |
-| 3. **Đăng nhập lần đầu** | thẻ *Việc tiếp theo — đăng nhập lần đầu* | nick thật sự dùng được |
+| 2. **Dựng profile** | thẻ *Việc tiếp theo — dựng profile antidetect* | profile mang sẵn proxy + cài đặt profile, nick **tự ghim vào máy vừa tạo** |
+| 3. **Đăng nhập lần đầu** | thẻ *Việc tiếp theo — đăng nhập lần đầu* | đủ điều kiện thao tác kỹ thuật; identity isolation chưa được chứng minh |
 
 Không phải nhớ thứ tự: cột **Sẵn sàng** nói còn thiếu gì, và trang chi tiết chỉ hiện đúng một thẻ
 "việc tiếp theo" tại một thời điểm.
 
-**Chặng 3 tồn tại vì nút tạo profile sinh ra một trình duyệt trắng** — có proxy, có vân tay, chưa
-một cookie nào. Mở nó lên, đăng nhập nick vào đó, rồi bấm **"Đã đăng nhập được"**. Làm ngay đầu
-cold-start: đăng nhập lần đầu từ một IP lạ là lúc hay bị đòi xác minh nhất, và lúc đang vội đăng
-bài là lúc người ta làm ẩu.
+**Chặng 3 tồn tại vì nút tạo profile sinh ra một trình duyệt trắng** — có proxy, có cài đặt profile,
+chưa một cookie nào. Mở nó lên, tự đăng nhập nick vào đó, rồi bấm **"Đã đăng nhập được"**. Làm
+ngay đầu cold-start: đăng nhập lần đầu từ một IP lạ là lúc hay bị đòi xác minh nhất. Cấu hình này
+không phải bằng chứng cô lập danh tính; người vận hành vẫn tự xử lý login/OTP/CAPTCHA.
 
 ### Nick Reddit đăng nhập bằng Google
 
@@ -227,7 +242,7 @@ Nick **Facebook** thì ngược lại: vẫn có mật khẩu nick và vẫn b�
 
 ### Nick này đã dùng được chưa
 
-Một nick Reddit cần đủ **tám** điều kiện: giọng viết, proxy, proxy còn sống, id profile antidetect,
+Một nick Reddit cần đủ **tám** điều kiện kỹ thuật: giọng viết, proxy, proxy còn sống, id profile,
 **đã đăng nhập lần đầu**, chủ, máy, và hết cold-start. Nick Facebook chỉ cần chủ và giọng viết —
 Fanpage đăng bằng Graph API nên không có proxy, profile hay máy nào để đòi.
 
@@ -236,7 +251,7 @@ nick hiện một khối liệt kê từng việc còn thiếu kèm chỗ sửa.
 
 | Màu | Nghĩa |
 |---|---|
-| 🟢 Sẵn sàng | dùng được ngay |
+| 🟢 Đủ điều kiện cấu hình | có thể tiếp tục thao tác theo quy trình; không phải identity approval |
 | 🟡 Đang chờ | không ai phải làm gì, chỉ chờ hết cold-start |
 | 🔴 Chưa dùng được | có người phải làm gì đó |
 
@@ -446,7 +461,7 @@ That discovered token is **profile-management only**. It cannot navigate, click,
 access cookies, or send raw CDP, and the current build issues no page-control token. MKT Browser
 contract version `4` advertises managed-profile locking, correlated operation diagnostics,
 local-install readiness, and no MCP profile deletion in addition to idempotent create and atomic
-launch. Relay v15 preserves each ticket `jti` as the
+launch. Relay v16 preserves each ticket `jti` as the
 `operationId`; mismatched diagnostics fail closed and support detail contains only stage, code,
 duration, and runtime versions.
 
@@ -502,13 +517,13 @@ Browser's internal SOCKS5 bridge, then that bridge uses the configured upstream 
 ### Để công cụ tạo profile, đừng tạo tay
 
 Trang chi tiết một nick chưa có profile có nút **"Tạo profile trên máy này"**. Người bấm phải là
-**chủ nick**, và bấm trên **máy của chính họ** — profile chỉ tồn tại trên một máy, nên một profile
+**chủ nick**, và bấm trên **máy của chính họ** — dữ liệu profile được giữ cục bộ, nên một profile
 dựng nhầm chỗ là một nick mà chủ nó không mở nổi. Một lần bấm là xong ba việc vốn phải làm tay:
 
 | Việc | Trước | Nay |
 |---|---|---|
 | Dựng profile mang đúng proxy của nick | mở MKT Browser, gắn proxy | tự |
-| Căn vân tay theo quốc gia proxy | nhớ bấm **"Match proxy"** | tự — locale, múi giờ và họ thiết bị chọn theo `Proxy.country` |
+| Căn cài đặt profile theo quốc gia proxy | nhớ bấm **"Match proxy"** | tự — locale, múi giờ và họ thiết bị chọn theo `Proxy.country`; không phải identity proof |
 | Đưa id profile về kho | chép dãy UUID sang form | tự, **và ghim luôn nick vào máy vừa tạo** |
 
 Nút hiện xem trước trước khi bấm — *"sẽ dựng `en-US` / `America/Denver` / `windows-laptop-amd`"* —
@@ -516,21 +531,22 @@ nên biết được mình sắp tạo gì. Múi giờ chọn **có gieo hạt t
 cái đầu danh sách: 5 nick trên proxy US mà cùng `America/New_York` là một mối tương quan do chính
 công cụ tạo ra, ngược hẳn với việc mua 10 proxy riêng.
 
-Tạo ở máy nào thì nick thuộc máy đó — profile chỉ tồn tại trên một máy, nên không khai sai được.
-Muốn đổi máy sau đó thì vẫn phải nhờ quản trị viên gán lại cụm.
+Tạo ở máy nào thì dữ liệu profile được ghim vào máy đó; đây là ràng buộc vận hành, không phải
+bằng chứng cô lập danh tính. Muốn đổi máy sau đó thì vẫn phải nhờ quản trị viên gán lại cụm.
 
-**Managed profile creation and launch require Relay version 7 or newer.** Older Relay builds cannot
+**Managed profile creation and launch require the current Relay v16 candidate.** Older Relay builds cannot
 preserve the required operation correlation or prove the contract-v3 managed capabilities, so these
 actions stop with an update instruction instead of falling back to an uncorrelated path.
 
 > **Quy trình tay** (khi tạo trong MKT Browser): gắn proxy → tab Fingerprint → bấm **"Match proxy"**
 > → *rồi mới* đăng nhập lần đầu. Bấm nút của MKTTool thì **hai bước đầu** gộp làm một, và MKT Browser
-> từ chối tổ hợp vân tay mâu thuẫn nên không có đường tạo ra một profile lệch proxy.
+> từ chối tổ hợp cài đặt mâu thuẫn nên không có đường tạo ra một profile lệch proxy. Đây vẫn chỉ là
+> cấu hình vận hành; identity isolation chưa được chứng minh.
 
 **Bước đăng nhập thì vẫn là việc của người.** Profile vừa dựng là một trình duyệt trắng — thẻ
 *"Việc tiếp theo — đăng nhập lần đầu"* hiện ngay sau đó và không tắt cho tới khi có người bấm
-**"Đã đăng nhập được"**. Cột **Sẵn sàng** báo đỏ *"chưa đăng nhập lần nào"* suốt khoảng đó, cố ý:
-một nick khoe màu xanh mà chưa ai đăng nhập là lời nói dối chỉ lộ ra vào hôm định đăng bài.
+**"Đã đăng nhập được"**. Cột **Kiểm tra thao tác** báo đỏ *"chưa đăng nhập lần nào"* suốt khoảng đó,
+cố ý: một nick có cấu hình xanh mà chưa ai đăng nhập vẫn chưa đủ điều kiện thao tác.
 
 ### Proxy được kiểm trước khi mở
 
@@ -733,7 +749,7 @@ rút mật khẩu proxy nữa, vì vé chỉ tới được đúng chiếc máy 
 
 ## Nick ghim vào một máy
 
-Nguyên tắc gốc `1 nick = 1 proxy = 1 vân tay` dài thêm một đoạn: **`= 1 máy = 1
+Nguyên tắc gốc `1 nick = 1 proxy = 1 profile cấu hình` dài thêm một đoạn: **`= 1 máy = 1
 người`**. Và database ép nó, y như cách nó đang ép `1 nick = 1 proxy`.
 
 The reason is that `antidetectProfileId` identifies a local SQLite record on **one specific
@@ -771,8 +787,8 @@ The two unsafe cases remain:
 
 | Ca | Vì sao |
 |---|---|
-| **Xoay vòng** giữa hai máy đều đặn | Nick ba tháng chỉ ở một thiết bị mà giờ nhảy qua lại — cùng họ tín hiệu với `sv-SE` trên IP Anh |
-| **Cùng lúc ở hai máy** (quên xóa bản cũ) | Một phiên đăng nhập, hai bộ tín hiệu thiết bị, request đan xen. Và hai người có thể cùng đăng một bài mà bộ dò không phân biệt được |
+| **Xoay vòng** giữa hai máy đều đặn | Profile cục bộ di chuyển thường xuyên làm lịch sử/locale khó đối chiếu; cần quy trình transfer có kiểm soát |
+| **Cùng lúc ở hai máy** (quên xóa bản cũ) | Hai bản sao cục bộ có thể ghi request đan xen và tạo trạng thái khó truy vết; hãy giữ một bản authoritative |
 
 Cả hai đều nằm ngoài tầm với của database, nên chỗ can thiệp là câu chữ cộng dấu vết: mỗi lần đổi
 máy ghi `ACCOUNT_DEVICE_MOVED`, đủ để sau này dựng lại *"nick này từng ở máy nào, từ ngày nào"*.
@@ -789,8 +805,9 @@ Nick ghim lệch, hoặc có profile mà chưa ghim máy nào, đều nổi lên
 > quan tâm máy là sắt hay ảo nên một VPS đăng ký y hệt một laptop. Nhưng một VPS chung là gom cả
 > đàn nick về đúng một nền phần cứng thật — ngược hẳn với việc đang chi tiền cho 10 proxy riêng.
 > Thêm nữa: Windows desktop chỉ cho một phiên RDP tại một thời điểm, và MKT Browser **không có chế
-> độ headless**. Dùng VPS thì phải đo vân tay trước khi đưa nick thật lên: VPS không có GPU thật
-> nên Chromium render bằng phần mềm, và cái tên GPU được giả sẽ mâu thuẫn với thứ đo được.
+> độ headless**. Dùng VPS thì phải kiểm tra cấu hình/khả năng tương thích trước khi xem xét tài
+> khoản thật: VPS không có GPU thật nên Chromium render bằng phần mềm, và engine pin/locale có thể
+> không khớp. Tài khoản thật vẫn ngoài phạm vi pilot hiện tại.
 
 ## Facebook
 
@@ -1143,10 +1160,13 @@ chuyển xấu từ lúc nào.
 
 ## Việc chưa làm
 
-- **Browser/Relay rollout gates:** live vendor session integration, real proxy/DNS/WebRTC evidence,
-  human-controlled login/input, second-PC recovery, packaged crash/reboot recovery, and the canary.
+- **Browser/Relay rollout gates:** live vendor session/schema integration, real proxy/DNS/WebRTC
+  evidence, human-controlled login/input, second-PC setup/recovery, and the canary. Packaged
+  crash/reboot recovery and Relay v16 spent-ticket restart recovery are verified locally, but do not close
+  these remaining rollout gates.
 - **TikTok publishing:** content, scheduling, warmup, and posting automation remain parked; only the
-  identity/profile/manual-browser workflow is active.
+  account/profile/manual-browser workflow is available for controlled technical checks. Identity
+  isolation and real-account rollout are not approved.
 - **Semi-automated Reddit posting:** Phase 05 has not started; the operator still performs the final
   posting action.
 

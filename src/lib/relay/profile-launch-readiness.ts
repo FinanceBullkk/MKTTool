@@ -32,7 +32,7 @@ export interface LocalProfileInventorySnapshot {
 export function currentRelayLaunchReadiness(
   outcome: RelayOutcome<RelayHealth & RelayReply> | null,
 ): LocalLaunchReadiness {
-  if (!outcome) return blocked("checking", "Checking local browser readiness...");
+  if (!outcome) return blocked("checking", "Checking local browser technical conditions...");
   if (outcome.status === "unreachable") {
     return blocked("relay-offline", "Start Relay on this PC, then check again.");
   }
@@ -62,7 +62,7 @@ export function currentRelayLaunchReadiness(
   return {
     ready: true,
     state: "ready",
-    message: "Local browser is ready.",
+    message: "Local browser technical checks passed; identity isolation is not proven.",
     deviceId: health.deviceId ?? null,
   };
 }

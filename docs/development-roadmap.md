@@ -1,6 +1,32 @@
 # Lộ trình phát triển
 
-**Updated:** 22 August 2026
+**Updated:** 30 August 2026
+
+## Consolidation truth — 30 August 2026, 10:30 ICT
+
+The consolidation branch `release/consolidation-20260830` has landed U1 and U2 locally. MKTTool
+CI contracts are now required in `.github/workflows/ci.yml`; the local mirror is green (lint,
+typecheck, 215/1,958 tests, critical coverage, build, PostgreSQL contracts, secret scan, and Relay
+replay). The branch is pushed as PR #40; the exact self-hosted checks remain the merge gate.
+
+P4a is the **MKTTool Web/Lane A** deployment and does not require a Browser engine archive or the
+five-artifact Browser tuple. A fresh current-database backup and `db:restore:verify` both pass, and
+the rollback tuple is recorded. Production is still the prior deployment until the approved merge;
+`/api/healthz` and authorized `/v16` full-GET/hash verification must pass after deployment.
+
+U3 remains **OPEN**: the 128-file payload is deterministic, but the outer Windows installer keeps a
+103-byte NSIS/resource-order variance across clean runs. No normalizer was accepted, and no claim of
+full installer reproducibility is made.
+
+U5 keeps `MIN_RELAY_VERSION=13` until route-first evidence. Both v15 devices are the owner's own
+machines, so the upgrade path is self-serve reinstall of 0.3.13 on each; no notification channel is
+needed. U6 closed the custom-engine build track after the measured RAM gate; no custom Chromium
+build or CloakBrowser seat was consumed.
+
+**Lane C is CLOSED for this product shape.** `G2-IDENTITY` remains FAIL on the recorded font/audio/
+WebGL collisions, and there is no CloakBrowser channel. No vendor request, date, or “coming soon”
+promise exists. A future alternative-vendor decision would be a new, separately owned product
+scope. MKTBrowser remains a controlled Lane A/B demo and does not claim identity isolation.
 
 Đây là **nguồn duy nhất về trạng thái** của dự án. Chi tiết thi công nằm ở
 [plan công cụ gốc](../plans/260801-2030-multi-account-posting-console/plan.md),
@@ -16,9 +42,19 @@ Dự án đang chạy **ba luồng song song**:
 | **B — Web chung** | Biến app một máy thành web chung cho 5-6 người ở 5-6 nơi | **GĐ0-4 xong 06/08**, GĐ5 web **đã chạy thật trên Railway** cùng ngày |
 | **C — MKT Browser** | Fork the MultiZen desktop layer; Windows-only in v1 while Web, Relay, and upstream UX/UI remain intact | **MKB-00 through MKB-02 verified; MKB-03 engineering complete with live Windows gates open; P0 proxy/lease/readiness automated hardening is green but vendor, real-proxy, second-PC, and canary evidence remain open**; MKB-04 remains NO-GO; macOS deferred to MKB-07; [plan](../plans/260810-0244-mkt-browser-noi-bo/plan.md) |
 
-**TikTok scope decision, 19 August 2026:** TikTok is now a first-class account and manual browser
-identity in the console. Creating the account, assigning its static proxy and Relay device, checking
-readiness, and opening its managed profile are active. TikTok is deliberately absent from
+**Historical readiness overlay:** the earlier `3f376536` join-key wording described a draft before
+the consolidation branch. The current Browser source is `5ef710dd`; its provenance is accepted, but
+the exact five-artifact tuple remains a separate P4b technical OPEN. This does not gate P4a Web. Use
+one profile at a time with human login/input. Profile-local storage, proxy routing, and technical
+readiness checks are operational controls only; they do not prove browser identity isolation. See
+[internal-beta-release.md](internal-beta-release.md). Browser/Relay real-account rollout remains
+NO-GO for the unresolved identity and operator gates; Lane C itself is closed because there is no
+vendor channel.
+
+**TikTok scope decision, 19 August 2026:** TikTok is now a first-class account/profile workflow in
+the console. Creating the account, assigning its static proxy and Relay device, checking technical
+conditions, and opening its managed profile are active. These controls do not certify browser
+identity isolation. TikTok is deliberately absent from
 `TARGET_PLATFORMS`: content, scheduling, warmup, and posting automation are parked and must not be
 inferred from the TikTok-focused profile UI.
 
@@ -74,10 +110,111 @@ independent 20/20 Windows runner runs have not happened, so packaged-CI stabilit
 release gate.
 
 This checkpoint is still **NO-GO for rollout**. `license-capacity-v1` is deliberately not advertised
-because the journal is not connected to a measured vendor start/heartbeat/end lifecycle. Live vendor
-schema capture, sidecar/driver integration, two real disposable proxy/profile assignments, in-browser
-egress plus DNS/WebRTC proof, human-controlled login/input, second-PC setup, crash/reboot recovery,
-and the seven-day canary remain open.
+because live vendor schema capture and sidecar/driver integration are not yet release-ready. Two real
+disposable proxy/profile assignments, in-browser egress plus DNS/WebRTC proof, human-controlled
+login/input, second-PC setup, and the seven-day canary remain open. Crash and reboot recovery are now
+covered by the final G3 evidence below.
+
+**Vendor and network gates measured, 23 August 2026.** Still **NO-GO for rollout**, but four of the
+gates above moved from unknown to measured, and one blocker was found and fixed while measuring.
+
+| Gate | State after 23 August |
+|---|---|
+| Vendor session protocol | Measured. `start` → `lease_id`, TTL 900s, heartbeat 300s, `end` → `{"ok":true}`. Sessions are counted **per licence**, not per account or per install: two keys granted two concurrent sessions on one `install_id`. N concurrent profiles would require N vendor seats on one machine; this measured model is not a current entitlement or capacity promise |
+| Per-profile network routing | Passed on two profiles measured **sequentially**. Each browser's egress matched only its own proxy probe, each resolved DNS at that proxy rather than the operator's ISP resolver, WebRTC gathered no candidates, and the operator's real address appeared nowhere. This is network evidence, not browser identity evidence |
+| Concurrent two-profile operation | **Deferred out of v1, 25 August.** Only one licence seat is free, so the owner capped v1 at one profile at a time. No concurrent identity-isolation claim may be inferred |
+| Normal close returns the seat | Passed, measured twice. Seconds, not the 900s lease |
+| Crash, hard kill, Relay restart, reboot | **Passed 27 August on the final bounded recovery rerun (historical v15 path).** Normal close, hard-kill cooling, and active Electron-crash startup recovery remain green. Packaged Relay v15 preserved its device binding, rejected the spent ticket as `ALREADY_USED`, and accepted a fresh ticket. The final Browser `55b8587` disposable-VM run validated `active` with capacity `1/0/1/0/0`, performed one real VirtualBox poweroff, observed no Browser process after boot while the exact lease remained `active`, moved it to `cooling` with `pendingRecovery=0`, returned to `1 free / 0 active / 0 pendingRecovery / 0 cooling` after TTL, relaunched the same profile, and cleanly released it. Evidence: `local-test-artifacts/phase5/real-power-cycle-recovery-evidence-20260827-ownership-fix-r2.json`. `G3-RECOVERY` is **PASS for that tested path**; it does not close the current candidate rollout |
+| Clean second-machine install and uninstall | **Passed 25 August** on the VM guest acting as PC B, recorded as virtual. From snapshot `clean-with-ssh-defender-20260825` with Defender engine `1.1.26070.7` and signatures `1.457.331.0`, current-source candidate `7849947` / tree `b060da0` passed clean combined install 9/9, repair 13/13, and combined uninstall 15/15, with no detection and no Defender event 1116/1117 in any gate window. The artifact is unsigned, unattested, and not releasable, so this closes the lifecycle slice only, not rollout |
+| Capacity advertised to operators | Still withheld. `license-capacity-v1` stays unadvertised until live vendor schema/sidecar integration and the remaining rollout gates close |
+
+The blocker (historical 23 August investigation): the Browser declared a launch successful before
+the engine's licence verdict arrived, so a refused key came back as a running profile and the
+key-rotation loop never ran. The current one-seat policy deliberately passes only the primary key to
+the pool; multi-key rotation and multi-profile capacity are not part of the internal candidate.
+
+Evidence: [`ket-qua-260823-1910-gate-cach-ly-va-loi-khong-xoay-khoa.md`](../../plans/reports/ket-qua-260823-1910-gate-cach-ly-va-loi-khong-xoay-khoa.md).
+
+**Lifecycle and installer repair reconciliation, 24 August 2026.** Still **NO-GO**. On the current
+local directory artifact (`c802fabb` / tree `bd87f752`), one disposable unmanaged profile with no
+proxy or account data launched and closed normally. Capacity moved `free 1 / active 0 / cooling 1`
+to `0 / 1 / 1`, then back to `1 / 0 / 1`; the log reached `Browser.close`, child exit 0, and
+`SHUTDOWN-COMPLETE` with method `Browser.close`. The cooling seat came from an earlier live key
+refusal and correctly did not become false-free.
+
+The installer repair VM produced an environmental failure, not a product pass: Microsoft Defender
+remediated `Behavior:Win32/PShellCobStager.A` twice while the mandatory Administrator/PowerShell
+custom-install work was incomplete. Defender was not disabled or allow-listed. The corrected clean
+and repair harnesses now require installer exit zero, Browser payload, pinned Relay, both WebRTC
+firewall rules, both shortcuts, Publisher, and Relay ownership metadata before launch. Evidence:
+[`lifecycle-installer-repair-evidence-20260824.md`](../../plans/260821-1925-antidetect-browser-proxy-p0/reports/lifecycle-installer-repair-evidence-20260824.md).
+
+**Lifecycle and installer continuation, 25-26 August 2026.** The Defender block above was diagnosed
+as a behavioural COM-stager match rather than any script's contents. Removing the
+`HNetCfg.FwPolicy2` firewall reader and moving nine call sites off `-ExecutionPolicy Bypass` was
+enough: on an updated-Defender snapshot the same guest passed clean combined install 9/9, repair
+13/13, and combined uninstall 15/15 with no detection. Repair restored the exact Browser tree
+digest, both shortcuts and Publisher while operator token, profile database and Relay config
+survived; uninstall removed Browser payload, shortcuts, both firewall rules and the Browser-owned
+Relay executable while leaving operator data intact.
+
+Recovery moved too. Browser hard kill and an active Electron crash now both converge, the second
+after startup was taught to bind a sweep verdict to the exact owned engine path instead of a bare
+PID. The Relay restart subset then passed on 27 August with the **historical** packaged Relay v15 path: a process restart
+preserved the device/replay state, replay of the consumed ticket returned `ALREADY_USED`, and a fresh ticket still
+reached the Browser-operation boundary. The first 27 August real power-cycle attempt was blocked
+before an active lease because the disposable VM could not attribute the DevTools listener to the
+live Browser process (`portOwnerPids=none`). A follow-up proved listener ownership after warming the
+Windows provider, but its one-shot scheduled arm task ran twice and invalidated the checkpoint. The
+owner-approved rerun removed future task triggers and warmed both providers immediately before
+launch; the packaged Browser still failed closed with a live child and `portOwnerPids=none` before
+an active checkpoint could be retained. Cleanup returned `confirmed-released`, then capacity
+returned after cooldown to `1 free / 0 active / 0 pendingRecovery / 0 cooling`. No recovery power cut
+was made; the later VM poweroff was cleanup only. At that point `G3-RECOVERY` was **OPEN** on
+`VM_PRECUT_ACTIVE_CHECKPOINT_UNAVAILABLE`, and the host reboot blocker remained named rather than
+silently converted to a pass.
+
+The next root-cause rerun reviewed Browser source `55b8587` with bounded native Windows process and
+listener discovery plus fail-closed identity rechecks. Local Node `22.23.2` verification is green,
+but the VM gate stopped before an active checkpoint: scheduled task filenames did not match the
+transferred files, and a PowerShell UTF-8 BOM made the settings JSON unreadable, yielding capacity
+`total=0`. Those harness defects are fixed locally, yet no checkpoint-qualified recovery power-cycle
+was made; preparation and cleanup poweroffs are excluded. The disposable clone was deleted.
+`G3-RECOVERY` was **OPEN** at that point; a fresh owner-reviewed run required the exact pre-cut tuple. The owner
+chose to keep the existing licence key; no key value is retained in evidence, and later gates must
+continue to stream it without logging.
+
+The next bounded rerun reached the active tuple and performed one real VirtualBox poweroff only after
+`ValidateCut` returned `checkpointValid=true`, with `active` journal, `1/0/1/0/0` capacity, live
+Browser/profile processes, and demand-only tasks. After boot, the exact lease was still `active` and
+the Browser process table was empty, but the `cutCheckpoint` update had disappeared from
+`gate-state.json`. This exposed a harness durability defect, not a recovery verdict. The gate now uses
+a write-through file handle plus `Flush(true)` and requires the persisted checkpoint after boot.
+Evidence: `local-test-artifacts/phase5/real-power-cycle-recovery-evidence-20260827-durable-checkpoint-review.json`.
+`G3-RECOVERY` was **OPEN** at that point on `GATE_STATE_NOT_DURABLE_ACROSS_POWER_CYCLE`; no rollout
+phase proceeded from that run.
+
+The final owner-approved bounded rerun then passed the complete power-cycle gate. Evidence
+`local-test-artifacts/phase5/real-power-cycle-recovery-evidence-20260827-ownership-fix-r2.json`
+validated the exact pre-cut tuple (`active`, capacity `1/0/1/0/0`, live pinned Browser/profile
+processes, demand-only tasks), performed one real VirtualBox poweroff, observed the exact lease still
+`active` with no Browser process after boot, then observed `cooling` with `pendingRecovery=0`, free
+capacity after the vendor TTL, same-profile reuse, and final `confirmed-released` cleanup. This
+supersedes/resolves `REBOOT_LEASE_STUCK_PENDING_RECOVERY`,
+`VM_PRECUT_ACTIVE_CHECKPOINT_UNAVAILABLE`, and `GATE_STATE_NOT_DURABLE_ACROSS_POWER_CYCLE`.
+`G3-RECOVERY` is now **PASS**. The existing real key was kept; no revoke or rotation was performed,
+and no key value is retained in evidence. Rollout remains **NO-GO**, and no Phase 2, Phase 5, or
+Phase 6 work starts.
+
+Three owner decisions on 25 August narrow v1: one profile at a time, unsigned reaffirmed, and the
+clean VM guest serves as PC B. At that point the one-seat cap raised the cost of a reboot failure
+sharply; the final 27 August power-cycle evidence above closes that recovery risk. The decisions
+themselves remain in force. Still **NO-GO** for rollout.
+
+Two harness defects were found and fixed rather than hidden: the repair harness hashed `profiles.db`
+while an installer-triggered relaunch held it open, and the uninstall harness checked before the
+temporary NSIS worker converged. Failed-attempt evidence is retained separately and is not counted
+as a product verdict.
 
 **Audit closed, 17 August 2026.** A deep audit spanning both repositories completed all six phases:
 fix re-verification, cryptographic protocols, the local control surface, Windows lifecycle, release
@@ -139,13 +276,14 @@ unknown ownership preserves it. It writes only under `release/installer/` and le
 MKB-02 directory artifact unchanged. Clean-account install, reboot, and uninstall verification remain
 a human gate because this machine's live Relay and Browser must not be stopped.
 
-Relay v15 is the current published operator build and the combined-installer pin. It accepts Browser
-contract v4, preserves the v11 minimum for the signed retirement endpoint, carries version-aware
-installer downgrade protection, and fixes operator-key delivery without requiring the key it is
-delivering. The immutable archive is 34,285,450 bytes with SHA-256
-`cfeefc7f1284492a64f5cf8b29603b3e9a36e5d488ac676d2d109b2c4364b261`. Publication and pinning are
-complete; operational distribution remains blocked by the current-source installer rebuild and the
-live Windows, proxy, vendor, second-PC, and canary gates.
+Relay v16 is the current verified candidate for the combined installer. It accepts Browser contract
+v4, preserves the v11 minimum for the signed retirement endpoint, carries version-aware installer
+downgrade protection, and fixes operator-key delivery without requiring the key it is delivering.
+The immutable archive is 33,342,752 bytes with SHA-256
+`5c98cf460e62f83b484c9ecd55bc80b650f2e19a09e8ded6e99eafb682e1842e`; its full R2 GET/hash read-back
+passed. The Browser `0.3.13` tuple remains draft and operational distribution remains blocked by
+the current installer/provenance, live Windows, proxy, vendor, second-PC, identity, and canary
+gates. The earlier v15 tuple is retained as historical evidence only.
 
 The release-authority ceremony is complete and verified. The public receipt binds root key
 `a6d3237649c2586e48b6e4fa744f7a089160fd80250fd29360513f5f625b146c`, delegated key
@@ -157,7 +295,7 @@ outside the repositories. Phase 05 is now complete in code — validation, activ
 bounded rollback, smoke, and revocation memory — and remains the MKB-04 NO-GO gate until the live
 Windows evidence lands. See [release-signing-key-ceremony.md](release-signing-key-ceremony.md).
 
-Phase 06 setup-conflict integration is implemented, verified, and pushed. Relay v15 forwards the
+Phase 06 setup-conflict integration is implemented and locally verified. Relay v16 forwards the
 additive Browser capability without weakening the existing ticket or retirement floors. The
 combined installer persists its standard-user PowerShell detector beside MKT Browser. Contract v4
 adds the runtime-dependent `local-install-ready-v1` capability only when that same detector accepts
@@ -173,7 +311,7 @@ technical artifacts, but team members must not be asked to install the Relay ZIP
 directory themselves. MKB-03 now has a hard zero-confusion gate: one authenticated Windows
 download opens one resumable current-PC journey — an announced SmartScreen click-through, sign in,
 confirm the detected PC, then reach the non-error `Waiting for administrator approval` state or
-`Ready`. Ordinary operators never handle
+`Ready` (technical checks only). Ordinary operators never handle
 Relay/MCP vocabulary, keys, tokens, ports, paths, archives, checksums, localhost pages, or commands.
 The first-device secret bootstrap remains a separate ADMIN-only local ceremony.
 
@@ -184,13 +322,22 @@ W02 passed 8/8, MKB-01 passed 8/8, MKB-01E passed 7/7, MKB-02 passed 18/18, and
 Windows packaging guards passed 3/3. That frozen checkpoint passed typecheck, build, and packaged
 verification. Current Phase 00 remediation adds real workspace lint and CI/package quality guards;
 23 packaging contracts, the complete Node 22 installer suite, lint, and typecheck pass on 14 August.
-The current desktop package is version `0.3.12`; its reviewed 22 August directory build is
-221,933,568 bytes with SHA-256
-`b62642a57c2651c071a59fe210fa2fe9633df584d16fa49e3abd855e747bc1a7`. Packaged `app.asar` SHA-256
-is `8a2310fbd9341b0b45ae829a45b9fdbb40a31da5aa821513fb01e9209a919da7`.
-The combined installer last built on 21 August embeds the exact Relay v15 archive and manifest but
-predates the final 22 August P0 hardening, so it is not an approved rollout artifact. The packaged
-verifier proves contract-v4 capability
+The historical desktop package was version `0.3.12`. Two distinct artifacts carried that checkpoint's
+evidence and neither was releasable. The VM installer lifecycle passed on the local candidate built from source
+`7849947` / tree `b060da0`, installer SHA-256
+`ad1af433cea4070b5860a3c841d170bb1ef91ec3df33e2c11309acd0ba5d945c`. The 25 August recovery gates
+ran on a dirty-source directory build, executable SHA-256 `50b0ccb3...5469` and `app.asar`
+`7160c85a...a557`. Sandbox process restrictions prevent a cryptographic PID-to-image-path binding,
+so the local lifecycle record is not release provenance.
+
+That dirty source is now committed, and it was rebased onto the self-hosted verifier hardening, so
+no commit reproduces those two hashes exactly. The behavioural difference is confined to dead-field
+removal in DevTools port discovery plus CI workflow files, so the recovery verdicts still stand -
+but the hashes must be regenerated from the frozen tree before any artifact is attested.
+
+The attested combined installer was built 23 August from older source `eac77f8f` / tree `cce7b897`
+and embeds the exact historical Relay v15 archive and manifest. It now trails the Browser fixes above and stays
+quarantined, so it is not an approved rollout artifact. The packaged verifier proves contract-v4 capability
 reporting, a profile-management-only tool inventory, deterministic managed create/retry, correlated
 create/launch diagnostics, direct-launch and delete locks, endpoint-free proxy summaries, atomic
 managed launch, Windows Chrome launcher-PID handoff, OS-assigned owned DevTools discovery,
@@ -246,12 +393,12 @@ repository. MKTTool retains only the consuming contract, Relay, and release page
 | # | Phase | Status | Exit gate |
 |---|---|---|---|
 | MKB-00 | Source, license, and engine | ✅ Verified 11 August | A Windows build opened a disposable profile through a **real working proxy**; its observed exit IP matched an independent proxy probe; engine conditionally approved for unmodified internal use on Windows x64 |
-| MKB-W01 | Windows-only product isolation (authorized exception) | ✅ Verified 10 August | Independent Windows identity/data root; upstream updater/heartbeat/publishing absent; current MCP adapter remains green |
+| MKB-W01 | Windows-only product/data isolation (authorized exception) | ✅ Verified 10 August | Independent Windows data root; upstream updater/heartbeat/publishing absent; current MCP adapter remains green. This does not prove browser identity isolation |
 | MKB-W02 | Windows internal clean break | ✅ Verified 10 August | Dedicated port `47822`, MKT Browser-only internal contract, no legacy fallback, packaged lifecycle through updated MKTTool consumer |
 | MKB-01 | Windows compatibility and product identity | ✅ Verified 11 August | Copy-only first-launch importer preserves the MultiZen source; five primary-screen baselines captured; Windows CI runs W01/W02 guards, typecheck, package build, and packaged runtime-contract verification on every push/PR |
 | MKB-01E | Electron upgrade and renderer hardening | ✅ Verified 11 August | Electron 42.8.1 / ABI 146 package; native module rebuild; sandbox/CSP/default-deny IPC and MCP inventories; fixed-seed fingerprint unchanged and five visual baselines accepted |
-| MKB-02 | Managed mode | ✅ Verified 12 August | Contract v3 introduced diagnostics and correlation; the current v4 runtime, profile-token capability separation, managed proxy/fingerprint/delete/direct-launch locks, current-device Browser health, Relay v15, and cross-repository packaged verification are green |
-| MKB-03 | Windows onboarding, installer, and controlled updates | 🟡 Phases 01-05 complete in code after verified release authority; lifecycle and setup-conflict engineering subsets pushed — [execution plan](../plans/260812-1301-mkb-03-windows-onboarding-and-installer/plan.md) | Local findings have code fixes for WebRTC containment, engine fallback, live Relay identity reconciliation, progress, guidance, pre-mutation conflict detection, ownership-aware uninstall cleanup, signed ADMIN Relay retirement, separate Browser-only profile deletion, and a setup-time verdict from the shared installer detector. MKT Browser contract v4 removes deletion from MCP and conditionally reports `local-install-ready-v1`; `/setup` fails closed to installer repair when it is absent. Relay v15 accepts contract v4, preserves the v11 retirement floor, and forwards the additive capability. The root/delegation ceremony and backup-B recovery rehearsal are verified. Compatibility validation with all seven rejection cases, coordinated activation, fault-injected convergence, bounded rollback, post-activation smoke, and device-side revocation memory are implemented and covered; Relay v15 is published and pinned. The installer still needs regeneration from the 22 August source, and real-reboot activation, live Windows matrices, and unfamiliar-operator rehearsal remain open. |
+| MKB-02 | Managed mode | ✅ Verified 12 August (technical slice) | Contract v3 introduced diagnostics and correlation; the current v4 runtime, profile-token capability separation, managed proxy/profile/delete/direct-launch locks, current-device Browser health, and cross-repository packaged verification are green. Local readiness is technical only; identity isolation is not proven |
+| MKB-03 | Windows onboarding, installer, and controlled updates | 🟡 S3 draft candidate in progress — [execution plan](../plans/260812-1301-mkb-03-windows-onboarding-and-installer/plan.md) | Local findings have code fixes for WebRTC containment, engine fallback, live Relay identity reconciliation, progress, guidance, pre-mutation conflict detection, ownership-aware uninstall cleanup, signed ADMIN Relay retirement, separate Browser-only profile deletion, and a setup-time verdict from the shared installer detector. MKT Browser contract v4 removes deletion from MCP and conditionally reports `local-install-ready-v1`; `/setup` fails closed to installer repair when it is absent. Relay v16 accepts contract v4 and forwards the additive capability. The v16 archive/EXE tuple is hash-verified, but Browser `0.3.13` installer provenance, exact engine archive, clean-build comparison, signing, live Windows matrices, unfamiliar-operator rehearsal, identity, and canary gates remain open. Historical v15 evidence is quarantined |
 | MKB-04 | Technical pilot and one canary account | ⬜ Not started | An unfamiliar operator completes setup with zero developer intervention; two Windows devices remain green for seven days; one account completes a 14-day cold start |
 | MKB-05 | Team rollout | ⬜ Not started | Canary completes cold start; MKT Browser becomes default; rollback uses only the frozen W01 checkpoint and never restores a MultiZen adapter fallback |
 | MKB-06 | Custom UX/UI | ⏸ Deferred beyond v1 | Begin only from observed usage feedback; does not block MKB-00 through MKB-05 |
@@ -327,7 +474,8 @@ renderer navigation. Every preload/main IPC invoke and pushed event belongs to a
 inventory and rejects non-primary-renderer senders; every exposed MCP tool has an explicit class,
 and unknown or unclassified tools fail closed. The packaging path bundles first-party workspaces,
 uses a sandbox-compatible CommonJS preload, restores source Node-ABI binaries in `finally`, and
-reports the live packaged engine as `cloakbrowser / 146.0.7680.177.5 / ready`.
+reports the live packaged engine as `cloakbrowser / 146.0.7680.177.5 / technical-ready`; this is
+compatibility evidence, not identity isolation evidence.
 
 Verification passed: Node guards 2/2, MKB-01E 6/6, MKB-01 9/9, W02 8/8, typecheck, lint, Windows
 directory build, packaged runtime/lifecycle verification, and script syntax checks. Fingerprint
@@ -349,12 +497,12 @@ references are absent from diagnostics, activity summaries, and MCP proxy summar
 
 The token discovered by Relay is profile-management only. Page-read, page-control, cookie, and raw-CDP
 tools are hidden from `tools/list` and rejected from `tools/call`; no page-control token is issued by
-this build. Managed profiles carry a visible managed state and cannot have proxy/fingerprint changed,
+this build. Managed profiles carry a visible managed state and cannot have proxy/profile configuration changed,
 be deleted, be exported, or be launched directly through ordinary MCP, IPC, UI, or command-palette
 paths. Atomic managed launch remains the only proxy mutation path and continues to verify persisted
 state before Chromium starts.
 
-Relay v15 is the current required operator release for managed create and managed launch; v7 was the
+Relay v16 is the current required candidate for managed create and managed launch; v7 was the
 historical floor that first introduced correlation. Older Relay builds cannot accept
 an operation without preserving correlation. `/health` reports the live Browser/app/engine/contract
 state on this PC, and listing/create/launch remain blocked until the current device has a compatible
@@ -515,12 +663,22 @@ và máy chủ tự `pg_dump` rồi tải lên Cloudflare R2 mỗi đêm.
 | **MKB-03 zero-confusion Windows onboarding** | Phases 01-04 are implemented in code; controlled updates/rollback, conflict repair, and real Windows/database rehearsal evidence remain | Engineering + responsible operator |
 | **MKB-04 pilot and canary** | An unfamiliar-operator setup test, two-device seven-day pilot, then one 14-day canary cold start are elapsed evidence gates | Engineering + responsible operator + time |
 | ~~**Windows code-signing certificate**~~ | Resolved 12 August 2026: v1 ships unsigned for the internal fleet. The accepted cost is one announced SmartScreen click-through and an installer binary backed only by a checksum from the same host; the offline manifest root still carries anti-downgrade authority | Closed — owner decision |
+| **Trần một seat licence** | Chỉ một seat rảnh, nên v1 chốt mở **một profile tại một thời điểm** (quyết định 25/08). Gate "hai profile chạy song song" rời đường găng, không phải được sửa | Owner + Engineering |
 | **Static proxies + accounts** | Procurement (VND 3–8 million once) | Budget owner |
 | **14-day cold start** | Real elapsed time cannot be compressed | Nobody — wait |
 
 Account/proxy procurement, subreddit selection, and content preparation may run in parallel with the
 fork. After MKB-04 starts, sign in only one canary account; the fleet waits for its cold start so a
 desktop fault is not multiplied across identities. Phase 05 still does not begin before M3.
+
+**Hệ quả vận hành của trần một seat (25/08/2026).** Kho danh tính vẫn là 8 nick Reddit + 3 nick FB,
+nhưng chỉ **một** profile được mở tại một thời điểm. Việc trở thành tuần tự: mở nick → làm → đóng →
+mở nick kế. Mục tiêu 15-20 bài/ngày vẫn khả thi bằng tay, nhưng mất hẳn khả năng chạy chồng.
+
+Cái đắt không phải là tuần tự, mà là lúc hỏng. Nếu browser chết bẩn, licence server vẫn tính phiên
+đó tới hết hạn lease — **đo được 15,1 phút** — và vì chỉ có một seat, cả sản phẩm đứng im chừng ấy
+thời gian, không có key nào để xoay sang. Đó là lý do việc gọi API kết thúc phiên lúc tắt được xếp
+ưu tiên cao nhất trong Phase 5: nó biến 15 phút chết thành mở lại được ngay.
 
 ## Đã kiểm chứng bằng thực tế
 
@@ -546,7 +704,7 @@ proxy quan sát viên.
 | Mốc | Điều kiện đạt |
 |---|---|
 | **M0B — Fork tương thích** | Windows build từ nguồn ghim mở được profile qua **proxy thật**, IP ra khớp |
-| **M0C — Desktop pilot** | Bộ cài Windows + managed mode + rollback xanh trên hai máy Windows trong 7 ngày. (Sửa 17/08/2026: điều kiện này ghi "đã ký", mâu thuẫn với quyết định 12/08 ở bảng blocker phía trên — v1 phát hành **không ký** cho đội nội bộ. Bỏ chữ "đã ký"; SmartScreen hiện một lần và hành trình cài phải báo trước.) |
+| **M0C — Desktop pilot** | Bộ cài Windows + managed mode + rollback xanh trên máy A và máy ảo sạch đóng vai PC B trong 7 ngày. (Chốt 25/08/2026: PC B là **máy ảo**; bằng chứng phải ghi rõ là máy ảo, không được đọc thành ngang bằng máy vật lý — khác biệt phần cứng ở tầng host chưa được chứng minh.) (Sửa 17/08/2026: điều kiện này ghi "đã ký", mâu thuẫn với quyết định 12/08 ở bảng blocker phía trên — v1 phát hành **không ký** cho đội nội bộ. Bỏ chữ "đã ký"; SmartScreen hiện một lần và hành trình cài phải báo trước.) |
 | **M0D — Nick thăm dò** | Một nick ít quan trọng đi hết 14 ngày cold-start, không sai IP/profile |
 | **M1 — Kho danh tính có nick thật** | 8 nick Reddit + 3 nick FB đã nhập, mỗi nick một proxy tĩnh, cold-start đang chạy |
 | **M2 — Bài đầu tiên lên Reddit** | Hết cold-start, xếp lịch qua hàng đợi, bộ luật cho qua, đăng tay thành công |
@@ -574,6 +732,8 @@ proxy quan sát viên.
 | **Đến MKB-07 mới biết Mac vướng** | Rosetta, Gatekeeper, helper, Keychain hoặc WebRTC có thể lệch hành vi thật, và lúc đó team đã quen bản Windows | arm64 native là cổng cứng, notarization, hai máy Mac pilot; không cho nhân viên chạy `xattr` |
 | **Redesign làm chậm fork** | UI riêng không giải quyết rủi ro profile/proxy | Giữ UX/UI MultiZen trong v1; MKB-06 để sau dữ liệu sử dụng thật |
 | **Reddit đổi giao diện** | Bộ dò đọc HTML `old.reddit.com` sẽ hỏng | Hỏng thì báo "Không dò được", không bao giờ báo "khỏe"; `npm run health:smoke` đối chiếu Reddit thật |
+| **Một seat licence, hỏng bẩn là đứng 15 phút** | Không còn key để xoay; browser chết bẩn khoá cả sản phẩm tới hết lease 15,1 phút | Gọi API kết thúc phiên lúc tắt (Phase 5, ưu tiên cao nhất); pool đã từ chối launch trước khi spawn và báo thời gian chờ thật thay vì báo lỗi mù |
+| **Nhiều key tạo từ nhiều tài khoản** | CloakBrowser đếm phiên theo từng licence và **nhìn thấy `install_id`** — hai key đã bị đo chung trên một `install_id` ngày 23/08. Gom key từ nhiều tài khoản để lách trần free là thứ nhà cung cấp phát hiện được, và bị thu hồi giữa canary thì mất luôn bằng chứng | v1 chạy **một key, một tài khoản** — trần một seat khiến chỗ key thừa không cần dùng. Muốn N profile song song thì mua N seat trả phí, không farm tài khoản |
 
 The original MultiZen feasibility risk closed on 02/08/2026. W01 and W02 now verify the Windows
 technical fork, owned contract, port independence, and disposable consumer lifecycle, but they do
@@ -587,7 +747,7 @@ and independently installed upstream application, not a dual-name adapter path.
 | Nick Reddit cổ (8 cái) | 2-5 triệu | – |
 | Nick FB (3 cái) | 1-3 triệu | – |
 | Proxy tĩnh (11 IP) | – | ~700k |
-| MKT Browser + engine ngoài | Chứng thư ký Windows: **0đ — chốt 12/08 không mua, v1 dùng nội bộ nên chấp nhận SmartScreen**. Apple Developer vẫn **chưa chốt**, thuộc MKB-07 | **Chưa chốt** — engine mới nhất có thể cần subscription |
+| MKT Browser + engine ngoài | Chứng thư ký Windows: **0đ — chốt 12/08 không mua, tái xác nhận 25/08 là không có ngân sách; v1 dùng nội bộ nên chấp nhận SmartScreen**. Apple Developer vẫn **chưa chốt**, thuộc MKB-07 | **Chưa chốt** — engine mới nhất có thể cần subscription. Mỗi profile chạy song song tốn một seat licence riêng: v1 chạy một seat nên 0đ, muốn N profile cùng lúc phải mua N seat |
 | Máy chạy | dùng máy sẵn có | 0đ |
 | Thay nick hao hụt | – | ~500k-1tr |
 | **Tổng** | **3-8 triệu + chi phí fork/ký chưa chốt** | **~1,2-1,7 triệu + engine nếu có** |

@@ -33,7 +33,7 @@ const PROFILE: ProfileItemData = {
 const READY: LocalLaunchReadiness = {
   ready: true,
   state: "ready",
-  message: "Local browser is ready.",
+  message: "Local browser technical checks passed; identity isolation is not proven.",
   deviceId: "device-a",
 };
 

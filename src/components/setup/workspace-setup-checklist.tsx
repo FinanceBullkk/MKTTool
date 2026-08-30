@@ -31,11 +31,13 @@ export function WorkspaceSetupChecklist({
       <Card title={`Workspace preparation - ${doneCount}/${steps.length} steps`}>
         {nextStepId === null ? (
           <p id="workspace-setup-heading" className="text-sm text-emerald-700 dark:text-emerald-400">
-            All workspace steps are complete. Continue from the <Link href="/" className="underline">Today page</Link>.
+            All technical workspace checks are complete. Continue from the <Link href="/" className="underline">Today page</Link>.
+            These checks do not prove Browser identity isolation; keep the pilot human-controlled.
           </p>
         ) : (
           <p id="workspace-setup-heading" className="text-sm text-neutral-600 dark:text-neutral-400">
-            Complete these required steps in order. The first unfinished step is highlighted below.
+            Complete these required technical steps in order. The first unfinished step is highlighted below;
+            a green checklist is not an identity or production-rollout approval.
           </p>
         )}
       </Card>

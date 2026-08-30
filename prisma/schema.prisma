@@ -640,6 +640,21 @@ model Verification {
   @@index([identifier])
 }
 
+/// Durable Better Auth request counters.
+///
+/// Better Auth's memory limiter is per process, so a Railway restart or a second
+/// replica silently resets the bucket. The release plan selects the database
+/// backend; keep the key unique and the timestamp indexed so the adapter's
+/// conditional increment remains atomic and expiry cleanup stays bounded.
+model RateLimit {
+  id          String @id @default(cuid())
+  key         String @unique
+  count       Int
+  lastRequest BigInt
+
+  @@index([lastRequest])
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Sổ đăng ký máy chạy cầu nối (Phase 03) — xem
 // plans/260804-1752-web-chung-cho-team-phan-tan/phase-03-tach-hai-vung-khoa-va-ve-ky.md

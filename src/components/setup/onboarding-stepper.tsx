@@ -11,20 +11,24 @@ export function OnboardingStepper({
   viewer,
   checklist,
   installerDownloadUrl,
-  installerSize,
+  installerRelease,
+  installerEvidenceHref,
   enrollCard,
   checklistView,
 }: {
   viewer: { userId: string; email: string; isAdmin: boolean };
   checklist: SetupChecklist;
   installerDownloadUrl: string;
-  /** Null when the installer's real size could not be read — the label then
-   *  omits it rather than showing a figure with no source. */
-  installerSize: string | null;
+  installerRelease: InstallerDisplayMetadata;
+  /** Sanitized, authenticated release facts; never a filesystem path or secret-bearing URL. */
+  installerEvidenceHref?: string;
   enrollCard?: ReactNode;
   checklistView?: ReactNode;
 }) {
   const [activeStep, setActiveStep] = useState<1 | 2 | 3>(1);
+  const downloadable = installerRelease.available && installerRelease.metadataComplete;
+  const workspaceReady = checklist.nextStepId === null && downloadable;
+  const versionLabel = installerRelease.version ?? "chưa công bố";
 
   return (
     <div className="flex-1 flex flex-col min-w-0 min-h-0 p-6 overflow-y-auto max-w-5xl mx-auto space-y-6">
@@ -86,7 +90,7 @@ export function OnboardingStepper({
             2
           </div>
           <div>
-            <div className="text-xs font-bold text-white">Bước 2: Kết nối Relay v15</div>
+            <div className="text-xs font-bold text-white">Bước 2: Kết nối Relay hiện tại</div>
             <div className="text-[11px] text-neutral-400">Ghi danh & Gán khóa máy</div>
           </div>
         </button>
@@ -111,8 +115,8 @@ export function OnboardingStepper({
             3
           </div>
           <div>
-            <div className="text-xs font-bold text-white">Bước 3: Sẵn sàng vận hành</div>
-            <div className="text-[11px] text-neutral-400">Kiểm tra checklist đàn nick</div>
+            <div className="text-xs font-bold text-white">Bước 3: Kiểm tra điều kiện pilot</div>
+            <div className="text-[11px] text-neutral-400">Các kiểm tra kỹ thuật và ràng buộc vận hành</div>
           </div>
         </button>
       </div>
@@ -124,30 +128,105 @@ export function OnboardingStepper({
             <div className="space-y-1">
               <h3 className="text-sm font-bold text-white flex items-center gap-2">
                 <span>⬇️</span>
-                <span>Bộ cài đặt MKT Browser 0.3.2 cho Windows</span>
+                <span>Bộ cài đặt MKT Browser {versionLabel} cho Windows</span>
               </h3>
               <p className="text-xs text-neutral-400 max-w-xl">
-                Cài đặt ứng dụng MKT Browser trên máy tính của bạn. Ứng dụng tích hợp sẵn nhân Chromium cô lập vân tay và cầu nối Relay cục bộ.
+                Cài đặt ứng dụng MKT Browser trên máy tính của bạn. Đây là beta nội bộ Windows có
+                kiểm soát: dùng một profile mỗi lần, đăng nhập và nhập liệu bằng người thật; trạng
+                thái, proxy và cài đặt profile được giữ cục bộ. Tính cô lập danh tính chưa được chứng minh.
               </p>
             </div>
 
-            <a
-              href={installerDownloadUrl}
-              className="brand-btn px-5 py-2.5 rounded-xl text-xs font-semibold text-white inline-flex items-center gap-2 shadow-lg shadow-purple-500/25"
-            >
-              <Download size={14} />
-              <span>Tải MKTBrowser-win-x64.exe{installerSize ? ` (${installerSize})` : ""}</span>
-            </a>
-          </div>
+            {downloadable ? (
+               <a
+                 href={installerDownloadUrl}
+                 className="brand-btn px-5 py-2.5 rounded-xl text-xs font-semibold text-white inline-flex items-center gap-2 shadow-lg shadow-purple-500/25"
+               >
+                 <Download size={14} />
+                 <span>
+                   Tải MKTBrowser-win-x64.exe
+                   {installerRelease.sizeBytes ? ` (${formatBytes(installerRelease.sizeBytes)})` : ""}
+                 </span>
+               </a>
+             ) : (
+               <span
+                 aria-disabled="true"
+                 className="px-5 py-2.5 rounded-xl text-xs font-semibold text-neutral-500 inline-flex items-center gap-2 bg-white/[0.04]"
+               >
+                 <Download size={14} />
+                 <span>Chưa thể tải — thiếu metadata phát hành</span>
+               </span>
+             )}
+           </div>
 
-          {/* SmartScreen Guidance Box */}
+           {!downloadable ? (
+             <div className="rounded-xl bg-amber-500/10 border border-amber-500/20 p-4 text-xs text-amber-200 space-y-1">
+               <div className="font-bold">Bộ cài chưa được xác nhận để phát hành</div>
+               <p className="text-neutral-300 text-[11px] leading-relaxed">
+                 {installerRelease.available
+                   ? `Object đã tồn tại nhưng thiếu tuple bắt buộc: ${installerRelease.metadataMissing.join(", ")}. Không tải hoặc chạy bản này.`
+                   : "Máy chủ chưa có object và metadata phát hành đầy đủ cho ứng viên hiện tại."}
+               </p>
+             </div>
+           ) : null}
+
+           {downloadable ? (
+             <dl className="grid gap-x-8 gap-y-2 text-[11px] text-neutral-300 sm:grid-cols-[auto_1fr]">
+               <dt className="text-neutral-500">Installer SHA-256</dt>
+               <dd className="font-mono break-all">{installerRelease.checksum}</dd>
+                <dt className="text-neutral-500">Bundled Relay</dt>
+               <dd>
+                 v{installerRelease.bundledRelayVersion} /{" "}
+                 <span className="font-mono break-all">{installerRelease.bundledRelaySha256}</span>
+                </dd>
+                <dt className="text-neutral-500">Candidate</dt>
+                <dd className="font-mono break-all">{installerRelease.candidateId}</dd>
+                <dt className="text-neutral-500">Payload manifest</dt>
+                <dd className="font-mono break-all">
+                  {installerRelease.payloadManifestSha256} ({installerRelease.payloadFileCount} files)
+                </dd>
+               <dt className="text-neutral-500">Browser source</dt>
+               <dd className="font-mono break-all">
+                 commit {installerRelease.browserSourceSha}; tree {installerRelease.browserSourceTree}
+               </dd>
+               <dt className="text-neutral-500">Engine pin</dt>
+               <dd>
+                 {installerRelease.engineKind} / {installerRelease.engineChannel} /{" "}
+                 {installerRelease.engineVersion} /{" "}
+                 <span className="font-mono break-all">{installerRelease.engineSha256}</span>
+               </dd>
+                <dt className="text-neutral-500">Signing</dt>
+                <dd>{signingLabel(installerRelease.signingStatus)}</dd>
+                {installerRelease.signingStatus === "unsigned-internal-exception" ? (
+                  <>
+                    <dt className="text-neutral-500">Unsigned exception expires</dt>
+                    <dd>{installerRelease.signingExceptionExpiresAt}</dd>
+                  </>
+                ) : null}
+                {installerEvidenceHref ? (
+                  <>
+                    <dt className="text-neutral-500">Evidence</dt>
+                    <dd>
+                      <a className="underline" href={installerEvidenceHref}>
+                        Open sanitized release provenance
+                      </a>
+                    </dd>
+                  </>
+                ) : null}
+             </dl>
+           ) : null}
+
+          {/* SmartScreen guidance is shown only for a complete, explicitly unsigned tuple. */}
+          {downloadable && installerRelease.signingStatus === "unsigned-internal-exception" ? (
           <div className="rounded-xl bg-amber-500/10 border border-amber-500/20 p-4 text-xs text-amber-200 space-y-2">
             <div className="font-bold flex items-center gap-1.5 text-amber-300">
               <AlertTriangle size={14} />
-              <span>Hướng dẫn vượt cảnh báo Windows SmartScreen:</span>
+              <span>Kiểm soát SmartScreen cho ngoại lệ nội bộ:</span>
             </div>
             <p className="text-neutral-300 text-[11px] leading-relaxed">
-              Vì bộ cài đặt nội bộ chưa ký chứng chỉ trả phí của Microsoft, Windows sẽ hiển thị màn hình xanh cảnh báo:
+              Chỉ tiếp tục sau khi SHA-256 ở trên khớp chính xác và ngoại lệ chưa hết
+              hạn. Không tắt Defender hoặc SmartScreen. Nếu bất kỳ metadata nào khác, dừng
+              và báo sự cố.
             </p>
             <div className="flex items-center gap-2 font-mono text-[11px] text-amber-300 bg-black/40 p-2.5 rounded-lg">
               <span>1. Bấm vào <strong>&quot;More info&quot;</strong></span>
@@ -155,6 +234,7 @@ export function OnboardingStepper({
               <span>2. Chọn <strong>&quot;Run anyway&quot;</strong> để tiếp tục cài đặt.</span>
             </div>
           </div>
+          ) : null}
 
           <div className="pt-2 flex justify-end">
             <button
@@ -202,21 +282,69 @@ export function OnboardingStepper({
                 🚀
               </div>
               <div>
-                <h4 className="text-xs font-bold text-white">Mọi thứ đã sẵn sàng!</h4>
-                <p className="text-[11px] text-neutral-400">Bạn có thể quay lại Bảng điều khiển để mở và vận hành các profile TikTok.</p>
+                <h4 className="text-xs font-bold text-white">
+                  {workspaceReady ? "Technical setup checks recorded" : "Technical setup is still pending"}
+                </h4>
+                <p className="text-[11px] text-neutral-400">
+                  {workspaceReady
+                    ? "You may return to the dashboard for the controlled internal beta. Identity isolation is not proven, and login, OTP, CAPTCHA, typing, and posting remain human-controlled."
+                    : "Finish the highlighted workspace steps and verify the installer tuple before opening a profile. Identity isolation is not proven, and all login, OTP, CAPTCHA, typing, and posting remain human-controlled."}
+                </p>
               </div>
             </div>
 
-            <Link
-              href="/"
-              className="brand-btn px-4 py-2 rounded-xl text-xs font-semibold text-white inline-flex items-center gap-2"
-            >
-              <span>Vào Bảng Điều Khiển</span>
-              <ChevronRight size={14} />
-            </Link>
+            {workspaceReady ? (
+              <Link
+                href="/"
+                className="brand-btn px-4 py-2 rounded-xl text-xs font-semibold text-white inline-flex items-center gap-2"
+              >
+                <span>Open Dashboard</span>
+                <ChevronRight size={14} />
+              </Link>
+            ) : null}
           </div>
         </div>
       )}
     </div>
   );
+}
+
+export interface InstallerDisplayMetadata {
+  available: boolean;
+  metadataComplete: boolean;
+  metadataMissing: string[];
+  sizeBytes: number | null;
+  version: string | null;
+  checksum: string | null;
+  bundledRelayVersion: number | null;
+  bundledRelaySha256: string | null;
+  payloadManifestSha256: string | null;
+  payloadFileCount: number | null;
+  candidateId: string | null;
+  browserSourceSha: string | null;
+  browserSourceTree: string | null;
+  engineKind: string | null;
+  engineChannel: string | null;
+  engineVersion: string | null;
+  engineSha256: string | null;
+  signingStatus: "authenticode" | "unsigned-internal-exception" | "unknown";
+  signingExceptionExpiresAt: string | null;
+}
+
+function signingLabel(status: InstallerDisplayMetadata["signingStatus"]): string {
+  if (status === "authenticode") return "Authenticode verified";
+  if (status === "unsigned-internal-exception") return "Unsigned — internal exception only";
+  return "Unknown — do not distribute";
+}
+
+function formatBytes(bytes: number): string {
+  if (!Number.isFinite(bytes) || bytes <= 0) return "";
+  const units = ["B", "KB", "MB", "GB"];
+  let value = bytes;
+  let unit = 0;
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024;
+    unit += 1;
+  }
+  return `${value.toFixed(unit === 0 ? 0 : 1)} ${units[unit]}`;
 }

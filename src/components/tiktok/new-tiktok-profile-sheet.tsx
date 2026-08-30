@@ -62,8 +62,11 @@ export function NewTikTokProfileSheet({
                 ➕
               </div>
               <div>
-                <h2 className="text-base font-semibold text-white tracking-tight">Tạo Profile TikTok Mới</h2>
-                <p className="text-xs text-neutral-400">Thiết lập môi trường trình duyệt cách ly & proxy</p>
+                <h2 className="text-base font-semibold text-white tracking-tight">Tạo hồ sơ TikTok mới</h2>
+                <p className="text-xs text-neutral-400">
+                  Thiết lập profile cục bộ và proxy cho pilot có kiểm soát — chưa phải xác nhận
+                  cô lập danh tính hay quyền đăng bài.
+                </p>
               </div>
             </div>
             <button
@@ -75,7 +78,7 @@ export function NewTikTokProfileSheet({
             </button>
           </div>
 
-          <AccountVaultForm action={createAccount} submitLabel="🚀 Tạo Profile & Khởi tạo Môi trường">
+          <AccountVaultForm action={createAccount} submitLabel="Tạo profile & lưu cấu hình">
             <input type="hidden" name="platform" value="TIKTOK" />
             <input type="hidden" name="status" value="COLD_START" />
 
@@ -175,7 +178,8 @@ export function NewTikTokProfileSheet({
                   className="w-full rounded-xl bg-[#14151b] border border-white/[0.08] px-3.5 py-2 text-sm text-white focus:border-purple-500/50 focus:outline-none transition font-mono"
                 />
                 <p className="mt-1 text-[11px] text-neutral-500">
-                  Trong thời gian làm ấm (7 ngày đầu), profile chỉ dùng để lướt tương tác tự nhiên, chưa đăng bài.
+                  Trong thời gian làm ấm (7 ngày đầu), chỉ quan sát và thao tác thủ công theo hướng
+                  dẫn. Không tự động đăng bài; identity/profile isolation vẫn chưa được chứng minh.
                 </p>
               </div>
 
@@ -204,6 +208,10 @@ export function NewTikTokProfileSheet({
 
               {showAdvanced ? (
                 <div className="space-y-3 p-3.5 rounded-xl bg-white/[0.02] border border-white/[0.06] animate-in fade-in duration-150">
+                  <p className="text-[11px] text-amber-300">
+                    Các bí mật chỉ dành cho người vận hành được ủy quyền. Đăng nhập và OTP/CAPTCHA
+                    luôn do người thật thực hiện trong profile; không dùng các ô này để tự động đăng nhập.
+                  </p>
                   <div>
                     <label className="block font-medium text-neutral-400 mb-1" htmlFor="emailAddress">Email đăng ký nick</label>
                     <input

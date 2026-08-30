@@ -71,16 +71,26 @@ export async function RelayDownloadSection() {
     // tới từ dải "cầu nối bản cũ" hay từ trang nick, họ rơi đúng vào nút tải chứ không phải đầu
     // trang rồi phải tự tìm.
     <section id="download" className="space-y-6 scroll-mt-6">
-      <SmartScreenGuidance imagePath="/setup/mkb-03-smartscreen-more-info-run-anyway.png" />
+      {installer.available &&
+      installer.metadataComplete &&
+      installer.signingStatus === "unsigned-internal-exception" &&
+      installer.checksum &&
+      installer.signingExceptionExpiresAt ? (
+        <SmartScreenGuidance
+          imagePath="/setup/mkb-03-smartscreen-more-info-run-anyway.png"
+          checksum={installer.checksum}
+          exceptionExpiresAt={installer.signingExceptionExpiresAt}
+        />
+      ) : null}
 
       <Card title={installer.version ? `MKT Browser ${installer.version}` : "MKT Browser cho Windows"}>
-        {installer.available ? (
+        {installer.available && installer.metadataComplete ? (
           <div className="space-y-4">
             <p className="text-sm text-neutral-600 dark:text-neutral-400">
               Cài cái này <strong>trước</strong>.{" "}
               {bundledState === "current" ? (
                 <>
-                  Nó mang sẵn cầu nối bản {bundled} — đúng bản đang phát hành, nên{" "}
+                  Nó mang sẵn cầu nối bản {bundled} — đúng bản được ghi trong metadata của tuple này, nên{" "}
                   <strong>không phải tải thêm gì ở dưới</strong>. Phần bên dưới để dành cho lúc cần
                   cài lại riêng cầu nối.
                 </>
@@ -96,7 +106,7 @@ export async function RelayDownloadSection() {
                   nối rồi chạy <code className="font-mono">setup.bat</code> cho chắc.
                 </>
               )}{" "}
-              Từ cầu nối bản 15, bộ cài không đè lên một bản mới hơn nữa.
+              Từ cầu nối bản 16, bộ cài không đè lên một bản mới hơn nữa.
             </p>
 
             <dl className="grid gap-x-8 gap-y-2 text-sm sm:grid-cols-[auto_1fr]">
@@ -104,7 +114,7 @@ export async function RelayDownloadSection() {
               <dd>{formatFileSize(installer.sizeBytes ?? 0)}</dd>
               {installer.publishedAt ? (
                 <>
-                  <dt className="text-neutral-500">Phát hành lúc</dt>
+                  <dt className="text-neutral-500">Ghi nhận metadata lúc</dt>
                   <dd>{formatFullDateTime(installer.publishedAt)}</dd>
                 </>
               ) : null}
@@ -125,15 +135,25 @@ export async function RelayDownloadSection() {
               </div>
             ) : null}
           </div>
+        ) : installer.available ? (
+          <EmptyState>
+            Gói cài MKT Browser đã có trên máy chủ nhưng thiếu metadata phát hành bắt buộc nên tạm
+            khóa tải. Người quản trị phải xuất lại tuple có version, SHA-256, Relay, source, engine
+            và trạng thái ký trước khi phát hành.
+          </EmptyState>
         ) : (
           <EmptyState>
             Máy chủ này chưa có gói cài MKT Browser nào — đã tìm ở{" "}
             <code className="font-mono text-xs">{installer.expectedPath}</code>.
             <br />
             <br />
-            Người quản trị dựng trên máy Windows rồi đẩy lên bằng{" "}
-            <code className="font-mono">npm run browser:publish -- --file=&lt;đường dẫn .exe&gt;
-            --version=&lt;số hiệu&gt;</code>.
+            An administrator must build on Windows, export provenance from the exact candidate, and
+            publish with{" "}
+            <code className="font-mono">
+              npm run browser:publish -- --file=&lt;đường dẫn .exe&gt; --version=&lt;số hiệu&gt;
+               --candidate-id=&lt;candidate&gt; --relay-version=&lt;16&gt;
+               --provenance-file=&lt;release-provenance.json&gt; --release-manifest=&lt;frozen-manifest.json&gt;
+            </code>. The command reads back every byte; incomplete or expired metadata is rejected.
           </EmptyState>
         )}
       </Card>
@@ -198,9 +218,9 @@ export async function RelayDownloadSection() {
         <ul className="space-y-3 text-sm text-neutral-600 dark:text-neutral-400">
           <li>
             <strong className="text-neutral-900 dark:text-neutral-100">
-              Windows hỏi lại ở lần chạy đầu.
+              Windows hỏi lại ở lần chạy đầu (chỉ áp dụng khi có installer đã được xác nhận).
             </strong>{" "}
-            File này không mua chữ ký số, nên SmartScreen cảnh báo — đúng hành vi của Windows với
+              File chưa ký số có thể khiến SmartScreen cảnh báo — đúng hành vi của Windows với
             một chương trình lạ tải từ mạng. Bấm <em>More info</em> → <em>Run anyway</em>. Chứng
             chỉ ký mã là thứ mất tiền hằng năm để đổi lấy việc bỏ đúng một màn hình mà mỗi người
             chỉ gặp một lần, nên đổi lại là mã SHA-256 ở trên: nó không dẹp được cảnh báo, nhưng
@@ -226,7 +246,7 @@ export async function RelayDownloadSection() {
           chương trình giữ khóa của cả kho thì không nên có đường tự tải mã mới về chạy.
         </p>
         <p className="mt-3 text-sm text-neutral-600 dark:text-neutral-400">
-          Từ bản 15, bộ cài <strong>không đè lên một cầu nối mới hơn</strong>: gặp bản mới hơn thì
+          Từ bản 16, bộ cài <strong>không đè lên một cầu nối mới hơn</strong>: gặp bản mới hơn thì
           nó để yên và báo đã bỏ qua. Chốt này có vì trình cài MKT Browser gọi bộ cài ở mọi lần
           chạy, và trước đó nó lặng lẽ kéo cầu nối xuống bản mà máy chủ từ chối.
         </p>

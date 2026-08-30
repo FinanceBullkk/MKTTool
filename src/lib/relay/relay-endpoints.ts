@@ -218,7 +218,7 @@ export const RELAY_DEVICE_RETIREMENT_MIN_VERSION = 11;
  *
  * | Operation | What MKT Browser must do |
  * |---|---|
- * | Create profile | Build a full Chromium profile on disk with its proxy and fingerprint |
+ * | Create profile | Build a local Chromium profile on disk with its proxy and provider profile controls |
  * | Launch profile | Apply the proxy to the profile, **then** open a real Chromium window |
  *
  * Cả hai vượt 4 giây một cách bình thường, và càng lâu hơn khi proxy chậm.
@@ -261,7 +261,7 @@ export const RELAY_PROFILE_WORK_TIMEOUT_MS = 60_000;
  * tăng bằng tay: tự sinh theo git hash thì nó đổi ở mọi lượt build, và một số đổi liên tục thì
  * cảnh báo "bản cũ" kêu liên tục cho tới lúc không ai còn nhìn.
  */
-export const RELAY_VERSION = 15;
+export const RELAY_VERSION = 16;
 
 /**
  * Một profile antidetect như cầu nối khai ra ở `GET /profiles`.
@@ -280,7 +280,7 @@ export interface RelayProfileSummary {
 }
 
 /**
- * Catalog of valid fingerprint values, obtained directly from MKT Browser.
+ * Catalog of provider profile-control values, obtained directly from MKT Browser.
  *
  * **Không** phải bảng cứng viết trong code: bảng cứng mục đúng vào ngày họ thêm một locale, và
  * lúc đó nó sẽ chặn nhầm những tổ hợp vốn hợp lệ.

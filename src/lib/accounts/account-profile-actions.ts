@@ -11,16 +11,17 @@
  * | Ask MKT Browser to create the profile | Relay on the operator machine | The profile exists on only one machine |
  * | Save the new ID to the vault | Server (`recordCreatedProfile`) | The vault belongs to the server |
  *
- * ## Vì sao vân tay do TRÌNH DUYỆT tính rồi gửi lên
+ * ## Vì sao cấu hình profile do TRÌNH DUYỆT tính rồi gửi lên
  *
  * The locale and device catalogs live in MKT Browser on the operator machine, so the server cannot
  * read them. The browser therefore runs the pure `planProfileFingerprint` function, and the server
  * only wraps its result in the ticket.
  *
  * The server intentionally **does not** check whether the locale matches the proxy country. It has
- * no catalog for validation, MKT Browser already rejects inconsistent combinations, and the caller
- * is an authenticated colleague who could create a mismatched profile directly in MKT Browser even
- * faster. This layer prevents **accidents**; it does not try to stop insiders.
+ * no catalog for validation, MKT Browser rejects the combinations it knows to be inconsistent, and
+ * the caller is an authenticated colleague who could create a mismatched profile directly in MKT
+ * Browser even faster. This layer prevents **accidents**; it does not try to stop insiders or prove
+ * identity isolation.
  */
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -35,7 +36,7 @@ import { issueTicket } from "@/lib/tickets/ticket-issuer";
 import { resolveTicketRecipient } from "@/lib/tickets/ticket-recipient-lookup";
 import { TICKET_KINDS, type SignedTicket } from "@/lib/tickets/ticket-types";
 
-/** Hình dạng vân tay trình duyệt gửi lên. Chỉ kiểm hình dạng — xem chú thích đầu file. */
+/** Các trường cấu hình profile trình duyệt gửi lên. Chỉ kiểm hình dạng — xem chú thích đầu file. */
 const fingerprintSchema = z.object({
   device: z.string().min(1),
   localeId: z.string().min(1),
@@ -69,7 +70,7 @@ export const requestCreateProfileTicket = guardedAction(async function requestCr
 
   const parsed = fingerprintSchema.safeParse(fingerprint);
   if (!parsed.success) {
-    return { ok: false, message: "Bộ vân tay gửi lên không hợp lệ. Tải lại trang rồi thử lại." };
+    return { ok: false, message: "Cấu hình profile gửi lên không hợp lệ. Tải lại trang rồi thử lại." };
   }
 
   const account = await prisma.account.findUnique({
@@ -110,7 +111,7 @@ export const requestCreateProfileTicket = guardedAction(async function requestCr
     return {
       ok: false,
       message:
-        "Nick chưa gắn proxy nên chưa biết dựng vân tay theo quốc gia nào. Gắn proxy ở thẻ " +
+        "Nick chưa gắn proxy nên chưa biết căn cấu hình profile theo quốc gia nào. Gắn proxy ở thẻ " +
         '"Sửa nick" trước — profile tạo ra sẽ mang sẵn proxy đó.',
     };
   }

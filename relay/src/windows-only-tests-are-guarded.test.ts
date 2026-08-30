@@ -2,9 +2,8 @@
  * Bài test nào chạm kho bí mật **thật** thì phải tự bỏ qua khi không chạy trên Windows.
  *
  * `WindowsSecureStore` gọi DPAPI qua PowerShell, và `runDpapi` ném ngay khi
- * `process.platform !== "win32"`. CI của repo chạy `ubuntu-latest`, nên một file test quên chốt
- * này sẽ **xanh trên máy người viết và đỏ trên CI** — kiểu hỏng tốn nhiều thời gian nhất, vì nó
- * chỉ lộ ra sau khi đã mở PR.
+ * `process.platform !== "win32"`. CI runs on self-hosted Linux, so a missing platform guard passes
+ * on the author's Windows machine and fails only after the pull request reaches CI.
  *
  * Chuyện này đã xảy ra thật ngày 12/08/2026: Phase 03 đổi ba file test sang gọi thẳng kho thật,
  * cả người viết lẫn người soát đều chạy trên Windows, và CI đỏ với 9 lỗi.
@@ -50,8 +49,8 @@ describe("test nào dùng kho bí mật thật thì phải chốt theo nền", (
     expect(
       PLATFORM_GUARD.test(source),
       `relay/src/${name} import WindowsSecureStore nhưng không có chốt nền.\n\n` +
-        `Kho thật gọi DPAPI qua PowerShell và ném khi không phải Windows, nên file này sẽ đỏ\n` +
-        `trên CI (ubuntu-latest) dù xanh trên máy bạn.\n\n` +
+        `The real store calls DPAPI through PowerShell and throws outside Windows, so this file ` +
+        `will fail on self-hosted Linux CI even if it passes locally.\n\n` +
         `Nếu bài kiểm LOGIC NGHIỆP VỤ: tiêm InMemorySecureStore vào thay vì dựng kho thật —\n` +
         `bài chạy được ở mọi nền, và CI vẫn canh được phần đó.\n\n` +
         `Chỉ khi đang kiểm CHÍNH DPAPI mới dùng:\n` +

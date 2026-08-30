@@ -63,7 +63,8 @@ export interface AntidetectProxyConfig {
  * Một profile như antidetect browser khai ra.
  *
  * Chỉ giữ những trường **mọi** nhà cung cấp đều có, cộng hai trường chẩn đoán (`proxyCountry`,
- * `timezone`) mà giao diện cần để cảnh báo vân tay lệch proxy. Thiếu thì để trống — đừng bịa.
+ * `timezone`) mà giao diện cần để cảnh báo cấu hình locale/timezone lệch proxy. Thiếu thì để
+ * trống — đừng bịa và đừng suy ra identity isolation từ các trường này.
  */
 export interface AntidetectProfileSummary {
   id: string;
@@ -71,16 +72,17 @@ export interface AntidetectProfileSummary {
   isRunning?: boolean;
   /** Quốc gia của proxy đang gắn, chữ thường (`"us"`). */
   proxyCountry?: string;
-  /** IANA timezone của vân tay. Lệch với `proxyCountry` là dấu hiệu quên căn proxy. */
+  /** IANA timezone profile khai báo. Lệch với `proxyCountry` là dấu hiệu cần kiểm tra cấu hình. */
   timezone?: string;
 }
 
 /**
- * Vân tay ở dạng **núm cao cấp** — không phải từng bề mặt.
+ * Profile settings ở dạng **núm cao cấp** — không phải từng bề mặt.
  *
  * MKT Browser derives consistent UA, client hints, and WebGL values from these controls and
  * **rejects inconsistent combinations**. Constructing individual surfaces here would bypass that
- * protection, so this interface deliberately does not allow it.
+ * protection, so this interface deliberately does not allow it. These provider checks are
+ * compatibility/configuration checks, not proof of unique full-surface identity.
  */
 export interface AntidetectFingerprintSpec {
   device: string;
@@ -95,7 +97,7 @@ export interface CreateProfileRequest {
   tags?: string[];
   proxy?: AntidetectProxyConfig;
   fingerprint?: AntidetectFingerprintSpec;
-  /** Hạt giống nhiễu canvas/audio/WebGL. Mỗi profile một giá trị. */
+  /** Hạt giống provider dùng cho canvas/audio/WebGL; mỗi profile được cấp một giá trị, chưa phải bằng chứng duy nhất. */
   seed?: string;
   /** Stable MKTTool ownership key used to reconcile retries. */
   externalRef?: string;
@@ -110,7 +112,7 @@ export interface AntidetectOperationContext {
   requestId?: string;
 }
 
-/** Danh mục giá trị hợp lệ để dựng vân tay — lấy từ chính nhà cung cấp, không tự bịa bảng. */
+/** Danh mục giá trị hợp lệ để dựng profile controls — lấy từ chính nhà cung cấp, không tự bịa bảng. */
 export interface FingerprintOptions {
   devices: { family: string; label: string; screens: { width: number; height: number }[] }[];
   locales: { id: string; label: string; country: string; timezones: string[] }[];
@@ -132,9 +134,10 @@ export interface AntidetectAdapter {
   /**
    * Tạo profile mới, trả về id.
    *
-   * Set the proxy and fingerprint **during creation**, not by creating and then editing. The correct
-   * MKT Browser workflow applies the proxy and aligns the fingerprint BEFORE the first sign-in, and
-   * one call leaves no gap in which someone could open the profile between those operations.
+   * Set the proxy and profile controls **during creation**, not by creating and then editing. The
+   * correct MKT Browser workflow applies the proxy and aligns the controls BEFORE the first sign-in,
+   * and one call leaves no gap in which someone could open the profile between those operations.
+   * This sequencing is an operational consistency check, not proof of identity isolation.
    */
   createProfile(request: CreateProfileRequest): Promise<CreatedProfile>;
 

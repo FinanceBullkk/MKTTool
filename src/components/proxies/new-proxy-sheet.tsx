@@ -18,8 +18,9 @@ export function NewProxySheet({
   const [error, setError] = useState<string | null>(null);
   /**
    * Ba thứ không suy ra được từ `host:port`, nên phải hỏi — nhất là **quốc gia**: nó quyết định
-   * ngôn ngữ và múi giờ của vân tay profile. Bản trước đặt cứng `VN` cho mọi dòng, tức mọi
-   * proxy nhập theo lô đều đội vân tay Việt Nam bất kể IP thật ở đâu.
+   * ngôn ngữ và múi giờ trong cấu hình profile. Bản trước đặt cứng `VN` cho mọi dòng, tức mọi
+   * proxy nhập theo lô đều nhận locale Việt Nam bất kể IP thật ở đâu; đây là lỗi cấu hình,
+   * không phải bằng chứng identity isolation.
    */
   const [bulkDefaults, setBulkDefaults] = useState({
     country: "",
@@ -95,7 +96,9 @@ export function NewProxySheet({
             </div>
             <div>
               <h2 className="text-sm font-bold text-white tracking-tight">Thêm Proxy Mới</h2>
-              <p className="text-[11px] text-neutral-400">Gán IP sạch và cách ly cho từng Profile</p>
+              <p className="text-[11px] text-neutral-400">
+                Gán endpoint theo vùng cho từng profile; đây không phải bằng chứng cô lập danh tính
+              </p>
             </div>
           </div>
           <button
@@ -206,7 +209,7 @@ export function NewProxySheet({
                 {/* Đúng HAI giá trị mà `proxyCreateSchema` nhận — xem `vault-form-schemas.ts`.
                     Bản trước liệt kê bốn (MOBILE_4G / HOTSPOT / STATIC_ISP / DATACENTER) và đặt
                     mặc định vào MOBILE_4G, tức lựa chọn mặc định luôn bị từ chối. Thêm loại mới
-                    ở đây thôi thì không đủ — kho, luật cụm và vân tay đều đọc cột này. */}
+                ở đây thôi thì không đủ — kho, luật cụm và cấu hình profile đều đọc cột này. */}
                 <select
                   name="type"
                   defaultValue="STATIC_ISP"
@@ -233,7 +236,7 @@ export function NewProxySheet({
               <textarea
                 name="notes"
                 rows={2}
-                placeholder="VD: Proxy mua từ Webshare gói 50 IP, dùng cho đàn TikTok Shop"
+                placeholder="VD: Proxy mua từ Webshare gói 50 IP, dùng cho nhóm tài khoản pilot"
                 className="w-full rounded-xl bg-white/[0.03] border border-white/[0.08] px-3.5 py-2 text-xs text-white placeholder:text-neutral-600 focus:border-purple-500/50 focus:outline-none transition"
               />
             </div>
@@ -274,7 +277,7 @@ export function NewProxySheet({
             </div>
 
             {/* Ba ô áp cho CẢ lô. Quốc gia không có mặc định — bỏ trống là bị chặn, đúng ý:
-                đoán hộ quốc gia là đoán hộ vân tay. */}
+                đoán hộ quốc gia là đoán hộ locale/timezone profile. */}
             <div className="grid grid-cols-3 gap-2">
               <div>
                 <label htmlFor="bulk-country" className="block text-xs font-medium text-neutral-300 mb-1">

@@ -131,5 +131,9 @@ export function currentDeviceBrowserReadiness(
     }
   }
 
-  return { ready: true, state: "ready", message: "MKT Browser is ready on this PC." };
+  return {
+    ready: true,
+    state: "ready",
+    message: "MKT Browser technical checks passed on this PC; identity isolation is not proven.",
+  };
 }

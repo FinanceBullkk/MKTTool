@@ -8,6 +8,7 @@ semantic versions.
 
 Older entries move to archives when the live file approaches the 800-line documentation limit:
 
+- [12 August 2026](archive/project-changelog-12-august-2026.md)
 - [7 to 11 August 2026](archive/project-changelog-07-to-11-august-2026.md)
 - [5 to 6 August 2026](archive/project-changelog-05-to-06-august-2026.md)
 - [Through 4 August 2026](archive/project-changelog-den-04-08-2026.md)
@@ -16,6 +17,212 @@ Historical entry prose remains unchanged. Only relative link destinations change
 the archive location.
 
 ---
+
+## 29 August 2026 - Controlled internal beta published and scope frozen
+
+MKTTool Web/Facebook is the normal internal handoff. MKT Browser `0.3.12` was rebuilt from clean
+source `6d1b0a2` / tree `db389a54`, verified under Node `22.23.2`, and published to the authenticated
+R2 setup channel with installer SHA-256
+`d570ccc3326b5a046d91b7b677f4232ab76908f2fb034c60799e31695f43fc4b`. R2 read-back confirmed the
+version, size, checksum, and bundled Relay v15 metadata. The packaged runtime/profile lifecycle
+contract passed `1/1`, MKB-02 passed `135/135`, MKB-03 passed `31/31`, packaging contracts passed 34
+with the explicit live-machine check skipped, and the production dependency audit reported no
+suggestions. MKTTool passed 1,922 tests, typecheck, lint, and production build.
+
+The release is a controlled Windows x64 beta: admin-led enrollment, one profile at a time, human
+login/posting, and no token/key copying. Broad Browser rollout remains NO-GO: G1 input, G2 network,
+G3 licence, G4 operator, and G5 canary remain open, while G2 identity remains FAIL. Custom Chromium,
+the prebuilt-engine orchestrator, macOS, concurrency, updater/signing, and posting automation are
+deferred. See [internal-beta-release.md](internal-beta-release.md).
+
+## 27 August 2026 - Real power-cycle recovery passes and closes G3
+
+The root-cause Browser candidate at source `55b8587` replaces the slow Windows listener/process
+provider path with bounded native `netstat.exe`, absolute system PowerShell, and double process and
+listener snapshots. Identity or ownership changes, ambiguous inspection, invalid system roots,
+timeouts, and oversized output continue to fail closed. Fresh Node `22.23.2` verification passed
+`test:mkb02` 135/135, targeted Windows ownership/runtime tests 42/42, typecheck, and lint.
+
+The final owner-approved disposable-VM rerun passed the real power-cycle gate. Before the cut, the
+exact lease was `active`, capacity was `total=1/free=0/active=1/pendingRecovery=0/cooling=0`, the
+pinned Browser/profile processes were alive, and every gate task was demand-only. The host then
+issued one `VBoxManage controlvm poweroff`. Before app startup after boot, the boot identity had
+changed, no Browser process remained, and the exact lease was still stranded `active`. Startup moved
+it to `cooling` with `pendingRecovery=0`; capacity returned to one free seat after the vendor TTL;
+the same profile relaunched and then closed to `confirmed-released` with no profile Browser process
+remaining.
+
+Evidence:
+`local-test-artifacts/phase5/real-power-cycle-recovery-evidence-20260827-ownership-fix-r2.json`.
+This supersedes/resolves `REBOOT_LEASE_STUCK_PENDING_RECOVERY`,
+`VM_PRECUT_ACTIVE_CHECKPOINT_UNAVAILABLE`, and `GATE_STATE_NOT_DURABLE_ACROSS_POWER_CYCLE` as current
+blockers. `G3-RECOVERY` is **PASS**. The existing licence key was kept; no revoke or rotation was
+performed, and no key value is retained in evidence. Rollout remains **NO-GO** because other gates
+remain open; no Phase 2, Phase 5, or Phase 6 work starts.
+
+## 27 August 2026 - Ownership-fix power-cycle rerun stopped before the gate
+
+The Browser ownership candidate at source `55b8587` replaces the slow per-query
+`Get-NetTCPConnection` child with bounded native `netstat.exe`, uses absolute Windows system tools,
+and rechecks both process identity and listener ownership to keep the DevTools boundary fail closed.
+Fresh Node `22.23.2` verification passed `test:mkb02` 135/135, typecheck, and lint.
+
+The bounded disposable VM continuation did not produce recovery evidence. Review found that the
+scheduled task actions named files that were not transferred under those names, and that the
+PowerShell settings writer emitted a UTF-8 BOM which `SettingsStore` rejected, producing capacity
+`total=0`. Both harness defects were corrected locally, and native `tar.exe` replaced a pathological
+`Expand-Archive` preparation path. No `gate-state.json` with an active lease was validated, so no
+checkpoint-qualified recovery power-cycle was made; preparation and cleanup poweroffs are excluded.
+The disposable clone was reset, powered off, and deleted.
+
+Evidence: `local-test-artifacts/phase5/real-power-cycle-recovery-evidence-20260827-root-cause-review.json`.
+`G3-RECOVERY` remains **OPEN** and rollout remains **NO-GO**. The owner chose to keep the existing
+licence key; no key value is retained in evidence, and later gates must stream it without logging.
+
+## 27 August 2026 - Real cut rejected because the checkpoint was not durable
+
+The bounded root-fix rerun reached a real active lease and returned the complete pre-cut tuple before
+the host issued one `VBoxManage controlvm poweroff`: `checkpointValid=true`, `active`, capacity
+`total=1/free=0/active=1/pendingRecovery=0/cooling=0`, pinned Browser/profile processes alive, and
+demand-only tasks. After boot, the exact lease was still `active` and no Browser process survived, but
+the `cutCheckpoint` update was absent from `gate-state.json`. The state writer had acknowledged the
+write without forcing it through the guest filesystem, so the power-cycle cannot be accepted as
+recovery evidence. This is a harness durability blocker, not a product recovery PASS or FAIL.
+
+The gate now writes checkpoints with a write-through handle and `Flush(true)`, and post-boot requires
+the persisted checkpoint plus a bounded boot window. Evidence:
+`local-test-artifacts/phase5/real-power-cycle-recovery-evidence-20260827-durable-checkpoint-review.json`.
+`G3-RECOVERY` remains **OPEN** with `GATE_STATE_NOT_DURABLE_ACROSS_POWER_CYCLE`; rollout remains
+**NO-GO**, and no Phase 2, Phase 5, or Phase 6 work starts.
+
+## 27 August 2026 - Packaged Relay v15 preserves spent tickets across restart
+
+The real packaged Relay v15 process was stopped and started with an isolated disposable home.
+The device identity stayed stable across the restart, replay of the previously consumed ticket was
+rejected as `ALREADY_USED`, and a fresh ticket still reached the Browser-operation boundary.
+Evidence: `local-test-artifacts/phase5/relay-spent-ticket-restart-evidence-20260827.json`.
+The evidence is redacted and contains no secret values. This closes only the Relay restart/spent-ticket
+subset; `G3-RECOVERY` remains **OPEN** pending the real power-cycle/licence-key gate and owner review.
+
+The same-day real power-cycle continuation was attempted on the disposable VM with Browser source
+`137a849` and Relay v15. The first run had the package and real-key setup present, but launch stopped
+before an active lease because the VM could not attribute the live DevTools listener
+(`portOwnerPids=none`). A fresh follow-up warmed the Windows listener provider, then proved listener
+ownership and single-key capacity without changing Browser code. That rerun was still invalid: the
+scheduled arm task was started immediately and retained its one-minute trigger, so it ran twice and
+lost the stable active-lease checkpoint. Cleanup recorded `0 active / 0 pendingRecovery / 1 cooling`
+and no profile Browser process. No power cut was made after either failed precondition.
+
+Redacted evidence is retained at
+`local-test-artifacts/phase5/real-power-cycle-recovery-evidence-20260827.json` and
+`local-test-artifacts/phase5/real-power-cycle-recovery-evidence-20260827-rerun.json`. These are
+environment/harness blockers, not recovery verdicts. `G3-RECOVERY` remains **OPEN** pending an
+owner-approved rerun after vendor cooldown and owner evidence review. The approved continuation is
+recorded in the dated entry below.
+
+## 27 August 2026 - Approved power-cycle rerun remained blocked before cut
+
+The owner-approved disposable rerun used Browser source `137a849`, packaged Relay v15, a real
+licence key through a non-recording guest path, demand-only scheduled tasks, and Windows provider
+warm-up. The launch reached a live CloakBrowser child and `DevToolsActivePort`, but the packaged
+ownership query returned `portOwnerPids=none` and Browser failed closed before writing an active
+checkpoint. The lease cleanup recorded `confirmed-released`; after the measured cooldown, capacity
+returned to `1 free / 0 active / 0 pendingRecovery / 0 cooling`. No recovery power-cycle was made.
+
+Evidence: `local-test-artifacts/phase5/real-power-cycle-recovery-evidence-20260827-final.json`.
+The later `VBoxManage controlvm poweroff` stopped the already-clean disposable clone and is recorded
+as cleanup only, not as a recovery observation. `G3-RECOVERY` remains **OPEN** with blocker
+`VM_PRECUT_ACTIVE_CHECKPOINT_UNAVAILABLE`; this result is not promoted to PASS or hidden by the
+successful Relay spent-ticket restart subset.
+
+## 26 August 2026 - The installer lifecycle closes on a clean guest and two recovery gates fail by name
+
+Removing the `HNetCfg.FwPolicy2` firewall reader and moving nine call sites off
+`-ExecutionPolicy Bypass` was enough to clear the Defender behavioural block. On a guest restored
+from an updated-Defender snapshot (engine `1.1.26070.7`, signatures `1.457.331.0`), the
+current-source candidate passed clean combined install 9/9, repair 13/13 and combined uninstall
+15/15, with no detection and no Defender event 1116/1117 in any gate window. Repair restored the
+exact Browser tree digest, both shortcuts and Publisher while operator token, profile database and
+Relay config survived. Uninstall removed Browser payload, shortcuts, both firewall rules and the
+Browser-owned Relay executable while leaving operator data intact. The artifact is unsigned and
+unattested, so this closes the lifecycle slice only.
+
+Startup crash recovery now binds to the seat it owns. An active Electron crash previously left the
+licensed browser running with the lease stuck active, because sweep outcomes carried only PIDs.
+Startup now returns a profile-scoped verdict for the exact owned engine path, converges the lease to
+`confirmed-released` and frees the seat; anything unmatched stays pending rather than guessing free.
+A second false-free path was closed alongside it: a Windows launcher can exit 0 while the browser
+runs under another PID, so a clean exit only releases a seat when the exiting child is the owned
+browser. Anything ambiguous cools.
+
+Two gates fail and are named rather than summarised. Relay restart loses spent-ticket replay
+protection because spent JTI state is process-memory-only. A host reboot fails closed as
+`REBOOT_LEASE_STUCK_PENDING_RECOVERY`: no false-free seat, but no convergence either. Under the
+one-seat cap that second failure costs the whole application for up to the measured 15.1-minute
+lease expiry, which makes ending the vendor session explicitly on shutdown the highest-value
+remaining fix. Rollout remains NO-GO.
+
+## 25 August 2026 - Concurrency is capped at one profile and the second machine is a VM
+
+Three scope questions left open by the 24-25 August evidence were decided by the owner, and each
+narrows v1 rather than adding work.
+
+Concurrency is capped at **one profile at a time**. Only one licence seat is free, and the vendor
+counts sessions per licence rather than per account or per install, so the concurrent two-profile
+launch gate cannot run. That gate is now `DEFERRED`: removed from the release path by decision, not
+repaired by evidence. Its 24 August `FAIL` verdict stands unchanged in the acceptance matrix, and a
+`DEFERRED` row may never be counted as a pass. Cross-profile isolation remains proved sequentially.
+Multi-key rotation stays in the code, unsupported and untested for v1.
+
+The cap makes recovery more important, not less. With a second key a stranded seat cost a rotation;
+with one key it blocks the entire product for the measured 15.1-minute lease expiry, with nothing the
+operator can do but wait. Early vendor release - ending the licence session explicitly on shutdown -
+therefore becomes the highest-value remaining Phase 5 item. The supporting parts already fail closed:
+the key pool refuses a launch before spawning when no key is idle rather than burning an attempt on
+the vendor, and the seat-wait message distinguishes "close a running profile" from "a dead browser
+still holds the seat". The missing piece is the call that ends the session.
+
+Keys held across several vendor accounts are not used for v1. The vendor sees `install_id` and two
+keys were already measured against one on 23 August, so pooling accounts to exceed a free-tier limit
+is detectable, and a revocation during the canary would destroy the evidence it was collecting. One
+key on one account is enough under the cap; concurrency beyond that is a purchase, not a workaround.
+
+Windows code signing stays unbought, reaffirmed with no budget. SmartScreen warns on every install,
+the published SHA-256 and the distribution channel remain the only origin evidence, and onboarding
+must name the warning before an operator meets it.
+
+The clean VM guest is accepted as PC B. `G4-OPERATOR` may close there, provided the evidence records
+the machine as virtual so it is never later read as physical-PC parity. Host hardware distinctness
+stays unproved.
+
+Rollout remains NO-GO.
+
+## 24 August 2026 - Installer evidence is corrected and normal close is remeasured
+
+The clean-machine installer record is downgraded after its completion condition proved incomplete.
+The original harness treated `MKTBrowser.exe` appearance as a finished silent install, even though
+Browser files are copied before the mandatory WebRTC firewall, pinned Relay, startup shortcut,
+Publisher, and Relay ownership steps. A fresh disposable Windows 11 repair run reproduced the gap:
+129 Browser files existed, but Relay and firewall rules were absent, the startup shortcut was
+absent, and the uninstall metadata was incomplete.
+
+Microsoft Defender remediated the installer-spawned PowerShell behavior twice as
+`Behavior:Win32/PShellCobStager.A`. Defender was not disabled or allow-listed. The clean and repair
+harnesses now require installer exit zero plus the complete Browser/Relay/firewall/shortcut/registry
+contract before launch. Receive-side candidate hashing, clean preflight, Browser first-run
+provisioning, and Browser-data-preservation observations remain useful, but supported combined
+install, repair, and uninstall are open again.
+
+The current local directory artifact also completed a safe normal-close gate with one disposable
+unmanaged profile containing no proxy or account data. Capacity moved from one free/one cooling seat
+to one active/one cooling seat and back. The lifecycle log reached `Browser.close`, child exit code
+0, and `SHUTDOWN-COMPLETE` without adding pending-recovery or cooling state. The pre-existing cooling
+seat came from an earlier live refusal and correctly did not become false-free.
+
+Hard kill and Electron crash were not injected because the sandbox had no terminate access to the
+new engine processes or Browser main process. Relay was not running, and host reboot was not
+separately authorized. Production recovery remains unintegrated at the driver/sidecar/startup-release
+boundary. Rollout remains NO-GO.
 
 ## 22 August 2026 - Packaged runtime CI adopts owned OS-assigned DevTools endpoints
 
@@ -503,293 +710,3 @@ The unsigned SmartScreen journey is announced before download. The component ref
 real capture and renders a visible pending state while the asset is absent. The real SmartScreen
 capture, deployed Chrome/Edge Local Network Access matrix, and clean-account reboot rehearsal remain
 human gates.
-
-## 12/08/2026 (11) — Relay 9 replaces a v8 the source could no longer reproduce
-
-v8 was published before the DPAPI transport and migration fixes above landed, so building from
-`main` afterwards produced a different executable that still called itself 8 — the exact failure
-that raising 7 to 8 was meant to end. `relay:publish` refuses to overwrite an existing version, so
-nothing wrong could reach R2, but a locally built "v8" would have reported a number that no longer
-identified one artifact.
-
-`MKTTool-Relay-v9.zip` is `74afbdc1…`, built twice to identical bytes, and the installer pins it.
-v8 stays on R2 unused; immutable per-version objects are meant to accumulate rather than be
-corrected.
-
-The sequencing lesson is the durable part: **publish last, after the code is final.** A guard worth
-adding later is stamping the commit into the artifact metadata and refusing to publish from a dirty
-tree, so "which source produced this" is always answerable.
-
----
-
-## 12/08/2026 (10) — The build machine authenticates with its own token
-
-`/api/relay/download/vN` now accepts either a signed-in session or
-`Authorization: Bearer <RELAY_RELEASE_DOWNLOAD_TOKEN>`, and the installer build sends
-`MKTTOOL_RELEASE_TOKEN` instead of a pasted session cookie. A wrong token falls through to the
-session check rather than answering differently, so the route is not a guessing oracle. Only the
-versioned route takes a token; the redirect route and the download page stay human-only, because a
-build always knows which version it pinned.
-
-The decision still lives in the auth module: `machineOrGuardedRoute` joins `guardedRoute` and
-`adminRoute` in `ROUTE_GUARDS`, so the entry-point guard that scans every route keeps recognising
-this one. Its handler deliberately receives no `Actor` — a machine is not a person, and a handler
-that needs to know who is calling now fails to compile against this wrapper instead of quietly
-receiving nothing. Exporting a bare handler and checking inside the body was the alternative, and it
-is the shape that guard exists to reject.
-
-The cookie it replaces was wrong four ways: it unlocked the whole app including the identity vault
-when the build needed one zip; it expired, so builds failed at random with a 401 that reads like a
-broken deploy; it recorded a person in the audit trail for machine-initiated work; and removing that
-person from `ALLOWED_EMAILS` broke the build. The token is nobody, expires never, and opens one
-route. The server refuses a token under 32 characters instead of accepting it quietly — a weak token
-is worse than none, because without one the route is still closed behind the login.
-
-DPAPI now carries plaintext over the pipe as base64 in both directions. Windows PowerShell 5.1
-decodes redirected stdin with the console codepage rather than UTF-8, so a secret containing
-anything outside ASCII would have been corrupted silently and surfaced as "wrong key". The on-disk
-format is unchanged, so existing blobs still read. Forcing `[Console]::InputEncoding` is not the
-alternative: setting it against a redirected handle throws on this PowerShell.
-
-The migration's `after-read-back` fault point moved ahead of the durable marker write. It sat
-directly beside `before-source-deletion` with no code between, so the two injected at one identical
-state and the advertised seven boundaries were six. It now covers a crash between a successful
-read-back and the marker reaching disk. The no-legacy fast path also records whichever protected
-secrets exist rather than assuming only the device key, so a store already holding the operator key
-stays covered by `requireTrackedSecrets`.
-
----
-
-## 12/08/2026 (9) — The Relay release archive is reproducible
-
-`relay:build` pins the last-write time of the three archived files to a fixed instant before
-compressing. Two consecutive builds of the same source now produce byte-identical archives; measured
-`00054e26…` twice, and the executable itself was already reproducible.
-
-`Compress-Archive` stores each entry's last-write time, and the executable carries a fresh one every
-run, so every rebuild produced a different SHA-256 from identical content. That cost a real mistake
-the same day: a rebuilt archive was published under a hash the pin did not expect, and "the hash
-changed" could not distinguish a content change from a plain rebuild. It can now.
-
-The limit is that zip records local time, so reproducibility holds within one machine and timezone.
-Cross-timezone reproducibility would also need a pinned `TZ`, which this single-Windows-builder
-release path does not need to pay for.
-
----
-
-## 12/08/2026 (8) — MKB-03 Phase 03 protects Relay secrets and closes diagnostics default-allow
-
-Relay now stores the operator-domain key and device private key through DPAPI CurrentUser. The
-migration records durable stages, imports, reads back and verifies, removes plaintext, then commits
-the schema marker and Relay rollback floor. A non-secret tombstone at the legacy device-key path
-prevents a plaintext-only Relay from starting or silently recreating a key after migration. The
-installer no longer creates or instructs operators to populate a plaintext operator-key field.
-
-Fault injection covers all seven required boundaries plus a simulated reboot. Tests build their own
-temporary Relay homes, migrate through real DPAPI, and scan the complete temporary tree for both key
-values with zero matches. This is a same-Windows-user protection boundary, not process isolation or
-a sandbox; full-disk encryption remains required for profile and session data.
-
-MKT Browser activity diagnostics now use an explicit key-to-reduced-shape allowlist. Unknown argument
-keys are dropped, and the new regression is included in `test:managed`; the existing redaction suite
-remains green. Full MKTTool and MKT Browser acceptance passed. The running Relay, MKT Browser, live
-data roots, and ports 47821/47822 were not touched.
-
-`RELAY_VERSION` rises to 8, which this phase requires rather than merely accommodates. The migration
-records the running version as its rollback floor, so leaving the constant at 7 produced a floor that
-accepted the very pre-DPAPI build it exists to refuse. The outdated-Relay banner also compares the
-number a Relay reports against the number the server publishes, so two materially different builds
-both calling themselves 7 would never raise it — the silent-warning failure that
-`relay-endpoints.ts` warns about in its own comment. Ticket floors for `LAUNCH_PROFILE` and
-`CREATE_PROFILE` stay at 7: they encode the MKT Browser contract v3, not protected storage.
-
-Removing the plaintext operator key from `relay-config.json` now uses a unique temporary name and
-clears it on failure. The previous PID-only name meant a leftover temporary from a crash between
-write and rename made every later attempt fail `EEXIST` at a point where read-back had already
-succeeded — the Relay would never start again until someone deleted that file by hand.
-
----
-
-## 12/08/2026 (7) — MKB-03 Phase 01 builds one pinned Relay + Browser installer
-
-Relay publishing no longer overwrites one mutable `MKTTool-Relay.zip`. Each release targets a
-retained `MKTTool-Relay-vN.zip` object with measured artifact-version, size, and SHA-256 metadata; an
-existing same-version object is accepted only when its size, checksum, and version already match,
-and the conditional R2 write refuses replacement. The authenticated version route supports Range
-requests so a pinned installer build can resume without falling back to `latest`.
-
-MKT Browser now checks in Relay v7 plus its approved size and SHA-256, rejects a wrong size before
-hashing, and embeds it only after verification. The NSIS include is ASCII-only and removes Relay
-shortcuts by resolved target rather than localized filename. Install records whether Relay already
-existed; uninstall removes Relay only when that durable marker proves MKT Browser owns it, otherwise
-it preserves the binary, shortcuts, and `relay-config.json`. Missing markers fail closed to preserve.
-The publisher now refuses a missing/stale sidecar or archive bytes that do not match it before any R2
-request.
-
-The reviewed installer was rebuilt at `release/installer/MKTBrowser-win-x64.exe`: 145,896,567 bytes,
-SHA-256 `c0f619fa1e3686bca5b0be572c3ce17e85f047a6dec17bf8e65e6968b68264b4`. The frozen MKB-02
-`release/win-unpacked/MKTBrowser.exe` remained
-`238d5d6fd5e373b052c484ceab90698f6dc295205a59be6573f9928b01db4f42`. Full MKTTool verification
-passed 120 files / 1165 tests plus typecheck, lint, and production build; all required MKT Browser
-guards passed, with packaging now 8/8. Clean standard-user install, reboot, and uninstall remain
-unverified human gates; the live Relay and Browser on this machine were not stopped or modified.
-
----
-
-## 12/08/2026 (6) — the Windows installer now produces an application that starts
-
-The first NSIS installer built from the existing configuration installed cleanly and then died on
-its first database call, showing a startup error dialog with no log. The directory package used for
-every gate so far was unaffected, which is why nothing had caught it.
-
-Cause: `electron-builder.yml` sets `npmRebuild: false`, so electron-builder packages whichever
-`better-sqlite3` build is already on disk. After a normal `yarn install` that is the Node-ABI copy,
-and Electron cannot load it. `package-windows-directory.cjs` had always run `@electron/rebuild`
-against the pinned Electron version first; `build:win` called `electron-builder` directly and
-skipped it. Two Windows artifacts, one of them silently broken.
-
-The packaging pipeline now lives in `package-windows.cjs` with two thin entry points, so no Windows
-artifact can be produced without the Electron-ABI rebuild. The installer writes to
-`release/installer/` because electron-builder stages an unpacked tree that would otherwise overwrite
-the directory package whose SHA-256 the MKB-02 gate result cites. `build:win` runs the Node version
-guard and the installer packager instead of electron-builder. `productIdentity` now asserts that both
-entry points delegate to the shared pipeline and that `build:win` never invokes electron-builder —
-the check that would have caught this.
-
-Verified by running it, not only by tests. The installer builds, installs per-user without UAC,
-starts, and drives the whole Web → Relay → MKT Browser chain with contract version `3` and all six
-capabilities — the first time the real release artifact rather than the technical package has done
-so. Uninstall removes the directory, registry entry, and Start Menu shortcut while `profiles.db` and
-the MCP token survive, which is the MKB-03B requirement that uninstall preserves profiles. Node
-guard 2/2, W02 8/8, MKB-01 8/8, MKB-01E 7/7, MKB-02 18/18, Windows packaging guards 3/3, typecheck,
-and packaged runtime/lifecycle verification all pass. Rebuilding the directory package through the
-refactored path reproduces it byte for byte at
-`238d5d6fd5e373b052c484ceab90698f6dc295205a59be6573f9928b01db4f42`.
-
-`build:mac` and `build:linux` still call electron-builder directly and carry the same defect. They
-are MKB-07 and off the critical path and cannot be tested from Windows, so they were left alone —
-but the Intel/arm64 packaging incident that shipped a wrong-architecture binary was this same class
-of fault, so MKB-07 must fix them before producing any macOS artifact.
-
-Two smaller gaps recorded while testing: the uninstall entry has an empty `Publisher` field, and the
-installer creates no autostart entry. Both belong to MKB-03.
-
----
-
-## 12/08/2026 (5) — v1 ships unsigned; the MKB-03 gate now allows one announced SmartScreen prompt
-
-The owner decided not to buy a Windows code-signing certificate. v1 is for five or six known internal
-operators on machines the project already administers, so the recurring cost is not justified.
-
-The MKB-03 gate previously forbade a SmartScreen bypass. That clause is withdrawn and replaced: the
-artifact is unsigned, exactly one SmartScreen click-through is permitted, and the setup journey must
-show the operator what the prompt looks like and where to click **before** it appears. An operator
-who has to ask what the warning means still fails the gate.
-
-Release authority does not change. It was always carried by the project's own offline manifest root
-key rather than by Authenticode, so the signed compatibility manifest, sequence pinning,
-anti-downgrade state, rollback floor, and delegated-key rotation stand exactly as specified. The
-publisher check against the installer binary is dropped, which means the manifest root is now the
-only source of release authority and its private key must stay offline and out of CI.
-
-The recorded gap: the installer binary is backed only by a checksum served from the same host as the
-artifact, so a compromised release host could hand a brand-new device a different installer before
-any local state is pinned. Everything after that first install remains covered by the manifest
-chain. An internal PKI was considered and rejected — pushing a private root to six unmanaged
-WORKGROUP machines needs an administrator on each one and still would not clear SmartScreen, so it
-adds operator friction without removing the wall.
-
-Updated the MKT Browser plan (installer, section 8.4 update authority, section 10 release gates,
-MKB-03A/03B, the MKB-03 gate, v1 measures, and the completion checklist), the roadmap delivery
-target, blocker table and budget, and the product overview decisions. Revisit if distribution ever
-reaches beyond the known team.
-
----
-
-## 12/08/2026 (4) — MKB-02 closes with managed controls, correlated diagnostics, and live device health
-
-Completed MKB-02 across MKT Browser, Relay, and MKTTool. Browser contract version `3` now advertises
-`managed-profile-v1` and `operation-diagnostics-v1` alongside idempotent create and atomic launch.
-Ticket `jti` is preserved as `operationId`, create keeps its retry-stable `requestId`, and only
-sanitized stage, code, duration, and runtime versions cross the local layers. Correlation mismatches
-fail closed. Proxy endpoints/credentials, tickets, cookies, page content, external references, and
-fingerprint seeds are excluded from diagnostics, activity summaries, and MCP proxy summaries.
-
-The discovered HTTP token is profile-management only. Page-control, page-read, cookie, and raw-CDP
-tools are absent from `tools/list` and rejected from `tools/call`; this build issues no page-control
-token. Managed profiles show a locked state and cannot be directly launched, deleted, exported, or
-have proxy/fingerprint changed through ordinary UI, command-palette, IPC, or MCP paths. Atomic
-managed launch remains the only permitted proxy update path.
-
-Relay v7 is required for both managed create and launch. Relay health now evaluates the live Browser,
-contract, engine, and required capabilities on the current PC; profile list/create/launch stop until
-that local runtime is operational. The Web setup surface reports `Ready` only from current local
-evidence and otherwise shows an actionable repair state. Operation support detail is expandable on
-create and launch results.
-
-Verification passed: MKT Browser MKB-02 18/18, all desktop main tests 25/25, typecheck, Windows
-directory build, and packaged contract/lifecycle; MKTTool focused managed-flow tests 8 files/80 tests,
-full suite, typecheck, ESLint, and production build. The packaged executable is unsigned and has
-SHA-256 `238d5d6fd5e373b052c484ceab90698f6dc295205a59be6573f9928b01db4f42`.
-MKB-03 signing/onboarding/update work and the MKB-04 pilot/canary gates still block distribution and
-real accounts.
-
----
-
-## 12/08/2026 (3) — MKT Browser contract v2 launches profiles atomically
-
-Completed the atomic-launch slice of MKB-02 across MKT Browser, MKTTool, and Relay. MKT Browser now
-exposes `launch_managed_profile` and advertises `atomic-launch-v1` under contract version `2`. The
-operation persists and reads back the requested proxy before launch. If the profile is already
-running, it returns the existing session only when the active proxy matches; a mismatch returns
-`PROFILE_ALREADY_RUNNING` without changing or relaunching that session.
-
-MKTTool supports contract versions `1` and `2`. Relay prefers the atomic operation, uses the legacy
-`update_profile` then `launch_profile` sequence only when the atomic tool is absent, and never falls
-back after an atomic rejection. The cross-repository smoke contract now requires and exercises the
-atomic capability.
-
-Packaged Windows verification also closed a lifecycle defect where Chrome handed off from its
-launcher PID to the real browser PID. Process discovery now follows the exact `--user-data-dir`,
-selects the live Windows process, and cleans up when CDP disappears. A per-profile launch lock also
-prevents concurrent requests from replacing a verified proxy before Chromium starts. Verification
-passed: MKB-02 12/12, focused MKTTool atomic/contract tests 53/53, both full project verification
-sets, and the packaged lifecycle with zero disposable Chrome processes remaining. The unsigned
-executable SHA-256
-is `4253401aa1a59995f30d2d49a5875a5b705453c751c008b1e5437ce19d99e37b`.
-
-MKB-02 remains open for correlated stage diagnostics, token capability separation, managed-control
-locking, current-device health, and remaining cross-repository coverage.
-
----
-
-## 12/08/2026 (2) — Relay discovers the MKT Browser token without operator copy/paste
-
-Completed the Windows MCP-token discovery slice of MKB-02. Relay now validates and reads the bearer
-token from `%LOCALAPPDATA%\MKTTool\MKTBrowser\mcp-token` on demand. If MKT Browser creates the token
-after Relay has already started, the next status or profile request sees it without a Relay restart.
-The adapter is rebuilt if the token changes, and readiness caching is bound to the token that was
-actually probed.
-
-The Relay status page no longer asks an ordinary operator to reveal or copy the token. It reports
-whether access was discovered automatically, supplied by a development override, or is still absent.
-`mktBrowserToken` remains supported in `relay-config.json` only for disposable/custom development
-data roots and must be a 64-character hexadecimal token.
-
-Verification passed: all Relay tests 156/156, focused discovery/lifecycle tests 45/45, typecheck,
-lint, and `git diff --check`.
-
----
-
-## 12/08/2026 (1) — Relay endpoints gain a default-deny exposure inventory
-
-Completed the MKTTool-owned Relay inventory slice of MKB-02. Every owned JSON endpoint now declares
-one allowed HTTP method and one reviewed capability class in a typed registry. The production route
-table can no longer add or omit a contract endpoint without a TypeScript failure, and a wrong method
-returns `405` before the endpoint handler reads a body or performs work.
-
-This closes the HTTP-surface inventory only. It does not claim token capability separation, atomic
-profile launch, cross-layer operation diagnostics, or cross-repository contract completion.
-
-Verification passed: all Relay tests 149/149, focused route/inventory tests 15/15, typecheck, lint,
-and `git diff --check`.

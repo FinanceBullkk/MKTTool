@@ -25,7 +25,10 @@
 import { verify } from "node:crypto";
 import type { KeyObject } from "node:crypto";
 import { openSealedPayload } from "./ticket-sealed-box";
-import type { TicketReplayGuard } from "./ticket-replay-guard";
+import {
+  ReplayJournalUnavailableError,
+  type TicketReplayGuard,
+} from "./ticket-replay-guard";
 import { TICKET_FORMAT_VERSION, TICKET_KINDS, type TicketEnvelope, type TicketKind } from "./ticket-types";
 
 export type TicketRejectionCode =
@@ -37,6 +40,7 @@ export type TicketRejectionCode =
   | "EXPIRED"
   | "WRONG_DEVICE"
   | "ALREADY_USED"
+  | "JOURNAL_UNAVAILABLE"
   | "UNSEALABLE";
 
 export class TicketRejected extends Error {
@@ -200,11 +204,23 @@ export function verifyTicket(
 
   // Tiêu vé SAU mọi phép kiểm khác: đánh dấu rồi mới phát hiện vé quá hạn thì một tấm vé hợp lệ
   // trùng jti — dù xác suất bằng không với UUID v4 — sẽ bị chặn oan mà không ai hiểu vì sao.
-  if (!relay.replayGuard.consume(envelope.jti, envelope.exp, now)) {
-    throw new TicketRejected(
-      "ALREADY_USED",
-      "Vé này đã dùng rồi. Mỗi lần bấm chỉ đổi được một lần.",
-    );
+  try {
+    if (!relay.replayGuard.consume(envelope.jti, envelope.exp, now)) {
+      throw new TicketRejected(
+        "ALREADY_USED",
+        "Vé này đã dùng rồi. Mỗi lần bấm chỉ đổi được một lần.",
+      );
+    }
+  } catch (error) {
+    if (error instanceof TicketRejected) throw error;
+    if (error instanceof ReplayJournalUnavailableError) {
+      throw new TicketRejected(
+        "JOURNAL_UNAVAILABLE",
+        "Sổ chống dùng lại của Relay không ghi bền vững được. Vé chưa được nhận; giữ nguyên file journal và sửa quyền đĩa rồi thử lại.",
+        { cause: error },
+      );
+    }
+    throw error;
   }
 
   try {

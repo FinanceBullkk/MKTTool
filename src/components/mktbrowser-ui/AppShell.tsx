@@ -16,8 +16,9 @@ export function AppShell({
   runningProfiles?: number;
   /**
    * Bắt buộc, và KHÔNG có giá trị mặc định — mặc định ở đây từng là chuỗi cứng
-   * `"Relay v15 (MSI)"`, tức mọi trang quên truyền đều báo một bản cầu nối có thật cho một
-   * chiếc máy không có thật. Dựng nhãn bằng `relayStatusLabel()`.
+   * `"Relay v15 (MSI)"` (**historical**, không phải candidate hiện tại), tức mọi trang quên
+   * truyền đều báo một bản cầu nối có thật cho một chiếc máy không có thật. Dựng nhãn bằng
+   * `relayStatusLabel()` để chỉ hiện phiên bản máy đã khai báo.
    */
   relayName: string;
   sessionBadge?: ReactNode;

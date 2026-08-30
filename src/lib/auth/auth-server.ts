@@ -26,6 +26,7 @@ import { prismaAdapter } from "better-auth/adapters/prisma";
 import { APIError } from "better-auth/api";
 import { prisma } from "../db/prisma-client";
 import { isEmailAllowed, readEmailAccessList, roleForEmail } from "./allowed-emails";
+import { readTrustedProxyConfig } from "./trusted-proxy-config";
 
 /**
  * Đọc một biến bắt buộc, thiếu thì dừng kèm chỉ dẫn.
@@ -56,6 +57,14 @@ function requiredEnv(name: string, huong_dan: string): string {
  */
 let cachedAuth: ReturnType<typeof createAuth> | null = null;
 
+/** Exported for the two-process Postgres probe; production uses this exact immutable contract. */
+export const AUTH_RATE_LIMIT = {
+  enabled: true,
+  storage: "database",
+  window: 10,
+  max: 100,
+} as const;
+
 /** Lấy thể hiện Better Auth, dựng ở lần gọi đầu rồi dùng lại. */
 export function getAuth(): ReturnType<typeof createAuth> {
   cachedAuth ??= createAuth();
@@ -63,8 +72,34 @@ export function getAuth(): ReturnType<typeof createAuth> {
 }
 
 function createAuth() {
+  const proxyConfig = readTrustedProxyConfig();
   return betterAuth({
     database: prismaAdapter(prisma, { provider: "postgresql" }),
+
+    /** Keep counters durable across restarts and Railway replicas. */
+    rateLimit: AUTH_RATE_LIMIT,
+
+    /**
+     * Only explicitly configured proxy headers are considered. With no CIDR,
+     * Better Auth accepts a single forwarded address and rejects multi-hop
+     * chains; a production deployment must record exact edge CIDRs before
+     * enabling a multi-hop list.
+     */
+    advanced: {
+      ipAddress: proxyConfig,
+      /**
+       * Cookie phiên: `httpOnly` để JavaScript không đọc được, `sameSite: lax` để chặn CSRF
+       * mà vẫn quay về được sau khi Google chuyển hướng.
+       *
+       * `secure` bật theo production: trên Railway là HTTPS nên bắt buộc, còn máy dev chạy
+       * `http://localhost` thì cookie `secure` sẽ không bao giờ được gửi đi.
+       */
+      defaultCookieAttributes: {
+        httpOnly: true,
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production",
+      },
+    },
 
     /**
      * Khóa ký cookie phiên. Đổi khóa này là đăng xuất toàn bộ team — đó cũng là cách
@@ -162,19 +197,5 @@ function createAuth() {
       updateAge: 60 * 60 * 24,
     },
 
-    advanced: {
-      /**
-       * Cookie phiên: `httpOnly` để JavaScript không đọc được, `sameSite: lax` để chặn CSRF
-       * mà vẫn quay về được sau khi Google chuyển hướng.
-       *
-       * `secure` bật theo production: trên Railway là HTTPS nên bắt buộc, còn máy dev chạy
-       * `http://localhost` thì cookie `secure` sẽ không bao giờ được gửi đi.
-       */
-      defaultCookieAttributes: {
-        httpOnly: true,
-        sameSite: "lax",
-        secure: process.env.NODE_ENV === "production",
-      },
-    },
   });
 }

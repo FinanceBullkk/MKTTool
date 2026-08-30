@@ -38,7 +38,12 @@ export const ROUTE_GUARDS = [
  * Thêm đường vào danh sách này là một quyết định phải giải thích được ngay tại đây, không
  * phải cách làm cho test xanh.
  */
-export const UNGUARDED_ROUTES_BY_DESIGN = ["src/app/api/auth/[...all]/route.ts"] as const;
+export const UNGUARDED_ROUTES_BY_DESIGN = [
+  "src/app/api/auth/[...all]/route.ts",
+  // Railway must be able to probe readiness before a user has a session. The endpoint returns
+  // only a bounded status/check summary and has no account, proxy, ticket, or secret data.
+  "src/app/api/healthz/route.ts",
+] as const;
 
 /**
  * Lối vào CHƯA gác — **đã rỗng từ 05/08/2026**.

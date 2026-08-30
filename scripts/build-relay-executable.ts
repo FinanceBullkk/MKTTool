@@ -330,16 +330,34 @@ run("powershell", [
  * không khai `"type": "module"`), mà CJS thì không có `await` ở cấp cao nhất.
  */
 async function printSummary(): Promise<void> {
-  const hash = createHash("sha256");
-  for await (const chunk of createReadStream(ARCHIVE_FILE)) {
-    hash.update(chunk as Buffer);
-  }
-  const checksum = hash.digest("hex");
+  const checksumOfFile = async (file: string): Promise<string> => {
+    const hash = createHash("sha256");
+    for await (const chunk of createReadStream(file)) hash.update(chunk as Buffer);
+    return hash.digest("hex");
+  };
+  const checksum = await checksumOfFile(ARCHIVE_FILE);
+  const executableChecksum = await checksumOfFile(EXECUTABLE_FILE);
   const sizeBytes = statSync(ARCHIVE_FILE).size;
+  const executableSizeBytes = statSync(EXECUTABLE_FILE).size;
+  let sourceCommit: string | undefined;
+  try {
+    sourceCommit = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim();
+  } catch {
+    // A source archive without .git still has useful artifact hashes; provenance remains explicit
+    // as absent in the sidecar rather than guessed from a path.
+  }
   writeRelayArtifactMetadata(DIST_DIR, {
     version: RELAY_VERSION,
     sizeBytes,
     sha256: checksum,
+    executableSizeBytes,
+    executableSha256: executableChecksum,
+    ...(sourceCommit ? { sourceCommit } : {}),
+    nodeVersion: process.version,
+    platform: process.platform,
+    arch: process.arch,
+    webOrigin: normalizedOrigin,
+    compatibilityFloor,
   });
 
   console.log(`\n✅ ${path.relative(process.cwd(), ARCHIVE_FILE)} — ${sizeOf(ARCHIVE_FILE)}`);
@@ -352,6 +370,7 @@ async function printSummary(): Promise<void> {
   // `readRelayRelease()` không tham số sẽ đi hỏi R2 và in ra mã băm của gói ĐANG nằm trên đó —
   // tức mã của bản trước. Đã in nhầm thật một lượt: hai bản khác nhau ra cùng một chuỗi.
   console.log(`   SHA-256: ${checksum}`);
+  console.log(`   EXE SHA-256: ${executableChecksum}`);
   console.log(`
 Nghiệm thu ngay: npm run relay:verify
 

@@ -219,7 +219,7 @@ export function Constellation({
           />
           <span className="truncate text-neutral-300">
             {checkingLocal && localReadiness.state === "checking"
-              ? "Checking local browser readiness..."
+              ? "Checking local browser technical conditions..."
               : localReadiness.message}
           </span>
         </div>
@@ -242,9 +242,10 @@ export function Constellation({
             🎬
           </div>
           <h3 className="text-sm font-semibold text-white">No profiles yet</h3>
-          <p className="mt-1 text-xs text-neutral-400 max-w-sm">
-            Select <strong>&quot;New profile&quot;</strong> to create an isolated browser profile with
-            its assigned proxy.
+          <p className="mt-1 max-w-sm text-xs text-neutral-400">
+            Select <strong>&quot;New profile&quot;</strong> to create a profile-local browser workspace
+            with its assigned proxy. Identity isolation is not yet proven; keep use to one profile
+            and human-controlled login/input.
           </p>
           <button
             type="button"

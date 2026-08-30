@@ -66,4 +66,16 @@ describe("hợp đồng sàn coverage đường trọng yếu", () => {
     expect(read("package.json")).toContain('"test:critical-coverage": "vitest run --coverage"');
     expect(read(".github/workflows/ci.yml")).toContain("run: npm run test:critical-coverage");
   });
+
+  it("routes CI jobs only to approved self-hosted runner pools", () => {
+    const workflow = read(".github/workflows/ci.yml");
+    expect(workflow).not.toMatch(/\b(?:ubuntu|windows|macos)-latest\b/i);
+
+    const runsOn = [...workflow.matchAll(/^\s*runs-on:\s*(.+)$/gm)].map((match) => match[1]);
+    // `check`, `contracts`, `secret-scan`, and post-merge deployment verification are Linux
+    // lanes; the packaged Relay acceptance job is the single Windows lane.
+    expect(runsOn).toHaveLength(5);
+    expect(runsOn.filter((value) => value === "[self-hosted, Linux, X64]")).toHaveLength(4);
+    expect(runsOn.filter((value) => value === "[self-hosted, Windows, X64]")).toHaveLength(1);
+  });
 });

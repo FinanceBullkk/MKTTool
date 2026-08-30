@@ -56,6 +56,7 @@ import { resolveRelayHome } from "./relay-home";
 import type { RelayIdentity } from "../../src/lib/tickets/ticket-verifier";
 import { publicKeyFromHex } from "../../src/lib/tickets/server-signing-key";
 import { buildRelayIdentity } from "./relay-identity";
+import { SpentTicketJournalError } from "./spent-ticket-journal";
 import { renderStatusPage } from "./relay-status-page";
 import { SECRET_REVEAL_PATH, renderSecretPage } from "./secret-page";
 import { migrateRelaySecrets } from "./secret-migration";
@@ -117,9 +118,12 @@ function loadState(
   let identity: RelayIdentity | null = null;
   if (config) {
     try {
-      identity = buildRelayIdentity(config, keypair.privateKey);
+      identity = buildRelayIdentity(config, keypair.privateKey, home);
     } catch (error) {
-      problems.push({ field: "serverPublicKey", message: (error as Error).message });
+      problems.push({
+        field: error instanceof SpentTicketJournalError ? "spentTicketJournal" : "serverPublicKey",
+        message: (error as Error).message,
+      });
     }
   }
 
@@ -176,9 +180,14 @@ async function main(): Promise<void> {
     () => readOperatorGrantState(secureStore)?.generation ?? null,
   );
 
-  const notConfiguredMessage = (): string =>
-    `Cầu nối trên máy này chưa cấu hình xong (${state.problems.length} mục còn thiếu). ` +
-    `Mở ${RELAY_ORIGIN} trên máy đó để xem thiếu gì.`;
+  const notConfiguredMessage = (): string => {
+    const journalProblem = state.problems.find((problem) => problem.field === "spentTicketJournal");
+    if (journalProblem) return journalProblem.message;
+    return (
+      `Cầu nối trên máy này chưa cấu hình xong (${state.problems.length} mục còn thiếu). ` +
+      `Mở ${RELAY_ORIGIN} trên máy đó để xem thiếu gì.`
+    );
+  };
 
   /** Nạp lại sau khi file cấu hình đổi, rồi nói ra hiện trạng — kể cả khi vẫn còn thiếu. */
   function reloadConfig(): { ok: boolean; message: string } {
@@ -435,6 +444,17 @@ async function main(): Promise<void> {
   });
 
   await listenOnLoopback(server);
+
+  // The packaged smoke harness sends SIGTERM between restart legs. Close the listener before
+  // exiting so the process does not leave a half-open port while its journal is already durable.
+  let shuttingDown = false;
+  const shutdown = (): void => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    server.close(() => process.exit(0));
+  };
+  process.once("SIGTERM", shutdown);
+  process.once("SIGINT", shutdown);
 
   // Những dòng này chỉ có người chạy tay từ cửa sổ lệnh mới đọc — người dùng thật đọc trang
   // trạng thái. Nên in đúng thứ giúp được lúc cài: địa chỉ để mở, và khóa để chép.
