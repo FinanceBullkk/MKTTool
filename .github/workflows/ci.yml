@@ -106,6 +106,9 @@ jobs:
     env:
       # CI-only disposable service credentials. They are not production credentials and are never
       # passed on a command line; the contracts runner forwards them only to child processes.
+      # Prisma runs during `npm ci`/postinstall and requires DATABASE_URL even though the contract
+      # helper receives its dedicated connection through CONTRACTS_DATABASE_URL.
+      DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/postgres"
       CONTRACTS_DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/postgres"
       TEST_DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/postgres"
 
