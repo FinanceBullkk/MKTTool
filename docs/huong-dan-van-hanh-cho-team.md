@@ -1,6 +1,6 @@
 # Hướng dẫn vận hành cho team
 
-**Cập nhật:** 29/08/2026 | Dành cho **người dùng công cụ**, không phải người cài nó
+**Cập nhật:** 30/08/2026 | Dành cho **người dùng công cụ**, không phải người cài nó
 
 > File này là thứ bạn đọc để *dùng*. Cài đặt, biến môi trường, cách dựng máy chủ nằm ở
 > [README.md](../README.md) — đó là việc của ADMIN, bạn không cần mở.
@@ -20,11 +20,12 @@ danh sách cho phép: nhắn ADMIN, đừng thử lại nhiều lần.
 | Bạn làm | Phải cài gì trên máy | Đọc mục nào |
 |---|---|---|
 | **Fanpage + viết content** | **Không cài gì cả**, chỉ cần Chrome | 1 → 2 → 3 → 4 → 6 |
-| **Reddit / TikTok browser profiles** | MKT Browser + Relay, owner/ADMIN-led installation only | all identity/profile sections |
+| **Reddit / TikTok browser profiles** | MKT Browser + Relay, controlled owner/ADMIN-led technical pilot only | profile and manual-input sections |
 
 Fanpage posts through the official Graph API. Reddit still uses a human posting flow. TikTok currently
-supports account creation, proxy/device readiness, managed profile launch, manual login, and manual
-browsing only; its content, queue, warmup, and posting automation are parked.
+supports account/profile configuration, proxy/device checks, managed profile launch, manual login, and
+manual browsing only; its content, queue, warmup, and posting automation are parked. None of these
+local checks proves browser identity isolation.
 
 ---
 
@@ -132,11 +133,13 @@ thẻ "Đăng tay". Dòng job có nút **"Copy nội dung"** (group chỉ có m�
 
 ---
 
-## 5. Browser-backed accounts — Reddit posting and TikTok manual use
+## 5. Browser-backed accounts — Reddit manual posting and TikTok technical profile use
 
 The Reddit posting steps remain below. For TikTok, create or select the profile from the main profile
 console, open it through Relay, complete login manually, and browse manually. Do not create TikTok
 jobs in `/queue`: TikTok is not a posting target and the current profile UI is not rollout approval.
+Treat the profile as a disposable technical workspace; identity isolation and real-account use are
+not approved.
 
 ### Trước khi bắt đầu: cầu nối phải đang chạy
 
@@ -160,19 +163,20 @@ Mọi việc khác vẫn chạy bình thường khi cầu nối tắt — kể c
 
 ### Current installation gate
 
-The current internal-beta package is MKT Browser `0.3.12` with pinned Relay v15. It is published in
-the authenticated `/setup` flow for a **controlled, admin-led Windows x64 beta**: one profile at a
-time, one static proxy per browser-backed account, and human-controlled login/posting. The exact
-SHA-256 and the remaining rollout gates are in [internal-beta-release.md](internal-beta-release.md).
+The next internal candidate is MKT Browser `0.3.13` with bundled Relay v16. It remains a **draft,
+not published**, until the exact installer/provenance and release-authority gates close. The
+immutable Relay v16 object has been read back and hash-verified; the old `0.3.12`/v15 installer is
+quarantined historical evidence and must not be patched or reused.
 
-Open `/setup`, confirm the detected PC, wait for ADMIN approval/key delivery, and stay on that page
-until it reports `Ready`. Download only the installer shown there; expect the announced SmartScreen
-warning because the binary is unsigned. Operators must never handle Relay/MCP tokens, ports,
-archives, checksums, raw operator keys, or `.env` values.
+Open `/setup`, confirm the detected PC, and wait for ADMIN approval/key delivery. Download only a
+complete installer tuple shown there; if metadata is missing, the control must remain disabled and
+show **unpublished**. A technical-check result is not identity or production approval. Operators
+must never handle Relay/MCP tokens, ports, archives, checksums, raw operator keys, profile folders,
+or `.env` values.
 
-The beta does not authorize unattended automation or broad Reddit/TikTok real-account rollout. If a
-proxy, engine, contract, or licence check is not `Ready`, stop and contact ADMIN instead of opening
-another profile or changing the proxy locally.
+The beta does not authorize unattended automation or broad Reddit/TikTok real-account rollout. Keep
+one profile active at a time. If a proxy, engine, contract, metadata, or licence check is not
+available, stop and contact ADMIN instead of opening another profile or changing the proxy locally.
 
 ### Bốn bước đăng một bài
 
@@ -400,7 +404,7 @@ hướng khác.
 
 | Mã | Nghĩa thật | Làm gì |
 |---|---|---|
-| **76** | The selected licence key has no free session | Close another profile. MKT Browser may try another configured key, but current capacity is not vendor-authoritative; if none is available, wait for the vendor hold to clear instead of reinstalling or repeatedly launching |
+| **76** | The selected licence key has no free session | Close the running profile and wait for the single-seat hold to clear; do not open a second profile or rotate keys locally |
 | **77** | Khóa license thiếu, sai, hoặc hết hạn | Kiểm lại khóa ở Cài đặt |
 | **78** | **Không tra được tên miền của máy chủ license** | Gần như luôn là tường lửa chặn UDP 53, không phải mạng hỏng và không phải khóa sai. Xem dưới |
 | **79** | Không ghi được trạng thái license dưới máy | Kiểm quyền thư mục |
@@ -410,8 +414,9 @@ hướng khác.
 Windows, nhưng đường kiểm license không có đường lui nên chết, và báo "không tới được máy chủ".
 Người đọc sẽ đi kiểm mạng và kiểm khóa — cả hai đều đang đúng, nên bế tắc.
 
-**Cách xử:** use the current reviewed desktop build (`0.3.12` at this checkpoint). Builds before
-`0.3.4` had the firewall defect; no old package is a valid rollout substitute.
+**Cách xử:** use the current reviewed desktop candidate (`0.3.13` when its metadata is complete).
+Builds before `0.3.4` had the firewall defect; the quarantined `0.3.12` package is not a rollout
+substitute.
 
 Đóng profile **bằng nút trong ứng dụng**, đừng tắt cứng — tắt cứng để lại phiên treo và mã 76.
 Gói free chỉ **1 phiên**, nên một lần tắt cứng là khoá cả người khác lẫn chính mình trong 10–15 phút.
@@ -426,10 +431,10 @@ Gói free chỉ **1 phiên**, nên một lần tắt cứng là khoá cả ngư�
 | Viết / sửa content | `/content` |
 | Xếp lịch, ghi tương tác, bấm "Đã đăng" | `/queue` |
 | Nick, karma, trạng thái, gỡ cách ly | `/accounts` |
-| Create or open a TikTok managed profile | Main profile console / account detail |
+| Create or open a TikTok technical profile (manual pilot only) | Main profile console / account detail |
 | Kết quả dò shadowban, biểu đồ karma | `/health` |
 | Kết nối Fanpage, kiểm token | `/facebook` |
-| Read local readiness/enrollment; install only after GO | `/setup` |
+| Read local technical checks/enrollment; install only after an explicit release approval | `/setup` |
 | Sổ máy đã đăng ký, phát khóa, thu hồi (ADMIN) | `/relay-devices` |
 
 ---
@@ -442,4 +447,5 @@ Ghi ra để không ai tưởng đã đủ:
       Từ chối — **không** phải để cấp lần đầu. Lần đầu là người cài bấm hộ ngay trong buổi cài máy,
       đừng để người dùng gặp hộp này lần đầu khi ngồi một mình.
 - [ ] Ảnh chụp thẻ "Đăng tay" và checklist luật, để đối chiếu khi đọc mục 2 và 3.
-- [x] TikTok identity/profile scope is documented; posting automation remains explicitly parked.
+- [x] TikTok account/profile scope is documented; posting automation remains explicitly parked and
+      identity isolation is not proven.

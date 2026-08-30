@@ -10,7 +10,7 @@
  * | Bịa | Hậu quả |
  * |---|---|
  * | `type: "MOBILE_4G"` | Cột `type` là `String`, nên giá trị này **ghi được** — trong khi cả kho chỉ hiểu `STATIC_ISP` và `MOBILE`. Hỏng im lặng, chỉ lộ ra lúc đọc |
- * | `country: "VN"` | `Proxy.country` quyết định ngôn ngữ và múi giờ của **vân tay** (xem `profile-fingerprint-plan.ts`). IP Mỹ mà vân tay Việt Nam là đúng thứ nền tảng dò |
+ * | `country: "VN"` | `Proxy.country` quyết định ngôn ngữ và múi giờ của **cấu hình profile** (xem `profile-fingerprint-plan.ts`). IP Mỹ với locale Việt là cấu hình cần kiểm tra, không phải identity proof |
  * | `protocol: "http"` | Proxy socks5 bị ghi sai giao thức, và cấu hình sai đó đi thẳng vào profile antidetect |
  *
  * Đi qua schema thì ba cột đó **phải được khai**, và một giá trị lạ bị chặn ngay thay vì nằm

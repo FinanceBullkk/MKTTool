@@ -2,7 +2,15 @@ import Image from "next/image";
 import { existsSync } from "node:fs";
 import path from "node:path";
 
-export function SmartScreenGuidance({ imagePath }: { imagePath: string }) {
+export function SmartScreenGuidance({
+  imagePath,
+  checksum,
+  exceptionExpiresAt,
+}: {
+  imagePath: string;
+  checksum: string;
+  exceptionExpiresAt: string;
+}) {
   const publicPath = imagePath.startsWith("/") ? imagePath : `/${imagePath}`;
   const exists = existsSync(
     /* turbopackIgnore: true */ path.join(process.cwd(), "public", publicPath.slice(1)),
@@ -14,8 +22,11 @@ export function SmartScreenGuidance({ imagePath }: { imagePath: string }) {
         Windows SmartScreen will appear once
       </p>
       <p className="mt-1 text-sm text-amber-900 dark:text-amber-200">
-        This internal v1 installer is unsigned. When Windows warns you, choose <strong>More info</strong>,
-        then <strong>Run anyway</strong>. Stop if the filename is not the MKT Browser Windows installer.
+        This internal installer is unsigned. Continue only when its SHA-256 is exactly{" "}
+        <code className="break-all">{checksum}</code> and the exception has not passed{" "}
+        <strong>{exceptionExpiresAt}</strong>. Do not disable Defender or SmartScreen. If every value
+        matches, choose <strong>More info</strong>, then <strong>Run anyway</strong>; otherwise stop and
+        report an incident.
       </p>
 
       {exists ? (

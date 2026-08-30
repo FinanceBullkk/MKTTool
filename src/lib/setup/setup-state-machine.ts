@@ -186,7 +186,7 @@ export function setupStateMachine(input: SetupStateMachineInput): SetupStateResu
 
   return result(
     "Ready",
-    { kind: "CONTINUE", label: "Continue to MKTTool", href: "/" },
-    "MKTTool is ready on this PC.",
+    { kind: "CONTINUE", label: "Continue (technical checks passed)", href: "/" },
+    "MKTTool technical checks passed on this PC. Identity isolation and production rollout remain unproven.",
   );
 }

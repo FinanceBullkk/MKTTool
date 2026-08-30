@@ -29,11 +29,11 @@
  *
  * Đã vấp thật 07/08/2026, ngay lượt tạo đầu tiên trên máy thật.
  *
- * ## Vì sao phép chọn vân tay chạy ở TRÌNH DUYỆT
+ * ## Vì sao phép chọn cấu hình profile chạy ở TRÌNH DUYỆT
  *
  * The locale catalog lives in MKT Browser on this machine; the server cannot read it. Therefore
- * `planProfileFingerprint` runs here, shows the operator a preview **before** they click, and sends
- * the result to the server with the ticket request. See the opening comment in
+ * `planProfileFingerprint` runs here, shows the operator a preview of the profile configuration
+ * **before** they click, and sends the result to the server with the ticket request. See the opening comment in
  * `account-profile-actions.ts` for why the server does not validate it again.
  */
 import { useCallback, useEffect, useState } from "react";
@@ -97,7 +97,7 @@ export function AntidetectProfileCard({
    * `profileNameForNick`, không bên nào tự ghép chuỗi.
    */
   platform: string;
-  /** `Proxy.country` của nick. `null` khi chưa gắn proxy — lúc đó chưa dựng vân tay được. */
+  /** `Proxy.country` của nick. `null` khi chưa gắn proxy — lúc đó chưa dựng cấu hình profile được. */
   proxyCountry: string | null;
   proxyLabel: string | null;
 }) {
@@ -252,23 +252,24 @@ export function AntidetectProfileCard({
     <div className="space-y-3">
       {proxyCountry === null ? (
         <p className="text-sm text-amber-700 dark:text-amber-400">
-          Nick chưa gắn proxy nên chưa dựng được vân tay — công cụ căn locale và múi giờ theo quốc
-          gia của proxy. Gắn proxy ở thẻ &quot;Sửa nick&quot; trước.
+          Nick chưa gắn proxy nên chưa dựng được cấu hình profile — công cụ căn locale và múi giờ
+          theo quốc gia của proxy. Gắn proxy ở thẻ &quot;Sửa nick&quot; trước.
         </p>
       ) : plan?.ok ? (
         <>
           <p className="text-sm text-neutral-600 dark:text-neutral-400">
-            This will create a profile with proxy <strong>{proxyLabel}</strong> and fingerprint{" "}
-            <strong>{plan.plan.localeId}</strong> / <strong>{plan.plan.timezone}</strong> /{" "}
-            <strong>{plan.plan.device}</strong>, matched to the proxy country, so you do not need to
-            use &quot;Match proxy&quot; in MKT Browser.
+            This will create a profile with proxy <strong>{proxyLabel}</strong> and locale/timezone
+            settings <strong>{plan.plan.localeId}</strong> / <strong>{plan.plan.timezone}</strong> /{" "}
+            <strong>{plan.plan.device}</strong>, matched to the proxy country. This is a profile
+            configuration convenience, not proof of identity isolation, so you do not need to use
+            &quot;Match proxy&quot; in MKT Browser.
           </p>
           <button type="button" className={BUTTON_CLASS} disabled={busy} onClick={taoProfile}>
             {busy ? "Đang tạo…" : "Tạo profile trên máy này"}
           </button>
           <p className="text-xs text-neutral-500">
-            Tạo xong, nick được ghim luôn vào máy này — profile chỉ tồn tại ở đây nên nó cũng là
-            máy duy nhất mở được nick.
+            Tạo xong, nick được ghim vào máy này — dữ liệu profile được giữ cục bộ và Relay chỉ
+            cho máy được gán mở. Điều đó không chứng minh cô lập danh tính của trình duyệt.
           </p>
         </>
       ) : (

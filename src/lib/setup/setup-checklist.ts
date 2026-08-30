@@ -88,7 +88,7 @@ export async function loadSetupChecklist(): Promise<SetupChecklist> {
       title: "Install MKTTool on team PCs",
       state: devices > 0 ? "done" : "todo",
       status: plural(devices, "active PCs", "No active PC is registered"),
-      why: "A registered PC is required to unlock credentials, create profiles, and launch accounts safely.",
+      why: "A registered PC is required before a managed launch can be attempted; remaining identity, network, and operator gates still apply.",
       href: "/relay-devices",
       linkLabel: "Open the device registry",
     },
@@ -131,7 +131,7 @@ export async function loadSetupChecklist(): Promise<SetupChecklist> {
         accounts.length === 0
           ? "No accounts are available to assign"
           : `${clustered}/${accounts.length} accounts have an owner and PC`,
-      why: "An antidetect profile ID only works on the PC that created it, so every account needs one stable owner and PC.",
+      why: "A profile ID is local to the PC that created it, so every account needs one stable owner and PC; this does not prove identity isolation.",
       href: "/accounts",
       linkLabel: "Review incomplete accounts",
       adminOnly: true,

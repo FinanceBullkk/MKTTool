@@ -1,6 +1,6 @@
 # Kiến trúc hệ thống
 
-**Updated:** 22 August 2026
+**Updated:** 30 August 2026
 
 Tài liệu này trả lời: hệ thống **chạy ở đâu**, **tin ai**, **phụ thuộc gì**, và **hỏng thì hỏng
 thế nào**. Code nằm ở đâu thì tra [codebase-summary.md](codebase-summary.md); thuật ngữ tra
@@ -56,9 +56,10 @@ flowchart LR
 
 Ba đường ra internet đi qua **ba IP khác nhau và không được lẫn**: nick đi bằng proxy tĩnh của chính nó (từ máy bàn), bộ dò đi bằng proxy quan sát viên (từ máy chủ), Graph API đi bằng IP máy chủ. Lẫn đường nào cũng phá đúng thứ nó đang bảo vệ.
 
-TikTok belongs to the browser-identity path, not the posting pipeline. TikTok accounts use the same
+TikTok belongs to the browser-profile path, not the posting pipeline. TikTok accounts use the same
 account → static proxy → managed profile → Relay device ownership boundary as Reddit, but their
-current action is human-controlled profile use only. `TARGET_PLATFORMS` still excludes TikTok, so
+current action is human-controlled profile use only. These ownership and routing controls do not
+prove browser identity isolation. `TARGET_PLATFORMS` still excludes TikTok, so
 the queue, posting rules, warmup, and publishing paths do not silently activate for it.
 
 > **Current W02 boundary:** production Relay constructs `MktBrowserAdapter` and calls the owned
@@ -67,7 +68,7 @@ the queue, posting rules, warmup, and publishing paths do not silently activate 
 > stay on the operator device. There is no MultiZen provider or configuration fallback.
 
 > **Current managed boundary:** contract version `4` advertises idempotent create, atomic launch,
-> managed-profile locking, operation diagnostics, and no MCP profile deletion. Relay v15 preserves
+> managed-profile locking, operation diagnostics, and no MCP profile deletion. Relay v16 preserves
 > ticket `jti` as
 > `operationId`, calls `launch_managed_profile`, and accepts the result only when correlation matches.
 > The Browser persists and reads back the requested proxy before Chromium starts; a running session
@@ -86,7 +87,7 @@ the queue, posting rules, warmup, and publishing paths do not silently activate 
 > entries. `/setup` requires this runtime-dependent capability and routes absence to installer repair;
 > ordinary Relay profile operations retain the base managed-capability requirement.
 
-> **P0 rollout boundary:** automated proxy-egress, lease-journal, and readiness checks are green, but
+> **P0 rollout boundary:** automated proxy-egress, lease-journal, and technical readiness checks are green, but
 > `license-capacity-v1` is not advertised because vendor start/heartbeat/end state is not connected
 > to the journal. Packaged Relay restart and real disposable-VM power-cycle recovery have sanitized,
 > hash-bound evidence; real proxy/DNS/WebRTC completion, the remaining human login/input sessions,
@@ -190,7 +191,7 @@ the retained sequence at or above the secure-store floor.
 | Ảnh chụp lúc dò | `data/screenshots/` | không | Chỉ mất bằng chứng hình ảnh; bản ghi kết luận vẫn còn |
 | Bản sao lưu | Bucket R2 (lượt tự động) + `data/backups/` của máy quản trị | – | Bản sao **cố ý không nằm cùng nhà với bản gốc**: trong container `data/backups/` là ổ tạm, mất theo mỗi lần deploy |
 | File khóa lượt dò | `data/health-check.lock` | – | Trạng thái máy đang chạy, không phải dữ liệu dự án |
-| Profile/cookie/vân tay của nick | Kho cục bộ của app antidetect trên đúng máy operator; target ở Application Support trên Mac hoặc LocalAppData trên Windows | Hiện chưa có sao lưu tập trung; plan MKT Browser chỉ cho export mã hóa và import có kiểm soát | Mất máy có thể mất phiên đăng nhập/profile; thu hồi vé không xóa từ xa dữ liệu đã nằm trên ổ đĩa |
+| Profile/cookie/browser settings của nick | Kho cục bộ của app profile trên đúng máy operator; target ở Application Support trên Mac hoặc LocalAppData trên Windows | Hiện chưa có sao lưu tập trung; plan MKT Browser chỉ cho export mã hóa và import có kiểm soát | Mất máy có thể mất phiên đăng nhập/profile; thu hồi vé không xóa từ xa dữ liệu đã nằm trên ổ đĩa. Local storage is not identity-isolation proof |
 
 Toàn bộ `data/` và `.env` đều nằm trong `.gitignore`. Repo **không bao giờ** chứa credential.
 
@@ -227,10 +228,12 @@ persist/verify/launch operation; the two-call fallback is restricted to older bu
 is absent.
 
 **3. Ràng buộc nghiệp vụ ép ở tầng database, không ở tầng UI.** `antidetectProfileId @unique`,
-`proxyId @unique`, `@@unique([platform, username])` — quy tắc "1 nick = 1 proxy = 1 vân tay"
-không lách được kể cả khi viết sai code ứng dụng. UI chỉ giải thích lỗi cho dễ hiểu.
+`proxyId @unique`, `@@unique([platform, username])` — quy tắc "1 nick = 1 proxy = 1 profile cấu hình"
+không lách được kể cả khi viết sai code ứng dụng. UI chỉ giải thích lỗi cho dễ hiểu; nó không biến
+cấu hình thành bằng chứng cô lập danh tính.
 
-Hệ quả của cả ba: phần khó thay đổi nhất (schema) giữ thứ quan trọng nhất (ràng buộc danh tính),
+Hệ quả của cả ba: phần khó thay đổi nhất (schema) giữ thứ quan trọng nhất (ràng buộc sở hữu và
+đường ra),
 phần dễ thay đổi nhất (file luật) giữ thứ hay đổi nhất (kinh nghiệm vận hành).
 
 ## 7. Vì sao không chọn cái khác

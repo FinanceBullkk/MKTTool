@@ -53,7 +53,7 @@ export default async function AccountsPage() {
     <>
       <PageHeading
         title="Tài khoản"
-        description="Một nick = một proxy = một vân tay. Ràng buộc này do database ép, không thể lách."
+        description="Một nick = một proxy = một profile cấu hình. Database ép ràng buộc này; đây không phải bằng chứng cô lập danh tính."
       />
 
       <Card title={`Danh sách — ${accounts.length} nick`}>
@@ -63,7 +63,7 @@ export default async function AccountsPage() {
           <DataTable
             headers={[
               "Nick",
-              "Sẵn sàng",
+              "Kiểm tra thao tác",
               "Nền tảng",
               "Trạng thái",
               "Giọng viết",

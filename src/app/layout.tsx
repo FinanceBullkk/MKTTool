@@ -17,7 +17,7 @@ const mono = JetBrains_Mono({ subsets: ["latin", "vietnamese"], variable: "--fon
 
 export const metadata: Metadata = {
   title: "MKT Browser / Tool — Multi-Profile Console",
-  description: "Bảng điều khiển quản lý và vận hành profile TikTok & Antidetect",
+  description: "Bảng điều khiển nội bộ cho profile và các thao tác do người vận hành kiểm soát",
 };
 
 /**
@@ -26,8 +26,10 @@ export const metadata: Metadata = {
  * Chưa đăng nhập thì không dựng AppShell, và cũng không hỏi database câu nào. Hai việc đó là
  * một: thanh đầu trang hiện số nick trong kho và tên máy cầu nối, nên dựng nó cho khách là
  * đem hai thứ đó ra ngoài cửa. Đo thật 19/08/2026: mở `/login` lúc đăng xuất thấy
- * `1 total` và `Relay v15 (AnhHao)` — số lượng danh tính và tên máy thật của một người
- * trong đội, cho bất kỳ ai gõ đúng URL.
+ * `1 total` và `Relay v15 (AnhHao)` — một **bản ghi lịch sử** về số lượng profile và tên máy
+ * thật của một người trong đội, không phải trạng thái phát hành hiện tại. Khi đã đăng nhập,
+ * nhãn Relay phải đọc phiên bản máy khai báo; không dùng ví dụ lịch sử này để suy ra identity
+ * isolation hay readiness.
  *
  * Trang `/login` tự lo phần trình bày của nó. Nó cũng không cần rail điều hướng lẫn ô tìm
  * profile — hai thứ dẫn tới chỗ người chưa đăng nhập không vào được.

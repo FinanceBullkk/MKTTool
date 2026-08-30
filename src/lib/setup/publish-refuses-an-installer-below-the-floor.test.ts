@@ -40,7 +40,8 @@ describe("publish-windows-installer", () => {
   it("đòi --relay-version, và không bịa ra số khi thiếu", () => {
     expect(NGUON).toContain('flag("relay-version")');
     // Nằm trong mệnh đề thiếu-tham-số cùng với hai cờ kia, nên quên là không chạy được.
-    expect(NGUON).toMatch(/!filePath \|\| !version \|\| !relayVersionRaw/);
+    expect(NGUON).toMatch(/!filePath \|\| !version \|\| !candidateId \|\| !relayVersionRaw/);
+    expect(NGUON).toContain('flag("candidate-id")');
   });
 
   it("ghi con số đó vào metadata, nếu không thì trang chuẩn bị chẳng đọc được gì", () => {

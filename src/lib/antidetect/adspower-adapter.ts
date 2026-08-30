@@ -179,8 +179,8 @@ export class AdsPowerAdapter implements AntidetectAdapter {
    *
    * AdsPower has its own profile-creation API (`/api/v1/user/create`) and a fingerprint model that
    * differs fundamentally from MKT Browser. It has no equivalent concepts for "locale group" or
-   * "device family", so a direct mapping is unavailable. Inventing an unverified mapping would
-   * reliably produce inconsistent fingerprints.
+   * "device family", so a direct mapping is unavailable. Inventing an unverified mapping could
+   * produce inconsistent profile settings and must stay blocked.
    *
    * Trả mảng rỗng thì giao diện sẽ hiện "máy này chưa có profile nào" — một câu **nói dối**, và
    * người dùng sẽ đi tạo profile mới trong khi kho của họ đầy. Ném lỗi thì họ đọc được đúng lý do.

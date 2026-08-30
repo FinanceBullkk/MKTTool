@@ -1,10 +1,9 @@
 import { readActor } from "@/lib/auth/require-actor";
 import { loadSetupChecklist } from "@/lib/setup/setup-checklist";
 import { readWindowsInstallerRelease } from "@/lib/setup/windows-installer-release";
-import { formatFileSize } from "@/lib/relay/relay-release-file";
 import { RelayEnrollCard } from "@/components/relay/relay-enroll-card";
 import { WorkspaceSetupChecklist } from "@/components/setup/workspace-setup-checklist";
-import { OnboardingStepper } from "@/components/setup/onboarding-stepper";
+import { OnboardingStepper, type InstallerDisplayMetadata } from "@/components/setup/onboarding-stepper";
 
 export const dynamic = "force-dynamic";
 
@@ -17,18 +16,36 @@ export default async function SetupPage() {
 
   if (!viewer) return null;
 
-  // No invented size: a number with no source is worse than no number, because
-  // it reads as measured. Callers render the label only when this is non-null.
-  const size =
-    installer.available && installer.sizeBytes ? formatFileSize(installer.sizeBytes) : null;
   const downloadUrl = "/api/setup/windows-installer";
+  const installerRelease: InstallerDisplayMetadata = {
+    available: installer.available,
+    metadataComplete: installer.metadataComplete,
+    metadataMissing: installer.metadataMissing,
+    sizeBytes: installer.sizeBytes ?? null,
+    version: installer.version,
+    checksum: installer.checksum,
+    bundledRelayVersion: installer.bundledRelayVersion,
+    bundledRelaySha256: installer.bundledRelaySha256,
+    payloadManifestSha256: installer.payloadManifestSha256,
+    payloadFileCount: installer.payloadFileCount,
+    candidateId: installer.candidateId,
+    browserSourceSha: installer.browserSourceSha,
+    browserSourceTree: installer.browserSourceTree,
+    engineKind: installer.engineKind,
+    engineChannel: installer.engineChannel,
+    engineVersion: installer.engineVersion,
+    engineSha256: installer.engineSha256,
+    signingStatus: installer.signingStatus,
+    signingExceptionExpiresAt: installer.signingExceptionExpiresAt,
+  };
 
   return (
     <OnboardingStepper
       viewer={{ userId: viewer.userId, email: viewer.email, isAdmin: viewer.role === "ADMIN" }}
       checklist={checklist}
       installerDownloadUrl={downloadUrl}
-      installerSize={size}
+      installerRelease={installerRelease}
+      installerEvidenceHref="/api/release/provenance"
       enrollCard={
         <RelayEnrollCard
           viewer={{ userId: viewer.userId, email: viewer.email, isAdmin: viewer.role === "ADMIN" }}

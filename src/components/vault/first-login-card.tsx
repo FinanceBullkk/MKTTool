@@ -5,8 +5,8 @@
  *
  * ## Vì sao có một thẻ riêng cho một việc không có nút bấm nào của riêng nó
  *
- * The "Create profile on this machine" button creates a **clean** browser with a proxy and
- * fingerprint but no cookies. Previously this state did not exist: operators created profiles
+ * The "Create profile on this machine" button creates a **new local** browser profile with a proxy
+ * and profile settings but no cookies. Previously this state did not exist: operators created profiles
  * manually in MKT Browser, signed in there, and only then copied the ID into MKTTool, so
  * *"has a profile"* and *"has signed in"* were the same state. They are now separate, and the state
  * between them looks deceptively complete.
@@ -53,19 +53,20 @@ export function FirstLoginCard({
     <div className="space-y-3">
       <p className="text-sm text-neutral-600 dark:text-neutral-400">
         Profile của nick này đã dựng xong nhưng <strong>chưa ai đăng nhập vào nó lần nào</strong> —
-        công cụ tạo ra một trình duyệt trắng, mang sẵn proxy và vân tay, không có phiên đăng nhập
-        nào. Làm nốt bằng ba nút ở thẻ <strong>Thao tác</strong> ngay bên dưới:
+        công cụ tạo ra một trình duyệt trắng, mang sẵn proxy và cấu hình profile, không có phiên
+        đăng nhập nào. Đây là trạng thái cục bộ; nó không chứng minh cô lập danh tính. Làm nốt bằng
+        ba nút ở thẻ <strong>Thao tác</strong> ngay bên dưới:
       </p>
 
       <ol className="ml-5 list-decimal space-y-1 text-sm text-neutral-600 dark:text-neutral-400">
         <li>
-          <strong>Mở profile</strong> — cửa sổ Chromium mang proxy của nick hiện ra
+          <strong>Mở profile</strong> — cửa sổ trình duyệt cục bộ mang proxy của nick hiện ra
         </li>
         <li>
           Vào trang nền tảng và đăng nhập{" "}
           {usesGoogleLogin ? (
             <>
-              bằng nút <em>Continue with Google</em>, lấy bí mật ở nút{" "}
+              bằng nút <em>Continue with Google</em>, tự lấy bí mật ở nút{" "}
               <strong>Mật khẩu Google</strong> và <strong>Mã OTP</strong>
             </>
           ) : (
@@ -83,7 +84,8 @@ export function FirstLoginCard({
 
       <p className="text-xs text-neutral-500">
         Làm ngay đầu cold-start, đừng để tới hôm định đăng bài: đăng nhập lần đầu từ một IP lạ là
-        lúc hay bị đòi xác minh nhất, và lúc đang vội là lúc người ta làm ẩu.
+        lúc hay bị đòi xác minh nhất. Người vận hành phải tự xử lý đăng nhập, OTP và CAPTCHA; công
+        cụ không tự động hóa bước này.
       </p>
 
       {feedback ? (

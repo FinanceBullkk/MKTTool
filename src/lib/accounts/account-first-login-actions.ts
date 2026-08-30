@@ -8,8 +8,8 @@
  *
  * Before 2026-08-07, *"has a profile"* and *"has signed in"* were the same state: operators created
  * profiles manually in MKT Browser, signed in there, and **only then** copied the ID into MKTTool.
- * The "Create profile on this machine" button reverses that order. It creates a clean browser with
- * a proxy and fingerprint but no cookies. This introduces a new state: an account can have every
+ * The "Create profile on this machine" button reverses that order. It creates a clean local browser
+ * with a proxy and profile settings but no cookies. This introduces a new state: an account can have every
  * prerequisite while nobody has signed in yet.
  *
  * Không đánh dấu thì cột "Sẵn sàng" khoe màu xanh cho nick đó, và chuyện chỉ lộ ra vào đúng hôm

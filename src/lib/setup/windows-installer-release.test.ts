@@ -18,6 +18,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 const { readWindowsInstallerRelease, parseBundledRelayVersion } = await import(
   "./windows-installer-release"
 );
+const { parseWindowsInstallerReleaseMetadata } = await import("./windows-installer-release-metadata");
 
 let thuMuc: string;
 const bienCu = process.env.MKT_BROWSER_INSTALLER_PATH;
@@ -47,6 +48,7 @@ describe("readWindowsInstallerRelease — đường đĩa", () => {
     // Đĩa không có chỗ cất số hiệu và mã băm — đó là đường dev, không phải đường phát hành.
     expect(release.version).toBeNull();
     expect(release.checksum).toBeNull();
+    expect(release.metadataComplete).toBe(false);
   });
 
   it("không có file thì nói ra ĐÃ TÌM Ở ĐÂU, không chỉ nói là không có", async () => {
@@ -96,5 +98,64 @@ describe("parseBundledRelayVersion", () => {
     const release = await readWindowsInstallerRelease();
     expect(release.available).toBe(true);
     expect(release.bundledRelayVersion).toBeNull();
+  });
+});
+
+describe("parseWindowsInstallerReleaseMetadata", () => {
+  const complete = {
+    "candidate-id": "20260830-browser-0.3.13-relay-16",
+    "browser-version": "0.3.13",
+    sha256: "a".repeat(64),
+    "bundled-relay-version": "16",
+    "bundled-relay-sha256": "b".repeat(64),
+    "payload-manifest-sha256": "f".repeat(64),
+    "payload-file-count": "130",
+    "browser-source-sha": "c".repeat(40),
+    "browser-source-tree": "d".repeat(40),
+    "engine-kind": "cloakbrowser",
+    "engine-channel": "licensed-channel",
+    "engine-version": "151.0.7922.108.2",
+    "engine-sha256": "e".repeat(64),
+    "signing-status": "unsigned-internal-exception",
+    "signing-exception-expires-at": "2099-01-01T00:00:00.000Z",
+  };
+
+  it("accepts a complete, sanitized release tuple", () => {
+    const parsed = parseWindowsInstallerReleaseMetadata(complete);
+    expect(parsed.metadataComplete).toBe(true);
+    expect(parsed.metadataMissing).toEqual([]);
+    expect(parsed.browserVersion).toBe("0.3.13");
+    expect(parsed.bundledRelayVersion).toBe(16);
+    expect(parsed.signingStatus).toBe("unsigned-internal-exception");
+    expect(parsed.signingExceptionExpiresAt).toBe("2099-01-01T00:00:00.000Z");
+  });
+
+  it("fails closed when any required field is absent or malformed", () => {
+    const parsed = parseWindowsInstallerReleaseMetadata({ ...complete, sha256: "not-a-sha" });
+    expect(parsed.metadataComplete).toBe(false);
+    expect(parsed.metadataMissing).toContain("sha256");
+
+    const noTuple = parseWindowsInstallerReleaseMetadata({});
+    expect(noTuple.metadataComplete).toBe(false);
+    expect(noTuple.metadataMissing.length).toBeGreaterThan(5);
+  });
+
+  it("requires an expiry for the unsigned internal exception", () => {
+    const withoutExpiry = { ...complete } as Record<string, string>;
+    delete withoutExpiry["signing-exception-expires-at"];
+    const parsed = parseWindowsInstallerReleaseMetadata(withoutExpiry, {
+      now: new Date("2030-01-01T00:00:00.000Z"),
+    });
+    expect(parsed.metadataComplete).toBe(false);
+    expect(parsed.metadataMissing).toContain("signing-exception-expires-at");
+  });
+
+  it("blocks an unsigned tuple after its persisted expiry", () => {
+    const parsed = parseWindowsInstallerReleaseMetadata(complete, {
+      now: new Date("2100-01-01T00:00:00.000Z"),
+    });
+    expect(parsed.metadataComplete).toBe(false);
+    expect(parsed.metadataMissing).toContain("expired-signing-exception");
+    expect(parsed.signingExceptionExpiresAt).toBe("2099-01-01T00:00:00.000Z");
   });
 });

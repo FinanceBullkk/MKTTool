@@ -1,5 +1,5 @@
 /**
- * Chọn vân tay cho một profile sắp tạo: **quốc gia proxy quyết định locale**.
+ * Chọn các trường cấu hình profile cho một profile sắp tạo: **quốc gia proxy quyết định locale**.
  *
  * ## This is the MKT Browser "Match proxy" action expressed in code
  *
@@ -20,7 +20,7 @@
  */
 import type { AntidetectFingerprintSpec, FingerprintOptions } from "./antidetect-browser-adapter";
 
-/** Họ thiết bị ưu tiên: khớp hệ điều hành của máy thật để rò rỉ tầng dưới không mâu thuẫn. */
+/** Họ thiết bị ưu tiên: khớp hệ điều hành của máy thật để cấu hình nhất quán hơn; không phải bằng chứng cô lập. */
 const WINDOWS_FAMILY_PREFIX = "windows-";
 
 export type FingerprintPlanFailure =
@@ -64,7 +64,8 @@ export interface FingerprintPlanInput {
 }
 
 /**
- * Dựng bộ vân tay khớp quốc gia proxy.
+ * Dựng các trường locale/timezone/thiết bị khớp quốc gia proxy từ danh mục của nhà cung cấp.
+ * Đây là tiện ích căn cấu hình profile, không phải cam kết vân tay duy nhất hay identity isolation.
  *
  * Không tra được quốc gia thì **trả lỗi chứ không đoán**. Đoán sai locale là dựng ra đúng thứ
  * hàm này sinh ra để tránh, và nó sai âm thầm — người dùng không có cách nào biết cho tới khi
@@ -100,8 +101,8 @@ export function planProfileFingerprint(input: FingerprintPlanInput): Fingerprint
     };
   }
 
-  // Ưu tiên họ Windows; hết thì lấy cả danh mục — thà một vân tay khác hệ điều hành còn hơn
-  // không tạo được gì, và người dùng vẫn đổi được.
+  // Ưu tiên họ Windows; hết thì lấy cả danh mục — thà một cấu hình khác hệ điều hành còn hơn
+  // không tạo được gì, và người dùng vẫn đổi được. Lựa chọn này không chứng minh isolation.
   const windowsFamilies = options.devices.filter((entry) =>
     entry.family.startsWith(WINDOWS_FAMILY_PREFIX),
   );

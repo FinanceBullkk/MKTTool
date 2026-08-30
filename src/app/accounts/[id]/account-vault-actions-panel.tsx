@@ -412,6 +412,12 @@ export function AccountVaultActionsPanel({
         chuyển đi.
       </p>
 
+      <p className="text-xs text-amber-700 dark:text-amber-400">
+        Mở profile chỉ là thao tác cục bộ đã kiểm tra điều kiện kỹ thuật. Người vận hành phải tự
+        đăng nhập, nhập OTP/CAPTCHA và gõ nội dung; công cụ không hứa hẹn cô lập danh tính hay tự
+        động đăng bài.
+      </p>
+
       {!canLaunch ? (
         <p className="text-sm text-red-700 dark:text-red-400">{launchBlockedReason}</p>
       ) : null}
