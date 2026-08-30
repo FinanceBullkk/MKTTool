@@ -69,7 +69,7 @@ export const TICKET_KINDS = {
   OTP: "OTP",
   /** Mở profile antidetect kèm cấu hình proxy dựng sẵn. */
   LAUNCH_PROFILE: "LAUNCH_PROFILE",
-  /** Tạo MỚI một profile antidetect cho nick, kèm proxy và vân tay dựng sẵn. */
+  /** Tạo MỚI một profile antidetect cho nick, kèm proxy và các profile controls dựng sẵn. */
   CREATE_PROFILE: "CREATE_PROFILE",
   /** Prepare one signed compatibility-set activation on the enrolled device. */
   COMPATIBILITY_UPDATE: "COMPATIBILITY_UPDATE",
@@ -188,10 +188,11 @@ export type TicketPayload =
         password?: string;
       };
       /**
-       * Fingerprint expressed as **high-level controls**, matching the shape accepted by MKT Browser `create_profile`.
+       * Provider profile settings expressed as **high-level controls**, matching the shape accepted
+       * by MKT Browser `create_profile`.
        *
-       * It does not describe individual surfaces (UA, client hints, WebGL). MKT Browser derives one
-       * consistent fingerprint from these controls and **rejects inconsistent combinations**
+       * It does not describe individual surfaces (UA, client hints, WebGL). MKT Browser may derive
+       * provider-specific values from these controls and **reject inconsistent combinations**
        * (`INVALID_INPUT`). Measured on 2026-08-07: `localeId: en-US` with
        * `timezone: Europe/London` returned an error listing the four valid timezones. Constructing
        * surfaces here would bypass that protection.
@@ -202,7 +203,10 @@ export type TicketPayload =
         timezone: string;
         screen: { width: number; height: number };
       };
-      /** Hạt giống nhiễu canvas/audio/WebGL — mỗi nick một giá trị, để hai nick không trùng nhiễu. */
+      /**
+       * Hạt giống provider cho canvas/audio/WebGL — mỗi nick một giá trị; không phải bằng chứng
+       * full-surface uniqueness.
+       */
       seed: string;
     }
   | {

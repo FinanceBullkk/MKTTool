@@ -51,7 +51,7 @@ export interface RelayConfig {
 
 /** Một ô cấu hình chưa đúng, kèm câu nói rõ phải làm gì. */
 export interface ConfigProblem {
-  field: keyof RelayConfig | "file";
+  field: keyof RelayConfig | "file" | "spentTicketJournal";
   message: string;
 }
 

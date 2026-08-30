@@ -6,7 +6,11 @@
  */
 import assert from "node:assert/strict";
 import { describe, it } from "vitest";
-import { TicketReplayGuard, type SpentTicketRecord } from "./ticket-replay-guard";
+import {
+  ReplayJournalUnavailableError,
+  TicketReplayGuard,
+  type SpentTicketRecord,
+} from "./ticket-replay-guard";
 
 const NOW = 1_700_000_000_000;
 const LATER = NOW + 30_000;
@@ -63,5 +67,24 @@ describe("TicketReplayGuard", () => {
     const guard = new TicketReplayGuard();
     assert.equal(guard.consume("a", LATER, NOW), true);
     assert.equal(guard.size, 1);
+  });
+
+  it("không đổi trạng thái và khóa hẳn khi ghi bền vững thất bại", () => {
+    let attempts = 0;
+    const guard = new TicketReplayGuard(() => {
+      attempts += 1;
+      throw new Error("fsync failed");
+    });
+
+    assert.throws(
+      () => guard.consume("a", LATER, NOW),
+      (error: unknown) => error instanceof ReplayJournalUnavailableError,
+    );
+    assert.equal(guard.size, 0);
+    assert.throws(
+      () => guard.consume("b", LATER, NOW),
+      (error: unknown) => error instanceof ReplayJournalUnavailableError,
+    );
+    assert.equal(attempts, 1);
   });
 });

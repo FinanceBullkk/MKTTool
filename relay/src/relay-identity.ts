@@ -12,15 +12,15 @@
  * tiêu được hai lần, mỗi lần ở một sổ. Buộc nó vào danh tính là cách làm điều đó mà không cần một
  * biến toàn cục nào.
  *
- * Có `home` thì sổ được nạp lại từ lần chạy trước và ghi tiếp xuống đó; không có `home` thì nó
- * chỉ sống trong bộ nhớ. Test dựng danh tính trực tiếp đi đường thứ hai và không chạm đĩa.
+ * Có `home` thì sổ được nạp lại từ lần chạy trước và ghi bền vững xuống đó; không có `home` thì
+ * nó chỉ sống trong bộ nhớ. Test dựng danh tính trực tiếp đi đường thứ hai và không chạm đĩa.
  */
 import type { KeyObject } from "node:crypto";
 import { publicKeyFromHex } from "../../src/lib/tickets/server-signing-key";
 import { TicketReplayGuard } from "../../src/lib/tickets/ticket-replay-guard";
 import type { RelayIdentity } from "../../src/lib/tickets/ticket-verifier";
 import type { RelayConfig } from "./relay-config";
-import { readSpentTickets, writeSpentTickets } from "./spent-ticket-journal";
+import { ensureSpentTicketJournal, readSpentTickets, writeSpentTickets } from "./spent-ticket-journal";
 import { RELAY_VERSION } from "../../src/lib/relay/relay-endpoints";
 
 /**
@@ -45,22 +45,14 @@ export function buildRelayIdentity(
 }
 
 /**
- * Lỗi ghi sổ không được làm hỏng một lần mở profile.
- *
- * Ghi hỏng nghĩa là lần khởi động sau mất trí nhớ chống dùng lại — đúng bằng tình trạng cũ. Còn
- * ném lỗi lên thì `verifyTicket` đổ, và người vận hành mất đường mở profile vì một cái file. Sổ
- * trong bộ nhớ vẫn bảo vệ nguyên vẹn tiến trình đang chạy, nên ghi log rồi đi tiếp.
+ * Journal bền vững là một phần của danh tính Relay. Lỗi đọc lúc khởi động phải làm trạng thái
+ * không sẵn sàng; lỗi ghi lúc đang chạy được `TicketReplayGuard` chuyển thành từ chối vé.
  */
 function buildReplayGuard(home?: string): TicketReplayGuard {
   if (!home) return new TicketReplayGuard();
 
-  const guard = new TicketReplayGuard((records) => {
-    try {
-      writeSpentTickets(home, records);
-    } catch (error) {
-      console.error(`[relay] spent-ticket journal write failed: ${(error as Error).message}`);
-    }
-  });
+  ensureSpentTicketJournal(home);
+  const guard = new TicketReplayGuard((records) => writeSpentTickets(home, records));
   guard.restore(readSpentTickets(home));
   return guard;
 }

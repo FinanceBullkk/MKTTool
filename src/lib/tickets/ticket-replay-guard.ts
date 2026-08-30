@@ -43,9 +43,18 @@ export interface SpentTicketRecord {
   expiresAt: number;
 }
 
+/** Raised when durable replay state cannot be committed. Callers must reject the ticket. */
+export class ReplayJournalUnavailableError extends Error {
+  constructor(options?: { cause?: unknown }) {
+    super("The spent-ticket journal is unavailable; the ticket was not accepted.", options);
+    this.name = "ReplayJournalUnavailableError";
+  }
+}
+
 /** Sổ jti đã tiêu, cùng mốc hết hạn của từng cái. */
 export class TicketReplayGuard {
-  private readonly spent = new Map<string, number>();
+  private spent = new Map<string, number>();
+  private persistenceUnavailable = false;
 
   /**
    * `persist` là tùy chọn có chủ ý. Không truyền thì sổ chỉ sống trong bộ nhớ — đúng hành vi cũ,
@@ -78,25 +87,38 @@ export class TicketReplayGuard {
    * Chỉ ghi đĩa khi sổ thật sự đổi. Lần tiêu lại của một vé cũ không đổi gì, nên không ghi.
    */
   consume(jti: string, expiresAt: number, now: number = Date.now()): boolean {
-    this.forget(now);
+    if (this.persistenceUnavailable && this.persist) {
+      throw new ReplayJournalUnavailableError();
+    }
 
-    if (this.spent.has(jti)) return false;
+    // Build a candidate snapshot first. The in-memory state is not changed until the durable
+    // callback has succeeded, so a failed fsync/rename cannot create an accepted-but-unrecorded
+    // ticket in this process.
+    const next = new Map(this.spent);
+    for (const [recordJti, recordExpiresAt] of next) {
+      if (recordExpiresAt <= now) next.delete(recordJti);
+    }
 
-    this.spent.set(jti, expiresAt);
-    this.persist?.(this.records());
+    if (next.has(jti)) return false;
+    next.set(jti, expiresAt);
+
+    if (this.persist) {
+      try {
+        this.persist(this.recordsFrom(next));
+      } catch (cause) {
+        this.persistenceUnavailable = true;
+        if (cause instanceof ReplayJournalUnavailableError) throw cause;
+        throw new ReplayJournalUnavailableError({ cause });
+      }
+    }
+
+    this.spent = next;
     return true;
   }
 
-  /** Bỏ khỏi sổ những vé đã hết hạn — chúng bị từ chối vì quá hạn rồi, không cần nhớ nữa. */
-  private forget(now: number): void {
-    for (const [jti, expiresAt] of this.spent) {
-      if (expiresAt <= now) this.spent.delete(jti);
-    }
-  }
-
   /** Ảnh chụp sổ để đem đi ghi. */
-  private records(): SpentTicketRecord[] {
-    return [...this.spent].map(([jti, expiresAt]) => ({ jti, expiresAt }));
+  private recordsFrom(source: ReadonlyMap<string, number>): SpentTicketRecord[] {
+    return [...source].map(([jti, expiresAt]) => ({ jti, expiresAt }));
   }
 
   /** Số jti đang giữ. Dùng trong test và trang trạng thái của cầu nối. */
