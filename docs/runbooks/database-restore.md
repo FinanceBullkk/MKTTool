@@ -15,17 +15,37 @@ committing them to Git.
   The verifier creates and drops a uniquely named database; it refuses unsafe targets unless
   `--allow-same-server` is explicitly supplied for a disposable local rehearsal.
 - Confirm the PostgreSQL client (`psql`) and `PG_DUMP_PATH`/client version are the approved ones.
+  Capture the versions without printing connection strings:
+
+  ```powershell
+  if (-not $env:PG_DUMP_PATH) { throw 'PG_DUMP_PATH must name the approved pg_dump executable.' }
+  & $env:PG_DUMP_PATH --version
+  if ($LASTEXITCODE -ne 0) { throw 'The approved pg_dump version check failed.' }
+  $psqlPath = (Get-Command psql -ErrorAction Stop).Source
+  & $psqlPath --version
+  if ($LASTEXITCODE -ne 0) { throw 'The approved psql version check failed.' }
+  ```
 
 ## Procedure
 
 ```powershell
 Set-Location E:\MKTWorkspace\MKTTool
+$before = @(Get-ChildItem -LiteralPath data\backups -Filter 'mkttool-prod-*.sql' -File |
+  Select-Object -ExpandProperty FullName)
+$started = Get-Date
 npm run db:backup:remote
-$dump = Get-ChildItem -LiteralPath data\backups -Filter 'mkttool-prod-*.sql' |
-  Sort-Object LastWriteTime -Descending | Select-Object -First 1
-if (-not $dump) { throw 'No production dump was created.' }
-$report = Join-Path $env:TEMP ("mkttool-restore-" + $dump.BaseName + '.json')
+if ($LASTEXITCODE -ne 0) { throw 'db:backup:remote failed; no dump may be selected.' }
+$newDumps = @(Get-ChildItem -LiteralPath data\backups -Filter 'mkttool-prod-*.sql' -File |
+  Where-Object { $_.LastWriteTime -ge $started -and $before -notcontains $_.FullName })
+if ($newDumps.Count -ne 1) {
+  throw "Expected exactly one new production dump after the successful command; found $($newDumps.Count)."
+}
+$dump = $newDumps[0]
+if ($dump.Length -le 0) { throw 'The new production dump is empty.' }
+# Use a unique receipt path: the verifier deliberately refuses to overwrite an existing report.
+$report = Join-Path $env:TEMP ("mkttool-restore-" + [DateTime]::UtcNow.ToString('yyyyMMdd-HHmmssfff') + '-' + [Guid]::NewGuid().ToString('N') + '.json')
 npm run db:restore:verify -- --dump $dump.FullName --report $report
+if ($LASTEXITCODE -ne 0) { throw 'db:restore:verify did not PASS.' }
 Get-FileHash -LiteralPath $dump.FullName -Algorithm SHA256
 Get-FileHash -LiteralPath $report -Algorithm SHA256
 ```
@@ -33,6 +53,10 @@ Get-FileHash -LiteralPath $report -Algorithm SHA256
 The command output must include `status: PASS`, equal source/restored aggregate row counts,
 `mismatches: []`, and `cleanup: PASS`. Save only the dump path, byte count, hashes, counts, and
 timestamp in the release report. Do not paste aggregate values that could identify an account.
+
+The `before`/`newDumps` check is mandatory. Never sort the whole backup directory and select the
+newest file: a failed command can leave an older dump looking current. If the check finds zero or
+more than one new file, stop and investigate rather than choosing by guesswork.
 
 ## If it fails
 

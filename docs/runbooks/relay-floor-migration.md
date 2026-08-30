@@ -37,6 +37,73 @@ fresh inventory → authorized full GET/hash of /v16 → owner-machine reinstall
 → typecheck/tests/build → merge/deploy → verify effective per-kind floors
 ```
 
+### Executable route and inventory receipt
+
+Run the following from a shell whose database connection and release token were injected by the
+approved secret store. Do not paste a production URL, cookie, or token into the command line or a
+report. The `PG*` variables must refer to the current production database; a missing variable is a
+blocked gate, not a reason to guess.
+
+```powershell
+Set-Location E:\MKTWorkspace\MKTTool
+$requiredPg = 'PGHOST','PGPORT','PGDATABASE','PGUSER','PGPASSWORD'
+if ($requiredPg | Where-Object { [string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($_)) }) {
+  throw 'PGHOST/PGPORT/PGDATABASE/PGUSER/PGPASSWORD must be loaded by the approved secret mechanism.'
+}
+$inventorySql = @'
+SELECT COALESCE("relayVersion"::text, 'unknown') AS relay_version,
+       CASE WHEN "revokedAt" IS NULL THEN 'active' ELSE 'revoked' END AS state,
+       COUNT(*)::int AS device_count
+FROM "RelayDevice"
+GROUP BY 1, 2
+ORDER BY 1, 2;
+'@
+$inventory = $inventorySql | & (Get-Command psql -ErrorAction Stop).Source --no-psqlrc --no-password --tuples-only --csv
+if ($LASTEXITCODE -ne 0) { throw 'Aggregate RelayDevice inventory failed.' }
+$inventory
+
+$base = 'https://mkttool-web-production.up.railway.app'
+$expectedSha = '5c98cf460e62f83b484c9ecd55bc80b650f2e19a09e8ded6e99eafb682e1842e'
+$token = $env:RELAY_RELEASE_DOWNLOAD_TOKEN
+if ([string]::IsNullOrWhiteSpace($token)) { throw 'RELAY_RELEASE_DOWNLOAD_TOKEN is not available; route gate remains OPEN.' }
+$headers = @{ Authorization = "Bearer $token" }
+$body = Join-Path $env:TEMP ('relay-v16-' + [Guid]::NewGuid().ToString('N') + '.zip')
+try {
+  $response = Invoke-WebRequest -Uri "$base/api/relay/download/v16" -Method Get -Headers $headers `
+    -OutFile $body -PassThru -MaximumRedirection 0 -ErrorAction Stop
+  if ($response.StatusCode -ne 200) { throw "Relay v16 full GET returned HTTP $($response.StatusCode)." }
+  $hash = (Get-FileHash -LiteralPath $body -Algorithm SHA256).Hash.ToLowerInvariant()
+  if ($hash -ne $expectedSha) { throw "Relay v16 hash mismatch: $hash." }
+  [pscustomobject]@{ status = 'PASS'; bytes = (Get-Item -LiteralPath $body).Length; sha256 = $hash }
+}
+finally {
+  Remove-Item -LiteralPath $body -Force -ErrorAction SilentlyContinue
+}
+
+$health = Invoke-RestMethod -Uri "$base/api/healthz" -Method Get -ErrorAction Stop
+if ($health.ok -ne $true -or $health.status -ne 'ready' -or $health.relayVersion -ne 16) {
+  throw 'Readiness response did not prove ok=true, status=ready, and relayVersion=16.'
+}
+railway status --json | Out-Host
+if ($LASTEXITCODE -ne 0) { throw 'Railway deployment metadata could not be read.' }
+```
+
+`/api/healthz` proves readiness and the published Relay version; it does **not** prove the source
+commit. Compare `meta.commitHash` in the sanitized `railway status --json` deployment record with
+the candidate SHA before recording a deployment PASS.
+
+On each owner machine, use the already-distributed 0.3.13 installer and observe the local Relay;
+do not infer the result from the database:
+
+```powershell
+Get-FileHash -LiteralPath 'C:\path\to\MKTBrowser-win-x64.exe' -Algorithm SHA256
+Start-Process -FilePath 'C:\path\to\MKTBrowser-win-x64.exe' -Wait
+Invoke-RestMethod -Uri 'http://127.0.0.1:47821/health' -Headers @{ Origin = $base }
+```
+
+Record only `relayVersion: 16`, timestamp, and PASS/FAIL for each owner machine. A missing local
+observation leaves the floor at 13.
+
 After the preconditions pass, edit only the intended constant and run the focused floor/rejection
 tests plus the full CI suite. `MIN_RELAY_VERSION_BY_KIND` must continue to derive via
 `Math.max`; inspect the resulting values before deployment. The under-floor response must retain
@@ -47,6 +114,19 @@ Probe the complete matrix after deployment: v13, v14, and v15 reject; v16 accept
 too-new values fail safely. Keep the old v15 tuple as negative evidence and mark it revoked where
 the compatibility system supports that state. Revocation cannot recall an EXE already on disk; the
 floor is the enforcement mechanism.
+
+The focused source checks are:
+
+```powershell
+npx vitest run src/lib/tickets/outdated-relay-version.test.ts `
+  src/lib/tickets/ticket-min-version-by-kind.test.ts `
+  src/lib/release/compatibility-update-actions.database.test.ts
+if ($LASTEXITCODE -ne 0) { throw 'Relay floor compatibility checks failed.' }
+```
+
+Do not edit `MIN_RELAY_VERSION` until the route hash, fresh inventory, and both observed owner
+machine reinstalls are all recorded. Revoke the old tuples through the authenticated application or
+admin action; do not invent a direct SQL mutation for revocation.
 
 ## Stop conditions
 

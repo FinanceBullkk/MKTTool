@@ -123,13 +123,44 @@ jobs:
           node-version: 22
           cache: npm
 
-      - name: Install dependencies for the Node 22 contract run
+      # Keep the executable selected by setup-node explicit. Some self-hosted runner shells do not
+      # carry the action-managed PATH into a later `if: always()` step; falling back to the machine
+      # default would make the Node-22 contract silently run under another runtime.
+      - name: Capture Node 22 executable
+        id: node22_path
         if: steps.node22.outcome == 'success'
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --version
+          node_bin="$(command -v node)"
+          test -x "$node_bin"
+          echo "NODE22_BIN=$node_bin" >> "$GITHUB_ENV"
+
+      - name: Install dependencies for the Node 22 contract run
+        id: contracts_install
+        if: steps.node22_path.outcome == 'success'
         run: npm ci
 
       - name: Run real PostgreSQL restore and rate-limit contracts
-        if: always()
-        run: node scripts/ci/run-postgres-contracts.cjs
+        if: steps.contracts_install.outcome == 'success'
+        env:
+          PSQL_PATH: ${{ github.workspace }}/scripts/ci/psql-docker-wrapper.sh
+        run: |
+          "$NODE22_BIN" scripts/ci/run-postgres-contracts.cjs
+
+      - name: Record an unavailable Node 22 contract environment
+        if: steps.node22_path.outcome != 'success' || steps.contracts_install.outcome != 'success'
+        shell: bash
+        run: |
+          {
+            echo '### CI gate: mkttool-postgres-contracts'
+            echo
+            echo '- **Status:** `BLOCKED`'
+            echo '- **Reason:** Node 22 provisioning or dependency installation did not complete; the real PostgreSQL contract was not substituted.'
+            echo '- **Owner:** mkttool-ci'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit 1
 
   # Scan the source/evidence trees without printing matched values. `plans/` is workspace-level and
   # may not be present in a repository-only checkout; the scanner records that scope explicitly.
@@ -139,6 +170,9 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
       - name: Scan source and evidence for high-confidence secrets
         run: node scripts/ci/secret-scan.cjs --root=plans --root=src --root=relay --root=scripts --root=.github
 
