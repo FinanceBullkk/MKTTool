@@ -160,6 +160,15 @@ The recorded pre-merge baseline is deployment
 fresh backup/restore receipt and candidate details are in
 `plans/260830-0830-consolidation-and-lane-a-release/reports/lane-a-deploy.md`.
 
+**Measured stop condition (2026-08-30 rollback drill).** The prior image `c819e6a8` does **not**
+serve `/api/healthz`; a rehearsal of this exact tuple returned HTTP 404 on that route (root `/`
+returned 307, `/login` returned 200). Because the current service-level `healthcheckPath` is
+`/api/healthz` and Railway does **not** restore healthcheck settings from a deployment image, a
+rollback to this tuple will fail promotion unless an owner-approved prior-compatible healthcheck
+path is selected, or the healthcheck is temporarily disabled, before or with the rollback. Verify
+the setting again after the rollback. Full evidence:
+`plans/260830-0830-consolidation-and-lane-a-release/reports/rollback-drill-p4-09.md`.
+
 The current service-level setting is `healthcheckPath=/api/healthz`; verify it with the
 `serviceInstance` query above after every approved deployment or rollback. The current
 `healthcheckTimeout` is `null`, which inherits Railway's documented 300-second deploy-time bound;
