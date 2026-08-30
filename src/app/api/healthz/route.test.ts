@@ -76,5 +76,27 @@ describe("GET /api/healthz", () => {
     });
     expect(JSON.stringify(body)).not.toContain("redacted");
   });
+
+  // Regression guard for the 2026-08-30 intermittent 503s: the release check reads R2 over the
+  // network and must not share the database's sub-millisecond budget.  An R2 round trip slower
+  // than the database bound but well inside the release bound is ordinary latency, not an
+  // unready service, and must not take the instance out of rotation or fail a deployment
+  // promotion.  See plans/reports/analysis-260830-1840-healthz-r2-timeout-budget.md.
+  it("stays ready when the release read is slower than the database budget", async () => {
+    mocks.readR2Config.mockReturnValue({ bucket: "relay" });
+    mocks.readRelease.mockImplementation(
+      () => new Promise((resolve) => setTimeout(() => resolve(GOOD_RELEASE), 1_200)),
+    );
+
+    const response = await GET();
+    const body = (await response.json()) as Record<string, unknown>;
+
+    expect(response.status).toBe(200);
+    expect(body).toMatchObject({
+      ok: true,
+      status: "ready",
+      checks: { database: "ok", releaseMetadata: "ok", r2: "ok" },
+    });
+  });
 });
 

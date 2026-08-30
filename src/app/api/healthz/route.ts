@@ -7,7 +7,17 @@ import { RELAY_VERSION } from "@/lib/relay/relay-endpoints";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const CHECK_TIMEOUT_MS = 450;
+// Readiness budgets are per dependency, not shared.  Postgres is in-region and answers
+// `SELECT 1` in well under a millisecond, so it keeps the original tight bound.  The release
+// check reads Relay metadata from R2 -- a cross-network object-storage round trip whose own
+// client budgets 60 s (`src/lib/r2/r2-client.ts`).  Holding that call to the database's 450 ms
+// made ordinary R2 latency present as `not_ready`, and because this route is Railway's
+// healthcheckPath, a slow object store could fail an otherwise healthy deployment promotion.
+// This bound is provisional: it is an order of magnitude above observed request latency and far
+// below any deploy healthcheck limit, but it is not yet backed by a measured R2 latency
+// distribution from the serving region.  Measure before tightening or widening it again.
+const DATABASE_CHECK_TIMEOUT_MS = 450;
+const RELEASE_CHECK_TIMEOUT_MS = 3_000;
 
 /**
  * Public liveness/readiness signal for the service platform.
@@ -45,7 +55,7 @@ export async function GET(): Promise<NextResponse> {
 
 async function checkDatabase(): Promise<{ ok: boolean }> {
   try {
-    await withTimeout(prisma.$queryRaw`SELECT 1`, CHECK_TIMEOUT_MS);
+    await withTimeout(prisma.$queryRaw`SELECT 1`, DATABASE_CHECK_TIMEOUT_MS);
     return { ok: true };
   } catch {
     return { ok: false };
@@ -61,7 +71,7 @@ async function checkRelease(): Promise<{
   let r2Configured = false;
   try {
     r2Configured = readRelayReleaseR2Config() !== null;
-    const release = await withTimeout(readRelayRelease(RELAY_VERSION), CHECK_TIMEOUT_MS);
+    const release = await withTimeout(readRelayRelease(RELAY_VERSION), RELEASE_CHECK_TIMEOUT_MS);
     if (!release.available || release.version !== RELAY_VERSION || !release.checksum) {
       return { ok: false, version: release.available ? release.version : null, source: "unknown", r2Configured };
     }
