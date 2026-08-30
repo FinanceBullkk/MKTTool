@@ -8,13 +8,14 @@ of unique or isolated browser identity.
 **Current status, 30 August 2026:** the account vault, Reddit/Facebook posting-safety pipeline,
 health checks, and Facebook Pages publisher are implemented. TikTok account/profile setup and manual
 launch are available for a controlled technical pilot; TikTok content, scheduling, warmup, and
-posting automation remain parked. Relay v16 replay recovery is verified locally and its immutable
-R2 object has a full byte/hash read-back, but the deployed route/floor and Browser installer still
-need the downstream gates. Real proxy, human input, live vendor sidecar/schema, second-PC, identity,
-and canary gates keep Browser/Relay rollout at **NO-GO**.
+posting automation remain parked. The merged Lane A Web deployment is live and its `/api/healthz`
+and authorized Relay v16 full-GET/hash checks pass; the Relay floor intentionally remains 13 pending
+observed self-serve reinstalls on the owner's two machines. Browser installer reproducibility,
+Browser CI, real-environment, identity, and canary gates remain open for the separate Browser lane;
+Lane C is CLOSED because there is no CloakBrowser channel.
 See the [development roadmap](docs/development-roadmap.md).
 
-### Internal beta boundary — 29 August 2026
+### Historical internal beta boundary — 29 August 2026
 
 The Web/Facebook surface remains a conditional low-risk internal pilot for authorized operators. The
 next Windows x64 MKT Browser candidate is `0.3.13` with bundled Relay v16; it is a draft tuple until

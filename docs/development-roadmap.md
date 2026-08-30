@@ -2,25 +2,30 @@
 
 **Updated:** 30 August 2026
 
-## Consolidation truth — 30 August 2026, 10:30 ICT
+## Consolidation truth — 30 August 2026, post-deploy reconciliation
 
-The consolidation branch `release/consolidation-20260830` has landed U1 and U2 locally. MKTTool
-CI contracts are now required in `.github/workflows/ci.yml`; the local mirror is green (lint,
-typecheck, 215/1,958 tests, critical coverage, build, PostgreSQL contracts, secret scan, and Relay
-replay). The branch is pushed as PR #40; the exact self-hosted checks remain the merge gate.
+The consolidation branch `release/consolidation-20260830` is at
+`35b977badf5bedf5682702e1b378287f5f55db52`; MKTTool CI contracts are required in
+`.github/workflows/ci.yml`. Branch run `33292005382` and post-merge master run `33292350436` are
+green for the required MKTTool jobs (check, PostgreSQL contracts, secret scan, and deploy
+verification where applicable). The earlier `33291209847` remains failure evidence only.
 
 P4a is the **MKTTool Web/Lane A** deployment and does not require a Browser engine archive or the
 five-artifact Browser tuple. A fresh current-database backup and `db:restore:verify` both pass, and
-the rollback tuple is recorded. Production is still the prior deployment until the approved merge;
-`/api/healthz` and authorized `/v16` full-GET/hash verification must pass after deployment.
+the rollback tuple is recorded. PR #40 merged to `master` at
+`380962a49576a4663438ef50685dcb386c86aa08`; Railway deployment
+`8e1123a3-c7f6-49a8-bb97-68c35bd4807a` succeeded. `/api/healthz` returns 200 and the authorized
+full `/v16` GET matches the immutable published hash.
 
-U3 remains **OPEN**: the 128-file payload is deterministic, but the outer Windows installer keeps a
+U3 remains **OPEN**: the detached experiment's 128-file payload was deterministic, while the current
+controlled 130-entry provenance manifests are also equal. The outer Windows installer keeps a
 103-byte NSIS/resource-order variance across clean runs. No normalizer was accepted, and no claim of
-full installer reproducibility is made.
+full installer reproducibility is made; see the successor U3 report for the exact source boundary.
 
-U5 keeps `MIN_RELAY_VERSION=13` until route-first evidence. Both v15 devices are the owner's own
-machines, so the upgrade path is self-serve reinstall of 0.3.13 on each; no notification channel is
-needed. U6 closed the custom-engine build track after the measured RAM gate; no custom Chromium
+U5 keeps `MIN_RELAY_VERSION=13` until route-first evidence is followed by observed self-serve
+reinstalls on both owner machines. Both v15 devices are the owner's own machines, so the upgrade
+path is self-serve reinstall of 0.3.13 on each; no notification channel is needed. U6 closed the
+custom-engine build track after the measured RAM gate; no custom Chromium
 build or CloakBrowser seat was consumed.
 
 **Lane C is CLOSED for this product shape.** `G2-IDENTITY` remains FAIL on the recorded font/audio/
@@ -40,10 +45,11 @@ Dự án đang chạy **ba luồng song song**:
 |---|---|---|
 | **A — Công cụ** | 5 giai đoạn gốc: kho danh tính → hàng đợi → sức khỏe → Facebook → tự đăng Reddit | GĐ1-4 xong, GĐ0 kẹt ở tiền + cold-start, GĐ5 chưa bắt đầu |
 | **B — Web chung** | Biến app một máy thành web chung cho 5-6 người ở 5-6 nơi | **GĐ0-4 xong 06/08**, GĐ5 web **đã chạy thật trên Railway** cùng ngày |
-| **C — MKT Browser** | Fork the MultiZen desktop layer; Windows-only in v1 while Web, Relay, and upstream UX/UI remain intact | **MKB-00 through MKB-02 verified; MKB-03 engineering complete with live Windows gates open; P0 proxy/lease/readiness automated hardening is green but vendor, real-proxy, second-PC, and canary evidence remain open**; MKB-04 remains NO-GO; macOS deferred to MKB-07; [plan](../plans/260810-0244-mkt-browser-noi-bo/plan.md) |
+| **C — MKT Browser** | Fork the MultiZen desktop layer; Windows-only in v1 while Web, Relay, and upstream UX/UI remain intact | **MKB-00 through MKB-02 verified; MKB-03 is a controlled technical draft with Browser CI, vendor/engine, real-proxy, second-PC, and canary gates open; Lane C real-account promotion is CLOSED because there is no CloakBrowser channel**; MKB-04 remains NO-GO; macOS deferred to MKB-07; [plan](../plans/260810-0244-mkt-browser-noi-bo/plan.md) |
 
 **Historical readiness overlay:** the earlier `3f376536` join-key wording described a draft before
-the consolidation branch. The current Browser source is `5ef710dd`; its provenance is accepted, but
+the consolidation branch. The accepted Browser provenance receipt was generated from `5ef710dd`; the
+current Browser branch head is `df3c7ad`. Its provenance is accepted, but
 the exact five-artifact tuple remains a separate P4b technical OPEN. This does not gate P4a Web. Use
 one profile at a time with human login/input. Profile-local storage, proxy routing, and technical
 readiness checks are operational controls only; they do not prove browser identity isolation. See
@@ -51,10 +57,10 @@ readiness checks are operational controls only; they do not prove browser identi
 NO-GO for the unresolved identity and operator gates; Lane C itself is closed because there is no
 vendor channel.
 
-**TikTok scope decision, 19 August 2026:** TikTok is now a first-class account/profile workflow in
-the console. Creating the account, assigning its static proxy and Relay device, checking technical
-conditions, and opening its managed profile are active. These controls do not certify browser
-identity isolation. TikTok is deliberately absent from
+**TikTok scope decision, 19 August 2026 (technical-only wording):** the console contains account/
+profile setup and manual-launch code paths that may be exercised only in a controlled technical
+demo. This is not rollout readiness or authorization for real-account automation. These controls do
+not certify browser identity isolation. TikTok is deliberately absent from
 `TARGET_PLATFORMS`: content, scheduling, warmup, and posting automation are parked and must not be
 inferred from the TikTok-focused profile UI.
 
@@ -233,7 +239,8 @@ acceptance suite runs on a Windows CI runner instead of relying on someone remem
 production deploy now turns the build red instead of going unnoticed for nine hours; the pre-deploy
 database backup works again after nine days in which the rule was documented but its tool was
 broken; and `MIN_RELAY_VERSION` was raised for the first time in the product's life, after the lever
-for doing so turned out to have been broken since it was written.
+for doing so turned out to have been broken since it was written. **Historical note:** that sentence
+predates the current reconciliation; the live floor for this release remains 13.
 
 Three things are examined and sound rather than merely untested: the one-nick-one-proxy-one-profile
 invariant is enforced by database constraints and not only by application code; no secret reaches a
@@ -656,7 +663,15 @@ và máy chủ tự `pg_dump` rồi tải lên Cloudflare R2 mỗi đêm.
 > phủ. Bù bằng một nếp tay thay vì tiền: **chạy `db:backup:remote` ngay trước mỗi lần deploy có đổi
 > cấu trúc database**, vì `prisma migrate deploy` không tự sao lưu.
 
-## Critical path: current blockers
+## Historical critical path — pre-consolidation (retained)
+
+> The table below is the predecessor roadmap snapshot and is not the 30 August release ledger.
+> Current residuals are P4-08 credentialed smoke, P4-09 rollback rehearsal, U3 outer-installer
+> reproducibility, U5 observed owner-machine reinstalls/floor decision, and the separate P4b Browser
+> tuple. P4a Web is deployed; Lane C is **CLOSED** because no CloakBrowser channel exists. Do not
+> schedule the old MKB-03/MKB-04, procurement, or cold-start rows as if they were current blockers.
+
+## Critical path: historical blockers
 
 | Blocker | Nature | Owner |
 |---|---|---|

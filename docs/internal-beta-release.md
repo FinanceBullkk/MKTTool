@@ -5,13 +5,16 @@
 
 ## Consolidation truth — 30 August 2026
 
-Lane A Web/Facebook and the Browser fleet contract are separate. The MKTTool web candidate is
-merge-ready on `release/consolidation-20260830` after CI-equivalent checks and a fresh current-DB
-backup/restore. It does not need a Browser engine archive or a five-artifact tuple. The production
-service remains on the older deployment until the approved merge and post-deploy checks complete.
+Lane A Web/Facebook and the Browser fleet contract are separate. The MKTTool web candidate was
+merged to `master` at `380962a49576a4663438ef50685dcb386c86aa08` after green branch/master CI and a
+fresh current-DB backup/restore. Railway deployment `8e1123a3-c7f6-49a8-bb97-68c35bd4807a` succeeded;
+`/api/healthz` is 200 and the authorized `/v16` full GET is hash-exact. It did not need a Browser
+engine archive or a five-artifact tuple. A bounded credentialed smoke and rollback rehearsal remain
+open for a final Lane A GO.
 
-The current MKTBrowser tree is `5ef710dd931028d4d608bea098311bf54bf5dc31`; the provenance emitter
-accepts its clean tree. The Browser tuple is still a separate P4b technical OPEN because the exact
+The current MKTBrowser branch head is `df3c7ad11ba8946e46b6b1b8986e7affc2758318`; the accepted
+provenance receipt was generated from its preceding source commit
+`5ef710dd931028d4d608bea098311bf54bf5dc31`. The Browser tuple is still a separate P4b technical OPEN because the exact
 CloakBrowser Stable `.2` archive is absent. No tuple was fabricated or published. Q16 closes Lane C:
 there is no CloakBrowser channel, no request will be sent, and there is no date or “coming soon”
 promise. MKTBrowser remains a controlled Lane A/B demo with human login and no identity-isolation
@@ -24,8 +27,8 @@ real-account approval.
 ## What the team can use now
 
 - **MKTTool Web:** Web/Facebook workflows may continue as a low-risk, admin-led internal pilot for
-  authorized operators. The deployed Railway service is older than the current hardening branch;
-  verify the live route before relying on a new release claim.
+  authorized operators. The deployed service is the merged hardening candidate; retain the bounded
+  smoke and rollback rehearsal as explicit residual gates.
 - **MKT Browser + Relay:** the current Windows x64 `0.3.13` tree is a controlled technical draft
   from `5ef710dd`. Its payload is measured, but the full installer still has an unresolved NSIS
   resource-order variance and the five-artifact tuple is not publishable. Use one profile at a time,
@@ -49,7 +52,7 @@ A disposable technical profile may be used only for a bounded, admin-led demonst
 | Payload manifest | 130 files; digest `5a8385a27ed70e67ae5368aa5e5f09e8db23dc47b52e67bdb281ce7965fddf37` |
 | Signing | Unsigned internal-only exception, 60 days from the S3 build date; Authenticode is required for Lane C |
 | Provenance | Accepted (`source.clean=true`); this is not a signature or Browser tuple publication |
-| Publication/deployment | **NOT PUBLISHED / NOT DEPLOYED**; P4a web deployment is independent and remains pre-merge |
+| Publication/deployment | Browser tuple **NOT PUBLISHED / NOT DEPLOYED** (P4b); independent P4a MKTTool web deployment is live and verified |
 
 The immutable Relay v16 R2 object was published and verified with a full GET/hash read-back under
 the Phase 2 authorization. That does not publish this Browser installer. The old R2 Browser
@@ -73,9 +76,9 @@ retry by opening a second profile or changing the proxy locally.
 
 ## Evidence currently available
 
-- MKTTool current consolidation branch: `215` test files / `1,958` tests passed, with typecheck,
-  lint, critical coverage, production build, restore/rate-limit contracts, and secret scan passing.
-  The exact self-hosted CI run remains the merge gate.
+- MKTTool consolidation branch/master: `215` test files / `1,958` tests passed, with typecheck,
+  lint, critical coverage, production build, restore/rate-limit contracts, and secret scan passing;
+  branch run `33292005382` and master run `33292350436` are recorded.
 - MKT Browser Node `22.23.2`: focused one-seat/UI/pool/journal/recorder/recovery suites `46/46`;
   runtime/managed/bootstrap suites `33/33`; the prior full installer suite passed with one explicit
   machine-live integration skipped. Re-run on the exact S3 artifact before promotion.

@@ -1,5 +1,10 @@
 # MKB-03 — Windows onboarding, installer, and controlled updates
 
+> **Historical execution plan — superseded 30 August 2026.** Relay v12, the old branches, and the
+> pending rollout/rehearsal statuses below are retained evidence, not current release instructions.
+> Use the consolidation plan for the current 0.3.13/P4b boundary; P4a Web is independent, and Lane C
+> is **CLOSED** because no CloakBrowser channel exists.
+
 **Started:** 12 August 2026 · **Estimate:** 10–15 days · **Status:** Phases 01-04 implemented; Phase 05 in progress after verified ceremony; Phase 06 engineering subset pushed
 
 **Specification:** [MKT Browser plan §MKB-03](../260810-0244-mkt-browser-noi-bo/plan.md) — the "why"

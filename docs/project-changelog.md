@@ -18,6 +18,22 @@ the archive location.
 
 ---
 
+## 30 August 2026 — consolidation and Lane A reconciliation
+
+- **P4a Web deployed:** merge `380962a4` reached Railway successfully; `/api/healthz` returned
+  200 and the authorized Relay v16 full-GET/hash matched the immutable object. The service-instance
+  healthcheck is `/api/healthz`.
+- **Browser remains separate:** source is 0.3.13 with P4b installer/five-artifact provenance OPEN;
+  the old 0.3.12/v15 material is historical negative evidence, not a release tuple.
+- **Lane C is CLOSED:** no CloakBrowser channel exists, so no vendor request, date, or “coming soon”
+  promise is recorded. A future alternative vendor requires a new product decision.
+- **Fleet boundary:** Q15 confirms both v15 devices are the owner's machines; migration is
+  self-serve and route-first, with the floor held at 13 pending observed reinstalls.
+
+The detailed evidence and rollback tuple are in the successor consolidation plan under
+`plans/260830-0830-consolidation-and-lane-a-release/`.
+
+
 ## 29 August 2026 - Controlled internal beta published and scope frozen
 
 MKTTool Web/Facebook is the normal internal handoff. MKT Browser `0.3.12` was rebuilt from clean

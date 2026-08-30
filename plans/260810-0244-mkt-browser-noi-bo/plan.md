@@ -1,5 +1,11 @@
 # MKT Browser — a dedicated MultiZen fork for MKTTool
 
+> **Historical specification — superseded 30 August 2026.** This 10–12 August MKB-00/MKB-03 plan
+> is retained as implementation history. It is not the current release ledger: the consolidation
+> plan records P4a Web deployed, P4b Browser provenance OPEN, Q15 owner-only self-serve migration,
+> and Lane C **CLOSED** because no CloakBrowser channel exists. Do not schedule its old “next” or
+> rollout steps without a new owner decision.
+
 **Direction approved:** 10 August 2026
 
 **Status:** MKB-00 verified 11 August 2026 · MKB-W01 Windows isolation verified · MKB-W02 internal clean break verified · MKB-01 and MKB-01E verified 11 August 2026 · MKB-02 managed mode verified 12 August 2026 · MKB-03 Windows onboarding/installer is next · Windows x64 is the primary platform for v1 · macOS Apple Silicon moves to MKB-07 after v1 · retain the MultiZen UX/UI in v1 · zero-confusion Windows onboarding is a hard MKB-03 gate
