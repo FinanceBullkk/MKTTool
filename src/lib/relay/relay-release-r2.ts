@@ -116,8 +116,9 @@ export function headRelayRelease(
   config: R2Config,
   version: number,
   fetchImpl?: typeof fetch,
+  signal?: AbortSignal,
 ): Promise<R2ObjectInfo | null> {
-  return headObject({ config, key: relayReleaseR2Key(version), fetchImpl });
+  return headObject({ config, key: relayReleaseR2Key(version), fetchImpl, signal });
 }
 
 export function headRelayCompatibilityArtifact(

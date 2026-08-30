@@ -210,9 +210,16 @@ export async function headObject(options: {
   key: string;
   now?: Date;
   timeoutMs?: number;
+  /**
+   * Tín hiệu hủy từ bên gọi. Có nó thì bên gọi bỏ cuộc là request **dừng thật**, chứ không chạy
+   * tiếp tới hết `timeoutMs` mà không còn ai chờ. Probe readiness cần đúng điều này: bỏ race mà
+   * không hủy thì mỗi lần quá hạn để lại một request sống, và chúng chồng lên nhau đúng lúc R2
+   * đang chậm.
+   */
+  signal?: AbortSignal;
   fetchImpl?: typeof fetch;
 }): Promise<R2ObjectInfo | null> {
-  const { config, key, now = new Date(), timeoutMs = 15_000, fetchImpl = fetch } = options;
+  const { config, key, now = new Date(), timeoutMs = 15_000, signal, fetchImpl = fetch } = options;
 
   const host = r2Host(config.accountId);
   const path = objectPath(config, key);
@@ -229,10 +236,11 @@ export async function headObject(options: {
 
   let response: Response;
   try {
+    const deadline = AbortSignal.timeout(timeoutMs);
     response = await fetchImpl(`https://${host}${path}`, {
       method: "HEAD",
       headers,
-      signal: AbortSignal.timeout(timeoutMs),
+      signal: signal ? AbortSignal.any([deadline, signal]) : deadline,
     });
   } catch (cause) {
     throw new R2DownloadError(

@@ -13,6 +13,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { RELAY_RELEASE_R2_ENV } from "../r2/r2-config";
 import { readRelayRelease } from "./relay-release-file";
+import { clearRelayReleaseR2MetadataCache } from "./relay-release-r2-metadata-cache";
 import { RELAY_VERSION } from "./relay-endpoints";
 import {
   checksumOf,
@@ -37,6 +38,9 @@ function configureR2(): void {
 
 beforeEach(() => {
   for (const name of Object.values(RELAY_RELEASE_R2_ENV)) delete process.env[name];
+  // Ngăn nhớ metadata R2 sống ở cấp module, nên một lần đọc thành công ở bài trước sẽ trả lời thay
+  // cho bài sau và che mất đúng thứ bài sau đang canh.
+  clearRelayReleaseR2MetadataCache();
 });
 
 afterEach(() => {

@@ -71,7 +71,14 @@ async function checkRelease(): Promise<{
   let r2Configured = false;
   try {
     r2Configured = readRelayReleaseR2Config() !== null;
-    const release = await withTimeout(readRelayRelease(RELAY_VERSION), RELEASE_CHECK_TIMEOUT_MS);
+    // Hủy thật, không chỉ thôi chờ.  `withTimeout` là `Promise.race`: nó bỏ cuộc ở phía ngoài
+    // nhưng request R2 vẫn chạy tới hết hạn riêng của nó (15 s).  Probe chạy mỗi 10–30 giây, nên
+    // những request mồ côi đó chồng lên nhau đúng vào lúc R2 đang chậm và tự làm nó chậm thêm.
+    // Truyền hạn xuống dưới dạng tín hiệu hủy để hết hạn là dừng.
+    const release = await readRelayRelease(
+      RELAY_VERSION,
+      AbortSignal.timeout(RELEASE_CHECK_TIMEOUT_MS),
+    );
     if (!release.available || release.version !== RELAY_VERSION || !release.checksum) {
       return { ok: false, version: release.available ? release.version : null, source: "unknown", r2Configured };
     }

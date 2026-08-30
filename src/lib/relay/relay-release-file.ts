@@ -31,6 +31,10 @@ import { type R2Config } from "../r2/r2-config";
 import { RELAY_VERSION } from "./relay-endpoints";
 import { readRelayArtifactMetadata } from "./relay-release-metadata";
 import {
+  readCachedRelayRelease,
+  writeCachedRelayRelease,
+} from "./relay-release-r2-metadata-cache";
+import {
   checksumOf,
   describeR2Location,
   headRelayRelease,
@@ -98,16 +102,30 @@ export type RelayRelease =
  *
  * Bất đồng bộ vì nhánh R2 phải hỏi qua mạng — một request `HEAD`, không kéo nội dung về.
  */
-export async function readRelayRelease(version?: number): Promise<RelayRelease> {
+export async function readRelayRelease(
+  version?: number,
+  /** Tín hiệu hủy. Bên gọi bỏ cuộc thì request R2 dừng theo, không để lại request mồ côi. */
+  signal?: AbortSignal,
+): Promise<RelayRelease> {
   const r2 = readRelayReleaseR2Config();
-  return r2 ? readFromR2(r2, version ?? RELAY_VERSION) : readRelayReleaseFromDisk(version);
+  return r2 ? readFromR2(r2, version ?? RELAY_VERSION, signal) : readRelayReleaseFromDisk(version);
 }
 
-async function readFromR2(config: R2Config, requestedVersion: number): Promise<RelayRelease> {
+async function readFromR2(
+  config: R2Config,
+  requestedVersion: number,
+  signal?: AbortSignal,
+): Promise<RelayRelease> {
+  // Metadata của một version là bất biến, nên câu trả lời còn hạn dùng được luôn. Xem
+  // [relay-release-r2-metadata-cache.ts](relay-release-r2-metadata-cache.ts) để biết vì sao ngăn
+  // nhớ này tồn tại và vì sao nó vẫn có hạn.
+  const cached = readCachedRelayRelease(config, requestedVersion);
+  if (cached) return cached;
+
   // Lỗi mạng và lỗi cấu hình KHÔNG được biến thành "chưa có gói": hai chuyện đó dẫn tới hai việc
   // phải làm khác hẳn nhau, và câu "chưa phát hành bản nào" sẽ cử người quản trị đi build lại một
   // gói vốn đã nằm sẵn trên R2. Ném lên để trang hiện đúng lỗi.
-  const info = await headRelayRelease(config, requestedVersion);
+  const info = await headRelayRelease(config, requestedVersion, undefined, signal);
   if (!info) return { available: false, expectedPath: describeR2Location(config, requestedVersion) };
   const artifactVersion = versionOf(info);
   if (artifactVersion === null) {
@@ -119,7 +137,7 @@ async function readFromR2(config: R2Config, requestedVersion: number): Promise<R
     );
   }
 
-  return {
+  const release: RelayRelease = {
     available: true,
     source: "r2",
     sizeBytes: info.sizeBytes,
@@ -127,6 +145,8 @@ async function readFromR2(config: R2Config, requestedVersion: number): Promise<R
     version: artifactVersion,
     checksum: checksumOf(info),
   };
+  writeCachedRelayRelease(config, requestedVersion, release);
+  return release;
 }
 
 /**
