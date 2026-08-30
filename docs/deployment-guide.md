@@ -38,8 +38,11 @@ Required sequence:
    bounded Lane A smoke and label synthetic checks separately. Rehearse rollback in a disposable
    environment; a rollback is always approved and executed by a human.
 7. After the deployment passes the external health, full-GET, and log checks, configure the Railway
-   service instance `healthcheckPath` to `/api/healthz` (and verify the setting). Do not treat a
-   deployment-manifest `null` field as proof that the service-instance setting is absent.
+   service instance `healthcheckPath` to `/api/healthz` (and verify the setting). Keep
+   `healthcheckTimeout` unset (`null`) unless a measured startup SLO requires a different value:
+   Railway's documented inherited bound is 300 seconds at deploy time, so `null` is bounded rather
+   than infinite. Do not treat a deployment-manifest `null` field as proof that the service-instance
+   setting is absent.
 
 Current evidence: branch run `33292005382` and post-merge master run `33292350436` are green for
 the required MKTTool jobs. PR #40 merged at `380962a49576a4663438ef50685dcb386c86aa08`; the latest

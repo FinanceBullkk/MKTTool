@@ -78,6 +78,20 @@ describe("headObject", () => {
     expect(Number.isNaN(info?.lastModified.getTime())).toBe(false);
   });
 
+  // Bên gọi bỏ cuộc mà request vẫn chạy tiếp là nguồn gốc sự cố 30/08/2026: probe readiness quá
+  // hạn ở 450 ms nhưng `HEAD` vẫn sống tới 15 s, và những request mồ côi đó chồng lên nhau đúng
+  // lúc R2 đang chậm.
+  it("hủy theo tín hiệu của bên gọi, không chờ hết hạn riêng", async () => {
+    const controller = new AbortController();
+    const fetchImpl = fakeFetch(() => respond(200));
+    await headObject({ config: CONFIG, key: KEY, fetchImpl, signal: controller.signal });
+
+    const passed = fetchImpl.mock.calls[0]![1]!.signal as AbortSignal;
+    expect(passed.aborted).toBe(false);
+    controller.abort();
+    expect(passed.aborted).toBe(true);
+  });
+
   it("ký bằng SHA-256 của thân RỖNG", async () => {
     // Khai sai băm payload là chữ ký lệch, và R2 chỉ nói "SignatureDoesNotMatch" — câu không chỉ
     // được chỗ sai.

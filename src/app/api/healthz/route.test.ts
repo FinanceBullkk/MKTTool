@@ -76,5 +76,44 @@ describe("GET /api/healthz", () => {
     });
     expect(JSON.stringify(body)).not.toContain("redacted");
   });
+
+  // Sự cố 30/08/2026 chạy nhiều giờ mà không để lại dòng log nào, vì hai catch ở đây nuốt sạch
+  // nguyên nhân. Thân phản hồi vẫn phải sạch, nhưng log máy chủ thì phải có.
+  it("ghi nguyên nhân ra log máy chủ mà không đưa vào thân phản hồi", async () => {
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    mocks.readRelease.mockRejectedValue(new Error("must-not-leak-to-body"));
+
+    const response = await GET();
+    const body = (await response.json()) as Record<string, unknown>;
+
+    expect(response.status).toBe(503);
+    expect(JSON.stringify(body)).not.toContain("must-not-leak-to-body");
+    expect(logged).toHaveBeenCalledWith(
+      expect.stringContaining("[healthz] release check failed -- Error: must-not-leak-to-body"),
+    );
+    logged.mockRestore();
+  });
+
+  // Regression guard for the 2026-08-30 intermittent 503s: the release check reads R2 over the
+  // network and must not share the database's sub-millisecond budget.  An R2 round trip slower
+  // than the database bound but well inside the release bound is ordinary latency, not an
+  // unready service, and must not take the instance out of rotation or fail a deployment
+  // promotion.  See plans/reports/analysis-260830-1840-healthz-r2-timeout-budget.md.
+  it("stays ready when the release read is slower than the database budget", async () => {
+    mocks.readR2Config.mockReturnValue({ bucket: "relay" });
+    mocks.readRelease.mockImplementation(
+      () => new Promise((resolve) => setTimeout(() => resolve(GOOD_RELEASE), 1_200)),
+    );
+
+    const response = await GET();
+    const body = (await response.json()) as Record<string, unknown>;
+
+    expect(response.status).toBe(200);
+    expect(body).toMatchObject({
+      ok: true,
+      status: "ready",
+      checks: { database: "ok", releaseMetadata: "ok", r2: "ok" },
+    });
+  });
 });
 
