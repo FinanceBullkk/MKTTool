@@ -77,6 +77,23 @@ describe("GET /api/healthz", () => {
     expect(JSON.stringify(body)).not.toContain("redacted");
   });
 
+  // Sự cố 30/08/2026 chạy nhiều giờ mà không để lại dòng log nào, vì hai catch ở đây nuốt sạch
+  // nguyên nhân. Thân phản hồi vẫn phải sạch, nhưng log máy chủ thì phải có.
+  it("ghi nguyên nhân ra log máy chủ mà không đưa vào thân phản hồi", async () => {
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    mocks.readRelease.mockRejectedValue(new Error("must-not-leak-to-body"));
+
+    const response = await GET();
+    const body = (await response.json()) as Record<string, unknown>;
+
+    expect(response.status).toBe(503);
+    expect(JSON.stringify(body)).not.toContain("must-not-leak-to-body");
+    expect(logged).toHaveBeenCalledWith(
+      expect.stringContaining("[healthz] release check failed -- Error: must-not-leak-to-body"),
+    );
+    logged.mockRestore();
+  });
+
   // Regression guard for the 2026-08-30 intermittent 503s: the release check reads R2 over the
   // network and must not share the database's sub-millisecond budget.  An R2 round trip slower
   // than the database bound but well inside the release bound is ordinary latency, not an
