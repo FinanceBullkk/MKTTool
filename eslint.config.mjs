@@ -1,5 +1,6 @@
 import next from "eslint-config-next";
 import nextTypescript from "eslint-config-next/typescript";
+import reactHooks from "eslint-plugin-react-hooks";
 
 /**
  * eslint-config-next 16 xuất thẳng flat config — không cần FlatCompat như hướng dẫn cũ
@@ -20,6 +21,11 @@ const config = [
   ...next,
   ...nextTypescript,
   {
+    // Keep the React Hooks override on the same file set as eslint-config-next's plugin
+    // registration. A file-less flat-config object is also applied to JSON/Markdown, where
+    // ESLint validates the rule name without the plugin scope and aborts before linting.
+    files: ["**/*.{js,jsx,mjs,cjs,ts,tsx}"],
+    plugins: { "react-hooks": reactHooks },
     rules: {
       // Biến bỏ đi có chủ đích được đặt tên bắt đầu bằng "_" — ví dụ `_prev` trong server action,
       // chữ ký đó do React quy định chứ không phải ta chọn.
@@ -35,6 +41,13 @@ const config = [
       // Viết lại phần UI đó cần có test UI trước — chưa có, nên chưa động vào.
       "react-hooks/set-state-in-effect": "warn",
     },
+  },
+  {
+    // The CI contract helpers are intentionally CommonJS (`.cjs`) so they can run directly in
+    // the Node runner without a transpilation step. Their `require` calls are part of that
+    // module contract, not accidental TypeScript imports.
+    files: ["**/*.cjs"],
+    rules: { "@typescript-eslint/no-require-imports": "off" },
   },
 ];
 
