@@ -38,6 +38,8 @@
     "postinstall": "prisma generate",
     "auth:check": "tsx --env-file=.env scripts/check-auth-config.ts",
     "auth:rate-limit:verify": "tsx --env-file=.env scripts/verify-better-auth-rate-limit.ts",
+    "ci:postgres-contracts": "node scripts/ci/run-postgres-contracts.cjs",
+    "ci:secret-scan": "node scripts/ci/secret-scan.cjs",
     "vault:testotp": "tsx scripts/generate-test-totp-secret.ts",
     "relay:dev": "tsx relay/src/main.ts",
     "relay:build": "tsx --env-file-if-exists=.env scripts/build-relay-executable.ts",
