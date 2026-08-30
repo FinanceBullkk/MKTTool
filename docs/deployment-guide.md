@@ -1,6 +1,7 @@
 # Đưa MKTTool lên Railway — làm từng bước
 
-**Cập nhật:** 06/08/2026 | Thuộc [GĐ5](../plans/260804-1752-web-chung-cho-team-phan-tan/phase-05-len-railway-cron-sao-luu.md)
+**Cập nhật:** 30/08/2026 | The Vietnamese walkthrough below is retained historical context; the
+current Lane A procedure is the English overlay immediately following this line.
 
 ## Consolidation release procedure — 30 August 2026
 
@@ -23,9 +24,10 @@ Required sequence:
    Record dump/report hashes, aggregate row counts, mismatch count, and cleanup status. Never commit
    the SQL dump; it contains encrypted production values.
 
-3. Record the rollback tuple before merging: current deployment
-   `3621f603-1c51-4246-824c-55cc0e6b5764`, rollback commit `c819e6a8`, migration action
-   `npx prisma migrate deploy`, candidate source SHA, Relay version, and schema state.
+3. Record the rollback tuple before merging. Query the currently active deployment and its
+   `meta.commitHash` with `railway status --json`; use those observed values as the rollback target,
+   then record `npx prisma migrate deploy`, the candidate source SHA, Relay version, and schema state.
+   Never copy a prior deployment ID from this document into a new release.
 4. Merge the approved PR to `master`; do not use a bare `railway up`. Capture `railway status` before
    and after the GitHub/Railway deployment. The merge is the deployment.
 5. Verify from outside the service: `/api/healthz` must be HTTP 200 with `ok:true`, `status:"ready"`,
@@ -40,16 +42,25 @@ Required sequence:
    deployment-manifest `null` field as proof that the service-instance setting is absent.
 
 Current evidence: branch run `33292005382` and post-merge master run `33292350436` are green for
-the required MKTTool jobs. PR #40 merged at `380962a49576a4663438ef50685dcb386c86aa08`, and Railway
-deployment `8e1123a3-c7f6-49a8-bb97-68c35bd4807a` succeeded. `/api/healthz` is HTTP 200, the
-authorized full `/v16` GET matches the immutable published SHA, and the service-instance
-`healthcheckPath` is `/api/healthz`. The earlier 404/401 probes are retained as explicitly labelled
-pre-merge history in the plan report, not as current state. A final Lane A GO still requires the
-bounded credentialed smoke and disposable rollback rehearsal.
+the required MKTTool jobs. PR #40 merged at `380962a49576a4663438ef50685dcb386c86aa08`; the latest
+Railway deployment ID and `meta.commitHash` are recorded in the successor P4a evidence report.
+`/api/healthz` is HTTP 200, the authorized full `/v16` GET matches the immutable published SHA, and
+the service-instance `healthcheckPath` is `/api/healthz`. The earlier 404/401 probes are retained as
+explicitly labelled pre-merge history in the plan report, not as current state. A final Lane A GO
+still requires the bounded credentialed smoke and disposable rollback rehearsal.
 
 The Browser five-artifact tuple is P4b only. Its missing Stable `.2` engine archive remains an OPEN
 technical item; it does not block this web procedure. Lane C is CLOSED because no CloakBrowser channel
 exists; do not send a request or promise a date.
+
+### Executed 30 August receipt (example, not a reusable rollback target)
+
+For the 30 August merge only, the observed pre-merge rollback target was deployment
+`3621f603-1c51-4246-824c-55cc0e6b5764` at commit `c819e6a8dff5cac027d24b4a9d488ec241e2ccaa`.
+The successor deployment was `8e1123a3-c7f6-49a8-bb97-68c35bd4807a` (later docs deployment
+`c4ac6781-6c41-486f-9e24-eeaf67aed22b`), and the current service setting is
+`healthcheckPath=/api/healthz`. This is immutable evidence for that release, not a template for a
+future rollback tuple; always query `railway status` afresh.
 
 Đây là **danh sách thao tác tay**, làm theo đúng thứ tự. Thứ tự không tùy tiện — có ba chỗ
 phụ thuộc nhau và làm ngược là phải quay lại:

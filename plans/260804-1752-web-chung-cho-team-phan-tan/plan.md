@@ -8,6 +8,13 @@ hạ thấp mức bảo vệ kho danh tính.
 > File này là bản kế hoạch: quyết định, phạm vi, phụ thuộc, rủi ro.
 > Trạng thái làm tới đâu xem [docs/development-roadmap.md](../../docs/development-roadmap.md).
 
+> **Historical specification — superseded for the 30 August 2026 release.** This 4 August design is
+> retained for architecture history. The successor consolidation records the current boundary:
+> P4a Web is deployed independently; the Browser five-artifact tuple is P4b **OPEN**; TikTok content,
+> scheduling, warmup, and posting remain parked; Q15 is self-serve on the owner's machines with no
+> notification channel; and Q16 confirms no CloakBrowser channel, so Lane C is **CLOSED**. Do not
+> execute the old TikTok/MultiZen rollout steps without a new owner decision.
+
 ---
 
 ## Bối cảnh
@@ -273,6 +280,6 @@ lúc proxy quan sát viên và Facebook đang chặn nghiệm thu, là đảo th
 > nhờ ADMIN gửi file qua chat" dựng lại đúng thói quen mà QĐ 11 sinh ra để dẹp. Phần code hóa ra
 > cũng rẻ hơn ước tính vì bộ ký SigV4 đã có sẵn.
 
-## Câu chưa trả lời
+## Câu chưa trả lời (historical snapshot; superseded)
 
 *(trống — hai câu của spike GĐ0 đã chốt ở trên)*

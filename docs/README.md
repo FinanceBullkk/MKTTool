@@ -5,9 +5,9 @@
 ## Current release entry point
 
 For the authoritative post-deploy state, start with the
-[30 August consolidation plan](../plans/260830-0830-consolidation-and-lane-a-release/plan.md),
-[P4a deployment evidence](../plans/260830-0830-consolidation-and-lane-a-release/reports/lane-a-deploy.md),
-and [P5 fleet evidence](../plans/260830-0830-consolidation-and-lane-a-release/reports/fleet-migration.md).
+[30 August consolidation plan](../../plans/260830-0830-consolidation-and-lane-a-release/plan.md),
+[P4a deployment evidence](../../plans/260830-0830-consolidation-and-lane-a-release/reports/lane-a-deploy.md),
+and [P5 fleet evidence](../../plans/260830-0830-consolidation-and-lane-a-release/reports/fleet-migration.md).
 P4a MKTTool Web is deployed and verified; the Browser P4b tuple is OPEN, the Relay floor remains 13
 pending owner-machine observations, and Lane C is CLOSED because there is no CloakBrowser channel.
 The older plans linked below remain historical context.
@@ -25,7 +25,7 @@ Repo này có 12+ file tài liệu. Đừng đọc hết. Tra theo câu hỏi b�
 | Làm tới đâu rồi, tiếp theo làm gì, cái gì đang chặn | [development-roadmap.md](development-roadmap.md) |
 | Đã đổi những gì, ngày nào | [project-changelog.md](project-changelog.md) |
 | Đưa web lên máy chủ thật (Railway) | [deployment-guide.md](deployment-guide.md) |
-| Production backups, R2, and restore proof | [database-backup-and-restore.md](database-backup-and-restore.md) |
+| Production backups, R2, and restore proof | [runbooks/database-restore.md](runbooks/database-restore.md) (current); [database-backup-and-restore.md](database-backup-and-restore.md) (historical reference) |
 | Hệ thống chạy ở đâu, phụ thuộc cái gì, hỏng thì hỏng thế nào | [system-architecture.md](system-architecture.md) |
 | MKT Browser contract, verified Windows slices, and what v1 still owes | [plan MKT Browser](../plans/260810-0244-mkt-browser-noi-bo/plan.md) |
 | Code nằm ở đâu, luồng nào gọi file nào | [codebase-summary.md](codebase-summary.md) |

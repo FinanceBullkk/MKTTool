@@ -4,8 +4,8 @@
 
 ## Consolidation truth — 30 August 2026, post-deploy reconciliation
 
-The consolidation branch `release/consolidation-20260830` is at
-`35b977badf5bedf5682702e1b378287f5f55db52`; MKTTool CI contracts are required in
+The consolidation branch `release/consolidation-20260830` contains the source/docs follow-up;
+MKTTool CI contracts are required in
 `.github/workflows/ci.yml`. Branch run `33292005382` and post-merge master run `33292350436` are
 green for the required MKTTool jobs (check, PostgreSQL contracts, secret scan, and deploy
 verification where applicable). The earlier `33291209847` remains failure evidence only.
@@ -13,9 +13,9 @@ verification where applicable). The earlier `33291209847` remains failure eviden
 P4a is the **MKTTool Web/Lane A** deployment and does not require a Browser engine archive or the
 five-artifact Browser tuple. A fresh current-database backup and `db:restore:verify` both pass, and
 the rollback tuple is recorded. PR #40 merged to `master` at
-`380962a49576a4663438ef50685dcb386c86aa08`; Railway deployment
-`8e1123a3-c7f6-49a8-bb97-68c35bd4807a` succeeded. `/api/healthz` returns 200 and the authorized
-full `/v16` GET matches the immutable published hash.
+`380962a49576a4663438ef50685dcb386c86aa08`; the latest Railway deployment and exact commit are
+recorded in the successor P4a evidence report. `/api/healthz` returns 200 and the authorized full
+`/v16` GET matches the immutable published hash.
 
 U3 remains **OPEN**: the detached experiment's 128-file payload was deterministic, while the current
 controlled 130-entry provenance manifests are also equal. The outer Windows installer keeps a
@@ -47,9 +47,9 @@ Dự án đang chạy **ba luồng song song**:
 | **B — Web chung** | Biến app một máy thành web chung cho 5-6 người ở 5-6 nơi | **GĐ0-4 xong 06/08**, GĐ5 web **đã chạy thật trên Railway** cùng ngày |
 | **C — MKT Browser** | Fork the MultiZen desktop layer; Windows-only in v1 while Web, Relay, and upstream UX/UI remain intact | **MKB-00 through MKB-02 verified; MKB-03 is a controlled technical draft with Browser CI, vendor/engine, real-proxy, second-PC, and canary gates open; Lane C real-account promotion is CLOSED because there is no CloakBrowser channel**; MKB-04 remains NO-GO; macOS deferred to MKB-07; [plan](../plans/260810-0244-mkt-browser-noi-bo/plan.md) |
 
-**Historical readiness overlay:** the earlier `3f376536` join-key wording described a draft before
+**Historical pre-consolidation stream table:** the earlier `3f376536` join-key wording described a draft before
 the consolidation branch. The accepted Browser provenance receipt was generated from `5ef710dd`; the
-current Browser branch head is `df3c7ad`. Its provenance is accepted, but
+current Browser branch head is `0b62df5`; its provenance is accepted, but
 the exact five-artifact tuple remains a separate P4b technical OPEN. This does not gate P4a Web. Use
 one profile at a time with human login/input. Profile-local storage, proxy routing, and technical
 readiness checks are operational controls only; they do not prove browser identity isolation. See
@@ -362,7 +362,14 @@ separate real-proxy evidence.
 
 ---
 
-## Luồng A — Trạng thái các giai đoạn
+## Historical predecessor ledgers — pre-consolidation snapshots
+
+> The stream tables below preserve dated implementation history and are not the current release
+> ledger. For 30 August, use the consolidation truth at the top: P4a Web is qualified, P4b is OPEN,
+> U5 observations/floor work remain open, and Lane C is **CLOSED** because no CloakBrowser channel
+> exists. Old MKB-03/MKB-04, procurement, and cold-start rows are not current scheduling directives.
+
+## Luồng A — Trạng thái các giai đoạn (historical)
 
 | # | Giai đoạn | Trạng thái | Ngày | Còn thiếu gì |
 |---|---|---|---|---|
@@ -377,7 +384,7 @@ separate real-proxy evidence.
 đồng hồ. Đó là rủi ro đã biết, không phải nhầm lẫn: phần code không có đường rút ngắn 14 ngày
 cold-start, nên làm trước là đúng.
 
-## Luồng B — Web chung cho team phân tán
+## Luồng B — Web chung cho team phân tán (historical)
 
 Chi tiết ở [plan.md](../plans/260804-1752-web-chung-cho-team-phan-tan/plan.md). Tổng ~3-3.5 tuần.
 
@@ -391,7 +398,7 @@ Chi tiết ở [plan.md](../plans/260804-1752-web-chung-cho-team-phan-tan/plan.m
 | 5 | [Lên Railway + cron + sao lưu](../plans/260804-1752-web-chung-cho-team-phan-tan/phase-05-len-railway-cron-sao-luu.md) | 🟢 **Web chạy thật, deploy tự động, sao lưu tự rời máy chủ** | 06/08 | Chạy ở `mkttool-web-production.up.railway.app`, đăng nhập Google được, 10 proxy sang đủ, bộ lịch tự bắn đúng 09:00 giờ team, **đẩy commit lên `master` là web tự cập nhật**, và **app tự đẩy bản sao lưu lên Cloudflare R2 mỗi đêm** — đã nghiệm thu trọn vòng (tải object về, khôi phục vào database rỗng, đúng 22 hàng/6 bảng). **Proxy quan sát viên đã có và kiểm sống** (`Observer1`, US, 15:31), và **Facebook đã nối Fanpage thật trên máy chủ** (16:08 — Meta chấp nhận domain `*.up.railway.app`, không phải mua tên miền). Còn lại đúng một việc, và nó **không tự đóng được trong GĐ5**: một lượt dò thật — chờ **nick Reddit trong kho máy chủ**, tức chờ bước nhập liệu của GĐ6 |
 | 6 | Team handoff | 🟡 Web/Facebook ready; Reddit desktop blocked | 11/08 | Railway, authentication, authorization, backups, and the technical Relay release path are ready, so Web-only/Facebook handoff and an owner-led disposable-profile demo may proceed. Reddit team self-installation and real-account handoff remain blocked by MKB-03, then the MKB-04 pilot/canary gates. Do not give ordinary operators the current Relay ZIP and Browser directory; data entry and training follow the relevant gate. |
 
-## Stream C — Internal MKT Browser
+## Stream C — Internal MKT Browser (historical)
 
 Architecture, flows, license gates, acceptance, and rollback are defined in the
 [MKT Browser plan](../plans/260810-0244-mkt-browser-noi-bo/plan.md). The fork belongs in a separate
