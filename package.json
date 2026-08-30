@@ -80,3 +80,4 @@
   }
 }
     "db:restore:verify": "tsx --env-file=.env scripts/restore-database-verify.ts",
+    "auth:rate-limit:verify": "tsx --env-file=.env scripts/verify-better-auth-rate-limit.ts",
