@@ -22,6 +22,7 @@
  * Dùng lại đúng hàm mà trang tải dùng, không băm bằng một lệnh khác: hai đường tính ra hai con số
  * là kiểu hỏng tệ nhất ở đây — người cài đối chiếu thấy lệch rồi kết luận file hỏng.
  */
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import {
   formatFileSize,
@@ -36,7 +37,7 @@ import {
   relayReleaseR2Key,
   versionOf,
 } from "../src/lib/relay/relay-release-r2";
-import { putObject } from "../src/lib/r2/r2-client";
+import { getObject, putObject } from "../src/lib/r2/r2-client";
 import { readR2Config, RELAY_RELEASE_R2_ENV } from "../src/lib/r2/r2-config";
 
 async function main(): Promise<void> {
@@ -75,6 +76,7 @@ async function main(): Promise<void> {
       );
       process.exit(1);
     }
+    await verifyRemoteBytes(config, objectKey, local.sizeBytes, checksum);
     console.log(`\n✅ ${objectKey} đã tồn tại với đúng bytes và metadata; không tải lên lại.\n`);
     return;
   }
@@ -121,8 +123,36 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
+  await verifyRemoteBytes(config, objectKey, local.sizeBytes, checksum);
+
   console.log(`\n✅ Đã phát hành. Cả team tải được ở /relay-download.`);
   console.log(`   Người đang chạy bản cũ sẽ thấy dải nhắc tải lại.\n`);
+}
+
+/** Read the full immutable object, not only its HEAD metadata. */
+async function verifyRemoteBytes(
+  config: NonNullable<ReturnType<typeof readR2Config>>,
+  key: string,
+  expectedSize: number,
+  expectedChecksum: string,
+): Promise<void> {
+  const remote = await getObject({ config, key });
+  const reader = remote.body.getReader();
+  const hash = createHash("sha256");
+  let size = 0;
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    size += value.byteLength;
+    hash.update(value);
+  }
+  const actual = hash.digest("hex");
+  if (size !== expectedSize || actual !== expectedChecksum) {
+    throw new Error(
+      `Immutable Relay object ${key} full read-back mismatch (size ${size}, SHA-256 ${actual}).`,
+    );
+  }
+  console.log(`Full byte read-back verified for ${key}: ${size} bytes, SHA-256 ${actual}.`);
 }
 
 main().catch((error: unknown) => {

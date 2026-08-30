@@ -21,7 +21,7 @@
  * Nên bài này đi trọn vòng: máy chủ (tiến trình này) phát vé thật → `.exe` mở ra → so mật khẩu
  * lấy được với chuỗi đã gửi đi. Sai một byte ở bất cứ đâu trong dây chuyền là đỏ.
  */
-import { existsSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { decryptCredential, encryptCredential } from "../src/lib/crypto/credential-encryption";
@@ -43,8 +43,8 @@ import { sealForDevice } from "../src/lib/tickets/ticket-sealed-box";
 import { TICKET_KINDS, TICKET_LIFETIME_MS } from "../src/lib/tickets/ticket-types";
 import { SPENT_TICKET_JOURNAL_FILE, readSpentTickets } from "../relay/src/spent-ticket-journal";
 import {
-  EXECUTABLE_FILE,
   makeTempHome,
+  prepareRelayCandidate,
   relayCall,
   removeTempHome,
   startRelay,
@@ -73,22 +73,37 @@ function makeThrowawayServerKey() {
 }
 
 async function run() {
-  if (!existsSync(EXECUTABLE_FILE)) {
-    console.error(`\nChưa có ${path.relative(process.cwd(), EXECUTABLE_FILE)}.`);
-    console.error("Chạy `npm run relay:build` trước.\n");
+  const archiveArgument = process.argv
+    .find((argument) => argument.startsWith("--archive="))
+    ?.slice("--archive=".length)
+    .trim() || process.env.RELAY_CANDIDATE_ARCHIVE?.trim();
+  const metadataArgument = process.argv
+    .find((argument) => argument.startsWith("--metadata="))
+    ?.slice("--metadata=".length)
+    .trim() || process.env.RELAY_CANDIDATE_METADATA?.trim();
+  if (!archiveArgument) {
+    console.error(
+      "\nRelay verification requires an explicit candidate archive. It never falls back to relay/dist.\n" +
+        "Run `npm run relay:verify -- --archive=relay/dist/MKTTool-Relay.zip`.\n",
+    );
     process.exit(1);
   }
+
+  const candidate = prepareRelayCandidate(archiveArgument, metadataArgument);
 
   const home = makeTempHome();
   const vaultKeyOperator = randomBytes(32);
   const serverKeys = makeThrowawayServerKey();
 
-  console.log(`\nNghiệm thu ${path.relative(process.cwd(), EXECUTABLE_FILE)}`);
+  console.log(`\nNghiệm thu candidate Relay v${candidate.version}`);
+  console.log(`Archive: ${candidate.archivePath}`);
+  console.log(`Archive SHA-256: ${candidate.archiveSha256}`);
+  console.log(`Extracted EXE SHA-256: ${candidate.executableSha256}`);
   console.log(`Thư mục dữ liệu tạm: ${home}\n`);
 
   // Một lượt chạy duy nhất cho cả bài: từ bản 2, cấu hình nạp nóng nên không còn chỗ nào phải
   // tắt/bật lại giữa chừng — và chính điều đó là thứ bài này đang chứng minh.
-  const relay = await startRelay(home);
+  let relay = await startRelay(home, candidate.executablePath);
   try {
     console.log("Lượt 1 — chưa có file cấu hình");
     const bare = await relayCall(RELAY_PATHS.health);
@@ -268,6 +283,81 @@ async function run() {
       `${journalled.length} mục trong ${SPENT_TICKET_JOURNAL_FILE}`,
     );
 
+    console.log("\nLượt 4 — dừng, khởi động lại đúng EXE + đúng home");
+    relay.stop();
+    await relay.waitForExit();
+    relay = await startRelay(home, candidate.executablePath);
+    const afterRestart = await relayCall(RELAY_PATHS.health);
+    check("Relay khởi động lại và giữ cấu hình", afterRestart.deviceId === DEVICE_ID);
+
+    const replayAfterRestart = await relayCall(RELAY_PATHS.ticket, { ticket: launchTicket });
+    check(
+      "vé đã tiêu bị chặn sau restart",
+      replayAfterRestart.rejectionCode === "ALREADY_USED",
+      String(replayAfterRestart.message),
+    );
+
+    const freshTicket = issueTicket(
+      {
+        kind: TICKET_KINDS.LAUNCH_PROFILE,
+        accountId: "smoke-fresh",
+        antidetectProfileId: "smoke-profile",
+        proxyLabel: "smoke-proxy",
+        proxy: { protocol: "http", host: "127.0.0.1", port: 1080 },
+      },
+      { deviceId: DEVICE_ID, publicKey: devicePublicKey },
+    );
+    const freshResult = await relayCall(RELAY_PATHS.ticket, { ticket: freshTicket });
+    check(
+      "vé mới sau restart đi qua xác minh đúng một lần",
+      freshResult.ok === false && !String(freshResult.rejectionCode ?? ""),
+      String(freshResult.message).slice(0, 70),
+    );
+    const freshReplay = await relayCall(RELAY_PATHS.ticket, { ticket: freshTicket });
+    check("vé mới cũng bị chặn khi dùng lại", freshReplay.rejectionCode === "ALREADY_USED");
+
+    const freshCredential = issueTicket(
+      {
+        kind: TICKET_KINDS.CREDENTIAL,
+        accountId: "smoke-fresh-secret",
+        field: "password",
+        credentialCiphertext: encryptCredential(PASSWORD, vaultKeyOperator),
+      },
+      { deviceId: DEVICE_ID, publicKey: devicePublicKey },
+    );
+    const freshSecret = await relayCall(SECRET_REVEAL_PATH, { ticket: freshCredential });
+    check(
+      "vé bí mật mới sau restart hoàn tất thành công",
+      freshSecret.ok === true && freshSecret.secret === PASSWORD,
+      String(freshSecret.message),
+    );
+
+    console.log("Lượt 5 — forced termination rồi restart");
+    relay.forceStop();
+    await relay.waitForExit();
+    relay = await startRelay(home, candidate.executablePath);
+    const replayAfterCrash = await relayCall(SECRET_REVEAL_PATH, { ticket: freshCredential });
+    check(
+      "vé đã tiêu vẫn bị chặn sau forced termination",
+      replayAfterCrash.rejectionCode === "ALREADY_USED",
+      String(replayAfterCrash.message),
+    );
+
+    // Corrupting the committed journal must make the exact candidate report not-ready, never reset
+    // the replay set. Restore the bytes before continuing the remainder of the smoke flow.
+    const journalPath = path.join(home, SPENT_TICKET_JOURNAL_FILE);
+    const journalBytes = readFileSync(journalPath);
+    relay.stop();
+    await relay.waitForExit();
+    writeFileSync(journalPath, "[{\"jti\":", "utf8");
+    relay = await startRelay(home, candidate.executablePath);
+    const corruptHealth = await relayCall(RELAY_PATHS.health);
+    check("journal hỏng làm Relay không sẵn sàng", corruptHealth.ok === false, String(corruptHealth.message));
+    relay.stop();
+    await relay.waitForExit();
+    writeFileSync(journalPath, journalBytes);
+    relay = await startRelay(home, candidate.executablePath);
+
     const expired = issueTicket(
       {
         kind: TICKET_KINDS.LAUNCH_PROFILE,
@@ -393,6 +483,7 @@ async function run() {
   } finally {
     relay.stop();
     removeTempHome(home);
+    removeTempHome(candidate.stagingDir);
   }
 
   console.log(

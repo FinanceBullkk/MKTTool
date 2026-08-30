@@ -11,13 +11,114 @@
  * mang **khóa vùng operator** — đúng hai thứ mà cả GĐ3/GĐ4 dựng ra để bảo vệ. Để chúng trong
  * cây làm việc là đặt cược vào một dòng `.gitignore`; để ở thư mục tạm thì không có cược nào.
  */
-import { type ChildProcess, spawn } from "node:child_process";
-import { mkdtempSync, rmSync } from "node:fs";
+import { execFileSync, type ChildProcess, spawn } from "node:child_process";
+import { createHash } from "node:crypto";
+import { existsSync, mkdtempSync, readFileSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { RELAY_ORIGIN } from "../src/lib/relay/relay-endpoints";
 
+/** Legacy path exported for scripts that only print a diagnostic. It is never used as a fallback. */
 export const EXECUTABLE_FILE = path.join(process.cwd(), "relay", "dist", "MKTTool-Relay.exe");
+
+export interface PreparedRelayCandidate {
+  archivePath: string;
+  metadataPath: string;
+  executablePath: string;
+  stagingDir: string;
+  version: number;
+  archiveSizeBytes: number;
+  archiveSha256: string;
+  executableSizeBytes: number;
+  executableSha256: string;
+}
+
+function sha256(filePath: string): string {
+  const hash = createHash("sha256");
+  hash.update(readFileSync(filePath));
+  return hash.digest("hex");
+}
+
+/**
+ * Extract and bind an explicitly supplied archive to the executable that will be launched.
+ * Missing or stale sidecar data is an error; this function never falls back to relay/dist.
+ */
+export function prepareRelayCandidate(
+  archiveInput: string,
+  metadataInput?: string,
+): PreparedRelayCandidate {
+  const archivePath = path.resolve(archiveInput);
+  if (!existsSync(archivePath) || !statSync(archivePath).isFile()) {
+    throw new Error(`Relay candidate archive does not exist: ${archivePath}`);
+  }
+  const metadataPath = path.resolve(
+    metadataInput || path.join(path.dirname(archivePath), "MKTTool-Relay.metadata.json"),
+  );
+  if (!existsSync(metadataPath) || !statSync(metadataPath).isFile()) {
+    throw new Error(`Relay candidate sidecar does not exist: ${metadataPath}`);
+  }
+
+  let metadata: Record<string, unknown>;
+  try {
+    metadata = JSON.parse(readFileSync(metadataPath, "utf8")) as Record<string, unknown>;
+  } catch (error) {
+    throw new Error(`Relay candidate sidecar is invalid JSON: ${(error as Error).message}`);
+  }
+  const version = metadata.version;
+  const archiveSizeBytes = statSync(archivePath).size;
+  const archiveSha256 = sha256(archivePath);
+  if (!Number.isSafeInteger(version) || Number(version) <= 0) {
+    throw new Error("Relay candidate sidecar has no valid version.");
+  }
+  if (metadata.sizeBytes !== archiveSizeBytes || metadata.sha256 !== archiveSha256) {
+    throw new Error("Relay candidate archive does not match its sidecar size/SHA-256.");
+  }
+  if (
+    !Number.isSafeInteger(metadata.executableSizeBytes) ||
+    typeof metadata.executableSha256 !== "string" ||
+    !/^[0-9a-f]{64}$/.test(metadata.executableSha256)
+  ) {
+    throw new Error("Relay candidate sidecar must bind executableSizeBytes and executableSha256.");
+  }
+
+  const stagingDir = mkdtempSync(path.join(tmpdir(), "mkttool-relay-candidate-"));
+  try {
+    // Windows ships bsdtar, and passing paths as argv avoids PowerShell's surprising `-Command`
+    // argument binding (which otherwise dropped paths containing spaces).  The archive is a
+    // normal ZIP, so the same command is also available on the Unix build host.
+    execFileSync("tar.exe", ["-xf", archivePath, "-C", stagingDir], { stdio: "pipe" });
+  } catch (error) {
+    rmSync(stagingDir, { recursive: true, force: true });
+    throw new Error(`Relay candidate archive extraction failed: ${(error as Error).message}`);
+  }
+
+  const executablePath = path.join(stagingDir, "MKTTool-Relay.exe");
+  if (!existsSync(executablePath) || !statSync(executablePath).isFile()) {
+    rmSync(stagingDir, { recursive: true, force: true });
+    throw new Error("Relay candidate archive does not contain MKTTool-Relay.exe at its root.");
+  }
+  const executableSizeBytes = statSync(executablePath).size;
+  const executableSha256 = sha256(executablePath);
+  if (
+    executableSizeBytes !== Number(metadata.executableSizeBytes) ||
+    executableSha256 !== metadata.executableSha256
+  ) {
+    rmSync(stagingDir, { recursive: true, force: true });
+    throw new Error("Extracted Relay executable does not match its sidecar size/SHA-256.");
+  }
+
+  return {
+    archivePath,
+    metadataPath,
+    executablePath,
+    stagingDir,
+    version: Number(version),
+    archiveSizeBytes,
+    archiveSha256,
+    executableSizeBytes,
+    executableSha256,
+  };
+}
 
 /** Chờ cổng mở bao lâu. Lần chạy đầu của một `.exe` SEA còn phải giải nén nên chậm hơn hẳn. */
 const STARTUP_TIMEOUT_MS = 20_000;
@@ -32,6 +133,9 @@ export interface RunningRelay {
   /** Mọi thứ cầu nối in ra, gộp cả stdout lẫn stderr — in ra khi một phép kiểm đỏ. */
   output(): string;
   stop(): void;
+  /** Abrupt termination used only by the crash-recovery leg of the evidence harness. */
+  forceStop(): void;
+  waitForExit(timeoutMs?: number): Promise<number | null>;
 }
 
 /**
@@ -67,7 +171,11 @@ async function portAlreadyTaken(): Promise<boolean> {
   return true;
 }
 
-export async function startRelay(home: string): Promise<RunningRelay> {
+export async function startRelay(home: string, executablePath: string): Promise<RunningRelay> {
+  const resolvedExecutablePath = path.resolve(executablePath);
+  if (!existsSync(resolvedExecutablePath)) {
+    throw new Error(`Relay executable does not exist: ${resolvedExecutablePath}`);
+  }
   if (await portAlreadyTaken()) {
     throw new Error(
       `Đã có một cầu nối khác đang nghe ở ${RELAY_ORIGIN}. Bài nghiệm thu sẽ đo nhầm chiếc đó ` +
@@ -76,7 +184,7 @@ export async function startRelay(home: string): Promise<RunningRelay> {
     );
   }
 
-  const child: ChildProcess = spawn(EXECUTABLE_FILE, [], {
+  const child: ChildProcess = spawn(resolvedExecutablePath, [], {
     env: { ...process.env, RELAY_HOME: home },
     stdio: ["ignore", "pipe", "pipe"],
   });
@@ -91,8 +199,23 @@ export async function startRelay(home: string): Promise<RunningRelay> {
   const running: RunningRelay = {
     output: () => log,
     stop: () => {
+      child.kill("SIGTERM");
+    },
+    forceStop: () => {
       child.kill();
     },
+    waitForExit: (timeoutMs = 10_000) =>
+      new Promise((resolve) => {
+        if (exited !== null) {
+          resolve(exited);
+          return;
+        }
+        const timer = setTimeout(() => resolve(exited), timeoutMs);
+        child.once("exit", () => {
+          clearTimeout(timer);
+          resolve(exited);
+        });
+      }),
   };
 
   const deadline = Date.now() + STARTUP_TIMEOUT_MS;
