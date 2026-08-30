@@ -2,6 +2,52 @@
 
 **Cập nhật:** 06/08/2026 | Thuộc [GĐ5](../plans/260804-1752-web-chung-cho-team-phan-tan/phase-05-len-railway-cron-sao-luu.md)
 
+## Consolidation release procedure — 30 August 2026
+
+This is the current Lane A overlay; the older ceremony below is retained as historical context.
+Railway deploys the MKTTool Web service from `master` through the GitHub integration
+(`.github/workflows/ci.yml:235`). The Browser engine and five-artifact compatibility tuple are not
+web-deployment prerequisites.
+
+Required sequence:
+
+1. Confirm the release branch has no uncommitted source. Keep the protected `AGENTS.md` files out
+   of staging. Require the exact self-hosted CI jobs to be green.
+2. Take a fresh production backup and verify it in a disposable database:
+
+   ```powershell
+   npm run db:backup:remote
+   npm run db:restore:verify -- --dump data/backups/mkttool-prod-<timestamp>.sql --report $env:TEMP\restore.json
+   ```
+
+   Record dump/report hashes, aggregate row counts, mismatch count, and cleanup status. Never commit
+   the SQL dump; it contains encrypted production values.
+
+3. Record the rollback tuple before merging: current deployment
+   `3621f603-1c51-4246-824c-55cc0e6b5764`, rollback commit `c819e6a8`, migration action
+   `npx prisma migrate deploy`, candidate source SHA, Relay version, and schema state.
+4. Immediately before an eligible merge, configure Railway `healthcheckPath` to
+   `/api/healthz` (and a bounded timeout). Do not configure it on an old deployment that still
+   returns 404.
+5. Merge the approved PR to `master`; do not use a bare `railway up`. Capture `railway status` before
+   and after the GitHub/Railway deployment. The merge is the deployment.
+6. Verify from outside the service: `/api/healthz` must be HTTP 200 with `ok:true`, `status:"ready"`,
+   database/release checks, and Relay v16; an authorized full GET of
+   `/api/relay/download/v16` must match the immutable published bytes by size and SHA. A HEAD request
+   is insufficient.
+7. Observe per-client rate limiting and the absence of the Better Auth shared-IP warning. Run the
+   bounded Lane A smoke and label synthetic checks separately. Rehearse rollback in a disposable
+   environment; a rollback is always approved and executed by a human.
+
+Current evidence: the branch mirror is green and the fresh backup/restore pass is recorded in
+`plans/260830-0830-consolidation-and-lane-a-release/reports/lane-a-deploy.md`. The production service
+still serves the old commit until the approved merge; pre-merge probes are `/api/healthz` 404 and
+unauthenticated `/v16` 401. Do not claim Lane A production GO until the post-merge checks above pass.
+
+The Browser five-artifact tuple is P4b only. Its missing Stable `.2` engine archive remains an OPEN
+technical item; it does not block this web procedure. Lane C is CLOSED because no CloakBrowser channel
+exists; do not send a request or promise a date.
+
 Đây là **danh sách thao tác tay**, làm theo đúng thứ tự. Thứ tự không tùy tiện — có ba chỗ
 phụ thuộc nhau và làm ngược là phải quay lại:
 

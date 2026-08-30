@@ -9,6 +9,25 @@ Thuật ngữ tra ở [domain-glossary.md](domain-glossary.md). Cách cài và c
 
 ---
 
+## Consolidation modules — 30 August 2026
+
+The current release branch adds or hardens these boundary modules:
+
+| Path | Responsibility |
+|---|---|
+| `src/lib/auth/trusted-proxy-config.ts` and `trusted-proxy-resolution.test.ts` | allowlisted proxy headers/CIDRs and safe client-IP resolution |
+| `src/lib/db/restore-database-verification.ts` | sanitized aggregate/hash comparison for disposable restores |
+| `src/lib/tickets/spent-ticket-journal.ts` and tests | durable, atomic replay protection across restart/termination |
+| `src/lib/tickets/ticket-rate-limit.ts` and related tests | PostgreSQL-backed per-client rate-limit durability/concurrency |
+| `src/app/api/healthz/route.ts` and tests | unauthenticated bounded readiness for DB/release state |
+| `src/lib/setup/windows-installer-release.ts` and `windows-installer-release-metadata.ts` | explicit disk/R2 release source and installer metadata validation |
+| `src/lib/relay/relay-release-*.ts` and `relay/src/spent-ticket-journal.ts` | immutable Relay artifact metadata, publication boundaries, and local durability |
+| `scripts/ci/gate-status.cjs`, `run-postgres-contracts.cjs`, `secret-scan.cjs` | machine-readable fail-closed CI contracts |
+
+The license-key pool remains in the MKTBrowser desktop tree (`apps/desktop/src/main/license-key-pool`)
+and is deliberately not a server-side secret store. These modules enforce operational isolation;
+none claims stealth, unique fingerprint identity, or vendor-level identity isolation.
+
 ## Cây thư mục
 
 ```

@@ -2,6 +2,32 @@
 
 **Updated:** 30 August 2026
 
+## Consolidation truth — 30 August 2026, 10:30 ICT
+
+The consolidation branch `release/consolidation-20260830` has landed U1 and U2 locally. MKTTool
+CI contracts are now required in `.github/workflows/ci.yml`; the local mirror is green (lint,
+typecheck, 215/1,958 tests, critical coverage, build, PostgreSQL contracts, secret scan, and Relay
+replay). The branch is pushed as PR #40; the exact self-hosted checks remain the merge gate.
+
+P4a is the **MKTTool Web/Lane A** deployment and does not require a Browser engine archive or the
+five-artifact Browser tuple. A fresh current-database backup and `db:restore:verify` both pass, and
+the rollback tuple is recorded. Production is still the prior deployment until the approved merge;
+`/api/healthz` and authorized `/v16` full-GET/hash verification must pass after deployment.
+
+U3 remains **OPEN**: the 128-file payload is deterministic, but the outer Windows installer keeps a
+103-byte NSIS/resource-order variance across clean runs. No normalizer was accepted, and no claim of
+full installer reproducibility is made.
+
+U5 keeps `MIN_RELAY_VERSION=13` until route-first evidence. Both v15 devices are the owner's own
+machines, so the upgrade path is self-serve reinstall of 0.3.13 on each; no notification channel is
+needed. U6 closed the custom-engine build track after the measured RAM gate; no custom Chromium
+build or CloakBrowser seat was consumed.
+
+**Lane C is CLOSED for this product shape.** `G2-IDENTITY` remains FAIL on the recorded font/audio/
+WebGL collisions, and there is no CloakBrowser channel. No vendor request, date, or “coming soon”
+promise exists. A future alternative-vendor decision would be a new, separately owned product
+scope. MKTBrowser remains a controlled Lane A/B demo and does not claim identity isolation.
+
 Đây là **nguồn duy nhất về trạng thái** của dự án. Chi tiết thi công nằm ở
 [plan công cụ gốc](../plans/260801-2030-multi-account-posting-console/plan.md),
 [plan Web chung](../plans/260804-1752-web-chung-cho-team-phan-tan/plan.md) và
@@ -16,16 +42,14 @@ Dự án đang chạy **ba luồng song song**:
 | **B — Web chung** | Biến app một máy thành web chung cho 5-6 người ở 5-6 nơi | **GĐ0-4 xong 06/08**, GĐ5 web **đã chạy thật trên Railway** cùng ngày |
 | **C — MKT Browser** | Fork the MultiZen desktop layer; Windows-only in v1 while Web, Relay, and upstream UX/UI remain intact | **MKB-00 through MKB-02 verified; MKB-03 engineering complete with live Windows gates open; P0 proxy/lease/readiness automated hardening is green but vendor, real-proxy, second-PC, and canary evidence remain open**; MKB-04 remains NO-GO; macOS deferred to MKB-07; [plan](../plans/260810-0244-mkt-browser-noi-bo/plan.md) |
 
-**Current readiness overlay, 30 August 2026:** Web/Facebook remains a conditional low-risk,
-admin-led internal handoff. The next Windows x64 Browser/Relay candidate is MKT Browser `0.3.13`
-with bundled Relay v16, joined at `3f376536`; it is a **draft, not published**, until installer,
-provenance, lifecycle, and release-authority gates close. Use one profile at a time with human
-login/input. Profile-local storage, proxy routing, and technical readiness checks are operational
-controls only; they do not prove browser identity isolation. The prior `0.3.12`/v15 tuple is
-quarantined historical evidence. See [internal-beta-release.md](internal-beta-release.md).
-The custom Chromium/prebuilt-engine tracks, macOS, concurrency, updater, and broad canary remain
-deferred; Browser/Relay rollout is **NO-GO** while identity, network, vendor, second-PC, and canary
-gates remain open.
+**Historical readiness overlay:** the earlier `3f376536` join-key wording described a draft before
+the consolidation branch. The current Browser source is `5ef710dd`; its provenance is accepted, but
+the exact five-artifact tuple remains a separate P4b technical OPEN. This does not gate P4a Web. Use
+one profile at a time with human login/input. Profile-local storage, proxy routing, and technical
+readiness checks are operational controls only; they do not prove browser identity isolation. See
+[internal-beta-release.md](internal-beta-release.md). Browser/Relay real-account rollout remains
+NO-GO for the unresolved identity and operator gates; Lane C itself is closed because there is no
+vendor channel.
 
 **TikTok scope decision, 19 August 2026:** TikTok is now a first-class account/profile workflow in
 the console. Creating the account, assigning its static proxy and Relay device, checking technical

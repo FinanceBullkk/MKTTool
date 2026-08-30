@@ -8,6 +8,29 @@ thế nào**. Code nằm ở đâu thì tra [codebase-summary.md](codebase-summa
 
 ---
 
+## Release/consolidation boundaries — 30 August 2026
+
+- **Trusted proxy:** the Web service resolves client IPs only from an explicitly configured,
+  validated proxy-header/CIDR policy. Untrusted forwarding headers are ignored; rate-limit keys do
+  not silently collapse every operator behind one proxy.
+- **Database-backed rate limits:** Better Auth limits are persisted in PostgreSQL and exercised by
+  racing workers. A local green test is not a production observation until the deployed service is
+  checked with two distinct client addresses.
+- **Durable spent-ticket journal:** Relay ticket use is append/validate/replay-protected across clean
+  restart and forced termination. Invalid journal state is fail-closed; it never falls back to an
+  in-memory replay guard.
+- **One-seat boundary:** the CloakBrowser licence is consumed on the operator machine, never by the
+  server. The server issues scoped tickets; the local Relay holds operator secrets and the Browser
+  owns profile data. One account maps to one static proxy, managed profile, and Relay device.
+- **Readiness/provenance:** `/api/healthz` is an unauthenticated, bounded readiness signal for the
+  Web deployment and reports database/release checks. `emit-release-provenance.cjs` attests a clean
+  Browser source tree, but neither signal is a signature, vendor assertion, or identity-isolation
+  evidence.
+- **Lane separation:** the MKTTool Web deployment does not require the Browser five-artifact tuple.
+  P4a can ship independently; P4b remains the Browser/Relay/engine contract. `G2-IDENTITY` is FAIL
+  on the recorded licensed-engine collisions, so this architecture makes no stealth or identity-
+  isolation claim. Lane C is closed because there is no CloakBrowser channel.
+
 ## 1. Hình dung tổng thể
 
 ```mermaid
