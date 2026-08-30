@@ -26,23 +26,26 @@ Required sequence:
 3. Record the rollback tuple before merging: current deployment
    `3621f603-1c51-4246-824c-55cc0e6b5764`, rollback commit `c819e6a8`, migration action
    `npx prisma migrate deploy`, candidate source SHA, Relay version, and schema state.
-4. Immediately before an eligible merge, configure Railway `healthcheckPath` to
-   `/api/healthz` (and a bounded timeout). Do not configure it on an old deployment that still
-   returns 404.
-5. Merge the approved PR to `master`; do not use a bare `railway up`. Capture `railway status` before
+4. Merge the approved PR to `master`; do not use a bare `railway up`. Capture `railway status` before
    and after the GitHub/Railway deployment. The merge is the deployment.
-6. Verify from outside the service: `/api/healthz` must be HTTP 200 with `ok:true`, `status:"ready"`,
+5. Verify from outside the service: `/api/healthz` must be HTTP 200 with `ok:true`, `status:"ready"`,
    database/release checks, and Relay v16; an authorized full GET of
    `/api/relay/download/v16` must match the immutable published bytes by size and SHA. A HEAD request
    is insufficient.
-7. Observe per-client rate limiting and the absence of the Better Auth shared-IP warning. Run the
+6. Observe per-client rate limiting and the absence of the Better Auth shared-IP warning. Run the
    bounded Lane A smoke and label synthetic checks separately. Rehearse rollback in a disposable
    environment; a rollback is always approved and executed by a human.
+7. After the deployment passes the external health, full-GET, and log checks, configure the Railway
+   service instance `healthcheckPath` to `/api/healthz` (and verify the setting). Do not treat a
+   deployment-manifest `null` field as proof that the service-instance setting is absent.
 
-Current evidence: the branch mirror is green and the fresh backup/restore pass is recorded in
-`plans/260830-0830-consolidation-and-lane-a-release/reports/lane-a-deploy.md`. The production service
-still serves the old commit until the approved merge; pre-merge probes are `/api/healthz` 404 and
-unauthenticated `/v16` 401. Do not claim Lane A production GO until the post-merge checks above pass.
+Current evidence: branch run `33292005382` and post-merge master run `33292350436` are green for
+the required MKTTool jobs. PR #40 merged at `380962a49576a4663438ef50685dcb386c86aa08`, and Railway
+deployment `8e1123a3-c7f6-49a8-bb97-68c35bd4807a` succeeded. `/api/healthz` is HTTP 200, the
+authorized full `/v16` GET matches the immutable published SHA, and the service-instance
+`healthcheckPath` is `/api/healthz`. The earlier 404/401 probes are retained as explicitly labelled
+pre-merge history in the plan report, not as current state. A final Lane A GO still requires the
+bounded credentialed smoke and disposable rollback rehearsal.
 
 The Browser five-artifact tuple is P4b only. Its missing Stable `.2` engine archive remains an OPEN
 technical item; it does not block this web procedure. Lane C is CLOSED because no CloakBrowser channel
@@ -50,6 +53,11 @@ exists; do not send a request or promise a date.
 
 Đây là **danh sách thao tác tay**, làm theo đúng thứ tự. Thứ tự không tùy tiện — có ba chỗ
 phụ thuộc nhau và làm ngược là phải quay lại:
+
+> **Historical walkthrough notice:** the detailed Vietnamese walkthrough from 6–29 August below is
+> retained for incident context and exceptional fallback only. Its “remaining work”, dates, and
+> status statements are not the current release ledger. For 30 August, follow the consolidation
+> sequence at the top of this file: master merge → external checks → service-instance healthcheck.
 
 | Phải có trước | Mới làm được |
 |---|---|
@@ -72,6 +80,13 @@ Ba quyết định đã chốt 06/08/2026:
 > chính lượt đó, không phải cảnh báo đề phòng.
 
 ---
+
+## Historical/manual fallback — not the current Lane A deployment path
+
+The detailed `railway up` walkthrough below is retained for the exceptional case where the GitHub
+integration is unavailable. It is not the normal path for the current service: Railway deploys from
+`master`, and a bare `railway up` is never acceptable. The post-deploy record in the consolidation
+plan is authoritative for 30 August 2026.
 
 ## ⚠️ Đọc trước: `railway up` ghi đè lên BẤT KỲ service nào đang được chọn
 
@@ -818,7 +833,14 @@ team nhìn thấy** — nó đổi thứ mọi người tải về và bật d�
 
 ---
 
-## Việc còn nợ sau khi xong
+## Historical 06 August walkthrough — remaining work at that time
+
+> The checklist below belongs to the 06 August deployment, not the 30 August consolidation. It is
+> retained for incident context and fallback history. The current ledger still has P4-08/P4-09,
+> U5 owner observations, and the P4b Browser tuple OPEN; Lane C is CLOSED because no CloakBrowser
+> channel exists. Do not read “đã xong” below as a current no-debt release claim.
+
+## Việc còn nợ sau khi xong (historical)
 
 Xếp theo thứ tự nên làm.
 

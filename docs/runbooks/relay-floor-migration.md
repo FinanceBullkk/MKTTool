@@ -41,14 +41,17 @@ fresh inventory → authorized full GET/hash of /v16 → owner-machine reinstall
 
 Run the following from a shell whose database connection and release token were injected by the
 approved secret store. Do not paste a production URL, cookie, or token into the command line or a
-report. The `PG*` variables must refer to the current production database; a missing variable is a
-blocked gate, not a reason to guess.
+report. The `PG*` variables must refer to the current production database and use TLS; a missing or
+ambiguous variable is a blocked gate, not a reason to guess.
 
 ```powershell
 Set-Location E:\MKTWorkspace\MKTTool
-$requiredPg = 'PGHOST','PGPORT','PGDATABASE','PGUSER','PGPASSWORD'
+$requiredPg = 'PGHOST','PGPORT','PGDATABASE','PGUSER','PGPASSWORD','PGSSLMODE'
 if ($requiredPg | Where-Object { [string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($_)) }) {
-  throw 'PGHOST/PGPORT/PGDATABASE/PGUSER/PGPASSWORD must be loaded by the approved secret mechanism.'
+  throw 'PGHOST/PGPORT/PGDATABASE/PGUSER/PGPASSWORD/PGSSLMODE must be loaded by the approved secret mechanism.'
+}
+if ($env:PGSSLMODE -notin @('require', 'verify-ca', 'verify-full')) {
+  throw 'PGSSLMODE must require TLS (require, verify-ca, or verify-full).'
 }
 $inventorySql = @'
 SELECT COALESCE("relayVersion"::text, 'unknown') AS relay_version,
@@ -58,12 +61,21 @@ FROM "RelayDevice"
 GROUP BY 1, 2
 ORDER BY 1, 2;
 '@
-$inventory = $inventorySql | & (Get-Command psql -ErrorAction Stop).Source --no-psqlrc --no-password --tuples-only --csv
+$psqlPath = if ($env:PSQL_PATH) {
+  if (-not (Test-Path -LiteralPath $env:PSQL_PATH -PathType Leaf)) {
+    throw 'PSQL_PATH does not name a readable executable.'
+  }
+  (Resolve-Path -LiteralPath $env:PSQL_PATH).Path
+} else {
+  (Get-Command psql -ErrorAction Stop).Source
+}
+$inventory = $inventorySql | & $psqlPath --no-psqlrc --no-password --set ON_ERROR_STOP=1 --tuples-only --csv
 if ($LASTEXITCODE -ne 0) { throw 'Aggregate RelayDevice inventory failed.' }
 $inventory
 
 $base = 'https://mkttool-web-production.up.railway.app'
 $expectedSha = '5c98cf460e62f83b484c9ecd55bc80b650f2e19a09e8ded6e99eafb682e1842e'
+$expectedBytes = 33342752
 $token = $env:RELAY_RELEASE_DOWNLOAD_TOKEN
 if ([string]::IsNullOrWhiteSpace($token)) { throw 'RELAY_RELEASE_DOWNLOAD_TOKEN is not available; route gate remains OPEN.' }
 $headers = @{ Authorization = "Bearer $token" }
@@ -72,37 +84,75 @@ try {
   $response = Invoke-WebRequest -Uri "$base/api/relay/download/v16" -Method Get -Headers $headers `
     -OutFile $body -PassThru -MaximumRedirection 0 -ErrorAction Stop
   if ($response.StatusCode -ne 200) { throw "Relay v16 full GET returned HTTP $($response.StatusCode)." }
+  $bytes = (Get-Item -LiteralPath $body).Length
+  if ($bytes -ne $expectedBytes) { throw "Relay v16 byte count mismatch: $bytes (expected $expectedBytes)." }
   $hash = (Get-FileHash -LiteralPath $body -Algorithm SHA256).Hash.ToLowerInvariant()
   if ($hash -ne $expectedSha) { throw "Relay v16 hash mismatch: $hash." }
-  [pscustomobject]@{ status = 'PASS'; bytes = (Get-Item -LiteralPath $body).Length; sha256 = $hash }
+  [pscustomobject]@{ status = 'PASS'; bytes = $bytes; sha256 = $hash }
 }
 finally {
   Remove-Item -LiteralPath $body -Force -ErrorAction SilentlyContinue
 }
 
-$health = Invoke-RestMethod -Uri "$base/api/healthz" -Method Get -ErrorAction Stop
-if ($health.ok -ne $true -or $health.status -ne 'ready' -or $health.relayVersion -ne 16) {
-  throw 'Readiness response did not prove ok=true, status=ready, and relayVersion=16.'
+$health = Invoke-RestMethod -Uri "$base/api/healthz" -Method Get -MaximumRedirection 0 -ErrorAction Stop
+if (
+  $health.ok -ne $true -or
+  $health.status -ne 'ready' -or
+  $health.checks.database -ne 'ok' -or
+  $health.checks.releaseMetadata -ne 'ok' -or
+  $health.checks.r2 -ne 'ok' -or
+  $health.relayVersion -ne 16
+) {
+  throw 'Readiness response did not prove HTTP 200, ok=true, status=ready, all release checks ok, and relayVersion=16.'
 }
-railway status --json | Out-Host
+$statusRaw = railway status --json
 if ($LASTEXITCODE -ne 0) { throw 'Railway deployment metadata could not be read.' }
+$status = $statusRaw | ConvertFrom-Json
+$instances = foreach ($environmentEdge in @($status.environments.edges)) {
+  foreach ($instanceEdge in @($environmentEdge.node.serviceInstances.edges)) {
+    if ($environmentEdge.node.name -eq 'production' -and $instanceEdge.node.serviceName -eq 'mkttool-web') {
+      $instanceEdge.node
+    }
+  }
+}
+$instance = @($instances) | Select-Object -First 1
+if (-not $instance) { throw 'The production mkttool-web service could not be identified.' }
+$deployment = @($instance.activeDeployments | Where-Object { $_.status -eq 'SUCCESS' }) | Select-Object -First 1
+if (-not $deployment) { throw 'The production mkttool-web service has no successful active deployment.' }
+if ($deployment.status -ne 'SUCCESS' -or [string]::IsNullOrWhiteSpace($deployment.meta.commitHash)) {
+  throw 'The linked mkttool-web deployment is not a successful, hash-identified deployment.'
+}
+[pscustomobject]@{
+  deploymentId = $deployment.id
+  status = $deployment.status
+  commitHash = $deployment.meta.commitHash
+  createdAt = $deployment.createdAt
+} | ConvertTo-Json -Compress
 ```
 
 `/api/healthz` proves readiness and the published Relay version; it does **not** prove the source
-commit. Compare `meta.commitHash` in the sanitized `railway status --json` deployment record with
-the candidate SHA before recording a deployment PASS.
+commit. Compare `meta.commitHash` in the small sanitized deployment record above with the candidate
+SHA before recording a deployment PASS. Railway's historical deployment manifest may show a null
+healthcheck path even after the service setting changes; verify the live service-level setting with
+the `serviceInstance` query in [release-rollback.md](release-rollback.md).
 
-On each owner machine, use the already-distributed 0.3.13 installer and observe the local Relay;
-do not infer the result from the database:
+On each owner machine, use an owner-approved 0.3.13 installer receipt **if one is available** and
+observe the local Relay; the Browser tuple/installer is not publicly distributed by this release
+record. Do not infer the result from the database:
 
 ```powershell
+$base = 'https://mkttool-web-production.up.railway.app'
 Get-FileHash -LiteralPath 'C:\path\to\MKTBrowser-win-x64.exe' -Algorithm SHA256
 Start-Process -FilePath 'C:\path\to\MKTBrowser-win-x64.exe' -Wait
-Invoke-RestMethod -Uri 'http://127.0.0.1:47821/health' -Headers @{ Origin = $base }
+$localHealth = Invoke-RestMethod -Uri 'http://127.0.0.1:47821/health' -Headers @{ Origin = $base } -MaximumRedirection 0 -ErrorAction Stop
+if ($localHealth.relayVersion -ne 16) { throw 'The owner machine did not report Relay v16.' }
+$localHealth | Select-Object relayVersion | ConvertTo-Json -Compress
 ```
 
-Record only `relayVersion: 16`, timestamp, and PASS/FAIL for each owner machine. A missing local
-observation leaves the floor at 13.
+Record only `relayVersion: 16`, timestamp, and PASS/FAIL for each owner machine. Because U3 did not
+establish one canonical outer-installer hash, use only an owner-approved 0.3.13 installer receipt;
+do not treat the historical `e5623b8a…` candidate hash as a universal release hash. A missing
+receipt or local observation leaves the floor at 13.
 
 After the preconditions pass, edit only the intended constant and run the focused floor/rejection
 tests plus the full CI suite. `MIN_RELAY_VERSION_BY_KIND` must continue to derive via
@@ -115,10 +165,12 @@ too-new values fail safely. Keep the old v15 tuple as negative evidence and mark
 the compatibility system supports that state. Revocation cannot recall an EXE already on disk; the
 floor is the enforcement mechanism.
 
-The focused source checks are:
+The focused source checks are (all four paths exist in this tree):
 
 ```powershell
-npx vitest run src/lib/tickets/outdated-relay-version.test.ts `
+npx vitest run `
+  src/lib/tickets/ticket-min-relay-version-floor.test.ts `
+  src/lib/tickets/ticket-min-relay-version-downgrade.test.ts `
   src/lib/tickets/ticket-min-version-by-kind.test.ts `
   src/lib/release/compatibility-update-actions.database.test.ts
 if ($LASTEXITCODE -ne 0) { throw 'Relay floor compatibility checks failed.' }

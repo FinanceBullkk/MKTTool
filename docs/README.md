@@ -1,6 +1,16 @@
 # Tài liệu MKTTool — bắt đầu từ đâu
 
-**Updated:** 22 August 2026
+**Updated:** 30 August 2026
+
+## Current release entry point
+
+For the authoritative post-deploy state, start with the
+[30 August consolidation plan](../plans/260830-0830-consolidation-and-lane-a-release/plan.md),
+[P4a deployment evidence](../plans/260830-0830-consolidation-and-lane-a-release/reports/lane-a-deploy.md),
+and [P5 fleet evidence](../plans/260830-0830-consolidation-and-lane-a-release/reports/fleet-migration.md).
+P4a MKTTool Web is deployed and verified; the Browser P4b tuple is OPEN, the Relay floor remains 13
+pending owner-machine observations, and Lane C is CLOSED because there is no CloakBrowser channel.
+The older plans linked below remain historical context.
 
 Repo này có 12+ file tài liệu. Đừng đọc hết. Tra theo câu hỏi bạn đang có:
 

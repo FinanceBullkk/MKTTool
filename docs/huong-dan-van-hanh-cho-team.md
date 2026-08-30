@@ -155,16 +155,18 @@ Ba việc bắt buộc phải có cầu nối đang chạy:
 Mọi việc khác vẫn chạy bình thường khi cầu nối tắt — kể cả sửa karma, trạng thái, proxy của nick.
 
 > Your PC must be registered before it can receive a ticket. `/setup` shows the local readiness and
-> enrollment state, but new self-installation is paused while rollout is NO-GO. Do not download an
+> enrollment state. Browser/Relay rollout remains NO-GO for the separate Browser gates; the owner may
+> self-serve reinstall the approved 0.3.13 package on the two owner machines only when an approved
+> installer receipt is available. Do not download an
 > old Relay ZIP, run a legacy `setup.bat`, or copy local keys/tokens by hand.
 >
 > Nếu bạn có **hai máy** trong sổ, công cụ sẽ hỏi bạn đang ngồi máy nào trước khi bấm. Chọn đúng —
 > chọn sai là phát ra một tấm vé chắc chắn hỏng, phải làm lại.
 
-### Current installation gate
+### Current Browser installation gate (P4b; not the deployed P4a Web gate)
 
-The next internal candidate is MKT Browser `0.3.13` with bundled Relay v16. It remains a **draft,
-not published**, until the exact installer/provenance and release-authority gates close. The
+The current MKT Browser `0.3.13` with bundled Relay v16 remains a **draft, not published**, until the
+exact installer/provenance and release-authority gates close. The
 immutable Relay v16 object has been read back and hash-verified; the old `0.3.12`/v15 installer is
 quarantined historical evidence and must not be patched or reused.
 
@@ -363,12 +365,15 @@ báo càng nhiều thứ phải làm lại.
    - **Gửi qua sổ** — trên `/relay-devices`, ADMIN bấm nút phát khóa cho máy đó. Cầu nối của ADMIN
      bọc khóa bằng chính khóa công khai của máy nhận, máy chủ chỉ giữ hộ cái hộp đã bọc và không
      mở được. Đường này **khóa thô không đi qua tay ai**.
-   - **Chép tay** — đưa khóa qua trình quản lý mật khẩu dùng chung, họ tự dán ở
-     `http://127.0.0.1:47821`. Dùng khi đường trên không chạy. **Không bao giờ qua chat**: khóa dán
-     trong chat là khóa nằm trong lịch sử chat của một công ty khác, vĩnh viễn.
-3. **Do not self-install while rollout is NO-GO.** The owner/ADMIN must use the approved combined
-   installer after the technical and human gates close, then the operator completes `/setup` on the
-   detected PC.
+    - **Chép tay (retired emergency procedure)** — đưa khóa qua trình quản lý mật khẩu dùng chung,
+      họ tự dán ở `http://127.0.0.1:47821`. Chỉ dùng khi sealed-box/device-grant hỏng, có phê duyệt
+      trực tiếp của owner + security, và xóa/đổi khóa sau ca; không phải đường vận hành bình thường.
+      **Không bao giờ qua chat**: khóa dán trong chat là khóa nằm trong lịch sử chat của một công ty
+      khác, vĩnh viễn.
+3. **Owner-only self-install (Q15).** The two active v15 devices belong to the workspace owner. When
+   an owner-approved 0.3.13 installer receipt is available, the owner may reinstall it and complete
+   `/setup` on each detected PC. No notification/acknowledgement channel is needed. Ordinary team
+   operators must not self-install while the Browser rollout gates remain NO-GO.
 
 > Việc 1 phải xong trước việc 3. Ghi máy vào sổ cho một email chưa được phép đăng nhập thì công cụ
 > từ chối thẳng, kèm câu giải thích đúng lý do — nhưng đó là một vòng đi lại không cần thiết.

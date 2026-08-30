@@ -14,14 +14,33 @@ committing them to Git.
 - `TEST_DATABASE_URL` or `RESTORE_DATABASE_URL` points to a disposable local PostgreSQL template.
   The verifier creates and drops a uniquely named database; it refuses unsafe targets unless
   `--allow-same-server` is explicitly supplied for a disposable local rehearsal.
-- Confirm the PostgreSQL client (`psql`) and `PG_DUMP_PATH`/client version are the approved ones.
-  Capture the versions without printing connection strings:
+- For this production procedure, do not rely on the verifier's local `DATABASE_URL` fallback: if
+  `PRODUCTION_DATABASE_URL` is absent from the approved `.env`/secret injection, stop before
+  restoring. A successful `db:backup:remote` is the source-selection evidence; a local dump is not.
+- Confirm the PostgreSQL clients and versions are approved. `db:backup:remote` uses
+  `PG_DUMP_PATH` when it is set and otherwise resolves `pg_dump` on `PATH`; the verifier uses
+  `PSQL_PATH` when it is set and otherwise resolves `psql` on `PATH`. Capture the selected
+  executables' versions without printing connection strings:
 
   ```powershell
-  if (-not $env:PG_DUMP_PATH) { throw 'PG_DUMP_PATH must name the approved pg_dump executable.' }
-  & $env:PG_DUMP_PATH --version
+  $pgDumpPath = if ($env:PG_DUMP_PATH) {
+    if (-not (Test-Path -LiteralPath $env:PG_DUMP_PATH -PathType Leaf)) {
+      throw 'PG_DUMP_PATH does not name a readable executable.'
+    }
+    (Resolve-Path -LiteralPath $env:PG_DUMP_PATH).Path
+  } else {
+    (Get-Command pg_dump -ErrorAction Stop).Source
+  }
+  & $pgDumpPath --version
   if ($LASTEXITCODE -ne 0) { throw 'The approved pg_dump version check failed.' }
-  $psqlPath = (Get-Command psql -ErrorAction Stop).Source
+  $psqlPath = if ($env:PSQL_PATH) {
+    if (-not (Test-Path -LiteralPath $env:PSQL_PATH -PathType Leaf)) {
+      throw 'PSQL_PATH does not name a readable executable.'
+    }
+    (Resolve-Path -LiteralPath $env:PSQL_PATH).Path
+  } else {
+    (Get-Command psql -ErrorAction Stop).Source
+  }
   & $psqlPath --version
   if ($LASTEXITCODE -ne 0) { throw 'The approved psql version check failed.' }
   ```
