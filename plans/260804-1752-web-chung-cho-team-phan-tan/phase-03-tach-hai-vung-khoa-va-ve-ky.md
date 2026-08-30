@@ -1,5 +1,10 @@
 # Phase 03 — Tách hai vùng khóa + vé ký
 
+> **Historical protocol snapshot — superseded 30 August 2026.** The replay description below was
+> written before the durable Relay spent-ticket journal landed. The current production Relay persists
+> spent-ticket state atomically and restores it fail-closed across clean restart or forced termination;
+> retain this phase for architecture history, not as a current implementation claim.
+
 ## Context
 
 - [plan.md](plan.md) — quyết định 1, 2, 5
@@ -253,9 +258,11 @@ Bốn chốt đóng trong lúc làm:
   mọi vé gửi tới cùng một máy dùng chung một khóa AES — lộ một lần là lộ cả lịch sử. Máy chủ
   không cần chứng minh mình là ai ở lớp này; chữ ký Ed25519 đã làm việc đó. Bí mật chung đi qua
   HKDF chứ không dùng thẳng: đầu ra X25519 là tọa độ một điểm, không phải khóa phân bố đều.
-- **Chống dùng lại nằm ở cầu nối** — hệ quả của QĐ 5, không phải lựa chọn. Cầu nối không nối
-  mạng nên không hỏi máy chủ được *"vé này tiêu chưa"*; máy chủ cũng không biết vì nó phát vé rồi
-  thôi. Sổ jti giữ trong bộ nhớ: vé sống 30 giây, khởi động lại thì vé cũ cũng đã hết hạn.
+- **Chống dùng lại nằm ở cầu nối (historical wording, superseded).** Cầu nối không nối mạng nên
+  không hỏi máy chủ được *"vé này tiêu chưa"*; bản thiết kế cũ vì thế giữ sổ jti trong bộ nhớ và
+  dựa vào hạn 30 giây. **Current production Relay:** `relay/src/spent-ticket-journal.ts` ghi sổ bền
+  vững bằng thao tác nguyên tử và fail-closed khi journal thiếu, hỏng, hoặc không thể flush; vé đã
+  tiêu vẫn bị từ chối sau restart/forced termination.
 
 Thứ tự các phép kiểm trong `verifyTicket` là một phần của thiết kế, không phải chuyện thẩm mỹ:
 chữ ký trước tiên (trước đó không trường nào đáng tin, kể cả `exp`), rồi **hai phép kiểm phiên
