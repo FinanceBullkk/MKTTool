@@ -161,8 +161,11 @@ fresh backup/restore receipt and candidate details are in
 `plans/260830-0830-consolidation-and-lane-a-release/reports/lane-a-deploy.md`.
 
 The current service-level setting is `healthcheckPath=/api/healthz`; verify it with the
-`serviceInstance` query above after every approved deployment or rollback. The deployment manifest
-is a historical snapshot and may show `null`, so it is not sufficient evidence. The latest production
+`serviceInstance` query above after every approved deployment or rollback. The current
+`healthcheckTimeout` is `null`, which inherits Railway's documented 300-second deploy-time bound;
+it is not an unbounded wait. Set and record an explicit override only when a measured startup SLO
+requires one. The deployment manifest is a historical snapshot and may show `null`, so it is not
+sufficient evidence. The latest production
 schema includes the applied migration `20260830030000_add_better_auth_rate_limit`; a deployment
 rollback does not unapply it. Prisma migrations are forward-only: never run `migrate reset`, delete
 rows from `_prisma_migrations`, or invent a down migration during an incident. If the prior app is
