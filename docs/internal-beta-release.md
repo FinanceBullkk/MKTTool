@@ -6,13 +6,13 @@
 ## Consolidation truth — 30 August 2026
 
 Lane A Web/Facebook and the Browser fleet contract are separate. The MKTTool web candidate was
-merged to `master` at `380962a49576a4663438ef50685dcb386c86aa08` after green branch/master CI and a
-fresh current-DB backup/restore. Railway deployment `8e1123a3-c7f6-49a8-bb97-68c35bd4807a` succeeded;
-`/api/healthz` is 200 and the authorized `/v16` full GET is hash-exact. It did not need a Browser
-engine archive or a five-artifact tuple. A bounded credentialed smoke and rollback rehearsal remain
-open for a final Lane A GO.
+merged to `master` after green branch/master CI and a fresh current-DB backup/restore. The latest
+Railway deployment and its exact commit are recorded in the successor P4a evidence report; the
+post-merge `/api/healthz` probe is 200 and the authorized `/v16` full GET is hash-exact. It did not
+need a Browser engine archive or a five-artifact tuple. A bounded credentialed smoke and rollback
+rehearsal remain open for a final Lane A GO.
 
-The current MKTBrowser branch head is `df3c7ad11ba8946e46b6b1b8986e7affc2758318`; the accepted
+The current MKTBrowser branch head is `0b62df5`; the accepted
 provenance receipt was generated from its preceding source commit
 `5ef710dd931028d4d608bea098311bf54bf5dc31`. The Browser tuple is still a separate P4b technical OPEN because the exact
 CloakBrowser Stable `.2` archive is absent. No tuple was fabricated or published. Q16 closes Lane C:

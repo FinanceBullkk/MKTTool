@@ -1,6 +1,13 @@
 # MKTTool — Tài liệu sản phẩm
 
-**Cập nhật:** 22/08/2026 · **Trạng thái:** [development-roadmap.md](development-roadmap.md)
+> **Current status overlay — 30 August 2026.** P4a MKTTool Web is deployed and verified separately
+> from the Browser five-artifact tuple (P4b OPEN). The Browser remains a controlled Lane A/B tool;
+> profile-local configuration is an operational boundary, not identity isolation. TikTok posting and
+> automation are parked, and Lane C is **CLOSED** because no CloakBrowser channel exists. Current
+> evidence and decisions are maintained in
+> `plans/260830-0830-consolidation-and-lane-a-release/` and `docs/development-roadmap.md`.
+
+**Cập nhật:** 30/08/2026 · **Trạng thái:** [development-roadmap.md](development-roadmap.md)
 
 Tài liệu này trả lời "vì sao" và "phạm vi tới đâu". Chi tiết thi công nằm ở
 [plan công cụ gốc](../plans/260801-2030-multi-account-posting-console/plan.md),
@@ -12,7 +19,7 @@ Thuật ngữ tra ở [domain-glossary.md](domain-glossary.md); mục lục tài
 
 ## 1. Vấn đề
 
-The marketing team manages multiple Reddit and TikTok browser identities plus Facebook Pages. The
+The marketing team manages multiple Reddit and TikTok browser profiles plus Facebook Pages. The
 browser-backed identities have exactly **two failure classes**:
 
 | Cách chết | Nguyên nhân | Phần nào lo |
@@ -37,7 +44,8 @@ Giai đoạn 1 công cụ chạy trên **máy bàn của bạn MKT**, nghe local
 ## 3. Quy mô giai đoạn 1
 
 - 5-8 nick Reddit *(nền tảng chính, ~80% công sức)*
-- TikTok profiles for isolated, human-controlled browser use; no TikTok posting volume is approved
+- TikTok profiles for profile-local, human-controlled browser use; this is not identity-isolation
+  evidence and no TikTok posting volume is approved
 - 1-3 Fanpage Facebook *(qua Graph API chính thức)*
 - 2-3 nick Facebook cá nhân *(để quản trị Page và seeding group thủ công)*
 - Mục tiêu vận hành: **15-20 bài/ngày trong khoảng 1 tiếng**

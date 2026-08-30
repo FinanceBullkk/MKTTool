@@ -1,5 +1,13 @@
 # Database Backup and Restore
 
+> **Historical/general reference — current procedure moved to
+> [`runbooks/database-restore.md`](runbooks/database-restore.md).** For the 30 August 2026 P4a
+> release, the fresh current-database receipt is
+> `data/backups/mkttool-prod-20260830-101918.sql` (64,270 bytes, SHA-256
+> `40ba103453a764db5ecd4288bba7a8537fa911832e9216c56303a31e9ef1694f`) with 100 source/restored
+> aggregate rows, zero mismatches, and cleanup PASS. The dated evidence below is retained history;
+> do not substitute it for the current-DB pre-merge backup/restore gate.
+
 ## Overview
 
 MKTTool uses two independent database backup layers:

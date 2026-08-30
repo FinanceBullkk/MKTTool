@@ -1,7 +1,12 @@
 # Release-signing key ceremony
 
+> **Scope boundary — P4b Browser compatibility only.** This retained ceremony is not a prerequisite
+> for the deployed P4a Web service. P4b's Browser five-artifact tuple remains OPEN, and Lane C is
+> **CLOSED** because no CloakBrowser channel exists; no vendor request or date is pending. Run this
+> ceremony only after a new owner decision reopens Browser compatibility work.
+
 This runbook creates the MKB-03 release authority without placing the root private key on the build
-machine. It must be completed before compatibility-manifest implementation begins.
+machine. It must be completed before Browser compatibility-manifest implementation begins.
 
 ## Required equipment
 

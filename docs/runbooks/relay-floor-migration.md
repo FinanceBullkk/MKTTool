@@ -5,13 +5,14 @@ Updated: 30 August 2026
 This runbook moves the server ticket floor only after operators can download and install the new
 Relay. It is deliberately route-first and fail-closed.
 
-## Current state
+## Current state (post-deploy record)
 
 - `MIN_RELAY_VERSION` is **13** in `src/lib/tickets/ticket-types.ts`.
 - Two active v15 devices belong to the owner (Q15). The remedy is a self-serve 0.3.13 reinstall on
   each machine; no notification channel or acknowledgement is needed.
-- The pre-merge `/api/relay/download/v16` probe returned 401, not bytes. This is not route-first
-  evidence. The immutable v16 target SHA is
+- **Historical pre-merge snapshot:** the earlier `/api/relay/download/v16` probe returned 401, not
+  bytes. That was not route-first evidence and must not override the current post-deploy full-GET
+  record in `reports/fleet-migration.md` and `reports/lane-a-deploy.md`. The immutable v16 target SHA is
   `5c98cf460e62f83b484c9ecd55bc80b650f2e19a09e8ded6e99eafb682e1842e`.
 - Lane C is closed (Q16): there is no CloakBrowser channel, no request, and no date. The Browser
   five-artifact tuple is a separate P4b technical OPEN and does not authorize a floor change.
