@@ -26,7 +26,7 @@ Repo này có 12+ file tài liệu. Đừng đọc hết. Tra theo câu hỏi b�
 | Đã đổi những gì, ngày nào | [project-changelog.md](project-changelog.md) |
 | Đưa web lên máy chủ thật (Railway) | [deployment-guide.md](deployment-guide.md) |
 | Production backups, R2, and restore proof | [runbooks/database-restore.md](runbooks/database-restore.md) (current); [database-backup-and-restore.md](database-backup-and-restore.md) (historical reference) |
-| Dựng cảnh báo khi production chết | [runbooks/uptime-alerting.md](runbooks/uptime-alerting.md) — chưa dựng, đây là hướng dẫn dựng |
+| Cảnh báo khi production chết | [runbooks/uptime-alerting.md](runbooks/uptime-alerting.md) — đã dựng 02/09/2026 (UptimeRobot); đường báo chưa diễn tập |
 | Hệ thống chạy ở đâu, phụ thuộc cái gì, hỏng thì hỏng thế nào | [system-architecture.md](system-architecture.md) |
 | MKT Browser contract, verified Windows slices, and what v1 still owes | [plan MKT Browser](../plans/260810-0244-mkt-browser-noi-bo/plan.md) |
 | Code nằm ở đâu, luồng nào gọi file nào | [codebase-summary.md](codebase-summary.md) |

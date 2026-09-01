@@ -1,13 +1,15 @@
 # Runbook: cảnh báo khi production chết
 
 **Cập nhật:** 02/09/2026
-**Trạng thái:** CHƯA DỰNG. Đây là hướng dẫn dựng, không phải mô tả thứ đang chạy.
+**Trạng thái:** **ĐÃ DỰNG** 02/09/2026 — UptimeRobot, chủ dự án tạo, báo về
+`anhhao.dl108@gmail.com`. Cấu hình theo bảng bên dưới. Đường báo **chưa từng nổ thật**, xem
+"Diễn tập" trước khi coi nó là chỗ dựa.
 
-## Vấn đề
+## Vấn đề nó giải
 
-Hiện **không có cảnh báo nào**. Sự cố 503 ngắt quãng ngày 30/08/2026 được phát hiện bằng mắt
-người, không phải bằng báo động. Nếu dịch vụ chết lúc 3h sáng thì không ai biết cho tới khi có
-người mở trang.
+Trước 02/09/2026 **không có cảnh báo nào**. Sự cố 503 ngắt quãng ngày 30/08/2026 được phát hiện
+bằng mắt người, không phải bằng báo động — dịch vụ trả 503 suốt nhiều giờ và không ai biết cho tới
+khi có người mở trang.
 
 Railway có healthcheck riêng, nhưng nó **điều khiển việc định tuyến, không gửi thông báo cho ai**.
 Nó ngừng đẩy traffic vào instance hỏng — việc đó tốt và khác hẳn việc báo cho người biết.
@@ -67,6 +69,27 @@ URL   : /api/healthz
 Status: 503 (2 lượt liên tiếp)
 Lúc   : <thời gian>
 ```
+
+## Diễn tập — làm một lần, trước khi tin vào nó
+
+Một đường báo động chưa từng nổ là một giả định, không phải một lớp bảo vệ. Cấu hình đúng mà email
+rơi vào spam, hoặc địa chỉ gõ sai một ký tự, thì lần sập thật vẫn im lặng — và lúc đó không ai biết
+để mà sửa.
+
+Bắt nó nổ đúng một lần:
+
+1. Trong UptimeRobot, sửa tạm URL của monitor thành một đường chắc chắn 404 trên cùng host, ví dụ
+   `https://mkttool-web-production.up.railway.app/api/healthz-drill`.
+2. Đợi ~2 phút (2 lượt lỗi liên tiếp). Email báo động phải tới.
+3. **Kiểm cả hộp spam.** Nếu nó nằm ở spam thì đánh dấu "not spam" ngay — đó chính là chỗ báo động
+   thật sẽ rơi vào.
+4. Trả URL về `/api/healthz`. Đợi 2 lượt xanh, phải nhận được email phục hồi.
+
+Ghi ngày diễn tập vào đây. Làm lại khi đổi địa chỉ nhận hoặc đổi dịch vụ monitor.
+
+| Lần diễn tập | Ngày | Kết quả |
+|---|---|---|
+| 1 | _chưa làm_ | — |
 
 ## Việc đầu tiên khi nhận báo động
 
