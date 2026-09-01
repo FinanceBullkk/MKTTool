@@ -12,7 +12,7 @@ import type { ActionResult } from "@/lib/actions/action-result";
 import { AUDIT_ACTIONS } from "@/lib/audit/audit-log-actions";
 import { guardedAction } from "@/lib/auth/guarded-action";
 import { prisma } from "@/lib/db/prisma-client";
-import { markJobPosted } from "@/lib/queue/post-job-status-actions";
+import { markPostJobPosted } from "@/lib/queue/post-job-mark-posted";
 import { FacebookPublishError, publishToPage, toPostContent } from "./facebook-page-publisher";
 
 export const publishJobToPage = guardedAction(async function publishJobToPage(
@@ -44,6 +44,27 @@ export const publishJobToPage = guardedAction(async function publishJobToPage(
     return {
       ok: false,
       message: `Đích "${job.target.name}" chưa nối với Fanpage nào. Vào /facebook kết nối trước.`,
+    };
+  }
+
+  // Giành chỗ TRƯỚC khi gọi Graph, bằng một câu lệnh có điều kiện trạng thái.
+  //
+  // Lượt kiểm `job.status !== "PENDING"` bên trên đọc từ một lượt truy vấn đã cũ, nên tự nó
+  // không chặn được gì: giữa lúc đọc và lúc gọi Graph có một cửa sổ rộng bằng cả vòng gọi mạng
+  // ra Facebook. Hai người cùng bấm một job trong cửa sổ đó thì cả hai đều thấy PENDING, cả hai
+  // đều gọi Graph, và Fanpage nhận HAI bài thật — không có gì gỡ lại được ngoài xóa tay. Đây là
+  // đường đăng dùng chung: ai cũng nhìn thấy job của người khác nên hai người bấm một job là
+  // chuyện thường, không phải tình huống hiếm.
+  //
+  // `disabled={pending}` ở nút bấm chỉ che một tab của một người, không che hai người.
+  const claimed = await prisma.postJob.updateMany({
+    where: { id: jobId, status: "PENDING" },
+    data: { status: "PUBLISHING" },
+  });
+  if (claimed.count === 0) {
+    return {
+      ok: false,
+      message: "Job này vừa được người khác đăng hoặc đổi trạng thái. Tải lại trang để xem hiện trạng.",
     };
   }
 
@@ -85,10 +106,20 @@ export const publishJobToPage = guardedAction(async function publishJobToPage(
 
   // Dùng lại đường đánh dấu đã đăng của hàng đợi: nó ghi luôn Interaction để
   // luật chống đụng độ và tỷ lệ promo nhìn thấy bài này như mọi bài đăng tay.
-  const marked = await markJobPosted(jobId, result.postUrl).catch((error: unknown) => ({
-    ok: false as const,
-    message: error instanceof Error ? error.message : "lỗi không rõ khi ghi trạng thái",
-  }));
+  //
+  // Gọi thẳng lõi thay vì server action `markJobPosted` vì chỗ này phải khai trạng thái nguồn là
+  // `PUBLISHING` — chỗ mà lượt giành chỗ bên trên vừa đặt job vào. Server action là một endpoint
+  // HTTP công khai, nên thêm tham số "được chuyển từ trạng thái nào" vào chữ ký của nó là mở cho
+  // người gọi tự chọn luật chuyển trạng thái. Lõi không lộ ra ngoài nên giữ được quyền đó bên trong.
+  const marked = await markPostJobPosted(jobId, result.postUrl, ["PUBLISHING"]).catch(
+    (error: unknown) => ({
+      ok: false as const,
+      message: error instanceof Error ? error.message : "lỗi không rõ khi ghi trạng thái",
+    }),
+  );
+
+  revalidatePath("/queue");
+  revalidatePath("/");
 
   if (!marked.ok) {
     // Bài đã lên rồi mà job vẫn PENDING: phải nói thẳng, nếu không lần bấm sau là bài thứ hai.

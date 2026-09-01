@@ -17,7 +17,26 @@ export function isContentType(value: string): value is ContentType {
   return (CONTENT_TYPES as readonly string[]).includes(value);
 }
 
-export const JOB_STATUSES = ["PENDING", "BLOCKED", "POSTED", "FAILED", "SKIPPED"] as const;
+/**
+ * `PUBLISHING` là trạng thái GIÀNH CHỖ, không phải trạng thái nghỉ: nó chỉ tồn tại trong khoảng
+ * thời gian gọi Graph API của Fanpage. Có nó vì trước đây đường đăng đọc trạng thái, kiểm
+ * `PENDING`, rồi mới gọi Graph — ba bước rời nhau, nên hai người bấm cùng một job thì cả hai
+ * cùng qua cửa và Fanpage nhận HAI bài thật. Đổi `PENDING → PUBLISHING` bằng một câu lệnh có
+ * điều kiện thì người thứ hai không giành được chỗ và bị từ chối trước khi kịp gọi Graph.
+ *
+ * Nó KHÔNG nằm trong `OPEN_JOB_STATUSES` hay `ACTIVE_JOB_STATUSES`: job đang bay không nên hiện
+ * ở thẻ nhắc việc, không nên bị bộ dò tự gán chộp mất, và cửa sổ vài giây không đáng để bộ luật
+ * đếm. Job kẹt ở đây (tiến trình chết giữa chừng) gỡ được bằng nút "Trả về chờ đăng" — xem
+ * `post-job-revert.ts`, nó nhận mọi trạng thái không-mở.
+ */
+export const JOB_STATUSES = [
+  "PENDING",
+  "BLOCKED",
+  "PUBLISHING",
+  "POSTED",
+  "FAILED",
+  "SKIPPED",
+] as const;
 export type JobStatus = (typeof JOB_STATUSES)[number];
 
 interface JobStatusPresentation {
@@ -33,6 +52,10 @@ export const JOB_STATUS_PRESENTATION: Record<JobStatus, JobStatusPresentation> =
   BLOCKED: {
     label: "Bị chặn",
     className: "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300",
+  },
+  PUBLISHING: {
+    label: "Đang đăng",
+    className: "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300",
   },
   POSTED: {
     label: "Đã đăng",

@@ -10,7 +10,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import type { ActionResult } from "@/lib/actions/action-result";
 import { guardedAction } from "@/lib/auth/guarded-action";
-import { isOpenJobStatus } from "@/lib/content/content-types";
+import { OPEN_JOB_STATUSES, isOpenJobStatus } from "@/lib/content/content-types";
 import { prisma } from "@/lib/db/prisma-client";
 import {
   UNRESOLVABLE_SHARE_LINK_MESSAGE,
@@ -42,7 +42,17 @@ export const markJobPosted = guardedAction(async function markJobPosted(
   const parsedUrl = urlSchema.safeParse(postedUrl.trim());
   if (!parsedUrl.success) return { ok: false, message: parsedUrl.error.issues[0].message };
 
-  const result = await markPostJobPosted(jobId, parsedUrl.data);
+  // Nhận cả `PUBLISHING` chứ không chỉ job còn mở: đường đăng Fanpage có một nhánh mà bài ĐÃ lên
+  // tường nhưng ghi trạng thái hỏng, và câu nó dặn người dùng là *vào hàng đợi bấm "Đã đăng" và
+  // dán chính link này*. Không nhận `PUBLISHING` ở đây thì lời dặn đó dẫn vào ngõ cụt, và job nằm
+  // kẹt trong khi bài thì đã đăng rồi.
+  //
+  // Không mở lại kẽ hở đăng đôi: lõi vẫn đổi trạng thái bằng một câu lệnh có điều kiện, nên nếu
+  // đường đăng còn đang bay thì đúng một trong hai bên ghi được, bên kia bị từ chối.
+  const result = await markPostJobPosted(jobId, parsedUrl.data, [
+    ...OPEN_JOB_STATUSES,
+    "PUBLISHING",
+  ]);
   if (!result.ok) return result;
 
   // Cả "/" nữa: thẻ nhắc việc đăng tay nằm ở trang Hôm nay và bấm "Đã đăng" được ngay tại đó,
