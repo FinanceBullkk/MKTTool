@@ -3,7 +3,30 @@ name: CI
 on:
   push:
     branches: [master, main]
+    paths-ignore: &docs-only
+      # Documentation cannot fail this suite, and paying for it to try is the single largest
+      # avoidable line in this repository's Actions bill: 24 of the last 60 commits on master
+      # changed nothing but Markdown, and each one cost a pull-request run plus a post-merge run,
+      # including the Windows job that bills at the 2x rate.
+      #
+      # This is narrower than the `paths:` filter deliberately refused on `relay-executable` below,
+      # and the distinction is the whole argument. That one would have run the job ONLY for changes
+      # under `relay/`, which rebuilds the blind spot F4 exposed, because the suite imports from
+      # `src/lib/crypto`, `src/lib/tickets` and `src/lib/relay`. This one skips a run only when
+      # EVERY changed file is documentation — a commit touching one `.md` and one `.ts` still runs
+      # everything. No test reads repository documentation; the only `.md` a test touches is a
+      # `summary.md` fixture it writes itself.
+      #
+      # One coupling, stated rather than discovered later: this is safe partly because no required
+      # status check is enforced (branch protection is off by owner decision, and both repositories
+      # return 403 for it). If protection is ever enabled, revisit — a workflow that never runs
+      # publishes no check, which is the failure mode `pr-release-gate.yml` in the Browser
+      # repository exists to avoid.
+      - "**.md"
+      - "docs/**"
+      - "plans/**"
   pull_request:
+    paths-ignore: *docs-only
 
 jobs:
   check:
