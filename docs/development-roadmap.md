@@ -27,7 +27,8 @@ bytes, exact SHA-256 `5c98cf460e62f83b484c9ecd55bc80b650f2e19a09e8ded6e99eafb682
 streaming for now because the pinned installer rejects redirects and depends on Range/resume.
 
 One owner machine has completed the 0.3.13 self-serve reinstall and reports Relay v16 with a
-contract-compatible Browser. The second owner machine remains open; `MIN_RELAY_VERSION` stays 13.
+contract-compatible Browser. The second owner machine remains open. `MIN_RELAY_VERSION` stays 13 —
+as the correct floor, not as a holding position; see the note below.
 The bounded credentialed/admin smoke is PASS; the owner signed CONDITIONAL GO for Lane A on
 1 September 2026 and accepted residual risks 1–8. Lane C remains CLOSED; Browser P4b and installer
 reproducibility remain OPEN.
@@ -52,10 +53,23 @@ controlled 130-entry provenance manifests are also equal. The outer Windows inst
 103-byte NSIS/resource-order variance across clean runs. No normalizer was accepted, and no claim of
 full installer reproducibility is made; see the successor U3 report for the exact source boundary.
 
-U5 keeps `MIN_RELAY_VERSION=13` until route-first evidence is followed by observed self-serve
-reinstalls on both owner machines. One owner machine is now observed at v16; the second remains
-open. Both v15 devices are the owner's own machines, so the upgrade path is self-serve reinstall
-of 0.3.13 on each; no notification channel is needed. U6 closed the
+U5 keeps `MIN_RELAY_VERSION=13`. One owner machine is now observed at v16; the second remains open.
+Both v15 devices are the owner's own machines, so the upgrade path is self-serve reinstall of 0.3.13
+on each; no notification channel is needed.
+
+**The floor and the fleet are separate questions, and earlier wording here ran them together.**
+`MIN_RELAY_VERSION` is not "the current version" — it is the oldest build the server will still talk
+to, and `ticket-types.ts` states the only condition for raising it: a security reason, to stop
+talking to builds with a known hole. That is why it moved to 13, for the C26 trust-root replacement.
+Relay 14 fixed a bootstrap deadlock and 15 made installer upgrades version-aware; neither is a hole,
+and 16 carries no security fix of its own. So 13 is where the floor belongs, and observing the second
+machine at v16 is fleet hygiene rather than the trigger for a bump.
+
+Raising it anyway would not be free. The shared floor governs the `CREDENTIAL` and `OTP` tickets, so
+any device below it loses password reads and OTP generation the moment it moves — which is exactly
+the outage the second, unobserved machine would take. A future ticket kind that genuinely needs v16
+belongs in `MIN_RELAY_VERSION_BY_KIND`, which exists so a new capability costs nothing to the people
+not using it. U6 closed the
 custom-engine build track after the measured RAM gate; no custom Chromium
 build or CloakBrowser seat was consumed.
 

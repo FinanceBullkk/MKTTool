@@ -10,7 +10,13 @@ Relay. It is deliberately route-first and fail-closed.
 - `MIN_RELAY_VERSION` is **13** in `src/lib/tickets/ticket-types.ts`.
 - Two active devices belong to the owner (Q15). One machine has completed the self-serve 0.3.13
   reinstall and reports Relay v16; the second remains unobserved. No notification channel or
-  acknowledgement is needed, but the floor stays 13 until the second observation exists.
+  acknowledgement is needed.
+- **13 is the correct floor today, not a holding position.** This runbook describes how to move the
+  floor when there is a reason to; it does not assert that one exists. There is none right now:
+  `ticket-types.ts` raises the floor only to stop talking to builds with a known hole, 13 is the
+  first build carrying the C26 fix, and 14, 15 and 16 add no security fix. Observing the second
+  machine at v16 satisfies precondition 4 below — it does not by itself justify running this
+  procedure.
 - **Historical pre-merge snapshot:** the earlier `/api/relay/download/v16` probe returned 401, not
   bytes. That was not route-first evidence and must not override the current post-deploy full-GET
   record in `reports/fleet-migration.md` and `reports/lane-a-deploy.md`. The immutable v16 target SHA is

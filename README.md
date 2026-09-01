@@ -21,8 +21,9 @@ health evidence is 947/947 HTTP 200 with zero server 5xx, and the authorized Rel
 check passes. The bounded credentialed/admin smoke also passes; the owner signed CONDITIONAL GO for
 Lane A on 1 September 2026, accepting residual risks 1–8.
 The historical intermittent 503 incident is mitigated under monitoring; the exact R2 latency trigger
-remains unconfirmed. The Relay floor intentionally remains 13: one owner machine has
-reinstalled 0.3.13/v16, while the second remains unobserved. Browser installer reproducibility,
+remains unconfirmed. The Relay floor is 13 by design, not while waiting: 13 is the first build carrying the C26 fix, and
+nothing since has a known hole, so there is no security reason to refuse 14 or 15. Fleet migration is
+a separate matter — one owner machine has reinstalled 0.3.13/v16, the second remains unobserved. Browser installer reproducibility,
 Browser CI, real-environment, identity, and canary gates remain open for the separate Browser lane;
 Lane C is CLOSED because there is no CloakBrowser channel.
 See the [development roadmap](docs/development-roadmap.md).
