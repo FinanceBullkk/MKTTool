@@ -1,6 +1,36 @@
 # Lộ trình phát triển
 
-**Updated:** 30 August 2026
+**Updated:** 2 September 2026
+
+## Rollout scope decision — 2 September 2026
+
+**Reddit and Facebook are withdrawn from the team rollout scope.** Scope only, nothing deleted: the
+posting pipeline, Pages publisher, and health checks stay implemented and deployed but are handed to
+nobody. The team surface narrows to the account vault, proxy ownership, and the operator-device
+registry; the 1 September Lane A GO stays a technical record and stops being a rollout instruction;
+nothing in code enforces the boundary. Detail and re-entry condition:
+[internal-beta-release.md](internal-beta-release.md).
+
+## Current operational update - 1 September 2026
+
+Production now runs Railway deployment `0a696033-b610-492c-b75a-3e918cca102a` at master commit
+`2734e2f0ba9c2a2f9c3731a44540c01d263b36e2`, status `SUCCESS`. The intermittent 503 incident is
+**mitigated / monitoring**: the last 24-hour evidence is 947/947 `/api/healthz` HTTP 200, zero
+non-2xx, and zero server 5xx; a fresh external burst is 24/24 HTTP 200/ready. Health upstream
+latency is p95 179 ms, max 767 ms. Memory peaked at 0.42 GB and 120 one-minute samples show no
+restart discontinuity, so OOM/restart/browser-launch explanations are not supported by available
+metrics. R2 latency remains an unconfirmed hypothesis; direct host probes are not serving-region
+telemetry.
+
+The authorized `/api/relay/download/v16` route was reverified by full GET: HTTP 200, 33,342,752
+bytes, exact SHA-256 `5c98cf460e62f83b484c9ecd55bc80b650f2e19a09e8ded6e99eafb682e1842e`. Keep proxy
+streaming for now because the pinned installer rejects redirects and depends on Range/resume.
+
+One owner machine has completed the 0.3.13 self-serve reinstall and reports Relay v16 with a
+contract-compatible Browser. The second owner machine remains open; `MIN_RELAY_VERSION` stays 13.
+The bounded credentialed/admin smoke is PASS; the owner signed CONDITIONAL GO for Lane A on
+1 September 2026 and accepted residual risks 1–8. Lane C remains CLOSED; Browser P4b and installer
+reproducibility remain OPEN.
 
 ## Consolidation truth — 30 August 2026, post-deploy reconciliation
 
@@ -23,8 +53,9 @@ controlled 130-entry provenance manifests are also equal. The outer Windows inst
 full installer reproducibility is made; see the successor U3 report for the exact source boundary.
 
 U5 keeps `MIN_RELAY_VERSION=13` until route-first evidence is followed by observed self-serve
-reinstalls on both owner machines. Both v15 devices are the owner's own machines, so the upgrade
-path is self-serve reinstall of 0.3.13 on each; no notification channel is needed. U6 closed the
+reinstalls on both owner machines. One owner machine is now observed at v16; the second remains
+open. Both v15 devices are the owner's own machines, so the upgrade path is self-serve reinstall
+of 0.3.13 on each; no notification channel is needed. U6 closed the
 custom-engine build track after the measured RAM gate; no custom Chromium
 build or CloakBrowser seat was consumed.
 
@@ -49,7 +80,7 @@ Dự án đang chạy **ba luồng song song**:
 
 **Historical pre-consolidation stream table:** the earlier `3f376536` join-key wording described a draft before
 the consolidation branch. The accepted Browser provenance receipt was generated from `5ef710dd`; the
-current Browser branch head is `0b62df5`; its provenance is accepted, but
+current Browser branch head is `b9f9477`; its provenance is accepted, but
 the exact five-artifact tuple remains a separate P4b technical OPEN. This does not gate P4a Web. Use
 one profile at a time with human login/input. Profile-local storage, proxy routing, and technical
 readiness checks are operational controls only; they do not prove browser identity isolation. See
@@ -673,8 +704,9 @@ và máy chủ tự `pg_dump` rồi tải lên Cloudflare R2 mỗi đêm.
 ## Historical critical path — pre-consolidation (retained)
 
 > The table below is the predecessor roadmap snapshot and is not the 30 August release ledger.
-> Current residuals are P4-08 credentialed smoke, P4-09 rollback rehearsal, U3 outer-installer
-> reproducibility, U5 observed owner-machine reinstalls/floor decision, and the separate P4b Browser
+> P4-08 credentialed smoke, P4-09 rollback rehearsal, and the owner-signed Lane A CONDITIONAL GO are
+> complete. Current residuals are U3 outer-installer reproducibility, the second owner-machine
+> reinstall/floor decision, and the separate P4b Browser
 > tuple. P4a Web is deployed; Lane C is **CLOSED** because no CloakBrowser channel exists. Do not
 > schedule the old MKB-03/MKB-04, procurement, or cold-start rows as if they were current blockers.
 

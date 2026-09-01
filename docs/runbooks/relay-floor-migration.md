@@ -1,6 +1,6 @@
 # Runbook: Relay compatibility-floor migration
 
-Updated: 30 August 2026
+Updated: 1 September 2026
 
 This runbook moves the server ticket floor only after operators can download and install the new
 Relay. It is deliberately route-first and fail-closed.
@@ -8,8 +8,9 @@ Relay. It is deliberately route-first and fail-closed.
 ## Current state (post-deploy record)
 
 - `MIN_RELAY_VERSION` is **13** in `src/lib/tickets/ticket-types.ts`.
-- Two active v15 devices belong to the owner (Q15). The remedy is a self-serve 0.3.13 reinstall on
-  each machine; no notification channel or acknowledgement is needed.
+- Two active devices belong to the owner (Q15). One machine has completed the self-serve 0.3.13
+  reinstall and reports Relay v16; the second remains unobserved. No notification channel or
+  acknowledgement is needed, but the floor stays 13 until the second observation exists.
 - **Historical pre-merge snapshot:** the earlier `/api/relay/download/v16` probe returned 401, not
   bytes. That was not route-first evidence and must not override the current post-deploy full-GET
   record in `reports/fleet-migration.md` and `reports/lane-a-deploy.md`. The immutable v16 target SHA is

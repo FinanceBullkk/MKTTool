@@ -18,6 +18,43 @@ the archive location.
 
 ---
 
+## 2 September 2026 — Reddit and Facebook withdrawn from rollout scope
+
+- **Scope decision:** Reddit and Facebook leave the team rollout scope. No code was deleted; the
+  posting-safety pipeline, Facebook Pages publisher, and health checks stay implemented and
+  deployed. The team-facing surface narrows to the account vault, proxy ownership, and the
+  operator-device registry.
+- **Docs realigned:** README, the internal beta boundary, the team operating guide, and the roadmap
+  now state the narrowed scope. The operating guide carries a stop banner over the posting sections
+  rather than a rewrite, because the screens still exist and still work.
+- **Not enforced in code:** `TARGET_PLATFORMS` is unchanged, so nothing fails closed on this
+  boundary. It holds by agreement.
+- **Concurrent-posting race fixed beforehand:** the Facebook publish path and the shared
+  mark-posted path claimed rows with a read-then-write sequence, so two operators could put two real
+  posts on a Page, and one post could leave two Interaction rows that skew the quota, promo-ratio,
+  and thread-collision rules. Both now claim with a conditional update, covered by a concurrent test
+  that fails against the previous code. Kept despite the scope change: the code stays in the tree,
+  and a latent race is not a good thing to leave behind a door that may reopen.
+
+## 1 September 2026 — Lane A signed CONDITIONAL GO and incident mitigation
+
+- **Production stability restored:** hardening deployment `0a696033` at commit `2734e2f0` recorded
+  947/947 `/api/healthz` HTTP 200 responses over 24 hours and a fresh 24/24 ready burst. OOM and
+  restart explanations are not supported by the available metrics; the historical external R2
+  slowdown trigger remains unconfirmed.
+- **Relay route reverified:** an authorized `/api/relay/download/v16` full GET returned 33,342,752
+  bytes with exact SHA-256 `5c98cf460e62f83b484c9ecd55bc80b650f2e19a09e8ded6e99eafb682e1842e`.
+  Proxy streaming remains the current contract because the pinned installer rejects redirects and
+  depends on Range/resume behavior.
+- **Fleet migration partial:** one owner machine completed the 0.3.13 reinstall and reports Relay
+  v16. The second machine remains unobserved, so `MIN_RELAY_VERSION` remains 13 and v15 is not
+  revoked.
+- **Lane A bounded smoke passed:** production OAuth/admin access, Facebook token refresh,
+  destructive confirmation without submission, the 09:00 scheduler record, and the 03:00 R2 backup
+  record were verified. Queue was empty, so no post was submitted.
+- **Owner decision recorded:** the workspace owner signed CONDITIONAL GO for Lane A on 1 September
+  2026 and accepted residual risks 1–8. Browser P4b remains OPEN and Lane C remains CLOSED.
+
 ## 30 August 2026 — consolidation and Lane A reconciliation
 
 - **P4a Web deployed:** merge `380962a4` reached Railway successfully; `/api/healthz` returned

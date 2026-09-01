@@ -1,6 +1,6 @@
 # Runbook: Lane A release rollback
 
-Updated: 30 August 2026
+Updated: 1 September 2026
 
 Rollback is a human-approved recovery action, never an autonomous response. This procedure keeps a
 known-good tuple and verifies service health before and after any approved change. A Railway
@@ -160,13 +160,19 @@ The recorded pre-merge baseline is deployment
 fresh backup/restore receipt and candidate details are in
 `plans/260830-0830-consolidation-and-lane-a-release/reports/lane-a-deploy.md`.
 
-**Measured stop condition (2026-08-30 rollback drill).** The prior image `c819e6a8` does **not**
+The immediate rollback-compatible target recorded after the hardening deploy is deployment
+`ed972e5b-7597-4c6d-8066-24bc11c4ea0b`, commit `6ce28d0f2cc04d606eacb8d52b2e7fdbe5805432`.
+It serves `/api/healthz` under the current service-level healthcheck. This is a recorded target,
+not standing permission to roll back; re-query the deployment and service setting immediately
+before any human-approved action.
+
+**Historical measured stop condition (2026-08-30 rollback drill).** The older pre-merge image
+`c819e6a8` does **not**
 serve `/api/healthz`; a rehearsal of this exact tuple returned HTTP 404 on that route (root `/`
 returned 307, `/login` returned 200). Because the current service-level `healthcheckPath` is
-`/api/healthz` and Railway does **not** restore healthcheck settings from a deployment image, a
-rollback to this tuple will fail promotion unless an owner-approved prior-compatible healthcheck
-path is selected, or the healthcheck is temporarily disabled, before or with the rollback. Verify
-the setting again after the rollback. Full evidence:
+`/api/healthz` and Railway does **not** restore healthcheck settings from a deployment image, this
+historical tuple remains unsuitable as a rollback target without an owner-approved compatible
+healthcheck path or temporary disable procedure. Verify the setting again after any rollback. Full evidence:
 `plans/260830-0830-consolidation-and-lane-a-release/reports/rollback-drill-p4-09.md`.
 
 The current service-level setting is `healthcheckPath=/api/healthz`; verify it with the

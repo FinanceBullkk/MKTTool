@@ -439,7 +439,9 @@ model PostJob {
   accountId      String
   targetId       String
   scheduledAt    DateTime
-  status         String    @default("PENDING") // PENDING|BLOCKED|POSTED|FAILED|SKIPPED
+  /// PENDING|BLOCKED|PUBLISHING|POSTED|FAILED|SKIPPED — PUBLISHING là trạng thái giành chỗ tạm,
+  /// chỉ sống trong lúc gọi Graph API của Fanpage (xem content-types.ts).
+  status         String    @default("PENDING")
   ruleVerdicts   String? // JSON kết quả rules engine
   overrideReason String? // bắt buộc nếu người dùng ghi đè luật
   postedUrl      String?

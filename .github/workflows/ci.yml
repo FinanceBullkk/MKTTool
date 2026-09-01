@@ -7,10 +7,10 @@ on:
 
 jobs:
   check:
-    runs-on: [self-hosted, Linux, X64]
+    runs-on: ubuntu-latest
 
     # Bộ test cần một Postgres THẬT, không giả lập được.
-    # The self-hosted Linux runner must provide Docker because job services are container-backed.
+    # GitHub-hosted Ubuntu runners provide Docker, which job services need to run their containers.
     #
     # Lý do đầy đủ ở `vitest.global-setup.ts`, tóm tắt: tầng `rule-context-queries.ts` chỉ gồm
     # truy vấn Prisma. Giả lập Prisma chỉ chứng minh được "mình gọi hàm đúng như mình nghĩ",
@@ -78,11 +78,11 @@ jobs:
       - run: npm run build
 
   # The new database contracts need Node 22 and a real disposable PostgreSQL service. The
-  # preflight is intentionally fail-closed: if this self-hosted runner cannot provision Node 22,
+  # preflight is intentionally fail-closed: if the runner cannot provision Node 22,
   # the helper records BLOCKED instead of silently running the probe under another runtime or a
   # mock database.
   contracts:
-    runs-on: [self-hosted, Linux, X64]
+    runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
       contents: read
@@ -123,7 +123,7 @@ jobs:
           node-version: 22
           cache: npm
 
-      # Keep the executable selected by setup-node explicit. Some self-hosted runner shells do not
+      # Keep the executable selected by setup-node explicit. A runner shell may not
       # carry the action-managed PATH into a later `if: always()` step; falling back to the machine
       # default would make the Node-22 contract silently run under another runtime.
       - name: Capture Node 22 executable
@@ -165,7 +165,7 @@ jobs:
   # Scan the source/evidence trees without printing matched values. `plans/` is workspace-level and
   # may not be present in a repository-only checkout; the scanner records that scope explicitly.
   secret-scan:
-    runs-on: [self-hosted, Linux, X64]
+    runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:
@@ -193,16 +193,16 @@ jobs:
   # Why a separate job instead of a step in `check`: SEA embeds the runtime of the machine doing
   # the build, so a Linux build produces an ELF named `.exe` that only fails once it reaches an
   # operator (see the header of `scripts/build-relay-executable.ts`). `check` has to run on a
-  # self-hosted Linux runner with Docker because it needs the Postgres service. So the two cannot
+  # Linux runner with Docker because it needs the Postgres service. So the two cannot
   # share a runner.
   #
-  # Why there is deliberately no `paths:` filter, even though the Windows job consumes scarce
-  # self-hosted capacity. The suite imports from `src/lib/crypto`, `src/lib/tickets` and
+  # Why there is deliberately no `paths:` filter, even though the Windows job spends billed runner
+  # minutes at the 2x Windows rate. The suite imports from `src/lib/crypto`, `src/lib/tickets` and
   # `src/lib/relay` — a change outside
   # `relay/` breaks it, which is exactly what F4 did. Narrowing the trigger to relay paths would
   # rebuild the blind spot this job was added to close.
   relay-executable:
-    runs-on: [self-hosted, Windows, X64]
+    runs-on: windows-latest
 
     # Pull requests only, unlike `check`, which also runs on pushes to master. The post-merge push
     # run would be near-pure duplication: GitHub builds a `pull_request` event against the *merge
@@ -289,14 +289,14 @@ jobs:
   # suspect that integration rather than the build.
   deploy-verification:
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
-    runs-on: [self-hosted, Linux, X64]
+    runs-on: ubuntu-latest
 
     permissions:
       deployments: read
 
     steps:
       - name: Wait for the production deployment of this commit to succeed
-        # The self-hosted Linux runner must provide the GitHub CLI (`gh`).
+        # GitHub-hosted Ubuntu runners ship the GitHub CLI (`gh`).
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
