@@ -1,6 +1,6 @@
 # Đưa MKTTool lên Railway — làm từng bước
 
-**Cập nhật:** 01/09/2026 | The Vietnamese walkthrough below is retained historical context; the
+**Cập nhật:** 02/09/2026 | The Vietnamese walkthrough below is retained historical context; the
 current Lane A procedure is the English overlay immediately following this line.
 
 ## Consolidation release procedure — 1 September 2026
@@ -13,7 +13,11 @@ web-deployment prerequisites.
 Required sequence:
 
 1. Confirm the release branch has no uncommitted source. Keep the protected `AGENTS.md` files out
-   of staging. Require the exact self-hosted CI jobs to be green.
+   of staging. Require the exact CI jobs to be green on GitHub-hosted runners: `check`,
+   `contracts`, `secret-scan`, and `relay-executable`. `deploy-verification` is expected to show
+   SKIPPED before the merge — it only runs post-merge on `master`. The pipeline left the
+   self-hosted pool on 1 September 2026; a job that reports a self-hosted runner is a stale
+   workflow file, not a pass.
 2. Take a fresh production backup and verify it in a disposable database:
 
    ```powershell
