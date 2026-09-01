@@ -67,15 +67,19 @@ describe("hợp đồng sàn coverage đường trọng yếu", () => {
     expect(read(".github/workflows/ci.yml")).toContain("run: npm run test:critical-coverage");
   });
 
-  it("routes CI jobs only to approved self-hosted runner pools", () => {
+  it("routes CI jobs only to GitHub-hosted runners", () => {
+    // The pipeline left the self-hosted pool on 1 September 2026. A hosted runner hands every job a
+    // fresh VM that is discarded afterwards, and the hosted Ubuntu image supplies what the
+    // self-hosted box was relied on for: Docker for the Postgres service containers, `psql`, and
+    // the GitHub CLI.
     const workflow = read(".github/workflows/ci.yml");
-    expect(workflow).not.toMatch(/\b(?:ubuntu|windows|macos)-latest\b/i);
+    expect(workflow).not.toMatch(/\bself-hosted\b/);
 
     const runsOn = [...workflow.matchAll(/^\s*runs-on:\s*(.+)$/gm)].map((match) => match[1]);
     // `check`, `contracts`, `secret-scan`, and post-merge deployment verification are Linux
     // lanes; the packaged Relay acceptance job is the single Windows lane.
     expect(runsOn).toHaveLength(5);
-    expect(runsOn.filter((value) => value === "[self-hosted, Linux, X64]")).toHaveLength(4);
-    expect(runsOn.filter((value) => value === "[self-hosted, Windows, X64]")).toHaveLength(1);
+    expect(runsOn.filter((value) => value === "ubuntu-latest")).toHaveLength(4);
+    expect(runsOn.filter((value) => value === "windows-latest")).toHaveLength(1);
   });
 });
