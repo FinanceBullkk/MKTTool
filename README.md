@@ -5,12 +5,16 @@ TikTok accounts plus Facebook Pages, while keeping account, proxy, profile, and 
 ownership explicit. Profile and proxy controls are operational boundaries; they are not a promise
 of unique or isolated browser identity.
 
-**Current status, 30 August 2026:** the account vault, Reddit/Facebook posting-safety pipeline,
+**Current status, 1 September 2026:** the account vault, Reddit/Facebook posting-safety pipeline,
 health checks, and Facebook Pages publisher are implemented. TikTok account/profile setup and manual
 launch are available for a controlled technical pilot; TikTok content, scheduling, warmup, and
-posting automation remain parked. The merged Lane A Web deployment is live and its `/api/healthz`
-and authorized Relay v16 full-GET/hash checks pass; the Relay floor intentionally remains 13 pending
-observed self-serve reinstalls on the owner's two machines. Browser installer reproducibility,
+posting automation remain parked. The hardened Lane A Web deployment is live; its last 24-hour
+health evidence is 947/947 HTTP 200 with zero server 5xx, and the authorized Relay v16 full-GET/hash
+check passes. The bounded credentialed/admin smoke also passes; the owner signed CONDITIONAL GO for
+Lane A on 1 September 2026, accepting residual risks 1–8.
+The historical intermittent 503 incident is mitigated under monitoring; the exact R2 latency trigger
+remains unconfirmed. The Relay floor intentionally remains 13: one owner machine has
+reinstalled 0.3.13/v16, while the second remains unobserved. Browser installer reproducibility,
 Browser CI, real-environment, identity, and canary gates remain open for the separate Browser lane;
 Lane C is CLOSED because there is no CloakBrowser channel.
 See the [development roadmap](docs/development-roadmap.md).

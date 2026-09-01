@@ -1,9 +1,9 @@
 # Đưa MKTTool lên Railway — làm từng bước
 
-**Cập nhật:** 30/08/2026 | The Vietnamese walkthrough below is retained historical context; the
+**Cập nhật:** 01/09/2026 | The Vietnamese walkthrough below is retained historical context; the
 current Lane A procedure is the English overlay immediately following this line.
 
-## Consolidation release procedure — 30 August 2026
+## Consolidation release procedure — 1 September 2026
 
 This is the current Lane A overlay; the older ceremony below is retained as historical context.
 Railway deploys the MKTTool Web service from `master` through the GitHub integration
@@ -35,8 +35,9 @@ Required sequence:
    `/api/relay/download/v16` must match the immutable published bytes by size and SHA. A HEAD request
    is insufficient.
 6. Observe per-client rate limiting and the absence of the Better Auth shared-IP warning. Run the
-   bounded Lane A smoke and label synthetic checks separately. Rehearse rollback in a disposable
-   environment; a rollback is always approved and executed by a human.
+   bounded Lane A smoke and label synthetic checks separately. The disposable rollback rehearsal is
+   complete and retained in the evidence report; any production rollback is approved and executed
+   by a human.
 7. After the deployment passes the external health, full-GET, and log checks, configure the Railway
    service instance `healthcheckPath` to `/api/healthz` (and verify the setting). Keep
    `healthcheckTimeout` unset (`null`) unless a measured startup SLO requires a different value:
@@ -44,13 +45,14 @@ Required sequence:
    than infinite. Do not treat a deployment-manifest `null` field as proof that the service-instance
    setting is absent.
 
-Current evidence: branch run `33292005382` and post-merge master run `33292350436` are green for
-the required MKTTool jobs. PR #40 merged at `380962a49576a4663438ef50685dcb386c86aa08`; the latest
-Railway deployment ID and `meta.commitHash` are recorded in the successor P4a evidence report.
-`/api/healthz` is HTTP 200, the authorized full `/v16` GET matches the immutable published SHA, and
-the service-instance `healthcheckPath` is `/api/healthz`. The earlier 404/401 probes are retained as
-explicitly labelled pre-merge history in the plan report, not as current state. A final Lane A GO
-still requires the bounded credentialed smoke and disposable rollback rehearsal.
+Current evidence: branch run `33296599912` and post-merge master run `33297347911` are green for
+the required MKTTool jobs. The current hardening deployment is `0a696033-b610-492c-b75a-3e918cca102a`
+at commit `2734e2f0ba9c2a2f9c3731a44540c01d263b36e2`; its 24-hour health window is 947/947 HTTP
+200 with zero server 5xx, and an authorized full `/v16` GET matches the immutable published SHA.
+The service-instance `healthcheckPath` is `/api/healthz`; the earlier 404/401 probes are retained as
+explicitly labelled pre-merge history in the plan report, not as current state. The bounded
+credentialed/admin smoke is PASS; the owner signed CONDITIONAL GO on 1 September 2026 and accepted
+residual risks 1–8.
 
 The Browser five-artifact tuple is P4b only. Its missing Stable `.2` engine archive remains an OPEN
 technical item; it does not block this web procedure. Lane C is CLOSED because no CloakBrowser channel
@@ -850,9 +852,10 @@ team nhìn thấy** — nó đổi thứ mọi người tải về và bật d�
 ## Historical 06 August walkthrough — remaining work at that time
 
 > The checklist below belongs to the 06 August deployment, not the 30 August consolidation. It is
-> retained for incident context and fallback history. The current ledger still has P4-08/P4-09,
-> U5 owner observations, and the P4b Browser tuple OPEN; Lane C is CLOSED because no CloakBrowser
-> channel exists. Do not read “đã xong” below as a current no-debt release claim.
+> retained for incident context and fallback history. The current ledger has P4-08, the disposable
+> P4-09 rehearsal, and the owner-signed Lane A CONDITIONAL GO complete; the second U5 owner
+> observation and P4b Browser tuple remain open. Lane C is CLOSED because no CloakBrowser channel exists.
+> Do not read “đã xong” below as a current no-debt release claim.
 
 ## Việc còn nợ sau khi xong (historical)
 

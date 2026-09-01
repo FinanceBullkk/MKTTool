@@ -1,24 +1,32 @@
 # Internal beta boundary
 
-**Updated:** 30 August 2026
-**Status:** controlled technical pilot only; the Browser/Relay rollout is **NO-GO**.
+**Updated:** 1 September 2026
+**Status:** Lane A Web/Facebook is **SIGNED CONDITIONAL GO**; the Browser/Relay rollout is **NO-GO**.
 
-## Consolidation truth — 30 August 2026
+## Consolidation truth — 1 September 2026
 
 Lane A Web/Facebook and the Browser fleet contract are separate. The MKTTool web candidate was
 merged to `master` after green branch/master CI and a fresh current-DB backup/restore. The latest
 Railway deployment and its exact commit are recorded in the successor P4a evidence report; the
 post-merge `/api/healthz` probe is 200 and the authorized `/v16` full GET is hash-exact. It did not
-need a Browser engine archive or a five-artifact tuple. A bounded credentialed smoke and rollback
-rehearsal remain open for a final Lane A GO.
+need a Browser engine archive or a five-artifact tuple. The disposable rollback rehearsal and
+bounded credentialed/admin smoke are complete. The owner signed CONDITIONAL GO for Lane A on
+1 September 2026 and accepted residual risks 1–8. Any real rollback remains human-approved and
+requires a fresh healthcheck-setting check.
 
-The current MKTBrowser branch head is `0b62df5`; the accepted
+The current MKTBrowser branch head is `b9f9477`; the accepted
 provenance receipt was generated from its preceding source commit
 `5ef710dd931028d4d608bea098311bf54bf5dc31`. The Browser tuple is still a separate P4b technical OPEN because the exact
 CloakBrowser Stable `.2` archive is absent. No tuple was fabricated or published. Q16 closes Lane C:
 there is no CloakBrowser channel, no request will be sent, and there is no date or “coming soon”
 promise. MKTBrowser remains a controlled Lane A/B demo with human login and no identity-isolation
 claim.
+
+The historical intermittent production 503 incident is mitigated, not forgotten: the current
+deployment has 947/947 successful health responses over 24 hours, a fresh 24/24 ready burst, and an
+exact authorized Relay v16 replay. The former 450 ms shared R2 readiness budget was replaced by
+per-dependency budgets and cached immutable metadata. The exact upstream R2-latency trigger remains
+unconfirmed; keep monitoring and do not treat this as a platform-edge root-cause finding.
 
 This guide describes the smallest safe internal surface while the release, identity, network,
 operator, and canary gates remain open. A green local check is not a Browser identity-isolation or
@@ -27,8 +35,9 @@ real-account approval.
 ## What the team can use now
 
 - **MKTTool Web:** Web/Facebook workflows may continue as a low-risk, admin-led internal pilot for
-  authorized operators. The deployed service is the merged hardening candidate; retain the bounded
-  smoke and rollback rehearsal as explicit residual gates.
+  authorized operators. The deployed service is the merged hardening candidate; the incident is
+  mitigated under monitoring. The disposable rollback rehearsal and bounded credentialed smoke are
+  complete; the owner-signed CONDITIONAL GO accepts residual risks 1–8.
 - **MKT Browser + Relay:** the current Windows x64 `0.3.13` tree is a controlled technical draft
   from `5ef710dd`. Its payload is measured, but the full installer still has an unresolved NSIS
   resource-order variance and the five-artifact tuple is not publishable. Use one profile at a time,
@@ -84,6 +93,8 @@ retry by opening a second profile or changing the proxy locally.
   machine-live integration skipped. Re-run on the exact S3 artifact before promotion.
 - Relay v16: exact archive/EXE binding, restart replay rejection, fresh-ticket acceptance,
   crash-recovery, and corruption fail-closed harness checks passed locally; R2 full read-back passed.
+- One owner machine completed the self-serve 0.3.13 reinstall and now reports Relay v16 and a
+  contract-compatible Browser. The second owner machine remains unobserved; the floor stays at 13.
 - CFT/system-Chrome runs are compatibility evidence only. They do not close `G2-IDENTITY`.
 
 ## Gates that remain open
