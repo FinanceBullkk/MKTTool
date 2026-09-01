@@ -6,6 +6,7 @@ Thư mục này có **hai loại file, đừng lẫn chúng với nhau**:
 |---|---|
 | `Technical_Analysis_And_Risk_Assessment.md`, `X_Twitter_Automation_Blueprint.md` | **bản trước khi xoay hướng** (tháng 7/2026) — hướng đi đã bỏ |
 | [`project-changelog-07-to-11-august-2026.md`](project-changelog-07-to-11-august-2026.md), [`project-changelog-05-to-06-august-2026.md`](project-changelog-05-to-06-august-2026.md), [`project-changelog-den-04-08-2026.md`](project-changelog-den-04-08-2026.md) | Historical sections of the current product changelog, not superseded design material |
+| [`development-roadmap-historical-pre-consolidation.md`](development-roadmap-historical-pre-consolidation.md) | Historical section of the current roadmap — pre-consolidation stream tables and critical path, split out 2 September 2026. Same kind as the changelog rows above, not superseded design material |
 
 Phần còn lại của trang này nói về **loại thứ nhất**.
 
