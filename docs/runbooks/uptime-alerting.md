@@ -1,9 +1,9 @@
 # Runbook: cảnh báo khi production chết
 
 **Cập nhật:** 02/09/2026
-**Trạng thái:** **ĐÃ DỰNG** 02/09/2026 — UptimeRobot, chủ dự án tạo, báo về
-`anhhao.dl108@gmail.com`. Cấu hình theo bảng bên dưới. Đường báo **chưa từng nổ thật**, xem
-"Diễn tập" trước khi coi nó là chỗ dựa.
+**Trạng thái:** **ĐANG CHẠY** — UptimeRobot, chủ dự án tạo 02/09/2026, báo về
+`anhhao.dl108@gmail.com`. Cấu hình theo bảng bên dưới. Đường báo **đã diễn tập và nổ thật**
+cùng ngày; xem bảng ở mục "Diễn tập".
 
 ## Vấn đề nó giải
 
@@ -74,7 +74,8 @@ Lúc   : <thời gian>
 
 Một đường báo động chưa từng nổ là một giả định, không phải một lớp bảo vệ. Cấu hình đúng mà email
 rơi vào spam, hoặc địa chỉ gõ sai một ký tự, thì lần sập thật vẫn im lặng — và lúc đó không ai biết
-để mà sửa.
+để mà sửa. Lần 1 đã chạy và đã nhận được mail, nên hôm nay đây là một lớp bảo vệ chứ không còn là
+một ô cấu hình đã điền.
 
 Bắt nó nổ đúng một lần:
 
@@ -89,7 +90,7 @@ Ghi ngày diễn tập vào đây. Làm lại khi đổi địa chỉ nhận ho�
 
 | Lần diễn tập | Ngày | Kết quả |
 |---|---|---|
-| 1 | _chưa làm_ | — |
+| 1 | 02/09/2026 | **PASS.** Chủ dự án đổi URL sang đường 404, email báo động tới nơi, khôi phục URL xong dịch vụ trở lại xanh. Xác nhận độc lập cùng lúc: `/api/healthz` HTTP 200, `/api/healthz-drill` HTTP 404 |
 
 ## Việc đầu tiên khi nhận báo động
 
