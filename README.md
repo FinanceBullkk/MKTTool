@@ -5,8 +5,16 @@ TikTok accounts plus Facebook Pages, while keeping account, proxy, profile, and 
 ownership explicit. Profile and proxy controls are operational boundaries; they are not a promise
 of unique or isolated browser identity.
 
+**Rollout scope decision, 2 September 2026:** Reddit and Facebook are **withdrawn from the team
+rollout scope**. The code stays implemented, tested, and deployed — this is a scope decision, not a
+removal — but no Reddit or Facebook workflow is handed to operators, and the posting surface is not
+part of what the team is asked to use. What remains in scope for the team is the shared account
+vault, proxy ownership, and operator-device registry. Re-entering either platform is an explicit
+owner decision, not a default.
+
 **Current status, 1 September 2026:** the account vault, Reddit/Facebook posting-safety pipeline,
-health checks, and Facebook Pages publisher are implemented. TikTok account/profile setup and manual
+health checks, and Facebook Pages publisher are implemented (now out of rollout scope, see above).
+TikTok account/profile setup and manual
 launch are available for a controlled technical pilot; TikTok content, scheduling, warmup, and
 posting automation remain parked. The hardened Lane A Web deployment is live; its last 24-hour
 health evidence is 947/947 HTTP 200 with zero server 5xx, and the authorized Relay v16 full-GET/hash

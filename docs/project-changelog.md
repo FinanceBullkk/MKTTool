@@ -18,6 +18,24 @@ the archive location.
 
 ---
 
+## 2 September 2026 — Reddit and Facebook withdrawn from rollout scope
+
+- **Scope decision:** Reddit and Facebook leave the team rollout scope. No code was deleted; the
+  posting-safety pipeline, Facebook Pages publisher, and health checks stay implemented and
+  deployed. The team-facing surface narrows to the account vault, proxy ownership, and the
+  operator-device registry.
+- **Docs realigned:** README, the internal beta boundary, the team operating guide, and the roadmap
+  now state the narrowed scope. The operating guide carries a stop banner over the posting sections
+  rather than a rewrite, because the screens still exist and still work.
+- **Not enforced in code:** `TARGET_PLATFORMS` is unchanged, so nothing fails closed on this
+  boundary. It holds by agreement.
+- **Concurrent-posting race fixed beforehand:** the Facebook publish path and the shared
+  mark-posted path claimed rows with a read-then-write sequence, so two operators could put two real
+  posts on a Page, and one post could leave two Interaction rows that skew the quota, promo-ratio,
+  and thread-collision rules. Both now claim with a conditional update, covered by a concurrent test
+  that fails against the previous code. Kept despite the scope change: the code stays in the tree,
+  and a latent race is not a good thing to leave behind a door that may reopen.
+
 ## 1 September 2026 — Lane A signed CONDITIONAL GO and incident mitigation
 
 - **Production stability restored:** hardening deployment `0a696033` at commit `2734e2f0` recorded

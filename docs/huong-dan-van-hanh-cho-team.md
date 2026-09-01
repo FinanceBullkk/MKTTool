@@ -11,6 +11,18 @@ Mở bằng Chrome, đăng nhập bằng **tài khoản Google công ty** của 
 công cụ này — nếu Google vào được mà công cụ vẫn từ chối, nghĩa là email của bạn chưa có trong
 danh sách cho phép: nhắn ADMIN, đừng thử lại nhiều lần.
 
+> ## ⛔ Từ 02/09/2026: Reddit và Facebook không còn nằm trong phạm vi bàn giao
+>
+> **Đừng làm theo mục 2, 3, 4, 5 và 7 nữa.** Xếp lịch bài, đèn luật, đăng Fanpage, đăng tay Reddit
+> và dò shadowban đều thuộc hai nền tảng vừa bị rút khỏi phạm vi. Màn hình vẫn còn đó và nút vẫn
+> bấm được — công cụ **không** bị xóa gì cả — nhưng đây là quyết định phạm vi, nên đừng dùng.
+>
+> Phần còn trong phạm vi: **kho nick, kho proxy, và sổ máy đã đăng ký** — tức mục 8 (ai thấy gì,
+> ai làm được gì), mục 9 (khi nào nhắn ADMIN), mục 10 và 11 (người mới vào / người rời team).
+>
+> Muốn mở lại một trong hai nền tảng thì đó là quyết định của chủ dự án, không phải mặc định.
+> Chưa có thông báo đó thì đừng tự đăng bài nào bằng công cụ.
+
 ---
 
 ## Bạn thuộc nhóm nào

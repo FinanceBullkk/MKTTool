@@ -1,6 +1,15 @@
 # Lộ trình phát triển
 
-**Updated:** 1 September 2026
+**Updated:** 2 September 2026
+
+## Rollout scope decision — 2 September 2026
+
+**Reddit and Facebook are withdrawn from the team rollout scope.** Scope only, nothing deleted: the
+posting pipeline, Pages publisher, and health checks stay implemented and deployed but are handed to
+nobody. The team surface narrows to the account vault, proxy ownership, and the operator-device
+registry; the 1 September Lane A GO stays a technical record and stops being a rollout instruction;
+nothing in code enforces the boundary. Detail and re-entry condition:
+[internal-beta-release.md](internal-beta-release.md).
 
 ## Current operational update - 1 September 2026
 

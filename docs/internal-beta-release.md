@@ -34,10 +34,29 @@ real-account approval.
 
 ## What the team can use now
 
-- **MKTTool Web:** Web/Facebook workflows may continue as a low-risk, admin-led internal pilot for
-  authorized operators. The deployed service is the merged hardening candidate; the incident is
-  mitigated under monitoring. The disposable rollback rehearsal and bounded credentialed smoke are
-  complete; the owner-signed CONDITIONAL GO accepts residual risks 1–8.
+**Rollout scope decision, 2 September 2026: Reddit and Facebook are withdrawn from the team rollout
+scope.** The implementation stays in the tree and stays deployed; nothing was deleted. What changed
+is what operators are asked to use. No Reddit or Facebook workflow — Pages publishing included — is
+part of the team surface, and no operator should be onboarded onto one. Re-entry is an explicit
+owner decision.
+
+- **MKTTool Web, in scope:** the shared account vault, proxy ownership, and operator-device
+  registry. These are the platform-independent parts: one responsible person and one PC per
+  browser-backed account, secrets split across two key domains, admin-controlled proxy inventory.
+- **MKTTool Web, out of scope:** Reddit posting-safety workflows and Facebook Pages publishing. The
+  deployed service still contains them and the earlier CONDITIONAL GO evidence still stands as a
+  technical record — but that record is no longer a rollout instruction for these platforms.
+
+Consequences worth keeping straight:
+
+- **Nothing in code enforces this.** `TARGET_PLATFORMS` still lists `REDDIT`, `FACEBOOK_PAGE`, and
+  `FACEBOOK_GROUP`; the screens still render and the buttons still work. The boundary holds by
+  agreement, not by a check that fails closed. If it must fail closed, that is a separate change.
+- **The rollout surface is now small.** With both platforms out, no posting path remains, so the
+  team-facing product is a shared identity vault rather than a posting console. That is a coherent
+  thing to hand over, but it is much less than what is built.
+- **Re-entry is an owner decision, not a default.** Whoever reopens a platform inherits the open
+  items recorded against it — including the unowned cross-operator publish path on Facebook Pages.
 - **MKT Browser + Relay:** the current Windows x64 `0.3.13` tree is a controlled technical draft
   from `5ef710dd`. Its payload is measured, but the full installer still has an unresolved NSIS
   resource-order variance and the five-artifact tuple is not publishable. Use one profile at a time,
