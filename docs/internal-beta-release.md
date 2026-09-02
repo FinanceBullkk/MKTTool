@@ -45,10 +45,9 @@ components; and cohort plausibility failed on restart-drifting audio/canvas plus
 screen differences. Audio was not an invariant Brave mark, but its rendered hashes changed after
 restart, so it was not a persistent identity either.
 
-The Phase 05 draft records a **NO-GO for Brave integration and for any identity-isolation claim**.
-Until the owner signs or revises it, the existing Browser NO-GO boundary remains unchanged: no
-engine integration, rollout, or real accounts. The draft does not alter the Lane A decision, and
-`G2-IDENTITY` remains `FAIL`.
+The owner signed the Phase 05 **NO-GO for Brave integration and for any identity-isolation claim**.
+The Browser boundary remains unchanged: no engine integration, rollout, or real accounts. The
+signed decision does not alter the Lane A decision, and `G2-IDENTITY` remains `FAIL`.
 
 ## What the team can use now
 

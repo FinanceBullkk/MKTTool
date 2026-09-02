@@ -32,7 +32,7 @@ the archive location.
 - **Engine decision:** Cloak Stable `.2` remains `BLOCKED` with `0/10` valid current readings, and
   Brave independently fails A/B/C. No Brave integration plan is authorized; `G2-IDENTITY` remains `FAIL`.
   Product docs continue to describe MKTBrowser as a profile/proxy/ownership manager without an
-  identity-isolation claim. The written Phase 05 decision awaits owner signature.
+  identity-isolation claim. The workspace owner signed and approved the written Phase 05 `NO-GO`.
 
 ## 2 September 2026 — Reddit and Facebook withdrawn from rollout scope
 

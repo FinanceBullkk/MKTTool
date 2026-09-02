@@ -84,9 +84,9 @@ engine remains `BLOCKED` with `0/10` valid readings because it could not launch.
 it failed A consistency, B stable-subset collision, and C cohort plausibility. Brave audio did not
 form an invariant vendor mark, but five rendered hashes changed after restart and every profile pair
 still collided on a `62`/`63`-component stable subset. No current engine path proves identity
-isolation. No Brave integration plan is authorized, `G2-IDENTITY` stays `FAIL`, and the product
-remains a profile/proxy/ownership manager rather than an identity-isolation tool. The Phase 05
-decision awaits owner signature.
+isolation. The owner signed the Phase 05 `NO-GO`: no Brave integration plan is authorized,
+`G2-IDENTITY` stays `FAIL`, and the product remains a profile/proxy/ownership manager rather than an
+identity-isolation tool.
 
 Đây là **nguồn duy nhất về trạng thái** của dự án. Chi tiết thi công nằm ở
 [plan công cụ gốc](../plans/260801-2030-multi-account-posting-console/plan.md),
