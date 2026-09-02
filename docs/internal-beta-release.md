@@ -1,6 +1,6 @@
 # Internal beta boundary
 
-**Updated:** 1 September 2026
+**Updated:** 2 September 2026
 **Status:** Lane A Web/Facebook is **SIGNED CONDITIONAL GO**; the Browser/Relay rollout is **NO-GO**.
 
 ## Consolidation truth — 1 September 2026
@@ -31,6 +31,24 @@ unconfirmed; keep monitoring and do not treat this as a platform-edge root-cause
 This guide describes the smallest safe internal surface while the release, identity, network,
 operator, and canary gates remain open. A green local check is not a Browser identity-isolation or
 real-account approval.
+
+## Fingerprint gate decision - 2 September 2026
+
+The current pinned CloakBrowser Stable `.2` engine remains `BLOCKED`: Phase 02 obtained `0/10`
+valid profile readings because the engine would not launch. The free fallback candidate, official
+Brave `v1.94.117`, was measured at the declared pool of five with two runs per profile and an exact
+Chromium `152.0.7977.64` same-machine CFT control.
+
+Brave failed all three experimental criteria. It produced `65` restart mismatches and `20`
+cross-context mismatches; all `10/10` profile pairs collided on stable subsets of `62` and `63`
+components; and cohort plausibility failed on restart-drifting audio/canvas plus invariant UA-CH and
+screen differences. Audio was not an invariant Brave mark, but its rendered hashes changed after
+restart, so it was not a persistent identity either.
+
+The Phase 05 draft records a **NO-GO for Brave integration and for any identity-isolation claim**.
+Until the owner signs or revises it, the existing Browser NO-GO boundary remains unchanged: no
+engine integration, rollout, or real accounts. The draft does not alter the Lane A decision, and
+`G2-IDENTITY` remains `FAIL`.
 
 ## What the team can use now
 
@@ -114,7 +132,8 @@ retry by opening a second profile or changing the proxy locally.
   crash-recovery, and corruption fail-closed harness checks passed locally; R2 full read-back passed.
 - One owner machine completed the self-serve 0.3.13 reinstall and now reports Relay v16 and a
   contract-compatible Browser. The second owner machine remains unobserved; the floor stays at 13.
-- CFT/system-Chrome runs are compatibility evidence only. They do not close `G2-IDENTITY`.
+- Exact-revision CFT was used only as the same-machine cohort control for the Brave measurement.
+  Brave failed A/B/C, so the control does not close `G2-IDENTITY` or authorize an engine change.
 
 ## Gates that remain open
 
@@ -123,7 +142,7 @@ retry by opening a second profile or changing the proxy locally.
 | P3 installer/provenance | OPEN | Provenance is accepted, but the exact engine archive and deterministic outer installer tuple are missing |
 | G1 human input/login | OPEN | Requires human first-login/typing attestations on the promoted artifact |
 | G2 network | OPEN | Real proxy/DNS/WebRTC evidence is not closed |
-| G2 identity | FAIL | Prior licensed `.2` measurements found font/audio/WebGL collisions; no corrective vendor channel exists |
+| G2 identity | FAIL | Stable `.2` is `BLOCKED` with `0/10` current readings; Brave failed A/B/C at pool five; no current engine proves identity isolation |
 | G2 concurrency | DEFERRED | One vendor seat; one profile at a time |
 | G3 licence/schema | OPEN | Live vendor sidecar/schema evidence is incomplete for the Browser tuple |
 | G3 recovery | PASS for the tested historical path | Does not substitute for exact promoted-installer and real power-cycle evidence |
@@ -137,13 +156,14 @@ rollout, and no unattended automation. It is a boundary/runbook, not a release a
 
 Lane C is **CLOSED**, not pending. The custom engine track is closed, `G2-IDENTITY` is FAIL, and
 there is no channel to CloakBrowser. No vendor request will be sent; there is no deadline, date, or
-“coming soon” commitment. MKTBrowser remains a controlled Lane A/B tool without an identity-
-isolation claim. The only possible future path is a separately funded and owned alternative-vendor
-decision outside this release.
+“coming soon” commitment. The measured free Brave path also failed A/B/C and opens no integration
+plan. MKTBrowser remains a controlled Lane A/B tool without an identity-isolation claim. Any future
+engine path requires a new, separately owned product decision outside this release.
 
 ## Deliberately deferred
 
-- custom Chromium/fingerprint-engine work and the prebuilt-engine session orchestrator;
+- custom Chromium/fingerprint-engine work remains closed; the Brave prebuilt spike completed with a
+  NO-GO and is not an integration backlog;
 - macOS packaging and updater work;
 - multi-profile concurrency or additional licence-key promises;
 - Reddit/TikTok posting automation, warmup, CAPTCHA/checkpoint, or credential/OTP automation;

@@ -78,6 +78,16 @@ WebGL collisions, and there is no CloakBrowser channel. No vendor request, date,
 promise exists. A future alternative-vendor decision would be a new, separately owned product
 scope. MKTBrowser remains a controlled Lane A/B demo and does not claim identity isolation.
 
+**Fingerprint gate decision - 2 September 2026:** the current pinned CloakBrowser Stable `.2`
+engine remains `BLOCKED` with `0/10` valid readings because it could not launch. Official Brave
+`v1.94.117` was measured at five profiles and two runs each against exact-revision same-machine CFT;
+it failed A consistency, B stable-subset collision, and C cohort plausibility. Brave audio did not
+form an invariant vendor mark, but five rendered hashes changed after restart and every profile pair
+still collided on a `62`/`63`-component stable subset. No current engine path proves identity
+isolation. No Brave integration plan is authorized, `G2-IDENTITY` stays `FAIL`, and the product
+remains a profile/proxy/ownership manager rather than an identity-isolation tool. The Phase 05
+decision awaits owner signature.
+
 Đây là **nguồn duy nhất về trạng thái** của dự án. Chi tiết thi công nằm ở
 [plan công cụ gốc](../plans/260801-2030-multi-account-posting-console/plan.md),
 [plan Web chung](../plans/260804-1752-web-chung-cho-team-phan-tan/plan.md) và
@@ -90,7 +100,7 @@ Dự án đang chạy **ba luồng song song**:
 |---|---|---|
 | **A — Công cụ** | 5 giai đoạn gốc: kho danh tính → hàng đợi → sức khỏe → Facebook → tự đăng Reddit | GĐ1-4 xong, GĐ0 kẹt ở tiền + cold-start, GĐ5 chưa bắt đầu |
 | **B — Web chung** | Biến app một máy thành web chung cho 5-6 người ở 5-6 nơi | **GĐ0-4 xong 06/08**, GĐ5 web **đã chạy thật trên Railway** cùng ngày |
-| **C — MKT Browser** | Fork the MultiZen desktop layer; Windows-only in v1 while Web, Relay, and upstream UX/UI remain intact | **MKB-00 through MKB-02 verified; MKB-03 is a controlled technical draft with Browser CI, vendor/engine, real-proxy, second-PC, and canary gates open; Lane C real-account promotion is CLOSED because there is no CloakBrowser channel**; MKB-04 remains NO-GO; macOS deferred to MKB-07; [plan](../plans/260810-0244-mkt-browser-noi-bo/plan.md) |
+| **C — MKT Browser** | Fork the MultiZen desktop layer; Windows-only in v1 while Web, Relay, and upstream UX/UI remain intact | **MKB-00 through MKB-02 verified; MKB-03 is a controlled technical draft with Browser CI, vendor/engine, real-proxy, second-PC, and canary gates open; Lane C real-account promotion is CLOSED; the experimental Brave gate failed A/B/C and opens no engine migration**; MKB-04 remains NO-GO; macOS deferred to MKB-07; [plan](../plans/260810-0244-mkt-browser-noi-bo/plan.md) |
 
 **Historical pre-consolidation stream table:** the earlier `3f376536` join-key wording described a draft before
 the consolidation branch. The accepted Browser provenance receipt was generated from `5ef710dd`; the
@@ -462,6 +472,7 @@ proxy quan sát viên.
 | **Cold-start chưa chạy** | Đường găng thật, code đã đi trước khá xa | Không có cách nào ngoài mua nick sớm |
 | **Fork trôi xa upstream** | Tự gánh bản vá Electron/MCP/profile migration | Repo riêng, module `mkt-*`, upstream SHA và contract test mỗi lần nhập bản vá |
 | **Engine và app khác license** | MIT của MultiZen không tự cấp quyền phân phối binary engine | Gate license riêng, không bundle engine theo quán tính, SBOM/NOTICE mỗi release |
+| **Không engine hiện tại đạt gate identity** | Cloak Stable `.2` không tạo được dataset; Brave trượt A/B/C, gồm restart drift và stable-subset collision | Không dùng nick thật, không khai identity isolation, không mở integration plan; chỉ một quyết định sản phẩm mới có owner và bằng chứng riêng mới được mở lại đường engine |
 | **Hoãn macOS làm Windows ăn sâu vào lõi** | Viết thẳng hành vi Windows vào lõi thì MKB-07 phải mổ lại chứ không phải cắm thêm | Lõi chung + adapter OS mỏng cho path/autostart/kho khóa; test contract và mật mã đánh vào lõi |
 | **Đến MKB-07 mới biết Mac vướng** | Rosetta, Gatekeeper, helper, Keychain hoặc WebRTC có thể lệch hành vi thật, và lúc đó team đã quen bản Windows | arm64 native là cổng cứng, notarization, hai máy Mac pilot; không cho nhân viên chạy `xattr` |
 | **Redesign làm chậm fork** | UI riêng không giải quyết rủi ro profile/proxy | Giữ UX/UI MultiZen trong v1; MKB-06 để sau dữ liệu sử dụng thật |
