@@ -173,14 +173,21 @@ function countOk(results: readonly { ok: boolean }[]): number {
 
 describe("hai lượt ghi chồng nhau trên một job", () => {
   let seeded: Seeded;
+  const scopeBefore = process.env.ROLLOUT_PLATFORMS;
 
   beforeEach(async () => {
+    // Xem chú thích cùng chỗ trong `post-job-actions.database.test.ts`. Bộ này kiểm chuyện hai
+    // người cùng bấm đăng một job thì Graph chỉ bị gọi một lần — một tính chất của cơ chế
+    // giành chỗ, chỉ quan sát được khi đường đăng đang mở.
+    process.env.ROLLOUT_PLATFORMS = "REDDIT,FACEBOOK_PAGE,FACEBOOK_GROUP";
     await clearAll();
     seeded = await seed();
     publishCalls.count = 0;
   });
 
   afterAll(async () => {
+    if (scopeBefore === undefined) delete process.env.ROLLOUT_PLATFORMS;
+    else process.env.ROLLOUT_PLATFORMS = scopeBefore;
     await clearAll();
   });
 

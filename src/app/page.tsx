@@ -1,6 +1,7 @@
 import { coldStartDaysRemaining } from "@/lib/accounts/account-status";
 import { prisma } from "@/lib/db/prisma-client";
 import { Constellation } from "@/components/mktbrowser-ui/Constellation";
+import { TeamScopeNotice } from "@/components/layout/team-scope-notice";
 
 export const dynamic = "force-dynamic";
 
@@ -66,11 +67,14 @@ export default async function OverviewPage() {
   }));
 
   return (
-    <Constellation
-      profiles={profiles}
-      freeProxies={freeProxies}
-      devices={devices}
-    />
+    <>
+      <TeamScopeNotice />
+      <Constellation
+        profiles={profiles}
+        freeProxies={freeProxies}
+        devices={devices}
+      />
+    </>
   );
 }
 
