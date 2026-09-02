@@ -18,6 +18,22 @@ the archive location.
 
 ---
 
+## 2 September 2026 — first fingerprint-gate application rejects Brave
+
+- **Brave measured at the declared pool:** official `v1.94.117` ran as five disposable profiles,
+  twice each, against exact-revision same-machine CFT. The extended harness covered every declared
+  context/surface combination and all ten launches closed through `Browser.close`.
+- **All three criteria failed:** A recorded `65` restart and `20` cross-context mismatches; B found
+  `62`/`63` stable components and all `10/10` profile-pair collisions in both runs; C rejected
+  restart-drifting audio/canvas plus invariant UA-CH and available-screen differences.
+- **Audio finding:** Brave did not emit one invariant vendor audio mark. Seven components matched
+  stock and five rendered hashes varied by profile, but those hashes changed after restart, so the
+  result was not a persistent profile identity.
+- **Engine decision:** Cloak Stable `.2` remains `BLOCKED` with `0/10` valid current readings, and
+  Brave independently fails A/B/C. No Brave integration plan is authorized; `G2-IDENTITY` remains `FAIL`.
+  Product docs continue to describe MKTBrowser as a profile/proxy/ownership manager without an
+  identity-isolation claim. The workspace owner signed and approved the written Phase 05 `NO-GO`.
+
 ## 2 September 2026 — Reddit and Facebook withdrawn from rollout scope
 
 - **Scope decision:** Reddit and Facebook leave the team rollout scope. No code was deleted; the
