@@ -280,7 +280,7 @@ describe("rejection paths", () => {
 
     const result = await requestCredentialTicket(accountId, "password");
 
-    expect("message" in result && result.message).toContain("chọn máy bạn đang ngồi");
+    expect("message" in result && result.message).toContain("Select the Relay PC you are using");
   });
 
   it("rejects another operator's Relay PC", async () => {
@@ -319,7 +319,7 @@ describe("rate limit", () => {
     const chan = await requestCredentialTicket(accountId, "password");
 
     expect("ok" in chan && chan.ok).toBe(false);
-    expect("message" in chan && chan.message).toMatch(/tạm dừng \d+ giây/);
+    expect("message" in chan && chan.message).toMatch(/Wait \d+ seconds/);
   });
 
   /** Người bị chặn vẫn phải được biết vì sao mình bị chặn, chứ không phải một nút im lặng. */

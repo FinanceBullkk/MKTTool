@@ -76,7 +76,7 @@ export class AdsPowerAdapter implements AntidetectAdapter {
 
     if (!response.ok) {
       throw new AntidetectError(
-        `${PROVIDER} trả về HTTP ${response.status} cho ${path}.`,
+        `${PROVIDER} returned HTTP ${response.status} for ${path}. Check that AdsPower is running, then try again.`,
         PROVIDER,
       );
     }
@@ -115,8 +115,8 @@ export class AdsPowerAdapter implements AntidetectAdapter {
     if (result.code !== 0) {
       // `msg` của AdsPower có thể vọng lại tham số đã gửi, kể cả mật khẩu proxy — không ghép vào.
       throw new AntidetectError(
-        `${PROVIDER} không nhận cấu hình proxy cho profile "${profileId}". ` +
-          `Chưa đẩy được proxy nên KHÔNG mở profile.`,
+        `${PROVIDER} rejected the proxy configuration for browser profile "${profileId}". ` +
+          `The browser profile was not opened because its proxy was not applied. Correct the proxy and try again.`,
         PROVIDER,
       );
     }
@@ -129,7 +129,7 @@ export class AdsPowerAdapter implements AntidetectAdapter {
 
     if (result.code !== 0) {
       throw new AntidetectError(
-        `${PROVIDER} không mở được profile "${profileId}": ${result.msg ?? "lỗi không rõ"}.`,
+        `${PROVIDER} could not open browser profile "${profileId}": ${result.msg ?? "unknown error"}. Check AdsPower and try again.`,
         PROVIDER,
       );
     }
@@ -141,7 +141,7 @@ export class AdsPowerAdapter implements AntidetectAdapter {
 
     if (!cdpEndpoint) {
       throw new AntidetectError(
-        `${PROVIDER} mở profile "${profileId}" nhưng không trả về endpoint CDP.`,
+        `${PROVIDER} opened browser profile "${profileId}" but did not return a CDP endpoint. Close the profile and try again.`,
         PROVIDER,
       );
     }
@@ -157,7 +157,7 @@ export class AdsPowerAdapter implements AntidetectAdapter {
     // code 0 = đóng thành công. Profile vốn đã đóng cũng không coi là lỗi.
     if (result.code !== 0 && !/not.*(open|active|running)/i.test(result.msg ?? "")) {
       throw new AntidetectError(
-        `${PROVIDER} không đóng được profile "${profileId}": ${result.msg ?? "lỗi không rõ"}.`,
+        `${PROVIDER} could not close browser profile "${profileId}": ${result.msg ?? "unknown error"}. Close it in AdsPower and try again.`,
         PROVIDER,
       );
     }

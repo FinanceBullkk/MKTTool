@@ -56,12 +56,18 @@ function readUntilClose(socket: net.Socket, timeoutMs: number): Promise<string> 
     socket.once("timeout", () => {
       socket.destroy();
       reject(
-        new ProxyProbeError(`quá ${timeoutMs / 1000} giây không nhận đủ phản hồi`, "unreachable"),
+        new ProxyProbeError(
+          `the complete response was not received within ${timeoutMs / 1000} seconds`,
+          "unreachable",
+        ),
       );
     });
     socket.once("error", (error: Error) => {
       reject(
-        new ProxyProbeError(`đứt kết nối khi đang đọc phản hồi (${error.message})`, "unreachable"),
+        new ProxyProbeError(
+          `the connection failed while reading the response (${error.message})`,
+          "unreachable",
+        ),
       );
     });
   });
@@ -70,7 +76,7 @@ function readUntilClose(socket: net.Socket, timeoutMs: number): Promise<string> 
 function splitHttpResponse(raw: string, provider: IpLookupProvider): string {
   const separator = raw.indexOf("\r\n\r\n");
   if (separator === -1)
-    throw new ProxyProbeError("phản hồi không đúng định dạng HTTP", "probe-failed");
+    throw new ProxyProbeError("the response is not valid HTTP", "probe-failed");
 
   const status = parseHttpStatus(raw.slice(0, separator));
   if (status !== 200) {
@@ -78,7 +84,7 @@ function splitHttpResponse(raw: string, provider: IpLookupProvider): string {
     if (proxyFault) throw new ProxyProbeError(proxyFault, "unreachable");
     // 403/429 hay gặp: dịch vụ tra cứu chặn dải IP datacenter. Lỗi của NHÀ CUNG CẤP,
     // không phải của proxy — nên chỉ đổi nhà, tuyệt đối không kết luận proxy đã chết.
-    throw new ProxyProbeError(`${provider.host} trả về HTTP ${status || "?"}`, "probe-failed");
+    throw new ProxyProbeError(`${provider.host} returned HTTP ${status || "?"}`, "probe-failed");
   }
   return raw.slice(separator + 4);
 }
@@ -102,7 +108,7 @@ async function askProvider(
       return provider.parse(body);
     } catch (error) {
       throw new ProxyProbeError(
-        error instanceof Error ? error.message : `${provider.host} trả về thứ không đọc được`,
+        error instanceof Error ? error.message : `${provider.host} returned an unreadable response`,
         "probe-failed",
       );
     }

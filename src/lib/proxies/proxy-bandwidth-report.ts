@@ -22,10 +22,10 @@ export const SLOW_MBPS = 5;
 export type BandwidthGrade = "FAST" | "SLOW" | "VERY_SLOW" | "UNKNOWN";
 
 export const BANDWIDTH_LABEL: Record<BandwidthGrade, string> = {
-  FAST: "nhanh",
-  SLOW: "chậm",
-  VERY_SLOW: "rất chậm",
-  UNKNOWN: "không đo được",
+  FAST: "fast",
+  SLOW: "slow",
+  VERY_SLOW: "very slow",
+  UNKNOWN: "not measured",
 };
 
 export const BANDWIDTH_CLASS: Record<BandwidthGrade, string> = {
@@ -43,7 +43,7 @@ export function gradeBandwidth(mbps: number): BandwidthGrade {
 
 /** Dấu phẩy thập phân kiểu Việt, ghép tay thay vì dùng Intl — cùng lý do với format ngày giờ. */
 function decimal(value: number, digits: number): string {
-  return value.toFixed(digits).replace(".", ",");
+  return value.toFixed(digits);
 }
 
 export function formatMbps(mbps: number): string {
@@ -59,10 +59,10 @@ export function formatDataUsed(bytes: number): string {
 /** Câu mô tả một lượt đo thành công. */
 export function describeReading(reading: BandwidthReading): string {
   const grade = BANDWIDTH_LABEL[gradeBandwidth(reading.mbps)];
-  const capped = reading.hitTimeCap ? ", chưa tải hết ngân sách vì chạm trần thời gian" : "";
+  const capped = reading.hitTimeCap ? ", stopped at the time limit before using the full data budget" : "";
   return (
-    `${formatMbps(reading.mbps)} (${grade}) — tải ${formatDataUsed(reading.bytes)} qua ` +
-    `${reading.source}, độ trễ byte đầu ${Math.round(reading.ttfbMs)} ms${capped}`
+    `${formatMbps(reading.mbps)} (${grade}) - downloaded ${formatDataUsed(reading.bytes)} through ` +
+    `${reading.source}, time to first byte ${Math.round(reading.ttfbMs)} ms${capped}`
   );
 }
 
@@ -89,7 +89,7 @@ export function summarizeBandwidth(outcome: BandwidthOutcome): BandwidthSummary 
   // cùng nguyên tắc với bộ dò shadowban: không đo được thì không kết luận.
   const prefix =
     outcome.kind === "unreachable"
-      ? "Không tải được file thử qua proxy này"
-      : "Chưa đo được (lỗi ở máy chủ thử hoặc ở bộ đo, chưa phải lỗi proxy)";
+      ? "The test file could not be downloaded through this proxy"
+      : "Speed was not measured because the test server or measurement failed; this is not yet a proxy failure";
   return { ok: false, grade: "UNKNOWN", mbps: null, message: `${prefix}: ${outcome.detail}` };
 }

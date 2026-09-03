@@ -32,25 +32,25 @@ const PANEL_FILE = path.join(
   "account-vault-actions-panel.tsx",
 );
 
-describe("cửa sổ bí mật", () => {
+describe("secret window", () => {
   const source = readFileSync(PANEL_FILE, "utf8");
 
-  it("chuỗi features không chứa noopener — nó làm window.open trả null", () => {
+  it("keeps noopener out of the features string because it makes window.open return null", () => {
     const features = source.match(/const SECRET_WINDOW_FEATURES\s*=\s*"([^"]*)"/);
 
-    expect(features, "không tìm thấy SECRET_WINDOW_FEATURES trong panel").not.toBeNull();
+    expect(features, "SECRET_WINDOW_FEATURES was not found in the panel").not.toBeNull();
     expect(
       features?.[1],
-      "`noopener` trong features làm window.open() trả về null, và panel đọc null là 'popup bị " +
-        "chặn' — tức mọi cú bấm mật khẩu đều hỏng. Muốn cắt opener thì dùng `disownPopup()`, " +
-        "nó cắt lúc cửa sổ còn ở about:blank mà vẫn giữ được handle để điều hướng.",
+      "`noopener` in features makes window.open() return null, which the panel reads as a " +
+        "blocked popup and breaks every password request. Use `disownPopup()` to sever the " +
+        "opener while the window is still about:blank and retain its handle for navigation.",
     ).not.toMatch(/noopener/);
   });
 
-  it("vẫn cắt đường opener bằng cách khác", () => {
+  it("still severs the opener through another mechanism", () => {
     // Bỏ `noopener` mà không thay bằng gì là để hở `window.opener` — test trên một mình sẽ nghiệm
     // thu đúng cái sơ hở đó.
-    expect(source, "thiếu disownPopup(): cửa sổ mở ra vẫn với ngược lại được trang này").toMatch(
+    expect(source, "disownPopup() is missing, so the new window can reach back into this page").toMatch(
       /disownPopup\(win\)/,
     );
   });

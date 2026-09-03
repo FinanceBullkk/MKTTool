@@ -35,16 +35,20 @@ export function buildProxyConfig(proxy: ProxyRecordForLaunch): AntidetectProxyCo
   const protocol = proxy.protocol?.toLowerCase();
   if (protocol !== "http" && protocol !== "socks5") {
     throw new ProxyConfigError(
-      `Proxy "${proxy.label}" có giao thức "${proxy.protocol}" không hợp lệ. ` +
-        `Chỉ nhận "http" hoặc "socks5" — sửa lại ở trang /proxies.`,
+      `Proxy "${proxy.label}" uses the invalid protocol "${proxy.protocol}". ` +
+        `Only "http" and "socks5" are supported; correct it on /proxies before opening the browser profile.`,
     );
   }
 
   if (!proxy.host?.trim()) {
-    throw new ProxyConfigError(`Proxy "${proxy.label}" thiếu host.`);
+    throw new ProxyConfigError(
+      `Proxy "${proxy.label}" has no host. Add the host on /proxies before opening the browser profile.`,
+    );
   }
   if (!Number.isInteger(proxy.port) || proxy.port < 1 || proxy.port > 65535) {
-    throw new ProxyConfigError(`Proxy "${proxy.label}" có port "${proxy.port}" không hợp lệ.`);
+    throw new ProxyConfigError(
+      `Proxy "${proxy.label}" uses the invalid port "${proxy.port}". Correct it on /proxies before opening the browser profile.`,
+    );
   }
 
   let password: string;
@@ -54,8 +58,9 @@ export function buildProxyConfig(proxy: ProxyRecordForLaunch): AntidetectProxyCo
     // Không kèm chi tiết kỹ thuật vào thông báo cho người dùng cuối, nhưng phải nói rõ
     // hậu quả: không giải mã được thì không đẩy được proxy, nên không được mở profile.
     throw new ProxyConfigError(
-      `Không giải mã được mật khẩu proxy "${proxy.label}" (sai VAULT_KEY_SERVER hoặc dữ liệu hỏng). ` +
-        `Chưa đẩy được proxy nên KHÔNG mở profile.`,
+      `The password for proxy "${proxy.label}" could not be decrypted because VAULT_KEY_SERVER ` +
+        `is incorrect or the stored data is damaged. The browser profile was not opened because ` +
+        `its proxy could not be applied. Restore the key or proxy record, then try again.`,
       { cause },
     );
   }

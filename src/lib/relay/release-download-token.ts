@@ -43,8 +43,8 @@ export function readReleaseDownloadToken(): string | null {
   if (!value) return null;
   if (value.length < MIN_RELEASE_DOWNLOAD_TOKEN_LENGTH) {
     throw new Error(
-      `${RELEASE_DOWNLOAD_TOKEN_ENV} phải dài ít nhất ${MIN_RELEASE_DOWNLOAD_TOKEN_LENGTH} ký tự. ` +
-        `Sinh bằng: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`,
+      `${RELEASE_DOWNLOAD_TOKEN_ENV} must contain at least ${MIN_RELEASE_DOWNLOAD_TOKEN_LENGTH} characters. ` +
+        `Generate one with: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`,
     );
   }
   return value;

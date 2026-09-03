@@ -65,16 +65,16 @@ beforeEach(async () => {
   await prisma.user.createMany({
     data: [
       { id: ADMIN_ID, name: "Admin", email: "admin@mkttool.local", updatedAt: new Date() },
-      { id: HA_ID, name: "Hà", email: "ha@mkttool.local", updatedAt: new Date() },
+      { id: HA_ID, name: "Ha", email: "ha@mkttool.local", updatedAt: new Date() },
     ],
   });
 
   const [mat, con] = await Promise.all([
     prisma.relayDevice.create({
-      data: { name: "Laptop đã mất", userId: HA_ID, publicKey: "a".repeat(64) },
+      data: { name: "Lost laptop", userId: HA_ID, publicKey: "a".repeat(64) },
     }),
     prisma.relayDevice.create({
-      data: { name: "PC ở nhà", userId: HA_ID, publicKey: "b".repeat(64) },
+      data: { name: "Home PC", userId: HA_ID, publicKey: "b".repeat(64) },
     }),
   ]);
   deviceId = mat.id;
@@ -86,8 +86,8 @@ afterAll(async () => {
   await prisma.$disconnect();
 });
 
-describe("thu hồi máy còn nick ghim", () => {
-  it("không bị chặn, và gỡ ghim đúng nick của máy đó", async () => {
+describe("revoking a Relay PC with assigned nicks", () => {
+  it("revokes immediately and unassigns only that PC's nicks", async () => {
     const anna = await pinNick("anna", deviceId);
     const bob = await pinNick("bob", deviceId);
     const carol = await pinNick("carol", deviceKhac);
@@ -112,25 +112,25 @@ describe("thu hồi máy còn nick ghim", () => {
    * Con số phải có trong câu báo. Gỡ ghim lặng lẽ thì người vừa thu hồi không biết mình vừa
    * làm hai nick ngừng mở được profile, và họ chỉ phát hiện khi có người báo nút hỏng.
    */
-  it("câu báo nói rõ mấy nick vừa mất ghim", async () => {
+  it("reports how many nicks were unassigned", async () => {
     await pinNick("anna", deviceId);
     await pinNick("bob", deviceId);
 
     const result = await revokeRelayDevice(deviceId);
 
     expect(result.message).toContain("2 nick");
-    expect(result.message).toContain("gán cụm");
+    expect(result.message).toContain("Assign them to another Relay PC");
   });
 
-  it("máy không có nick nào thì câu báo không bịa ra con số", async () => {
+  it("does not invent an assigned-nick count when the PC has none", async () => {
     const result = await revokeRelayDevice(deviceId);
 
-    expect(result.message).not.toContain("nick đang ghim");
+    expect(result.message).not.toContain("nick assigned");
     // Lời nhắc xoay khóa vẫn phải còn — đó mới là việc quan trọng khi máy thật sự mất.
     expect(result.message).toContain("VAULT_KEY_OPERATOR");
   });
 
-  it("chủ nick giữ nguyên — mất máy không phải mất người", async () => {
+  it("preserves the nick owner because losing a PC does not remove the person", async () => {
     const anna = await pinNick("anna", deviceId);
 
     await revokeRelayDevice(deviceId);

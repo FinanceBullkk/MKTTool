@@ -54,8 +54,8 @@ export function RelayGrantKeyButton({
         setResult({
           ok: false,
           message:
-            `Chưa bọc được khóa: ${describeRelayFailure(sealedOutcome, await ping)} — cầu nối ` +
-            `TRÊN MÁY BẠN phải đang chạy và đã có khóa vùng operator, vì chính nó là nơi giữ khóa.`,
+            `The operator key could not be sealed: ${describeRelayFailure(sealedOutcome, await ping)} ` +
+            `Relay ON YOUR PC must be running and already hold the operator key because it is the key custodian.`,
         });
         return;
       }
@@ -64,7 +64,8 @@ export function RelayGrantKeyButton({
       if (!ephemeralPublicKey || !sealed) {
         setResult({
           ok: false,
-          message: "Cầu nối trả lời nhưng thiếu phần của hộp khóa. Nhiều khả năng nó chạy bản cũ.",
+          message:
+            "Relay responded, but the sealed key grant is incomplete. Update Relay, then grant the operator key again.",
         });
         return;
       }
@@ -77,7 +78,10 @@ export function RelayGrantKeyButton({
       try {
         setResult(await grantOperatorKeyToDevice(null, formData));
       } catch {
-        setResult({ ok: false, message: "Không lưu được hộp khóa. Xem log của dev server." });
+        setResult({
+          ok: false,
+          message: "The sealed key grant could not be saved. Check the development server log, then try again.",
+        });
       }
     });
   }
@@ -89,9 +93,9 @@ export function RelayGrantKeyButton({
         disabled={pending}
         onClick={grant}
         className="rounded-md border border-emerald-300 px-3 py-1.5 text-xs text-emerald-700 transition hover:bg-emerald-50 disabled:opacity-50 dark:border-emerald-900 dark:text-emerald-400 dark:hover:bg-emerald-950"
-        title={`Bọc khóa vùng operator cho máy "${deviceName}"`}
+        title={`Seal the operator key for Relay PC "${deviceName}"`}
       >
-        {pending ? "Đang cấp…" : alreadyReady ? "Cấp lại khóa" : "Cấp khóa"}
+        {pending ? "Granting..." : alreadyReady ? "Grant operator key again" : "Grant operator key"}
       </button>
 
       {result ? (

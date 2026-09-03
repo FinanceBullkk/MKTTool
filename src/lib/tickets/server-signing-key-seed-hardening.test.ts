@@ -270,7 +270,7 @@ describe("H18: relay-side public key import", () => {
     // required. Both facts are asserted together so the reason for the rejection stays legible.
     expect(IDENTITY_POINT_HEX).toMatch(/^[0-9a-f]{64}$/);
     expect(importsKey(IDENTITY_POINT_HEX)).toBe(false);
-    expect(() => publicKeyFromHex(IDENTITY_POINT_HEX)).toThrow(/điểm bậc nhỏ/i);
+    expect(() => publicKeyFromHex(IDENTITY_POINT_HEX)).toThrow(/small-order Ed25519 point/i);
   });
 
   /**

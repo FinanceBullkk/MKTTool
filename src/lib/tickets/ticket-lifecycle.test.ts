@@ -62,8 +62,8 @@ beforeEach(() => {
 const issue = (now = NOW) =>
   issueTicket(PAYLOAD, { deviceId: DEVICE_ID, publicKey: device.publicKeyHex }, now);
 
-describe("đường thành công", () => {
-  it("phát rồi xét: ruột về nguyên vẹn", () => {
+describe("successful paths", () => {
+  it("preserves the payload through issue and verification", () => {
     const result = verifyTicket(issue(), relay, NOW + 1_000);
 
     expect(result.payload).toEqual(PAYLOAD);
@@ -75,7 +75,7 @@ describe("đường thành công", () => {
    * Bí mật KHÔNG được đọc từ vé mà không có khóa riêng của máy. Đây là lời hứa trung tâm của
    * cả GĐ3 — trình duyệt cầm vé đi qua nhưng không đọc được gì bên trong.
    */
-  it("nhìn thẳng vào vé thì không thấy nội dung", () => {
+  it("does not reveal the payload when inspecting the ticket directly", () => {
     const ticket = issue();
     const envelope = JSON.parse(
       Buffer.from(ticket.split(".")[0], "base64url").toString("utf8"),
@@ -94,7 +94,7 @@ describe("đường thành công", () => {
    * nhưng đó là lý lẽ của phương án rẻ: `/proxies` đòi đăng nhập, còn một chuỗi nằm sẵn trong
    * DOM thì bất cứ script hay extension nào chạy trên tab đó cũng nhặt được.
    */
-  it("vé mở profile: mật khẩu proxy không đọc được ở bao ngoài", () => {
+  it("does not expose the proxy password in a launch-profile ticket envelope", () => {
     const launch = {
       kind: TICKET_KINDS.LAUNCH_PROFILE,
       accountId: "acc-1",
@@ -117,7 +117,7 @@ describe("đường thành công", () => {
     expect(verifyTicket(ticket, relay, NOW).payload).toEqual(launch);
   });
 
-  it("mỗi vé một khóa dùng một lần khác nhau", () => {
+  it("uses a different one-time key for every ticket", () => {
     const first = JSON.parse(Buffer.from(issue().split(".")[0], "base64url").toString("utf8"));
     const second = JSON.parse(Buffer.from(issue().split(".")[0], "base64url").toString("utf8"));
 
@@ -126,7 +126,7 @@ describe("đường thành công", () => {
   });
 });
 
-describe("các nhánh từ chối", () => {
+describe("rejection paths", () => {
   function expectRejection(fn: () => unknown, code: string) {
     try {
       fn();
@@ -135,22 +135,22 @@ describe("các nhánh từ chối", () => {
       expect((error as InstanceType<typeof TicketRejected>).code).toBe(code);
       return;
     }
-    throw new Error(`Đáng lẽ phải bị từ chối với mã ${code}, nhưng lại qua được.`);
+    throw new Error(`Expected rejection code ${code}, but verification succeeded.`);
   }
 
-  it("vé sai hình dạng", () => {
+  it("rejects a malformed ticket", () => {
     expectRejection(() => verifyTicket("khong-co-dau-cham", relay, NOW), "MALFORMED");
   });
 
   /** Sửa một ký tự trong bao ngoài — chữ ký phải bắt được. */
-  it("bao ngoài bị sửa", () => {
+  it("rejects a tampered envelope", () => {
     const [envelope, signature] = issue().split(".");
     const tampered = `${envelope.slice(0, -1)}${envelope.at(-1) === "A" ? "B" : "A"}.${signature}`;
 
     expectRejection(() => verifyTicket(tampered, relay, NOW), "BAD_SIGNATURE");
   });
 
-  it("vé của máy chủ khác", () => {
+  it("rejects a ticket from another server", () => {
     const stranger = generateKeyPairSync("ed25519");
     expectRejection(
       () => verifyTicket(issue(), { ...relay, serverPublicKey: stranger.publicKey }, NOW),
@@ -159,27 +159,27 @@ describe("các nhánh từ chối", () => {
   });
 
   /** QĐ 11: cầu nối cũ phải nói được câu đúng, không chết mơ hồ ở bước giải mã. */
-  it("cầu nối quá cũ — và câu báo bảo tải lại", () => {
+  it("rejects an outdated Relay and tells the operator to reinstall", () => {
     const ticket = issue();
 
     try {
       verifyTicket(ticket, { ...relay, version: 0 }, NOW);
-      throw new Error("Đáng lẽ phải bị từ chối.");
+      throw new Error("Expected the ticket to be rejected.");
     } catch (error) {
       expect((error as InstanceType<typeof TicketRejected>).code).toBe("RELAY_TOO_OLD");
-      expect((error as Error).message).toContain("Tải lại cầu nối");
+      expect((error as Error).message).toContain("Download and reinstall Relay");
     }
   });
 
-  it("vé quá hạn", () => {
+  it("rejects an expired ticket", () => {
     expectRejection(() => verifyTicket(issue(), relay, NOW + TICKET_LIFETIME_MS + 1), "EXPIRED");
   });
 
-  it("còn hạn ở đúng mili giây cuối", () => {
+  it("accepts a ticket at its final valid millisecond", () => {
     expect(() => verifyTicket(issue(), relay, NOW + TICKET_LIFETIME_MS - 1)).not.toThrow();
   });
 
-  it("vé phát cho máy khác", () => {
+  it("rejects a ticket issued to another Relay PC", () => {
     expectRejection(
       () => verifyTicket(issue(), { ...relay, deviceId: "device-khac" }, NOW),
       "WRONG_DEVICE",
@@ -191,7 +191,7 @@ describe("các nhánh từ chối", () => {
    * khóa riêng sai. Đây là phép thử chứng minh lớp mã hóa thật sự gắn vào từng máy, chứ không
    * chỉ dựa vào việc `deviceId` được kiểm.
    */
-  it("đúng deviceId nhưng sai khóa riêng thì vẫn không mở được", () => {
+  it("cannot open a ticket with the correct deviceId but the wrong private key", () => {
     const other = generateRelayDeviceKeyPair();
 
     expectRejection(
@@ -204,7 +204,7 @@ describe("các nhánh từ chối", () => {
     );
   });
 
-  it("dùng lại lần hai bị từ chối", () => {
+  it("rejects a second use", () => {
     const ticket = issue();
     verifyTicket(ticket, relay, NOW);
 
@@ -212,7 +212,7 @@ describe("các nhánh từ chối", () => {
   });
 
   /** Vé quá hạn không được ghi vào sổ đã tiêu — nó bị chặn vì hạn, sổ không cần nhớ. */
-  it("vé quá hạn không chiếm chỗ trong sổ chống dùng lại", () => {
+  it("does not add an expired ticket to the replay journal", () => {
     try {
       verifyTicket(issue(), relay, NOW + TICKET_LIFETIME_MS + 1);
     } catch {
@@ -224,14 +224,14 @@ describe("các nhánh từ chối", () => {
 });
 
 describe("TicketReplayGuard", () => {
-  it("lần đầu nhận, lần sau từ chối", () => {
+  it("accepts the first use and rejects the next", () => {
     const guard = new TicketReplayGuard();
 
     expect(guard.consume("a", NOW + 30_000, NOW)).toBe(true);
     expect(guard.consume("a", NOW + 30_000, NOW)).toBe(false);
   });
 
-  it("quên jti đã hết hạn nên sổ không phình mãi", () => {
+  it("forgets expired jti values so the journal does not grow forever", () => {
     const guard = new TicketReplayGuard();
     guard.consume("cu", NOW + 1_000, NOW);
 
@@ -242,14 +242,14 @@ describe("TicketReplayGuard", () => {
   });
 });
 
-describe("khóa của máy nhận", () => {
-  it("phát vé bằng khóa hỏng thì đổ ngay ở máy chủ", () => {
+describe("recipient key", () => {
+  it("fails on the server when issuing with an invalid key", () => {
     expect(() =>
       issueTicket(PAYLOAD, { deviceId: DEVICE_ID, publicKey: "khong-phai-hex" }, NOW),
-    ).toThrow(/khóa/i);
+    ).toThrow(/key/i);
   });
 
-  it("khóa công khai trong vé đúng là khóa dựng được", () => {
+  it("contains a valid public key in the ticket", () => {
     const envelope = JSON.parse(Buffer.from(issue().split(".")[0], "base64url").toString("utf8"));
 
     expect(() => relayPublicKeyToKeyObject(envelope.epk)).not.toThrow();

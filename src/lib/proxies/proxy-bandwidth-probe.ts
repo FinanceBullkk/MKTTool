@@ -142,8 +142,8 @@ function downloadThroughTransport(
         reject(
           new ProxyProbeError(
             hitTimeCap
-              ? `quá ${budget.timeCapMs / 1000} giây mà chưa nhận được dữ liệu nào`
-              : "kết nối đóng trước khi nhận được dữ liệu",
+              ? `no data was received within ${budget.timeCapMs / 1000} seconds`
+              : "the connection closed before any data was received",
             "unreachable",
           ),
         );
@@ -173,7 +173,7 @@ function downloadThroughTransport(
       const separator = head.indexOf("\r\n\r\n");
       if (separator === -1) {
         if (head.length > MAX_HEADER_BYTES) {
-          fail(new ProxyProbeError("phản hồi không đúng định dạng HTTP", "probe-failed"));
+          fail(new ProxyProbeError("the response is not valid HTTP", "probe-failed"));
         }
         return -1;
       }
@@ -186,7 +186,7 @@ function downloadThroughTransport(
             ? new ProxyProbeError(proxyFault, "unreachable")
             : // 403/429 hay gặp: máy chủ thử chặn dải IP datacenter. Lỗi của NHÀ CUNG CẤP,
               // không phải của proxy — đổi nhà, tuyệt đối không kết luận proxy chậm.
-              new ProxyProbeError(`${source.host} trả về HTTP ${status || "?"}`, "probe-failed"),
+              new ProxyProbeError(`${source.host} returned HTTP ${status || "?"}`, "probe-failed"),
         );
         return -1;
       }
@@ -230,13 +230,13 @@ function downloadThroughTransport(
         socket.once("timeout", () =>
           fail(
             new ProxyProbeError(
-              `quá ${STALL_TIMEOUT_MS / 1000} giây proxy không gửi thêm dữ liệu`,
+              `the proxy sent no more data for ${STALL_TIMEOUT_MS / 1000} seconds`,
               "unreachable",
             ),
           ),
         );
         socket.once("error", (error: Error) =>
-          fail(new ProxyProbeError(`đứt kết nối khi đang tải (${error.message})`, "unreachable")),
+          fail(new ProxyProbeError(`the connection failed during download (${error.message})`, "unreachable")),
         );
 
         capTimer = setTimeout(() => finish(true), budget.timeCapMs);

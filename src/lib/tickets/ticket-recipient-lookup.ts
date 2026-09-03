@@ -61,9 +61,9 @@ export async function resolveTicketRecipient(
     return {
       ok: false,
       message:
-        `Chưa có máy nào đăng ký cầu nối cho ${actor.email}, nên không phát vé được. ` +
-        `Cài cầu nối trên máy bạn đang ngồi, rồi nhờ quản trị viên ghi khóa công khai của nó ` +
-        `vào sổ ở /relay-devices.`,
+        `No Relay PC is registered for ${actor.email}, so a ticket cannot be issued. ` +
+        `Install Relay on the PC you are using, then ask an administrator to register its ` +
+        `public key in /relay-devices.`,
     };
   }
 
@@ -73,8 +73,8 @@ export async function resolveTicketRecipient(
       return {
         ok: false,
         message:
-          "Máy bạn chọn không còn trong sổ, hoặc đã bị thu hồi, hoặc là máy của người khác. " +
-          "Tải lại trang để xem danh sách máy hiện tại.",
+          "The selected Relay PC is no longer registered, has been revoked, or belongs to another operator. " +
+          "Reload the page to see the current Relay PC list.",
       };
     }
     return { ok: true, recipient: toRecipient(chosen) };
@@ -84,8 +84,9 @@ export async function resolveTicketRecipient(
     return {
       ok: false,
       message:
-        `Bạn có ${devices.length} máy đang dùng trong sổ cầu nối — chọn máy bạn đang ngồi rồi ` +
-        `bấm lại. Vé được mã hóa cho đúng một máy, nên chọn nhầm là máy kia không mở được.`,
+        `You have ${devices.length} active Relay PCs in the registry. Select the Relay PC you are ` +
+        `using, then try again. Each ticket is encrypted for exactly one Relay PC, so selecting ` +
+        `the wrong one means only that other PC can open it.`,
     };
   }
 
@@ -138,7 +139,7 @@ export async function resolveNickDeviceRecipient(
     },
   });
 
-  if (!account) return { ok: false, message: "Không tìm thấy nick." };
+  if (!account) return { ok: false, message: "This nick could not be found. Reload the page and try again." };
 
   const { device } = account;
 
@@ -146,9 +147,9 @@ export async function resolveNickDeviceRecipient(
     return {
       ok: false,
       message:
-        `Nick "${account.username}" chưa được ghim vào máy nào, nên không biết gửi vé đi đâu. ` +
-        `Nhờ quản trị viên gán cụm ở trang chi tiết nick — chọn cả người phụ trách lẫn máy giữ ` +
-        `profile của nick.`,
+        `Nick "${account.username}" is not assigned to a Relay PC, so there is nowhere to send ` +
+        `the ticket. Ask an administrator to set the Nick assignment on the nick's detail page: ` +
+        `select both the nick owner and the Relay PC that stores its browser profile.`,
     };
   }
 
@@ -156,8 +157,9 @@ export async function resolveNickDeviceRecipient(
     return {
       ok: false,
       message:
-        `Máy "${device.name}" đang giữ nick "${account.username}" đã bị thu hồi, nên nó không ` +
-        `nhận được vé nào nữa. Nhờ quản trị viên gán cụm sang một máy khác.`,
+        `Relay PC "${device.name}", which stores nick "${account.username}", has been revoked ` +
+        `and cannot receive any more tickets. Ask an administrator to assign the nick to another ` +
+        `Relay PC.`,
     };
   }
 
@@ -165,9 +167,9 @@ export async function resolveNickDeviceRecipient(
     return {
       ok: false,
       message:
-        `Nick "${account.username}" nằm ở máy "${device.name}" của ${device.user.email} — vé ` +
-        `được mã hóa cho đúng chiếc máy đó nên bấm ở đây không mở được gì. Cần chuyển sang máy ` +
-        `khác thì nhờ quản trị viên gán lại cụm.`,
+        `Nick "${account.username}" is stored on Relay PC "${device.name}" owned by ` +
+        `${device.user.email}. The ticket is encrypted for that exact PC, so this action cannot ` +
+        `open anything here. To move the nick, ask an administrator to update its Nick assignment.`,
     };
   }
 

@@ -60,7 +60,7 @@ export async function measureProxyLiveness(proxy: ProxyRecordForCheck): Promise<
     return {
       verdict: "UNKNOWN",
       message:
-        "Không giải mã được mật khẩu proxy (VAULT_KEY_SERVER đã đổi?). Chưa kiểm được proxy còn sống không.",
+        "The proxy password could not be decrypted. Check VAULT_KEY_SERVER, then run the proxy check again.",
       exitIp: null,
       blocksLaunch: false,
     };
@@ -137,15 +137,15 @@ export async function checkAllProxies(): Promise<ProxyCheckSummary[]> {
 
 /** Câu tổng kết cho một mẻ kiểm — gom theo kết luận để đọc được trong một dòng. */
 export function summarizeProxyChecks(results: ProxyCheckSummary[]): string {
-  if (results.length === 0) return "Chưa có proxy nào để kiểm.";
+  if (results.length === 0) return "There are no proxies to check. Add a proxy first.";
 
   const problems = results.filter((result) => result.liveness.verdict !== "OK");
   if (problems.length === 0) {
-    return `Kiểm ${results.length} proxy — tất cả đều sống và đổi IP đúng.`;
+    return `Checked ${results.length} ${results.length === 1 ? "proxy" : "proxies"}; all are reachable and change the exit IP.`;
   }
 
   const detail = problems
     .map((result) => `${result.label}: ${result.liveness.message}`)
     .join(" · ");
-  return `Kiểm ${results.length} proxy, ${problems.length} có vấn đề. ${detail}`;
+  return `Checked ${results.length} ${results.length === 1 ? "proxy" : "proxies"}; ${problems.length} ${problems.length === 1 ? "has" : "have"} a problem. ${detail}`;
 }

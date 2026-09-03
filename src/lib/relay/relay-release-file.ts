@@ -206,7 +206,11 @@ export async function openRelayArchive(
   }
 
   const config = readRelayReleaseR2Config();
-  if (!config) throw new Error("Ngăn R2 chứa gói cầu nối không còn được khai.");
+  if (!config) {
+    throw new Error(
+      "The R2 bucket for Relay packages is no longer configured. Restore the release configuration before downloading.",
+    );
+  }
   return openRelayReleaseStream(config, release.version, startByte);
 }
 

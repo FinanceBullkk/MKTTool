@@ -42,10 +42,10 @@ const registrationSchema = z.object({
   name: z
     .string()
     .trim()
-    .min(1, "Đặt tên cho máy — tới ngày phải thu hồi gấp thì đó là thứ duy nhất để nhận ra nó.")
-    .max(80, "Tên máy dài quá 80 ký tự."),
-  userId: z.string().min(1, "Chọn người dùng chiếc máy này."),
-  publicKey: z.string().min(1, "Dán khóa công khai mà cầu nối in ra lúc cài."),
+    .min(1, "Name this Relay PC. If it must be revoked urgently, the name is how you identify it.")
+    .max(80, "Relay PC names must be 80 characters or fewer."),
+  userId: z.string().min(1, "Select the person who uses this Relay PC."),
+  publicKey: z.string().min(1, "Paste the public key that Relay printed during installation."),
 });
 
 /** Đường dẫn màn hình sổ đăng ký — khai một chỗ để hai action không lệch nhau. */
@@ -73,18 +73,19 @@ async function describeDuplicateKey(publicKey: string): Promise<string | null> {
     // nó đang đứng trước một chiếc máy không đăng ký được và không có gợi ý nào về việc phải mở
     // thư mục nào, xóa file nào. Thu hồi nhầm rồi muốn làm lại là ca có thật.
     return (
-      `Khóa này đã bị thu hồi (máy "${existing.name}" của ${existing.user.email}) và không ` +
-      `dùng lại được — khóa của một máy đã gạch tên coi như đã lộ.\n\n` +
-      `Sinh cặp khóa MỚI trên máy đó: tắt cầu nối, xóa file "relay-device-key.json" trong thư ` +
-      `mục dữ liệu của nó (%LOCALAPPDATA%\\MKTTool-Relay), rồi bật lại. Nó tự sinh cặp khóa mới ` +
-      `và đăng ký lại được ngay. File relay-config.json giữ nguyên, không mất khóa vùng operator.`
+      `This key was revoked with Relay PC "${existing.name}" owned by ${existing.user.email} and ` +
+      `cannot be reused. Treat a revoked Relay PC's key as exposed.\n\n` +
+      `Generate a NEW key pair on that Relay PC: stop Relay, delete "relay-device-key.json" from ` +
+      `its data directory (%LOCALAPPDATA%\\MKTTool-Relay), then restart Relay. It will generate a ` +
+      `new key pair automatically and can be registered again immediately. relay-config.json ` +
+      `remains unchanged, so the operator key is retained.`
     );
   }
 
   return (
-    `Khóa này đã có trong sổ — máy "${existing.name}" của ${existing.user.email}. ` +
-    `Mỗi máy sinh một cặp khóa riêng; hai máy dùng chung khóa thì thu hồi một cái không ` +
-    `chặn được cái kia.`
+    `This key is already registered to Relay PC "${existing.name}" owned by ${existing.user.email}. ` +
+    `Each Relay PC must have its own key pair; if two Relay PCs share a key, revoking one cannot ` +
+    `block the other.`
   );
 }
 
@@ -121,7 +122,7 @@ export const registerRelayDevice = adminAction(async function registerRelayDevic
     where: { id: userId },
     select: { email: true },
   });
-  if (!owner) return { ok: false, message: "Không tìm thấy người dùng này." };
+  if (!owner) return { ok: false, message: "This user could not be found. Reload the page and try again." };
 
   // Cùng lý lẽ với `assignAccountOwner`: hàng `User` chỉ chứng minh họ TỪNG đăng nhập được.
   // Đăng ký máy cho người đã bị gỡ khỏi danh sách trắng là dựng một chiếc máy không bao giờ
@@ -130,8 +131,8 @@ export const registerRelayDevice = adminAction(async function registerRelayDevic
     return {
       ok: false,
       message:
-        `${owner.email} không còn trong ALLOWED_EMAILS nên không đăng nhập được nữa — máy đăng ` +
-        `ký cho họ sẽ không bao giờ xin được vé. Thêm lại vào .env, hoặc chọn người khác.`,
+        `${owner.email} is no longer allowed to sign in, so a Relay PC registered to them will ` +
+        `never receive a ticket. Restore their access or select another user.`,
     };
   }
 
@@ -155,14 +156,14 @@ export const registerRelayDevice = adminAction(async function registerRelayDevic
       ok: false,
       message:
         (await describeDuplicateKey(normalizedKey)) ??
-        "Khóa này vừa được người khác ghi vào sổ. Tải lại trang để xem.",
+        "Someone else just registered this key. Reload the page to see the current registry.",
     };
   }
 
   await prisma.auditLog.create({
     data: {
       action: AUDIT_ACTIONS.RELAY_DEVICE_REGISTERED,
-      detail: `${actor.email} đăng ký máy "${name}" cho ${owner.email} (${device.id})`,
+      detail: `${actor.email} registered Relay PC "${name}" for ${owner.email} (${device.id})`,
       actorId: actor.userId,
     },
   });
@@ -171,8 +172,8 @@ export const registerRelayDevice = adminAction(async function registerRelayDevic
   return {
     ok: true,
     message:
-      `Đã ghi máy "${name}" vào sổ cho ${owner.email}. Từ giờ vé phát cho họ được mã hóa bằng ` +
-      `khóa của máy này — không máy nào khác mở được.`,
+      `Registered Relay PC "${name}" for ${owner.email}. Tickets issued to them are now encrypted ` +
+      `with this PC's key, so no other PC can open them.`,
   };
 });
 
@@ -202,12 +203,12 @@ export const revokeRelayDevice = adminAction(async function revokeRelayDevice(
     select: { name: true, revokedAt: true, user: { select: { email: true } } },
   });
 
-  if (!device) return { ok: false, message: "Không tìm thấy máy này trong sổ." };
+  if (!device) return { ok: false, message: "This Relay PC is not in the registry. Reload the page and try again." };
 
   if (device.revokedAt) {
     return {
       ok: false,
-      message: `Máy "${device.name}" đã bị thu hồi lúc ${formatFullDateTime(device.revokedAt)}.`,
+      message: `Relay PC "${device.name}" was already revoked at ${formatFullDateTime(device.revokedAt)}. No further action is required.`,
     };
   }
 
@@ -231,7 +232,7 @@ export const revokeRelayDevice = adminAction(async function revokeRelayDevice(
     prisma.auditLog.create({
       data: {
         action: AUDIT_ACTIONS.RELAY_DEVICE_REVOKED,
-        detail: `${actor.email} thu hồi máy "${device.name}" của ${device.user.email} (${deviceId})`,
+        detail: `${actor.email} revoked Relay PC "${device.name}" owned by ${device.user.email} (${deviceId})`,
         actorId: actor.userId,
       },
     }),
@@ -242,21 +243,24 @@ export const revokeRelayDevice = adminAction(async function revokeRelayDevice(
   return {
     ok: true,
     message:
-      `Đã thu hồi máy "${device.name}" — nó không nhận được vé mới nữa. ` +
+      `Revoked Relay PC "${device.name}". It can no longer receive new tickets. ` +
       (unpinned.count > 0
-        ? `${unpinned.count} nick đang ghim ở máy đó vừa bị gỡ ghim: gán cụm cho chúng sang máy ` +
-          `khác ở trang chi tiết từng nick, trước đó thì không mở profile và không lấy được bí ` +
-          `mật của chúng. `
+        ? `${unpinned.count} nick assigned to that PC ${unpinned.count === 1 ? "was" : "were"} ` +
+          `unassigned. Assign ${unpinned.count === 1 ? "it" : "them"} to another Relay PC on ` +
+          `each nick's detail page; until then, ` +
+          (unpinned.count === 1
+            ? `its browser profile cannot be opened and its secrets cannot be read. `
+            : `their browser profiles cannot be opened and their secrets cannot be read. `)
         : "") +
-      `Bí mật mà máy đó đã lấy về trước đây vẫn nằm trên ổ cứng của nó: nếu máy thật sự mất, ` +
-      `hãy xoay VAULT_KEY_OPERATOR (npm run vault:rekey -- --domain=operator).`,
+      `Secrets previously retrieved by that PC remain on its drive. If the PC is actually lost, ` +
+      `rotate VAULT_KEY_OPERATOR (npm run vault:rekey -- --domain=operator).`,
   };
 });
 
 const grantSchema = z.object({
-  deviceId: z.string().min(1, "Thiếu mã máy nhận."),
-  ephemeralPublicKey: z.string().min(1, "Hộp khóa thiếu khóa công khai dùng một lần."),
-  sealed: z.string().min(1, "Hộp khóa rỗng."),
+  deviceId: z.string().min(1, "The receiving Relay PC ID is missing."),
+  ephemeralPublicKey: z.string().min(1, "The key grant is missing its one-time public key."),
+  sealed: z.string().min(1, "The key grant is empty."),
 });
 
 /**
@@ -289,7 +293,7 @@ export const grantOperatorKeyToDevice = adminAction(async function grantOperator
     where: { id: deviceId },
     include: { user: { select: { email: true } } },
   });
-  if (!device) return { ok: false, message: "Không tìm thấy máy này trong sổ." };
+  if (!device) return { ok: false, message: "This Relay PC is not in the registry. Reload the page and try again." };
 
   if (device.retirementId) {
     return {
@@ -305,8 +309,9 @@ export const grantOperatorKeyToDevice = adminAction(async function grantOperator
     return {
       ok: false,
       message:
-        `Máy "${device.name}" đã bị thu hồi ${formatFullDateTime(device.revokedAt)}, không cấp ` +
-        `khóa cho nó được. Máy tìm lại được thì cài lại cầu nối để sinh cặp khóa mới.`,
+        `Relay PC "${device.name}" was revoked at ${formatFullDateTime(device.revokedAt)}, so it ` +
+        `cannot receive an operator key. If the PC is recovered, reinstall Relay to generate a ` +
+        `new key pair, then register it again.`,
     };
   }
 
@@ -314,8 +319,8 @@ export const grantOperatorKeyToDevice = adminAction(async function grantOperator
     return {
       ok: false,
       message:
-        `${device.user.email} không còn trong ALLOWED_EMAILS nên máy này không xin được vé nào — ` +
-        `cấp khóa cho nó cũng không dùng được vào việc gì.`,
+        `${device.user.email} is no longer allowed to sign in, so this Relay PC cannot receive ` +
+        `tickets. Restore that user's access before granting an operator key.`,
     };
   }
 
@@ -346,8 +351,8 @@ export const grantOperatorKeyToDevice = adminAction(async function grantOperator
     data: {
       action: AUDIT_ACTIONS.RELAY_OPERATOR_KEY_GRANTED,
       detail:
-        `${actor.email} cấp khóa vùng operator cho máy "${device.name}" ` +
-        `(${deviceId}) của ${device.user.email}`,
+        `${actor.email} granted the operator key to Relay PC "${device.name}" ` +
+        `(${deviceId}) owned by ${device.user.email}`,
       actorId: actor.userId,
     },
   });
@@ -357,7 +362,7 @@ export const grantOperatorKeyToDevice = adminAction(async function grantOperator
   return {
     ok: true,
     message:
-      `Đã cấp khóa cho máy "${device.name}". Khóa tự về máy đó ngay lần sau ${device.user.email} ` +
-      `mở web app trên nó — không phải gửi gì cho họ.`,
+      `Granted the operator key to Relay PC "${device.name}". The key will arrive automatically ` +
+      `the next time ${device.user.email} opens the web app on that PC; do not send them anything.`,
   };
 });

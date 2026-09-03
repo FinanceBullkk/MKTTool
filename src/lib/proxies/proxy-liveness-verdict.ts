@@ -59,7 +59,7 @@ export function evaluateProxyLiveness(input: ProxyLivenessInput): ProxyLiveness 
   if (throughProxy.kind === "unreachable") {
     return {
       verdict: "DEAD",
-      message: `Proxy không phản hồi: ${throughProxy.detail}`,
+      message: `The proxy did not respond: ${throughProxy.detail}. Fix or replace this proxy before opening the browser profile.`,
       exitIp: null,
       blocksLaunch: true,
     };
@@ -69,8 +69,8 @@ export function evaluateProxyLiveness(input: ProxyLivenessInput): ProxyLiveness 
     return {
       verdict: "UNKNOWN",
       message:
-        `Không kiểm được: ${throughProxy.detail}. ` +
-        `Đây KHÔNG phải tin tốt — mở ipinfo.io trong profile để tự đối chiếu.`,
+        `The proxy could not be checked: ${throughProxy.detail}. ` +
+        `This is not a healthy result; open ipinfo.io in the browser profile and verify the exit IP manually.`,
       exitIp: null,
       blocksLaunch: false,
     };
@@ -81,8 +81,8 @@ export function evaluateProxyLiveness(input: ProxyLivenessInput): ProxyLiveness 
     return {
       verdict: "LEAKING",
       message:
-        `Proxy trả lời bình thường nhưng IP ra vẫn là ${throughProxy.ip} — ĐÚNG BẰNG IP máy này. ` +
-        `Proxy không đổi IP, nick sẽ lộ nguyên IP nhà.`,
+        `The proxy responded, but its exit IP ${throughProxy.ip} exactly matches this PC's direct IP. ` +
+        `The proxy is not changing the IP, so opening the browser profile would expose the home IP.`,
       exitIp: throughProxy.ip,
       blocksLaunch: true,
     };
@@ -95,8 +95,8 @@ export function evaluateProxyLiveness(input: ProxyLivenessInput): ProxyLiveness 
     return {
       verdict: "COUNTRY_MISMATCH",
       message:
-        `Proxy sống, IP ra ${throughProxy.ip} nhưng ở ${actual} — kho khai là ${declared}. ` +
-        `Nick từng hoạt động ở ${declared} mà đăng nhập từ ${actual} là tín hiệu bất thường.`,
+        `The proxy is reachable at ${throughProxy.ip}, but the exit country is ${actual} while the vault says ${declared}. ` +
+        `Signing in a nick previously used in ${declared} from ${actual} is an abnormal signal; verify the proxy before continuing.`,
       exitIp: throughProxy.ip,
       blocksLaunch: false,
     };
@@ -108,8 +108,8 @@ export function evaluateProxyLiveness(input: ProxyLivenessInput): ProxyLiveness 
     return {
       verdict: "OK",
       message:
-        `Proxy sống, IP ra ${throughProxy.ip}${actual ? ` (${actual})` : ""}. ` +
-        `Chưa đối chiếu được với IP máy này nên không loại trừ được khả năng proxy không đổi IP.`,
+        `The proxy is reachable at ${throughProxy.ip}${actual ? ` (${actual})` : ""}. ` +
+        `This PC's direct IP could not be checked, so the possibility that the proxy did not change the IP remains. Verify it manually in the browser profile.`,
       exitIp: throughProxy.ip,
       blocksLaunch: false,
     };
@@ -117,18 +117,18 @@ export function evaluateProxyLiveness(input: ProxyLivenessInput): ProxyLiveness 
 
   return {
     verdict: "OK",
-    message: `Proxy sống, IP ra ${throughProxy.ip}${actual ? ` (${actual})` : ""}, khác IP máy này.`,
+    message: `The proxy is reachable at ${throughProxy.ip}${actual ? ` (${actual})` : ""}, which differs from this PC's direct IP.`,
     exitIp: throughProxy.ip,
     blocksLaunch: false,
   };
 }
 
 export const PROXY_CHECK_LABEL: Record<ProxyCheckVerdict, string> = {
-  OK: "Sống",
-  DEAD: "Chết",
-  LEAKING: "Không đổi IP",
-  COUNTRY_MISMATCH: "Lệch nước",
-  UNKNOWN: "Không kiểm được",
+  OK: "Healthy",
+  DEAD: "Dead",
+  LEAKING: "IP unchanged",
+  COUNTRY_MISMATCH: "Country mismatch",
+  UNKNOWN: "Not checked",
 };
 
 export const PROXY_CHECK_CLASS: Record<ProxyCheckVerdict, string> = {

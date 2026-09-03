@@ -16,27 +16,27 @@ import { RELAY_DEVICE_RETIREMENT_MIN_VERSION, RELAY_VERSION } from "./relay-endp
 const OLD = RELAY_VERSION - 1;
 
 describe("outdatedRelayVersion", () => {
-  it("trả số bản khi cầu nối trả lời và bản đó cũ hơn", () => {
+  it("returns the version when Relay responds with an outdated version", () => {
     const outcome: RelayOutcome<unknown> = { status: "ok", data: {}, relayVersion: OLD };
     expect(outdatedRelayVersion(outcome)).toBe(OLD);
   });
 
-  it("kêu cả khi cầu nối TỪ CHỐI — đó mới là máy cần nhắc nhất", () => {
+  it("warns even when Relay rejects the request", () => {
     // Bản quá cũ tới mức vé bị chặn (`RELAY_TOO_OLD`) đi ra bằng đúng nhánh này.
     const outcome: RelayOutcome<unknown> = {
       status: "rejected",
-      message: "Bản cầu nối này quá cũ",
+      message: "This Relay version is too old",
       relayVersion: OLD,
     };
     expect(outdatedRelayVersion(outcome)).toBe(OLD);
   });
 
-  it("im khi bản đang chạy đã đúng bản phát hành", () => {
+  it("stays silent when the running version matches the release", () => {
     const outcome: RelayOutcome<unknown> = { status: "ok", data: {}, relayVersion: RELAY_VERSION };
     expect(outdatedRelayVersion(outcome)).toBeNull();
   });
 
-  it("im khi cầu nối chạy bản MỚI hơn máy chủ", () => {
+  it("stays silent when Relay runs a newer version than the server", () => {
     // Xảy ra thật lúc một máy cài bản vừa build còn máy chủ chưa deploy. Không phải lỗi, và
     // càng không phải lý do bảo người ta "tải bản mới".
     const outcome: RelayOutcome<unknown> = {
@@ -47,15 +47,15 @@ describe("outdatedRelayVersion", () => {
     expect(outdatedRelayVersion(outcome)).toBeNull();
   });
 
-  it("im khi cầu nối không trả lời — không có số nào để so", () => {
-    const down: RelayOutcome<unknown> = { status: "unreachable", message: "chưa chạy" };
-    const blocked: RelayOutcome<unknown> = { status: "no-permission", message: "chưa cấp quyền" };
+  it("stays silent when Relay does not respond because no version is available", () => {
+    const down: RelayOutcome<unknown> = { status: "unreachable", message: "not running" };
+    const blocked: RelayOutcome<unknown> = { status: "no-permission", message: "permission not granted" };
 
     expect(outdatedRelayVersion(down)).toBeNull();
     expect(outdatedRelayVersion(blocked)).toBeNull();
   });
 
-  it("im khi phản hồi thiếu hẳn số phiên bản", () => {
+  it("stays silent when the response has no version", () => {
     // Thứ đang nghe ở cổng đó có thể không phải cầu nối. Suy ra "bản cũ" từ một trường vắng mặt
     // là gửi người ta đi cài lại một chương trình vốn không phải nguyên nhân.
     const outcome: RelayOutcome<unknown> = { status: "ok", data: {} };

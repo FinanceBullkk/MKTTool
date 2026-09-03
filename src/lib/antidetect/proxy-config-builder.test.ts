@@ -23,7 +23,7 @@ function makeProxy(overrides: Partial<Parameters<typeof buildProxyConfig>[0]> = 
 }
 
 describe("buildProxyConfig", () => {
-  it("giải mã mật khẩu và dựng đủ cấu hình", () => {
+  it("decrypts the password and builds the complete configuration", () => {
     expect(buildProxyConfig(makeProxy())).toEqual({
       protocol: "http",
       host: "1.2.3.4",
@@ -33,28 +33,28 @@ describe("buildProxyConfig", () => {
     });
   });
 
-  it("nhận socks5", () => {
+  it("accepts socks5", () => {
     expect(buildProxyConfig(makeProxy({ protocol: "socks5" })).protocol).toBe("socks5");
   });
 
-  it("chấp nhận giao thức viết hoa", () => {
+  it("accepts an uppercase protocol", () => {
     expect(buildProxyConfig(makeProxy({ protocol: "SOCKS5" })).protocol).toBe("socks5");
   });
 
-  it("giao thức lạ thì ném lỗi — thà không mở còn hơn mở sai IP", () => {
+  it("rejects an unknown protocol rather than launching with the wrong IP", () => {
     expect(() => buildProxyConfig(makeProxy({ protocol: "STATIC_ISP" }))).toThrow(ProxyConfigError);
   });
 
-  it("port ngoài khoảng hợp lệ thì ném lỗi", () => {
+  it("rejects a port outside the valid range", () => {
     expect(() => buildProxyConfig(makeProxy({ port: 0 }))).toThrow(ProxyConfigError);
     expect(() => buildProxyConfig(makeProxy({ port: 70000 }))).toThrow(ProxyConfigError);
   });
 
-  it("host rỗng thì ném lỗi", () => {
+  it("rejects an empty host", () => {
     expect(() => buildProxyConfig(makeProxy({ host: "   " }))).toThrow(ProxyConfigError);
   });
 
-  it("mật khẩu hỏng thì ném lỗi, KHÔNG trả về cấu hình thiếu mật khẩu", () => {
+  it("rejects a corrupt password instead of returning a configuration without it", () => {
     const error = (() => {
       try {
         buildProxyConfig(makeProxy({ passwordEnc: "v1.rac.rac.rac" }));
@@ -64,13 +64,13 @@ describe("buildProxyConfig", () => {
     })();
 
     expect(error).toBeInstanceOf(ProxyConfigError);
-    expect(error?.message).toContain("KHÔNG mở profile");
+    expect(error?.message).toContain("The browser profile was not opened");
   });
 
-  it("không nhét mật khẩu trần vào thông báo lỗi", () => {
+  it("does not include the plaintext password in the error message", () => {
     const error = (() => {
       try {
-        buildProxyConfig(makeProxy({ protocol: "bậy" }));
+        buildProxyConfig(makeProxy({ protocol: "invalid-protocol" }));
       } catch (caught) {
         return caught as Error;
       }

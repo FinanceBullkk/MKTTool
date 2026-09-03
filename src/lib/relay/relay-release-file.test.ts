@@ -52,7 +52,7 @@ afterEach(() => {
 });
 
 describe("readRelayRelease", () => {
-  it("thư mục rỗng — nói chưa có, kèm ĐÚNG chỗ đã tìm", async () => {
+  it("reports an empty directory and the exact path checked", async () => {
     const dir = makeReleaseDir();
     const release = await readRelayRelease();
 
@@ -61,7 +61,7 @@ describe("readRelayRelease", () => {
     if (!release.available) expect(release.expectedPath).toBe(path.join(dir, RELAY_ARCHIVE_NAME));
   });
 
-  it("có gói — trả dung lượng và mốc đóng gói", async () => {
+  it("returns the package size and packaging time", async () => {
     const dir = makeReleaseDir();
     writeArtifact(dir, "x".repeat(2048), RELAY_VERSION - 1);
 
@@ -79,7 +79,7 @@ describe("readRelayRelease", () => {
     }
   });
 
-  it("một THƯ MỤC trùng tên không tính là gói", async () => {
+  it("does not treat a directory with the package name as a package", async () => {
     // `statSync` qua được cả thư mục, và nhánh sau sẽ đem nó đi stream — đường hỏng đó ra lỗi
     // EISDIR giữa lúc trình duyệt đang tải, tức người dùng nhận một file rỗng mà không báo gì.
     const dir = makeReleaseDir();
@@ -88,7 +88,7 @@ describe("readRelayRelease", () => {
     expect((await readRelayRelease()).available).toBe(false);
   });
 
-  it("tên lúc tải xuống mang số phiên bản, tên trên đĩa thì không", () => {
+  it("includes the version in the download name but not the disk name", () => {
     // Hai tên khác nhau có chủ ý: đường dẫn cố định để route và bộ build không phải hẹn nhau
     // theo phiên bản, còn thư mục Downloads thì cần phân biệt được các bản nằm cạnh nhau.
     expect(relayDownloadFileName(RELAY_VERSION)).toBe(`MKTTool-Relay-v${RELAY_VERSION}.zip`);
@@ -100,7 +100,7 @@ describe("relayArchiveChecksum", () => {
   /** SHA-256 của chuỗi "hello" — hằng số công khai, không tính lại bằng chính thư viện đang đo. */
   const HELLO_SHA256 = "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824";
 
-  it("băm đúng chuẩn SHA-256", async () => {
+  it("computes the standard SHA-256 hash", async () => {
     const dir = makeReleaseDir();
     writeArtifact(dir, "hello");
 
@@ -109,12 +109,12 @@ describe("relayArchiveChecksum", () => {
     expect(await relayArchiveChecksum()).toBe(HELLO_SHA256);
   });
 
-  it("chưa có gói thì không có mã băm", async () => {
+  it("returns no hash when no package exists", async () => {
     makeReleaseDir();
     expect(await relayArchiveChecksum()).toBeNull();
   });
 
-  it("thay gói mới vào đúng đường dẫn cũ thì mã băm phải đổi theo", async () => {
+  it("changes the hash when a new package replaces the old file at the same path", async () => {
     // Đây là đường **nâng cấp**: cùng tên file, nội dung khác. Ô đệm mà chỉ khóa theo đường dẫn
     // sẽ trả số của bản cũ, và người cài đối chiếu thấy lệch rồi kết luận file tải hỏng — trong
     // khi file hoàn toàn đúng và thứ sai là con số trên trang.
@@ -132,7 +132,7 @@ describe("relayArchiveChecksum", () => {
     expect(await relayArchiveChecksum()).not.toBe(before);
   });
 
-  it("gọi lại trên cùng một file trả về cùng một chuỗi", async () => {
+  it("returns the same string for repeated calls on the same file", async () => {
     const dir = makeReleaseDir();
     writeArtifact(dir, "hello");
 
@@ -141,7 +141,7 @@ describe("relayArchiveChecksum", () => {
     expect(await relayArchiveChecksum()).toBe(await relayArchiveChecksum());
   });
 
-  it("từ chối artifact không có metadata phiên bản", async () => {
+  it("rejects an artifact without version metadata", async () => {
     const dir = makeReleaseDir();
     writeFileSync(path.join(dir, RELAY_ARCHIVE_NAME), "hello");
     await expect(readRelayRelease()).rejects.toThrow(/artifact metadata/i);

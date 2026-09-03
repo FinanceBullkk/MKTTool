@@ -79,7 +79,7 @@ beforeEach(async () => {
   await prisma.user.createMany({
     data: [
       { id: OPERATOR_ID, name: "Operator", email: OPERATOR_EMAIL, updatedAt: new Date() },
-      { id: REMOVED_ID, name: "Đã nghỉ", email: REMOVED_EMAIL, updatedAt: new Date() },
+      { id: REMOVED_ID, name: "Former user", email: REMOVED_EMAIL, updatedAt: new Date() },
     ],
   });
 });
@@ -108,7 +108,7 @@ afterAll(async () => {
  */
 describe("grantOperatorKeyToDevice", () => {
   /** Máy đang sống, thuộc một người còn trong danh sách trắng — điều kiện để được cấp khóa. */
-  async function activeDevice(name = "Laptop của Operator") {
+  async function activeDevice(name = "Operator laptop") {
     const { publicKeyHex } = generateRelayDeviceKeyPair();
     return prisma.relayDevice.create({
       data: { name, userId: OPERATOR_ID, publicKey: publicKeyHex },
@@ -126,7 +126,7 @@ describe("grantOperatorKeyToDevice", () => {
 
   const GRANT = { ephemeralPublicKey: "cd".repeat(32), sealed: "hop-khoa-da-boc" };
 
-  it("giữ nguyên hộp khóa, kèm mã và vân tay để bên nhận đối chiếu", async () => {
+  it("preserves the sealed grant with its ID and digest", async () => {
     const device = await activeDevice();
 
     const result = await grantOperatorKeyToDevice(null, grantForm(device.id, GRANT));
@@ -149,7 +149,7 @@ describe("grantOperatorKeyToDevice", () => {
     expect(logged[0]?.detail).toContain(device.name);
   });
 
-  it("cấp lại thì xóa sạch dấu vết lần giao trước", async () => {
+  it("clears every trace of the previous delivery when granting again", async () => {
     const device = await activeDevice();
     await grantOperatorKeyToDevice(null, grantForm(device.id, GRANT));
 
@@ -184,8 +184,8 @@ describe("grantOperatorKeyToDevice", () => {
     expect(stored.operatorKeyDeliveryExpiresAt).toBeNull();
   });
 
-  it("không cấp cho máy đã thu hồi", async () => {
-    const device = await activeDevice("Máy đã mất");
+  it("does not grant a key to a revoked Relay PC", async () => {
+    const device = await activeDevice("Lost PC");
     await prisma.relayDevice.update({
       where: { id: device.id },
       data: { revokedAt: new Date() },
@@ -198,10 +198,10 @@ describe("grantOperatorKeyToDevice", () => {
     expect(stored.operatorKeyGrant).toBeNull();
   });
 
-  it("không cấp cho máy của người đã rời ALLOWED_EMAILS", async () => {
+  it("does not grant a key to a user whose sign-in access was removed", async () => {
     const { publicKeyHex } = generateRelayDeviceKeyPair();
     const device = await prisma.relayDevice.create({
-      data: { name: "Máy người đã nghỉ", userId: REMOVED_ID, publicKey: publicKeyHex },
+      data: { name: "Former user's PC", userId: REMOVED_ID, publicKey: publicKeyHex },
     });
 
     const result = await grantOperatorKeyToDevice(null, grantForm(device.id, GRANT));
@@ -237,7 +237,7 @@ describe("grantOperatorKeyToDevice", () => {
 });
 
 describe("registerRelayDevice", () => {
-  it("ghi máy vào sổ, khóa lưu dạng hex chữ thường", async () => {
+  it("registers the Relay PC and stores a lowercase hexadecimal key", async () => {
     const { publicKeyHex } = generateRelayDeviceKeyPair();
 
     const result = await register({
@@ -255,7 +255,7 @@ describe("registerRelayDevice", () => {
     expect(device.revokedAt).toBeNull();
   });
 
-  it("ghi AuditLog kèm người thao tác", async () => {
+  it("writes the acting user to AuditLog", async () => {
     const { publicKeyHex } = generateRelayDeviceKeyPair();
     await register({ name: "Laptop Dell", userId: OPERATOR_ID, publicKey: publicKeyHex });
 
@@ -271,56 +271,56 @@ describe("registerRelayDevice", () => {
    * Không chuẩn hóa thì Postgres coi đó là hai giá trị khác nhau, `@unique` cho qua, và trong
    * sổ có hai hàng cho cùng một chiếc máy — thu hồi hàng này, hàng kia vẫn nhận vé.
    */
-  it("nhận ra khóa trùng dù dán bằng chữ hoa", async () => {
+  it("detects a duplicate key pasted in uppercase", async () => {
     const { publicKeyHex } = generateRelayDeviceKeyPair();
     await register({ name: "Laptop Dell", userId: OPERATOR_ID, publicKey: publicKeyHex });
 
     const again = await register({
-      name: "Máy khác",
+      name: "Another PC",
       userId: OPERATOR_ID,
       publicKey: publicKeyHex.toUpperCase(),
     });
 
     expect(again.ok).toBe(false);
-    expect(again.message).toContain("đã có trong sổ");
+    expect(again.message).toContain("already registered");
     expect(await prisma.relayDevice.count()).toBe(1);
   });
 
-  it("từ chối khóa đã bị thu hồi — phải sinh cặp khóa mới", async () => {
+  it("rejects a revoked key and requires a new key pair", async () => {
     const { publicKeyHex } = generateRelayDeviceKeyPair();
-    await register({ name: "Laptop mất", userId: OPERATOR_ID, publicKey: publicKeyHex });
+    await register({ name: "Lost laptop", userId: OPERATOR_ID, publicKey: publicKeyHex });
     const device = await prisma.relayDevice.findFirstOrThrow();
     await revokeRelayDevice(device.id);
 
     const again = await register({
-      name: "Laptop mất (tìm lại được)",
+      name: "Recovered laptop",
       userId: OPERATOR_ID,
       publicKey: publicKeyHex,
     });
 
     expect(again.ok).toBe(false);
-    expect(again.message).toContain("đã bị thu hồi");
+    expect(again.message).toContain("was revoked");
     expect(await prisma.relayDevice.count()).toBe(1);
   });
 
   /** Khóa yếu phải chết ở màn hình đăng ký, không phải ở cầu nối ba tuần sau. */
-  it("từ chối khóa yếu ngay lúc đăng ký", async () => {
+  it("rejects a weak key during registration", async () => {
     const result = await register({
-      name: "Máy khóa hỏng",
+      name: "PC with invalid key",
       userId: OPERATOR_ID,
       publicKey: "00".repeat(32),
     });
 
     expect(result.ok).toBe(false);
-    expect(result.message).toContain("khóa yếu");
+    expect(result.message).toContain("weak-key set");
     expect(await prisma.relayDevice.count()).toBe(0);
   });
 
-  it("từ chối khóa sai độ dài", async () => {
-    const result = await register({ name: "Máy", userId: OPERATOR_ID, publicKey: "abcd" });
+  it("rejects a key with the wrong length", async () => {
+    const result = await register({ name: "PC", userId: OPERATOR_ID, publicKey: "abcd" });
 
     expect(result.ok).toBe(false);
-    expect(result.message).toContain("64 ký tự hex");
+    expect(result.message).toContain("64 hexadecimal characters");
   });
 
   /**
@@ -328,17 +328,18 @@ describe("registerRelayDevice", () => {
    * request của họ bị chặn ở `checkActor`. Ghi vào sổ là dựng một hàng chết mà admin lại tưởng
    * đã cấp xong.
    */
-  it("từ chối đăng ký cho người không còn trong ALLOWED_EMAILS", async () => {
+  it("rejects registration for a user whose sign-in access was removed", async () => {
     const { publicKeyHex } = generateRelayDeviceKeyPair();
 
     const result = await register({
-      name: "Laptop cũ",
+      name: "Old laptop",
       userId: REMOVED_ID,
       publicKey: publicKeyHex,
     });
 
     expect(result.ok).toBe(false);
-    expect(result.message).toContain("ALLOWED_EMAILS");
+    expect(result.message).toContain("no longer allowed to sign in");
+    expect(result.message).not.toContain("ALLOWED_EMAILS");
     expect(await prisma.relayDevice.count()).toBe(0);
   });
 
@@ -351,10 +352,10 @@ describe("registerRelayDevice", () => {
    * trước, và bài test sẽ xanh nhờ một đoạn mã khác đoạn cần kiểm. Phải làm lượt kiểm đầu tiên
    * trả `null` đúng một lần — đó chính là thứ người kia gây ra khi họ ghi xong sau lượt đó.
    */
-  it("hai người ghi cùng lúc: người sau nhận câu giải thích, không phải lỗi trần", async () => {
+  it("returns an explanation instead of a raw error during concurrent registration", async () => {
     const { publicKeyHex } = generateRelayDeviceKeyPair();
     await prisma.relayDevice.create({
-      data: { name: "Máy của người nhanh tay", userId: OPERATOR_ID, publicKey: publicKeyHex },
+      data: { name: "First registrant's PC", userId: OPERATOR_ID, publicKey: publicKeyHex },
     });
 
     // Chỉ lần gọi ĐẦU trả null; lượt hỏi lại trong nhánh bắt lỗi dùng bản thật.
@@ -362,13 +363,13 @@ describe("registerRelayDevice", () => {
 
     try {
       const result = await register({
-        name: "Máy của ta",
+        name: "My PC",
         userId: OPERATOR_ID,
         publicKey: publicKeyHex,
       });
 
       expect(result.ok).toBe(false);
-      expect(result.message).toContain("đã có trong sổ");
+      expect(result.message).toContain("already registered");
       expect(await prisma.relayDevice.count()).toBe(1);
 
       // Hỏi sổ ĐÚNG HAI LẦN: lượt kiểm ở đầu hàm, rồi lượt hỏi lại trong nhánh bắt P2002. Một
@@ -380,11 +381,11 @@ describe("registerRelayDevice", () => {
     }
   });
 
-  it("từ chối người dùng không tồn tại", async () => {
+  it("rejects a missing user", async () => {
     const { publicKeyHex } = generateRelayDeviceKeyPair();
 
     const result = await register({
-      name: "Máy ma",
+      name: "Ghost PC",
       userId: "khong-co-that",
       publicKey: publicKeyHex,
     });
@@ -402,7 +403,7 @@ describe("revokeRelayDevice", () => {
     return device.id;
   }
 
-  it("đóng dấu ngày thu hồi, GIỮ NGUYÊN hàng", async () => {
+  it("records the revocation time and preserves the row", async () => {
     const id = await seedDevice();
 
     const result = await revokeRelayDevice(id);
@@ -439,13 +440,13 @@ describe("revokeRelayDevice", () => {
    * Câu thông báo phải nhắc xoay khóa vùng operator. Thu hồi không với tới được ciphertext mà
    * chiếc máy đó đã lấy về — ai bấm xong mà tưởng đã an toàn thì sẽ bỏ nốt việc quan trọng hơn.
    */
-  it("nhắc xoay khóa vùng operator sau khi thu hồi", async () => {
+  it("requires operator-key rotation after revocation", async () => {
     const result = await revokeRelayDevice(await seedDevice());
 
     expect(result.message).toContain("VAULT_KEY_OPERATOR");
   });
 
-  it("ghi AuditLog", async () => {
+  it("writes AuditLog", async () => {
     await revokeRelayDevice(await seedDevice());
 
     const log = await prisma.auditLog.findFirstOrThrow({
@@ -454,7 +455,7 @@ describe("revokeRelayDevice", () => {
     expect(log.actorId).toBe("test-admin");
   });
 
-  it("thu hồi lần hai thì báo đã thu hồi rồi, không đổi mốc cũ", async () => {
+  it("reports an existing revocation without changing its timestamp", async () => {
     const id = await seedDevice();
     await revokeRelayDevice(id);
     const first = await prisma.relayDevice.findUniqueOrThrow({ where: { id } });
@@ -466,11 +467,11 @@ describe("revokeRelayDevice", () => {
     expect(after.revokedAt).toEqual(first.revokedAt);
   });
 
-  it("báo lỗi khi không tìm thấy máy", async () => {
+  it("reports a missing Relay PC", async () => {
     const result = await revokeRelayDevice("khong-co-that");
 
     expect(result.ok).toBe(false);
-    expect(result.message).toContain("Không tìm thấy");
+    expect(result.message).toContain("not in the registry");
   });
 });
 
@@ -479,8 +480,8 @@ describe("revokeRelayDevice", () => {
  * Nếu hàng ở lại thì trong sổ còn một chiếc máy không thuộc về ai, và cột `userId` trỏ vào
  * khoảng không.
  */
-describe("quan hệ với User", () => {
-  it("xóa người dùng thì máy của họ rời sổ theo", async () => {
+describe("User relation", () => {
+  it("removes a user's Relay PCs when the user is deleted", async () => {
     const { publicKeyHex } = generateRelayDeviceKeyPair();
     await register({ name: "Laptop Dell", userId: OPERATOR_ID, publicKey: publicKeyHex });
 

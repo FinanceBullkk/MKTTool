@@ -44,7 +44,7 @@ function installFakeAdsPower(options: { code?: number; msg?: string; data?: unkn
 afterEach(() => vi.unstubAllGlobals());
 
 describe("AdsPowerAdapter.applyProxy", () => {
-  it("POST /api/v1/user/update với user_proxy_config đúng dạng", async () => {
+  it("POSTs a correctly shaped user_proxy_config to /api/v1/user/update", async () => {
     const calls = installFakeAdsPower();
 
     await new AdsPowerAdapter(BASE_URL).applyProxy(PROFILE_ID, PROXY);
@@ -66,18 +66,18 @@ describe("AdsPowerAdapter.applyProxy", () => {
     });
   });
 
-  it("code khác 0 thì ném lỗi và không lộ mật khẩu proxy", async () => {
-    installFakeAdsPower({ code: -1, msg: `sai tham số: ${PROXY.password}` });
+  it("throws on a nonzero code without exposing the proxy password", async () => {
+    installFakeAdsPower({ code: -1, msg: `invalid parameter: ${PROXY.password}` });
 
     const error = await new AdsPowerAdapter(BASE_URL)
       .applyProxy(PROFILE_ID, PROXY)
       .catch((caught: Error) => caught);
 
-    expect((error as Error).message).toContain("KHÔNG mở profile");
+    expect((error as Error).message).toContain("The browser profile was not opened");
     expect((error as Error).message).not.toContain(PROXY.password);
   });
 
-  it("giãn lời gọi liên tiếp cho khỏi vượt hạn mức 1 lời gọi/giây của AdsPower", async () => {
+  it("spaces consecutive calls to stay within AdsPower's one-request-per-second limit", async () => {
     vi.useFakeTimers();
     try {
       installFakeAdsPower({ data: { debug_port: "9222" } });

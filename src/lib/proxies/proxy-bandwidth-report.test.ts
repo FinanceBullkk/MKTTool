@@ -19,67 +19,67 @@ function reading(mbps: number, extra: Partial<BandwidthReading> = {}): Bandwidth
 }
 
 describe("gradeBandwidth", () => {
-  it("dưới 1 Mbps là rất chậm", () => {
+  it("classifies below 1 Mbps as very slow", () => {
     expect(gradeBandwidth(0.4)).toBe("VERY_SLOW");
   });
 
-  it("từ 1 tới dưới 5 Mbps là chậm", () => {
+  it("classifies 1 to below 5 Mbps as slow", () => {
     expect(gradeBandwidth(1)).toBe("SLOW");
     expect(gradeBandwidth(4.9)).toBe("SLOW");
   });
 
-  it("từ 5 Mbps trở lên là nhanh", () => {
+  it("classifies 5 Mbps and above as fast", () => {
     expect(gradeBandwidth(5)).toBe("FAST");
     expect(gradeBandwidth(120)).toBe("FAST");
   });
 });
 
-describe("định dạng số", () => {
-  it("dùng dấu phẩy thập phân kiểu Việt", () => {
-    expect(formatMbps(4.25)).toBe("4,3 Mbps");
-    expect(formatDataUsed(1_048_576)).toBe("1,0 MB");
+describe("number formatting", () => {
+  it("uses an English decimal point", () => {
+    expect(formatMbps(4.25)).toBe("4.3 Mbps");
+    expect(formatDataUsed(1_048_576)).toBe("1.0 MB");
   });
 
-  it("số lớn thì bỏ phần lẻ, số nhỏ thì tính bằng KB", () => {
+  it("drops decimals for large values and uses KB for small values", () => {
     expect(formatMbps(87.4)).toBe("87 Mbps");
     expect(formatDataUsed(40_960)).toBe("40 KB");
   });
 });
 
 describe("summarizeBandwidth", () => {
-  it("chỉ báo xanh khi đo được VÀ không chậm", () => {
+  it("reports healthy only when a measurement exists and is not slow", () => {
     expect(summarizeBandwidth({ kind: "ok", reading: reading(42) }).ok).toBe(true);
     expect(summarizeBandwidth({ kind: "ok", reading: reading(2) }).ok).toBe(false);
   });
 
-  it("câu mô tả nói rõ đã tiêu bao nhiêu quota", () => {
+  it("states how much quota the measurement consumed", () => {
     const summary = summarizeBandwidth({ kind: "ok", reading: reading(42) });
-    expect(summary.message).toContain("1,0 MB");
+    expect(summary.message).toContain("1.0 MB");
     expect(summary.message).toContain("speed.cloudflare.com");
   });
 
-  it("chạm trần thời gian thì nói ra, vì số đo dựa trên ít byte hơn", () => {
+  it("states when the time limit reduced the sample size", () => {
     const summary = summarizeBandwidth({
       kind: "ok",
       reading: reading(0.6, { bytes: 614_400, hitTimeCap: true }),
     });
-    expect(summary.message).toContain("chạm trần thời gian");
+    expect(summary.message).toContain("time limit");
   });
 
-  it("không đo được thì KHÔNG có số và KHÔNG bị xếp là chậm", () => {
-    const summary = summarizeBandwidth({ kind: "probe-failed", detail: "máy chủ thử trả 403" });
+  it("reports no speed and does not classify a failed measurement as slow", () => {
+    const summary = summarizeBandwidth({ kind: "probe-failed", detail: "the test server returned 403" });
 
     expect(summary.mbps).toBeNull();
     expect(summary.grade).toBe("UNKNOWN");
     expect(summary.ok).toBe(false);
     // Phải nói rõ chưa phải lỗi proxy — không thì người dùng đi thay một proxy vô tội.
-    expect(summary.message).toContain("chưa phải lỗi proxy");
+    expect(summary.message).toContain("not yet a proxy failure");
   });
 
-  it("proxy không tải nổi file thử thì quy về proxy, không quy về bộ đo", () => {
-    const summary = summarizeBandwidth({ kind: "unreachable", detail: "proxy từ chối xác thực" });
+  it("attributes a failed test download to the proxy rather than the measurement service", () => {
+    const summary = summarizeBandwidth({ kind: "unreachable", detail: "the proxy rejected authentication" });
 
     expect(summary.mbps).toBeNull();
-    expect(summary.message).toContain("Không tải được file thử qua proxy này");
+    expect(summary.message).toContain("could not be downloaded through this proxy");
   });
 });

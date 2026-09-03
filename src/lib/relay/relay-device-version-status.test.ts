@@ -16,7 +16,7 @@ const RECENTLY = new Date(NOW.getTime() - 60_000);
 const LONG_AGO = new Date(NOW.getTime() - VERSION_REPORT_STALE_AFTER_MS - 1);
 
 describe("readRelayVersionStatus", () => {
-  it("`null` là chưa biết, KHÔNG phải bản cũ", () => {
+  it("treats `null` as unknown rather than outdated", () => {
     const status = readRelayVersionStatus(
       { relayVersion: null, lastSeenAt: null, revokedAt: null },
       FLOOR,
@@ -24,13 +24,13 @@ describe("readRelayVersionStatus", () => {
     );
 
     expect(status.tone).toBe("unknown");
-    expect(status.label).toBe("chưa khai");
+    expect(status.label).toBe("not reported");
     // Nhãn không được chứa con số nào — một ô "chưa biết" mà hiện số là ô nói dối.
     expect(status.label).not.toMatch(/\d/);
-    expect(status.detail).toContain("không phải bản cũ");
+    expect(status.detail).toContain("unknown, not outdated");
   });
 
-  it("dưới sàn thì kêu, và nói ra cả sàn lẫn bản máy khai", () => {
+  it("warns below the floor and states both the floor and reported version", () => {
     const status = readRelayVersionStatus(
       { relayVersion: 12, lastSeenAt: RECENTLY, revokedAt: null },
       FLOOR,
@@ -42,7 +42,7 @@ describe("readRelayVersionStatus", () => {
     expect(status.label).toContain("13");
   });
 
-  it("dưới sàn vẫn kêu kể cả khi máy im lặng đã lâu", () => {
+  it("still warns below the floor when the Relay PC has been silent for a long time", () => {
     // Máy khai bản 12 rồi biến mất vẫn là máy sẽ bị từ chối vào ngày nó quay lại. Để độ tươi
     // nuốt mất cảnh báo này là giấu đi đúng chiếc máy sẽ gọi điện kêu cứu.
     const status = readRelayVersionStatus(
@@ -54,7 +54,7 @@ describe("readRelayVersionStatus", () => {
     expect(status.tone).toBe("below-floor");
   });
 
-  it("đúng sàn cũng là đạt — sàn là ngưỡng tối thiểu, không phải ngưỡng phải vượt", () => {
+  it("accepts the floor because it is an inclusive minimum", () => {
     const status = readRelayVersionStatus(
       { relayVersion: FLOOR, lastSeenAt: RECENTLY, revokedAt: null },
       FLOOR,
@@ -64,7 +64,7 @@ describe("readRelayVersionStatus", () => {
     expect(status.tone).toBe("current");
   });
 
-  it("bản mới nhưng im lặng lâu thì là hồ sơ cũ, không phải trạng thái hiện tại", () => {
+  it("marks a recent version with an old response time as stale history", () => {
     const status = readRelayVersionStatus(
       { relayVersion: 15, lastSeenAt: LONG_AGO, revokedAt: null },
       FLOOR,
@@ -75,7 +75,7 @@ describe("readRelayVersionStatus", () => {
     expect(status.label).toContain("15");
   });
 
-  it("máy thu hồi giữ nguyên số cuối và nói rõ nó đã đứng yên", () => {
+  it("keeps the last version for a revoked Relay PC and states that it is frozen", () => {
     // `recordRelayDeviceVersion` loại máy đã thu hồi khỏi mệnh đề `where`, nên hai cột đóng băng
     // từ lúc thu hồi. Vẽ nó như máy đang chạy là làm một hàng đã đóng trông như còn sống.
     const status = readRelayVersionStatus(
@@ -85,10 +85,10 @@ describe("readRelayVersionStatus", () => {
     );
 
     expect(status.tone).toBe("unknown");
-    expect(status.detail).toContain("thu hồi");
+    expect(status.detail).toContain("revoked");
   });
 
-  it("máy thu hồi mà chưa từng khai thì không bịa ra số", () => {
+  it("does not invent a version for a revoked Relay PC that never reported one", () => {
     const status = readRelayVersionStatus(
       { relayVersion: null, lastSeenAt: null, revokedAt: new Date("2026-08-06T02:00:00Z") },
       FLOOR,
@@ -98,7 +98,7 @@ describe("readRelayVersionStatus", () => {
     expect(status.label).not.toMatch(/\d/);
   });
 
-  it("có bản mà không có mốc thì nói thẳng là không rõ, không đoán", () => {
+  it("states that response time is unknown when a version has no timestamp", () => {
     // Chỉ xảy ra nếu ai đó ghi tay vào database — hai cột luôn được ghi cùng lúc.
     const status = readRelayVersionStatus(
       { relayVersion: 15, lastSeenAt: null, revokedAt: null },
@@ -107,10 +107,10 @@ describe("readRelayVersionStatus", () => {
     );
 
     expect(status.tone).toBe("stale");
-    expect(status.detail).toContain("không rõ");
+    expect(status.detail).toContain("unknown");
   });
 
-  it("đúng mốc bảy ngày vẫn còn tươi — chỉ quá mốc mới là cũ", () => {
+  it("keeps a report fresh at exactly seven days and marks it stale only after", () => {
     const exactly = new Date(NOW.getTime() - VERSION_REPORT_STALE_AFTER_MS);
     const status = readRelayVersionStatus(
       { relayVersion: 15, lastSeenAt: exactly, revokedAt: null },

@@ -68,18 +68,18 @@ export function readRelayVersionStatus(
   // sống là làm một hàng đã đóng trông như còn chạy.
   if (revokedAt) {
     return {
-      label: relayVersion === null ? "chưa từng khai" : `bản ${relayVersion}`,
+      label: relayVersion === null ? "never reported" : `version ${relayVersion}`,
       tone: "unknown",
-      detail: "đứng yên từ lúc thu hồi",
+      detail: "frozen when this Relay PC was revoked",
     };
   }
 
   if (relayVersion === null) {
     return {
-      label: "chưa khai",
+      label: "not reported",
       tone: "unknown",
       // Nói ra cách để ô này tự đầy, vì người đọc sẽ hỏi ngay "làm sao cho nó hiện ra".
-      detail: "máy này chưa mở web app kể từ 18/08 — không phải bản cũ",
+      detail: "this Relay PC has not opened the web app since 18 August; its version is unknown, not outdated",
     };
   }
 
@@ -88,7 +88,7 @@ export function readRelayVersionStatus(
 
   if (relayVersion < floor) {
     return {
-      label: `bản ${relayVersion} — dưới sàn ${floor}`,
+      label: `version ${relayVersion} - below minimum ${floor}`,
       // Dưới sàn là việc phải làm, kể cả khi số đã cũ: một chiếc máy khai bản 12 rồi im lặng
       // vẫn là một chiếc máy sẽ bị từ chối vào đúng ngày nó quay lại.
       tone: "below-floor",
@@ -97,7 +97,7 @@ export function readRelayVersionStatus(
   }
 
   return {
-    label: `bản ${relayVersion}`,
+    label: `version ${relayVersion}`,
     tone: isStale ? "stale" : "current",
     detail: describeLastSeen(lastSeenAt, isStale),
   };
@@ -106,6 +106,6 @@ export function readRelayVersionStatus(
 function describeLastSeen(lastSeenAt: Date | null, isStale: boolean): string {
   // Có phiên bản mà không có mốc chỉ xảy ra nếu ai đó ghi tay vào database — hai cột luôn được
   // ghi cùng lúc. Nói thẳng là không biết, đừng đoán.
-  if (!lastSeenAt) return "không rõ lần cuối trả lời";
-  return isStale ? "im lặng đã lâu — số này là hồ sơ cũ" : "vừa trả lời gần đây";
+  if (!lastSeenAt) return "last response time unknown";
+  return isStale ? "no recent response; this version report is stale" : "responded recently";
 }

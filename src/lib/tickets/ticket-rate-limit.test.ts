@@ -16,13 +16,13 @@ function xinLienTiep(userId: string, lan: number, now = NOW) {
   return verdict;
 }
 
-describe("cửa sổ trượt", () => {
-  it("cho qua 10 lượt, chặn lượt thứ 11", () => {
+describe("sliding window", () => {
+  it("allows 10 requests and blocks the 11th", () => {
     expect(xinLienTiep(AI_DO, 10).allowed).toBe(true);
     expect(checkTicketRateLimit(AI_DO, NOW).allowed).toBe(false);
   });
 
-  it("qua một phút thì mở lại", () => {
+  it("allows requests again after one minute", () => {
     xinLienTiep(AI_DO, 10);
 
     expect(checkTicketRateLimit(AI_DO, NOW + 60_001).allowed).toBe(true);
@@ -32,7 +32,7 @@ describe("cửa sổ trượt", () => {
    * Nếu lượt bị chặn cũng được ghi vào cửa sổ thì một vòng lặp đủ nhanh sẽ tự đẩy cửa sổ của
    * chính nó ra xa mãi — và người dùng thật bị khóa vô thời hạn vì hành vi của kẻ đang gõ cửa.
    */
-  it("lượt bị chặn không đẩy cửa sổ ra xa", () => {
+  it("does not extend the window for blocked requests", () => {
     xinLienTiep(AI_DO, 10);
     // Gõ cửa liên tục suốt gần một phút.
     for (let t = 0; t < 59_000; t += 1_000) checkTicketRateLimit(AI_DO, NOW + t);
@@ -40,20 +40,20 @@ describe("cửa sổ trượt", () => {
     expect(checkTicketRateLimit(AI_DO, NOW + 60_001).allowed).toBe(true);
   });
 
-  it("đếm riêng từng người", () => {
+  it("counts each user separately", () => {
     xinLienTiep(AI_DO, 10);
 
     expect(checkTicketRateLimit(NGUOI_KHAC, NOW).allowed).toBe(true);
   });
 });
 
-describe("câu thông báo", () => {
+describe("message", () => {
   /** Bị chặn mà không biết chờ bao lâu thì người dùng chỉ còn cách bấm lại liên tục. */
-  it("nói số giây phải chờ", () => {
+  it("states how many seconds to wait", () => {
     xinLienTiep(AI_DO, 10);
 
     const verdict = checkTicketRateLimit(AI_DO, NOW + 20_000);
 
-    expect(verdict.message).toContain("tạm dừng 40 giây");
+    expect(verdict.message).toContain("Wait 40 seconds");
   });
 });

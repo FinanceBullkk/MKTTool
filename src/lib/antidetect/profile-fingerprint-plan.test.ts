@@ -58,8 +58,8 @@ const OPTIONS: FingerprintOptions = {
 const plan = (proxyCountry: string, seedKey = "anna", preferredDevice?: string) =>
   planProfileFingerprint({ proxyCountry, seedKey, options: OPTIONS, preferredDevice });
 
-describe("quốc gia proxy quyết định locale", () => {
-  it("US → en-US, và timezone phải thuộc nhóm đó", () => {
+describe("proxy country determines locale", () => {
+  it("maps US to en-US and selects a timezone from that group", () => {
     const result = plan("US");
 
     expect(result.ok).toBe(true);
@@ -70,7 +70,7 @@ describe("quốc gia proxy quyết định locale", () => {
     expect(OPTIONS.locales[0].timezones).toContain(result.plan.timezone);
   });
 
-  it("chữ thường hay chữ hoa đều tra được", () => {
+  it("looks up either lowercase or uppercase country codes", () => {
     const hoa = plan("GB");
     const thuong = plan("gb");
 
@@ -78,7 +78,7 @@ describe("quốc gia proxy quyết định locale", () => {
     expect(thuong.ok && thuong.plan.localeId).toBe("en-GB");
   });
 
-  it("khoảng trắng thừa không làm hỏng phép tra", () => {
+  it("ignores surrounding whitespace during lookup", () => {
     const result = plan(" de ");
 
     expect(result.ok && result.plan.localeId).toBe("de-DE");
@@ -88,7 +88,7 @@ describe("quốc gia proxy quyết định locale", () => {
    * Ca quan trọng nhất của cả file. Đoán bừa một locale là dựng ra đúng thứ hàm này sinh ra để
    * tránh — và nó sai âm thầm, không ai truy ra được vào ngày nick chết.
    */
-  it("quốc gia không có trong danh mục thì TỪ CHỐI, không đoán", () => {
+  it("rejects a country outside the catalog instead of guessing", () => {
     const result = plan("VN");
 
     expect(result.ok).toBe(false);
@@ -112,12 +112,12 @@ describe("quốc gia proxy quyết định locale", () => {
   });
 });
 
-describe("gieo hạt: ổn định nhưng không dồn cục", () => {
+describe("seeding is stable without clustering", () => {
   /**
    * Xem trước trên giao diện nói "sẽ dựng America/Denver" thì lúc bấm tạo phải ra đúng thế. Dùng
    * `Math.random()` là hai lần gọi ra hai kết quả, và người dùng thấy công cụ tự nói khác mình.
    */
-  it("cùng một nick thì mọi lượt gọi ra cùng một kết quả", () => {
+  it("returns the same result for every call with the same nick", () => {
     const lan1 = plan("US", "anna");
     const lan2 = plan("US", "anna");
     const lan3 = plan("US", "anna");
@@ -131,7 +131,7 @@ describe("gieo hạt: ổn định nhưng không dồn cục", () => {
    * `America/New_York` — một mối tương quan **do chính công cụ tạo ra**, đúng thứ cả dự án đang
    * chi tiền để tránh (10 proxy riêng, 10 vân tay riêng).
    */
-  it("nhiều nick trên cùng quốc gia KHÔNG dồn hết vào một timezone", () => {
+  it("does not cluster every nick from one country into one timezone", () => {
     const nicks = ["anna", "bob", "carol", "dave", "erin", "frank", "grace", "heidi"];
     const timezones = new Set(
       nicks.map((nick) => {
@@ -143,56 +143,56 @@ describe("gieo hạt: ổn định nhưng không dồn cục", () => {
     expect(timezones.size).toBeGreaterThan(1);
   });
 
-  it("hạt giống nhiễu khác nhau giữa hai nick", () => {
+  it("uses different noise seeds for different nicks", () => {
     const anna = plan("US", "anna");
     const bob = plan("US", "bob");
 
     expect(anna.ok && bob.ok && anna.seed === bob.seed).toBe(false);
   });
 
-  it("stableHash cho cùng một số ở mọi lượt chạy", () => {
+  it("returns the same stableHash value on every run", () => {
     expect(stableHash("anna")).toBe(stableHash("anna"));
     expect(stableHash("anna")).not.toBe(stableHash("bob"));
   });
 });
 
-describe("họ thiết bị", () => {
+describe("device family", () => {
   /**
    * Vân tay khai Windows trên một máy Windows thật: chỗ nào rò rỉ ở tầng dưới thì cũng không
    * mâu thuẫn với thứ đã khai. Chọn macOS trên máy Windows là tự tạo thêm một bề mặt để đối chiếu.
    */
-  it("mặc định chọn họ Windows, không đụng vào macOS", () => {
+  it("selects a Windows family by default without using macOS", () => {
     for (const nick of ["anna", "bob", "carol", "dave"]) {
       const result = plan("US", nick);
       expect(result.ok && result.plan.device.startsWith("windows-")).toBe(true);
     }
   });
 
-  it("người dùng chỉ định họ nào thì theo họ đó, kể cả macOS", () => {
+  it("honors an explicitly selected family, including macOS", () => {
     const result = plan("US", "anna", "macbook-pro-14-m3");
-    if (!result.ok) throw new Error("phải chọn được");
+    if (!result.ok) throw new Error("A plan must be selected");
 
     expect(result.plan.device).toBe("macbook-pro-14-m3");
     // Màn hình phải lấy từ đúng họ vừa chọn, không giữ màn hình của họ mặc định.
     expect([1512, 1920]).toContain(result.plan.screen.width);
   });
 
-  it("chỉ định một họ không có thật thì bỏ qua, quay về chọn theo hạt giống", () => {
+  it("ignores an unknown family and falls back to seeded selection", () => {
     const result = plan("US", "anna", "khong-co-that");
 
     expect(result.ok && result.plan.device.startsWith("windows-")).toBe(true);
   });
 
-  it("màn hình luôn thuộc họ thiết bị đã chọn", () => {
+  it("always chooses a screen from the selected device family", () => {
     const result = plan("US", "anna");
-    if (!result.ok) throw new Error("phải chọn được");
+    if (!result.ok) throw new Error("A plan must be selected");
 
     const device = OPTIONS.devices.find((entry) => entry.family === result.plan.device);
     expect(device?.screens).toContainEqual(result.plan.screen);
   });
 });
 
-describe("tên profile", () => {
+describe("profile name", () => {
   it("creates a predictable name that can be found visually in the MKT Browser list", () => {
     expect(profileNameForNick("REDDIT", "anna")).toBe("REDDIT — anna");
   });

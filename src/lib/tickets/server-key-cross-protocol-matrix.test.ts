@@ -321,7 +321,7 @@ describe("server signing key — cross-protocol separation (H01, H02, H03)", () 
         ),
       ).toBe(true);
 
-      expect(() => verifiers.verifyTicket(forged)).toThrow(/loại/i);
+      expect(() => verifiers.verifyTicket(forged)).toThrow(/ticket type/i);
     },
   );
 
@@ -351,7 +351,7 @@ describe("server signing key — cross-protocol separation (H01, H02, H03)", () 
     const signature = sign(null, Buffer.from(future, "utf8"), loadServerSigningKeys().privateKey);
 
     expect(() => verifiers.verifyTicket(`${future}.${signature.toString("base64url")}`)).toThrow(
-      /quá cũ/,
+      /too old/,
     );
   });
 

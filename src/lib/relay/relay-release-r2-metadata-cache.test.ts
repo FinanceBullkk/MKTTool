@@ -28,13 +28,13 @@ describe("relay release R2 metadata cache", () => {
     clearRelayReleaseR2MetadataCache();
   });
 
-  it("trả lại bản đã nhớ trong hạn dùng", () => {
+  it("returns the cached value within its lifetime", () => {
     writeCachedRelayRelease(CONFIG, 16, AVAILABLE, 1_000);
 
     expect(readCachedRelayRelease(CONFIG, 16, 2_000)).toEqual(AVAILABLE);
   });
 
-  it("quên sau khi hết hạn, để tiến trình chạy lâu vẫn kiểm chứng lại R2", () => {
+  it("expires cached data so a long-running process rechecks R2", () => {
     writeCachedRelayRelease(CONFIG, 16, AVAILABLE, 0);
 
     expect(readCachedRelayRelease(CONFIG, 16, 5 * 60_000 - 1)).toEqual(AVAILABLE);
@@ -42,20 +42,20 @@ describe("relay release R2 metadata cache", () => {
   });
 
   // Nhớ "chưa có gói" sẽ khiến bản vừa phát hành trông như chưa tồn tại cho tới hết hạn.
-  it("không nhớ câu trả lời phủ định", () => {
+  it("does not cache a negative response", () => {
     writeCachedRelayRelease(CONFIG, 17, { available: false, expectedPath: "r2://relay/v17" }, 0);
 
     expect(readCachedRelayRelease(CONFIG, 17, 1)).toBeNull();
   });
 
-  it("tách theo version", () => {
+  it("separates entries by version", () => {
     writeCachedRelayRelease(CONFIG, 16, AVAILABLE, 0);
 
     expect(readCachedRelayRelease(CONFIG, 15, 1)).toBeNull();
   });
 
   // Đổi ngăn chứa là đổi nguồn sự thật; dùng lại câu trả lời cũ sẽ báo sai về một ngăn khác.
-  it("tách theo ngăn chứa", () => {
+  it("separates entries by bucket", () => {
     writeCachedRelayRelease(CONFIG, 16, AVAILABLE, 0);
 
     expect(readCachedRelayRelease({ ...CONFIG, bucket: "relay-staging" }, 16, 1)).toBeNull();

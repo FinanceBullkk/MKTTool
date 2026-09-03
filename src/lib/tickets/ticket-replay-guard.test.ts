@@ -16,19 +16,19 @@ const NOW = 1_700_000_000_000;
 const LATER = NOW + 30_000;
 
 describe("TicketReplayGuard", () => {
-  it("tiêu được lần đầu, chặn lần sau", () => {
+  it("accepts the first use and blocks the next", () => {
     const guard = new TicketReplayGuard();
     assert.equal(guard.consume("a", LATER, NOW), true);
     assert.equal(guard.consume("a", LATER, NOW), false);
   });
 
-  it("nạp lại sổ của lần chạy trước thì vé cũ vẫn bị chặn", () => {
+  it("still blocks an old ticket after loading the previous run's journal", () => {
     const guard = new TicketReplayGuard();
     guard.restore([{ jti: "a", expiresAt: LATER }], NOW);
     assert.equal(guard.consume("a", LATER, NOW), false);
   });
 
-  it("nạp lại thì bỏ luôn vé đã hết hạn, không để sổ phình", () => {
+  it("drops expired tickets while loading so the journal does not grow", () => {
     const guard = new TicketReplayGuard();
     guard.restore(
       [
@@ -42,7 +42,7 @@ describe("TicketReplayGuard", () => {
     assert.equal(guard.consume("chet", NOW - 1, NOW), true);
   });
 
-  it("ghi sổ ra ngoài mỗi lần sổ thật sự đổi", () => {
+  it("persists the journal whenever its state actually changes", () => {
     const writes: SpentTicketRecord[][] = [];
     const guard = new TicketReplayGuard((records) => writes.push(records));
 
@@ -54,7 +54,7 @@ describe("TicketReplayGuard", () => {
     assert.equal(writes.length, 1);
   });
 
-  it("ảnh chụp đem đi ghi đã bỏ phần hết hạn", () => {
+  it("removes expired entries from the persisted snapshot", () => {
     const writes: SpentTicketRecord[][] = [];
     const guard = new TicketReplayGuard((records) => writes.push(records));
     guard.consume("cu", NOW + 1, NOW);
@@ -63,13 +63,13 @@ describe("TicketReplayGuard", () => {
     assert.deepEqual(writes.at(-1), [{ jti: "moi", expiresAt: LATER }]);
   });
 
-  it("không truyền hàm ghi thì vẫn chạy, chỉ sống trong bộ nhớ", () => {
+  it("still works in memory when no persistence function is provided", () => {
     const guard = new TicketReplayGuard();
     assert.equal(guard.consume("a", LATER, NOW), true);
     assert.equal(guard.size, 1);
   });
 
-  it("không đổi trạng thái và khóa hẳn khi ghi bền vững thất bại", () => {
+  it("keeps state unchanged and fails closed when persistence fails", () => {
     let attempts = 0;
     const guard = new TicketReplayGuard(() => {
       attempts += 1;
