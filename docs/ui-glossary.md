@@ -1,6 +1,6 @@
 # UI glossary
 
-**Updated:** 3 September 2026
+**Updated:** 4 September 2026
 
 This glossary fixes the user-facing vocabulary for the identity workspace. It changes display
 copy only: Prisma models, database columns, TypeScript domain names, and routes keep their current
@@ -19,6 +19,10 @@ names.
 | **content focus** (*mảng nội dung*) | A human-authored note describing the subjects the nick normally covers. | `Account.contentAngle` |
 | **first sign-in** (*đăng nhập lần đầu*) | The operator-confirmed first successful sign-in inside the nick's browser profile. | `Account.firstLoginAt` |
 | **readiness** (*kiểm tra thao tác*) | Whether the nick has the configuration, ownership, and current status required for its next operation. A waiting state is distinct from missing setup. | `describeAccountReadiness()` |
+| **proxy** | The network endpoint assigned to one browser-backed nick. The proxy controls that nick's route; it is not a browser profile or proof of identity isolation. | Prisma model `Proxy`; route `/proxies` |
+| **ticket** (*vé*) | A short-lived, single-use encrypted instruction issued to one Relay PC. The browser transports it but cannot read its contents. | `src/lib/tickets`; `TicketEnvelope` |
+| **operator key** (*khóa vùng operator*) | The key held by Relay that opens nick credentials on an authorized Relay PC. The server stores only a sealed grant for the receiving PC. | `VAULT_KEY_OPERATOR`; `RelayDevice.operatorKeyGrant` |
+| **Relay PC revocation** (*thu hồi máy*) | The irreversible action that blocks a Relay PC from receiving new tickets. It does not erase secrets already stored on that PC. | `RelayDevice.revokedAt`; route `/relay-devices` |
 
 `Relay` or *cầu nối Relay* names the background software running on a **Relay PC**. Do not use
 those software terms as another name for the PC itself.
@@ -100,6 +104,16 @@ those software terms as another name for the PC itself.
 | `Loại` | `Type` |
 | `Ghi chú` | `Notes` |
 | `Tên` | `Name` |
+| `Máy chạy cầu nối` | `Relay PC registry` |
+| `Cầu nối` when naming the software | `Relay` |
+| `Khóa operator` | `Operator key` |
+| `Cấp khóa` / `Cấp lại khóa` | `Grant operator key` / `Grant operator key again` |
+| `Thu hồi máy` | `Revoke Relay PC` |
+| `Thêm Proxy` / `Sửa proxy` / `Xóa` | `Add proxy` / `Edit proxy` / `Delete proxy` |
+| `Chưa gắn Profile` / `Đang gắn Profile` | `Not assigned to a nick` / `Assigned to a nick` |
+| `Profile Đang Gắn` | `Assigned nick` |
+| `Dân cư tĩnh (ISP)` | `Static ISP` |
+| `Kiểm` / `Đo tốc độ (1 MB)` | `Check` / `Measure speed (1 MB)` |
 | `Karma tối thiểu` | `Minimum karma` |
 | `Tuổi nick tối thiểu (ngày)` | `Minimum nick age (days)` |
 | `Tỷ lệ promo` | `Promotional ratio` |
