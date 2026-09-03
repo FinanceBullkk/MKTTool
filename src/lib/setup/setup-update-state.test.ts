@@ -36,7 +36,7 @@ describe("currentSetupUpdateState", () => {
     expect(currentSetupUpdateState({ status: "checking" }).status).toBe("starting");
   });
 
-  it("requires the current installer for an old Relay", () => {
+  it("requires the current Relay package for an old Relay", () => {
     expect(currentSetupUpdateState({
       status: "responded",
       health: { ...HEALTHY, relayVersion: RELAY_VERSION - 1 },

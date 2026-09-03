@@ -18,6 +18,20 @@ the archive location.
 
 ---
 
+## 3 September 2026 — setup becomes Relay-first
+
+- **Existing Relay release becomes the entry point:** `/setup` now starts with the authenticated
+  Relay download, continues to current-PC registration, and ends with nick/proxy handoff.
+- **Dead UI is wired back into the route:** `RelayDownloadSection` is rendered by `/setup`, so the
+  historical `/relay-download` redirect and every `/setup#download` link land on a real anchor and
+  visible download control.
+- **Browser leaves the critical path:** the MKT Browser installer CTA and release metadata are gone
+  from setup. Browser health no longer determines Relay PC registration; it remains visible only in
+  collapsed support details plus a secondary blocked-lane notice. Profile operations retain their
+  separate Browser checks, and this flow grants no distribution or identity-isolation approval.
+- **Boundaries unchanged:** Relay release/auth routes, Browser APIs, schema, ownership rules, and
+  `G2-IDENTITY=FAIL` remain unchanged.
+
 ## 3 September 2026 — nick-vault navigation and vocabulary
 
 - **Nick vault is discoverable:** the left rail now includes `/accounts`, and all five navigation

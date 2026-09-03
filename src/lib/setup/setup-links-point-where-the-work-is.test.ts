@@ -48,6 +48,12 @@ describe("đường dẫn trong luồng chuẩn bị", () => {
     expect(doc("src", "components", "setup", "relay-download-section.tsx")).toContain('id="download"');
   });
 
+  it("renders the anchored Relay download section on the setup page", () => {
+    const page = doc("src", "app", "setup", "page.tsx");
+    expect(page).toContain('import { RelayDownloadSection }');
+    expect(page).toContain("<RelayDownloadSection");
+  });
+
   it("trang tải cũ vẫn tồn tại, chỉ chuyển tiếp", () => {
     // Xóa hẳn thì địa chỉ nằm trong tài liệu vận hành và trong tin nhắn cũ ăn 404, và người đọc
     // kết luận công cụ hỏng chứ không kết luận là trang đã dọn đi chỗ khác.
@@ -56,11 +62,9 @@ describe("đường dẫn trong luồng chuẩn bị", () => {
     expect(page).toContain("/setup#download");
   });
 
-  it("KHÔNG đụng vào đường tải artifact — MKT Browser ghim đúng địa chỉ đó", () => {
-    // `relay-release.json` bên MKTBrowser ghim `/api/relay/download/vN`. Đổi hay bỏ đường này là
-    // làm hỏng mọi lượt dựng trình cài, và hỏng ở một repo khác.
-    expect(doc("src", "components", "setup", "relay-download-section.tsx")).toContain(
-      "/api/relay/download/v",
-    );
+  it("uses the existing authenticated Relay release channel", () => {
+    const section = doc("src", "components", "setup", "relay-download-section.tsx");
+    expect(section).toContain('href="/api/relay/download"');
+    expect(section).not.toContain("/api/setup/windows-installer");
   });
 });

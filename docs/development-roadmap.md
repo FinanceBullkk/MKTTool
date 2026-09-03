@@ -25,6 +25,18 @@ nick detail, and browser actions use those terms. `TeamScopeNotice` and `rollout
 unchanged; setup readiness/stepper behavior, owner/device/concurrency rules, routes, schema, and
 parked platform scope are also unchanged. See [ui-glossary.md](ui-glossary.md).
 
+## Relay-first setup handoff — 3 September 2026
+
+`/setup` now leads operators through the existing Relay release channel in three steps: download
+Relay, register the current Relay PC, then complete the nick/proxy handoff. The previously orphaned
+`RelayDownloadSection` is rendered on the page, so `/relay-download` and every `/setup#download`
+link land on a real download control. The canonical authenticated `/api/relay/download` route and
+its versioned target are unchanged.
+
+MKT Browser is no longer a setup download or prerequisite. It appears only as secondary boundary
+copy in Step 3 and remains in the separate blocked Browser lane. This UX correction does not change
+Browser APIs, rollout gates, `G2-IDENTITY=FAIL`, Relay authentication, schema, or ownership rules.
+
 ## Current operational update - 1 September 2026
 
 Production now runs Railway deployment `0a696033-b610-492c-b75a-3e918cca102a` at master commit
@@ -376,20 +388,19 @@ additive Browser capability without weakening the existing ticket or retirement 
 combined installer persists its standard-user PowerShell detector beside MKT Browser. Contract v4
 adds the runtime-dependent `local-install-ready-v1` capability only when that same detector accepts
 the expected running Browser and Relay and finds no foreign process, fixed-port, MultiZen-process,
-or startup-entry conflict. `/setup` requires the capability and sends a failed or unavailable
-inspection to installer repair instead of reporting `Ready`. Focused runtime tests, the complete
-Browser Node 22 installer suite, packaging contracts, focused MKTTool setup tests, and both
-repositories' typecheck and lint checks pass. Clean-Windows
-matrices and the unfamiliar-operator gate remain open.
+or startup-entry conflict. The Relay-first `/setup` journey no longer uses that Browser capability
+as a handoff gate: it verifies Relay version, device ownership, registration, grant delivery, and
+local configuration, while Browser data remains diagnostic. Browser profile operations retain their
+separate managed-capability checks. Clean-Windows matrices, Browser distribution, identity, and the
+unfamiliar-operator gate remain open.
 
-**Team-installation boundary, reviewed 11 August 2026:** the owner-led demo may use the current
-technical artifacts, but team members must not be asked to install the Relay ZIP and Browser
-directory themselves. MKB-03 now has a hard zero-confusion gate: one authenticated Windows
-download opens one resumable current-PC journey — an announced SmartScreen click-through, sign in,
-confirm the detected PC, then reach the non-error `Waiting for administrator approval` state or
-`Ready` (technical checks only). Ordinary operators never handle
-Relay/MCP vocabulary, keys, tokens, ports, paths, archives, checksums, localhost pages, or commands.
-The first-device secret bootstrap remains a separate ADMIN-only local ceremony.
+**Team-installation boundary, updated 3 September 2026:** an authenticated operator may download the
+current Relay ZIP from `/setup`, install its three packaged files, confirm the detected PC, and reach
+the non-error `Waiting for administrator approval` or Relay `Ready` state. The page does not offer,
+bundle, or require MKT Browser. Browser distribution stays blocked in its separate lane, and its
+health appears only in support details. Operators never handle keys, tokens, ports, localhost pages,
+or manual configuration; the first-device secret bootstrap remains a separate ADMIN-only local
+ceremony.
 
 The frozen MKB-02 Windows technical package was regenerated on 12 August at
 `E:\MKTWorkspace\MKTBrowser\apps\desktop\release\win-unpacked\MKTBrowser.exe`; that checkpoint's

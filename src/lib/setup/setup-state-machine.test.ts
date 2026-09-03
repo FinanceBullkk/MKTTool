@@ -22,7 +22,6 @@ const HEALTHY: RelayHealth = {
       "atomic-launch-v1",
       "managed-profile-v1",
       "operation-diagnostics-v1",
-      "local-install-ready-v1",
     ],
   },
 };
@@ -124,41 +123,39 @@ describe("setupStateMachine", () => {
     expect(output.action.kind).toBe("CONFIRM");
   });
 
-  it("reuses currentDeviceBrowserReadiness for the Ready decision", () => {
+  it("keeps Browser readiness outside Relay PC registration", () => {
     const output = derive({
       relay: {
         status: "responded",
         health: {
           ...HEALTHY,
-          browser: { ...HEALTHY.browser, capabilities: ["local-install-ready-v1"] },
-        },
-      },
-    });
-
-    expect(output.state).toBe("Needs repair");
-    expect(output.message).toContain("Update MKT Browser");
-    expect(output.message).not.toContain("local-install-ready-v1");
-  });
-
-  it("routes a failed shared install inspection to installer repair", () => {
-    const output = derive({
-      relay: {
-        status: "responded",
-        health: {
-          ...HEALTHY,
+          antidetectReady: false,
           browser: {
             ...HEALTHY.browser,
-            capabilities: HEALTHY.browser.capabilities.filter(
-              (capability) => capability !== "local-install-ready-v1",
-            ),
+            ready: false,
+            contractCompatible: false,
+            engine: { ...HEALTHY.browser.engine!, status: "missing" },
+            capabilities: [],
           },
         },
       },
     });
 
+    expect(output.state).toBe("Ready");
+    expect(output.action).toEqual({ kind: "CONTINUE", label: "Relay PC is ready" });
+    expect(output.message).toContain("Browser readiness remains a separate rollout boundary");
+  });
+
+  it("routes an old Relay to the existing Relay download section", () => {
+    const output = derive({ update: { status: "required" } });
+
     expect(output.state).toBe("Needs repair");
-    expect(output.action.kind).toBe("UPDATE");
-    expect(output.message).toContain("Repair");
+    expect(output.action).toEqual({
+      kind: "UPDATE",
+      label: "Download the current Relay",
+      href: "/setup#download",
+    });
+    expect(output.message).toContain("Relay on this PC is older");
   });
 
   it("keeps waiting as a durable success when registration exists but approval does not", () => {

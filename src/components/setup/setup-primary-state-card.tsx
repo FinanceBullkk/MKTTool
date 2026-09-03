@@ -11,6 +11,7 @@ export function SetupPrimaryStateCard({
   email,
   busy,
   detail,
+  onDownloadRelay,
   onAction,
 }: {
   verdict: SetupStateResult;
@@ -18,9 +19,11 @@ export function SetupPrimaryStateCard({
   email: string;
   busy: boolean;
   detail: string | null;
+  onDownloadRelay?: () => void;
   onAction: () => void;
 }) {
   const buttonAction = verdict.action.kind === "CONFIRM" || verdict.action.kind === "RETRY";
+  const downloadAction = verdict.action.href === "/setup#download" && onDownloadRelay;
   const pendingLabel = health ? "Saving this PC..." : "Checking this PC...";
 
   return (
@@ -40,6 +43,10 @@ export function SetupPrimaryStateCard({
         {buttonAction ? (
           <button type="button" className={BUTTON} disabled={busy} onClick={onAction}>
             {busy ? pendingLabel : verdict.action.label}
+          </button>
+        ) : downloadAction ? (
+          <button type="button" className={BUTTON} onClick={onDownloadRelay}>
+            {verdict.action.label}
           </button>
         ) : verdict.action.href ? (
           <Link className={BUTTON} href={verdict.action.href}>{verdict.action.label}</Link>

@@ -34,6 +34,7 @@ none claims stealth, unique fingerprint identity, or vendor-level identity isola
 | Path | Responsibility |
 |---|---|
 | `src/lib/setup/setup-checklist.ts` and `workspace-setup-checklist.tsx` | separate identity-workspace handoff readiness from the parked posting checklist |
+| `src/app/setup/page.tsx`, `onboarding-stepper.tsx`, and `relay-download-section.tsx` | present the Relay-first journey (download, register, nick/proxy handoff), keep `#download` real, and leave Browser as secondary blocked-lane information |
 | `src/lib/auth/allowed-emails.ts`, `sign-in-error-messages.ts`, and `/login` | derive one administrator contact from `ADMIN_EMAILS`, keep operator copy non-technical, and send configuration detail to server logs |
 | `/proxies`, `proxy-console.tsx`, and `/accounts` | keep proxy creation ADMIN-only while giving OPERATOR an explicit waiting state and contact |
 | `src/lib/platforms/rollout-scope.ts` and `parked-scope-banner.tsx` | render friendly platform labels, state that parked routes are history-only, and point back to `/accounts` without changing the fail-closed scope gate |
@@ -255,11 +256,12 @@ profile whose active proxy differs and never falls back after an atomic rejectio
 ordinary proxy/profile-configuration mutation are denied for managed profiles; this is an ownership
 control, not proof of identity isolation.
 
-The `/setup` readiness path adds one stricter requirement without changing the signed-retirement
-endpoint's historical v11 floor. Normal profile readiness compares the running Relay with the
-current v16 candidate. Packaged MKT Browser reports `local-install-ready-v1` only after the installer-owned
-PowerShell detector verifies expected process, fixed-port, MultiZen-process, and startup ownership.
-Missing or unavailable inspection routes setup to installer repair instead of a technical `Ready` state.
+The Relay-first `/setup` readiness path verifies the live Relay version, device ownership,
+registration, operator-key delivery, and local Relay configuration without changing the
+signed-retirement endpoint's historical v11 floor. Packaged MKT Browser may still report
+`local-install-ready-v1` after its installer-owned conflict detector passes, but setup displays that
+Browser state as support information only. Browser profile operations keep their separate managed
+capability checks; Relay PC readiness grants no Browser rollout or identity-isolation approval.
 
 ## Relay device retirement flow
 
