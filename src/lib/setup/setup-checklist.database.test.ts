@@ -10,10 +10,11 @@ const { loadVaultKey } = await import("@/lib/crypto/encryption-key-loader");
 const { loadSetupChecklist } = await import("./setup-checklist");
 
 const HA_ID = "user-ha";
+const rolloutScopeBefore = process.env.ROLLOUT_PLATFORMS;
 
 async function stateOf(id: string) {
-  const { steps } = await loadSetupChecklist();
-  const step = steps.find((entry) => entry.id === id);
+  const { handoff } = await loadSetupChecklist();
+  const step = handoff.steps.find((entry) => entry.id === id);
   if (!step) throw new Error(`Không có bước "${id}"`);
   return step;
 }
@@ -52,6 +53,7 @@ async function seedNick(fields: { username: string; ownerId?: string; deviceId?:
 }
 
 beforeEach(async () => {
+  delete process.env.ROLLOUT_PLATFORMS;
   await prisma.auditLog.deleteMany();
   await prisma.postJob.deleteMany();
   await prisma.contentItem.deleteMany();
@@ -64,6 +66,8 @@ beforeEach(async () => {
 });
 
 afterAll(async () => {
+  if (rolloutScopeBefore === undefined) delete process.env.ROLLOUT_PLATFORMS;
+  else process.env.ROLLOUT_PLATFORMS = rolloutScopeBefore;
   await prisma.$disconnect();
 });
 
@@ -71,14 +75,18 @@ describe("kho rỗng", () => {
   it("mọi bước đều chưa làm, và bước tiếp theo là cài cầu nối", async () => {
     const checklist = await loadSetupChecklist();
 
-    expect(checklist.doneCount).toBe(0);
-    expect(checklist.steps.every((step) => step.state === "todo")).toBe(true);
+    expect(checklist.handoff.doneCount).toBe(0);
+    expect(checklist.handoff.steps.every((step) => step.state === "todo")).toBe(true);
+    expect(checklist.posting.steps.every((step) => step.state === "todo")).toBe(true);
     // Cầu nối đứng đầu vì chưa có nó thì không tạo nổi một nick có bí mật.
-    expect(checklist.nextStepId).toBe("relay");
+    expect(checklist.handoff.nextStepId).toBe("relay");
+    expect(checklist.posting.nextStepId).toBe("targets");
+    expect(checklist.posting.inRolloutScope).toBe(false);
   });
 
   it("mỗi bước đều nói được VÌ SAO và đi được tới đâu", async () => {
-    const { steps } = await loadSetupChecklist();
+    const checklist = await loadSetupChecklist();
+    const steps = [...checklist.handoff.steps, ...checklist.posting.steps];
 
     for (const step of steps) {
       expect(step.why.length).toBeGreaterThan(20);
@@ -99,8 +107,8 @@ describe("bước xong dần theo kho", () => {
 
     const checklist = await loadSetupChecklist();
 
-    expect(checklist.steps.find((step) => step.id === "relay")?.state).toBe("done");
-    expect(checklist.nextStepId).toBe("proxies");
+    expect(checklist.handoff.steps.find((step) => step.id === "relay")?.state).toBe("done");
+    expect(checklist.handoff.nextStepId).toBe("proxies");
   });
 
   it("máy đã thu hồi KHÔNG tính là đã cài", async () => {
@@ -133,6 +141,43 @@ describe("bước xong dần theo kho", () => {
     });
 
     expect((await stateOf("observer")).state).toBe("todo");
+  });
+});
+
+describe("ranh giới bàn giao và posting", () => {
+  it("bàn giao hoàn tất dù chưa có target, content hoặc job", async () => {
+    await prisma.user.create({
+      data: { id: HA_ID, name: "Hà", email: "ha@mkttool.local", updatedAt: new Date() },
+    });
+    const device = await prisma.relayDevice.create({
+      data: { name: "Laptop Dell", userId: HA_ID, publicKey: "f".repeat(64) },
+    });
+    await prisma.observerProxy.create({
+      data: {
+        label: "Observer1",
+        host: "9.9.9.9",
+        port: 8080,
+        username: "u",
+        passwordEnc: encryptCredential("p", loadVaultKey("server")),
+        country: "US",
+        active: true,
+      },
+    });
+    await seedNick({ username: "anna", ownerId: HA_ID, deviceId: device.id });
+
+    const checklist = await loadSetupChecklist();
+
+    expect(checklist.handoff.nextStepId).toBeNull();
+    expect(checklist.handoff.doneCount).toBe(checklist.handoff.steps.length);
+    expect(checklist.posting.nextStepId).toBe("targets");
+    expect(checklist.posting.doneCount).toBe(0);
+  });
+
+  it("chỉ hiện nhánh posting khi ít nhất một nền tảng được mở lại", async () => {
+    expect((await loadSetupChecklist()).posting.inRolloutScope).toBe(false);
+
+    process.env.ROLLOUT_PLATFORMS = "FACEBOOK_PAGE";
+    expect((await loadSetupChecklist()).posting.inRolloutScope).toBe(true);
   });
 });
 

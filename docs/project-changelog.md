@@ -18,6 +18,22 @@ the archive location.
 
 ---
 
+## 3 September 2026 — workspace handoff and role-aware recovery copy
+
+- **Workspace handoff unblocked:** `/setup` now calculates workspace readiness from Relay, account
+  proxies, the observer proxy, accounts, and owner/device assignment only. Browser installer
+  availability is informational, while targets, content, and queue remain a separate posting
+  checklist that appears only when a platform re-enters rollout scope.
+- **Proxy empty states follow role ownership:** ADMIN keeps the add-proxy path. OPERATOR sees that
+  proxy supply is an ADMIN responsibility, receives the primary contact derived from
+  `ADMIN_EMAILS`, and can wait instead of being sent to a button they cannot use.
+- **Login copy is operator-safe:** the rejected Google email and administrator contact remain
+  visible, but environment-variable, CLI, and OAuth configuration details move to server logs. No
+  allowlist contents are disclosed.
+- **Parked copy matches the 2 September boundary:** `FACEBOOK_PAGE` renders as “Facebook Fanpage”,
+  parked routes say they are history-only and cannot post, and both banners and action results point
+  operators back to `/accounts`. The rollout environment variable and parked routes are unchanged.
+
 ## 2 September 2026 — first fingerprint-gate application rejects Brave
 
 - **Brave measured at the declared pool:** official `v1.94.117` ran as five disposable profiles,

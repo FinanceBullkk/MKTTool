@@ -199,20 +199,28 @@ proxy, không cần tài khoản nào, và kiểm tra được phần lớn ch�
 > Đừng gộp proxy test với proxy dùng thật. Proxy datacenter giá rẻ dùng để kiểm tra
 > "profile có ăn đúng IP không" thì được, nhưng đưa tài khoản thật vào đó là giết tài khoản.
 
-## Thứ tự nhập liệu
+## Workspace input order
 
-**Mở `/setup` là thấy đúng danh sách này kèm trạng thái thật của kho** — bước nào xong, bước nào
-còn dở, và bước tiếp theo phải làm gì. Không cần nhớ thứ tự dưới đây.
+`/setup` now keeps two checklists separate so the shared identity workspace can be handed over
+without reopening a parked posting workflow.
 
-0. **Máy chạy cầu nối** (`/setup`) — cài bộ Windows và xác nhận máy bằng luồng hướng dẫn; `/relay-devices` dành cho quản trị và sửa lỗi
-1. **Proxy** (`/proxies`) — mua proxy TRƯỚC khi mua nick
-2. **Proxy quan sát viên** (`/proxies`) — con mắt người ngoài của bộ dò shadowban
-3. **Tài khoản** (`/accounts`) — gắn proxy, ghi giọng viết; cold-start 14 ngày điền sẵn
-4. **Đích đăng** (`/targets`) — subreddit kèm luật thật của sub đó
-5. **Content** (`/content`) — bài team viết; phải nằm ở đây thì bộ luật mới so trùng được
-6. **Hàng đợi** (`/queue`) — xếp lịch đăng, bộ luật chấm trước khi cho lưu
+**Workspace handoff determines readiness:**
 
-Riêng Fanpage không phải nhập tay ở bước 4: kết nối ở `/facebook` là công cụ tự tạo đích đăng.
+0. **Relay PC** (`/setup`) — enroll and approve at least one active operator PC; `/relay-devices`
+   remains the administration and recovery surface.
+1. **Account proxies** (`/proxies`) — buy and import proxies before acquiring established accounts.
+2. **Observer proxy** (`/proxies`) — provide the separate outsider view used by health checks.
+3. **Accounts** (`/accounts`) — record each account, its proxy, voice, and cold-start period.
+4. **Owner and PC assignment** (`/accounts`) — bind every active account to its responsible operator
+   and Relay device.
+
+Browser installer availability is displayed separately and does not block workspace readiness.
+
+**Posting preparation is a separate checklist:** publishing targets, content, and the first queued
+job remain implemented, but this branch is hidden while all posting platforms are outside the
+2 September rollout scope. It appears again only when at least one platform is explicitly reopened;
+its progress never changes workspace handoff readiness. A connected Facebook Page still creates its
+publishing target automatically when that workflow is in scope.
 
 > **Bước 0 đứng trước là có lý do.** Profile antidetect của nick được dựng trên **máy của người
 > phụ trách**, nên máy đó phải có mặt trong sổ trước — xem
@@ -619,6 +627,11 @@ Công cụ đăng nhập bằng **tài khoản Google**, và chỉ email nằm t
 được. **Không có tự đăng ký** — Google chỉ chứng minh *"người này sở hữu email đó"*, chứ không
 chứng minh *"người này thuộc team"*.
 
+The public login screen does not tell operators to edit environment variables or run server
+commands. When authorization fails it shows the Google email that was just used when available and
+the primary administrator contact derived from `ADMIN_EMAILS`; configuration diagnostics stay in
+the server log.
+
 ### Tạo Google OAuth client (làm một lần, ~5 phút)
 
 1. Vào [console.cloud.google.com](https://console.cloud.google.com/) → tạo project mới
@@ -681,6 +694,10 @@ hai ở đâu ngoài kho này, nên xóa nhầm một dòng là mất tiền th�
 khác, và nick gắn IP cũ coi như đổi chỗ ở. Nút **Kiểm** thì ai cũng bấm được: nó tốn vài KB và là
 thứ cần bấm đúng lúc đang gấp. Nút **Đo tốc độ** đốt 1 MB quota trả tiền mỗi lượt nên đi theo
 nhóm ADMIN.
+
+When no usable proxy is available, ADMIN keeps the existing add-proxy path. OPERATOR sees a valid
+waiting state instead, with the primary contact read from `ADMIN_EMAILS`; the UI does not maintain a
+second administrator list.
 
 > **Gỡ người khỏi team:** xóa email khỏi `ALLOWED_EMAILS` rồi khởi động lại. Có hiệu lực ngay,
 > kể cả người đó đang mở sẵn tab — danh sách được kiểm ở **mọi request**, không phải chỉ lúc

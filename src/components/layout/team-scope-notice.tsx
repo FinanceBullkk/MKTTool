@@ -18,23 +18,17 @@
  * và cái sai đó im lặng. Mở lại một nền tảng bằng biến môi trường thì câu chữ ở đây tự đổi
  * theo.
  */
-import { isPostingFullyParked, parkedPlatforms } from "@/lib/platforms/rollout-scope";
-
-const PLATFORM_LABELS: Record<string, string> = {
-  REDDIT: "Reddit",
-  FACEBOOK_PAGE: "Facebook Fanpage",
-  FACEBOOK_GROUP: "Facebook Group",
-};
-
-function label(platform: string): string {
-  return PLATFORM_LABELS[platform] ?? platform;
-}
+import {
+  isPostingFullyParked,
+  parkedPlatforms,
+  rolloutPlatformLabel,
+} from "@/lib/platforms/rollout-scope";
 
 export function TeamScopeNotice() {
   const parked = parkedPlatforms();
   if (parked.length === 0) return null;
 
-  const parkedNames = parked.map(label).join(", ");
+  const parkedNames = parked.map(rolloutPlatformLabel).join(", ");
 
   return (
     <section

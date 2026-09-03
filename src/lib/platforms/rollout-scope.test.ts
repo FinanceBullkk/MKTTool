@@ -13,13 +13,17 @@
  */
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it } from "vitest";
+import { ParkedScopeBanner } from "@/components/layout/parked-scope-banner";
 import {
   ROLLOUT_SCOPE_ENV,
   isPlatformInRolloutScope,
   isPostingFullyParked,
   parkedPlatformMessage,
   parkedPlatforms,
+  rolloutPlatformLabel,
 } from "./rollout-scope";
 
 const original = process.env[ROLLOUT_SCOPE_ENV];
@@ -69,10 +73,29 @@ describe("phạm vi bàn giao", () => {
     expect(isPlatformInRolloutScope("")).toBe(false);
   });
 
-  it("câu từ chối nói được nền tảng nào và mở lại bằng cách gì", () => {
+  it("câu từ chối dùng nhãn thân thiện và chỉ operator đường quay lại", () => {
     const message = parkedPlatformMessage("FACEBOOK_PAGE");
-    expect(message).toContain("FACEBOOK_PAGE");
-    expect(message).toContain(ROLLOUT_SCOPE_ENV);
+    expect(message).toContain("Facebook Fanpage");
+    expect(message).toContain("chỉ dùng để xem lịch sử");
+    expect(message).toContain("không đăng được");
+    expect(message).toContain("/accounts");
+    expect(message).not.toContain("FACEBOOK_PAGE");
+    expect(message).not.toContain(ROLLOUT_SCOPE_ENV);
+  });
+
+  it("không in enum lạ ra cho operator", () => {
+    expect(rolloutPlatformLabel("SOME_NEW_PLATFORM")).toBe("Nền tảng này");
+  });
+
+  it("banner nói rõ chỉ xem lịch sử và có link về kho nick", () => {
+    const markup = renderToStaticMarkup(
+      createElement(ParkedScopeBanner, { what: "hàng đợi đăng bài" }),
+    );
+
+    expect(markup).toContain("chỉ dùng để xem");
+    expect(markup).toContain("không đăng được");
+    expect(markup).toContain('href="/accounts"');
+    expect(markup).not.toContain("phạm vi TikTok hiện tại");
   });
 });
 

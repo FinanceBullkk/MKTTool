@@ -21,4 +21,14 @@ describe("setup page composition", () => {
     expect(source).not.toContain('conflict: "shared-windows-account"');
     expect(source).toContain('status: "inspection-failed"');
   });
+
+  it("does not make Browser installer availability a workspace-readiness condition", () => {
+    const source = readFileSync(
+      path.join(process.cwd(), "src/components/setup/onboarding-stepper.tsx"),
+      "utf8",
+    );
+
+    expect(source).toContain("const workspaceReady = checklist.handoff.nextStepId === null;");
+    expect(source).not.toContain("checklist.nextStepId === null && downloadable");
+  });
 });

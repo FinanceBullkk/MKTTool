@@ -1,6 +1,10 @@
 import Link from "next/link";
 import { Card, StatusBadge } from "@/components/ui/page-section";
-import type { SetupChecklist, SetupStep } from "@/lib/setup/setup-checklist";
+import type {
+  SetupChecklist,
+  SetupChecklistSection,
+  SetupStep,
+} from "@/lib/setup/setup-checklist";
 
 const STATE_BADGE: Record<SetupStep["state"], { label: string; className: string }> = {
   done: {
@@ -17,27 +21,33 @@ const STATE_BADGE: Record<SetupStep["state"], { label: string; className: string
   },
 };
 
-export function WorkspaceSetupChecklist({
-  checklist,
+function ChecklistSection({
+  section,
   isAdmin,
+  headingId,
+  title,
+  completeMessage,
+  pendingMessage,
 }: {
-  checklist: SetupChecklist;
+  section: SetupChecklistSection;
   isAdmin: boolean;
+  headingId: string;
+  title: string;
+  completeMessage: React.ReactNode;
+  pendingMessage: string;
 }) {
-  const { steps, nextStepId, doneCount } = checklist;
+  const { steps, nextStepId, doneCount } = section;
 
   return (
-    <section className="space-y-3" aria-labelledby="workspace-setup-heading">
-      <Card title={`Workspace preparation - ${doneCount}/${steps.length} steps`}>
+    <section className="space-y-3" aria-labelledby={headingId}>
+      <Card title={`${title} - ${doneCount}/${steps.length} steps`}>
         {nextStepId === null ? (
-          <p id="workspace-setup-heading" className="text-sm text-emerald-700 dark:text-emerald-400">
-            All technical workspace checks are complete. Continue from the <Link href="/" className="underline">Today page</Link>.
-            These checks do not prove Browser identity isolation; keep the pilot human-controlled.
+          <p id={headingId} className="text-sm text-emerald-700 dark:text-emerald-400">
+            {completeMessage}
           </p>
         ) : (
-          <p id="workspace-setup-heading" className="text-sm text-neutral-600 dark:text-neutral-400">
-            Complete these required technical steps in order. The first unfinished step is highlighted below;
-            a green checklist is not an identity or production-rollout approval.
+          <p id={headingId} className="text-sm text-neutral-600 dark:text-neutral-400">
+            {pendingMessage}
           </p>
         )}
       </Card>
@@ -75,5 +85,43 @@ export function WorkspaceSetupChecklist({
         })}
       </ol>
     </section>
+  );
+}
+
+export function WorkspaceSetupChecklist({
+  checklist,
+  isAdmin,
+}: {
+  checklist: SetupChecklist;
+  isAdmin: boolean;
+}) {
+  return (
+    <div className="space-y-6">
+      <ChecklistSection
+        section={checklist.handoff}
+        isAdmin={isAdmin}
+        headingId="workspace-handoff-heading"
+        title="Workspace handoff"
+        completeMessage={
+          <>
+            The identity workspace handoff is complete. Continue from the{" "}
+            <Link href="/" className="underline">Today page</Link>. Browser installer availability is
+            tracked separately and does not block this checklist.
+          </>
+        }
+        pendingMessage="Complete these required handoff steps in order. The first unfinished step is highlighted below; this checklist does not depend on Browser installer availability or prove identity isolation."
+      />
+
+      {checklist.posting.inRolloutScope ? (
+        <ChecklistSection
+          section={checklist.posting}
+          isAdmin={isAdmin}
+          headingId="posting-setup-heading"
+          title="Posting preparation"
+          completeMessage="Posting preparation is complete for the current rollout scope."
+          pendingMessage="Posting is back in rollout scope. Complete these steps separately from the identity workspace handoff."
+        />
+      ) : null}
+    </div>
   );
 }

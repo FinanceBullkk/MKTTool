@@ -4,6 +4,7 @@ import {
   type EmailAccessList,
   isEmailAllowed,
   normalizeEmail,
+  readAdminContactEmail,
   readEmailAccessList,
   roleForEmail,
 } from "./allowed-emails";
@@ -62,6 +63,14 @@ describe("readEmailAccessList", () => {
 
   it("admin không nằm trong danh sách cho phép thì ném lỗi nêu đích danh email đó", () => {
     expect(() => readEmailAccessList(env("a@x.com", "sep@y.com"))).toThrow(/sep@y\.com/);
+  });
+});
+
+describe("readAdminContactEmail", () => {
+  it("dùng admin đầu tiên đã chuẩn hóa, không dựng một danh sách liên hệ riêng", () => {
+    expect(readAdminContactEmail(env("admin@x.com, b@y.com", " ADMIN@X.com , b@y.com"))).toBe(
+      "admin@x.com",
+    );
   });
 });
 
