@@ -60,8 +60,8 @@ afterAll(async () => {
   await clearAll();
 });
 
-describe("xóa nick — chốt chủ nick", () => {
-  it("người không phải chủ KHÔNG xóa được nick của người khác", async () => {
+describe("delete nick ownership boundary", () => {
+  it("prevents a non-owner from deleting another operator's nick", async () => {
     const accountId = await seedAccount(OWNER.userId);
     actor = OTHER;
 
@@ -72,7 +72,7 @@ describe("xóa nick — chốt chủ nick", () => {
     expect(await prisma.account.count({ where: { id: accountId } })).toBe(1);
   });
 
-  it("chủ nick xóa được nick của mình", async () => {
+  it("allows the nick owner to delete their own nick", async () => {
     const accountId = await seedAccount(OWNER.userId);
     actor = OWNER;
 
@@ -80,7 +80,7 @@ describe("xóa nick — chốt chủ nick", () => {
     expect(await prisma.account.count({ where: { id: accountId } })).toBe(0);
   });
 
-  it("ADMIN xóa được, kể cả nick của người khác", async () => {
+  it("allows ADMIN to delete another operator's nick", async () => {
     const accountId = await seedAccount(OWNER.userId);
     actor = ADMIN;
 
@@ -91,7 +91,7 @@ describe("xóa nick — chốt chủ nick", () => {
    * Nick chưa phân công là ca dễ hở nhất: không có chủ thì "chủ nick" không chặn được ai. Chốt
    * mặc định ĐÓNG — chỉ ADMIN — cùng cách `requireNickOwner` xử ca này cho đường đọc bí mật.
    */
-  it("nick chưa có chủ thì OPERATOR không xóa được, ADMIN thì được", async () => {
+  it("denies OPERATOR but allows ADMIN for an ownerless nick", async () => {
     const orphan = await seedAccount(null);
     actor = OTHER;
     expect((await deleteAccount(orphan)).ok).toBe(false);

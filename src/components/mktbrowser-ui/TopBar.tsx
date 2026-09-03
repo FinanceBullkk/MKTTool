@@ -44,7 +44,7 @@ export function TopBar({
           <Link
             href="/setup"
             className="w-7 h-7 rounded-lg flex items-center justify-center text-neutral-400 hover:bg-white/5 hover:text-white transition-colors"
-            title="Cài đặt"
+            title="Settings"
           >
             <SettingsIcon size={14} />
           </Link>

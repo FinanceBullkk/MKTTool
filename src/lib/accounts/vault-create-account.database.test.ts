@@ -111,8 +111,8 @@ afterAll(async () => {
   await prisma.$disconnect();
 });
 
-describe("vùng khóa của nick vừa tạo", () => {
-  it("ba cột bí mật chỉ mở được bằng khóa operator", async () => {
+describe("new nick vault-key domain", () => {
+  it("opens all three secret fields only with the operator key", async () => {
     const result = await createAccount(
       null,
       createForm({ totpSecretEnc: bocNhuCauNoi("JBSWY3DPEHPK3PXP") }),
@@ -142,7 +142,7 @@ describe("vùng khóa của nick vừa tạo", () => {
   });
 
   /** Máy chủ ghi thẳng thứ nó nhận — không mã hóa lại, không đụng vào nội dung. */
-  it("ciphertext lưu xuống đúng bằng ciphertext cầu nối gửi lên", async () => {
+  it("stores exactly the ciphertext sent by Relay", async () => {
     const boc = bocNhuCauNoi("mat-khau-nick");
 
     await createAccount(null, createForm({ passwordEnc: boc }));
@@ -155,7 +155,7 @@ describe("vùng khóa của nick vừa tạo", () => {
    * Phép thử chính của phase, ở đường tạo: máy chủ **không giữ khóa vùng operator** mà vẫn tạo
    * được nick. Đây là thứ phân biệt "đã tách vùng" với "vẫn tự mã hóa, chỉ đổi tên biến".
    */
-  it("tạo được nick khi máy chủ không có VAULT_KEY_OPERATOR", async () => {
+  it("creates a nick when the server has no VAULT_KEY_OPERATOR", async () => {
     delete process.env.VAULT_KEY_OPERATOR;
     resetVaultKeyCache();
 
@@ -173,7 +173,7 @@ describe("vùng khóa của nick vừa tạo", () => {
  * đó chỉ có được ở trang chi tiết của một nick **đã tồn tại**. Vòng luẩn quẩn đó làm nút "Tạo
  * profile trên máy này" thành nút không bao giờ hiện ra với nick Reddit tạo qua form.
  */
-describe("chặng 1 — khai nick, chưa cần profile", () => {
+describe("step 1 - record the nick before creating a browser profile", () => {
   const redditForm = (overrides: Record<string, string> = {}) =>
     createForm({
       platform: "REDDIT",
@@ -183,7 +183,7 @@ describe("chặng 1 — khai nick, chưa cần profile", () => {
       ...overrides,
     });
 
-  it("nick Reddit tạo được khi CHƯA có id profile", async () => {
+  it("creates a Reddit nick without a browser profile ID", async () => {
     const result = await createAccount(null, redditForm());
 
     expect(result.ok).toBe(true);
@@ -194,14 +194,14 @@ describe("chặng 1 — khai nick, chưa cần profile", () => {
     expect(result.message).toContain("profile");
   });
 
-  it("nick Reddit KHÔNG lưu mật khẩu nick — cột để NULL, không phải chuỗi rỗng", async () => {
+  it("stores NULL rather than an empty nick password for Reddit", async () => {
     await createAccount(null, redditForm());
 
     const account = await prisma.account.findFirstOrThrow();
     expect(account.passwordEnc).toBeNull();
   });
 
-  it("nick Reddit gửi kèm mật khẩu nick thì bị từ chối", async () => {
+  it("rejects a Reddit nick that includes a nick password", async () => {
     const result = await createAccount(null, redditForm({ passwordEnc: bocMatKhau }));
 
     expect(result.ok).toBe(false);
@@ -209,7 +209,7 @@ describe("chặng 1 — khai nick, chưa cần profile", () => {
     expect(await prisma.account.count()).toBe(0);
   });
 
-  it("nick mới chưa đăng nhập lần nào — mốc để trống", async () => {
+  it("leaves first sign-in empty for a new nick", async () => {
     await createAccount(null, redditForm());
 
     const account = await prisma.account.findFirstOrThrow();
@@ -223,8 +223,8 @@ describe("chặng 1 — khai nick, chưa cần profile", () => {
  *
  * Phiên trong file này là **ADMIN**, tức nhánh được phép giao cho người khác.
  */
-describe("chủ nick đặt ngay lúc tạo", () => {
-  it("ADMIN giao được cho người khác ngay từ form", async () => {
+describe("nick owner is set during creation", () => {
+  it("allows ADMIN to assign another teammate from the form", async () => {
     const result = await createAccount(
       null,
       createForm({ platform: "REDDIT", proxyId, passwordEnc: "", ownerId: NAM_ID }),
@@ -235,7 +235,7 @@ describe("chủ nick đặt ngay lúc tạo", () => {
     expect(account.ownerId).toBe(NAM_ID);
   });
 
-  it("ADMIN để trống ô chủ thì nick vô chủ — không tự gán về mình", async () => {
+  it("leaves the nick ownerless when ADMIN clears the owner field", async () => {
     await createAccount(null, createForm({ platform: "REDDIT", proxyId, passwordEnc: "" }));
 
     const account = await prisma.account.findFirstOrThrow();
@@ -243,23 +243,23 @@ describe("chủ nick đặt ngay lúc tạo", () => {
   });
 });
 
-describe("hình dạng ciphertext", () => {
+describe("ciphertext shape", () => {
   /**
    * Phép kiểm duy nhất máy chủ còn làm được với ba cột này — và phải làm. Không có nó thì một
    * form hỏng ghi mật khẩu trần vào database, im lặng, cho tới ngày ai đó mở bản sao lưu ra đọc.
    */
-  it("từ chối mật khẩu dạng trần, không ghi gì", async () => {
+  it("rejects a plaintext password without writing anything", async () => {
     const result = await createAccount(
       null,
       createForm({ passwordEnc: "mat-khau-tran" }),
     );
 
     expect(result.ok).toBe(false);
-    expect(result.message).toContain("cầu nối");
+    expect(result.message).toContain("Relay");
     expect(await prisma.account.count()).toBe(0);
   });
 
-  it("TOTP secret để trống thì cột thành NULL, không phải chuỗi rỗng", async () => {
+  it("stores NULL rather than an empty string for a blank TOTP secret", async () => {
     await createAccount(null, createForm({ totpSecretEnc: "" }));
 
     const account = await prisma.account.findFirstOrThrow();
@@ -277,8 +277,8 @@ describe("hình dạng ciphertext", () => {
  *
  * Nên bài này cố tình đi qua đúng cửa mà giao diện đi: FormData → `createAccount` → database.
  */
-describe("nick TikTok đi hết đường tạo", () => {
-  it("tạo được và ghi đúng nền tảng xuống database", async () => {
+describe("TikTok nick creation", () => {
+  it("creates the nick and stores the correct platform", async () => {
     const result = await createAccount(
       null,
       createForm({ platform: "TIKTOK", proxyId, ownerId: NAM_ID }),
@@ -296,16 +296,16 @@ describe("nick TikTok đi hết đường tạo", () => {
   });
 
   /** Proxy bắt buộc — cùng lý do với Reddit, và phải chặn TRƯỚC khi ghi gì xuống. */
-  it("thiếu proxy thì bị chặn, không ghi bản ghi nào", async () => {
+  it("rejects a missing proxy without writing a record", async () => {
     const result = await createAccount(null, createForm({ platform: "TIKTOK", proxyId: "" }));
 
     expect(result.ok).toBe(false);
-    expect(result.message).toContain("IP nhà");
+    expect(result.message).toContain("home IP");
     expect(await prisma.account.count()).toBe(0);
   });
 
   /** Đăng nhập bằng số điện thoại / Google: không có mật khẩu nick, và đó không phải lỗi. */
-  it("không có mật khẩu nick vẫn tạo được", async () => {
+  it("creates the nick without a nick password", async () => {
     const result = await createAccount(
       null,
       createForm({ platform: "TIKTOK", proxyId, passwordEnc: "" }),

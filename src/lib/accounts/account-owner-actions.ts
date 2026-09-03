@@ -52,7 +52,7 @@ import { describeClusterChange } from "./account-cluster-change";
  * ghim máy. Coi nó là lỗi nhập liệu thì không còn đường nào để gỡ.
  */
 const clusterAssignmentSchema = z.object({
-  accountId: z.string().min(1, "Thiếu nick cần phân công"),
+  accountId: z.string().min(1, "Select a nick to assign, then try again."),
   revision: accountRevisionSchema,
   ownerId: z.string().default(""),
   deviceId: z.string().default(""),
@@ -85,7 +85,7 @@ export const assignAccountCluster = adminAction(async function assignAccountClus
       device: { select: { name: true } },
     },
   });
-  if (!account) return { ok: false, message: "Không tìm thấy nick." };
+  if (!account) return { ok: false, message: "Nick not found. Return to the nick vault and try again." };
 
   // Gỡ chủ là gỡ luôn máy. Nick không có chủ mà vẫn ghim vào máy của ai đó là đúng hàng lệch
   // mà bất biến ở trên cấm — và để nó tồn tại thì vé vẫn bay về chiếc máy ấy dù sổ nói nick
@@ -93,7 +93,8 @@ export const assignAccountCluster = adminAction(async function assignAccountClus
   if (ownerId === "" && deviceId !== "") {
     return {
       ok: false,
-      message: "Gỡ chủ thì phải gỡ cả máy — nick không có chủ không ghim vào máy của ai được.",
+      message:
+        "Removing the nick owner also requires removing its Relay PC assignment. A nick without an owner cannot remain assigned to anyone's Relay PC.",
     };
   }
 
@@ -103,7 +104,12 @@ export const assignAccountCluster = adminAction(async function assignAccountClus
       where: { id: ownerId },
       select: { email: true },
     });
-    if (!owner) return { ok: false, message: "Không tìm thấy người dùng này." };
+    if (!owner) {
+      return {
+        ok: false,
+        message: "The selected teammate was not found. Refresh the page and choose a current teammate.",
+      };
+    }
 
     // Hàng `User` chỉ chứng minh họ **từng** đăng nhập được, không chứng minh bây giờ vẫn còn
     // trong team. Gán nick cho người đã bị gỡ khỏi `ALLOWED_EMAILS` là dựng ra một nick mà
@@ -113,8 +119,8 @@ export const assignAccountCluster = adminAction(async function assignAccountClus
       return {
         ok: false,
         message:
-          `${owner.email} không còn trong ALLOWED_EMAILS nên không đăng nhập được nữa — gán nick ` +
-          `cho họ thì không ai mở được bí mật của nick đó. Thêm lại vào .env, hoặc chọn người khác.`,
+          `${owner.email} no longer has sign-in access. Assigning the nick to them would leave ` +
+          `its secrets inaccessible. Restore their access in the server settings or choose another teammate.`,
       };
     }
     ownerEmail = owner.email;
@@ -126,14 +132,19 @@ export const assignAccountCluster = adminAction(async function assignAccountClus
       where: { id: deviceId },
       select: { name: true, revokedAt: true, userId: true, user: { select: { email: true } } },
     });
-    if (!device) return { ok: false, message: "Không tìm thấy máy này trong sổ cầu nối." };
+    if (!device) {
+      return {
+        ok: false,
+        message: "The selected Relay PC is not registered. Refresh the page or register it before assigning the nick.",
+      };
+    }
 
     if (device.revokedAt) {
       return {
         ok: false,
         message:
-          `Máy "${device.name}" đã bị thu hồi nên không nhận được vé nào nữa. Chọn máy khác, ` +
-          `hoặc để trống ô máy rồi ghim lại sau khi người đó đăng ký máy mới.`,
+          `Relay PC "${device.name}" has been revoked and cannot receive tickets. Choose another ` +
+          `Relay PC, or leave the field empty and assign a new one after it is registered.`,
       };
     }
 
@@ -141,8 +152,8 @@ export const assignAccountCluster = adminAction(async function assignAccountClus
       return {
         ok: false,
         message:
-          `Máy "${device.name}" là của ${device.user.email}, không phải của người bạn vừa chọn. ` +
-          `Vé được mã hóa cho đúng một máy, nên ghim lệch là phát một tấm vé chắc chắn hỏng.`,
+          `Relay PC "${device.name}" belongs to ${device.user.email}, not the selected nick owner. ` +
+          `Tickets are encrypted for exactly one Relay PC, so this mismatch would issue unusable tickets.`,
       };
     }
     deviceName = device.name;
@@ -157,7 +168,10 @@ export const assignAccountCluster = adminAction(async function assignAccountClus
   });
 
   if (change.auditActions.length === 0) {
-    return { ok: true, message: `Không có gì đổi cho nick "${account.username}".` };
+    return {
+      ok: true,
+      message: `No assignment changes were made for nick "${account.username}". Review the current owner and Relay PC, then continue.`,
+    };
   }
 
   const didUpdate = await prisma.$transaction(async (tx) => {
@@ -180,5 +194,9 @@ export const assignAccountCluster = adminAction(async function assignAccountClus
 
   revalidatePath("/accounts");
   revalidatePath(`/accounts/${accountId}`);
-  return { ok: true, message: `Nick "${account.username}": ${change.message}` };
+  const changeMessage = change.message.endsWith(".") ? change.message : `${change.message}.`;
+  return {
+    ok: true,
+    message: `Nick "${account.username}": ${changeMessage} Verify the owner and Relay PC before continuing.`,
+  };
 });

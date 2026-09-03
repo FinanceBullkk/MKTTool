@@ -67,12 +67,13 @@ export const updateProxy = adminAction(async function updateProxy(
     if (isUniqueConstraintError(error)) {
       return {
         ok: false,
-        message: "Proxy trùng nhãn hoặc trùng host/port/username đã có.",
+        message:
+          "A proxy with this label or host/port/username already exists. Use unique proxy details and try again.",
       };
     }
     return {
       ok: false,
-      message: describeUnexpectedDbError(error, "sửa proxy"),
+      message: describeUnexpectedDbError(error, "update the proxy"),
     };
   }
 
@@ -82,10 +83,10 @@ export const updateProxy = adminAction(async function updateProxy(
   return {
     ok: true,
     message:
-      `Đã lưu proxy "${data.label}".` +
+      `Proxy "${data.label}" saved.` +
       (password
-        ? " Mật khẩu mới sẽ được đẩy sang profile ở lần mở tiếp theo."
-        : ""),
+        ? " The new password will be applied to the browser profile the next time it opens."
+        : " No further action is needed."),
   };
 });
 
@@ -111,7 +112,12 @@ export const updateAccount = guardedAction(async function updateAccount(
     where: { id },
     select: { platform: true, status: true, proxyId: true, antidetectProfileId: true },
   });
-  if (!existing) return { ok: false, message: "Không tìm thấy nick cần sửa." };
+  if (!existing) {
+    return {
+      ok: false,
+      message: "The nick to update was not found. Return to the nick vault and try again.",
+    };
+  }
 
   if (nextProxyId !== existing.proxyId) {
     await requireAdmin(
@@ -210,11 +216,11 @@ export const updateAccount = guardedAction(async function updateAccount(
       return {
         ok: false,
         message:
-          "Không lưu được. Kiểm tra: proxy đã gắn nick khác chưa, " +
-          "profile antidetect đã dùng chưa, username đã tồn tại trên nền tảng này chưa.",
+          "The nick could not be saved. Check whether its proxy or browser profile belongs to " +
+          "another nick, or whether the username already exists on this platform.",
       };
     }
-    return { ok: false, message: describeUnexpectedDbError(error, "sửa nick") };
+    return { ok: false, message: describeUnexpectedDbError(error, "update the nick") };
   }
 
   if (!didUpdate) return { ok: false, message: STALE_ACCOUNT_WRITE_MESSAGE };
@@ -227,7 +233,7 @@ export const updateAccount = guardedAction(async function updateAccount(
   revalidatePath("/queue");
   return {
     ok: true,
-    message: `Đã lưu nick "${data.username}".${describeRecheck(recheck)}`,
+    message: `Nick "${data.username}" saved.${describeRecheck(recheck)}`,
   };
 });
 
@@ -251,12 +257,12 @@ export const updateTarget = guardedAction(async function updateTarget(
     if (isUniqueConstraintError(error)) {
       return {
         ok: false,
-        message: `Đích "${data.name}" đã tồn tại trên nền tảng này.`,
+        message: `Posting target "${data.name}" already exists on this platform. Use the existing target or choose another name.`,
       };
     }
     return {
       ok: false,
-      message: describeUnexpectedDbError(error, "sửa đích đăng"),
+      message: describeUnexpectedDbError(error, "update the posting target"),
     };
   }
 
@@ -268,6 +274,6 @@ export const updateTarget = guardedAction(async function updateTarget(
   revalidatePath("/queue");
   return {
     ok: true,
-    message: `Đã lưu đích "${data.name}".${describeRecheck(recheck)}`,
+    message: `Posting target "${data.name}" saved.${describeRecheck(recheck)}`,
   };
 });

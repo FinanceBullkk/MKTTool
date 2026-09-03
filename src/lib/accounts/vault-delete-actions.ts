@@ -36,25 +36,28 @@ export const deleteProxy = adminAction(async function deleteProxy(
     where: { id: proxyId },
     include: { account: { select: { username: true } } },
   });
-  if (!proxy) return { ok: false, message: "Không tìm thấy proxy." };
+  if (!proxy) return { ok: false, message: "Proxy not found. Return to the proxy list and try again." };
 
   if (proxy.account) {
     return {
       ok: false,
       message:
-        `Không xóa được proxy "${proxy.label}": đang gắn với nick "${proxy.account.username}". ` +
-        "Gán nick đó sang proxy khác trước — nick không có proxy là nick chạy bằng IP nhà.",
+        `Proxy "${proxy.label}" cannot be deleted because it is assigned to nick ` +
+        `"${proxy.account.username}". Assign that nick another proxy first; otherwise it would use your home IP.`,
     };
   }
 
   try {
     await prisma.proxy.delete({ where: { id: proxyId } });
   } catch (error) {
-    return { ok: false, message: describeUnexpectedDbError(error, "xóa proxy") };
+    return { ok: false, message: describeUnexpectedDbError(error, "delete the proxy") };
   }
 
   revalidatePath("/proxies");
-  return { ok: true, message: `Đã xóa proxy "${proxy.label}".` };
+  return {
+    ok: true,
+    message: `Proxy "${proxy.label}" deleted. It is no longer available for nick assignment.`,
+  };
 });
 
 /**
@@ -88,25 +91,25 @@ export const deleteAccount = guardedAction(async function deleteAccount(
       },
     },
   });
-  if (!account) return { ok: false, message: "Không tìm thấy nick." };
+  if (!account) return { ok: false, message: "Nick not found. Return to the nick vault and try again." };
 
   const blocked = blockDeleteWhenReferenced(
     `nick "${account.username}"`,
     [
       { label: "job", count: account._count.jobs },
-      { label: "tương tác đã ghi", count: account._count.interactions },
-      { label: "kết nối Facebook", count: account._count.facebookConnections },
-      { label: "Fanpage nhận nick này làm quản trị", count: account._count.facebookPages },
+      { label: "recorded interactions", count: account._count.interactions },
+      { label: "Facebook connections", count: account._count.facebookConnections },
+      { label: "Facebook Pages administered by this nick", count: account._count.facebookPages },
     ],
-    "Nick không dùng nữa thì đổi trạng thái sang \"Đã chết\" — lịch sử giữ nguyên để bộ luật " +
-      "còn đếm hạn mức và tỷ lệ promo cho những nick còn lại.",
+    'If this nick is no longer used, change its status to "Dead" instead. Its history must remain ' +
+      "so the rules can still count limits and promotional ratios for the other nicks.",
   );
   if (blocked) return { ok: false, message: blocked.message };
 
   try {
     await prisma.account.delete({ where: { id: accountId } });
   } catch (error) {
-    return { ok: false, message: describeUnexpectedDbError(error, "xóa nick") };
+    return { ok: false, message: describeUnexpectedDbError(error, "delete the nick") };
   }
 
   // AuditLog cố ý giữ lại: accountId của nó không có ràng buộc khóa ngoại, và nhật ký thao tác
@@ -115,8 +118,10 @@ export const deleteAccount = guardedAction(async function deleteAccount(
   return {
     ok: true,
     message:
-      `Đã xóa nick "${account.username}".` +
-      (account.proxy ? ` Proxy "${account.proxy.label}" giờ gắn được cho nick khác.` : ""),
+      `Nick "${account.username}" deleted. ` +
+      (account.proxy
+        ? `Proxy "${account.proxy.label}" can now be assigned to another nick.`
+        : "Return to the nick vault to continue."),
   };
 });
 
@@ -131,26 +136,34 @@ export const deleteTarget = guardedAction(async function deleteTarget(
       facebookPage: { select: { name: true } },
     },
   });
-  if (!target) return { ok: false, message: "Không tìm thấy đích đăng." };
+  if (!target) {
+    return {
+      ok: false,
+      message: "Posting target not found. Return to the target list and try again.",
+    };
+  }
 
   const blocked = blockDeleteWhenReferenced(
-    `đích "${target.name}"`,
+    `posting target "${target.name}"`,
     [
       { label: "job", count: target._count.jobs },
-      { label: "tương tác đã ghi", count: target._count.interactions },
-      { label: "Fanpage đang nối", count: target.facebookPage ? 1 : 0 },
+      { label: "recorded interactions", count: target._count.interactions },
+      { label: "connected Facebook Page", count: target.facebookPage ? 1 : 0 },
     ],
-    "Đích không dùng nữa thì bỏ tick \"Đang dùng\" — nó biến khỏi ô chọn lúc xếp lịch mà " +
-      "lịch sử vẫn còn cho bộ luật đếm.",
+    'If this target is no longer used, clear "Active" instead. It will disappear from scheduling ' +
+      "while its history remains available to the rules.",
   );
   if (blocked) return { ok: false, message: blocked.message };
 
   try {
     await prisma.platformTarget.delete({ where: { id: targetId } });
   } catch (error) {
-    return { ok: false, message: describeUnexpectedDbError(error, "xóa đích đăng") };
+    return { ok: false, message: describeUnexpectedDbError(error, "delete the posting target") };
   }
 
   revalidatePath("/targets");
-  return { ok: true, message: `Đã xóa đích "${target.name}".` };
+  return {
+    ok: true,
+    message: `Posting target "${target.name}" deleted. It is no longer available for scheduling.`,
+  };
 });

@@ -142,7 +142,7 @@ export function AccountVaultForm({
       setState(result);
       if (result.ok && revision) router.refresh();
     } catch {
-      setState({ ok: false, message: "Không lưu được. Tải lại trang rồi thử lại." });
+      setState({ ok: false, message: "The nick could not be saved. Reload the page and try again." });
     } finally {
       setPending(false);
     }
@@ -156,7 +156,7 @@ export function AccountVaultForm({
       setState(result);
       if (result.ok && revision) router.refresh();
     } catch {
-      setState({ ok: false, message: "Không lưu được. Tải lại trang rồi thử lại." });
+      setState({ ok: false, message: "The nick could not be saved. Reload the page and try again." });
     } finally {
       setPending(false);
     }

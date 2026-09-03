@@ -106,7 +106,7 @@ export const requestCredentialTicket = guardedAction(async function requestCrede
     where: { id: accountId },
     select: { username: true, passwordEnc: true, emailPasswordEnc: true, deviceId: true },
   });
-  if (!account) return { ok: false, message: "Không tìm thấy nick." };
+  if (!account) return { ok: false, message: "Nick not found. Return to the nick vault and try again." };
 
   // Cột rỗng là thứ máy chủ VẪN kiểm được dù không đọc nổi nội dung — cùng lý do với nhánh TOTP
   // ở `requestOtpTicket`. Nick Reddit đăng nhập bằng Google nên `passwordEnc` là NULL với mọi nick
@@ -118,9 +118,9 @@ export const requestCredentialTicket = guardedAction(async function requestCrede
       ok: false,
       message:
         field === "password"
-          ? `Nick "${account.username}" không có mật khẩu riêng — nó đăng nhập bằng tài khoản ` +
-            `Google, nên thứ mở được nó là nút "Mật khẩu Google".`
-          : `Nick "${account.username}" chưa lưu mật khẩu email.`,
+          ? `Nick "${account.username}" has no separate password because it signs in with its ` +
+            `Google account. Use "Google password" instead.`
+          : `Nick "${account.username}" has no saved email password. Add one in the Edit nick card first.`,
     };
   }
 
@@ -165,11 +165,16 @@ export const requestOtpTicket = guardedAction(async function requestOtpTicket(
     where: { id: accountId },
     select: { totpSecretEnc: true, deviceId: true },
   });
-  if (!account) return { ok: false, message: "Không tìm thấy nick." };
+  if (!account) return { ok: false, message: "Nick not found. Return to the nick vault and try again." };
 
   // Cột rỗng là thứ máy chủ VẪN kiểm được dù không đọc nổi nội dung — và phải kiểm ở đây, không
   // thì người dùng đợi một tab mở ra chỉ để đọc "nick này chưa có 2FA".
-  if (!account.totpSecretEnc) return { ok: false, message: "Nick này chưa lưu TOTP secret." };
+  if (!account.totpSecretEnc) {
+    return {
+      ok: false,
+      message: "This nick has no saved TOTP secret. Add one in the Edit nick card before requesting an OTP.",
+    };
+  }
 
   const recipient = await pickRecipient(actor, accountId, account.deviceId, deviceId);
   if (!recipient.ok) return { ok: false, message: recipient.message };

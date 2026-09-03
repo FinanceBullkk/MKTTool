@@ -52,10 +52,13 @@ export const markFirstLogin = guardedAction(async function markFirstLogin(
     where: { id: accountId },
     select: { username: true, antidetectProfileId: true, firstLoginAt: true },
   });
-  if (!account) return { ok: false, message: "Không tìm thấy nick." };
+  if (!account) return { ok: false, message: "Nick not found. Return to the nick vault and try again." };
 
   if (account.firstLoginAt) {
-    return { ok: true, message: `Nick "${account.username}" đã được đánh dấu từ trước.` };
+    return {
+      ok: true,
+      message: `Nick "${account.username}" was already marked as signed in. No further action is needed.`,
+    };
   }
 
   // Chưa có profile mà khai đã đăng nhập là một câu vô nghĩa — không có chỗ nào để đăng nhập vào.
@@ -64,8 +67,8 @@ export const markFirstLogin = guardedAction(async function markFirstLogin(
     return {
       ok: false,
       message:
-        `Nick "${account.username}" chưa có profile antidetect nên chưa có chỗ nào để đăng nhập ` +
-        `vào. Dựng profile trước.`,
+        `Nick "${account.username}" has no browser profile, so there is nowhere to sign in. ` +
+        `Create its browser profile first.`,
     };
   }
 
@@ -86,7 +89,7 @@ export const markFirstLogin = guardedAction(async function markFirstLogin(
   return {
     ok: true,
     message:
-      `Đã ghi nhận. Nick "${account.username}" xong phần cấu hình — từ giờ chỉ còn chờ hết ` +
-      `cold-start là đăng bài được.`,
+      `First sign-in recorded for nick "${account.username}". Its setup is complete; wait for ` +
+      `cold-start to end before posting.`,
   };
 });

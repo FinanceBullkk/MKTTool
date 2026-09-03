@@ -50,7 +50,9 @@ export const dateTimeInput = z.preprocess((value) => {
   return parseDateTimeInput(value);
 }, z.coerce.date());
 
-export const requiredId = z.string().min(1, "Thiếu id bản ghi cần sửa");
+export const requiredId = z
+  .string()
+  .min(1, "The record ID is missing. Reload the page and try again.");
 
 /** Revision emitted by the server-rendered form for optimistic concurrency checks. */
 export const accountRevisionSchema = z
@@ -75,9 +77,9 @@ export const STALE_ACCOUNT_WRITE_MESSAGE =
 function encryptedCredential(label: string) {
   return z.string().refine(isEncryptedCredentialShape, {
     message:
-      `Ô "${label}" gửi lên không phải chuỗi đã mã hóa. Bí mật nick phải được cầu nối trên máy ` +
-      `bạn mã hóa trước khi gửi đi — máy chủ không có khóa để tự làm việc đó. Tải lại trang; ` +
-      `nếu vẫn vậy thì cầu nối chưa chạy.`,
+      `The "${label}" field was not encrypted. Relay on your PC must encrypt nick secrets before ` +
+      `they are sent because the server does not hold that key. Reload the page; if this continues, ` +
+      `start Relay and try again.`,
   });
 }
 
@@ -94,7 +96,7 @@ export function formToObject(formData: FormData): Record<string, unknown> {
 }
 
 export function firstError(error: z.ZodError): string {
-  return error.issues[0]?.message ?? "Dữ liệu không hợp lệ";
+  return error.issues[0]?.message ?? "The form data is invalid. Review the fields and try again.";
 }
 
 /** Checkbox không được tick thì không xuất hiện trong FormData — phải tự bù về boolean. */
@@ -105,11 +107,11 @@ export function normalizeCheckbox(raw: Record<string, unknown>, name: string): v
 // ─── Proxy ───────────────────────────────────────────────────────────────────
 
 const proxyShape = {
-  label: z.string().min(1, "Nhãn không được để trống"),
-  host: z.string().min(1, "Host không được để trống"),
+  label: z.string().min(1, "Proxy label is required. Enter a label and try again."),
+  host: z.string().min(1, "Proxy host is required. Enter the host and try again."),
   port: z.coerce.number().int().min(1).max(65535),
-  username: z.string().min(1, "Username không được để trống"),
-  country: z.string().min(2, "Nhập mã quốc gia, ví dụ US"),
+  username: z.string().min(1, "Proxy username is required. Enter it and try again."),
+  country: z.string().min(2, "Enter a country code such as US, then try again."),
   type: z.enum(["STATIC_ISP", "MOBILE"]),
   // Giao thức mạng — thứ được đẩy sang antidetect browser. Khác `type` (cách mua proxy).
   protocol: z.enum(["http", "socks5"]),
@@ -118,7 +120,7 @@ const proxyShape = {
 
 export const proxyCreateSchema = z.object({
   ...proxyShape,
-  password: z.string().min(1, "Mật khẩu không được để trống"),
+  password: z.string().min(1, "Proxy password is required. Enter it and try again."),
 });
 
 /** Sửa proxy: để trống ô mật khẩu là giữ nguyên mật khẩu cũ. */
@@ -146,8 +148,10 @@ const accountShape = {
    * trang, nhưng đó là may — cùng lớp lỗi với chuyện gõ sai username, mà lớp lỗi đó dẫn
    * thẳng tới kết luận 404 → tự cách ly một nick đang khỏe.
    */
-  username: z.string().trim().min(1, "Username không được để trống"),
-  emailAddress: z.string().email("Email gốc không hợp lệ"),
+  username: z.string().trim().min(1, "Nick username is required. Enter it and try again."),
+  emailAddress: z
+    .string()
+    .email("The original email address is invalid. Enter a valid email address and try again."),
   /**
    * Luôn tùy chọn ở cả hai đường, kể cả với nick Reddit.
    *
@@ -229,12 +233,12 @@ export function validatePlatformAccountFields(
   if (platform === "REDDIT") {
     if (values.passwordEnc?.trim()) {
       return (
-        "Nick Reddit đăng nhập bằng tài khoản Google nên không có mật khẩu riêng — " +
-        'thứ mở được nick nằm ở ô "Mật khẩu Google".'
+        "A Reddit nick signs in with its Google account and must not have a separate nick password. " +
+        'Remove it and use the "Google password" field instead.'
       );
     }
     if (!values.proxyId?.trim()) {
-      return "Nick Reddit bắt buộc gắn một proxy — thiếu nó là nick chạy bằng IP nhà.";
+      return "A Reddit nick requires a proxy. Assign one before saving, or it would use your home IP.";
     }
     return null;
   }
@@ -250,13 +254,13 @@ export function validatePlatformAccountFields(
    */
   if (platform === "TIKTOK") {
     if (!values.proxyId?.trim()) {
-      return "Nick TikTok bắt buộc gắn một proxy — thiếu nó là nick chạy bằng IP nhà.";
+      return "A TikTok nick requires a proxy. Assign one before saving, or it would use your home IP.";
     }
     return null;
   }
 
   if (options.creating && !values.passwordEnc?.trim()) {
-    return "Nick Facebook phải có mật khẩu nick.";
+    return "A Facebook nick requires a nick password. Enter it before saving.";
   }
   return null;
 }
@@ -290,8 +294,8 @@ const accountCreateBase = z.object({
    * Không đánh dấu `required` ngay đây được: nick Reddit **phải** để trống ô này, nên một luật
    * cứng ở tầng schema sẽ chặn đúng trường hợp thường gặp nhất.
    */
-  passwordEnc: optionalEncryptedCredential("Mật khẩu nick"),
-  emailPasswordEnc: encryptedCredential("Mật khẩu email"),
+  passwordEnc: optionalEncryptedCredential("Nick password"),
+  emailPasswordEnc: encryptedCredential("Email password"),
   totpSecretEnc: optionalEncryptedCredential("TOTP secret"),
   /**
    * Người phụ trách, đặt ngay lúc tạo — **chỉ có ở đường tạo**.
@@ -319,8 +323,8 @@ export const accountUpdateSchema = z.object({
   ...accountShape,
   id: requiredId,
   revision: accountRevisionSchema,
-  passwordEnc: optionalEncryptedCredential("Mật khẩu nick"),
-  emailPasswordEnc: optionalEncryptedCredential("Mật khẩu email"),
+  passwordEnc: optionalEncryptedCredential("Nick password"),
+  emailPasswordEnc: optionalEncryptedCredential("Email password"),
   totpSecretEnc: optionalEncryptedCredential("TOTP secret"),
 });
 
@@ -331,8 +335,8 @@ export function accountUpdateSchemaFor(platform: string) {
 // ─── Đích đăng ───────────────────────────────────────────────────────────────
 
 const targetShape = {
-  name: z.string().min(1, "Tên đích không được để trống"),
-  url: z.string().url("URL không hợp lệ"),
+  name: z.string().min(1, "Posting target name is required. Enter a name and try again."),
+  url: z.string().url("The URL is invalid. Enter a complete URL and try again."),
   minKarma: z.coerce.number().int().min(0).default(0),
   minAccountAgeDays: z.coerce.number().int().min(0).default(0),
   promoRatio: z.coerce.number().int().min(0).default(9),
@@ -355,10 +359,12 @@ export const targetUpdateSchema = z.object({
 // ─── Content ─────────────────────────────────────────────────────────────────
 
 const contentItemShape = {
-  title: z.string().min(1, "Tiêu đề không được để trống"),
-  body: z.string().min(1, "Thân bài không được để trống"),
+  title: z.string().min(1, "Content title is required. Enter a title and try again."),
+  body: z.string().min(1, "Content body is required. Enter the content and try again."),
   type: z.enum(CONTENT_TYPES),
-  authorName: z.string().min(1, "Ghi tên người viết để sau còn truy được"),
+  authorName: z
+    .string()
+    .min(1, "Author name is required. Enter it so the content can be traced later."),
   linksText: z.string().optional(),
 };
 

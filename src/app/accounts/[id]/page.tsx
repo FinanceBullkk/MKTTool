@@ -97,44 +97,47 @@ export default async function AccountDetailPage({
   }));
 
   const facts: [string, string][] = [
-    ["Nền tảng", account.platform],
-    ["Giọng viết", account.voice ?? "— chưa ghi"],
-    ["Mảng nội dung", account.contentAngle ?? "— chưa ghi"],
+    ["Platform", account.platform],
+    ["Writing voice", account.voice ?? "Not recorded"],
+    ["Content focus", account.contentAngle ?? "Not recorded"],
     [
       "Proxy",
       account.proxy
         ? `${account.proxy.label} — ${account.proxy.protocol}://${account.proxy.host}:${account.proxy.port} ` +
           `(${account.proxy.country})`
-        : "— không gắn (đăng Fanpage bằng Graph API thì không cần)",
+        : "Not assigned (Facebook Pages using the Graph API do not need one)",
     ],
     [
-      "Người phụ trách",
+      "Nick owner",
       account.owner
         ? account.owner.email
-        : "— chưa phân công (chỉ quản trị viên lấy được mật khẩu và OTP)",
+        : "Not assigned (only administrators can read the password and OTP)",
     ],
-    ["Browser profile", account.antidetectProfileId ?? "— không có (không mở được browser profile)"],
     [
-      "Đăng nhập lần đầu",
+      "Browser profile",
+      account.antidetectProfileId ?? "Missing (the browser profile cannot be opened)",
+    ],
+    [
+      "First sign-in",
       account.firstLoginAt
         ? formatFullDateTime(account.firstLoginAt)
         : browserNick && account.antidetectProfileId
-          ? "— chưa (browser profile đang trống, chưa có phiên đăng nhập nào)"
+          ? "Not completed (the browser profile has no signed-in session)"
           : "—",
     ],
     [
       "Relay PC",
       account.device
-        ? `${account.device.name}${account.device.revokedAt ? " — ĐÃ THU HỒI, phải gán lại" : ""}`
-        : "— chưa gán (browser profile chỉ có nghĩa trên đúng Relay PC tạo ra nó)",
+        ? `${account.device.name}${account.device.revokedAt ? " - REVOKED, reassign it" : ""}`
+        : "Not assigned (the browser profile is valid only on the Relay PC that created it)",
     ],
-    ["Email gốc", account.emailAddress],
+    ["Original email", account.emailAddress],
     ["Karma", String(account.karma)],
-    ["Tuổi nick", age === null ? "—" : `${age} ngày`],
-    ["Ngày tạo trên nền tảng", formatDate(account.platformCreatedAt)],
-    ["Ngày mua", formatDate(account.purchasedAt)],
-    ["Cold-start tới", account.coldStartUntil ? formatDate(account.coldStartUntil) : "—"],
-    ["Hoạt động gần nhất", account.lastActionAt ? formatFullDateTime(account.lastActionAt) : "—"],
+    ["Nick age", age === null ? "—" : `${age} days`],
+    ["Platform creation date", formatDate(account.platformCreatedAt)],
+    ["Purchase date", formatDate(account.purchasedAt)],
+    ["Cold-start until", account.coldStartUntil ? formatDate(account.coldStartUntil) : "—"],
+    ["Latest activity", account.lastActionAt ? formatFullDateTime(account.lastActionAt) : "—"],
   ];
 
   return (
@@ -146,14 +149,14 @@ export default async function AccountDetailPage({
       <PageHeading title={account.username} />
 
       <p className="mb-4 text-sm text-neutral-600 dark:text-neutral-400">
-        Các trạng thái bên dưới chỉ phản ánh cấu hình và quyền thao tác hiện tại. Chúng không chứng
-        minh cô lập danh tính của trình duyệt; đăng nhập và nhập liệu vẫn do người vận hành thực hiện.
+        The states below reflect current configuration and permissions only. They do not prove
+        browser identity isolation; sign-in and typing remain operator-controlled.
       </p>
 
       <div className="mb-6 flex flex-wrap items-center gap-3">
         <StatusBadge label={presentation.label} className={presentation.className} />
         {coldDays > 0 ? (
-          <span className="text-sm text-neutral-500">cold-start còn {coldDays} ngày</span>
+          <span className="text-sm text-neutral-500">{coldDays} cold-start days remaining</span>
         ) : null}
         <span className="text-sm text-neutral-600 dark:text-neutral-400">{presentation.hint}</span>
       </div>
@@ -162,7 +165,7 @@ export default async function AccountDetailPage({
           trước, và hộp đỏ "dừng đăng ngay" nằm dưới nhãn "Khỏe" là màn hình tự cãi nhau. */}
       {account.quarantineReason && isQuarantinedStatus(account.status) ? (
         <div className="mb-6 rounded-md border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-300">
-          <strong>Lý do cách ly:</strong> {account.quarantineReason}
+          <strong>Quarantine reason:</strong> {account.quarantineReason}
         </div>
       ) : null}
 
@@ -189,12 +192,12 @@ export default async function AccountDetailPage({
           />
         </Card>
       ) : browserNick && account.firstLoginAt === null ? (
-        <Card title="Việc tiếp theo — đăng nhập lần đầu">
+        <Card title="Next step - complete first sign-in">
           <FirstLoginCard accountId={account.id} usesGoogleLogin={usesGoogleLogin} />
         </Card>
       ) : null}
 
-      <Card title="Thao tác">
+      <Card title="Actions">
         <AccountVaultActionsPanel
           accountId={account.id}
           hasTotp={account.totpSecretEnc !== null}
@@ -207,7 +210,7 @@ export default async function AccountDetailPage({
         />
       </Card>
 
-      <Card title="Thông tin">
+      <Card title="Details">
         <dl className="grid gap-x-8 gap-y-3 sm:grid-cols-2">
           {facts.map(([label, value]) => (
             <div key={label}>
@@ -218,7 +221,7 @@ export default async function AccountDetailPage({
         </dl>
         {account.purchaseNote ? (
           <p className="mt-4 text-sm text-neutral-600 dark:text-neutral-400">
-            <span className="text-xs uppercase tracking-wide text-neutral-500">Ghi chú mua: </span>
+            <span className="text-xs uppercase tracking-wide text-neutral-500">Purchase notes: </span>
             {account.purchaseNote}
           </p>
         ) : null}
@@ -231,11 +234,11 @@ export default async function AccountDetailPage({
           hay ai làm được. Chặn THẬT nằm ở `adminAction` bọc ngoài server action, nên hiện thông
           tin ra không nới lỏng gì cả. */}
       {viewer?.role !== "ADMIN" ? (
-        <Card title="Phân công cụm">
+        <Card title="Nick assignment">
           <dl className="mb-4 grid gap-x-8 gap-y-3 sm:grid-cols-2">
             <div>
-              <dt className="text-xs uppercase tracking-wide text-neutral-500">Người phụ trách</dt>
-              <dd className="mt-0.5 text-sm">{account.owner?.email ?? "— chưa phân công"}</dd>
+              <dt className="text-xs uppercase tracking-wide text-neutral-500">Nick owner</dt>
+              <dd className="mt-0.5 text-sm">{account.owner?.email ?? "Not assigned"}</dd>
             </div>
             <div>
               <dt className="text-xs uppercase tracking-wide text-neutral-500">Relay PC</dt>
@@ -243,24 +246,25 @@ export default async function AccountDetailPage({
             </div>
           </dl>
           <p className="text-sm text-neutral-600 dark:text-neutral-400">
-            Hai ô này do <strong>quản trị viên</strong> gán. Người phụ trách là người duy nhất
-            ngoài quản trị viên xin được mật khẩu và mã OTP của nick; Relay PC quyết định vé bay
-            về đâu. Cần đổi thì nhắn quản trị viên — kể cả khi nick này là của bạn.
+            An <strong>administrator</strong> assigns both fields. The nick owner is the only person
+            besides administrators who can request its password and OTP; the Relay PC determines
+            where each ticket is delivered. Ask an administrator to change either field, even for
+            your own nick.
           </p>
         </Card>
       ) : (
-        <Card title="Phân công cụm">
+        <Card title="Nick assignment">
           <p className="mb-4 text-sm text-neutral-600 dark:text-neutral-400">
-            Hai ô này đi cùng nhau. <strong>Người phụ trách</strong> là người duy nhất ngoài quản
-            trị viên <em>xin</em> được mật khẩu và mã OTP của nick; <strong>Relay PC</strong>{" "}
-            quyết định vé bay <em>về đâu</em>. Ngoài hai chuyện đó thì không có gì bị chia: cả team
-            vẫn thấy nick, job và lịch sử của nhau, và bộ luật vẫn quét toàn bộ đàn nick — luật
-            chống đụng độ thread phải nêu đúng tên nick của đồng nghiệp thì mới dùng được.
+            These fields stay together. The <strong>nick owner</strong> is the only person besides
+            administrators who can <em>request</em> its password and OTP; the <strong>Relay PC</strong>{" "}
+            determines <em>where</em> each ticket is delivered. Nothing else is separated: the team
+            can still see shared nicks, jobs, and history, and the rules still evaluate the entire
+            vault so thread-collision warnings can name a teammate&apos;s nick.
           </p>
           <p className="mb-4 text-sm text-neutral-600 dark:text-neutral-400">
-            Relay PC phải thuộc <strong>chính người phụ trách</strong>, vì vé được mã hóa cho đúng
-            một Relay PC. Chọn lệch thì công cụ từ chối kèm lý do chứ không lưu. Để trống ô người
-            là <strong>gỡ chủ</strong>, và gỡ chủ thì gỡ luôn Relay PC.
+            The Relay PC must belong to the <strong>nick owner</strong> because each ticket is
+            encrypted for exactly one Relay PC. A mismatched assignment is rejected and not saved.
+            Leaving the owner blank <strong>removes ownership</strong> and also removes the Relay PC.
           </p>
           <p className="mb-4 text-sm text-amber-700 dark:text-amber-400">
             <strong>Moving a browser profile to another Relay PC:</strong> browser profiles do not
@@ -272,10 +276,9 @@ export default async function AccountDetailPage({
 
           {teamMembers.length === 0 ? (
             <p className="text-sm text-amber-700 dark:text-amber-400">
-              Chưa ai trong team đăng nhập lần nào nên chưa có người để giao. Danh sách này chỉ
-              gồm người đã đăng nhập ít nhất một lần — khai email vào{" "}
-              <code>ALLOWED_EMAILS</code> thôi thì chưa đủ, họ phải vào một lần để công cụ biết
-              họ là ai.
+              No teammate has signed in yet, so there is nobody to assign. This list includes only
+              people who have signed in at least once. Granting access is not enough; that person
+              must sign in once so the tool can identify them.
             </p>
           ) : (
             <AccountClusterAssignmentForm
@@ -299,11 +302,11 @@ export default async function AccountDetailPage({
         </Card>
       )}
 
-      <Card title="Sửa nick">
+      <Card title="Edit nick">
         <p className="mb-4 text-sm text-neutral-600 dark:text-neutral-400">
-          Karma, trạng thái và cold-start là đầu vào của luật 1, 2 và 3 — sửa xong là mọi job
-          đang chờ của nick này được chấm lại ngay, job hết an toàn chuyển sang BỊ CHẶN.
-          Nền tảng không đổi được sau khi tạo.
+          Karma, status, and cold-start feed rules 1, 2, and 3. Saving immediately rechecks every
+          pending job for this nick; jobs that are no longer safe become BLOCKED. The platform
+          cannot be changed after creation.
         </p>
         <AccountVaultForm
           action={updateAccount}
@@ -333,11 +336,11 @@ export default async function AccountDetailPage({
         </AccountVaultForm>
       </Card>
 
-      <Card title="Xóa nick">
+      <Card title="Delete nick">
         <p className="mb-3 text-sm text-neutral-600 dark:text-neutral-400">
-          Chỉ xóa được khi nick chưa có job, tương tác hay kết nối Facebook nào. Nick không dùng
-          nữa thì đổi trạng thái sang &quot;Đã chết&quot; ở form trên — lịch sử giữ nguyên để bộ
-          luật còn đếm hạn mức và tỷ lệ promo cho những nick còn lại.
+          Delete is allowed only when no jobs, recorded interactions, or Facebook connections
+          reference this nick. If the nick is no longer used, change its status to &quot;Dead&quot;
+          instead so its history remains available for limits and promotional-ratio rules.
         </p>
         <DeleteEntityButton
           action={deleteAccount.bind(null, account.id)}
@@ -346,9 +349,9 @@ export default async function AccountDetailPage({
         />
       </Card>
 
-      <Card title="Nhật ký gần đây">
+      <Card title="Recent activity">
         {auditLogs.length === 0 ? (
-          <p className="text-sm text-neutral-500">Chưa có thao tác nào được ghi nhận.</p>
+          <p className="text-sm text-neutral-500">No activity has been recorded yet.</p>
         ) : (
           <ul className="space-y-1 text-sm">
             {auditLogs.map((log) => (

@@ -25,16 +25,16 @@ const REDDIT_OK = { proxyId: "proxy-1" };
 const CREATING = { creating: true };
 
 describe("validatePlatformAccountFields", () => {
-  it("Reddit có proxy và không mật khẩu riêng thì cho qua", () => {
+  it("accepts Reddit with a proxy and no separate nick password", () => {
     expect(validatePlatformAccountFields("REDDIT", REDDIT_OK, CREATING)).toBeNull();
   });
 
-  it("Reddit thiếu proxy thì chặn, và nói rõ hậu quả", () => {
+  it("rejects Reddit without a proxy and explains the consequence", () => {
     const message = validatePlatformAccountFields("REDDIT", { proxyId: "" }, CREATING);
-    expect(message).toContain("IP nhà");
+    expect(message).toContain("home IP");
   });
 
-  it("Reddit KHÔNG được có mật khẩu nick — nó đăng nhập bằng Google", () => {
+  it("rejects a Reddit nick password because Reddit signs in through Google", () => {
     const message = validatePlatformAccountFields(
       "REDDIT",
       { ...REDDIT_OK, passwordEnc: "v1.aa.bb.cc" },
@@ -44,7 +44,7 @@ describe("validatePlatformAccountFields", () => {
   });
 
   /** Luật của Reddit áp cho CẢ đường sửa: gửi lên một mật khẩu là sai ở mọi ngữ cảnh. */
-  it("Reddit có mật khẩu thì chặn cả khi đang sửa", () => {
+  it("rejects a Reddit nick password during updates too", () => {
     const message = validatePlatformAccountFields(
       "REDDIT",
       { ...REDDIT_OK, passwordEnc: "v1.aa.bb.cc" },
@@ -53,22 +53,22 @@ describe("validatePlatformAccountFields", () => {
     expect(message).not.toBeNull();
   });
 
-  it("khoảng trắng không tính là có giá trị", () => {
+  it("does not treat whitespace as a value", () => {
     expect(validatePlatformAccountFields("REDDIT", { proxyId: "   " }, CREATING)).not.toBeNull();
   });
 
-  it("null và undefined đều bị chặn cho Reddit", () => {
+  it("rejects both null and undefined proxy IDs for Reddit", () => {
     expect(validatePlatformAccountFields("REDDIT", { proxyId: null }, CREATING)).not.toBeNull();
     expect(validatePlatformAccountFields("REDDIT", {}, CREATING)).not.toBeNull();
   });
 
-  it("Facebook không bị đòi proxy", () => {
+  it("does not require a proxy for Facebook", () => {
     expect(
       validatePlatformAccountFields("FACEBOOK", { passwordEnc: "v1.aa.bb.cc" }, CREATING),
     ).toBeNull();
   });
 
-  it("Facebook PHẢI có mật khẩu nick lúc tạo", () => {
+  it("requires a Facebook nick password during creation", () => {
     expect(validatePlatformAccountFields("FACEBOOK", {}, CREATING)).not.toBeNull();
   });
 
@@ -77,7 +77,7 @@ describe("validatePlatformAccountFields", () => {
    * ở đây là chặn mọi lượt sửa karma của nick Facebook — đúng một luật được phép lệch giữa hai
    * đường, và nó đi qua cờ `creating` chứ không qua hai bản sao.
    */
-  it("Facebook để trống mật khẩu lúc SỬA thì cho qua", () => {
+  it("accepts a blank Facebook password during updates", () => {
     expect(validatePlatformAccountFields("FACEBOOK", {}, { creating: false })).toBeNull();
   });
 
@@ -86,16 +86,16 @@ describe("validatePlatformAccountFields", () => {
    * riêng như Facebook. Ca dễ trượt nhất là để nó rơi vào nhánh cuối cùng của hàm — nhánh đó
    * viết cho Facebook và sẽ đòi mật khẩu, tức chặn mọi nick TikTok đăng nhập bằng số điện thoại.
    */
-  it("TikTok có proxy thì cho qua, kể cả khi không có mật khẩu nick", () => {
+  it("accepts TikTok with a proxy even without a nick password", () => {
     expect(validatePlatformAccountFields("TIKTOK", { proxyId: "proxy-1" }, CREATING)).toBeNull();
   });
 
-  it("TikTok thiếu proxy thì chặn, và nói rõ hậu quả", () => {
+  it("rejects TikTok without a proxy and explains the consequence", () => {
     const message = validatePlatformAccountFields("TIKTOK", { proxyId: "" }, CREATING);
-    expect(message).toContain("IP nhà");
+    expect(message).toContain("home IP");
   });
 
-  it("TikTok ĐƯỢC PHÉP có mật khẩu nick — khác Reddit", () => {
+  it("allows a TikTok nick password unlike Reddit", () => {
     expect(
       validatePlatformAccountFields(
         "TIKTOK",
@@ -105,7 +105,7 @@ describe("validatePlatformAccountFields", () => {
     ).toBeNull();
   });
 
-  it("TikTok bị đòi proxy ở cả đường sửa", () => {
+  it("requires a TikTok proxy during updates too", () => {
     expect(
       validatePlatformAccountFields("TIKTOK", { proxyId: "" }, { creating: false }),
     ).not.toBeNull();
@@ -135,8 +135,8 @@ const REDDIT_FORM = { ...BASE_FORM, platform: "REDDIT", proxyId: "proxy-1" };
 const FACEBOOK_FORM = { ...BASE_FORM, platform: "FACEBOOK", passwordEnc: CIPHERTEXT };
 const TIKTOK_FORM = { ...BASE_FORM, platform: "TIKTOK", proxyId: "proxy-1" };
 
-describe("accountCreateSchema gắn luật theo nền tảng", () => {
-  it("nick Reddit thiếu proxy thì không parse được", () => {
+describe("accountCreateSchema applies platform-specific rules", () => {
+  it("does not parse a Reddit nick without a proxy", () => {
     const result = accountCreateSchema.safeParse({ ...REDDIT_FORM, proxyId: "" });
     expect(result.success).toBe(false);
   });
@@ -146,19 +146,19 @@ describe("accountCreateSchema gắn luật theo nền tảng", () => {
    * làm nút "Tạo profile trên máy này" thành nút không bao giờ hiện ra — id profile chỉ có sau
    * khi nick tồn tại.
    */
-  it("nick Reddit KHÔNG có id profile vẫn tạo được", () => {
+  it("creates a Reddit nick without a browser profile ID", () => {
     const result = accountCreateSchema.safeParse(REDDIT_FORM);
 
     expect(result.success).toBe(true);
     if (result.success) expect(result.data.antidetectProfileId).toBeUndefined();
   });
 
-  it("nick Reddit gửi kèm mật khẩu nick thì bị chặn", () => {
+  it("rejects a Reddit nick that includes a nick password", () => {
     const result = accountCreateSchema.safeParse({ ...REDDIT_FORM, passwordEnc: CIPHERTEXT });
     expect(result.success).toBe(false);
   });
 
-  it("nick Facebook thiếu proxy và profile vẫn parse được", () => {
+  it("parses a Facebook nick without a proxy or browser profile", () => {
     const result = accountCreateSchema.safeParse(FACEBOOK_FORM);
     expect(result.success).toBe(true);
     if (result.success) {
@@ -167,7 +167,7 @@ describe("accountCreateSchema gắn luật theo nền tảng", () => {
     }
   });
 
-  it("nick Facebook thiếu mật khẩu nick thì bị chặn", () => {
+  it("rejects a Facebook nick without a nick password", () => {
     const result = accountCreateSchema.safeParse({ ...FACEBOOK_FORM, passwordEnc: "" });
     expect(result.success).toBe(false);
   });
@@ -177,27 +177,27 @@ describe("accountCreateSchema gắn luật theo nền tảng", () => {
    * `accountCreateSchema` mới chỉ khai `["REDDIT","FACEBOOK"]`, nên nút tạo profile im lặng
    * không tạo được gì. Enum ở schema và giá trị form gửi lên phải khớp — đây là chỗ canh.
    */
-  it("nick TikTok parse được — enum ở schema phải nhận nền tảng thứ ba", () => {
+  it("parses TikTok as the third platform in the schema enum", () => {
     const result = accountCreateSchema.safeParse(TIKTOK_FORM);
     expect(result.success).toBe(true);
     if (result.success) expect(result.data.platform).toBe("TIKTOK");
   });
 
-  it("nick TikTok thiếu proxy thì không parse được", () => {
+  it("does not parse a TikTok nick without a proxy", () => {
     const result = accountCreateSchema.safeParse({ ...TIKTOK_FORM, proxyId: "" });
     expect(result.success).toBe(false);
   });
 
-  it("nick TikTok gửi kèm mật khẩu nick vẫn parse được", () => {
+  it("parses a TikTok nick that includes a nick password", () => {
     const result = accountCreateSchema.safeParse({ ...TIKTOK_FORM, passwordEnc: CIPHERTEXT });
     expect(result.success).toBe(true);
   });
 });
 
-describe("accountUpdateSchemaFor chấm theo nền tảng đọc từ DB", () => {
+describe("accountUpdateSchemaFor applies the platform read from the database", () => {
   // Form sửa không gửi `platform` lên (nền tảng cố định sau khi tạo), nên luật phải được
   // nạp từ ngoài vào. Quên nạp là đường sửa lỏng hơn đường tạo.
-  it("sửa nick Reddit mà xóa trắng proxy thì bị chặn", () => {
+  it("rejects clearing the proxy from a Reddit nick", () => {
     const result = accountUpdateSchemaFor("REDDIT").safeParse({
       ...UPDATE_FORM,
       antidetectProfileId: "profile-1",
@@ -206,7 +206,7 @@ describe("accountUpdateSchemaFor chấm theo nền tảng đọc từ DB", () =>
     expect(result.success).toBe(false);
   });
 
-  it("sửa nick Facebook mà xóa trắng cả hai thì cho qua", () => {
+  it("accepts clearing both browser fields from a Facebook nick", () => {
     const result = accountUpdateSchemaFor("FACEBOOK").safeParse({
       ...UPDATE_FORM,
       antidetectProfileId: "",
@@ -216,7 +216,7 @@ describe("accountUpdateSchemaFor chấm theo nền tảng đọc từ DB", () =>
   });
 
   /** Dán id profile bằng tay vẫn là đường lùi hợp lệ — cho máy chạy cầu nối bản cũ. */
-  it("sửa nick Reddit vẫn dán được id profile bằng tay", () => {
+  it("still accepts a manually pasted browser profile ID for Reddit", () => {
     const result = accountUpdateSchemaFor("REDDIT").safeParse({
       ...UPDATE_FORM,
       antidetectProfileId: "profile-go-tay",
@@ -233,18 +233,18 @@ describe("accountUpdateSchemaFor chấm theo nền tảng đọc từ DB", () =>
  * rồi bí mật đi thẳng vào database chưa mã hóa — im lặng, cho tới ngày ai đó mở bản sao lưu ra
  * đọc. Chặn ở đây thì nó hỏng ồn ào ngay lần lưu đầu tiên.
  */
-describe("ô bí mật phải là ciphertext", () => {
-  it("từ chối mật khẩu dạng trần, kèm câu nói rõ ai phải mã hóa", () => {
+describe("secret fields require ciphertext", () => {
+  it("rejects a plaintext password and identifies Relay as the encryptor", () => {
     const result = accountCreateSchema.safeParse({
       ...FACEBOOK_FORM,
       passwordEnc: "mat-khau-tran",
     });
 
     expect(result.success).toBe(false);
-    expect(result.success ? "" : result.error.issues[0].message).toContain("cầu nối");
+    expect(result.success ? "" : result.error.issues[0].message).toContain("Relay");
   });
 
-  it("từ chối chuỗi đúng tiền tố nhưng sai độ dài IV", () => {
+  it("rejects a value with the correct prefix but an invalid IV length", () => {
     const result = accountCreateSchema.safeParse({
       ...FACEBOOK_FORM,
       passwordEnc: "v1.AAAA.4G1OxOuMekYYp6mys6sG8w.AIik0-U",
@@ -254,7 +254,7 @@ describe("ô bí mật phải là ciphertext", () => {
   });
 
   /** Mật khẩu Google cũng phải qua cầu nối — nó mới là thứ mở được nick Reddit. */
-  it("từ chối mật khẩu Google dạng trần của nick Reddit", () => {
+  it("rejects a plaintext Google password for a Reddit nick", () => {
     const result = accountCreateSchema.safeParse({
       ...REDDIT_FORM,
       emailPasswordEnc: "mat-khau-tran",
@@ -263,12 +263,12 @@ describe("ô bí mật phải là ciphertext", () => {
     expect(result.success).toBe(false);
   });
 
-  it("TOTP secret để trống vẫn hợp lệ — nick chưa bật 2FA", () => {
+  it("accepts a blank TOTP secret when 2FA is not enabled", () => {
     expect(accountCreateSchema.safeParse({ ...REDDIT_FORM, totpSecretEnc: "" }).success).toBe(true);
   });
 
   /** Sửa nick: cả ba ô để trống nghĩa là giữ nguyên, nên không cần cầu nối để sửa karma. */
-  it("sửa nick: ba ô bí mật để trống thì parse được", () => {
+  it("parses an update with all three secret fields blank", () => {
     const result = accountUpdateSchema.safeParse({
       ...UPDATE_FORM,
       passwordEnc: "",
@@ -279,7 +279,7 @@ describe("ô bí mật phải là ciphertext", () => {
     expect(result.success).toBe(true);
   });
 
-  it("sửa nick bắt buộc mang revision ISO từ trang đã mở", () => {
+  it("requires an ISO revision from the opened page when updating a nick", () => {
     const missing = accountUpdateSchema.safeParse({ ...BASE_FORM, id: "acc-1" });
     const invalid = accountUpdateSchema.safeParse({ ...UPDATE_FORM, revision: "not-a-date" });
     const valid = accountUpdateSchema.safeParse(UPDATE_FORM);
