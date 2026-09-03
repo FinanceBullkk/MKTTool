@@ -52,6 +52,7 @@ const { verifyCompatibilityUpdateAuthorization } = await import(
 );
 const { signedManifestDigest } = await import("./compatibility-manifest-crypto");
 const { issueCompatibilityUpdateTicket } = await import("./compatibility-update-actions");
+const { previewCompatibilityUpdate } = await import("./compatibility-update-preview-action");
 
 beforeEach(async () => {
   role = "ADMIN";
@@ -86,6 +87,20 @@ afterAll(async () => {
 });
 
 describe("ADMIN compatibility update ticket", () => {
+  it("previews the signed target without issuing a ticket or audit row", async () => {
+    const device = await seedDevice("aa".repeat(32));
+
+    const result = await previewCompatibilityUpdate(null, form({ deviceId: device.id }));
+
+    expect(result).toMatchObject({
+      ok: true,
+      targetSequence: 1,
+      targetRelayVersion: "1",
+      targetBrowserVersion: "1",
+    });
+    expect(await prisma.auditLog.count()).toBe(0);
+  });
+
   it("encrypts the selected ObserverProxy into a device-bound ticket and audits metadata only", async () => {
     const deviceKeys = generateKeyPairSync("x25519");
     const device = await seedDevice(relayPublicKeyToHex(deviceKeys.publicKey));
@@ -143,6 +158,14 @@ describe("ADMIN compatibility update ticket", () => {
     expect((await issueCompatibilityUpdateTicket(null, form({ deviceId: device.id }))).ok).toBe(false);
 
     role = "ADMIN";
+    expect(
+      (
+        await issueCompatibilityUpdateTicket(
+          null,
+          form({ deviceId: device.id, expectedTargetSequence: "2" }),
+        )
+      ).message,
+    ).toContain("target changed");
     await prisma.relayDevice.update({ where: { id: device.id }, data: { revokedAt: new Date() } });
     expect((await issueCompatibilityUpdateTicket(null, form({ deviceId: device.id }))).ok).toBe(false);
     await prisma.relayDevice.update({ where: { id: device.id }, data: { revokedAt: null } });
@@ -229,6 +252,7 @@ function release(): RelayCompatibilityRelease {
 
 function form(fields: Record<string, string>): FormData {
   const result = new FormData();
+  result.set("expectedTargetSequence", "1");
   for (const [key, value] of Object.entries(fields)) result.set(key, value);
   return result;
 }

@@ -128,6 +128,8 @@ const BASE_FORM = {
   karma: "0",
   emailPasswordEnc: CIPHERTEXT,
 };
+const REVISION = "2026-09-03T08:30:00.123Z";
+const UPDATE_FORM = { ...BASE_FORM, id: "acc-1", revision: REVISION };
 
 const REDDIT_FORM = { ...BASE_FORM, platform: "REDDIT", proxyId: "proxy-1" };
 const FACEBOOK_FORM = { ...BASE_FORM, platform: "FACEBOOK", passwordEnc: CIPHERTEXT };
@@ -197,8 +199,7 @@ describe("accountUpdateSchemaFor chấm theo nền tảng đọc từ DB", () =>
   // nạp từ ngoài vào. Quên nạp là đường sửa lỏng hơn đường tạo.
   it("sửa nick Reddit mà xóa trắng proxy thì bị chặn", () => {
     const result = accountUpdateSchemaFor("REDDIT").safeParse({
-      ...BASE_FORM,
-      id: "acc-1",
+      ...UPDATE_FORM,
       antidetectProfileId: "profile-1",
       proxyId: "",
     });
@@ -207,8 +208,7 @@ describe("accountUpdateSchemaFor chấm theo nền tảng đọc từ DB", () =>
 
   it("sửa nick Facebook mà xóa trắng cả hai thì cho qua", () => {
     const result = accountUpdateSchemaFor("FACEBOOK").safeParse({
-      ...BASE_FORM,
-      id: "acc-1",
+      ...UPDATE_FORM,
       antidetectProfileId: "",
       proxyId: "",
     });
@@ -218,8 +218,7 @@ describe("accountUpdateSchemaFor chấm theo nền tảng đọc từ DB", () =>
   /** Dán id profile bằng tay vẫn là đường lùi hợp lệ — cho máy chạy cầu nối bản cũ. */
   it("sửa nick Reddit vẫn dán được id profile bằng tay", () => {
     const result = accountUpdateSchemaFor("REDDIT").safeParse({
-      ...BASE_FORM,
-      id: "acc-1",
+      ...UPDATE_FORM,
       antidetectProfileId: "profile-go-tay",
       proxyId: "proxy-1",
     });
@@ -271,13 +270,23 @@ describe("ô bí mật phải là ciphertext", () => {
   /** Sửa nick: cả ba ô để trống nghĩa là giữ nguyên, nên không cần cầu nối để sửa karma. */
   it("sửa nick: ba ô bí mật để trống thì parse được", () => {
     const result = accountUpdateSchema.safeParse({
-      ...BASE_FORM,
-      id: "acc-1",
+      ...UPDATE_FORM,
       passwordEnc: "",
       emailPasswordEnc: "",
       totpSecretEnc: "",
     });
 
     expect(result.success).toBe(true);
+  });
+
+  it("sửa nick bắt buộc mang revision ISO từ trang đã mở", () => {
+    const missing = accountUpdateSchema.safeParse({ ...BASE_FORM, id: "acc-1" });
+    const invalid = accountUpdateSchema.safeParse({ ...UPDATE_FORM, revision: "not-a-date" });
+    const valid = accountUpdateSchema.safeParse(UPDATE_FORM);
+
+    expect(missing.success).toBe(false);
+    expect(invalid.success).toBe(false);
+    expect(valid.success).toBe(true);
+    if (valid.success) expect(valid.data.revision).toEqual(new Date(REVISION));
   });
 });

@@ -15,6 +15,7 @@ vi.mock("next/cache", () => ({ revalidatePath: () => {} }));
 const ADMIN_ID = "user-admin";
 const HA_ID = "user-ha";
 const NAM_ID = "user-nam";
+const INITIAL_ACCOUNT_UPDATED_AT = new Date("2026-01-01T00:00:00.000Z");
 
 process.env.VAULT_KEY_SERVER = "27112efee5aeaa94963b0f1f9e0dabcdf2767c34ee483d8dc2c76f61bdd1186d";
 process.env.VAULT_KEY_OPERATOR = "a3d1e1576b7746dbd4481fb6fd16b16f7c7381301b8ab9ef8a3f2994c96150dc";
@@ -44,11 +45,24 @@ let mayCuaHa: string;
 let mayCuaNam: string;
 let mayDaThuHoi: string;
 
-function clusterForm(ownerId: string, deviceId: string): FormData {
+async function clusterForm(
+  ownerId: string,
+  deviceId: string,
+  revision?: string,
+): Promise<FormData> {
+  const currentRevision =
+    revision ??
+    (
+      await prisma.account.findUniqueOrThrow({
+        where: { id: accountId },
+        select: { updatedAt: true },
+      })
+    ).updatedAt.toISOString();
   const form = new FormData();
   form.set("accountId", accountId);
   form.set("ownerId", ownerId);
   form.set("deviceId", deviceId);
+  form.set("revision", currentRevision);
   return form;
 }
 
@@ -99,6 +113,7 @@ beforeEach(async () => {
       emailPasswordEnc: encryptCredential("mat-khau-email", loadVaultKey("operator")),
       antidetectProfileId: "profile-anna",
       status: "ALIVE",
+      updatedAt: INITIAL_ACCOUNT_UPDATED_AT,
     },
   });
   accountId = account.id;
@@ -110,7 +125,7 @@ afterAll(async () => {
 
 describe("bất biến máy thuộc chủ nick", () => {
   it("từ chối ghim vào máy của người khác, và KHÔNG ghi gì", async () => {
-    const result = await assignAccountCluster(null, clusterForm(HA_ID, mayCuaNam));
+    const result = await assignAccountCluster(null, await clusterForm(HA_ID, mayCuaNam));
 
     expect(result.ok).toBe(false);
     // Câu từ chối phải nêu đúng máy đó của ai — người bấm mới biết mình chọn nhầm dòng nào.
@@ -127,7 +142,7 @@ describe("bất biến máy thuộc chủ nick", () => {
    * bằng một phép kiểm riêng — không thì cụm trông hợp lệ mà vé không bao giờ tới nơi.
    */
   it("từ chối ghim vào máy đã thu hồi", async () => {
-    const result = await assignAccountCluster(null, clusterForm(HA_ID, mayDaThuHoi));
+    const result = await assignAccountCluster(null, await clusterForm(HA_ID, mayDaThuHoi));
 
     expect(result.ok).toBe(false);
     expect(result.message).toContain("thu hồi");
@@ -137,7 +152,7 @@ describe("bất biến máy thuộc chủ nick", () => {
   });
 
   it("nhận cặp khớp, ghi cả hai hàng nhật ký", async () => {
-    const result = await assignAccountCluster(null, clusterForm(HA_ID, mayCuaHa));
+    const result = await assignAccountCluster(null, await clusterForm(HA_ID, mayCuaHa));
 
     expect(result.ok).toBe(true);
 
@@ -153,12 +168,12 @@ describe("bất biến máy thuộc chủ nick", () => {
 
 describe("gỡ chủ", () => {
   beforeEach(async () => {
-    await assignAccountCluster(null, clusterForm(HA_ID, mayCuaHa));
+    await assignAccountCluster(null, await clusterForm(HA_ID, mayCuaHa));
     await prisma.auditLog.deleteMany();
   });
 
   it("gỡ luôn máy — nick không chủ không ghim vào máy ai được", async () => {
-    const result = await assignAccountCluster(null, clusterForm("", ""));
+    const result = await assignAccountCluster(null, await clusterForm("", ""));
 
     expect(result.ok).toBe(true);
 
@@ -172,7 +187,7 @@ describe("gỡ chủ", () => {
   });
 
   it("từ chối gỡ chủ mà vẫn giữ máy", async () => {
-    const result = await assignAccountCluster(null, clusterForm("", mayCuaHa));
+    const result = await assignAccountCluster(null, await clusterForm("", mayCuaHa));
 
     expect(result.ok).toBe(false);
 
@@ -183,7 +198,7 @@ describe("gỡ chủ", () => {
 
 describe("đổi chủ", () => {
   beforeEach(async () => {
-    await assignAccountCluster(null, clusterForm(HA_ID, mayCuaHa));
+    await assignAccountCluster(null, await clusterForm(HA_ID, mayCuaHa));
     await prisma.auditLog.deleteMany();
   });
 
@@ -192,7 +207,7 @@ describe("đổi chủ", () => {
    * lệch nghĩa là chủ mới xin được bí mật nhưng vé bay về máy người cũ.
    */
   it("chuyển sang người khác kèm máy của họ ghi MOVED", async () => {
-    const result = await assignAccountCluster(null, clusterForm(NAM_ID, mayCuaNam));
+    const result = await assignAccountCluster(null, await clusterForm(NAM_ID, mayCuaNam));
 
     expect(result.ok).toBe(true);
 
@@ -206,7 +221,7 @@ describe("đổi chủ", () => {
   });
 
   it("chuyển chủ mà bỏ trống ô máy thì nick mất ghim, không giữ máy người cũ", async () => {
-    const result = await assignAccountCluster(null, clusterForm(NAM_ID, ""));
+    const result = await assignAccountCluster(null, await clusterForm(NAM_ID, ""));
 
     expect(result.ok).toBe(true);
 
@@ -221,9 +236,55 @@ describe("người không còn trong ALLOWED_EMAILS", () => {
       data: { id: "user-cu", name: "Người cũ", email: "cu@mkttool.local", updatedAt: new Date() },
     });
 
-    const result = await assignAccountCluster(null, clusterForm(nguoiDaRoi.id, ""));
+    const result = await assignAccountCluster(null, await clusterForm(nguoiDaRoi.id, ""));
 
     expect(result.ok).toBe(false);
     expect(result.message).toContain("ALLOWED_EMAILS");
+  });
+});
+
+describe("optimistic concurrency khi phân công cụm", () => {
+  it("từ chối lượt ghi dùng revision cũ và không ghi account hay audit", async () => {
+    const staleRevision = (
+      await prisma.account.findUniqueOrThrow({
+        where: { id: accountId },
+        select: { updatedAt: true },
+      })
+    ).updatedAt.toISOString();
+
+    const winner = await assignAccountCluster(
+      null,
+      await clusterForm(HA_ID, mayCuaHa, staleRevision),
+    );
+    expect(winner.ok).toBe(true);
+
+    const accountAfterWinner = await prisma.account.findUniqueOrThrow({ where: { id: accountId } });
+    const auditsAfterWinner = await prisma.auditLog.findMany({
+      where: { accountId },
+      orderBy: [{ at: "asc" }, { id: "asc" }],
+      select: { action: true, detail: true },
+    });
+
+    const loser = await assignAccountCluster(
+      null,
+      await clusterForm(NAM_ID, mayCuaNam, staleRevision),
+    );
+
+    expect(loser).toEqual({
+      ok: false,
+      message: "This record was changed after you opened it. Reload the page before saving.",
+    });
+
+    const accountAfterLoser = await prisma.account.findUniqueOrThrow({ where: { id: accountId } });
+    expect(accountAfterLoser.ownerId).toBe(accountAfterWinner.ownerId);
+    expect(accountAfterLoser.deviceId).toBe(accountAfterWinner.deviceId);
+    expect(accountAfterLoser.updatedAt).toEqual(accountAfterWinner.updatedAt);
+    expect(
+      await prisma.auditLog.findMany({
+        where: { accountId },
+        orderBy: [{ at: "asc" }, { id: "asc" }],
+        select: { action: true, detail: true },
+      }),
+    ).toEqual(auditsAfterWinner);
   });
 });

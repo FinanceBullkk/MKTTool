@@ -257,7 +257,12 @@ describe("profileLaunchReadiness", () => {
     expect(`${recovery}\n${unknown}`).not.toContain("cb_live_secret_key");
   });
 
-  it("maps server ticket failures without forwarding a proxy probe body", () => {
+  it("preserves the server-cleaned ticket failure reason and keeps status fallbacks", () => {
+    const ownershipMessage =
+      'Nick "anna" is assigned to Relay PC "Operator PC" owned by operator@example.test.';
+
+    expect(describeProfileTicketFailure(409, ownershipMessage)).toBe(ownershipMessage);
+    expect(describeProfileTicketFailure(409, "   ")).toContain("assigned proxy");
     expect(describeProfileTicketFailure(409)).toContain("assigned proxy");
     expect(describeProfileTicketFailure(404)).toContain("no longer available");
     expect(describeProfileTicketFailure(502)).toContain("could not prepare");

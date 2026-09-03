@@ -30,7 +30,8 @@ export default async function AccountsPage() {
     prisma.account.findMany({
       include: {
         proxy: true,
-        device: { select: { userId: true, revokedAt: true } },
+        owner: { select: { email: true } },
+        device: { select: { name: true, userId: true, revokedAt: true } },
       },
       orderBy: [{ platform: "asc" }, { username: "asc" }],
     }),
@@ -65,6 +66,8 @@ export default async function AccountsPage() {
           <DataTable
             headers={[
               "Nick",
+              "Owner",
+              "Relay PC",
               "Kiểm tra thao tác",
               "Nền tảng",
               "Trạng thái",
@@ -86,9 +89,36 @@ export default async function AccountsPage() {
                       {account.username}
                     </Link>
                   </td>
-                  {/* Cột này đứng thứ hai có chủ ý: nó là câu hỏi người ta mở trang này để hỏi.
-                      "Trạng thái" bên phải nói về sức khỏe nick, khác hẳn — một nick "Khỏe" vẫn
-                      có thể chưa dùng được vì chưa ghim máy. */}
+                  <td className="py-2 pr-4 text-sm text-neutral-600 dark:text-neutral-400">
+                    {account.owner ? (
+                      <>
+                        {account.owner.email}
+                        {account.ownerId === viewer?.userId ? (
+                          <span className="ml-1 text-xs font-medium text-emerald-700 dark:text-emerald-400">
+                            (you)
+                          </span>
+                        ) : null}
+                      </>
+                    ) : (
+                      "Owner not assigned"
+                    )}
+                  </td>
+                  <td className="py-2 pr-4 text-sm text-neutral-600 dark:text-neutral-400">
+                    {account.device ? (
+                      <>
+                        {account.device.name}
+                        {account.device.revokedAt ? (
+                          <span className="ml-1 text-xs font-medium text-red-700 dark:text-red-400">
+                            (revoked)
+                          </span>
+                        ) : null}
+                      </>
+                    ) : (
+                      "Relay PC not assigned"
+                    )}
+                  </td>
+                  {/* Readiness stays beside the ownership columns because it answers a different
+                      question: a healthy nick can still be unusable when no Relay PC is assigned. */}
                   <td className="py-2 pr-4">
                     <AccountReadinessCell readiness={describeAccountReadiness(account)} />
                   </td>

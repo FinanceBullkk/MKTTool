@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DeleteEntityButton } from "@/components/ui/delete-entity-button";
-import { ActionForm, SelectField } from "@/components/ui/form-controls";
 import { Card, PageHeading, StatusBadge } from "@/components/ui/page-section";
+import { AccountClusterAssignmentForm } from "@/components/vault/account-cluster-assignment-form";
 import { AccountFormFields } from "@/components/vault/account-form-fields";
 import { AccountVaultForm } from "@/components/vault/account-vault-form";
 import { AccountReadinessPanel } from "@/components/vault/account-readiness-badge";
@@ -87,6 +87,11 @@ export default async function AccountDetailPage({
         select: { id: true, name: true, user: { select: { email: true } } },
       }),
     ]);
+
+  const proxyOptions = selectableProxies.map((proxy) => ({
+    id: proxy.id,
+    label: `${proxy.label} - ${proxy.country}`,
+  }));
 
   const facts: [string, string][] = [
     ["Nền tảng", account.platform],
@@ -270,33 +275,23 @@ export default async function AccountDetailPage({
               họ là ai.
             </p>
           ) : (
-            <ActionForm action={assignAccountCluster} submitLabel="Lưu phân công">
-              <input type="hidden" name="accountId" value={account.id} />
-              <SelectField
-                label="Người phụ trách"
-                name="ownerId"
-                defaultValue={account.ownerId ?? ""}
-                options={teamMembers.map((member) => ({
-                  value: member.id,
-                  label: member.email,
-                }))}
-                hint="Chỉ hiện người đã đăng nhập ít nhất một lần."
-              />
-              <SelectField
-                label="Relay PC"
-                name="deviceId"
-                defaultValue={account.deviceId ?? ""}
-                options={assignableDevices.map((device) => ({
-                  value: device.id,
-                  label: `${device.name} — ${device.user.email}`,
-                }))}
-                hint={
-                  assignableDevices.length === 0
-                    ? "No Relay PC is registered. Install Relay and register the PC before assigning a nick."
-                    : "Leave blank when the nick does not need a browser profile (Fanpage uses the Graph API)."
-                }
-              />
-            </ActionForm>
+            <AccountClusterAssignmentForm
+              action={assignAccountCluster}
+              accountId={account.id}
+              revision={account.updatedAt.toISOString()}
+              initialOwner={
+                account.owner ? { id: account.ownerId!, label: account.owner.email } : null
+              }
+              initialDevice={
+                account.device ? { id: account.deviceId!, label: account.device.name } : null
+              }
+              teamMembers={teamMembers.map((member) => ({ id: member.id, label: member.email }))}
+              relayDevices={assignableDevices.map((device) => ({
+                id: device.id,
+                label: device.name,
+                ownerEmail: device.user.email,
+              }))}
+            />
           )}
         </Card>
       )}
@@ -307,13 +302,20 @@ export default async function AccountDetailPage({
           đang chờ của nick này được chấm lại ngay, job hết an toàn chuyển sang BỊ CHẶN.
           Nền tảng không đổi được sau khi tạo.
         </p>
-        <AccountVaultForm action={updateAccount} submitLabel="Lưu">
+        <AccountVaultForm
+          action={updateAccount}
+          submitLabel="Save"
+          revision={account.updatedAt.toISOString()}
+          proxyChange={{
+            initial: account.proxy
+              ? { id: account.proxy.id, label: `${account.proxy.label} - ${account.proxy.country}` }
+              : null,
+            options: proxyOptions,
+          }}
+        >
           <input type="hidden" name="id" value={account.id} />
           <AccountFormFields
-            proxies={selectableProxies.map((proxy) => ({
-              id: proxy.id,
-              label: `${proxy.label} — ${proxy.country}`,
-            }))}
+            proxies={proxyOptions}
             defaults={account}
             platform={account.platform}
           />

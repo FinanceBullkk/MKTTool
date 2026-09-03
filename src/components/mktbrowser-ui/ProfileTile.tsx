@@ -26,6 +26,9 @@ export interface ProfileItemData {
   notes: string | null;
   firstLoginAt: string | null;
   antidetectProfileId: string | null;
+  owner: {
+    email: string;
+  } | null;
   device: {
     id: string;
     name: string;
@@ -108,10 +111,13 @@ export function ProfileTile({
 
     try {
       const response = await fetch(`/api/accounts/${profile.id}/launch`, { method: "POST" });
-      const body = (await response.json()) as { ok: boolean; ticket?: string };
+      const body = (await response.json()) as { ok: boolean; message?: string; ticket?: string };
 
       if (!body.ok || !body.ticket) {
-        setFeedback({ kind: "error", text: describeProfileTicketFailure(response.status) });
+        setFeedback({
+          kind: "error",
+          text: describeProfileTicketFailure(response.status, body.message),
+        });
         return;
       }
 
@@ -222,12 +228,13 @@ export function ProfileTile({
         )}
       </div>
 
-      {/* 4. Footer OS & Device */}
-      <div className="flex items-center justify-between text-[11px] text-neutral-400 mb-3 px-1">
-        <span className="flex items-center gap-1.5">
-          <span>🪟 Windows</span>
-          <span>·</span>
-          <span>{profile.device?.name || "Relay PC not assigned"}</span>
+      {/* 4. Owner & Relay PC */}
+      <div className="mb-3 grid gap-1 px-1 text-[11px] text-neutral-400">
+        <span className="truncate" title={profile.owner?.email ?? undefined}>
+          Owner: {profile.owner?.email ?? "not assigned"}
+        </span>
+        <span className="truncate" title={profile.device?.name ?? undefined}>
+          Relay PC: {profile.device?.name ?? "not assigned"}
         </span>
         <span>{profile.notes ? `📝 ${profile.notes}` : "No notes"}</span>
       </div>

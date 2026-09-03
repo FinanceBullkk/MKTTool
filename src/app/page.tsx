@@ -9,6 +9,7 @@ export default async function OverviewPage() {
   const accounts = await prisma.account.findMany({
     include: {
       proxy: true,
+      owner: { select: { email: true } },
       device: { select: { id: true, name: true, userId: true } },
     },
     orderBy: [{ createdAt: "desc" }],
@@ -26,6 +27,7 @@ export default async function OverviewPage() {
     notes: acc.purchaseNote,
     firstLoginAt: acc.firstLoginAt ? acc.firstLoginAt.toISOString() : null,
     antidetectProfileId: acc.antidetectProfileId,
+    owner: acc.owner ? { email: acc.owner.email } : null,
     device: acc.device
       ? {
           id: acc.device.id,

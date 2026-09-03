@@ -165,7 +165,7 @@ export function Constellation({
           value={searchQuery}
           onChange={(event) => setSearchQuery(event.target.value)}
           aria-label="Search nicks"
-          placeholder="Search nicks by username, voice, proxy, or notes..."
+          placeholder="Search nicks by username, owner, Relay PC, proxy, or notes..."
           className="min-w-0 flex-1 bg-transparent text-[13px] text-white placeholder:text-neutral-400 focus:outline-none"
         />
       </div>

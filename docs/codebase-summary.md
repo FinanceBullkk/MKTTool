@@ -43,6 +43,16 @@ none claims stealth, unique fingerprint identity, or vendor-level identity isola
 | `src/components/mktbrowser-ui/TopBar.tsx` and `AppShell.tsx` | omit the non-working global search, `Ctrl K` promise, and untrustworthy global running/total counters |
 | `docs/ui-glossary.md` | define the display boundary between a nick record, a local browser profile, and a Relay PC without renaming models, columns, or routes |
 
+## Shared-use safety — 3 September 2026
+
+| Path | Responsibility |
+|---|---|
+| `src/app/page.tsx`, `/accounts`, `ProfileTile.tsx`, and `ProfileTable.tsx` | show each nick's owner and assigned Relay PC, represent a missing device as unassigned instead of inventing “Local PC”, and preserve the server's cleaned launch-conflict reason |
+| `account-cluster-assignment-form.tsx` and `account-proxy-change-confirmation.tsx` | ask for confirmation only when owner, Relay PC, or proxy really changes; show before/after values and the operational consequence |
+| `relay-compatibility-update-confirmation.tsx` and `compatibility-update-preview-action.ts` | preview the signed target before issuing a ticket, require the exact PC name for a real change, and warn that Relay and MKT Browser restart |
+| `account-vault-form.tsx`, `account-owner-actions.ts`, and `vault-update-actions.ts` | carry the rendered `Account.updatedAt` revision into account and cluster-assignment saves, condition the update on that revision, and reject stale writes before audit or queue recheck side effects |
+| `vault-edit-actions.database.test.ts` and `account-cluster-assignment.database.test.ts` | run sequential winner/loser writes against real PostgreSQL and prove the stale loser changes neither the account nor related audit/recheck state |
+
 ## Cây thư mục
 
 ```

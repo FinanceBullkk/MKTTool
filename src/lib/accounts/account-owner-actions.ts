@@ -39,7 +39,12 @@ import type { ActionResult } from "@/lib/actions/action-result";
 import { isEmailAllowed, readEmailAccessList } from "@/lib/auth/allowed-emails";
 import { adminAction } from "@/lib/auth/guarded-action";
 import { prisma } from "@/lib/db/prisma-client";
-import { firstError, formToObject } from "./vault-form-schemas";
+import {
+  accountRevisionSchema,
+  firstError,
+  formToObject,
+  STALE_ACCOUNT_WRITE_MESSAGE,
+} from "./vault-form-schemas";
 import { describeClusterChange } from "./account-cluster-change";
 
 /**
@@ -48,6 +53,7 @@ import { describeClusterChange } from "./account-cluster-change";
  */
 const clusterAssignmentSchema = z.object({
   accountId: z.string().min(1, "Thiếu nick cần phân công"),
+  revision: accountRevisionSchema,
   ownerId: z.string().default(""),
   deviceId: z.string().default(""),
 });
@@ -66,7 +72,7 @@ export const assignAccountCluster = adminAction(async function assignAccountClus
   const parsed = clusterAssignmentSchema.safeParse(formToObject(formData));
   if (!parsed.success) return { ok: false, message: firstError(parsed.error) };
 
-  const { accountId } = parsed.data;
+  const { accountId, revision } = parsed.data;
   const ownerId = parsed.data.ownerId.trim();
   const deviceId = parsed.data.deviceId.trim();
 
@@ -154,17 +160,23 @@ export const assignAccountCluster = adminAction(async function assignAccountClus
     return { ok: true, message: `Không có gì đổi cho nick "${account.username}".` };
   }
 
-  await prisma.$transaction([
-    prisma.account.update({
-      where: { id: accountId },
+  const didUpdate = await prisma.$transaction(async (tx) => {
+    const updated = await tx.account.updateMany({
+      where: { id: accountId, updatedAt: revision },
       data: { ownerId: ownerId || null, deviceId: deviceId || null },
-    }),
-    ...change.auditActions.map(({ action, detail }) =>
-      prisma.auditLog.create({
+    });
+    if (updated.count === 0) return false;
+
+    for (const { action, detail } of change.auditActions) {
+      await tx.auditLog.create({
         data: { accountId, action, detail: `${actor.email} ${detail}`, actorId: actor.userId },
-      }),
-    ),
-  ]);
+      });
+    }
+
+    return true;
+  });
+
+  if (!didUpdate) return { ok: false, message: STALE_ACCOUNT_WRITE_MESSAGE };
 
   revalidatePath("/accounts");
   revalidatePath(`/accounts/${accountId}`);

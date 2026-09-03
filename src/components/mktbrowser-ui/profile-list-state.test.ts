@@ -46,6 +46,7 @@ describe("profile list state", () => {
         label: "US-static-01",
         lastExitIp: "203.0.113.25",
       },
+      owner: { email: "owner-kitchen@example.test" },
       device: { id: "device-a", name: "Relay-Laptop-A", userId: "user-a" },
     };
 
@@ -56,6 +57,7 @@ describe("profile list state", () => {
     expect(profileMatchesSearchQuery(searchable, "us-static")).toBe(true);
     expect(profileMatchesSearchQuery(searchable, "203.0.113.10")).toBe(true);
     expect(profileMatchesSearchQuery(searchable, "203.0.113.25")).toBe(true);
+    expect(profileMatchesSearchQuery(searchable, "owner-kitchen")).toBe(true);
     expect(profileMatchesSearchQuery(searchable, "relay-laptop")).toBe(true);
     expect(profileMatchesSearchQuery(searchable, "tiktok")).toBe(true);
     expect(profileMatchesSearchQuery(searchable, "missing")).toBe(false);
@@ -80,6 +82,7 @@ function profile(
     notes: null,
     firstLoginAt: null,
     antidetectProfileId,
+    owner: { email: `${id}@example.test` },
     device: { id: "device-a", name: "PC", userId: "user-a" },
     proxy: {
       id: `proxy-${id}`,
