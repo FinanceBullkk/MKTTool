@@ -113,11 +113,11 @@ async function reasonOf(promise: Promise<unknown>): Promise<string> {
     expect(error).toBeInstanceOf(Socks5Error);
     return (error as Socks5Error).reason;
   }
-  throw new Error("lẽ ra phải ném lỗi");
+  throw new Error("Expected an error to be thrown");
 }
 
-describe("openSocks5Tunnel — đường đi suôn sẻ", () => {
-  it("proxy không đòi xác thực thì mở được đường", async () => {
+describe("openSocks5Tunnel - successful paths", () => {
+  it("opens a tunnel when the proxy does not require authentication", async () => {
     const port = await startFakeProxy(async (socket) => {
       const read = byteReader(socket);
       await readGreeting(read);
@@ -131,7 +131,7 @@ describe("openSocks5Tunnel — đường đi suôn sẻ", () => {
     socket.destroy();
   });
 
-  it("gửi tên miền chứ KHÔNG gửi IP — đây là chỗ DNS phân giải từ xa", async () => {
+  it("sends the hostname rather than an IP so DNS resolves remotely", async () => {
     // Ràng buộc bảo mật, không phải chi tiết cài đặt: phân giải DNS tại máy rồi gửi IP đi nghĩa là
     // nhà mạng ở nhà thấy được nick đang vào đâu, và bên kia thấy DNS không khớp IP.
     let seen: { atyp?: number; destHost: string; destPort: number } | null = null;
@@ -151,7 +151,7 @@ describe("openSocks5Tunnel — đường đi suôn sẻ", () => {
     expect(seen!.destPort).toBe(80);
   });
 
-  it("khai user/mật khẩu thì đi qua vòng xác thực RFC 1929", async () => {
+  it("uses RFC 1929 authentication when a username and password are configured", async () => {
     let credentials: { user: string; pass: string } | null = null;
     const port = await startFakeProxy(async (socket) => {
       const read = byteReader(socket);
@@ -175,7 +175,7 @@ describe("openSocks5Tunnel — đường đi suôn sẻ", () => {
     expect(credentials).toEqual({ user: "u1", pass: "p@ss" });
   });
 
-  it("byte đích gửi kèm ngay sau gói trả lời không bị nuốt mất", async () => {
+  it("preserves destination bytes delivered with the handshake reply", async () => {
     // Ca này là lý do `release()` phải `unshift` phần dư. Nuốt mất mấy byte đầu thì hỏng đúng
     // dòng "HTTP/1.0 200 OK" — và biểu hiện sẽ là "proxy hỏng", không phải "code này hỏng".
     const port = await startFakeProxy(async (socket) => {
@@ -196,7 +196,7 @@ describe("openSocks5Tunnel — đường đi suôn sẻ", () => {
     expect(firstChunk).toBe("HTTP/1.0 200 OK\r\n");
   });
 
-  it("địa chỉ bound dạng tên miền cũng đọc đúng số byte", async () => {
+  it("reads the correct byte count for a domain-name bound address", async () => {
     // Phần địa chỉ trong gói trả lời dài ngắn tùy ATYP. Đếm hụt một byte thì byte thừa trôi sang
     // phần thân phản hồi; đếm dư thì mất byte đầu. Cả hai đều đổ oan cho proxy.
     const port = await startFakeProxy(async (socket) => {
@@ -226,8 +226,8 @@ describe("openSocks5Tunnel — đường đi suôn sẻ", () => {
   });
 });
 
-describe("openSocks5Tunnel — proxy hỏng thật (được phép kết luận CHẾT)", () => {
-  it("không ai nghe ở cổng đó", async () => {
+describe("openSocks5Tunnel - confirmed proxy failures", () => {
+  it("reports when no service is listening on the port", async () => {
     // Bắt một cổng rồi trả lại, gần như chắc chắn không ai kịp chiếm.
     const port = await startFakeProxy(() => {});
     await new Promise((done) => servers.pop()!.close(() => done(null)));
@@ -235,18 +235,18 @@ describe("openSocks5Tunnel — proxy hỏng thật (được phép kết luận 
     expect(await reasonOf(tunnelTo(port))).toBe("unreachable");
   });
 
-  it("proxy từ chối mọi kiểu xác thực mình hỗ trợ", async () => {
+  it("reports when the proxy rejects every supported authentication method", async () => {
     const port = await startFakeProxy(async (socket) => {
       const read = byteReader(socket);
       await readGreeting(read);
       socket.write(Buffer.from([0x05, 0xff]));
     });
 
-    await expect(tunnelTo(port)).rejects.toThrow(/chưa khai user\/mật khẩu/);
+    await expect(tunnelTo(port)).rejects.toThrow(/no username and password are configured/);
     expect(await reasonOf(tunnelTo(port))).toBe("unreachable");
   });
 
-  it("sai mật khẩu proxy", async () => {
+  it("reports an incorrect proxy password", async () => {
     const port = await startFakeProxy(async (socket) => {
       const read = byteReader(socket);
       await readGreeting(read);
@@ -258,13 +258,13 @@ describe("openSocks5Tunnel — proxy hỏng thật (được phép kết luận 
       socket.write(Buffer.from([0x01, 0x01])); // từ chối
     });
 
-    await expect(tunnelTo(port, { username: "u", password: "sai" })).rejects.toThrow(
-      /từ chối user\/mật khẩu/,
+    await expect(tunnelTo(port, { username: "u", password: "wrong" })).rejects.toThrow(
+      /rejected the configured username or password/,
     );
     expect(await reasonOf(tunnelTo(port, { username: "u", password: "sai" }))).toBe("unreachable");
   });
 
-  it("proxy không mở được đường ra internet — dịch mã từ chối sang câu đọc được", async () => {
+  it("translates the proxy's connection refusal code into a readable message", async () => {
     const port = await startFakeProxy(async (socket) => {
       const read = byteReader(socket);
       await readGreeting(read);
@@ -273,11 +273,11 @@ describe("openSocks5Tunnel — proxy hỏng thật (được phép kết luận 
       socket.write(Buffer.from([0x05, 0x03, 0x00, 0x01, 0, 0, 0, 0, 0, 0])); // 0x03 = network unreachable
     });
 
-    await expect(tunnelTo(port)).rejects.toThrow(/mạng phía sau proxy không tới được/);
+    await expect(tunnelTo(port)).rejects.toThrow(/network behind the proxy is unreachable/);
     expect(await reasonOf(tunnelTo(port))).toBe("unreachable");
   });
 
-  it("proxy đóng kết nối giữa chừng cuộc bắt tay", async () => {
+  it("reports when the proxy closes the connection during the handshake", async () => {
     const port = await startFakeProxy(async (socket) => {
       const read = byteReader(socket);
       await readGreeting(read);
@@ -288,19 +288,19 @@ describe("openSocks5Tunnel — proxy hỏng thật (được phép kết luận 
   });
 });
 
-describe("openSocks5Tunnel — lỗi có thể nằm ở phía mình (KHÔNG được kết luận CHẾT)", () => {
-  it("cổng đó không nói SOCKS5 — rất có thể khai nhầm giao thức", async () => {
+describe("openSocks5Tunnel - inconclusive local or protocol failures", () => {
+  it("reports when the configured port does not speak SOCKS5", async () => {
     // Cùng một proxy thường phục vụ HTTP ở cổng này và SOCKS5 ở cổng khác. Gõ nhầm cổng là lỗi
     // nhập liệu, không phải proxy chết — kết luận CHẾT ở đây sẽ đổ oan cho một proxy đang tốt.
     const port = await startFakeProxy((socket) => {
       socket.write(Buffer.from("HTTP/1.1 400 Bad Request\r\n", "utf8"));
     });
 
-    await expect(tunnelTo(port)).rejects.toThrow(/không nói SOCKS5/);
+    await expect(tunnelTo(port)).rejects.toThrow(/did not respond as SOCKS5/);
     expect(await reasonOf(tunnelTo(port))).toBe("protocol");
   });
 
-  it("proxy đòi kiểu xác thực chưa hỗ trợ (GSSAPI)", async () => {
+  it("reports an unsupported proxy authentication method such as GSSAPI", async () => {
     const port = await startFakeProxy(async (socket) => {
       const read = byteReader(socket);
       await readGreeting(read);
@@ -310,7 +310,7 @@ describe("openSocks5Tunnel — lỗi có thể nằm ở phía mình (KHÔNG đ�
     expect(await reasonOf(tunnelTo(port))).toBe("protocol");
   });
 
-  it("gói trả lời sai định dạng SOCKS5", async () => {
+  it("reports a malformed SOCKS5 reply", async () => {
     const port = await startFakeProxy(async (socket) => {
       const read = byteReader(socket);
       await readGreeting(read);
@@ -319,11 +319,11 @@ describe("openSocks5Tunnel — lỗi có thể nằm ở phía mình (KHÔNG đ�
       socket.write(Buffer.from([0x04, 0x00, 0x00, 0x01, 0, 0, 0, 0, 0, 0]));
     });
 
-    await expect(tunnelTo(port)).rejects.toThrow(/trả lời sai định dạng/);
+    await expect(tunnelTo(port)).rejects.toThrow(/malformed SOCKS5 response/);
     expect(await reasonOf(tunnelTo(port))).toBe("protocol");
   });
 
-  it("kiểu địa chỉ bound lạ", async () => {
+  it("reports an unknown bound-address type", async () => {
     const port = await startFakeProxy(async (socket) => {
       const read = byteReader(socket);
       await readGreeting(read);
@@ -336,8 +336,8 @@ describe("openSocks5Tunnel — lỗi có thể nằm ở phía mình (KHÔNG đ�
   });
 });
 
-describe("openSocks5Tunnel — hạn giờ", () => {
-  it("proxy nhận kết nối rồi im lặng thì phải bỏ cuộc, không treo mãi", async () => {
+describe("openSocks5Tunnel - timeout", () => {
+  it("times out instead of hanging when the proxy accepts a connection and stays silent", async () => {
     // Ca thật: proxy quá tải, hoặc một middlebox nhận TCP rồi không nói gì. Nếu hàm này không tự
     // bỏ cuộc thì nút "Kiểm" quay mãi và không có câu trả lời nào — tệ hơn hẳn một câu báo hỏng.
     const port = await startFakeProxy(() => {

@@ -26,8 +26,8 @@ describe("release download token", () => {
   // Một token yếu nguy hiểm hơn không có token: nó mở tuyến cho người đoán ra mà không ai biết.
   it("refuses a token below the minimum length instead of accepting it quietly", () => {
     process.env[RELEASE_DOWNLOAD_TOKEN_ENV] = "b".repeat(MIN_RELEASE_DOWNLOAD_TOKEN_LENGTH - 1);
-    expect(() => readReleaseDownloadToken()).toThrow(/ít nhất/);
-    expect(() => releaseDownloadTokenMatches(`Bearer short`)).toThrow(/ít nhất/);
+    expect(() => readReleaseDownloadToken()).toThrow(/at least/);
+    expect(() => releaseDownloadTokenMatches(`Bearer short`)).toThrow(/at least/);
   });
 
   it("accepts the exact bearer header", () => {

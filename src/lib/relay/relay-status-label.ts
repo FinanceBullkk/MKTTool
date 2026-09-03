@@ -20,7 +20,7 @@ export interface RelayStatusInput {
 }
 
 /** Chưa có máy nào đăng ký — nói đúng như vậy, không giả vờ có cầu nối đang chạy. */
-export const NO_RELAY_LABEL = "Chưa ghi máy nào";
+export const NO_RELAY_LABEL = "No Relay PCs registered";
 
 export function relayStatusLabel(device: RelayStatusInput | null): string {
   if (!device) return NO_RELAY_LABEL;

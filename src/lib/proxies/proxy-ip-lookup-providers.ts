@@ -27,7 +27,7 @@ export interface IpLookupProvider {
 
 function requireIp(value: unknown, providerName: string): string {
   if (typeof value !== "string" || value.trim() === "") {
-    throw new Error(`${providerName} không trả về địa chỉ IP`);
+    throw new Error(`${providerName} did not return an IP address`);
   }
   return value.trim();
 }
@@ -36,7 +36,7 @@ function parseJsonBody(body: string, providerName: string): Record<string, unkno
   try {
     return JSON.parse(body) as Record<string, unknown>;
   } catch {
-    throw new Error(`${providerName} trả về thứ không phải JSON`);
+    throw new Error(`${providerName} returned a response that is not JSON`);
   }
 }
 
@@ -60,7 +60,7 @@ export const IP_LOOKUP_PROVIDERS: IpLookupProvider[] = [
       // Nhà này trả HTTP 200 kèm `status: "fail"` chứ không dùng mã lỗi — không đọc trường
       // đó thì một lượt hỏng sẽ đi tiếp thành "thiếu IP" với câu lỗi sai chỗ.
       if (data.status !== "success") {
-        throw new Error(`ip-api.com từ chối: ${String(data.message ?? "không rõ lý do")}`);
+        throw new Error(`ip-api.com rejected the request: ${String(data.message ?? "unknown reason")}`);
       }
       return {
         ip: requireIp(data.query, "ip-api.com"),

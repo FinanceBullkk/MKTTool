@@ -25,17 +25,17 @@ import { RELAY_PATHS } from "./relay-endpoints";
 const MAIN = readFileSync(path.join(process.cwd(), "relay", "src", "main.ts"), "utf8");
 
 describe("RELAY_PATHS", () => {
-  it.each(Object.keys(RELAY_PATHS))("đường %s được đấu dây trong main.ts", (key) => {
+  it.each(Object.keys(RELAY_PATHS))("wires path %s in main.ts", (key) => {
     expect(
       MAIN.includes(`RELAY_PATHS.${key}`),
-      `Hợp đồng khai "${key}" nhưng relay/src/main.ts không nhắc tới nó.\n\n` +
-        `Thêm vào bảng "routes" (hoặc "htmlPages") một dòng [RELAY_PATHS.${key}]: …\n` +
-        `Khai mà không đấu thì web app gọi vào sẽ ăn 404 kèm câu nói về lệch phiên bản — ` +
-        `câu chỉ nhầm nguyên nhân.`,
+      `The contract declares "${key}", but relay/src/main.ts does not reference it.\n\n` +
+        `Add [RELAY_PATHS.${key}]: ... to the "routes" or "htmlPages" table.\n` +
+        `Declaring a path without wiring it makes the web app receive a 404 with a misleading ` +
+        `version-mismatch message.`,
     ).toBe(true);
   });
 
-  it("không còn dấu vết của đường mã mời đã gỡ", () => {
+  it("contains no trace of the removed invite-code paths", () => {
     // Hai đường này chở khóa vùng operator bằng một bí mật đối xứng gửi qua chat. Chúng được thay
     // bằng cách bọc cho riêng máy nhận — xem `handle-seal-operator-key.ts`. Giữ dòng này để cái
     // tên cũ không lặng lẽ quay lại trong một lần sửa vội.
@@ -61,7 +61,7 @@ describe("RELAY_PATHS", () => {
  * thật ngay lúc import. Phép kiểm đơn vị của bản thân handler **không** bắt được ca này — handler
  * nhận `serverPublicKey` qua tham số nên nó luôn đúng; chỗ sai là chỗ chọn nguồn.
  */
-describe("giao khóa vùng operator", () => {
+describe("operator key delivery", () => {
   const KHOI_GIAO_KHOA = MAIN.slice(MAIN.indexOf("RELAY_PATHS.receiveOperatorKey"));
   // Bỏ dòng chú thích: khối này được giải thích khá dài ngay tại chỗ, và câu giải thích **phải**
   // nhắc tới `state.identity` để nói ra vì sao không dùng nó. Khẳng định trên mã đã bỏ chú thích
@@ -71,17 +71,17 @@ describe("giao khóa vùng operator", () => {
     .filter((dong) => !dong.trim().startsWith("//"))
     .join("\n");
 
-  it("lấy khóa máy chủ từ state, không qua identity", () => {
+  it("reads the server key from state rather than identity", () => {
     expect(
       deps.includes("serverPublicKey: state.serverPublicKey"),
-      'Đường "receiveOperatorKey" phải nhận `serverPublicKey: state.serverPublicKey`.\n\n' +
-        "Nối nó vào `state.identity` là khép vòng tròn: `identity` cần cấu hình đủ, cấu hình đủ " +
-        "cần `vaultKeyOperator`, và `vaultKeyOperator` là thứ đường này mang xuống. Máy sẽ báo " +
-        '"This Relay is not enrolled yet." dù nó đã ở trong sổ.',
+      'The "receiveOperatorKey" path must receive `serverPublicKey: state.serverPublicKey`.\n\n' +
+        "Connecting it to `state.identity` creates a cycle: `identity` requires complete " +
+        "configuration, complete configuration requires `vaultKeyOperator`, and this path " +
+        'delivers `vaultKeyOperator`. The PC would report "This Relay is not enrolled yet." even when registered.',
     ).toBe(true);
   });
 
-  it("không đọc identity ở đường này nữa", () => {
+  it("does not read identity on this path", () => {
     expect(deps).not.toContain("state.identity");
   });
 });

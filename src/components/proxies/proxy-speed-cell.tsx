@@ -24,7 +24,7 @@ export function ProxySpeedCell({
   detail: string | null;
 }) {
   if (!measuredAt) {
-    return <span className="text-xs text-neutral-500">chưa đo lần nào</span>;
+    return <span className="text-xs text-neutral-500">never measured</span>;
   }
 
   const grade = mbps === null ? "UNKNOWN" : gradeBandwidth(mbps);

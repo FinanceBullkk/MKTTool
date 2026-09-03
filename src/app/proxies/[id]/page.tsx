@@ -29,7 +29,7 @@ export default async function ProxyDetailPage({ params }: { params: Promise<{ id
   return (
     <>
       <Link href="/proxies" className="mb-4 inline-block text-sm text-neutral-500 hover:underline">
-        ← Về danh sách
+        ← Back to proxy list
       </Link>
 
       <PageHeading
@@ -39,16 +39,16 @@ export default async function ProxyDetailPage({ params }: { params: Promise<{ id
 
       {proxy.account ? (
         <div className="mb-6 rounded-md border border-neutral-200 px-4 py-3 text-sm dark:border-neutral-800">
-          Đang gắn với nick{" "}
+          Assigned to nick{" "}
           <Link href={`/accounts/${proxy.account.id}`} className="font-medium underline">
             {proxy.account.username}
           </Link>{" "}
-          ({proxy.account.platform}). Sửa host/port/mật khẩu ở đây là lần mở profile tiếp theo
-          đẩy giá trị mới sang trình duyệt.
+          ({proxy.account.platform}). Changing the host, port, or password here applies the new
+          value the next time this nick&apos;s browser profile opens.
         </div>
       ) : (
         <div className="mb-6 rounded-md border border-dashed border-neutral-300 px-4 py-3 text-sm text-neutral-500 dark:border-neutral-700">
-          Chưa gắn nick nào.
+          Not assigned to a nick.
         </div>
       )}
 
@@ -57,17 +57,18 @@ export default async function ProxyDetailPage({ params }: { params: Promise<{ id
           `adminAction` bọc ngoài hai server action, nên gọi thẳng endpoint vẫn bị từ chối. */}
       {isAdmin ? (
         <>
-          <Card title="Sửa proxy">
-            <ActionForm action={updateProxy} submitLabel="Lưu">
+          <Card title="Edit proxy">
+            <ActionForm action={updateProxy} submitLabel="Save">
               <input type="hidden" name="id" value={proxy.id} />
               <ProxyFormFields defaults={proxy} />
             </ActionForm>
           </Card>
 
-          <Card title="Xóa">
+          <Card title="Delete proxy">
             <p className="mb-3 text-sm text-neutral-600 dark:text-neutral-400">
-              Chỉ xóa được khi chưa gắn nick nào. Proxy đang gắn nick mà xóa là nick đó mất đường
-              ra mạng riêng — gán nick sang proxy khác trước.
+              A proxy can be deleted only when it is not assigned to a nick. Deleting an assigned
+              proxy removes that nick&apos;s dedicated network route, so assign the nick to another
+              proxy first.
             </p>
             <DeleteEntityButton
               action={deleteProxy.bind(null, proxy.id)}
@@ -77,13 +78,13 @@ export default async function ProxyDetailPage({ params }: { params: Promise<{ id
           </Card>
         </>
       ) : (
-        <Card title="Sửa proxy">
+        <Card title="Edit proxy">
           <p className="text-sm text-neutral-600 dark:text-neutral-400">
-            Chỉ quản trị viên sửa được kho proxy. Mật khẩu proxy không có bản thứ hai ở đâu ngoài
-            kho này, nên một lượt sửa nhầm host/port là mất một proxy đang chạy. Cần đổi thì nhắn
-            quản trị viên — bạn vẫn <strong>kiểm</strong> được proxy này ở{" "}
+            Only administrators can edit the proxy vault. The proxy password has no second copy
+            outside this vault, so an incorrect host or port can disable a working proxy. Ask an
+            administrator to make changes. You can still <strong>check</strong> this proxy in the{" "}
             <Link href="/proxies" className="underline">
-              danh sách proxy
+              proxy list
             </Link>
             .
           </p>

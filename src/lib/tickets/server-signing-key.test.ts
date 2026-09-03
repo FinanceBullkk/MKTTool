@@ -18,7 +18,7 @@ import {
  */
 const RFC_8032 = [
   {
-    name: "TEST 1 — thông điệp rỗng",
+    name: "TEST 1 - empty message",
     seed: "9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60",
     publicKey: "d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a",
     message: "",
@@ -27,7 +27,7 @@ const RFC_8032 = [
       "5fb8821590a33bacc61e39701cf9b46bd25bf5f0595bbe24655141438e7a100b",
   },
   {
-    name: "TEST 2 — thông điệp một byte",
+    name: "TEST 2 - one-byte message",
     seed: "4ccd089b28ff96da9db6c346ec114e0f5b8a319f35aba624da8cf6ed4fb8a6fb",
     publicKey: "3d4017c3e843895a92b70aa74d1b7ebc9c982ccf2ec4968cc0cd55f12af4660c",
     message: "72",
@@ -53,9 +53,9 @@ afterEach(() => {
   resetServerSigningKeysCache();
 });
 
-describe("cặp khóa ký của máy chủ", () => {
+describe("server signing key pair", () => {
   for (const vector of RFC_8032) {
-    it(`khớp vector chuẩn RFC 8032 — ${vector.name}`, () => {
+    it(`matches RFC 8032 vector - ${vector.name}`, () => {
       const keys = signingKeysFromSeed(Buffer.from(vector.seed, "hex"));
       expect(keys.publicKeyHex).toBe(vector.publicKey);
 
@@ -67,24 +67,24 @@ describe("cặp khóa ký của máy chủ", () => {
     });
   }
 
-  it("sửa một chữ trong thông điệp là chữ ký hỏng", () => {
+  it("invalidates the signature when one character in the message changes", () => {
     const keys = signingKeysFromSeed(Buffer.from(SEED_HEX, "hex"));
-    const signature = sign(null, Buffer.from("vé số 1"), keys.privateKey);
+    const signature = sign(null, Buffer.from("ticket 1"), keys.privateKey);
 
-    expect(verify(null, Buffer.from("vé số 2"), keys.publicKey, signature)).toBe(false);
+    expect(verify(null, Buffer.from("ticket 2"), keys.publicKey, signature)).toBe(false);
   });
 
-  it("khóa của máy khác không xác minh được chữ ký của máy này", () => {
+  it("does not verify this server's signature with another server's key", () => {
     const mine = signingKeysFromSeed(Buffer.from(SEED_HEX, "hex"));
     const other = signingKeysFromSeed(Buffer.from(RFC_8032[1].seed, "hex"));
-    const message = Buffer.from("vé");
+    const message = Buffer.from("ticket");
 
     expect(verify(null, message, other.publicKey, sign(null, message, mine.privateKey))).toBe(
       false,
     );
   });
 
-  it("khóa công khai suy ra từ hạt giống, không khai riêng — không thể lệch cặp", () => {
+  it("derives the public key from the seed so the pair cannot drift", () => {
     const first = signingKeysFromSeed(Buffer.from(SEED_HEX, "hex"));
     const second = signingKeysFromSeed(Buffer.from(SEED_HEX, "hex"));
 
@@ -94,31 +94,33 @@ describe("cặp khóa ký của máy chủ", () => {
 });
 
 describe("parseSigningSeed", () => {
-  it("từ chối hạt giống thiếu, sai độ dài, hoặc không phải hex", () => {
+  it("rejects a missing, incorrectly sized, or non-hexadecimal seed", () => {
     expect(() => parseSigningSeed(undefined, SERVER_SIGNING_KEY_ENV)).toThrow(
       ServerSigningKeyError,
     );
     expect(() => parseSigningSeed("", SERVER_SIGNING_KEY_ENV)).toThrow(
-      /Thiếu TICKET_SIGNING_KEY/,
+      /TICKET_SIGNING_KEY is missing/,
     );
-    expect(() => parseSigningSeed("abcd", SERVER_SIGNING_KEY_ENV)).toThrow(/64 ký tự hex/);
+    expect(() => parseSigningSeed("abcd", SERVER_SIGNING_KEY_ENV)).toThrow(
+      /64 hexadecimal characters/,
+    );
     expect(() => parseSigningSeed("z".repeat(64), SERVER_SIGNING_KEY_ENV)).toThrow(
-      /chỉ được chứa ký tự hex/,
+      /may contain only hexadecimal characters/,
     );
   });
 });
 
 describe("loadServerSigningKeys", () => {
-  it("đọc hạt giống từ biến môi trường", () => {
+  it("reads the seed from the environment variable", () => {
     process.env[SERVER_SIGNING_KEY_ENV] = SEED_HEX;
     expect(loadServerSigningKeys().publicKeyHex).toBe(RFC_8032[0].publicKey);
   });
 
-  it("thiếu biến thì nói rõ chạy lệnh nào", () => {
+  it("states which command to run when the variable is missing", () => {
     expect(() => loadServerSigningKeys()).toThrow(/npm run keys:server-keygen/);
   });
 
-  it("cache cặp khóa, và reset trả về đọc lại từ env", () => {
+  it("caches the key pair and reads the environment again after reset", () => {
     process.env[SERVER_SIGNING_KEY_ENV] = SEED_HEX;
     expect(loadServerSigningKeys().publicKeyHex).toBe(RFC_8032[0].publicKey);
 

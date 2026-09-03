@@ -39,12 +39,12 @@ export function CheckAllProxiesButton({ count }: { count: number }) {
         disabled={pending || count === 0}
         onClick={() => startTransition(async () => setResult(await checkEveryProxy()))}
       >
-        {pending ? `Đang kiểm ${count} proxy…` : `Kiểm tất cả ${count} proxy`}
+        {pending ? `Checking ${count} proxies...` : `Check all ${count} proxies`}
       </button>
       <ResultText result={result} />
       <p className="text-xs text-neutral-500">
-        Mỗi lượt đi qua đúng proxy đó hỏi ipinfo.io xem người ngoài nhìn thấy IP nào — nên nó
-        phát hiện được cả proxy đã chết lẫn proxy còn sống mà không đổi IP.
+        Each check requests the public IP through that exact proxy. It detects both an unreachable
+        proxy and a proxy that responds without changing the IP.
       </p>
     </div>
   );
@@ -62,7 +62,7 @@ export function CheckOneProxyButton({ proxyId }: { proxyId: string }) {
         disabled={pending}
         onClick={() => startTransition(async () => setResult(await checkOneProxy(proxyId)))}
       >
-        {pending ? "Đang kiểm…" : "Kiểm"}
+        {pending ? "Checking..." : "Check"}
       </button>
       <ResultText result={result} />
     </div>

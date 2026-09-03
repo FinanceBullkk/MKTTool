@@ -22,7 +22,7 @@ export function ProxyLastCheckCell({
   exitIp: string | null;
 }) {
   if (!verdict || !checkedAt) {
-    return <span className="text-xs text-neutral-500">chưa kiểm lần nào</span>;
+    return <span className="text-xs text-neutral-500">never checked</span>;
   }
 
   const known = (PROXY_CHECK_LABEL as Record<string, string>)[verdict] !== undefined;

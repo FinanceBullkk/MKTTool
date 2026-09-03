@@ -183,10 +183,10 @@ describe("Ed25519 public key point validation", () => {
   it("is enforced by both public key import paths", () => {
     for (const yHex of SMALL_ORDER_Y_COORDINATES) {
       expect(() => releasePublicKeyFromHex(yHex)).toThrow(/small-order point/i);
-      expect(() => ticketPublicKeyFromHex(yHex)).toThrow(/điểm bậc nhỏ/i);
+      expect(() => ticketPublicKeyFromHex(yHex)).toThrow(/small-order Ed25519 point/i);
     }
     const nonCanonical = encodeY(P + 1n);
     expect(() => releasePublicKeyFromHex(nonCanonical)).toThrow(/non-canonical/i);
-    expect(() => ticketPublicKeyFromHex(nonCanonical)).toThrow(/không chuẩn tắc/i);
+    expect(() => ticketPublicKeyFromHex(nonCanonical)).toThrow(/non-canonical encoding/i);
   });
 });

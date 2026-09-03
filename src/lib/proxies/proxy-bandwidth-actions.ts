@@ -28,7 +28,7 @@ export const measureOneProxySpeed = adminAction(async function measureOneProxySp
   proxyId: string,
 ): Promise<ActionResult> {
   const proxy = await prisma.proxy.findUnique({ where: { id: proxyId } });
-  if (!proxy) return { ok: false, message: "Không tìm thấy proxy." };
+  if (!proxy) return { ok: false, message: "This proxy could not be found. Reload the page and try again." };
 
   let password: string;
   try {
@@ -38,7 +38,7 @@ export const measureOneProxySpeed = adminAction(async function measureOneProxySp
     // vì ghi tức là khai rằng đã đo, mà thật ra chưa gửi đi byte nào.
     return {
       ok: false,
-      message: `${proxy.label} — không giải mã được mật khẩu proxy (VAULT_KEY_SERVER đã đổi?). Chưa đo được.`,
+      message: `${proxy.label} - The proxy password could not be decrypted. Check VAULT_KEY_SERVER before measuring again.`,
     };
   }
 

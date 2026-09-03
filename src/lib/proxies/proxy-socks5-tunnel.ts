@@ -36,14 +36,14 @@ const ATYP_IPV6 = 0x04;
 
 /** Lý do từ chối theo RFC 1928, dịch sang câu đọc được. */
 const REPLY_REASONS: Record<number, string> = {
-  0x01: "proxy báo lỗi chung",
-  0x02: "proxy không cho phép kết nối này",
-  0x03: "mạng phía sau proxy không tới được",
-  0x04: "máy đích không tới được từ proxy",
-  0x05: "đích từ chối kết nối",
-  0x06: "hết hạn TTL",
-  0x07: "proxy không hỗ trợ lệnh CONNECT",
-  0x08: "proxy không hỗ trợ kiểu địa chỉ này",
+  0x01: "the proxy reported a general failure",
+  0x02: "the proxy rules do not allow this connection",
+  0x03: "the network behind the proxy is unreachable",
+  0x04: "the destination host is unreachable from the proxy",
+  0x05: "the destination refused the connection",
+  0x06: "the TTL expired",
+  0x07: "the proxy does not support CONNECT",
+  0x08: "the proxy does not support this address type",
 };
 
 /** Đọc theo từng khối có kích thước biết trước — đủ dùng cho một cuộc bắt tay tuần tự. */
@@ -73,7 +73,7 @@ function createByteReader(socket: net.Socket) {
   };
   const onError = (error: Error) => fail(error);
   const onClose = () =>
-    fail(new Socks5Error("proxy đóng kết nối giữa chừng cuộc bắt tay", "unreachable"));
+    fail(new Socks5Error("the proxy closed the connection during the SOCKS5 handshake", "unreachable"));
 
   socket.on("data", onData);
   socket.on("error", onError);
@@ -128,13 +128,16 @@ function connectSocket(options: Socks5TunnelOptions): Promise<net.Socket> {
     const onError = (error: Error) => {
       cleanup();
       socket.destroy();
-      reject(new Socks5Error(`không nối được tới proxy (${error.message})`, "unreachable"));
+      reject(new Socks5Error(`could not connect to the proxy (${error.message})`, "unreachable"));
     };
     const onTimeout = () => {
       cleanup();
       socket.destroy();
       reject(
-        new Socks5Error(`quá ${options.timeoutMs / 1000} giây không nối được tới proxy`, "unreachable"),
+        new Socks5Error(
+          `could not connect to the proxy within ${options.timeoutMs / 1000} seconds`,
+          "unreachable",
+        ),
       );
     };
 
@@ -152,7 +155,7 @@ async function skipBoundAddress(read: (size: number) => Promise<Buffer>, atyp: n
     const [length] = await read(1);
     return read((length ?? 0) + 2);
   }
-  throw new Socks5Error(`proxy trả về kiểu địa chỉ lạ (${atyp})`, "protocol");
+  throw new Socks5Error(`the proxy returned an unsupported address type (${atyp})`, "protocol");
 }
 
 export async function openSocks5Tunnel(options: Socks5TunnelOptions): Promise<net.Socket> {
@@ -175,7 +178,7 @@ export async function openSocks5Tunnel(options: Socks5TunnelOptions): Promise<ne
   const onHandshakeTimeout = () => {
     socket.destroy(
       new Socks5Error(
-        `proxy nhận kết nối rồi im quá ${options.timeoutMs / 1000} giây`,
+        `the proxy accepted the connection but sent no handshake data for ${options.timeoutMs / 1000} seconds`,
         "unreachable",
       ),
     );
@@ -189,15 +192,18 @@ export async function openSocks5Tunnel(options: Socks5TunnelOptions): Promise<ne
 
     const greeting = await reader.read(2);
     if (greeting[0] !== SOCKS_VERSION) {
-      throw new Socks5Error("proxy không nói SOCKS5 (sai cổng hoặc sai giao thức?)", "protocol");
+      throw new Socks5Error(
+        "the endpoint did not respond as SOCKS5; check the proxy port and protocol",
+        "protocol",
+      );
     }
     const method = greeting[1];
 
     if (method === AUTH_UNACCEPTABLE) {
       throw new Socks5Error(
         hasCredentials
-          ? "proxy từ chối mọi kiểu xác thực mình hỗ trợ"
-          : "proxy đòi xác thực nhưng proxy này chưa khai user/mật khẩu",
+          ? "the proxy rejected every supported authentication method"
+          : "the proxy requires authentication, but no username and password are configured",
         "unreachable",
       );
     }
@@ -212,10 +218,13 @@ export async function openSocks5Tunnel(options: Socks5TunnelOptions): Promise<ne
 
       const authReply = await reader.read(2);
       if (authReply[1] !== 0x00) {
-        throw new Socks5Error("proxy từ chối user/mật khẩu", "unreachable");
+        throw new Socks5Error("the proxy rejected the configured username or password", "unreachable");
       }
     } else if (method !== AUTH_NONE) {
-      throw new Socks5Error(`proxy đòi kiểu xác thực chưa hỗ trợ (${method})`, "protocol");
+      throw new Socks5Error(
+        `the proxy requires an unsupported authentication method (${method})`,
+        "protocol",
+      );
     }
 
     // 3. Xin mở đường tới đích.
@@ -232,12 +241,12 @@ export async function openSocks5Tunnel(options: Socks5TunnelOptions): Promise<ne
 
     const reply = await reader.read(4);
     if (reply[0] !== SOCKS_VERSION) {
-      throw new Socks5Error("proxy trả lời sai định dạng SOCKS5", "protocol");
+      throw new Socks5Error("the proxy returned a malformed SOCKS5 response", "protocol");
     }
     const code = reply[1] ?? 0xff;
     if (code !== 0x00) {
       throw new Socks5Error(
-        `proxy không mở được đường tới ${options.destHost} (${REPLY_REASONS[code] ?? `mã ${code}`})`,
+        `the proxy could not open a connection to ${options.destHost} (${REPLY_REASONS[code] ?? `reply code ${code}`})`,
         "unreachable",
       );
     }

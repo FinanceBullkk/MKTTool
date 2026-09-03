@@ -42,10 +42,10 @@ export function NewProxySheet({
         onClose();
         window.location.reload();
       } else {
-        setError(res.message || "Không thể tạo proxy.");
+        setError(res.message || "The proxy could not be created. Check the fields and try again.");
       }
     } catch {
-      setError("Đã xảy ra lỗi khi tạo proxy.");
+      setError("The proxy could not be created. Reload the page and try again.");
     } finally {
       setBusy(false);
     }
@@ -64,10 +64,10 @@ export function NewProxySheet({
         onClose();
         window.location.reload();
       } else {
-        setError(res.message || "Không thể thêm proxy hàng loạt.");
+        setError(res.message || "The proxy list could not be imported. Check the rows and try again.");
       }
     } catch {
-      setError("Đã xảy ra lỗi khi thêm proxy hàng loạt.");
+      setError("The proxy list could not be imported. Reload the page and try again.");
     } finally {
       setBusy(false);
     }
@@ -95,9 +95,9 @@ export function NewProxySheet({
               🔌
             </div>
             <div>
-              <h2 className="text-sm font-bold text-white tracking-tight">Thêm Proxy Mới</h2>
+              <h2 className="text-sm font-bold text-white tracking-tight">Add proxies</h2>
               <p className="text-[11px] text-neutral-400">
-                Gán endpoint theo vùng cho từng profile; đây không phải bằng chứng cô lập danh tính
+                Assign a regional endpoint to each browser-backed nick; this is not proof of identity isolation
               </p>
             </div>
           </div>
@@ -119,7 +119,7 @@ export function NewProxySheet({
               tab === "single" ? "bg-white/[0.08] text-white shadow" : "text-neutral-400 hover:text-neutral-200"
             }`}
           >
-            Thêm từng IP
+            Add one proxy
           </button>
           <button
             type="button"
@@ -128,7 +128,7 @@ export function NewProxySheet({
               tab === "bulk" ? "bg-white/[0.08] text-white shadow" : "text-neutral-400 hover:text-neutral-200"
             }`}
           >
-            Dán hàng loạt (Bulk)
+            Paste a list
           </button>
         </div>
 
@@ -141,18 +141,18 @@ export function NewProxySheet({
         {tab === "single" ? (
           <form onSubmit={handleSingleSubmit} className="space-y-4 flex-1">
             <div>
-              <label className="block text-xs font-medium text-neutral-300 mb-1">Nhãn gợi nhớ *</label>
+              <label className="block text-xs font-medium text-neutral-300 mb-1">Label *</label>
               <input
                 name="label"
                 required
-                placeholder="VD: viettel-4g-01, static-us-02"
+                placeholder="Example: viettel-4g-01, static-us-02"
                 className="w-full rounded-xl bg-white/[0.03] border border-white/[0.08] px-3.5 py-2 text-xs text-white placeholder:text-neutral-600 focus:border-purple-500/50 focus:outline-none transition font-mono"
               />
             </div>
 
             <div className="grid grid-cols-3 gap-2">
               <div className="col-span-2">
-                <label className="block text-xs font-medium text-neutral-300 mb-1">Địa chỉ IP / Host *</label>
+                <label className="block text-xs font-medium text-neutral-300 mb-1">IP address / Host *</label>
                 <input
                   name="host"
                   required
@@ -161,7 +161,7 @@ export function NewProxySheet({
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-neutral-300 mb-1">Cổng (Port) *</label>
+                <label className="block text-xs font-medium text-neutral-300 mb-1">Port *</label>
                 <input
                   name="port"
                   type="number"
@@ -174,19 +174,19 @@ export function NewProxySheet({
 
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="block text-xs font-medium text-neutral-300 mb-1">Tài khoản Proxy</label>
+                <label className="block text-xs font-medium text-neutral-300 mb-1">Proxy username</label>
                 <input
                   name="username"
-                  placeholder="user (nếu có)"
+                  placeholder="Username (optional)"
                   className="w-full rounded-xl bg-white/[0.03] border border-white/[0.08] px-3.5 py-2 text-xs text-white placeholder:text-neutral-600 focus:border-purple-500/50 focus:outline-none transition font-mono"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-neutral-300 mb-1">Mật khẩu Proxy</label>
+                <label className="block text-xs font-medium text-neutral-300 mb-1">Proxy password</label>
                 <input
                   name="password"
                   type="password"
-                  placeholder="pass (nếu có)"
+                  placeholder="Password (optional)"
                   className="w-full rounded-xl bg-white/[0.03] border border-white/[0.08] px-3.5 py-2 text-xs text-white placeholder:text-neutral-600 focus:border-purple-500/50 focus:outline-none transition font-mono"
                 />
               </div>
@@ -194,7 +194,7 @@ export function NewProxySheet({
 
             <div className="grid grid-cols-3 gap-2">
               <div>
-                <label className="block text-xs font-medium text-neutral-300 mb-1">Giao thức</label>
+                <label className="block text-xs font-medium text-neutral-300 mb-1">Protocol</label>
                 <select
                   name="protocol"
                   defaultValue="http"
@@ -205,7 +205,7 @@ export function NewProxySheet({
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-neutral-300 mb-1">Loại IP</label>
+                <label className="block text-xs font-medium text-neutral-300 mb-1">IP type</label>
                 {/* Đúng HAI giá trị mà `proxyCreateSchema` nhận — xem `vault-form-schemas.ts`.
                     Bản trước liệt kê bốn (MOBILE_4G / HOTSPOT / STATIC_ISP / DATACENTER) và đặt
                     mặc định vào MOBILE_4G, tức lựa chọn mặc định luôn bị từ chối. Thêm loại mới
@@ -215,12 +215,12 @@ export function NewProxySheet({
                   defaultValue="STATIC_ISP"
                   className="w-full rounded-xl bg-black/60 border border-white/[0.08] px-2.5 py-2 text-xs text-white focus:border-purple-500/50 focus:outline-none transition"
                 >
-                  <option value="STATIC_ISP">Dân cư tĩnh (ISP)</option>
+                  <option value="STATIC_ISP">Static ISP</option>
                   <option value="MOBILE">4G / Mobile</option>
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-neutral-300 mb-1">Quốc gia</label>
+                <label className="block text-xs font-medium text-neutral-300 mb-1">Country</label>
                 <input
                   name="country"
                   defaultValue="VN"
@@ -232,11 +232,11 @@ export function NewProxySheet({
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-neutral-300 mb-1">Ghi chú</label>
+              <label className="block text-xs font-medium text-neutral-300 mb-1">Notes</label>
               <textarea
                 name="notes"
                 rows={2}
-                placeholder="VD: Proxy mua từ Webshare gói 50 IP, dùng cho nhóm tài khoản pilot"
+                placeholder="Example: Webshare 50-IP plan for the pilot nick group"
                 className="w-full rounded-xl bg-white/[0.03] border border-white/[0.08] px-3.5 py-2 text-xs text-white placeholder:text-neutral-600 focus:border-purple-500/50 focus:outline-none transition"
               />
             </div>
@@ -248,7 +248,7 @@ export function NewProxySheet({
                 className="brand-btn w-full py-2.5 rounded-xl text-xs font-semibold text-white flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-purple-500/25"
               >
                 {busy ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
-                <span>Lưu Proxy vào kho</span>
+                <span>Save proxy to vault</span>
               </button>
             </div>
           </form>
@@ -256,13 +256,13 @@ export function NewProxySheet({
           <form onSubmit={handleBulkSubmit} className="space-y-4 flex-1 flex flex-col">
             <div className="flex-1 flex flex-col">
               <label className="block text-xs font-medium text-neutral-300 mb-1.5">
-                Dán danh sách Proxy (Mỗi dòng một IP)
+                Paste proxy list (one proxy per line)
               </label>
               {/* `host:port` trần đã bị bỏ khỏi danh sách: kho bắt buộc có username và mật khẩu
                   (xem `proxyCreateSchema`), nên quảng cáo định dạng đó là hứa một thứ luôn bị
                   từ chối ở dòng đầu tiên. */}
               <p className="text-[11px] text-neutral-500 mb-2 font-mono">
-                Định dạng hỗ trợ: <br />
+                Supported formats: <br />
                 - <code className="text-neutral-300">host:port:user:pass</code> <br />
                 - <code className="text-neutral-300">label|host:port:user:pass</code>
               </p>
@@ -281,7 +281,7 @@ export function NewProxySheet({
             <div className="grid grid-cols-3 gap-2">
               <div>
                 <label htmlFor="bulk-country" className="block text-xs font-medium text-neutral-300 mb-1">
-                  Quốc gia <span className="text-purple-400">*</span>
+                  Country <span className="text-purple-400">*</span>
                 </label>
                 <input
                   id="bulk-country"
@@ -296,7 +296,7 @@ export function NewProxySheet({
               </div>
               <div>
                 <label htmlFor="bulk-type" className="block text-xs font-medium text-neutral-300 mb-1">
-                  Loại IP
+                  IP type
                 </label>
                 <select
                   id="bulk-type"
@@ -304,13 +304,13 @@ export function NewProxySheet({
                   onChange={(e) => setBulkDefaults({ ...bulkDefaults, type: e.target.value })}
                   className="w-full rounded-xl bg-black/60 border border-white/[0.08] px-2.5 py-2 text-xs text-white focus:border-purple-500/50 focus:outline-none transition"
                 >
-                  <option value="STATIC_ISP">Dân cư tĩnh (ISP)</option>
+                  <option value="STATIC_ISP">Static ISP</option>
                   <option value="MOBILE">4G / Mobile</option>
                 </select>
               </div>
               <div>
                 <label htmlFor="bulk-protocol" className="block text-xs font-medium text-neutral-300 mb-1">
-                  Giao thức
+                  Protocol
                 </label>
                 <select
                   id="bulk-protocol"
@@ -331,7 +331,7 @@ export function NewProxySheet({
                 className="brand-btn w-full py-2.5 rounded-xl text-xs font-semibold text-white flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-purple-500/25"
               >
                 {busy ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
-                <span>Import toàn bộ danh sách</span>
+                <span>Import proxy list</span>
               </button>
             </div>
           </form>

@@ -97,13 +97,13 @@ export type RelayOutcome<T> =
   | { status: "no-permission"; message: string };
 
 const UNREACHABLE_MESSAGE =
-  "Không thấy cầu nối trên máy này. Mở ứng dụng cầu nối rồi bấm lại — nó phải đang chạy thì " +
-  "trình duyệt mới đưa vé xuống được.";
+  "Relay could not be found on this PC. Start the Relay application and try again; it must be " +
+  "running before the browser can deliver a ticket.";
 
 const NO_PERMISSION_MESSAGE =
-  "Trình duyệt không cho trang này gọi xuống máy của bạn. Bấm lại và chọn \"Cho phép\" ở hộp " +
-  "hỏi quyền; nếu không thấy hộp nào thì mở biểu tượng ổ khóa trên thanh địa chỉ và bật lại " +
-  "quyền truy cập mạng nội bộ. (Cũng có thể cầu nối đang chạy nhưng bị treo — thử tắt bật lại.)";
+  "The browser blocked this page from contacting your PC. Try again and select \"Allow\" in the " +
+  "permission prompt. If no prompt appears, open the lock icon in the address bar and enable " +
+  "local network access. Relay may also be unresponsive; restart it and try again.";
 
 /**
  * Một lượt fetch xuống cầu nối, đã bọc đủ hạn giờ và phân loại cách hỏng.
@@ -142,15 +142,17 @@ async function callRelay<T extends RelayReply>(
     return {
       status: "rejected",
       message:
-        `Cầu nối trả lời nhưng không đọc được (HTTP ${response.status}). Nhiều khả năng thứ ` +
-        `đang nghe ở cổng đó không phải cầu nối.`,
+        `The response on Relay's port could not be read (HTTP ${response.status}). The program ` +
+        `listening on that port is probably not Relay. Stop the conflicting program, start Relay, and try again.`,
     };
   }
 
   if (!response.ok || !body.ok) {
     return {
       status: "rejected",
-      message: body.message || `Cầu nối từ chối (HTTP ${response.status}).`,
+      message:
+        body.message ||
+        `Relay rejected the request (HTTP ${response.status}). Check Relay's status page, then try again.`,
       // Giữ nguyên thân: một lời từ chối vẫn khai đủ thứ chỗ gọi cần — xem chú thích ở nhánh
       // `rejected` của `RelayOutcome`.
       data: body,
@@ -435,8 +437,8 @@ export function describeSlowRelayFailure(
 
   if (attempt.status === "no-permission") {
     return (
-      `Cầu nối không trả lời trong một phút — có thể nó vẫn đang ${viec}, cũng có thể trình duyệt ` +
-      `đang chặn đường xuống máy này.`
+      `Relay did not respond within one minute. It may still be ${viec}, or the browser may be ` +
+      `blocking access to this PC. Check whether the operation completed before trying again.`
     );
   }
   return attempt.message;

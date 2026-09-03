@@ -49,19 +49,19 @@ afterEach(() => {
 });
 
 describe("readRelayReleaseR2Config", () => {
-  it("không khai gì — null, nghĩa là đọc từ đĩa", () => {
+  it("returns null when unconfigured so the caller reads from disk", () => {
     expect(readRelayReleaseR2Config({})).toBeNull();
   });
 
-  it("khai một nửa thì NÉM, không lặng lẽ coi như tắt", () => {
+  it("throws for partial configuration instead of silently disabling R2", () => {
     // Đây là người đang cố bật tính năng mà gõ sót. Lặng lẽ lùi về đĩa đúng là cách để họ tin
     // rằng máy chủ đang phục vụ gói từ R2 trong khi nó không hề.
     expect(() =>
       readRelayReleaseR2Config({ [RELAY_RELEASE_R2_ENV.bucket]: "mkttool-relay" }),
-    ).toThrow(/khai thiếu/);
+    ).toThrow(/khai thi\u1ebfu/);
   });
 
-  it("dùng bộ biến RIÊNG, không mượn biến của ngăn sao lưu", () => {
+  it("uses dedicated variables instead of borrowing backup-bucket variables", () => {
     // Gộp hai ngăn là để một chìa mở được cả bản sao lưu lẫn gói cài — mở rộng thiệt hại của một
     // lần chiếm máy chủ chứ không thu hẹp nó.
     const backupEnv = {
@@ -81,20 +81,20 @@ describe("checksumOf", () => {
     metadata,
   });
 
-  it("nhận mã băm đúng hình dạng", () => {
+  it("accepts a correctly shaped hash", () => {
     expect(checksumOf(info({ sha256: REAL_SHA256 }))).toBe(REAL_SHA256);
   });
 
-  it("chuẩn hóa về chữ thường", () => {
+  it("normalizes the hash to lowercase", () => {
     expect(checksumOf(info({ sha256: REAL_SHA256.toUpperCase() }))).toBe(REAL_SHA256);
   });
 
-  it("chuỗi sai hình dạng bị coi như KHÔNG có", () => {
-    expect(checksumOf(info({ sha256: "không phải mã băm" }))).toBeNull();
+  it("treats a malformed hash as missing", () => {
+    expect(checksumOf(info({ sha256: "not a hash" }))).toBeNull();
     expect(checksumOf(info({ sha256: "abc123" }))).toBeNull();
   });
 
-  it("không có metadata thì null", () => {
+  it("returns null without metadata", () => {
     expect(checksumOf(info({}))).toBeNull();
   });
 });
@@ -142,8 +142,8 @@ describe("immutable compatibility manifest object", () => {
   });
 });
 
-describe("readRelayRelease — nguồn R2", () => {
-  it("khai đủ thì hỏi R2 chứ không đọc đĩa", async () => {
+describe("readRelayRelease - R2 source", () => {
+  it("queries R2 instead of disk when fully configured", async () => {
     configureR2();
     // Khai đủ tham số để `mock.calls` mang kiểu đọc được — `vi.fn` không tham số suy ra tuple rỗng.
     const fetchImpl = vi.fn((_url: string | URL | Request, _init?: RequestInit) =>
@@ -177,7 +177,7 @@ describe("readRelayRelease — nguồn R2", () => {
     expect(init!.method).toBe("HEAD");
   });
 
-  it("ngăn rỗng — nói chưa có, và chỉ đúng ngăn đã tìm", async () => {
+  it("reports an empty bucket and identifies the exact bucket checked", async () => {
     configureR2();
     vi.stubGlobal("fetch", vi.fn(async () => new Response(null, { status: 404 })));
 
@@ -192,7 +192,7 @@ describe("readRelayRelease — nguồn R2", () => {
     }
   });
 
-  it("R2 từ chối thì NÉM, không hóa thành 'chưa có gói'", async () => {
+  it("throws when R2 rejects the request instead of reporting no package", async () => {
     configureR2();
     vi.stubGlobal(
       "fetch",
@@ -202,7 +202,7 @@ describe("readRelayRelease — nguồn R2", () => {
     await expect(readRelayRelease()).rejects.toThrow(/AccessDenied/);
   });
 
-  it("từ chối object có metadata phiên bản lệch tên bất biến", async () => {
+  it("rejects an object whose version metadata differs from the immutable name", async () => {
     configureR2();
     vi.stubGlobal(
       "fetch",

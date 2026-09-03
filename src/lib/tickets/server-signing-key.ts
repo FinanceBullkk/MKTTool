@@ -63,7 +63,7 @@ let cachedKeys: ServerSigningKeys | null = null;
 export function parseSigningSeed(raw: string | undefined, source: string): Buffer {
   if (!raw || raw.trim() === "") {
     throw new ServerSigningKeyError(
-      `Thiếu ${source}. Chạy \`npm run keys:server-keygen\` rồi dán giá trị vào file .env.`,
+      `${source} is missing. Run \`npm run keys:server-keygen\`, then add the generated value to the .env file.`,
     );
   }
 
@@ -71,22 +71,22 @@ export function parseSigningSeed(raw: string | undefined, source: string): Buffe
 
   if (hex.length !== SIGNING_SEED_HEX_LENGTH) {
     throw new ServerSigningKeyError(
-      `${source} phải dài đúng ${SIGNING_SEED_HEX_LENGTH} ký tự hex ` +
-        `(${SIGNING_SEED_BYTES} byte), đang có ${hex.length} ký tự.`,
+      `${source} must contain exactly ${SIGNING_SEED_HEX_LENGTH} hexadecimal characters ` +
+        `(${SIGNING_SEED_BYTES} bytes); it currently contains ${hex.length}.`,
     );
   }
 
   if (!/^[0-9a-fA-F]+$/.test(hex)) {
-    throw new ServerSigningKeyError(`${source} chỉ được chứa ký tự hex (0-9, a-f).`);
+    throw new ServerSigningKeyError(`${source} may contain only hexadecimal characters (0-9, a-f).`);
   }
 
   const seed = Buffer.from(hex, "hex");
   const placeholder = describePlaceholderSecret(seed);
   if (placeholder) {
     throw new ServerSigningKeyError(
-      `${source} trông như một hạt giống điền tạm (${placeholder}). Hạt giống này suy ra khóa ký ` +
-        "của máy chủ — đoán được nó là ký được vé, quyền cập nhật và quyền lùi bản. " +
-        "Sinh hạt giống thật bằng `npm run keys:server-keygen`.",
+      `${source} looks like a placeholder seed (${placeholder}). This seed derives the server's ` +
+        "signing key; anyone who guesses it can sign tickets, updates, and rollbacks. " +
+        "Generate a secure seed with `npm run keys:server-keygen`.",
     );
   }
 
@@ -97,7 +97,7 @@ export function parseSigningSeed(raw: string | undefined, source: string): Buffe
 export function signingKeysFromSeed(seed: Buffer): ServerSigningKeys {
   if (seed.length !== SIGNING_SEED_BYTES) {
     throw new ServerSigningKeyError(
-      `Hạt giống phải dài ${SIGNING_SEED_BYTES} byte, nhận được ${seed.length}.`,
+      `The signing seed must be ${SIGNING_SEED_BYTES} bytes; received ${seed.length}.`,
     );
   }
 
@@ -121,7 +121,9 @@ export function publicKeyToHex(publicKey: KeyObject): string {
   const jwk = publicKey.export({ format: "jwk" }) as { x?: string };
 
   if (!jwk.x) {
-    throw new ServerSigningKeyError("Không đọc được khóa công khai — khóa không phải Ed25519?");
+    throw new ServerSigningKeyError(
+      "The public key could not be read as Ed25519. Generate and copy it again.",
+    );
   }
 
   return Buffer.from(jwk.x, "base64url").toString("hex");
@@ -141,8 +143,8 @@ export function publicKeyFromHex(hexKey: string): KeyObject {
 
   if (hex.length !== SIGNING_SEED_HEX_LENGTH || !/^[0-9a-f]+$/.test(hex)) {
     throw new ServerSigningKeyError(
-      `Khóa công khai của máy chủ phải là ${SIGNING_SEED_HEX_LENGTH} ký tự hex. ` +
-        `Chạy \`npm run keys:server-pubkey\` trên máy chủ rồi chép lại nguyên dòng.`,
+      `The server public key must contain ${SIGNING_SEED_HEX_LENGTH} hexadecimal characters. ` +
+        `Run \`npm run keys:server-pubkey\` on the server and copy the complete line.`,
     );
   }
 
@@ -155,15 +157,15 @@ export function publicKeyFromHex(hexKey: string): KeyObject {
   const rejection = ed25519PublicKeyRejection(hex);
   if (rejection === "small-order") {
     throw new ServerSigningKeyError(
-      "Chuỗi này là một điểm bậc nhỏ của Ed25519, không phải khóa công khai thật: chữ ký giả " +
-        "nghiệm đúng dưới nó mà không cần khóa riêng. Lấy lại khóa bằng " +
-        "`npm run keys:server-pubkey` trên máy chủ.",
+      "This value is a small-order Ed25519 point, not a valid public key: forged signatures can " +
+        "verify under it without the private key. Retrieve the key again with " +
+        "`npm run keys:server-pubkey` on the server.",
     );
   }
   if (rejection === "non-canonical") {
     throw new ServerSigningKeyError(
-      "Chuỗi này dùng cách mã hóa không chuẩn tắc, khiến một khóa có hai cách viết. " +
-        "Chép lại nguyên dòng do `npm run keys:server-pubkey` in ra.",
+      "This value uses a non-canonical encoding, which gives one key two representations. " +
+        "Copy the complete line printed by `npm run keys:server-pubkey`.",
     );
   }
 
@@ -174,8 +176,8 @@ export function publicKeyFromHex(hexKey: string): KeyObject {
     });
   } catch (cause) {
     throw new ServerSigningKeyError(
-      `Chuỗi này đúng độ dài nhưng không phải khóa công khai Ed25519 hợp lệ. ` +
-        `Kiểm xem có chép nhầm khóa của máy cầu nối (X25519) không. (${(cause as Error).message})`,
+      `This value has the correct length but is not a valid Ed25519 public key. ` +
+        `Check whether a Relay PC key (X25519) was copied instead. (${(cause as Error).message})`,
     );
   }
 }

@@ -169,5 +169,5 @@ export async function openRelayReleaseStream(
 
 /** Chỗ đã tìm, in ra khi chưa có gói. Không lộ chìa, chỉ lộ tên ngăn. */
 export function describeR2Location(config: R2Config, version: number): string {
-  return `ngăn R2 "${config.bucket}", object "${relayReleaseR2Key(version)}"`;
+  return `R2 bucket "${config.bucket}", object "${relayReleaseR2Key(version)}"`;
 }

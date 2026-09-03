@@ -19,7 +19,7 @@ const PUBLIC_KEY = "d8f7f7237e2b54cf9a916110b40ed5d843a5b6602e9a1a56f2efb65cfddd
 /** Đúng thân mà một cầu nối vừa cài xong trả về — chép từ máy thật, 06/08/2026. */
 const UNCONFIGURED_HEALTH = {
   ok: false,
-  message: "Cầu nối trên máy này chưa cấu hình xong (2 mục còn thiếu).",
+  message: "Relay on this PC is not fully configured (2 items missing).",
   publicKey: PUBLIC_KEY,
   configured: false,
   deviceId: null,
@@ -38,7 +38,7 @@ afterEach(() => {
 });
 
 describe("pingRelay", () => {
-  it("giữ thân phản hồi khi cầu nối từ chối vì chưa cấu hình xong", async () => {
+  it("preserves the response body when Relay rejects an incomplete configuration", async () => {
     stubFetch(400, UNCONFIGURED_HEALTH);
 
     const outcome = await pingRelay();
@@ -48,14 +48,14 @@ describe("pingRelay", () => {
     // Khóa công khai là thứ duy nhất để đăng ký chính chiếc máy này. Mất nó ở đây là bế tắc.
     expect(outcome.data?.publicKey).toBe(PUBLIC_KEY);
     expect(outcome.data?.configured).toBe(false);
-    expect(outcome.message).toContain("chưa cấu hình xong");
+    expect(outcome.message).toContain("not fully configured");
   });
 
-  it("vẫn giao thân khi cầu nối đã cấu hình xong", async () => {
+  it("still returns the response body when Relay is fully configured", async () => {
     stubFetch(200, {
       ...UNCONFIGURED_HEALTH,
       ok: true,
-      message: "Cầu nối sẵn sàng.",
+      message: "Relay is ready.",
       configured: true,
       deviceId: "dev_123",
     });
@@ -68,11 +68,11 @@ describe("pingRelay", () => {
     expect(outcome.data.deviceId).toBe("dev_123");
   });
 
-  it("không có thân nào để giữ khi phản hồi không đọc nổi thành JSON", async () => {
+  it("has no response body to preserve when the response is not valid JSON", async () => {
     // Thứ đang nghe ở cổng đó không phải cầu nối. `data` vắng mặt, và chỗ gọi phải chịu được.
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () => new Response("<html>không phải cầu nối</html>", { status: 200 })),
+      vi.fn(async () => new Response("<html>not Relay</html>", { status: 200 })),
     );
 
     const outcome = await pingRelay();

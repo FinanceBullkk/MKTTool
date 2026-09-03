@@ -87,7 +87,7 @@ export const createBulkProxies = adminAction(async function createBulkProxies(
     .filter((line) => line.length > 0 && !line.startsWith("#"));
 
   if (lines.length === 0) {
-    return { ok: false, message: "Danh sách proxy rỗng." };
+    return { ok: false, message: "The proxy list is empty. Paste at least one proxy and try again." };
   }
 
   const vaultKey = loadVaultKey("server");
@@ -99,13 +99,13 @@ export const createBulkProxies = adminAction(async function createBulkProxies(
     const fields = parseLine(line);
 
     if (!fields) {
-      errors.push(`dòng ${lineNo}: không đọc được, cần ít nhất host:port`);
+      errors.push(`line ${lineNo}: could not be read; provide at least host:port`);
       continue;
     }
 
     const parsed = proxyCreateSchema.safeParse({ ...fields, ...defaults });
     if (!parsed.success) {
-      errors.push(`dòng ${lineNo}: ${parsed.error.issues[0]?.message ?? "dữ liệu không hợp lệ"}`);
+      errors.push(`line ${lineNo}: ${parsed.error.issues[0]?.message ?? "invalid data"}`);
       continue;
     }
 
@@ -118,8 +118,8 @@ export const createBulkProxies = adminAction(async function createBulkProxies(
     } catch (error) {
       errors.push(
         isUniqueConstraintError(error)
-          ? `dòng ${lineNo}: trùng nhãn hoặc trùng host/port/username đã có`
-          : `dòng ${lineNo}: lỗi ghi database`,
+          ? `line ${lineNo}: the label or host/port/username already exists`
+          : `line ${lineNo}: the database write failed`,
       );
     }
   }
@@ -129,12 +129,16 @@ export const createBulkProxies = adminAction(async function createBulkProxies(
   if (created > 0) revalidatePath("/");
 
   if (errors.length === 0) {
-    return { ok: true, message: `Đã thêm ${created} proxy.` };
+    return { ok: true, message: `Added ${created} ${created === 1 ? "proxy" : "proxies"}.` };
   }
 
   const shown = errors.slice(0, MAX_ERRORS_SHOWN).join("; ");
-  const rest = errors.length > MAX_ERRORS_SHOWN ? ` (và ${errors.length - MAX_ERRORS_SHOWN} dòng nữa)` : "";
-  const summary = `Thêm được ${created}/${lines.length} proxy. Bỏ qua: ${shown}${rest}.`;
+  const remainingErrors = errors.length - MAX_ERRORS_SHOWN;
+  const rest =
+    remainingErrors > 0
+      ? ` (and ${remainingErrors} more ${remainingErrors === 1 ? "line" : "lines"})`
+      : "";
+  const summary = `Added ${created}/${lines.length} proxies. Skipped: ${shown}${rest}. Fix the skipped lines and import them again.`;
 
   // `ok: false` kể cả khi có dòng vào được: màn hình phải dừng lại cho người ta đọc danh sách
   // dòng hỏng, thay vì đóng lại và để họ tự phát hiện thiếu proxy vào tuần sau.

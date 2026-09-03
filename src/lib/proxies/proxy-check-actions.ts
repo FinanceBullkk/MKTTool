@@ -23,7 +23,7 @@ export const checkOneProxy = guardedAction(async function checkOneProxy(
   proxyId: string,
 ): Promise<ActionResult> {
   const proxy = await prisma.proxy.findUnique({ where: { id: proxyId } });
-  if (!proxy) return { ok: false, message: "Không tìm thấy proxy." };
+  if (!proxy) return { ok: false, message: "This proxy could not be found. Reload the page and try again." };
 
   const liveness = await checkProxyLiveness(proxy);
   revalidateProxyViews();

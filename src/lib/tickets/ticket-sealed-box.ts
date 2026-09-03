@@ -89,7 +89,10 @@ export function sealForDevice(payload: unknown, devicePublicKeyHex: string): Sea
     devicePublicKey = relayPublicKeyToKeyObject(devicePublicKeyHex);
   } catch (cause) {
     if (cause instanceof RelayDeviceKeyError) {
-      throw new SealedBoxError(`Khóa của máy nhận không dùng được: ${cause.message}`, { cause });
+      throw new SealedBoxError(
+        `The receiving Relay PC key cannot be used: ${cause.message}`,
+        { cause },
+      );
     }
     throw cause;
   }
@@ -126,7 +129,7 @@ export function openSealedPayload(
     json = decryptCredential(sealed.sealed, deriveAesKey(sharedSecret));
   } catch (cause) {
     throw new SealedBoxError(
-      "Không mở được ruột vé — vé này không dành cho máy này, hoặc đã bị sửa.",
+      "The ticket payload could not be opened. This ticket belongs to another Relay PC or was modified in transit.",
       { cause },
     );
   }
@@ -134,6 +137,9 @@ export function openSealedPayload(
   try {
     return JSON.parse(json);
   } catch (cause) {
-    throw new SealedBoxError("Ruột vé mở ra được nhưng không phải JSON hợp lệ.", { cause });
+    throw new SealedBoxError(
+      "The ticket payload was decrypted but is not valid JSON. Request a new ticket.",
+      { cause },
+    );
   }
 }

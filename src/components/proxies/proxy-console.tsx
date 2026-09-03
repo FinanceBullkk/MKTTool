@@ -99,7 +99,7 @@ export function ProxyConsole({
               className="brand-btn px-4 py-2 rounded-xl text-xs font-semibold text-white inline-flex items-center gap-2 cursor-pointer shadow-lg shadow-purple-500/25"
             >
               <Plus size={15} strokeWidth={2.5} />
-              <span>Thêm Proxy</span>
+              <span>Add proxy</span>
               <Kbd>⌘ N</Kbd>
             </button>
           ) : null}
@@ -118,7 +118,7 @@ export function ProxyConsole({
                 : "bg-white/[0.02] border border-white/[0.04] text-neutral-400 hover:text-neutral-200"
             }`}
           >
-            <span>Tất cả</span>
+            <span>All</span>
             <span className="font-mono text-[11px] text-neutral-500">{counts.all}</span>
           </button>
 
@@ -132,7 +132,7 @@ export function ProxyConsole({
             }`}
           >
             <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
-            <span>Chưa gắn Profile</span>
+            <span>Not assigned to a nick</span>
             <span className="font-mono text-[11px] text-neutral-500">{counts.unassigned}</span>
           </button>
 
@@ -146,7 +146,7 @@ export function ProxyConsole({
             }`}
           >
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-            <span>Đang gắn Profile</span>
+            <span>Assigned to a nick</span>
             <span className="font-mono text-[11px] text-neutral-500">{counts.active}</span>
           </button>
 
@@ -160,7 +160,7 @@ export function ProxyConsole({
             }`}
           >
             <span className="w-1.5 h-1.5 rounded-full bg-rose-400" />
-            <span>Hỏng / Chết</span>
+            <span>Dead</span>
             <span className="font-mono text-[11px] text-neutral-500">{counts.error}</span>
           </button>
         </div>
@@ -173,7 +173,7 @@ export function ProxyConsole({
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Tìm theo IP, nhãn, quốc gia…"
+              placeholder="Search by IP, label, or country..."
               className="flex-1 bg-transparent text-xs text-white placeholder:text-neutral-500 focus:outline-none"
             />
           </div>
@@ -186,22 +186,22 @@ export function ProxyConsole({
           <div className="w-12 h-12 rounded-2xl bg-white/[0.03] border border-white/[0.06] flex items-center justify-center text-2xl mb-3">
             🌐
           </div>
-          <h3 className="text-sm font-semibold text-white">Chưa có proxy nào phù hợp</h3>
+          <h3 className="text-sm font-semibold text-white">No matching proxies</h3>
           <p className="mt-1 text-xs text-neutral-400 max-w-sm">
             {proxies.length > 0 ? (
-              "Không có proxy khớp bộ lọc hiện tại. Đổi bộ lọc hoặc từ khóa tìm kiếm để xem lại kho."
+              "No proxy matches the current filters. Change the filters or search terms to view the vault."
             ) : isAdmin ? (
               <>
-                Bấm nút <strong>&quot;Thêm Proxy&quot;</strong> để nạp IP tĩnh 4G Mobile hoặc Dân cư
-                cho dàn tài khoản.
+                Select <strong>&quot;Add proxy&quot;</strong> to add a mobile or static ISP endpoint for
+                browser-backed nicks.
               </>
             ) : (
               <>
-                ADMIN phụ trách nạp và gán proxy. Liên hệ quản trị viên tại{" "}
+                An administrator adds and assigns proxies. Contact the administrator at{" "}
                 <a href={`mailto:${adminContactEmail}`} className="underline">
                   {adminContactEmail}
                 </a>{" "}
-                rồi chờ proxy được chuẩn bị.
+                and wait until the proxy is ready.
               </>
             )}
           </p>
@@ -212,12 +212,12 @@ export function ProxyConsole({
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="border-b border-white/[0.06] bg-white/[0.03] text-[11px] font-semibold uppercase tracking-wider text-neutral-500 font-mono">
-                  <th className="py-3 px-4">Nhãn & IP</th>
-                  <th className="py-3 px-4">Giao thức & Loại</th>
-                  <th className="py-3 px-4">Profile Đang Gắn</th>
-                  <th className="py-3 px-4">Lần kiểm gần nhất</th>
-                  <th className="py-3 px-4">Tốc độ</th>
-                  <th className="py-3 px-4 text-right">Hành động</th>
+                  <th className="py-3 px-4">Label & IP</th>
+                  <th className="py-3 px-4">Protocol & Type</th>
+                  <th className="py-3 px-4">Assigned nick</th>
+                  <th className="py-3 px-4">Latest check</th>
+                  <th className="py-3 px-4">Speed</th>
+                  <th className="py-3 px-4 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/[0.04] text-sm">
@@ -264,7 +264,7 @@ export function ProxyConsole({
                         </div>
                       ) : (
                         <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-neutral-800 text-neutral-400">
-                          chưa gắn
+                          not assigned
                         </span>
                       )}
                     </td>
@@ -296,7 +296,7 @@ export function ProxyConsole({
                           href={`/proxies/${proxy.id}`}
                           className="px-2.5 py-1 rounded-lg text-xs font-medium text-neutral-400 hover:text-white hover:bg-white/[0.06] transition"
                         >
-                          {isAdmin ? "Sửa" : "Xem"}
+                          {isAdmin ? "Edit" : "View"}
                         </Link>
                       </div>
                     </td>

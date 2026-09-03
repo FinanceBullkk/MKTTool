@@ -130,7 +130,10 @@ export function verifyTicket(
 ): VerifiedTicket {
   const parts = ticket.split(".");
   if (parts.length !== 2) {
-    throw new TicketRejected("MALFORMED", "Vé sai định dạng — cần đúng hai phần.");
+    throw new TicketRejected(
+      "MALFORMED",
+      "The ticket is malformed: it must contain exactly two parts. Request a new ticket.",
+    );
   }
 
   const [encodedEnvelope, encodedSignature] = parts;
@@ -146,7 +149,7 @@ export function verifyTicket(
   if (!signatureOk) {
     throw new TicketRejected(
       "BAD_SIGNATURE",
-      "Vé không do máy chủ này phát, hoặc đã bị sửa trên đường.",
+      "This ticket was not issued by this server or was modified in transit. Request a new ticket.",
     );
   }
 
@@ -154,24 +157,31 @@ export function verifyTicket(
   try {
     envelope = JSON.parse(Buffer.from(encodedEnvelope, "base64url").toString("utf8"));
   } catch (cause) {
-    throw new TicketRejected("MALFORMED", "Bao ngoài của vé không phải JSON hợp lệ.", { cause });
+    throw new TicketRejected(
+      "MALFORMED",
+      "The ticket envelope is not valid JSON. Request a new ticket.",
+      { cause },
+    );
   }
 
   if (!isEnvelopeShaped(envelope)) {
-    throw new TicketRejected("MALFORMED", "Bao ngoài của vé thiếu trường bắt buộc.");
+    throw new TicketRejected(
+      "MALFORMED",
+      "The ticket envelope is missing required fields. Request a new ticket.",
+    );
   }
 
   if (envelope.v !== TICKET_FORMAT_VERSION) {
     throw new TicketRejected(
       "UNKNOWN_FORMAT",
-      `Vé dùng định dạng phiên bản ${envelope.v}, bản cầu nối này chỉ đọc được ${TICKET_FORMAT_VERSION}. Tải lại cầu nối từ web app.`,
+      `This ticket uses format version ${envelope.v}, but this Relay version can read only ${TICKET_FORMAT_VERSION}. Download and reinstall Relay from the web app.`,
     );
   }
 
   if (envelope.minRelayVersion > relay.version) {
     throw new TicketRejected(
       "RELAY_TOO_OLD",
-      `Bản cầu nối này quá cũ (${relay.version}); máy chủ đang phát vé cần bản ${envelope.minRelayVersion} trở lên. Tải lại cầu nối từ web app.`,
+      `This Relay version is too old (${relay.version}); current tickets require version ${envelope.minRelayVersion} or later. Download and reinstall Relay from the web app.`,
     );
   }
 
@@ -186,19 +196,22 @@ export function verifyTicket(
   if (!isKnownTicketKind(envelope.kind)) {
     throw new TicketRejected(
       "UNKNOWN_KIND",
-      `Vé mang loại "${envelope.kind}", không phải loại vé nào bản cầu nối này biết. ` +
-        "Tải lại cầu nối từ web app; nếu vẫn vậy thì báo lại, vì máy chủ không phát loại vé nào như thế.",
+      `The ticket type "${envelope.kind}" is not recognized by this Relay version. ` +
+        "Download and reinstall Relay from the web app. If the error remains, report it because the server should not issue an unknown ticket type.",
     );
   }
 
   if (envelope.exp <= now) {
-    throw new TicketRejected("EXPIRED", "Vé đã quá hạn. Bấm lại nút vừa bấm.");
+    throw new TicketRejected(
+      "EXPIRED",
+      "The ticket has expired. Use the same action again to request a new one.",
+    );
   }
 
   if (envelope.deviceId !== relay.deviceId) {
     throw new TicketRejected(
       "WRONG_DEVICE",
-      "Vé này phát cho máy khác. Kiểm lại xem cầu nối trên máy này đã đăng ký đúng chưa.",
+      "This ticket was issued to another Relay PC. Check that Relay on this PC is registered correctly, then try again.",
     );
   }
 
@@ -208,7 +221,7 @@ export function verifyTicket(
     if (!relay.replayGuard.consume(envelope.jti, envelope.exp, now)) {
       throw new TicketRejected(
         "ALREADY_USED",
-        "Vé này đã dùng rồi. Mỗi lần bấm chỉ đổi được một lần.",
+        "This ticket has already been used. Use the action again to request a new single-use ticket.",
       );
     }
   } catch (error) {
@@ -216,7 +229,7 @@ export function verifyTicket(
     if (error instanceof ReplayJournalUnavailableError) {
       throw new TicketRejected(
         "JOURNAL_UNAVAILABLE",
-        "Sổ chống dùng lại của Relay không ghi bền vững được. Vé chưa được nhận; giữ nguyên file journal và sửa quyền đĩa rồi thử lại.",
+        "Relay could not persist its replay-protection journal, so the ticket was not accepted. Keep the journal file, fix its disk permissions, then try again.",
         { cause: error },
       );
     }
@@ -232,6 +245,10 @@ export function verifyTicket(
       ),
     };
   } catch (cause) {
-    throw new TicketRejected("UNSEALABLE", "Không mở được ruột vé.", { cause });
+    throw new TicketRejected(
+      "UNSEALABLE",
+      "The ticket payload could not be opened. Request a new ticket on the registered Relay PC.",
+      { cause },
+    );
   }
 }

@@ -43,7 +43,7 @@ afterAll(async () => {
 });
 
 describe("createBulkProxies", () => {
-  it("nhập được nhiều dòng, mật khẩu nằm ở vùng khóa server", async () => {
+  it("imports multiple rows with passwords protected by the server key", async () => {
     const result = await createBulkProxies(
       "1.1.1.1:8080:u1:p1\n2.2.2.2:9090:u2:p2",
       US_ISP,
@@ -60,14 +60,14 @@ describe("createBulkProxies", () => {
    * Ca chính. `country` quyết định ngôn ngữ và múi giờ của vân tay
    * (`profile-fingerprint-plan.ts`), nên đè nó bằng mặc định là gắn vân tay sai cho IP thật.
    */
-  it("tôn trọng quốc gia người dùng khai, không đè thành VN", async () => {
+  it("preserves the declared country instead of overriding it with VN", async () => {
     await createBulkProxies("1.1.1.1:8080:u1:p1", US_ISP);
 
     const proxy = await prisma.proxy.findFirstOrThrow();
     expect(proxy.country).toBe("US");
   });
 
-  it("tôn trọng loại IP và giao thức người dùng khai", async () => {
+  it("preserves the declared IP type and protocol", async () => {
     await createBulkProxies("1.1.1.1:8080:u1:p1", {
       country: "SG",
       type: "MOBILE",
@@ -80,7 +80,7 @@ describe("createBulkProxies", () => {
   });
 
   /** Đây là thứ bản đầu ghi được vào database. Giờ phải bị chặn, và không ghi gì. */
-  it("từ chối loại IP không có trong kho, không ghi bản ghi nào", async () => {
+  it("rejects an unknown IP type without writing any rows", async () => {
     const result = await createBulkProxies("1.1.1.1:8080:u1:p1", {
       ...US_ISP,
       type: "MOBILE_4G",
@@ -90,7 +90,7 @@ describe("createBulkProxies", () => {
     expect(await prisma.proxy.count()).toBe(0);
   });
 
-  it("thiếu quốc gia thì chặn cả lô", async () => {
+  it("rejects the entire batch when the country is missing", async () => {
     const result = await createBulkProxies("1.1.1.1:8080:u1:p1", { ...US_ISP, country: "" });
 
     expect(result.ok).toBe(false);
@@ -101,7 +101,7 @@ describe("createBulkProxies", () => {
    * Bản đầu nuốt mọi lỗi bằng `catch {}` rồi vẫn báo "Đã import thành công N/M" — dán 20 dòng
    * hỏng 19 vẫn thấy chữ "thành công". Câu trả lời phải nói đúng số vào được và dòng nào hỏng.
    */
-  it("dòng hỏng được kể tên kèm số dòng, và không bị báo là thành công", async () => {
+  it("identifies an invalid row by line number without reporting it as successful", async () => {
     const result = await createBulkProxies(
       "1.1.1.1:8080:u1:p1\nkhong-phai-proxy\n3.3.3.3:7070:u3:p3",
       US_ISP,
@@ -109,23 +109,23 @@ describe("createBulkProxies", () => {
 
     expect(result.ok).toBe(false);
     expect(result.message).toContain("2/3");
-    expect(result.message).toContain("dòng 2");
+    expect(result.message).toContain("line 2");
     // Hai dòng đúng vẫn phải vào được — một dòng hỏng không kéo cả lô xuống.
     expect(await prisma.proxy.count()).toBe(2);
   });
 
-  it("dòng trùng host/port/username được báo là trùng, không phải lỗi lạ", async () => {
+  it("reports a duplicate host, port, and username as a duplicate", async () => {
     await createBulkProxies("1.1.1.1:8080:u1:p1", US_ISP);
     const result = await createBulkProxies("kho2|1.1.1.1:8080:u1:p1", US_ISP);
 
     expect(result.ok).toBe(false);
-    expect(result.message).toContain("trùng");
+    expect(result.message).toContain("already exists");
     expect(await prisma.proxy.count()).toBe(1);
   });
 
-  it("bỏ qua dòng trống và dòng chú thích bắt đầu bằng #", async () => {
+  it("ignores blank rows and comment rows beginning with #", async () => {
     const result = await createBulkProxies(
-      "# proxy mua ngày 19/08\n\n1.1.1.1:8080:u1:p1\n\n",
+      "# proxy purchased on 19/08\n\n1.1.1.1:8080:u1:p1\n\n",
       US_ISP,
     );
 
@@ -133,17 +133,17 @@ describe("createBulkProxies", () => {
     expect(await prisma.proxy.count()).toBe(1);
   });
 
-  it("thiếu nhãn thì đặt theo host và cổng, không để trùng nhau", async () => {
+  it("uses host and port for missing labels and keeps them unique", async () => {
     await createBulkProxies("1.1.1.1:8080:u1:p1\n2.2.2.2:8080:u2:p2", US_ISP);
 
     const labels = (await prisma.proxy.findMany({ select: { label: true } })).map((p) => p.label);
     expect(new Set(labels).size).toBe(2);
   });
 
-  it("danh sách rỗng thì nói rõ, không báo thành công 0 proxy", async () => {
+  it("explains an empty list instead of reporting zero successful proxies", async () => {
     const result = await createBulkProxies("   \n\n", US_ISP);
 
     expect(result.ok).toBe(false);
-    expect(result.message).toContain("rỗng");
+    expect(result.message).toContain("empty");
   });
 });

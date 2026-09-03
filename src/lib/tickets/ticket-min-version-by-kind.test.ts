@@ -94,7 +94,7 @@ describe("managed profile operations require Relay version 7", () => {
   });
 
   /** Thêm loại vé mà quên khai bảng thì nó âm thầm lấy sàn chung — bài này bắt chuyện đó. */
-  it("mọi loại vé đều có mặt trong bảng", () => {
+  it("includes every ticket type in the table", () => {
     for (const kind of Object.values(TICKET_KINDS)) {
       expect(MIN_RELAY_VERSION_BY_KIND[kind]).toBeTypeOf("number");
     }

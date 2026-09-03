@@ -57,7 +57,7 @@ beforeEach(async () => {
 
   await prisma.user.createMany({
     data: [
-      { id: HA_ID, name: "Hà", email: "ha@mkttool.local", updatedAt: new Date() },
+      { id: HA_ID, name: "Ha", email: "ha@mkttool.local", updatedAt: new Date() },
       { id: NAM_ID, name: "Nam", email: "nam@mkttool.local", updatedAt: new Date() },
       { id: ADMIN_ID, name: "Admin", email: "admin@mkttool.local", updatedAt: new Date() },
     ],
@@ -65,11 +65,11 @@ beforeEach(async () => {
 
   const [dell, daMat] = await Promise.all([
     prisma.relayDevice.create({
-      data: { name: "Laptop Dell của Hà", userId: HA_ID, publicKey: KHOA_CONG_KHAI_CUA_HA },
+      data: { name: "Ha's Dell laptop", userId: HA_ID, publicKey: KHOA_CONG_KHAI_CUA_HA },
     }),
     prisma.relayDevice.create({
       data: {
-        name: "Laptop đã mất",
+        name: "Lost laptop",
         userId: HA_ID,
         publicKey: "b".repeat(64),
         revokedAt: new Date(),
@@ -85,41 +85,41 @@ afterAll(async () => {
   await prisma.$disconnect();
 });
 
-describe("bốn lối ra", () => {
-  it("nick chưa ghim máy: nói phải làm gì, không nói lỗi kỹ thuật", async () => {
+describe("four outcomes", () => {
+  it("explains how to assign a nick that has no Relay PC", async () => {
     const accountId = await createNick({ ownerId: HA_ID });
 
     const result = await resolveNickDeviceRecipient(ha, accountId);
 
     expect(result.ok).toBe(false);
     if (result.ok) return;
-    expect(result.message).toContain("chưa được ghim");
-    expect(result.message).toContain("gán cụm");
+    expect(result.message).toContain('Nick "');
+    expect(result.message).toContain("Nick assignment");
   });
 
-  it("máy đã thu hồi: nêu tên máy đó", async () => {
+  it("names the revoked Relay PC", async () => {
     const accountId = await createNick({ ownerId: HA_ID, deviceId: mayDaThuHoi });
 
     const result = await resolveNickDeviceRecipient(ha, accountId);
 
     expect(result.ok).toBe(false);
     if (result.ok) return;
-    expect(result.message).toContain("Laptop đã mất");
-    expect(result.message).toContain("thu hồi");
+    expect(result.message).toContain("Lost laptop");
+    expect(result.message).toContain("revoked");
   });
 
-  it("máy của người khác: nêu tên máy VÀ email chủ máy", async () => {
+  it("names the other operator's Relay PC and email", async () => {
     const accountId = await createNick({ ownerId: HA_ID, deviceId: mayCuaHa });
 
     const result = await resolveNickDeviceRecipient(nam, accountId);
 
     expect(result.ok).toBe(false);
     if (result.ok) return;
-    expect(result.message).toContain("Laptop Dell của Hà");
+    expect(result.message).toContain("Ha's Dell laptop");
     expect(result.message).toContain("ha@mkttool.local");
   });
 
-  it("đúng máy của mình: trả khóa công khai của chính máy đó", async () => {
+  it("returns the public key of the current operator's Relay PC", async () => {
     const accountId = await createNick({ ownerId: HA_ID, deviceId: mayCuaHa });
 
     const result = await resolveNickDeviceRecipient(ha, accountId);
@@ -128,31 +128,31 @@ describe("bốn lối ra", () => {
     if (!result.ok) return;
     expect(result.recipient).toEqual({
       deviceId: mayCuaHa,
-      deviceName: "Laptop Dell của Hà",
+      deviceName: "Ha's Dell laptop",
       publicKey: KHOA_CONG_KHAI_CUA_HA,
     });
   });
 });
 
-describe("ADMIN không có ngoại lệ", () => {
+describe("ADMIN has no recipient exception", () => {
   /**
    * Ngược chiều `requireNickOwner`, và cố ý. Vé mã hóa cho khóa của máy Hà thì ADMIN ngồi máy
    * khác có nhận được cũng không mở nổi — cho qua chỉ tạo ra một cửa sổ trống và một hàng
    * `AuditLog` ghi "đã cấp quyền đọc" cho một lượt đọc không bao giờ xảy ra.
    */
-  it("ADMIN bấm nick ở máy người khác vẫn bị từ chối", async () => {
+  it("rejects an ADMIN using a nick stored on another operator's Relay PC", async () => {
     const accountId = await createNick({ ownerId: HA_ID, deviceId: mayCuaHa });
 
     const result = await resolveNickDeviceRecipient(admin, accountId);
 
     expect(result.ok).toBe(false);
     if (result.ok) return;
-    expect(result.message).toContain("gán lại cụm");
+    expect(result.message).toContain("Nick assignment");
   });
 
-  it("ADMIN vẫn mở được nick ghim vào máy của chính mình", async () => {
+  it("allows an ADMIN to use a nick stored on their own Relay PC", async () => {
     const mayCuaAdmin = await prisma.relayDevice.create({
-      data: { name: "PC quản trị", userId: ADMIN_ID, publicKey: "d".repeat(64) },
+      data: { name: "Admin PC", userId: ADMIN_ID, publicKey: "d".repeat(64) },
     });
     const accountId = await createNick({ ownerId: ADMIN_ID, deviceId: mayCuaAdmin.id });
 
@@ -162,7 +162,7 @@ describe("ADMIN không có ngoại lệ", () => {
   });
 });
 
-it("nick không tồn tại", async () => {
+it("rejects a missing nick", async () => {
   const result = await resolveNickDeviceRecipient(ha, "khong-co-that");
 
   expect(result.ok).toBe(false);

@@ -50,12 +50,12 @@ export function RelayDeviceIdCell({ deviceId }: { deviceId: string }) {
           onClick={copy}
           className="rounded-md border border-neutral-300 px-2 py-0.5 text-xs transition hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-800"
         >
-          {copied === "done" ? "Đã chép" : "Chép"}
+          {copied === "done" ? "Copied" : "Copy"}
         </button>
       </div>
       {copied === "failed" ? (
         <p className="text-xs text-amber-700 dark:text-amber-500">
-          Trình duyệt không cho chép tự động. Bấm vào mã để chọn trọn rồi Ctrl+C.
+          The browser blocked automatic copying. Select the full ID, then press Ctrl+C.
         </p>
       ) : null}
     </div>

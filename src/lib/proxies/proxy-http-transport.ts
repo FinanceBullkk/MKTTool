@@ -72,7 +72,7 @@ export function connectTcp(host: string, port: number, timeoutMs: number): Promi
       cleanup();
       socket.destroy();
       reject(
-        new ProxyProbeError(`không nối được tới ${host}:${port} (${error.message})`, "unreachable"),
+        new ProxyProbeError(`could not connect to ${host}:${port} (${error.message})`, "unreachable"),
       );
     };
     const onTimeout = () => {
@@ -80,7 +80,7 @@ export function connectTcp(host: string, port: number, timeoutMs: number): Promi
       socket.destroy();
       reject(
         new ProxyProbeError(
-          `quá ${timeoutMs / 1000} giây không nối được tới ${host}:${port}`,
+          `could not connect to ${host}:${port} within ${timeoutMs / 1000} seconds`,
           "unreachable",
         ),
       );
@@ -162,9 +162,9 @@ export function buildRequestHead(
  * Trả về null nếu mã này không quy được về lỗi proxy.
  */
 export function proxyFaultForStatus(status: number): string | null {
-  if (status === 407) return "proxy từ chối xác thực (sai user/mật khẩu?)";
-  if (status === 502) return "proxy không ra được internet";
-  if (status === 503) return "proxy đang quá tải hoặc ngừng phục vụ";
+  if (status === 407) return "the proxy rejected authentication; check the username and password";
+  if (status === 502) return "the proxy could not reach the internet";
+  if (status === 503) return "the proxy is overloaded or unavailable";
   return null;
 }
 
@@ -189,6 +189,6 @@ export function toProbeFailure(error: unknown): {
   }
   return {
     kind: "probe-failed",
-    detail: error instanceof Error ? error.message : "lỗi không xác định",
+    detail: error instanceof Error ? error.message : "unknown error",
   };
 }

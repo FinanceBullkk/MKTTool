@@ -64,9 +64,9 @@ export function checkTicketRateLimit(userId: string, now: number = Date.now()): 
     return {
       allowed: false,
       message:
-        `Đã lấy ${MAX_TICKETS_PER_WINDOW} bí mật trong một phút — tạm dừng ${retryInSeconds} ` +
-        `giây. Hạn này để một phiên bị trộm không rút sạch kho trong vài giây; nếu chính bạn ` +
-        `đang cần nhiều nick liền thì chờ rồi bấm tiếp.`,
+        `${MAX_TICKETS_PER_WINDOW} secrets were retrieved within one minute. Wait ` +
+        `${retryInSeconds} seconds before trying again. This limit prevents a stolen session ` +
+        `from draining the vault in seconds; if these requests are yours, wait and continue.`,
     };
   }
 

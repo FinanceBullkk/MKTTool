@@ -64,7 +64,7 @@ beforeEach(async () => {
     data: [
       { id: ADMIN_ID, name: "Admin", email: ADMIN_EMAIL, updatedAt: new Date() },
       { id: OPERATOR_ID, name: "Operator", email: OPERATOR_EMAIL, updatedAt: new Date() },
-      { id: OTHER_ID, name: "Người khác", email: OTHER_EMAIL, updatedAt: new Date() },
+      { id: OTHER_ID, name: "Other user", email: OTHER_EMAIL, updatedAt: new Date() },
     ],
   });
 });
@@ -74,9 +74,9 @@ afterAll(async () => {
 });
 
 describe("enrollThisMachine", () => {
-  it("OPERATOR đăng ký được máy của chính mình", async () => {
+  it("allows an OPERATOR to register their own Relay PC", async () => {
     const { publicKeyHex } = generateRelayDeviceKeyPair();
-    const result = await enroll({ name: "Laptop của Hà", publicKey: publicKeyHex });
+    const result = await enroll({ name: "Ha's laptop", publicKey: publicKeyHex });
 
     expect(result.ok).toBe(true);
     const device = await prisma.relayDevice.findUniqueOrThrow({
@@ -85,12 +85,12 @@ describe("enrollThisMachine", () => {
     expect(device.userId).toBe(OPERATOR_ID);
   });
 
-  it("OPERATOR gửi userId của NGƯỜI KHÁC thì bị bỏ qua, máy vẫn về tay họ", async () => {
+  it("ignores another userId submitted by an OPERATOR", async () => {
     // Đây là bài quan trọng nhất của cả file. Ẩn ô chọn trên giao diện không chặn được lượt gọi
     // thẳng endpoint — chặn phải nằm ở server action.
     const { publicKeyHex } = generateRelayDeviceKeyPair();
     const result = await enroll({
-      name: "Máy giả danh",
+      name: "Impersonating PC",
       publicKey: publicKeyHex,
       userId: OTHER_ID,
     });
@@ -103,11 +103,11 @@ describe("enrollThisMachine", () => {
     expect(device.userId).not.toBe(OTHER_ID);
   });
 
-  it("ADMIN thì chọn được chủ máy — họ hay ngồi máy người khác để cài hộ", async () => {
+  it("allows an ADMIN to select the Relay PC owner", async () => {
     actor = { userId: ADMIN_ID, email: ADMIN_EMAIL, role: "ADMIN" };
     const { publicKeyHex } = generateRelayDeviceKeyPair();
 
-    await enroll({ name: "Máy của Người khác", publicKey: publicKeyHex, userId: OTHER_ID });
+    await enroll({ name: "Other user's PC", publicKey: publicKeyHex, userId: OTHER_ID });
 
     const device = await prisma.relayDevice.findUniqueOrThrow({
       where: { publicKey: publicKeyHex },
@@ -115,11 +115,11 @@ describe("enrollThisMachine", () => {
     expect(device.userId).toBe(OTHER_ID);
   });
 
-  it("ADMIN không chọn ai thì máy về tay chính họ", async () => {
+  it("assigns the Relay PC to the ADMIN when no owner is selected", async () => {
     actor = { userId: ADMIN_ID, email: ADMIN_EMAIL, role: "ADMIN" };
     const { publicKeyHex } = generateRelayDeviceKeyPair();
 
-    await enroll({ name: "Máy admin", publicKey: publicKeyHex });
+    await enroll({ name: "Admin PC", publicKey: publicKeyHex });
 
     const device = await prisma.relayDevice.findUniqueOrThrow({
       where: { publicKey: publicKeyHex },
@@ -127,12 +127,12 @@ describe("enrollThisMachine", () => {
     expect(device.userId).toBe(ADMIN_ID);
   });
 
-  it("trả về mã máy và khóa máy chủ để trình duyệt đẩy xuống cầu nối", async () => {
+  it("returns the Relay PC ID and server key for browser delivery", async () => {
     const { publicKeyHex } = generateRelayDeviceKeyPair();
     const result = await enroll({ name: "Laptop", publicKey: publicKeyHex });
 
     expect(result.ok).toBe(true);
-    if (!("enrollment" in result) || !result.enrollment) throw new Error("thiếu enrollment");
+    if (!("enrollment" in result) || !result.enrollment) throw new Error("missing enrollment");
 
     // Mã máy phải là mã của đúng hàng vừa ghi — cầu nối dán nó vào cấu hình, và sai mã thì mọi
     // vé báo "phát cho máy khác".
@@ -143,7 +143,7 @@ describe("enrollThisMachine", () => {
     expect(result.enrollment.serverPublicKey).toMatch(/^[0-9a-f]{64}$/);
   });
 
-  it("máy đã có trong sổ thì gửi lại cấu hình, KHÔNG coi là lỗi", async () => {
+  it("returns the existing enrollment instead of failing", async () => {
     // Cài lại máy hoặc mất file cấu hình mà còn khóa cũ là ca có thật. Bắt người ta đi thu hồi
     // rồi đăng ký lại là bắt họ xoay một khóa còn tốt.
     const { publicKeyHex } = generateRelayDeviceKeyPair();
@@ -151,8 +151,8 @@ describe("enrollThisMachine", () => {
     const second = await enroll({ name: "Laptop", publicKey: publicKeyHex });
 
     expect(second.ok).toBe(true);
-    if (!("enrollment" in first) || !first.enrollment) throw new Error("thiếu enrollment");
-    if (!("enrollment" in second) || !second.enrollment) throw new Error("thiếu enrollment");
+    if (!("enrollment" in first) || !first.enrollment) throw new Error("missing enrollment");
+    if (!("enrollment" in second) || !second.enrollment) throw new Error("missing enrollment");
     expect(second.enrollment.deviceId).toBe(first.enrollment.deviceId);
     expect(await prisma.relayDevice.count()).toBe(1);
   });
@@ -182,15 +182,15 @@ describe("enrollThisMachine", () => {
     expect(result.message).toContain("administrator");
   });
 
-  it("khóa đã thu hồi thì từ chối, kèm CÁCH sinh khóa mới", async () => {
+  it("rejects a revoked key and explains how to generate a new one", async () => {
     const { publicKeyHex } = generateRelayDeviceKeyPair();
-    await enroll({ name: "Laptop mất", publicKey: publicKeyHex });
+    await enroll({ name: "Lost laptop", publicKey: publicKeyHex });
     await prisma.relayDevice.update({
       where: { publicKey: publicKeyHex },
       data: { revokedAt: new Date() },
     });
 
-    const result = await enroll({ name: "Laptop mất", publicKey: publicKeyHex });
+    const result = await enroll({ name: "Lost laptop", publicKey: publicKeyHex });
 
     expect(result.ok).toBe(false);
     // Câu cụt "sinh khóa mới đi" để người đọc đứng trước một máy không đăng ký được mà không

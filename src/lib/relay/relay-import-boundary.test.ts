@@ -40,29 +40,29 @@ const SHARED_RELEASE_CONTRACTS = new Set([
 const FORBIDDEN: { pattern: RegExp; why: string }[] = [
   {
     pattern: /["']next(\/[^"']*)?["']/,
-    why: "Next.js không có mặt trong .exe — cầu nối không phải một web app.",
+    why: "Next.js is not present in the .exe because Relay is not a web app.",
   },
   {
     pattern: /\/db\/prisma-client["']|["']@prisma\/client["']|["']prisma["']/,
     why:
-      "Cầu nối KHÔNG có đường vào database. Nó chỉ biết những gì tấm vé mang xuống — đó là " +
-      "toàn bộ lý do chiếm được máy operator không đọc được kho.",
+      "Relay has NO database access. It knows only what the ticket carries down; this is why " +
+      "compromising an operator PC does not expose the vault.",
   },
   {
     pattern: /["']react(-dom)?(\/[^"']*)?["']/,
-    why: "Trang trạng thái là HTML dựng bằng chuỗi. Kéo React vào là cộng dung lượng lấy vài cái bo góc.",
+    why: "The status page is string-built HTML. Adding React increases size only to add styling.",
   },
   {
     pattern: /["']@\//,
     why:
-      "Alias `@/` chỉ tồn tại trong tsconfig của web app. Cầu nối build bằng bộ khác — dùng " +
-      "đường dẫn tương đối.",
+      "The `@/` alias exists only in the web app tsconfig. Relay uses a different build; use " +
+      "relative paths.",
   },
   {
     pattern: /\/lib\/auth\//,
     why:
-      "Cầu nối không tự quyết ai được đọc gì; nó chỉ kiểm chữ ký. Kéo lớp phân quyền vào là " +
-      "dựng lại quyết định đó ở chỗ thứ hai.",
+      "Relay does not decide who may read data; it only verifies signatures. Importing the " +
+      "authorization layer would duplicate that decision in a second place.",
   },
 ];
 
@@ -82,14 +82,14 @@ function importLines(source: string): string[] {
     .filter((line) => /^\s*(import\b|export\s+.*\bfrom\b)|require\(/.test(line));
 }
 
-describe("biên giới import của relay/", () => {
+describe("relay/ import boundary", () => {
   const files = relaySourceFiles();
 
-  it("có file để soi — danh sách rỗng nghĩa là phép canh này đang không canh gì", () => {
+  it("has files to inspect so the guard is not checking an empty list", () => {
     expect(files.length).toBeGreaterThan(0);
   });
 
-  it.each(FORBIDDEN)("không file nào trong relay/ import $pattern", ({ pattern, why }) => {
+  it.each(FORBIDDEN)("does not import $pattern from any relay/ file", ({ pattern, why }) => {
     const offenders = files.flatMap((file) => {
       const lines = importLines(readFileSync(file, "utf8"));
       return lines
@@ -100,7 +100,7 @@ describe("biên giới import của relay/", () => {
     expect(offenders, why).toEqual([]);
   });
 
-  it("chỉ dùng lại src/lib qua đường dẫn tương đối, và chỉ từ ba thư mục dùng chung", () => {
+  it("reuses src/lib only through relative paths and approved shared directories", () => {
     // Release reuse is restricted to audited pure contract files, not the server-side directory.
     const allowedDirectory = /\.\.\/\.\.\/src\/lib\/(tickets|crypto|relay|totp|antidetect)\//;
 

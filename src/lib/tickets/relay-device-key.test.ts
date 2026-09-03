@@ -40,7 +40,7 @@ function bobPrivateKeyObject() {
 }
 
 describe("normalizeRelayPublicKey", () => {
-  it("đưa về hex chữ thường", () => {
+  it("normalizes to lowercase hexadecimal", () => {
     expect(normalizeRelayPublicKey(RFC_7748.alicePublicKey.toUpperCase())).toBe(
       RFC_7748.alicePublicKey,
     );
@@ -51,7 +51,7 @@ describe("normalizeRelayPublicKey", () => {
    * phân biệt hoa thường. Không chuẩn hóa thì cùng một chiếc máy nằm được ở hai hàng, và thu
    * hồi hàng này vẫn còn hàng kia nhận vé — đúng kiểu hỏng mà người thu hồi không thấy.
    */
-  it("hai kiểu viết của cùng một khóa ra cùng một chuỗi", () => {
+  it("normalizes two spellings of the same key to one string", () => {
     const lower = normalizeRelayPublicKey(RFC_7748.alicePublicKey);
     const upper = normalizeRelayPublicKey(RFC_7748.alicePublicKey.toUpperCase());
 
@@ -59,25 +59,25 @@ describe("normalizeRelayPublicKey", () => {
   });
 
   /** Khóa chép từ terminal hay dính xuống dòng và khoảng trắng — dọn hộ, đừng bắt dán lại. */
-  it("bỏ khoảng trắng và xuống dòng nằm giữa chuỗi", () => {
+  it("removes whitespace and line breaks inside the key", () => {
     const messy = `${RFC_7748.alicePublicKey.slice(0, 32)}\n  ${RFC_7748.alicePublicKey.slice(32)}`;
 
     expect(normalizeRelayPublicKey(messy)).toBe(RFC_7748.alicePublicKey);
   });
 
-  it("từ chối chuỗi rỗng", () => {
+  it("rejects an empty string", () => {
     expect(() => normalizeRelayPublicKey("   ")).toThrow(RelayDeviceKeyError);
   });
 
-  it("từ chối chuỗi sai độ dài, và nói ra độ dài đang có", () => {
+  it("rejects the wrong length and states the current length", () => {
     expect(() => normalizeRelayPublicKey("abcd")).toThrow(
-      new RegExp(`${RELAY_PUBLIC_KEY_HEX_LENGTH} ký tự hex.*đang có 4 ký tự`, "s"),
+      new RegExp(`${RELAY_PUBLIC_KEY_HEX_LENGTH} hexadecimal characters.*currently contains 4`, "s"),
     );
   });
 
-  it("từ chối ký tự ngoài bảng hex", () => {
+  it("rejects characters outside the hexadecimal alphabet", () => {
     expect(() => normalizeRelayPublicKey("z".repeat(RELAY_PUBLIC_KEY_HEX_LENGTH))).toThrow(
-      /chỉ được chứa ký tự hex/,
+      /may contain only hexadecimal characters/,
     );
   });
 });
@@ -87,14 +87,14 @@ describe("relayPublicKeyToKeyObject", () => {
    * Bài kiểm chính: khóa đọc từ chuỗi hex, đem trao khóa với khóa riêng của Bob, phải ra đúng
    * bí mật chung mà RFC 7748 công bố.
    */
-  it("dựng đúng khóa X25519 — đối chiếu bí mật chung của RFC 7748", () => {
+  it("builds the correct X25519 key against the RFC 7748 shared secret", () => {
     const alice = relayPublicKeyToKeyObject(RFC_7748.alicePublicKey);
     const shared = diffieHellman({ privateKey: bobPrivateKeyObject(), publicKey: alice });
 
     expect(shared.toString("hex")).toBe(RFC_7748.sharedSecret);
   });
 
-  it("nhận cả chuỗi chưa chuẩn hóa", () => {
+  it("accepts an unnormalized string", () => {
     const key = relayPublicKeyToKeyObject(` ${RFC_7748.alicePublicKey.toUpperCase()} `);
 
     expect(relayPublicKeyToHex(key)).toBe(RFC_7748.alicePublicKey);
@@ -102,7 +102,7 @@ describe("relayPublicKeyToKeyObject", () => {
 });
 
 describe("assertRelayPublicKeyUsable", () => {
-  it("cho qua khóa bình thường", () => {
+  it("accepts a normal key", () => {
     const key = relayPublicKeyToKeyObject(RFC_7748.alicePublicKey);
 
     expect(() => assertRelayPublicKeyUsable(key)).not.toThrow();
@@ -115,18 +115,18 @@ describe("assertRelayPublicKeyUsable", () => {
    * nằm im trong sổ tới tận ngày phát vé thật.
    */
   it.each([
-    ["toàn số 0", "00".repeat(32)],
-    ["điểm bậc 8", "e0eb7a7c3b41b8ae1656e3faf19fc46ada098deb9c32b1fd866205165f49b800"],
+    ["all zeroes", "00".repeat(32)],
+    ["order-8 point", "e0eb7a7c3b41b8ae1656e3faf19fc46ada098deb9c32b1fd866205165f49b800"],
     ["p − 1", "ecffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f"],
-  ])("từ chối khóa yếu — %s", (_name, hex) => {
+  ])("rejects a weak key - %s", (_name, hex) => {
     const key = relayPublicKeyToKeyObject(hex);
 
-    expect(() => assertRelayPublicKeyUsable(key)).toThrow(/khóa yếu/);
+    expect(() => assertRelayPublicKeyUsable(key)).toThrow(/weak-key/);
   });
 });
 
 describe("generateRelayDeviceKeyPair", () => {
-  it("sinh cặp khóa dùng được, và khóa công khai khớp khóa riêng", () => {
+  it("generates a usable pair whose public key matches its private key", () => {
     const { publicKeyHex, privateKeyHex } = generateRelayDeviceKeyPair();
 
     expect(publicKeyHex).toHaveLength(RELAY_PUBLIC_KEY_HEX_LENGTH);
@@ -164,7 +164,7 @@ describe("generateRelayDeviceKeyPair", () => {
     expect(fromOurs.toString("hex")).toBe(fromTheirs.toString("hex"));
   });
 
-  it("mỗi lần gọi ra một cặp khác", () => {
+  it("generates a different pair on each call", () => {
     expect(generateRelayDeviceKeyPair().publicKeyHex).not.toBe(
       generateRelayDeviceKeyPair().publicKeyHex,
     );
@@ -172,7 +172,7 @@ describe("generateRelayDeviceKeyPair", () => {
 });
 
 describe("relayPrivateKeyToKeyObject", () => {
-  it("dựng đúng khóa riêng của vector RFC 7748 — suy ra đúng khóa công khai của nó", () => {
+  it("builds the RFC 7748 private key and derives its public key", () => {
     // Phép thử thật của hàm này: nó ghép DER bằng tay (JWK không dùng được cho khóa riêng OKP
     // vì đòi cả phần công khai). Ghép sai một byte thì OpenSSL vẫn nhận, nhưng khóa suy ra sẽ
     // khác — và triệu chứng chỉ hiện ra ở tấm vé thật đầu tiên trên máy operator.
@@ -181,7 +181,7 @@ describe("relayPrivateKeyToKeyObject", () => {
     expect(relayPublicKeyToHex(createPublicKey(key))).toBe(RFC_7748.bobPublicKey);
   });
 
-  it("bí mật chung khớp vector, tức thứ tự byte đúng", () => {
+  it("matches the shared-secret vector with the correct byte order", () => {
     const shared = diffieHellman({
       privateKey: relayPrivateKeyToKeyObject(RFC_7748.bobPrivateKey),
       publicKey: relayPublicKeyToKeyObject(RFC_7748.alicePublicKey),
@@ -190,14 +190,14 @@ describe("relayPrivateKeyToKeyObject", () => {
     expect(shared.toString("hex")).toBe(RFC_7748.sharedSecret);
   });
 
-  it("nhận hex viết hoa và có xuống dòng — khóa chép từ file hay dính cả hai", () => {
+  it("accepts uppercase hexadecimal with a trailing line break", () => {
     const key = relayPrivateKeyToKeyObject(`${RFC_7748.bobPrivateKey.toUpperCase()}\n`);
 
     expect(relayPublicKeyToHex(createPublicKey(key))).toBe(RFC_7748.bobPublicKey);
   });
 
-  it("chuỗi sai độ dài bị từ chối kèm câu chỉ vào file khóa của cầu nối", () => {
+  it("rejects the wrong length and points to Relay's key file", () => {
     expect(() => relayPrivateKeyToKeyObject("abcd")).toThrow(RelayDeviceKeyError);
-    expect(() => relayPrivateKeyToKeyObject("abcd")).toThrow(/file khóa|File khóa/);
+    expect(() => relayPrivateKeyToKeyObject("abcd")).toThrow(/Relay's key file/);
   });
 });

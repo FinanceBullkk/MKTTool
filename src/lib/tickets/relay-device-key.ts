@@ -55,19 +55,21 @@ export function normalizeRelayPublicKey(raw: string): string {
   const hex = raw.replace(/\s+/g, "").toLowerCase();
 
   if (hex === "") {
-    throw new RelayDeviceKeyError("Chưa dán khóa công khai của máy.");
+    throw new RelayDeviceKeyError("The Relay PC public key is missing. Paste the key printed by Relay.");
   }
 
   if (hex.length !== RELAY_PUBLIC_KEY_HEX_LENGTH) {
     throw new RelayDeviceKeyError(
-      `Khóa công khai phải dài đúng ${RELAY_PUBLIC_KEY_HEX_LENGTH} ký tự hex ` +
-        `(${RELAY_PUBLIC_KEY_BYTES} byte), đang có ${hex.length} ký tự. ` +
-        `Chép lại nguyên dòng mà cầu nối in ra lúc cài.`,
+      `The public key must contain exactly ${RELAY_PUBLIC_KEY_HEX_LENGTH} hexadecimal characters ` +
+        `(${RELAY_PUBLIC_KEY_BYTES} bytes); it currently contains ${hex.length}. ` +
+        `Copy the complete line printed by Relay during installation.`,
     );
   }
 
   if (!/^[0-9a-f]+$/.test(hex)) {
-    throw new RelayDeviceKeyError("Khóa công khai chỉ được chứa ký tự hex (0-9, a-f).");
+    throw new RelayDeviceKeyError(
+      "The public key may contain only hexadecimal characters (0-9, a-f). Copy it again from Relay.",
+    );
   }
 
   // RFC 7748 §5 ignores the most-significant bit of the final byte of a u-coordinate. Two hex
@@ -134,8 +136,8 @@ export function relayPublicKeyToKeyObject(hexKey: string): KeyObject {
     });
   } catch (cause) {
     throw new RelayDeviceKeyError(
-      `Chuỗi này đúng độ dài nhưng không phải khóa X25519 hợp lệ. ` +
-        `Kiểm lại xem có chép nhầm khóa loại khác không. (${(cause as Error).message})`,
+      `This value has the correct length but is not a valid X25519 public key. ` +
+        `Check whether a different key type was copied. (${(cause as Error).message})`,
     );
   }
 }
@@ -155,8 +157,8 @@ export function relayPrivateKeyToKeyObject(hexKey: string): KeyObject {
 
   if (hex.length !== RELAY_PUBLIC_KEY_HEX_LENGTH || !/^[0-9a-f]+$/.test(hex)) {
     throw new RelayDeviceKeyError(
-      `Khóa riêng của máy phải là ${RELAY_PUBLIC_KEY_HEX_LENGTH} ký tự hex. ` +
-        `File khóa của cầu nối hỏng — xóa nó đi để cầu nối sinh cặp mới, rồi đăng ký lại máy.`,
+      `The Relay PC private key must contain ${RELAY_PUBLIC_KEY_HEX_LENGTH} hexadecimal characters. ` +
+        `Relay's key file is damaged; delete it so Relay can generate a new pair, then register the PC again.`,
     );
   }
 
@@ -168,7 +170,7 @@ export function relayPrivateKeyToKeyObject(hexKey: string): KeyObject {
     });
   } catch (cause) {
     throw new RelayDeviceKeyError(
-      `Chuỗi này đúng độ dài nhưng không phải khóa riêng X25519 hợp lệ. ` +
+      `This value has the correct length but is not a valid X25519 private key. ` +
         `(${(cause as Error).message})`,
     );
   }
@@ -179,7 +181,7 @@ export function relayPublicKeyToHex(publicKey: KeyObject): string {
   const jwk = publicKey.export({ format: "jwk" }) as { crv?: string; x?: string };
 
   if (jwk.crv !== "X25519" || !jwk.x) {
-    throw new RelayDeviceKeyError("Khóa này không phải X25519.");
+    throw new RelayDeviceKeyError("This is not an X25519 key. Copy the correct key from Relay.");
   }
 
   return Buffer.from(jwk.x, "base64url").toString("hex");
@@ -204,8 +206,8 @@ export function assertRelayPublicKeyUsable(publicKey: KeyObject): void {
     diffieHellman({ privateKey: probe.privateKey, publicKey });
   } catch {
     throw new RelayDeviceKeyError(
-      "Khóa này không mã hóa được — nó nằm trong nhóm khóa yếu bị từ chối. " +
-        "Sinh lại cặp khóa trên máy đó rồi dán khóa mới.",
+      "This key cannot encrypt data because it belongs to the rejected weak-key set. " +
+        "Generate a new key pair on that Relay PC, then paste the new public key.",
     );
   }
 }
@@ -221,7 +223,11 @@ export function generateRelayDeviceKeyPair(): { publicKeyHex: string; privateKey
   const { publicKey, privateKey } = generateKeyPairSync("x25519");
   const jwk = privateKey.export({ format: "jwk" }) as { d?: string };
 
-  if (!jwk.d) throw new RelayDeviceKeyError("Không lấy được khóa riêng vừa sinh.");
+  if (!jwk.d) {
+    throw new RelayDeviceKeyError(
+      "The newly generated private key could not be read. Generate the key pair again.",
+    );
+  }
 
   return {
     publicKeyHex: relayPublicKeyToHex(publicKey),

@@ -74,19 +74,19 @@ export default async function RelayDevicesPage() {
   const keyStatus = (device: (typeof devices)[number]) => {
     if (device.operatorKeyReadyAt) {
       return {
-        label: `máy đã báo có khóa ${formatFullDateTime(device.operatorKeyReadyAt)}`,
+        label: `Relay PC reported its key at ${formatFullDateTime(device.operatorKeyReadyAt)}`,
         className:
           "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400",
       };
     }
     if (device.operatorKeyGrant) {
       return {
-        label: "đã cấp — chờ máy đó mở web app",
+        label: "granted - waiting for this Relay PC to open the web app",
         className: "bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-400",
       };
     }
     return {
-      label: "chưa cấp",
+      label: "not granted",
       className: "bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400",
     };
   };
@@ -99,21 +99,22 @@ export default async function RelayDevicesPage() {
   return (
     <>
       <PageHeading
-        title="Máy chạy cầu nối"
-        description="Mỗi máy có cặp khóa riêng. Máy chủ mã hóa nội dung vé bằng khóa công khai của đúng máy nhận, nên trình duyệt chỉ là người đưa thư — nó chuyển vé đi nhưng không đọc được gì bên trong."
+        title="Relay PC registry"
+        description="Each Relay PC has its own key pair. The server encrypts every ticket for the receiving PC's public key, so the browser only delivers the ticket and cannot read its contents."
       />
 
       {/* Thẻ này đứng ngay dưới tiêu đề chứ không đứng TRÊN nó (sửa 07/08/2026): một thẻ nổi phía
           trên tiêu đề trang làm thứ tự đọc bị lộn. Vẫn ở gần đầu vì với ADMIN đây là việc cần bấm
           ngay — máy đang chờ khóa là máy chưa làm được gì cả. */}
       {isAdmin && awaitingKey.length > 0 ? (
-        <Card title={`Đang chờ cấp khóa — ${awaitingKey.length} máy`}>
+        <Card title={`Waiting for operator keys - ${awaitingKey.length} ${awaitingKey.length === 1 ? "Relay PC" : "Relay PCs"}`}>
           <p className="mb-4 text-sm text-neutral-600 dark:text-neutral-400">
-            Mấy máy này đã vào sổ nhưng chưa có khóa vùng operator, nên chưa lấy được mật khẩu hay
-            mở được profile. Bấm <strong>Cấp khóa</strong> là xong — khóa được bọc bằng cầu nối
-            trên máy bạn, cho riêng từng máy nhận, và tự về máy đó ngay lần sau họ mở web app.
+            These Relay PCs are registered but do not have the operator key, so they cannot retrieve
+            passwords or open browser profiles. Select <strong>Grant operator key</strong>. Relay on
+            your PC seals the key for each receiving PC, and it arrives automatically the next time
+            that PC opens the web app.
           </p>
-          <DataTable headers={["Máy", "Người dùng", "Đăng ký", ""]}>
+          <DataTable headers={["Relay PC", "User", "Registered", ""]}>
             {awaitingKey.map((device) => (
               <tr key={device.id}>
                 <td className="py-2 pr-4 font-medium">{device.name}</td>
@@ -131,30 +132,31 @@ export default async function RelayDevicesPage() {
             ))}
           </DataTable>
           <p className="mt-4 text-xs text-neutral-500">
-            Máy nào lấy khóa bằng cách dán tay thì vẫn nằm ở đây cho tới khi chính nó mở web app và
-            tự khai — máy chủ không thấy được đường đó. Cấp thêm một lần nữa cũng không sao.
+            A Relay PC that received the key through manual entry remains here until it opens the
+            web app and reports its status. The server cannot observe the manual path, so granting
+            the key again is safe.
           </p>
         </Card>
       ) : null}
 
-      <Card title={`Sổ đăng ký — ${active} máy đang dùng, ${devices.length - active} đã thu hồi`}>
+      <Card title={`Registry - ${active} active, ${devices.length - active} revoked`}>
         {devices.length === 0 ? (
           <EmptyState>
-            Chưa có máy nào trong sổ. Cài cầu nối trên máy cần dùng, rồi mở web app{" "}
-            <strong>ngay trên chính máy đó</strong> và bấm &quot;Tìm cầu nối&quot; ở thẻ bên dưới —
-            không phải chép khóa công khai đi đâu cả.
+            No Relay PCs are registered. Install Relay on the PC that will be used, open the web app
+            <strong> on that same PC</strong>, then select &quot;Find Relay&quot; in the card below.
+            You do not need to send its public key anywhere.
           </EmptyState>
         ) : (
           <DataTable
             headers={[
-              "Máy",
-              "Người dùng",
-              "Mã máy",
-              "Khóa công khai",
-              "Đăng ký",
-              "Trạng thái",
-              "Cầu nối",
-              "Khóa operator",
+              "Relay PC",
+              "User",
+              "Relay PC ID",
+              "Public key",
+              "Registered",
+              "Status",
+              "Relay",
+              "Operator key",
               "",
             ]}
           >
@@ -164,7 +166,7 @@ export default async function RelayDevicesPage() {
                   {device.name}
                   {!device.revokedAt && device._count.accounts > 0 ? (
                     <span className="mt-1 block text-xs font-normal text-neutral-500">
-                      {device._count.accounts} nick đang ghim — thu hồi là gỡ ghim hết
+                      {device._count.accounts} {device._count.accounts === 1 ? "nick is" : "nicks are"} assigned - revocation unassigns {device._count.accounts === 1 ? "it" : "all of them"}
                     </span>
                   ) : null}
                 </td>
@@ -173,9 +175,9 @@ export default async function RelayDevicesPage() {
                   {!device.revokedAt && !canStillSignIn(device.user.email) ? (
                     <span
                       className="mt-1 block text-xs text-amber-700 dark:text-amber-500"
-                      title="Email này không còn trong ALLOWED_EMAILS"
+                      title="This email no longer has sign-in access"
                     >
-                      không còn quyền đăng nhập — máy này không xin được vé
+                      sign-in access removed - this Relay PC cannot request tickets
                     </span>
                   ) : null}
                 </td>
@@ -194,12 +196,12 @@ export default async function RelayDevicesPage() {
                 <td className="py-2 pr-4">
                   {device.revokedAt ? (
                     <StatusBadge
-                      label={`thu hồi ${formatFullDateTime(device.revokedAt)}`}
+                      label={`revoked ${formatFullDateTime(device.revokedAt)}`}
                       className="bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400"
                     />
                   ) : (
                     <StatusBadge
-                      label="đang dùng"
+                      label="active"
                       className="bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400"
                     />
                   )}
@@ -272,10 +274,10 @@ export default async function RelayDevicesPage() {
           </DataTable>
         )}
         <p className="mt-4 text-xs text-neutral-500">
-          <strong className="text-neutral-700 dark:text-neutral-300">Mã máy</strong> là thứ chiếc
-          máy đó phải biết để nhận ra vé của chính nó. Bấm &quot;Tìm cầu nối&quot; ở thẻ bên dưới
-          thì web app <strong>tự ghi nó xuống</strong> — chỉ khi đăng ký hộ bằng form nhập tay mới
-          phải chép mã này về cho họ dán vào ô{" "}
+          The <strong className="text-neutral-700 dark:text-neutral-300">Relay PC ID</strong> lets
+          that PC recognize its own tickets. Select &quot;Find Relay&quot; in the card below and the
+          web app <strong>writes it automatically</strong>. Only a manual registration requires you
+          to send this ID back for entry in the{" "}
           <code className="rounded bg-neutral-100 px-1 py-0.5 font-mono dark:bg-neutral-800">
             deviceId
           </code>{" "}
@@ -283,14 +285,15 @@ export default async function RelayDevicesPage() {
           <code className="rounded bg-neutral-100 px-1 py-0.5 font-mono dark:bg-neutral-800">
             relay-config.json
           </code>
-          . Dán thiếu hoặc dán nhầm hàng thì mọi nút đều báo &quot;vé này phát cho máy khác&quot;.
+          field. A missing or incorrect value makes every action report that the ticket belongs to
+          another Relay PC.
         </p>
       </Card>
 
       {/* Hiện cho MỌI vai trò: người ngồi ở máy chính là người cài nó, và bắt họ đợi ADMIN đăng
           nhập hộ trên máy mình là dựng lại đúng vòng chờ mà nút này sinh ra để dẹp. Ranh giới nằm
           ở chủ máy — OPERATOR chỉ đăng ký được máy của chính họ. */}
-      <Card title="Cài máy này (Máy bạn đang ngồi)">
+      <Card title="Set up this Relay PC">
         <p className="text-sm text-neutral-600 dark:text-neutral-400">
           The guided current-PC controller now lives on <a href="/setup" className="underline">/setup</a>.
           This registry remains available for administrator approval, revocation, and support.
@@ -298,56 +301,56 @@ export default async function RelayDevicesPage() {
       </Card>
 
       {isAdmin ? (
-        <Card title="Đăng ký một máy KHÁC (nhập tay)">
+        <Card title="Register another Relay PC manually">
           <p className="mb-4 text-sm text-neutral-600 dark:text-neutral-400">
-            Chỉ dùng khi không ngồi được ở máy đó — lúc ấy phải xin họ chép khóa công khai gửi
-            sang, và sau khi ghi vào sổ thì còn phải gửi ngược mã máy về cho họ dán tay.
+            Use this only when you cannot access that PC. Ask its user to send the public key, then
+            send the Relay PC ID back after registration so they can enter it manually.
           </p>
-          <ActionForm action={registerRelayDevice} submitLabel="Ghi vào sổ">
+          <ActionForm action={registerRelayDevice} submitLabel="Register Relay PC">
             <Field
-              label="Tên máy"
+              label="Relay PC name"
               name="name"
               required
-              placeholder="Laptop Dell của Hà"
-              hint="Tới ngày phải thu hồi gấp, đây là thứ duy nhất để nhận ra máy nào là máy nào."
+              placeholder="Ha's Dell laptop"
+              hint="Use a name you can identify quickly if this Relay PC must be revoked."
             />
             <SelectField
-              label="Người dùng máy"
+              label="Relay PC user"
               name="userId"
               required
               options={teamMembers.map((member) => ({ value: member.id, label: member.email }))}
-              hint="Chỉ hiện người đã đăng nhập ít nhất một lần."
+              hint="Only people who have signed in at least once are listed."
             />
             <Field
-              label="Khóa công khai của máy"
+              label="Relay PC public key"
               name="publicKey"
               required
-              placeholder="64 ký tự hex"
-              hint="Chép nguyên dòng mà cầu nối in ra lúc cài. Đây là khóa CÔNG KHAI — khóa riêng ở lại trên máy đó và không bao giờ được gửi đi đâu."
+              placeholder="64 hexadecimal characters"
+              hint="Copy the complete line printed by Relay during installation. This is the PUBLIC key; the private key remains on that PC and must never be sent anywhere."
             />
           </ActionForm>
         </Card>
       ) : null}
 
-      <Card title="Thu hồi làm được gì">
+      <Card title="What Relay PC revocation does">
         <ul className="space-y-2 text-sm text-neutral-600 dark:text-neutral-400">
           <li>
-            <strong className="text-neutral-900 dark:text-neutral-100">Chặn được:</strong> máy đã
-            thu hồi không nhận được vé mới. Có hiệu lực ngay, không cần đụng tới máy nào khác của
-            team.
+            <strong className="text-neutral-900 dark:text-neutral-100">It blocks:</strong> a revoked
+            Relay PC cannot receive new tickets. This takes effect immediately without changing any
+            other team PC.
           </li>
           <li>
-            <strong className="text-neutral-900 dark:text-neutral-100">Không chặn được:</strong> bí
-            mật mà máy đó đã lấy về từ trước vẫn nằm trên ổ cứng của nó và vẫn mở được. Máy thật
-            sự mất thì thu hồi xong vẫn phải xoay khóa vùng operator —{" "}
+            <strong className="text-neutral-900 dark:text-neutral-100">It cannot block:</strong>
+            secrets previously retrieved by that PC remain on its drive and can still be opened. If
+            the PC is actually lost, revoke it and then rotate the operator key with{" "}
             <code className="rounded bg-neutral-100 px-1 py-0.5 font-mono text-xs dark:bg-neutral-800">
               npm run vault:rekey -- --domain=operator
             </code>
-            . Thu hồi là cái chặn trong vài giây, để dùng trong lúc chờ xoay khóa xong.
+            . Revocation is the immediate barrier while the key rotation is completed.
           </li>
           <li>
-            Thu hồi là một chiều. Khóa đã gạch tên không đăng ký lại được — máy tìm thấy lại thì
-            cài lại cầu nối để sinh cặp khóa mới.
+            Revocation is irreversible. A revoked key cannot be registered again. If the PC is
+            recovered, reinstall Relay to generate a new key pair, then register it again.
           </li>
         </ul>
       </Card>

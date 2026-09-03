@@ -64,7 +64,7 @@ function proxyForm(fields: Record<string, string>): FormData {
 /** Mọi lối ghi phải trả về lời từ chối, không phải ném lỗi trần — xem `guarded-action.ts`. */
 function expectRefused(result: { ok: boolean; message?: string }) {
   expect(result.ok).toBe(false);
-  expect(result.message).toContain("quản trị viên");
+  expect(result.message).toContain("qu\u1ea3n tr\u1ecb vi\u00ean");
 }
 
 beforeEach(async () => {
@@ -89,12 +89,12 @@ afterAll(async () => {
   await prisma.$disconnect();
 });
 
-describe("OPERATOR không ghi được kho proxy", () => {
-  it("thêm proxy bị từ chối, kho không mọc thêm hàng", async () => {
+describe("OPERATOR cannot write to the proxy inventory", () => {
+  it("rejects adding a proxy without creating a row", async () => {
     const result = await createProxy(
       null,
       proxyForm({
-        label: "Tự thêm",
+        label: "Manually added",
         host: "9.9.9.9",
         port: "9999",
         username: "u",
@@ -108,7 +108,7 @@ describe("OPERATOR không ghi được kho proxy", () => {
     expect(await prisma.proxy.count()).toBe(1);
   });
 
-  it("sửa proxy bị từ chối, host giữ nguyên", async () => {
+  it("rejects editing a proxy and keeps the host unchanged", async () => {
     const result = await updateProxy(
       null,
       proxyForm({
@@ -132,14 +132,14 @@ describe("OPERATOR không ghi được kho proxy", () => {
    * Lớp "còn nick gắn thì không xóa" không đỡ được ca này — proxy dự phòng chưa gắn ai vẫn là
    * proxy đã trả tiền.
    */
-  it("xóa proxy CHƯA GẮN NICK vẫn bị từ chối, hàng còn nguyên", async () => {
+  it("rejects deleting a proxy with NO ASSIGNED NICK and keeps the row", async () => {
     const result = await deleteProxy(proxyId);
 
     expectRefused(result);
     expect(await prisma.proxy.findUnique({ where: { id: proxyId } })).not.toBeNull();
   });
 
-  it("đo tốc độ bị từ chối — mỗi lượt đốt 1 MB quota trả tiền", async () => {
+  it("rejects speed tests because each run consumes 1 MB of paid quota", async () => {
     const result = await measureOneProxySpeed(proxyId);
 
     expectRefused(result);
@@ -149,7 +149,7 @@ describe("OPERATOR không ghi được kho proxy", () => {
   });
 });
 
-describe("OPERATOR vẫn kiểm được proxy", () => {
+describe("OPERATOR can still check a proxy", () => {
   /**
    * Phía còn lại của ranh giới. Kiểm proxy còn sống tốn vài KB và là thứ cần bấm đúng lúc đang
    * gấp — gác nó lại là bắt người đang xử lý sự cố đi tìm ADMIN, và nút đó sẽ bị gỡ gác.
@@ -158,11 +158,11 @@ describe("OPERATOR vẫn kiểm được proxy", () => {
    * proxy 1.2.3.4 thì không tồn tại nên kết quả là "chết" — đúng một kết luận về proxy, không
    * phải một lời từ chối quyền.
    */
-  it("checkOneProxy không đòi ADMIN", async () => {
+  it("does not require ADMIN for checkOneProxy", async () => {
     const { checkOneProxy } = await import("./proxy-check-actions");
 
     const result = await checkOneProxy(proxyId);
 
-    expect(result.message).not.toContain("quản trị viên");
+    expect(result.message).not.toContain("qu\u1ea3n tr\u1ecb vi\u00ean");
   }, 30_000);
 });

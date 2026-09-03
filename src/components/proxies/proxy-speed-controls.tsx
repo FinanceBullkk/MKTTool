@@ -24,10 +24,10 @@ export function MeasureProxySpeedButton({ proxyId }: { proxyId: string }) {
         type="button"
         className={BUTTON_CLASS}
         disabled={pending}
-        title="Tải một file thử 1 MB qua đúng proxy này để đo tốc độ tải xuống. Tiêu 1 MB quota của proxy."
+        title="Download a 1 MB test file through this exact proxy to measure download speed. This uses 1 MB of the proxy quota."
         onClick={() => startTransition(async () => setResult(await measureOneProxySpeed(proxyId)))}
       >
-        {pending ? "Đang đo…" : "Đo tốc độ (1 MB)"}
+        {pending ? "Measuring..." : "Measure speed (1 MB)"}
       </button>
       {result ? (
         <p
