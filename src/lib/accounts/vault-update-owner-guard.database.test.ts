@@ -45,10 +45,17 @@ const decryptAsOperator = (encoded: string) =>
 let accountId: string;
 
 /** Form sửa nick — mọi trường bắt buộc, cộng thêm phần ghi đè tùy bài. */
-function updateForm(overrides: Record<string, string> = {}): FormData {
+async function updateForm(overrides: Record<string, string> = {}): Promise<FormData> {
+  const revision = (
+    await prisma.account.findUniqueOrThrow({
+      where: { id: accountId },
+      select: { updatedAt: true },
+    })
+  ).updatedAt.toISOString();
   const form = new FormData();
   const fields: Record<string, string> = {
     id: accountId,
+    revision,
     username: "anna",
     emailAddress: "anna@example.test",
     status: "ALIVE",
@@ -100,7 +107,7 @@ describe("nick của người khác", () => {
   it("từ chối ghi đè mật khẩu, và GIỮ NGUYÊN giá trị cũ", async () => {
     const result = await updateAccount(
       null,
-      updateForm({ passwordEnc: encryptForOperator("mat-khau-moi") }),
+      await updateForm({ passwordEnc: encryptForOperator("mat-khau-moi") }),
     );
 
     expect(result.ok).toBe(false);
@@ -113,11 +120,11 @@ describe("nick của người khác", () => {
   it("từ chối ghi đè mật khẩu email và TOTP secret", async () => {
     const email = await updateAccount(
       null,
-      updateForm({ emailPasswordEnc: encryptForOperator("moi") }),
+      await updateForm({ emailPasswordEnc: encryptForOperator("moi") }),
     );
     const totp = await updateAccount(
       null,
-      updateForm({ totpSecretEnc: encryptForOperator("JBSWY3DPEHPK3PXP") }),
+      await updateForm({ totpSecretEnc: encryptForOperator("JBSWY3DPEHPK3PXP") }),
     );
 
     expect(email.ok).toBe(false);
@@ -131,7 +138,7 @@ describe("nick của người khác", () => {
   it("CHO PHÉP sửa phần vận hành — karma, trạng thái", async () => {
     const result = await updateAccount(
       null,
-      updateForm({ karma: "900", status: "CHECKPOINT", quarantineReason: "bị hỏi lại" }),
+      await updateForm({ karma: "900", status: "CHECKPOINT", quarantineReason: "bị hỏi lại" }),
     );
 
     expect(result.ok).toBe(true);
@@ -142,7 +149,10 @@ describe("nick của người khác", () => {
 
   /** Ô bí mật để trống nghĩa là "giữ nguyên" — không phải một lần ghi đè, nên không bị gác. */
   it("ô bí mật để trống thì không kích hoạt phép gác", async () => {
-    const result = await updateAccount(null, updateForm({ passwordEnc: "", emailPasswordEnc: "" }));
+    const result = await updateAccount(
+      null,
+      await updateForm({ passwordEnc: "", emailPasswordEnc: "" }),
+    );
 
     expect(result.ok).toBe(true);
   });
@@ -156,7 +166,7 @@ describe("nick của chính mình", () => {
   it("ghi đè được mật khẩu", async () => {
     const result = await updateAccount(
       null,
-      updateForm({ passwordEnc: encryptForOperator("mat-khau-moi") }),
+      await updateForm({ passwordEnc: encryptForOperator("mat-khau-moi") }),
     );
 
     expect(result.ok).toBe(true);
@@ -174,7 +184,7 @@ describe("nick chưa có chủ", () => {
   it("OPERATOR không ghi đè được bí mật", async () => {
     const result = await updateAccount(
       null,
-      updateForm({ passwordEnc: encryptForOperator("mat-khau-moi") }),
+      await updateForm({ passwordEnc: encryptForOperator("mat-khau-moi") }),
     );
 
     expect(result.ok).toBe(false);
@@ -188,8 +198,11 @@ describe("nhật ký đổi trạng thái", () => {
    * nhắm đúng chỗ. Thứ giúp được là dấu vết đọc ra chiều đổi.
    */
   it("ghi cả trạng thái cũ khi trạng thái đổi", async () => {
-    await updateAccount(null, updateForm({ status: "SHADOWBANNED", quarantineReason: "mất bài" }));
-    await updateAccount(null, updateForm({ status: "ALIVE" }));
+    await updateAccount(
+      null,
+      await updateForm({ status: "SHADOWBANNED", quarantineReason: "mất bài" }),
+    );
+    await updateAccount(null, await updateForm({ status: "ALIVE" }));
 
     const logs = await prisma.auditLog.findMany({
       where: { accountId, action: "ACCOUNT_UPDATED" },
@@ -200,7 +213,7 @@ describe("nhật ký đổi trạng thái", () => {
   });
 
   it("không nhắc trạng thái cũ khi trạng thái giữ nguyên", async () => {
-    await updateAccount(null, updateForm({ karma: "777" }));
+    await updateAccount(null, await updateForm({ karma: "777" }));
 
     const log = await prisma.auditLog.findFirstOrThrow({ where: { accountId } });
     expect(log.detail).not.toContain("→");

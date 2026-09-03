@@ -36,6 +36,7 @@ import {
   formToObject,
   normalizeCheckbox,
   proxyUpdateSchema,
+  STALE_ACCOUNT_WRITE_MESSAGE,
   targetUpdateSchema,
   validatePlatformAccountFields,
 } from "./vault-form-schemas";
@@ -97,7 +98,7 @@ export const updateAccount = guardedAction(async function updateAccount(
   if (!parsed.success) return { ok: false, message: firstError(parsed.error) };
 
   // Ba cột bí mật vào đây đã là ciphertext do cầu nối bọc — xem chú thích ở `createAccount`.
-  const { id, passwordEnc, emailPasswordEnc, totpSecretEnc, ...data } =
+  const { id, revision, passwordEnc, emailPasswordEnc, totpSecretEnc, ...data } =
     parsed.data;
 
   // `platform` không sửa được nên form không gửi lên — phải đọc từ DB thì mới chấm được luật
@@ -136,30 +137,51 @@ export const updateAccount = guardedAction(async function updateAccount(
   const identityError = validatePlatformAccountFields(existing.platform, data, { creating: false });
   if (identityError) return { ok: false, message: identityError };
 
+  let didUpdate = false;
   try {
-    await prisma.account.update({
-      where: { id },
-      data: {
-        ...data,
-        // Với Prisma, `undefined` nghĩa là GIỮ NGUYÊN — nên ô để trống phải ép về `null`, không
-        // thì gỡ proxy khỏi một nick Facebook sẽ im lặng không có tác dụng gì.
-        antidetectProfileId: data.antidetectProfileId?.trim() || null,
-        proxyId: data.proxyId?.trim() || null,
-        // Cùng lý do: xóa trắng ô giọng phải thật sự xóa, không thì nick giữ mãi một làn viết
-        // mà người dùng tưởng đã bỏ.
-        voice: data.voice?.trim() || null,
-        contentAngle: data.contentAngle?.trim() || null,
-        // Gỡ cách ly thì lý do cách ly phải đi theo. Để lại là dựng ra một màn hình tự mâu
-        // thuẫn: nhãn "Khỏe" nằm ngay trên hộp đỏ "dừng đăng ngay" — xem isQuarantinedStatus().
-        quarantineReason: isQuarantinedStatus(data.status)
-          ? data.quarantineReason?.trim() || null
-          : null,
-        // Ô để trống nghĩa là GIỮ NGUYÊN, nên chỉ đụng vào cột khi form thật sự mang ciphertext
-        // mới lên. `undefined` với Prisma là "không đổi" — đúng thứ cần ở đây.
-        ...(passwordEnc ? { passwordEnc } : {}),
-        ...(emailPasswordEnc ? { emailPasswordEnc } : {}),
-        ...(totpSecretEnc ? { totpSecretEnc } : {}),
-      },
+    didUpdate = await prisma.$transaction(async (tx) => {
+      const updated = await tx.account.updateMany({
+        where: { id, updatedAt: revision },
+        data: {
+          ...data,
+          // Với Prisma, `undefined` nghĩa là GIỮ NGUYÊN — nên ô để trống phải ép về `null`, không
+          // thì gỡ proxy khỏi một nick Facebook sẽ im lặng không có tác dụng gì.
+          antidetectProfileId: data.antidetectProfileId?.trim() || null,
+          proxyId: data.proxyId?.trim() || null,
+          // Cùng lý do: xóa trắng ô giọng phải thật sự xóa, không thì nick giữ mãi một làn viết
+          // mà người dùng tưởng đã bỏ.
+          voice: data.voice?.trim() || null,
+          contentAngle: data.contentAngle?.trim() || null,
+          // Gỡ cách ly thì lý do cách ly phải đi theo. Để lại là dựng ra một màn hình tự mâu
+          // thuẫn: nhãn "Khỏe" nằm ngay trên hộp đỏ "dừng đăng ngay" — xem isQuarantinedStatus().
+          quarantineReason: isQuarantinedStatus(data.status)
+            ? data.quarantineReason?.trim() || null
+            : null,
+          // Ô để trống nghĩa là GIỮ NGUYÊN, nên chỉ đụng vào cột khi form thật sự mang ciphertext
+          // mới lên. `undefined` với Prisma là "không đổi" — đúng thứ cần ở đây.
+          ...(passwordEnc ? { passwordEnc } : {}),
+          ...(emailPasswordEnc ? { emailPasswordEnc } : {}),
+          ...(totpSecretEnc ? { totpSecretEnc } : {}),
+        },
+      });
+      if (updated.count === 0) return false;
+
+      await tx.auditLog.create({
+        data: {
+          accountId: id,
+          action: AUDIT_ACTIONS.ACCOUNT_UPDATED,
+          // Trạng thái đổi thì ghi cả chiều đổi. Đây là đường thứ hai ép được trạng thái nick —
+          // đường kia là bộ dò sức khỏe, và nó đã ghi `HEALTH_STATUS_FORCED` kèm chiều đổi từ lâu.
+          // Hai đường tới cùng một hậu quả thì nhật ký của chúng phải đọc được như nhau.
+          detail:
+            existing.status === data.status
+              ? `karma ${data.karma}, ${data.status}`
+              : `karma ${data.karma}, trạng thái ${existing.status} → ${data.status}`,
+          actorId: actor.userId,
+        },
+      });
+
+      return true;
     });
   } catch (error) {
     if (isUniqueConstraintError(error)) {
@@ -173,23 +195,10 @@ export const updateAccount = guardedAction(async function updateAccount(
     return { ok: false, message: describeUnexpectedDbError(error, "sửa nick") };
   }
 
+  if (!didUpdate) return { ok: false, message: STALE_ACCOUNT_WRITE_MESSAGE };
+
   // Karma, trạng thái và cold-start đều là đầu vào của luật 1, 2 và 3.
   const recheck = await recheckJobsMatching({ accountId: id });
-
-  await prisma.auditLog.create({
-    data: {
-      accountId: id,
-      action: AUDIT_ACTIONS.ACCOUNT_UPDATED,
-      // Trạng thái đổi thì ghi cả chiều đổi. Đây là đường thứ hai ép được trạng thái nick —
-      // đường kia là bộ dò sức khỏe, và nó đã ghi `HEALTH_STATUS_FORCED` kèm chiều đổi từ lâu.
-      // Hai đường tới cùng một hậu quả thì nhật ký của chúng phải đọc được như nhau.
-      detail:
-        existing.status === data.status
-          ? `karma ${data.karma}, ${data.status}`
-          : `karma ${data.karma}, trạng thái ${existing.status} → ${data.status}`,
-      actorId: actor.userId,
-    },
-  });
 
   revalidatePath("/accounts");
   revalidatePath(`/accounts/${id}`);

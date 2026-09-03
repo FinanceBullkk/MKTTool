@@ -278,6 +278,7 @@ export default async function AccountDetailPage({
             <AccountClusterAssignmentForm
               action={assignAccountCluster}
               accountId={account.id}
+              revision={account.updatedAt.toISOString()}
               initialOwner={
                 account.owner ? { id: account.ownerId!, label: account.owner.email } : null
               }
@@ -304,6 +305,7 @@ export default async function AccountDetailPage({
         <AccountVaultForm
           action={updateAccount}
           submitLabel="Save"
+          revision={account.updatedAt.toISOString()}
           proxyChange={{
             initial: account.proxy
               ? { id: account.proxy.id, label: `${account.proxy.label} - ${account.proxy.country}` }

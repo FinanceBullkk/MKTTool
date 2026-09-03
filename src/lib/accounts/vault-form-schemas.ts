@@ -52,6 +52,14 @@ export const dateTimeInput = z.preprocess((value) => {
 
 export const requiredId = z.string().min(1, "Thiếu id bản ghi cần sửa");
 
+/** Revision emitted by the server-rendered form for optimistic concurrency checks. */
+export const accountRevisionSchema = z
+  .iso.datetime({ offset: true })
+  .transform((value) => new Date(value));
+
+export const STALE_ACCOUNT_WRITE_MESSAGE =
+  "This record was changed after you opened it. Reload the page before saving.";
+
 /**
  * Ô bí mật của nick — form gửi lên **ciphertext**, không gửi mật khẩu.
  *
@@ -310,6 +318,7 @@ export const accountCreateSchema = accountCreateBase.superRefine((value, ctx) =>
 export const accountUpdateSchema = z.object({
   ...accountShape,
   id: requiredId,
+  revision: accountRevisionSchema,
   passwordEnc: optionalEncryptedCredential("Mật khẩu nick"),
   emailPasswordEnc: optionalEncryptedCredential("Mật khẩu email"),
   totpSecretEnc: optionalEncryptedCredential("TOTP secret"),

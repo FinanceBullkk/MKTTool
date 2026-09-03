@@ -69,10 +69,12 @@ const { deleteContentItem, updateContentItem } = await import(
 );
 
 const SCHEDULED_AT = new Date("2026-09-10T09:00:00+07:00");
+const INITIAL_ACCOUNT_UPDATED_AT = new Date("2026-01-01T00:00:00.000Z");
 
 interface Seeded {
   proxyId: string;
   accountId: string;
+  accountRevision: string;
   targetId: string;
   contentId: string;
   jobId: string;
@@ -115,6 +117,7 @@ async function seed(): Promise<Seeded> {
       proxyId: proxy.id,
       status: "ALIVE",
       karma: 500,
+      updatedAt: INITIAL_ACCOUNT_UPDATED_AT,
     },
   });
   const target = await prisma.platformTarget.create({
@@ -136,6 +139,7 @@ async function seed(): Promise<Seeded> {
   return {
     proxyId: proxy.id,
     accountId: account.id,
+    accountRevision: account.updatedAt.toISOString(),
     targetId: target.id,
     contentId: content.id,
     jobId: job.id,
@@ -158,6 +162,7 @@ function accountForm(seeded: Seeded, overrides: Record<string, string> = {}): Fo
     proxyId: seeded.proxyId,
     status: "ALIVE",
     karma: "500",
+    revision: seeded.accountRevision,
     ...overrides,
   });
 }
@@ -298,12 +303,18 @@ describe("ô bí mật để trống là giữ nguyên", () => {
  */
 describe("gỡ cách ly thì lý do cách ly đi theo", () => {
   it("đổi trạng thái về ALIVE thì xóa lý do cách ly", async () => {
-    await prisma.account.update({
+    const quarantined = await prisma.account.update({
       where: { id: seeded.accountId },
       data: { status: "SHADOWBANNED", quarantineReason: "Bộ dò báo nick vô hình với người ngoài." },
     });
 
-    const result = await updateAccount(null, accountForm(seeded, { status: "ALIVE" }));
+    const result = await updateAccount(
+      null,
+      accountForm(seeded, {
+        status: "ALIVE",
+        revision: quarantined.updatedAt.toISOString(),
+      }),
+    );
 
     expect(result.ok).toBe(true);
     const after = await prisma.account.findUniqueOrThrow({ where: { id: seeded.accountId } });
@@ -391,6 +402,7 @@ describe("proxy + profile antidetect theo nền tảng", () => {
         proxyId: "",
         status: "ALIVE",
         karma: "0",
+        revision: fb.updatedAt.toISOString(),
       }),
     );
 
@@ -412,6 +424,7 @@ describe("proxy + profile antidetect theo nền tảng", () => {
         proxyId: seeded.proxyId, // proxy đang gắn nick Reddit "anna"
         status: "ALIVE",
         karma: "0",
+        revision: fb.updatedAt.toISOString(),
       }),
     );
     const after = await prisma.account.findUniqueOrThrow({ where: { id: fb.id } });
@@ -509,6 +522,59 @@ describe("sửa xong thì chấm lại job đang chờ", () => {
 
     const job = await prisma.postJob.findUniqueOrThrow({ where: { id: seeded.jobId } });
     expect(job.status).toBe("POSTED");
+  });
+});
+
+describe("optimistic concurrency khi sửa nick", () => {
+  it("từ chối lượt ghi dùng revision cũ và không ghi account, audit hay verdict", async () => {
+    const staleRevision = seeded.accountRevision;
+
+    const winner = await updateAccount(
+      null,
+      accountForm(seeded, { karma: "0", revision: staleRevision }),
+    );
+    expect(winner.ok).toBe(true);
+
+    const accountAfterWinner = await prisma.account.findUniqueOrThrow({
+      where: { id: seeded.accountId },
+    });
+    const jobAfterWinner = await prisma.postJob.findUniqueOrThrow({
+      where: { id: seeded.jobId },
+      select: { status: true, ruleVerdicts: true },
+    });
+    const auditsAfterWinner = await prisma.auditLog.count({
+      where: { accountId: seeded.accountId },
+    });
+
+    const loser = await updateAccount(
+      null,
+      accountForm(seeded, {
+        karma: "900",
+        status: "DEAD",
+        revision: staleRevision,
+      }),
+    );
+
+    expect(loser).toEqual({
+      ok: false,
+      message: "This record was changed after you opened it. Reload the page before saving.",
+    });
+
+    const accountAfterLoser = await prisma.account.findUniqueOrThrow({
+      where: { id: seeded.accountId },
+    });
+    const jobAfterLoser = await prisma.postJob.findUniqueOrThrow({
+      where: { id: seeded.jobId },
+      select: { status: true, ruleVerdicts: true },
+    });
+
+    expect(accountAfterLoser.karma).toBe(accountAfterWinner.karma);
+    expect(accountAfterLoser.status).toBe(accountAfterWinner.status);
+    expect(accountAfterLoser.updatedAt).toEqual(accountAfterWinner.updatedAt);
+    expect(jobAfterLoser).toEqual(jobAfterWinner);
+    expect(await prisma.auditLog.count({ where: { accountId: seeded.accountId } })).toBe(
+      auditsAfterWinner,
+    );
   });
 });
 

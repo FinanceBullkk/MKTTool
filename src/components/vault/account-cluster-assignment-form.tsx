@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { SelectField } from "@/components/ui/form-controls";
 import type { ActionResult } from "@/lib/actions/action-result";
 import {
@@ -18,6 +19,7 @@ interface ClusterConfirmation {
 export function AccountClusterAssignmentForm({
   action,
   accountId,
+  revision,
   initialOwner,
   initialDevice,
   teamMembers,
@@ -25,11 +27,13 @@ export function AccountClusterAssignmentForm({
 }: {
   action: (previous: ActionResult | null, formData: FormData) => Promise<ActionResult>;
   accountId: string;
+  revision: string;
   initialOwner: LabeledSelection | null;
   initialDevice: LabeledSelection | null;
   teamMembers: LabeledSelection[];
   relayDevices: (LabeledSelection & { ownerEmail: string })[];
 }) {
+  const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
   const [confirmation, setConfirmation] = useState<ClusterConfirmation | null>(null);
   const [result, setResult] = useState<ActionResult | null>(null);
@@ -69,7 +73,9 @@ export function AccountClusterAssignmentForm({
     setResult(null);
     setConfirmation(null);
     try {
-      setResult(await action(null, formData));
+      const outcome = await action(null, formData);
+      setResult(outcome);
+      if (outcome.ok) router.refresh();
     } catch {
       setResult({ ok: false, message: "The assignment was not saved. Reload the page and retry." });
     } finally {
@@ -88,6 +94,7 @@ export function AccountClusterAssignmentForm({
       className="space-y-4"
     >
       <input type="hidden" name="accountId" value={accountId} />
+      <input type="hidden" name="revision" value={revision} />
       <div className="grid gap-4 sm:grid-cols-2">
         <SelectField
           label="Owner"

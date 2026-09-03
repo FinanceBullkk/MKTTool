@@ -26,6 +26,7 @@
  * thẳng lên máy chủ. Nhờ vậy **việc chung hằng ngày vẫn chạy khi cầu nối tắt**, và cầu nối chỉ
  * cần thiết đúng lúc thật sự có bí mật mới.
  */
+import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import type { ActionResult } from "@/lib/actions/action-result";
 import { RelayOutdatedNotice } from "@/components/relay/relay-outdated-notice";
@@ -55,6 +56,7 @@ export function AccountVaultForm({
   submitLabel,
   children,
   proxyChange,
+  revision,
 }: {
   action: (prev: ActionResult | null, formData: FormData) => Promise<ActionResult>;
   submitLabel: string;
@@ -63,7 +65,9 @@ export function AccountVaultForm({
     initial: LabeledSelection | null;
     options: LabeledSelection[];
   };
+  revision?: string;
 }) {
+  const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
   const [state, setState] = useState<ActionResult | null>(null);
   const [pending, setPending] = useState(false);
@@ -134,7 +138,9 @@ export function AccountVaultForm({
         if (secrets[field] && ciphertext) formData.set(column, ciphertext);
       }
 
-      setState(await action(null, formData));
+      const result = await action(null, formData);
+      setState(result);
+      if (result.ok && revision) router.refresh();
     } catch {
       setState({ ok: false, message: "Không lưu được. Tải lại trang rồi thử lại." });
     } finally {
@@ -146,7 +152,9 @@ export function AccountVaultForm({
     setPending(true);
     setState(null);
     try {
-      setState(await action(null, formData));
+      const result = await action(null, formData);
+      setState(result);
+      if (result.ok && revision) router.refresh();
     } catch {
       setState({ ok: false, message: "Không lưu được. Tải lại trang rồi thử lại." });
     } finally {
@@ -159,6 +167,7 @@ export function AccountVaultForm({
     // đường của nó, dữ liệu phải nằm trong thân request chứ không nằm trong URL — thanh địa chỉ
     // và lịch sử duyệt web là hai nơi không bao giờ được có mật khẩu.
     <form ref={formRef} method="post" onSubmit={handleSubmit} className="space-y-4">
+      {revision ? <input type="hidden" name="revision" value={revision} /> : null}
       {outdatedVersion !== null ? <RelayOutdatedNotice relayVersion={outdatedVersion} /> : null}
 
       <div className="grid gap-4 sm:grid-cols-2">{children}</div>
