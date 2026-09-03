@@ -120,14 +120,17 @@ export async function readActor(): Promise<Actor | null> {
 }
 
 /** Như `requireActor` nhưng bắt buộc vai trò ADMIN. */
-export async function requireAdmin(): Promise<Actor> {
-  const actor = await requireActor();
+export async function requireAdmin(
+  actor?: Actor,
+  denialMessage = "Việc này chỉ quản trị viên làm được.",
+): Promise<Actor> {
+  const currentActor = actor ?? (await requireActor());
 
-  if (actor.role !== "ADMIN") {
-    throw new AuthorizationError("Việc này chỉ quản trị viên làm được.", false);
+  if (currentActor.role !== "ADMIN") {
+    throw new AuthorizationError(denialMessage, false);
   }
 
-  return actor;
+  return currentActor;
 }
 
 /**

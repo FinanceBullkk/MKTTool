@@ -18,6 +18,7 @@ import {
 } from "@/lib/accounts/account-status";
 import { deleteAccount } from "@/lib/accounts/vault-delete-actions";
 import { updateAccount } from "@/lib/accounts/vault-update-actions";
+import { readAdminContactEmail } from "@/lib/auth/allowed-emails";
 import { readActor } from "@/lib/auth/require-actor";
 import { prisma } from "@/lib/db/prisma-client";
 import { formatFullDate, formatFullDateTime } from "@/lib/format/vietnamese-date-format";
@@ -50,6 +51,8 @@ export default async function AccountDetailPage({
   if (!account) notFound();
 
   const viewer = await readActor();
+  const isAdmin = viewer?.role === "ADMIN";
+  const adminContactEmail = readAdminContactEmail();
 
   const presentation = getStatusPresentation(account.status);
   const coldDays = coldStartDaysRemaining(account.coldStartUntil);
@@ -306,18 +309,26 @@ export default async function AccountDetailPage({
           action={updateAccount}
           submitLabel="Save"
           revision={account.updatedAt.toISOString()}
-          proxyChange={{
-            initial: account.proxy
-              ? { id: account.proxy.id, label: `${account.proxy.label} - ${account.proxy.country}` }
-              : null,
-            options: proxyOptions,
-          }}
+          proxyChange={
+            isAdmin
+              ? {
+                  initial: account.proxy
+                    ? {
+                        id: account.proxy.id,
+                        label: `${account.proxy.label} - ${account.proxy.country}`,
+                      }
+                    : null,
+                  options: proxyOptions,
+                }
+              : undefined
+          }
         >
           <input type="hidden" name="id" value={account.id} />
           <AccountFormFields
             proxies={proxyOptions}
             defaults={account}
             platform={account.platform}
+            proxyEditAccess={{ isAdmin, adminContactEmail }}
           />
         </AccountVaultForm>
       </Card>
