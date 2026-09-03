@@ -36,12 +36,14 @@ those software terms as another name for the PC itself.
 | `New profile` | `Open nick vault` |
 | `No profiles yet` / `Create first profile` | `No nicks in the team vault` / `Open nick vault` |
 | Header `Search profiles, tags, urls...` | Home `Search nicks by username, voice, proxy, or notes...` |
-| Header `running / total` summary | Removed; accurate nick and local browser-profile counts stay inside Home |
+| Header `Ctrl K` shortcut badge | Removed until a real shortcut exists |
+| Header `running / total` summary | Removed; accurate nick and local browser profile counts stay inside Home |
 | `Tài khoản` | `Nick vault` |
 | `Profile & channel` | `Nick` |
 | `Máy / Relay` | `Relay PCs` |
 | `Device` | `Relay PC` |
 | Fabricated fallback `Local PC` | `Relay PC not assigned` |
+| `running` / `idle` | `Open on this Relay PC` / `Not open on this Relay PC` |
 | `Thiết lập Máy Vận Hành (MKT Setup)` | `Relay PC setup` |
 | `Bước 2: Kết nối Relay hiện tại` | `Step 2: Register this Relay PC` |
 | `Tạo hồ sơ TikTok mới` | `Create TikTok nick` |

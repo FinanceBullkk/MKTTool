@@ -1,6 +1,6 @@
 # Tài liệu MKTTool — bắt đầu từ đâu
 
-**Updated:** 30 August 2026
+**Updated:** 3 September 2026
 
 ## Current release entry point
 

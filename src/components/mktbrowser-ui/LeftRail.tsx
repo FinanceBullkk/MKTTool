@@ -2,20 +2,20 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Boxes, Plug, MonitorSmartphone, Settings } from "lucide-react";
+import { Boxes, MonitorSmartphone, Plug, Settings, Users } from "lucide-react";
 
 interface NavItem {
   href: string;
   icon: typeof Boxes;
   label: string;
-  kbd: string;
 }
 
 const ITEMS: NavItem[] = [
-  { href: "/", icon: Boxes, label: "Kênh / Profiles", kbd: "1" },
-  { href: "/proxies", icon: Plug, label: "Proxy / IP", kbd: "2" },
-  { href: "/relay-devices", icon: MonitorSmartphone, label: "Máy / Relay", kbd: "3" },
-  { href: "/setup", icon: Settings, label: "Cài đặt / Setup", kbd: "," },
+  { href: "/", icon: Boxes, label: "Home" },
+  { href: "/accounts", icon: Users, label: "Nick vault" },
+  { href: "/proxies", icon: Plug, label: "Proxies" },
+  { href: "/relay-devices", icon: MonitorSmartphone, label: "Relay PCs" },
+  { href: "/setup", icon: Settings, label: "Setup" },
 ];
 
 function isActive(pathname: string, href: string): boolean {
@@ -26,10 +26,10 @@ export function LeftRail() {
   const pathname = usePathname();
 
   return (
-    <div
-      className="flex flex-col items-center pt-3.5 gap-2 flex-shrink-0 z-20"
+    <nav
+      aria-label="Primary navigation"
+      className="z-20 flex w-14 flex-shrink-0 flex-col items-stretch gap-2 px-1 pt-3.5"
       style={{
-        width: 56,
         background: "rgba(10, 11, 15, 0.95)",
         borderRight: "1px solid rgba(255, 255, 255, 0.05)",
       }}
@@ -42,21 +42,21 @@ export function LeftRail() {
           <Link
             key={item.href}
             href={item.href}
-            title={`${item.label} · Ctrl+${item.kbd}`}
-            className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all ${
+            title={item.label}
+            aria-current={active ? "page" : undefined}
+            className={`flex min-h-12 w-full flex-col items-center justify-center gap-1 rounded-xl px-1 py-1.5 text-center transition-all ${
               active
                 ? "text-purple-300 bg-purple-500/15 shadow-[inset_0_0_0_1px_rgba(168,85,247,0.3)]"
                 : "text-neutral-400 hover:text-white hover:bg-white/[0.05]"
             }`}
           >
-            <Icon size={17} strokeWidth={active ? 2 : 1.5} />
+            <Icon className="shrink-0" size={17} strokeWidth={active ? 2 : 1.5} />
+            <span className="text-[10px] font-medium leading-[11px]">{item.label}</span>
           </Link>
         );
       })}
 
       <div className="flex-1" />
-
-      {/* Bottom Command Palette shortcut */}
-    </div>
+    </nav>
   );
 }

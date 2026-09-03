@@ -1,20 +1,20 @@
 # MKTTool
 
-MKTTool is the team's account and posting-safety console. It manages browser-backed Reddit and
-TikTok accounts plus Facebook Pages, while keeping account, proxy, profile, and operator-device
-ownership explicit. Profile and proxy controls are operational boundaries; they are not a promise
-of unique or isolated browser identity.
+MKTTool is the team's nick vault and posting-safety console. It manages browser-backed Reddit and
+TikTok nicks plus Facebook Page identities, while keeping nick, proxy, browser profile, and Relay PC
+ownership explicit. Browser profile and proxy controls are operational boundaries; they are not a
+promise of unique or isolated browser identity.
 
 **Rollout scope decision, 2 September 2026:** Reddit and Facebook are **withdrawn from the team
 rollout scope**. The code stays implemented, tested, and deployed — this is a scope decision, not a
 removal — but no Reddit or Facebook workflow is handed to operators, and the posting surface is not
-part of what the team is asked to use. What remains in scope for the team is the shared account
-vault, proxy ownership, and operator-device registry. Re-entering either platform is an explicit
+part of what the team is asked to use. What remains in scope for the team is the shared nick vault,
+proxy ownership, and Relay PC registry. Re-entering either platform is an explicit
 owner decision, not a default.
 
-**Current status, 1 September 2026:** the account vault, Reddit/Facebook posting-safety pipeline,
+**Current status, 1 September 2026:** the nick vault, Reddit/Facebook posting-safety pipeline,
 health checks, and Facebook Pages publisher are implemented (now out of rollout scope, see above).
-TikTok account/profile setup and manual
+TikTok nick/browser-profile setup and manual
 launch are available for a controlled technical pilot; TikTok content, scheduling, warmup, and
 posting automation remain parked. The hardened Lane A Web deployment is live; its last 24-hour
 health evidence is 947/947 HTTP 200 with zero server 5xx, and the authorized Relay v16 full-GET/hash
@@ -39,17 +39,20 @@ old `0.3.12`/v15 installer is quarantined historical evidence, not a current rel
 remains **NO-GO** while identity, network, vendor, second-PC, and canary gates are open.
 
 This file is the operational handbook for installing, running, and using the product. Product intent,
-architecture, code maps, conventions, and history live under [docs/](docs/README.md).
+architecture, code maps, conventions, and history live under [docs/](docs/README.md). User-facing
+terms are fixed in the [UI glossary](docs/ui-glossary.md): a **nick** is a shared vault record, a
+**browser profile** is local data on one PC, and a **Relay PC** is the registered PC that receives
+tickets.
 
 ## What it is
 
-This is not a bot farm. It is a shared account vault and operator console: every browser-backed
-account has one responsible person and one PC that owns the local profile. The team writes the
+This is not a bot farm. It is a shared nick vault and operator console: every browser-backed nick
+has one responsible person and one Relay PC that owns the local browser profile. The team writes the
 content; MKTTool records ownership, technical readiness, and posting-safety checks. It does not
 certify browser identity isolation.
 
-For every browser-backed Reddit or TikTok account: **1 account = 1 static proxy = 1 managed
-profile = 1 assigned Relay device.** Database and server-side authorization enforce the ownership
+For every browser-backed Reddit or TikTok nick: **1 nick = 1 static proxy = 1 browser profile = 1
+assigned Relay PC.** Database and server-side authorization enforce the ownership
 boundaries; no UI path may bypass them.
 
 > Facebook accounts used only to administer Pages may leave proxy and antidetect profile empty,

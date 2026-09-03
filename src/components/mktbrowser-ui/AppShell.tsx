@@ -1,19 +1,15 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { LeftRail } from "./LeftRail";
 import { TopBar } from "./TopBar";
 
 export function AppShell({
   children,
-  totalProfiles = 0,
-  runningProfiles = 0,
   relayName,
   sessionBadge,
 }: {
   children: ReactNode;
-  totalProfiles?: number;
-  runningProfiles?: number;
   /**
    * Bắt buộc, và KHÔNG có giá trị mặc định — mặc định ở đây từng là chuỗi cứng
    * `"Relay v15 (MSI)"` (**historical**, không phải candidate hiện tại), tức mọi trang quên
@@ -23,21 +19,15 @@ export function AppShell({
   relayName: string;
   sessionBadge?: ReactNode;
 }) {
-  const [search, setSearch] = useState("");
-
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-[#0a0b0f] text-[#f1f5f9] font-sans antialiased">
-      {/* 1. Left Rail (56px) */}
+      {/* 1. Left Rail */}
       <LeftRail />
 
       {/* 2. Main Content Canvas */}
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
         <TopBar
-          totalCount={totalProfiles}
-          runningCount={runningProfiles}
           relayStatusText={relayName}
-          searchQuery={search}
-          onSearchChange={setSearch}
           sessionBadge={sessionBadge}
         />
 

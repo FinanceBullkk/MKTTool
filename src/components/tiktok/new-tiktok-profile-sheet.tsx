@@ -52,7 +52,7 @@ export function NewTikTokProfileSheet({
       <div
         role="dialog"
         aria-modal="true"
-        aria-label="Tạo profile TikTok mới"
+        aria-label="Create TikTok nick"
         className="relative z-10 h-full w-full max-w-lg overflow-y-auto bg-[#0d0e12] border-l border-white/[0.08] p-6 shadow-2xl flex flex-col justify-between animate-in slide-in-from-right duration-200">
         <div>
           {/* Header */}
@@ -62,10 +62,10 @@ export function NewTikTokProfileSheet({
                 ➕
               </div>
               <div>
-                <h2 className="text-base font-semibold text-white tracking-tight">Tạo hồ sơ TikTok mới</h2>
+                <h2 className="text-base font-semibold text-white tracking-tight">Create TikTok nick</h2>
                 <p className="text-xs text-neutral-400">
-                  Thiết lập profile cục bộ và proxy cho pilot có kiểm soát — chưa phải xác nhận
-                  cô lập danh tính hay quyền đăng bài.
+                  Save an identity-vault record. Its browser profile is separate local data on a
+                  Relay PC and is not proof of identity isolation or posting approval.
                 </p>
               </div>
             </div>
@@ -78,15 +78,15 @@ export function NewTikTokProfileSheet({
             </button>
           </div>
 
-          <AccountVaultForm action={createAccount} submitLabel="Tạo profile & lưu cấu hình">
+          <AccountVaultForm action={createAccount} submitLabel="Create TikTok nick">
             <input type="hidden" name="platform" value="TIKTOK" />
             <input type="hidden" name="status" value="COLD_START" />
 
             <div className="space-y-4 text-xs">
-              {/* Tên Profile */}
+              {/* Nick username */}
               <div>
                 <label className="block font-medium text-neutral-300 mb-1.5" htmlFor="username">
-                  Tên Profile / Kênh <span className="text-purple-400">*</span>
+                  Nick username <span className="text-purple-400">*</span>
                 </label>
                 <input
                   type="text"
@@ -124,16 +124,16 @@ export function NewTikTokProfileSheet({
                 )}
               </div>
 
-              {/* Ghim Máy */}
+              {/* Relay PC */}
               {devices.length > 0 ? (
                 <div>
-                  <label className="block font-medium text-neutral-300 mb-1.5" htmlFor="deviceId">Ghim vào Máy vận hành</label>
+                  <label className="block font-medium text-neutral-300 mb-1.5" htmlFor="deviceId">Relay PC</label>
                   <select
                     name="deviceId"
                     id="deviceId"
                     className="w-full rounded-xl bg-[#14151b] border border-white/[0.08] px-3.5 py-2 text-sm text-white focus:border-purple-500/50 focus:outline-none transition"
                   >
-                    <option value="">-- Để trống hoặc chọn máy --</option>
+                    <option value="">-- Leave unassigned or choose a Relay PC --</option>
                     {devices.map((device) => (
                       <option key={device.id} value={device.id}>
                         💻 {device.name}
@@ -179,7 +179,7 @@ export function NewTikTokProfileSheet({
                 />
                 <p className="mt-1 text-[11px] text-neutral-500">
                   Trong thời gian làm ấm (7 ngày đầu), chỉ quan sát và thao tác thủ công theo hướng
-                  dẫn. Không tự động đăng bài; identity/profile isolation vẫn chưa được chứng minh.
+                  dẫn. Không tự động đăng bài; browser identity isolation vẫn chưa được chứng minh.
                 </p>
               </div>
 
@@ -209,8 +209,8 @@ export function NewTikTokProfileSheet({
               {showAdvanced ? (
                 <div className="space-y-3 p-3.5 rounded-xl bg-white/[0.02] border border-white/[0.06] animate-in fade-in duration-150">
                   <p className="text-[11px] text-amber-300">
-                    Các bí mật chỉ dành cho người vận hành được ủy quyền. Đăng nhập và OTP/CAPTCHA
-                    luôn do người thật thực hiện trong profile; không dùng các ô này để tự động đăng nhập.
+                    Authorized operators only. Sign-in and OTP/CAPTCHA stay human-controlled inside
+                    the browser profile; these fields do not automate sign-in.
                   </p>
                   <div>
                     <label className="block font-medium text-neutral-400 mb-1" htmlFor="emailAddress">Email đăng ký nick</label>

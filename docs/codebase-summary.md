@@ -1,11 +1,12 @@
 # Bản đồ mã nguồn
 
-**Cập nhật:** 30/08/2026
+**Cập nhật:** 3 September 2026
 
 Tài liệu dành cho người mới và AI agent định vị nhanh trong codebase — **code nằm ở đâu**.
 Hệ thống chạy ở đâu và phụ thuộc gì thì xem [system-architecture.md](system-architecture.md);
 quy ước viết code ở [code-standards.md](code-standards.md).
-Thuật ngữ tra ở [domain-glossary.md](domain-glossary.md). Cách cài và chạy xem [README](../README.md).
+Thuật ngữ nghiệp vụ tra ở [domain-glossary.md](domain-glossary.md); nhãn hiển thị của nick, browser
+profile và Relay PC tra ở [ui-glossary.md](ui-glossary.md). Cách cài và chạy xem [README](../README.md).
 
 ---
 
@@ -36,6 +37,10 @@ none claims stealth, unique fingerprint identity, or vendor-level identity isola
 | `src/lib/auth/allowed-emails.ts`, `sign-in-error-messages.ts`, and `/login` | derive one administrator contact from `ADMIN_EMAILS`, keep operator copy non-technical, and send configuration detail to server logs |
 | `/proxies`, `proxy-console.tsx`, and `/accounts` | keep proxy creation ADMIN-only while giving OPERATOR an explicit waiting state and contact |
 | `src/lib/platforms/rollout-scope.ts` and `parked-scope-banner.tsx` | render friendly platform labels, state that parked routes are history-only, and point back to `/accounts` without changing the fail-closed scope gate |
+| `src/components/mktbrowser-ui/LeftRail.tsx` | expose the nick vault as a permanent `/accounts` destination and render every navigation label without requiring hover |
+| `src/components/mktbrowser-ui/Constellation.tsx` and `profile-list-state.ts` | present Home as the team nick vault, keep local browser profile state secondary, and apply the Home search to visible nick fields |
+| `src/components/mktbrowser-ui/TopBar.tsx` and `AppShell.tsx` | omit the non-working global search, `Ctrl K` promise, and untrustworthy global running/total counters |
+| `docs/ui-glossary.md` | define the display boundary between a nick record, a local browser profile, and a Relay PC without renaming models, columns, or routes |
 
 ## Cây thư mục
 
@@ -43,7 +48,7 @@ none claims stealth, unique fingerprint identity, or vendor-level identity isola
 src/
 ├── app/                        Next.js 16 App Router — trang và API route
 │   ├── layout.tsx              Layout gốc, font, metadata
-│   ├── page.tsx                Dashboard chính ("Hôm nay")
+│   ├── page.tsx                Home team nick vault; loads visible nick records for Constellation
 │   ├── overview-alert-stack.tsx  Dải cảnh báo đầu trang Hôm nay — thứ tự mười khối là quyết
 │   │                             định nghiệp vụ (xếp theo mức độ KHÔNG gỡ lại được), nên chúng
 │   │                             nằm cạnh nhau trong một file thay vì mỗi khối một file
@@ -66,9 +71,9 @@ src/
 │   │                           nhắc việc đăng tay (Reddit + Group)
 │   ├── facebook/               Bảng Page: gán nick quản trị, kiểm token, ngắt kết nối
 │   ├── health/                 Bảng sức khỏe, nút dò lại, biểu đồ karma, quản lý proxy quan sát viên
-│   ├── mktbrowser-ui/          Dark profile console shell, grid/table views, runtime inventory
+│   ├── mktbrowser-ui/          Dark nick-vault shell, visible rail labels, Home search, grid/table views, local browser profile inventory
 │   ├── relay/                  Nút thu hồi máy cầu nối (hỏi lại trước khi gạch tên)
-│   ├── tiktok/                 TikTok profile-creation sheet; no TikTok posting pipeline
+│   ├── tiktok/                 TikTok nick-creation sheet; browser profile remains separate local data and there is no TikTok posting pipeline
 │   └── content/                Form nhập content
 └── lib/
     ├── accounts/               Server actions + quy tắc trạng thái nick
@@ -233,9 +238,9 @@ biến mất. Khác biệt duy nhất giữa hai nền tảng là số ô nhập
 ## Luồng mở profile antidetect
 
 ```
-Click "Open profile" → POST /api/accounts/[id]/launch
-  1. The server rejects an unsafe account state, missing profile/proxy, or dead proxy
-  2. The server selects the bound device and issues a signed, recipient-encrypted ticket
+Click "Open browser profile" → POST /api/accounts/[id]/launch
+  1. The server rejects an unsafe nick state, missing browser profile/proxy, or dead proxy
+  2. The server selects the bound Relay PC and issues a signed, recipient-encrypted ticket
   3. The Web browser sends the ticket to Relay at 127.0.0.1:47821
   4. Relay verifies signature, recipient, expiry, and replay state
   5. Relay v16 preserves ticket jti as operationId and requires the current Browser runtime to pass technical checks

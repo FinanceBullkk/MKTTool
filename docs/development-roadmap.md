@@ -1,15 +1,29 @@
 # Lộ trình phát triển
 
-**Updated:** 2 September 2026
+**Updated:** 3 September 2026
 
 ## Rollout scope decision — 2 September 2026
 
 **Reddit and Facebook are withdrawn from the team rollout scope.** Scope only, nothing deleted: the
 posting pipeline, Pages publisher, and health checks stay implemented and deployed but are handed to
-nobody. The team surface narrows to the account vault, proxy ownership, and the operator-device
+nobody. The team surface narrows to the nick vault, proxy ownership, and the Relay PC
 registry; the 1 September Lane A GO stays a technical record and stops being a rollout instruction;
 nothing in code enforces the boundary. Detail and re-entry condition:
 [internal-beta-release.md](internal-beta-release.md).
+
+## UX navigation and vocabulary — 3 September 2026
+
+The Phase 2 UX work makes the current product boundary legible without changing data or rollout
+scope. The left rail exposes `/accounts` as **Nick vault** with permanent labels. Home now reads as
+the **Team nick vault**, routes its primary action to `/accounts`, and uses a working local search
+over visible nick fields. The global search, `Ctrl K` badge, and global running/total counters were
+removed because they did not reflect real state.
+
+The canonical display terms are **nick** for the shared `Account` record, **browser profile** for
+local browser data, and **Relay PC** for a registered `RelayDevice`. Home, `/setup`, `/accounts`,
+nick detail, and browser actions use those terms. `TeamScopeNotice` and `rollout-scope.ts` are
+unchanged; setup readiness/stepper behavior, owner/device/concurrency rules, routes, schema, and
+parked platform scope are also unchanged. See [ui-glossary.md](ui-glossary.md).
 
 ## Current operational update - 1 September 2026
 

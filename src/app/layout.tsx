@@ -16,23 +16,23 @@ const sans = Space_Grotesk({ subsets: ["latin", "vietnamese"], variable: "--font
 const mono = JetBrains_Mono({ subsets: ["latin", "vietnamese"], variable: "--font-mono-loaded" });
 
 export const metadata: Metadata = {
-  title: "MKT Browser / Tool — Multi-Profile Console",
-  description: "Bảng điều khiển nội bộ cho profile và các thao tác do người vận hành kiểm soát",
+  title: "MKTTool — Team Nick Vault",
+  description: "Shared nick vault, proxy ownership, and Relay PC registry for the team",
 };
 
 /**
  * Khung ngoài của mọi trang — và là **ranh giới đăng nhập**, không chỉ là chỗ để CSS.
  *
  * Chưa đăng nhập thì không dựng AppShell, và cũng không hỏi database câu nào. Hai việc đó là
- * một: thanh đầu trang hiện số nick trong kho và tên máy cầu nối, nên dựng nó cho khách là
- * đem hai thứ đó ra ngoài cửa. Đo thật 19/08/2026: mở `/login` lúc đăng xuất thấy
+ * một: thanh đầu trang hiện trạng thái Relay lấy từ sổ máy, nên dựng nó cho khách là đem một
+ * phần inventory nội bộ ra ngoài cửa. Đo thật 19/08/2026: mở `/login` lúc đăng xuất thấy
  * `1 total` và `Relay v15 (AnhHao)` — một **bản ghi lịch sử** về số lượng profile và tên máy
  * thật của một người trong đội, không phải trạng thái phát hành hiện tại. Khi đã đăng nhập,
  * nhãn Relay phải đọc phiên bản máy khai báo; không dùng ví dụ lịch sử này để suy ra identity
  * isolation hay readiness.
  *
- * Trang `/login` tự lo phần trình bày của nó. Nó cũng không cần rail điều hướng lẫn ô tìm
- * profile — hai thứ dẫn tới chỗ người chưa đăng nhập không vào được.
+ * Trang `/login` tự lo phần trình bày của nó. Nó cũng không cần rail điều hướng hay các điều
+ * khiển kho nội bộ — chúng dẫn tới chỗ người chưa đăng nhập không vào được.
  */
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const viewer = await readActor();
@@ -51,17 +51,13 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
 /** Phần chỉ dựng sau khi đã biết người đang xem là ai. */
 async function SignedInShell({ children }: { children: React.ReactNode }) {
-  const [totalCount, activeDevice] = await Promise.all([
-    prisma.account.count().catch(() => 0),
-    prisma.relayDevice.findFirst({
-      where: { revokedAt: null },
-      select: { name: true, relayVersion: true },
-    }).catch(() => null),
-  ]);
+  const activeDevice = await prisma.relayDevice.findFirst({
+    where: { revokedAt: null },
+    select: { name: true, relayVersion: true },
+  }).catch(() => null);
 
   return (
     <AppShell
-      totalProfiles={totalCount}
       relayName={relayStatusLabel(activeDevice)}
       sessionBadge={<SessionBadge />}
     >

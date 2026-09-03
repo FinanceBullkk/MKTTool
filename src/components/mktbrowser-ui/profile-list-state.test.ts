@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { ProfileItemData } from "./ProfileTile";
-import { profileListCounts, profileMatchesListFilter } from "./profile-list-state";
+import {
+  profileListCounts,
+  profileMatchesListFilter,
+  profileMatchesSearchQuery,
+} from "./profile-list-state";
 
 const PROFILES: ProfileItemData[] = [
   profile("account-a", "profile-a", 0),
@@ -28,6 +32,34 @@ describe("profile list state", () => {
         (item) => item.id,
       ),
     ).toEqual(["account-c"]);
+  });
+
+  it("filters the Home nick vault by visible identity fields", () => {
+    const searchable = {
+      ...PROFILES[0],
+      username: "review-kitchen",
+      contentAngle: "Kitchen operations",
+      voice: "Practical reviewer",
+      notes: "Priority handoff",
+      proxy: {
+        ...PROFILES[0].proxy!,
+        label: "US-static-01",
+        lastExitIp: "203.0.113.25",
+      },
+      device: { id: "device-a", name: "Relay-Laptop-A", userId: "user-a" },
+    };
+
+    expect(profileMatchesSearchQuery(searchable, "KITCHEN")).toBe(true);
+    expect(profileMatchesSearchQuery(searchable, "practical")).toBe(true);
+    expect(profileMatchesSearchQuery(searchable, "operations")).toBe(true);
+    expect(profileMatchesSearchQuery(searchable, "priority handoff")).toBe(true);
+    expect(profileMatchesSearchQuery(searchable, "us-static")).toBe(true);
+    expect(profileMatchesSearchQuery(searchable, "203.0.113.10")).toBe(true);
+    expect(profileMatchesSearchQuery(searchable, "203.0.113.25")).toBe(true);
+    expect(profileMatchesSearchQuery(searchable, "relay-laptop")).toBe(true);
+    expect(profileMatchesSearchQuery(searchable, "tiktok")).toBe(true);
+    expect(profileMatchesSearchQuery(searchable, "missing")).toBe(false);
+    expect(profileMatchesSearchQuery(searchable, "   ")).toBe(true);
   });
 });
 

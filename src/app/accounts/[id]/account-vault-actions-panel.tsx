@@ -78,8 +78,8 @@ const BUTTON_CLASS =
 const SECRET_WINDOW_FEATURES = "width=460,height=360";
 
 const POPUP_BLOCKED_MESSAGE =
-  "Trình duyệt chặn cửa sổ bật lên, nên không mở được tab của cầu nối. Cho phép popup cho trang " +
-  "này rồi bấm lại — bí mật chỉ hiện ở tab do cầu nối phục vụ, không hiện trên trang này.";
+  "Your browser blocked the Relay window. Allow popups for this site and try again; secrets are " +
+  "shown only in the Relay window, never on this page.";
 
 /**
  * Cắt đường `window.opener` từ cửa sổ vừa mở về trang này.
@@ -106,8 +106,8 @@ function disownPopup(win: Window) {
  * đi vào câu "vé đã quá hạn" — đúng kỹ thuật nhưng dẫn người ta đi sai một vòng.
  */
 const RELAY_DOWN_AFTER_OPEN =
-  "Cầu nối chưa chạy trên máy này, nên cửa sổ vừa mở chỉ báo lỗi kết nối. Mở ứng dụng cầu nối " +
-  "rồi bấm lại nút vừa bấm — vé cũ hết hạn sau 30 giây nên tải lại cửa sổ kia không cứu được.";
+  "Relay is not running on this PC, so the new window can only show a connection error. Start " +
+  "Relay and select the action again; the old ticket expires after 30 seconds.";
 
 export interface RelayDeviceOption {
   id: string;
@@ -232,8 +232,8 @@ export function AccountVaultActionsPanel({
       const opened: Feedback = {
         kind: "ok",
         text:
-          `Đã gửi vé ${label} sang máy "${result.deviceName}". Cửa sổ vừa mở là của cầu nối trên ` +
-          `máy bạn — trang này không đọc được thứ hiện trong đó.`,
+          `Sent the ${label} ticket to Relay PC "${result.deviceName}". The new window belongs to ` +
+          `Relay on that PC; this page cannot read its contents.`,
       };
       setFeedback(opened);
 
@@ -249,7 +249,7 @@ export function AccountVaultActionsPanel({
       win.close();
       setFeedback({
         kind: "error",
-        text: `Không xin được vé ${label}. Tải lại trang rồi thử lại.`,
+        text: `Could not request the ${label} ticket. Refresh the page and try again.`,
       });
     } finally {
       setBusy(false);
@@ -295,13 +295,13 @@ export function AccountVaultActionsPanel({
         kind: "error",
         text:
           sent.status === "no-permission"
-            ? `${describeSlowRelayFailure(sent, "mở profile")} Nhìn màn hình xem có cửa sổ trình ` +
-              `duyệt mới hiện ra không trước khi bấm lại.`
+            ? `${describeSlowRelayFailure(sent, "open browser profile")} Check for a new browser ` +
+              `window before trying again; a delayed response may mean it already opened.`
             : describeRelayFailure(sent, health),
         diagnostic: sent.status === "rejected" ? sent.data?.diagnostic : undefined,
       });
     } catch {
-      setFeedback({ kind: "error", text: "Không gọi được API phát vé mở profile." });
+      setFeedback({ kind: "error", text: "Could not request a browser profile launch ticket." });
     } finally {
       setBusy(false);
     }
@@ -313,27 +313,27 @@ export function AccountVaultActionsPanel({
 
       {nickDeviceName !== null ? (
         <p className="text-sm text-neutral-600 dark:text-neutral-400">
-          Nick này ghim ở máy <strong>{nickDeviceName}</strong> — mọi vé bay về đó, kể cả khi
-          người khác bấm. Đang ngồi máy khác thì công cụ nói thẳng chứ không mở ra một cửa sổ
-          trống.
+          This nick is assigned to Relay PC <strong>{nickDeviceName}</strong>. Every ticket goes to
+          that PC, even when another teammate selects the action. A different Relay PC receives a
+          clear rejection instead of opening an empty window.
         </p>
       ) : null}
 
       {nickDeviceName === null && relayDevices.length === 0 ? (
         <p className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-300">
-          Máy bạn đang ngồi chưa có trong sổ cầu nối, nên chưa lấy được mật khẩu, mã OTP hay mở
-          được profile. Cài cầu nối rồi tự ghi máy này vào sổ ở{" "}
+          This PC is not registered as a Relay PC, so it cannot receive passwords, OTP codes, or
+          browser profile launch tickets. Install Relay and register this PC at{" "}
           <a href="/setup" className="underline">
             /setup
           </a>{" "}
-          — không phải nhờ quản trị viên.
+          without administrator help.
         </p>
       ) : null}
 
       {nickDeviceName === null && relayDevices.length > 1 ? (
         <label className="block text-sm">
           <span className="mb-1 block text-xs font-medium text-neutral-600 dark:text-neutral-400">
-            Máy bạn đang ngồi
+            Relay PC you are using
           </span>
           <select
             className="rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
@@ -347,8 +347,8 @@ export function AccountVaultActionsPanel({
             ))}
           </select>
           <span className="mt-1 block text-xs text-neutral-500">
-            Vé được mã hóa cho đúng một máy. Chọn nhầm thì máy kia không mở được, và cầu nối sẽ
-            nói thẳng là vé không phải của nó.
+            The ticket is encrypted for one Relay PC. Choosing the wrong PC cannot expose its
+            contents; Relay rejects a ticket addressed to another Relay PC.
           </span>
         </label>
       ) : null}
@@ -365,11 +365,11 @@ export function AccountVaultActionsPanel({
             onClick={() =>
               openSecretTab(
                 () => requestCredentialTicket(accountId, "password", deviceId || undefined),
-                "mật khẩu nick",
+                "nick password",
               )
             }
           >
-            Mật khẩu nick
+            Nick password
           </button>
         ) : null}
         <button
@@ -379,21 +379,21 @@ export function AccountVaultActionsPanel({
           onClick={() =>
             openSecretTab(
               () => requestCredentialTicket(accountId, "emailPassword", deviceId || undefined),
-              usesGoogleLogin ? "mật khẩu Google" : "mật khẩu email",
+              usesGoogleLogin ? "Google password" : "email password",
             )
           }
         >
-          {usesGoogleLogin ? "Mật khẩu Google" : "Mật khẩu email"}
+          {usesGoogleLogin ? "Google password" : "Email password"}
         </button>
         <button
           type="button"
           className={BUTTON_CLASS}
           disabled={busy || !hasTotp}
           onClick={() =>
-            openSecretTab(() => requestOtpTicket(accountId, deviceId || undefined), "mã OTP")
+            openSecretTab(() => requestOtpTicket(accountId, deviceId || undefined), "OTP code")
           }
         >
-          {hasTotp ? "Mã OTP" : "Chưa có 2FA"}
+          {hasTotp ? "OTP code" : "2FA not configured"}
         </button>
         <button
           type="button"
@@ -402,20 +402,19 @@ export function AccountVaultActionsPanel({
           onClick={launchProfile}
           title={canLaunch ? undefined : launchBlockedReason}
         >
-          Mở profile
+          Open browser profile
         </button>
       </div>
 
       <p className="text-xs text-neutral-500">
-        Mật khẩu và mã OTP hiện ở một cửa sổ nhỏ do <strong>cầu nối trên máy bạn</strong> phục vụ,
-        không phải trang này. Trang này chỉ cầm tấm vé đã mã hóa — nó không đọc được thứ nó vừa
-        chuyển đi.
+        Passwords and OTP codes appear in a small window served by <strong>Relay on your PC</strong>,
+        not on this page. This page only carries an encrypted ticket and cannot read its contents.
       </p>
 
       <p className="text-xs text-amber-700 dark:text-amber-400">
-        Mở profile chỉ là thao tác cục bộ đã kiểm tra điều kiện kỹ thuật. Người vận hành phải tự
-        đăng nhập, nhập OTP/CAPTCHA và gõ nội dung; công cụ không hứa hẹn cô lập danh tính hay tự
-        động đăng bài.
+        Opening a browser profile is a local technical action. The operator must handle login,
+        OTP/CAPTCHA, and input manually; the tool does not promise identity isolation or automate
+        posting.
       </p>
 
       {!canLaunch ? (

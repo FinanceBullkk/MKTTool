@@ -105,20 +105,20 @@ export default async function AccountDetailPage({
         ? account.owner.email
         : "— chưa phân công (chỉ quản trị viên lấy được mật khẩu và OTP)",
     ],
-    ["Profile antidetect", account.antidetectProfileId ?? "— không có (không mở profile được)"],
+    ["Browser profile", account.antidetectProfileId ?? "— không có (không mở được browser profile)"],
     [
       "Đăng nhập lần đầu",
       account.firstLoginAt
         ? formatFullDateTime(account.firstLoginAt)
         : browserNick && account.antidetectProfileId
-          ? "— chưa (profile đang trống, chưa có phiên đăng nhập nào)"
+          ? "— chưa (browser profile đang trống, chưa có phiên đăng nhập nào)"
           : "—",
     ],
     [
-      "Máy giữ profile",
+      "Relay PC",
       account.device
         ? `${account.device.name}${account.device.revokedAt ? " — ĐÃ THU HỒI, phải gán lại" : ""}`
-        : "— chưa ghim (id profile chỉ có nghĩa trên đúng máy tạo ra nó)",
+        : "— chưa gán (browser profile chỉ có nghĩa trên đúng Relay PC tạo ra nó)",
     ],
     ["Email gốc", account.emailAddress],
     ["Karma", String(account.karma)],
@@ -132,7 +132,7 @@ export default async function AccountDetailPage({
   return (
     <>
       <Link href="/accounts" className="mb-4 inline-block text-sm text-neutral-500 hover:underline">
-        ← Về danh sách
+        ← Back to nick vault
       </Link>
 
       <PageHeading title={account.username} />
@@ -171,7 +171,7 @@ export default async function AccountDetailPage({
           thì bốn cái nút kia đều báo lỗi — thứ người ta cần trước là việc phải làm, không phải
           những nút chưa dùng được. Nick đã xong thì cả hai thẻ biến mất và Thao tác lên đầu. */}
       {account.antidetectProfileId === null ? (
-        <Card title="Việc tiếp theo — dựng profile antidetect">
+        <Card title="Next step — create browser profile">
           <AntidetectProfileCard
             accountId={account.id}
             username={account.username}
@@ -230,34 +230,34 @@ export default async function AccountDetailPage({
               <dd className="mt-0.5 text-sm">{account.owner?.email ?? "— chưa phân công"}</dd>
             </div>
             <div>
-              <dt className="text-xs uppercase tracking-wide text-neutral-500">Máy giữ profile</dt>
-              <dd className="mt-0.5 text-sm">{account.device?.name ?? "— chưa ghim"}</dd>
+              <dt className="text-xs uppercase tracking-wide text-neutral-500">Relay PC</dt>
+              <dd className="mt-0.5 text-sm">{account.device?.name ?? "— Relay PC not assigned"}</dd>
             </div>
           </dl>
           <p className="text-sm text-neutral-600 dark:text-neutral-400">
             Hai ô này do <strong>quản trị viên</strong> gán. Người phụ trách là người duy nhất
-            ngoài quản trị viên xin được mật khẩu và mã OTP của nick; máy giữ profile quyết định
-            vé bay về đâu. Cần đổi thì nhắn quản trị viên — kể cả khi nick này là của bạn.
+            ngoài quản trị viên xin được mật khẩu và mã OTP của nick; Relay PC quyết định vé bay
+            về đâu. Cần đổi thì nhắn quản trị viên — kể cả khi nick này là của bạn.
           </p>
         </Card>
       ) : (
         <Card title="Phân công cụm">
           <p className="mb-4 text-sm text-neutral-600 dark:text-neutral-400">
             Hai ô này đi cùng nhau. <strong>Người phụ trách</strong> là người duy nhất ngoài quản
-            trị viên <em>xin</em> được mật khẩu và mã OTP của nick; <strong>máy giữ profile</strong>{" "}
+            trị viên <em>xin</em> được mật khẩu và mã OTP của nick; <strong>Relay PC</strong>{" "}
             quyết định vé bay <em>về đâu</em>. Ngoài hai chuyện đó thì không có gì bị chia: cả team
             vẫn thấy nick, job và lịch sử của nhau, và bộ luật vẫn quét toàn bộ đàn nick — luật
             chống đụng độ thread phải nêu đúng tên nick của đồng nghiệp thì mới dùng được.
           </p>
           <p className="mb-4 text-sm text-neutral-600 dark:text-neutral-400">
-            Máy phải là máy <strong>của chính người phụ trách</strong>, vì vé được mã hóa cho đúng
-            một máy. Chọn lệch thì công cụ từ chối kèm lý do chứ không lưu. Để trống ô người là{" "}
-            <strong>gỡ chủ</strong>, và gỡ chủ thì gỡ luôn máy.
+            Relay PC phải thuộc <strong>chính người phụ trách</strong>, vì vé được mã hóa cho đúng
+            một Relay PC. Chọn lệch thì công cụ từ chối kèm lý do chứ không lưu. Để trống ô người
+            là <strong>gỡ chủ</strong>, và gỡ chủ thì gỡ luôn Relay PC.
           </p>
           <p className="mb-4 text-sm text-amber-700 dark:text-amber-400">
-            <strong>Moving to another machine:</strong> MKT Browser profiles do not move
-            automatically. Export on the old machine -&gt; import on the new machine -&gt;{" "}
-            <strong>delete the copy on the old machine</strong>. Skipping the last step leaves the
+            <strong>Moving a browser profile to another Relay PC:</strong> browser profiles do not
+            move automatically. Export on the old Relay PC -&gt; import on the new Relay PC -&gt;{" "}
+            <strong>delete the copy on the old Relay PC</strong>. Skipping the last step leaves the
             two local copies active and they can diverge. Keep one authoritative copy and remove the
             old local copy after a verified transfer.
           </p>
@@ -283,7 +283,7 @@ export default async function AccountDetailPage({
                 hint="Chỉ hiện người đã đăng nhập ít nhất một lần."
               />
               <SelectField
-                label="Máy giữ profile"
+                label="Relay PC"
                 name="deviceId"
                 defaultValue={account.deviceId ?? ""}
                 options={assignableDevices.map((device) => ({
@@ -292,8 +292,8 @@ export default async function AccountDetailPage({
                 }))}
                 hint={
                   assignableDevices.length === 0
-                    ? "Chưa máy nào đăng ký cầu nối. Cài cầu nối và đăng ký máy TRƯỚC khi giao nick."
-                    : "Để trống nếu nick không cần trình duyệt (Fanpage đăng bằng Graph API)."
+                    ? "No Relay PC is registered. Install Relay and register the PC before assigning a nick."
+                    : "Leave blank when the nick does not need a browser profile (Fanpage uses the Graph API)."
                 }
               />
             </ActionForm>

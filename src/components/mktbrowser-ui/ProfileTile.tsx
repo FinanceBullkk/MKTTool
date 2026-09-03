@@ -118,7 +118,7 @@ export function ProfileTile({
       const sent = await sendTicketToRelay(body.ticket, RELAY_PROFILE_WORK_TIMEOUT_MS);
       if (sent.status === "ok") {
         onOpened();
-        setFeedback({ kind: "ok", text: "Browser opened on this PC." });
+        setFeedback({ kind: "ok", text: "Browser profile opened on this Relay PC." });
         return;
       }
 
@@ -127,7 +127,10 @@ export function ProfileTile({
         text: describeProfileLaunchFailure(sent),
       });
     } catch {
-      setFeedback({ kind: "error", text: "Could not send the profile launch request to Relay." });
+      setFeedback({
+        kind: "error",
+        text: "Could not send the browser profile launch request to Relay.",
+      });
     } finally {
       setBusy(false);
     }
@@ -166,11 +169,11 @@ export function ProfileTile({
         {isRunning ? (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            running
+            Open on this Relay PC
           </span>
         ) : (
           <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-medium bg-white/[0.04] text-neutral-400">
-            idle
+            Not open on this Relay PC
           </span>
         )}
       </div>
@@ -224,9 +227,9 @@ export function ProfileTile({
         <span className="flex items-center gap-1.5">
           <span>🪟 Windows</span>
           <span>·</span>
-          <span>{profile.device?.name || "Local PC"}</span>
+          <span>{profile.device?.name || "Relay PC not assigned"}</span>
         </span>
-        <span>{profile.notes ? `📝 ${profile.notes}` : "never opened"}</span>
+        <span>{profile.notes ? `📝 ${profile.notes}` : "No notes"}</span>
       </div>
 
       {/* 5. Action Buttons */}
@@ -249,11 +252,11 @@ export function ProfileTile({
               <span>Opening browser...</span>
             </>
           ) : isRunning ? (
-            <span>Running</span>
+            <span>Open on this Relay PC</span>
           ) : (
             <>
               <Play size={12} fill="currentColor" />
-              <span>Launch</span>
+              <span>Open browser profile</span>
             </>
           )}
         </button>
@@ -282,19 +285,19 @@ export function ProfileTile({
                 className="px-3 py-2 rounded-lg hover:bg-white/[0.06] hover:text-white flex items-center gap-2 transition"
               >
                 <span>⚙️</span>
-                <span>Account and proxy settings</span>
+                <span>Nick and proxy settings</span>
               </Link>
               <button
                 type="button"
                 onClick={() => {
                   navigator.clipboard.writeText(profile.id);
                   setMenuOpen(false);
-                  setFeedback({ kind: "ok", text: "Profile ID copied to the clipboard." });
+                  setFeedback({ kind: "ok", text: "Nick ID copied to the clipboard." });
                 }}
                 className="px-3 py-2 rounded-lg hover:bg-white/[0.06] hover:text-white flex items-center gap-2 text-left transition cursor-pointer"
               >
                 <span>📋</span>
-                <span>Copy ID ({profile.id.slice(0, 8)})</span>
+                <span>Copy nick ID ({profile.id.slice(0, 8)})</span>
               </button>
             </div>
           ) : null}
