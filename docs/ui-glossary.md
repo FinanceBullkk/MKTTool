@@ -31,6 +31,9 @@ names.
 | **promotional post** (*bài quảng cáo*) | A post that promotes the team's product or service and consumes promotional-ratio capacity. | Content type `PROMO` |
 | **thread collision** (*đụng độ thread*) | Two nicks under the same operation touching the same thread, which is a non-overridable coordination risk. | Rule `thread-collision`; `Interaction.threadKey` |
 | **health check** (*lần dò sức khỏe*) | An outside-visibility check used to detect stale, hidden, checkpointed, or untracked nick activity. | Prisma model `HealthCheck`; route `/health` |
+| **content library** (*kho content*) | The team-authored source items available to the posting queue and duplicate-content rules. | Prisma model `ContentItem`; route `/content` |
+| **Facebook Page** (*Fanpage*) | An owned Facebook Page connected through the official Graph API. Use `Facebook Page`, not `Fanpage`, in English UI copy. | Prisma model `FacebookPage`; route `/facebook` |
+| **parked workflow** (*phạm vi đã gác*) | A retained, history-only workflow outside the current team rollout scope. Its routes remain visible, but posting actions fail closed. | `ROLLOUT_PLATFORMS`; `parkedPlatformMessage()` |
 
 `Relay` or *cầu nối Relay* names the background software running on a **Relay PC**. Do not use
 those software terms as another name for the PC itself.
@@ -138,3 +141,15 @@ those software terms as another name for the PC itself.
 | `Đụng độ thread` | `Thread collision` |
 | `Kết quả dò gần nhất` | `Latest health check` |
 | `Đăng được` / `Cân nhắc` / `Bị chặn` | `Can post` / `Consider` / `Blocked` |
+| `Kho content` | `Content library` |
+| `Thêm content` / `Sửa content` | `Add content` / `Edit content` |
+| `Fanpage` | `Facebook Page` |
+| `Kết nối nick Facebook` | `Connect Facebook nick` |
+| `Nick quản trị` | `Administrator nick` |
+| `Chờ đăng` / `Đang đăng` / `Đã đăng` | `Pending` / `Posting` / `Posted` |
+| `Lỗi` / `Bỏ qua` | `Failed` / `Skipped` |
+| `Đang tạm gác` | `Parked` |
+| `Quay lại kho nick` | `Return to the nick vault` |
+| `Dùng được` / `Đang đóng` | `Available` / `Closed` |
+| `Chú ý` / `Đang hỏng` | `Attention` / `Broken` |
+| `Xóa thật` / `Thôi` | `Delete permanently` / `Cancel` |

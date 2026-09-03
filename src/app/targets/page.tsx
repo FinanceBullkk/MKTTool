@@ -15,28 +15,28 @@ export default async function TargetsPage() {
 
   return (
     <>
-      <ParkedScopeBanner what="target Reddit/Facebook" />
+      <ParkedScopeBanner what="Reddit and Facebook posting targets" />
       <PageHeading
-        title="Đích đăng"
-        description="Subreddit hoặc Fanpage/Group. Các ngưỡng ở đây là đầu vào cho bộ luật an toàn ở Phase 02 — nhập đúng luật thật của từng sub."
+        title="Posting targets"
+        description="Subreddits and Facebook Pages or Groups. These thresholds feed the Phase 02 posting rules, so enter each community's actual rules."
       />
 
-      <Card title="Danh sách">
+      <Card title="Targets">
         {targets.length === 0 ? (
           <EmptyState>
-            Chưa có đích nào. Đọc luật từng subreddit rồi nhập vào đây: karma tối thiểu, tuổi nick
-            tối thiểu, tỷ lệ tự quảng cáo cho phép.
+            No posting targets yet. Read each community&apos;s rules, then enter its minimum karma,
+            minimum nick age, and allowed promotional ratio.
           </EmptyState>
         ) : (
           <DataTable
             headers={[
-              "Nền tảng",
-              "Tên",
-              "Karma tối thiểu",
-              "Tuổi nick (ngày)",
-              "Tỷ lệ promo",
-              "Cho link",
-              "Đang dùng",
+              "Platform",
+              "Name",
+              "Minimum karma",
+              "Nick age (days)",
+              "Promotional ratio",
+              "Allows links",
+              "Active",
               "",
             ]}
           >
@@ -53,13 +53,13 @@ export default async function TargetsPage() {
                 <td className="py-2 pr-4">{target.minKarma}</td>
                 <td className="py-2 pr-4">{target.minAccountAgeDays}</td>
                 <td className="py-2 pr-4">{target.promoRatio}:1</td>
-                <td className="py-2 pr-4">{target.allowsLinks ? "có" : "không"}</td>
+                <td className="py-2 pr-4">{target.allowsLinks ? "Yes" : "No"}</td>
                 <td className="py-2 pr-4">
                   {target.active ? (
-                    "có"
+                    "Yes"
                   ) : (
                     <StatusBadge
-                      label="đã nghỉ"
+                      label="Inactive"
                       className="bg-neutral-200 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400"
                     />
                   )}
@@ -69,7 +69,7 @@ export default async function TargetsPage() {
                     href={`/targets/${target.id}`}
                     className="text-xs text-neutral-500 hover:underline"
                   >
-                    Sửa
+                    Edit
                   </Link>
                 </td>
               </tr>
@@ -78,8 +78,8 @@ export default async function TargetsPage() {
         )}
       </Card>
 
-      <Card title="Thêm đích">
-        <ActionForm action={createTarget} submitLabel="Thêm đích">
+      <Card title="Add posting target">
+        <ActionForm action={createTarget} submitLabel="Add posting target">
           <TargetFormFields />
         </ActionForm>
       </Card>

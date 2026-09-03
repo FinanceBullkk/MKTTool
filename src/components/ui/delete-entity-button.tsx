@@ -36,7 +36,7 @@ export function DeleteEntityButton({
         // Ở lại trang vừa xóa là gặp 404 — chuyển về danh sách khi thành công.
         if (outcome.ok && redirectTo) window.location.href = redirectTo;
       } catch {
-        setResult({ ok: false, message: "Không xóa được. Xem log của dev server." });
+        setResult({ ok: false, message: "Could not delete this record. Check the development server log." });
         setArmed(false);
       }
     });
@@ -46,14 +46,14 @@ export function DeleteEntityButton({
     <div className="space-y-2">
       {armed ? (
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-sm text-red-700 dark:text-red-400">Xóa {label}? Không hoàn tác được.</span>
+          <span className="text-sm text-red-700 dark:text-red-400">Delete {label}? This cannot be undone.</span>
           <button
             type="button"
             disabled={pending}
             onClick={remove}
             className="rounded-md bg-red-700 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-red-800 disabled:opacity-50"
           >
-            {pending ? "Đang xóa…" : "Xóa thật"}
+            {pending ? "Deleting…" : "Delete permanently"}
           </button>
           <button
             type="button"
@@ -61,7 +61,7 @@ export function DeleteEntityButton({
             onClick={() => setArmed(false)}
             className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm transition hover:bg-neutral-100 disabled:opacity-50 dark:border-neutral-700 dark:hover:bg-neutral-800"
           >
-            Thôi
+            Cancel
           </button>
         </div>
       ) : (
@@ -74,7 +74,7 @@ export function DeleteEntityButton({
           }}
           className="rounded-md border border-red-300 px-3 py-1.5 text-sm text-red-700 transition hover:bg-red-50 disabled:opacity-50 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-950"
         >
-          Xóa
+          Delete
         </button>
       )}
 

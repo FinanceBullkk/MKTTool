@@ -41,7 +41,7 @@ export function CheckTokensButton() {
         disabled={pending}
         onClick={() => startTransition(async () => setResult(await checkAllPageTokens()))}
       >
-        {pending ? "Đang kiểm tra…" : "Kiểm tra token tất cả Page"}
+        {pending ? "Checking…" : "Check tokens for all Pages"}
       </button>
       <ResultText result={result} />
     </div>
@@ -73,15 +73,15 @@ export function DisconnectConnectionButton({
               startTransition(async () => setResult(await disconnectConnection(connectionId)))
             }
           >
-            Ngắt {name} và gỡ {pageCount} Page?
+            Disconnect {name} and remove {pageCount} Pages?
           </button>
           <button type="button" className={BUTTON_CLASS} onClick={() => setConfirming(false)}>
-            Thôi
+            Cancel
           </button>
         </div>
       ) : (
         <button type="button" className={BUTTON_CLASS} onClick={() => setConfirming(true)}>
-          Ngắt kết nối
+          Disconnect
         </button>
       )}
       <ResultText result={result} />

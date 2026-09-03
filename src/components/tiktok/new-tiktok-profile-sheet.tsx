@@ -93,7 +93,7 @@ export function NewTikTokProfileSheet({
                   name="username"
                   id="username"
                   required
-                  placeholder="Ví dụ: TikTok_Shop_01 hoặc @kenh_review"
+                  placeholder="Example: TikTok_Shop_01 or @review_channel"
                   className="w-full rounded-xl bg-white/[0.03] border border-white/[0.08] px-3.5 py-2 text-sm text-white placeholder:text-neutral-600 focus:border-purple-500/50 focus:bg-white/[0.05] focus:outline-none transition"
                 />
               </div>
@@ -101,7 +101,7 @@ export function NewTikTokProfileSheet({
               {/* Gán Proxy */}
               <div>
                 <label className="block font-medium text-neutral-300 mb-1.5" htmlFor="proxyId">
-                  Gán Proxy / IP 4G <span className="text-purple-400">*</span>
+                  Assign proxy / 4G IP <span className="text-purple-400">*</span>
                 </label>
                 {freeProxies.length > 0 ? (
                   <select
@@ -110,7 +110,7 @@ export function NewTikTokProfileSheet({
                     required
                     className="w-full rounded-xl bg-[#14151b] border border-white/[0.08] px-3.5 py-2 text-sm text-white focus:border-purple-500/50 focus:outline-none transition"
                   >
-                    <option value="">-- Chọn Proxy đang rảnh --</option>
+                    <option value="">-- Select an available proxy --</option>
                     {freeProxies.map((proxy) => (
                       <option key={proxy.id} value={proxy.id}>
                         {proxy.label} ({proxy.host}:{proxy.port} - {proxy.country})
@@ -119,7 +119,7 @@ export function NewTikTokProfileSheet({
                   </select>
                 ) : (
                   <div className="p-3 rounded-xl bg-amber-950/30 border border-amber-500/20 text-amber-300 text-xs">
-                    ⚠️ Chưa có Proxy rảnh trong kho. Vào mục <strong>Proxy</strong> để thêm proxy trước.
+                    ⚠️ No available proxies in the vault. Open <strong>Proxy</strong> and add one first.
                   </div>
                 )}
               </div>
@@ -146,22 +146,22 @@ export function NewTikTokProfileSheet({
               {/* Ngách & Tag */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-medium text-neutral-300 mb-1.5" htmlFor="voice">Ngách nội dung</label>
+                  <label className="block font-medium text-neutral-300 mb-1.5" htmlFor="voice">Writing voice</label>
                   <input
                     type="text"
                     name="voice"
                     id="voice"
-                    placeholder="Ví dụ: Đồ gia dụng"
+                    placeholder="Example: Honest, practical reviewer"
                     className="w-full rounded-xl bg-white/[0.03] border border-white/[0.08] px-3 py-2 text-sm text-white placeholder:text-neutral-600 focus:border-purple-500/50 focus:outline-none transition"
                   />
                 </div>
                 <div>
-                  <label className="block font-medium text-neutral-300 mb-1.5" htmlFor="contentAngle">Chủ đề / Góc tiếp cận</label>
+                  <label className="block font-medium text-neutral-300 mb-1.5" htmlFor="contentAngle">Content focus</label>
                   <input
                     type="text"
                     name="contentAngle"
                     id="contentAngle"
-                    placeholder="Ví dụ: Review chân thực"
+                    placeholder="Example: Home goods"
                     className="w-full rounded-xl bg-white/[0.03] border border-white/[0.08] px-3 py-2 text-sm text-white placeholder:text-neutral-600 focus:border-purple-500/50 focus:outline-none transition"
                   />
                 </div>
@@ -169,7 +169,7 @@ export function NewTikTokProfileSheet({
 
               {/* Giai đoạn Làm ấm */}
               <div>
-                <label className="block font-medium text-neutral-300 mb-1.5" htmlFor="coldStartUntil">Mốc kết thúc làm ấm (Cold-start)</label>
+                <label className="block font-medium text-neutral-300 mb-1.5" htmlFor="coldStartUntil">Cold-start until</label>
                 <input
                   type="date"
                   name="coldStartUntil"
@@ -178,19 +178,19 @@ export function NewTikTokProfileSheet({
                   className="w-full rounded-xl bg-[#14151b] border border-white/[0.08] px-3.5 py-2 text-sm text-white focus:border-purple-500/50 focus:outline-none transition font-mono"
                 />
                 <p className="mt-1 text-[11px] text-neutral-500">
-                  Trong thời gian làm ấm (7 ngày đầu), chỉ quan sát và thao tác thủ công theo hướng
-                  dẫn. Không tự động đăng bài; browser identity isolation vẫn chưa được chứng minh.
+                  During the first seven days, observe and follow the human-controlled operating
+                  guidance. Do not automate posting; browser identity isolation remains unproven.
                 </p>
               </div>
 
               {/* Ghi chú */}
               <div>
-                <label className="block font-medium text-neutral-300 mb-1.5" htmlFor="purchaseNote">Ghi chú ban đầu</label>
+                <label className="block font-medium text-neutral-300 mb-1.5" htmlFor="purchaseNote">Initial notes</label>
                 <textarea
                   name="purchaseNote"
                   id="purchaseNote"
                   rows={2}
-                  placeholder="Ví dụ: Nuôi 15p/ngày trên máy MSI, phát 4G iPhone"
+                  placeholder="Example: 15 minutes/day on an MSI PC using an iPhone 4G hotspot"
                   className="w-full rounded-xl bg-white/[0.03] border border-white/[0.08] px-3.5 py-2 text-sm text-white placeholder:text-neutral-600 focus:border-purple-500/50 focus:outline-none transition"
                 />
               </div>
@@ -202,7 +202,7 @@ export function NewTikTokProfileSheet({
                   onClick={() => setShowAdvanced(!showAdvanced)}
                   className="text-xs text-neutral-400 hover:text-purple-300 flex items-center gap-1 transition"
                 >
-                  <span>{showAdvanced ? "▼ Ẩn thông tin đăng nhập bảo mật" : "▶ Điền thêm Email / Mật khẩu / 2FA (Không bắt buộc)"}</span>
+                  <span>{showAdvanced ? "▼ Hide secure sign-in details" : "▶ Add email / password / 2FA (optional)"}</span>
                 </button>
               </div>
 
@@ -213,7 +213,7 @@ export function NewTikTokProfileSheet({
                     the browser profile; these fields do not automate sign-in.
                   </p>
                   <div>
-                    <label className="block font-medium text-neutral-400 mb-1" htmlFor="emailAddress">Email đăng ký nick</label>
+                    <label className="block font-medium text-neutral-400 mb-1" htmlFor="emailAddress">Original email</label>
                     <input
                       type="text"
                       name="emailAddress"
@@ -224,7 +224,7 @@ export function NewTikTokProfileSheet({
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <label className="block font-medium text-neutral-400 mb-1" htmlFor="password">Mật khẩu nick</label>
+                      <label className="block font-medium text-neutral-400 mb-1" htmlFor="password">Nick password</label>
                       <input
                         type="password"
                         name="password"
@@ -234,7 +234,7 @@ export function NewTikTokProfileSheet({
                       />
                     </div>
                     <div>
-                      <label className="block font-medium text-neutral-400 mb-1" htmlFor="emailPassword">Mật khẩu Email</label>
+                      <label className="block font-medium text-neutral-400 mb-1" htmlFor="emailPassword">Email password</label>
                       <input
                         type="password"
                         name="emailPassword"
@@ -245,7 +245,7 @@ export function NewTikTokProfileSheet({
                     </div>
                   </div>
                   <div>
-                    <label className="block font-medium text-neutral-400 mb-1" htmlFor="totpSecret">Mã 2FA Secret</label>
+                    <label className="block font-medium text-neutral-400 mb-1" htmlFor="totpSecret">2FA secret</label>
                     <input
                       type="text"
                       name="totpSecret"

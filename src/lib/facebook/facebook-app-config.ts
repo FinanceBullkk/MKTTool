@@ -70,9 +70,9 @@ export function loadFacebookAppConfig(): FacebookAppConfig {
 
   if (!appId || !appSecret) {
     throw new FacebookConfigError(
-      "Chưa cấu hình Meta App. Tạo app loại Business ở developers.facebook.com, " +
-        "rồi điền FACEBOOK_APP_ID và FACEBOOK_APP_SECRET vào .env. " +
-        `Nhớ khai redirect URI đúng bằng "${redirectUri()}".`,
+      "Meta App is not configured. Create a Business app at developers.facebook.com, " +
+        "then set FACEBOOK_APP_ID and FACEBOOK_APP_SECRET in .env. " +
+        `Register the redirect URI exactly as "${redirectUri()}".`,
     );
   }
 

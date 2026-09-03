@@ -36,23 +36,23 @@ export function TeamScopeNotice() {
       className="mb-5 rounded-xl border border-slate-500/25 bg-slate-500/[0.06] px-4 py-3 text-[13px] leading-relaxed text-slate-200/90"
     >
       <h2 className="mb-1.5 text-[13px] font-semibold text-slate-100">
-        Công cụ này đang dùng để làm gì
+        What this tool is currently for
       </h2>
       <p className="mb-2">
-        <strong className="font-medium text-slate-100">Dùng được:</strong> kho nick dùng chung,
-        kho proxy và việc gán chủ sở hữu, sổ đăng ký máy Relay. Mỗi nick có một người phụ trách
-        và một máy.
+        <strong className="font-medium text-slate-100">Available:</strong> the shared nick vault,
+        proxy inventory and ownership assignment, and the Relay PC registry. Every nick has one
+        owner and one Relay PC.
       </p>
       <p className="mb-2">
-        <strong className="font-medium text-slate-100">Đang đóng:</strong> mọi đường đăng bài (
-        {parkedNames}). Không phải hỏng, cũng không phải sắp xong — đây là quyết định thu phạm vi
-        ngày 02/09/2026. Các trang đó vẫn mở xem được, nhưng nút đăng sẽ từ chối.
+        <strong className="font-medium text-slate-100">Closed:</strong> every posting path (
+        {parkedNames}). This is neither a failure nor unfinished work; it is the scope decision from
+        2 September 2026. Those pages remain available for history, but posting actions are denied.
       </p>
       {isPostingFullyParked() ? (
         <p className="text-slate-300/70">
-          MKT Browser chưa phát cho ai. Công cụ chưa chứng minh được hai nick là không liên kết
-          được với nhau, nên đừng dùng nick thật dựa vào nó. Cần mở lại nền tảng nào thì hỏi chủ
-          dự án.
+          MKT Browser has not been distributed. The tool has not proved that two nicks are
+          unlinkable, so do not use real nicks based on that assumption. Ask the project owner if a
+          platform needs to be reopened.
         </p>
       ) : null}
     </section>

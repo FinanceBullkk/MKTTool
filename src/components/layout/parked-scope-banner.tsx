@@ -12,10 +12,10 @@ export function ParkedScopeBanner({ what }: { what: string }) {
       role="note"
       className="mb-4 rounded-lg border border-amber-500/25 bg-amber-500/[0.07] px-3 py-2 text-[13px] text-amber-200/90"
     >
-      Đang tạm gác — {what} đã ra khỏi phạm vi bàn giao từ 02/09/2026. Trang này chỉ dùng để xem
-      lịch sử; không đăng được.{" "}
+      Parked - {what} was removed from the rollout scope on 2 September 2026. This page is for
+      viewing history only; posting is unavailable.{" "}
       <Link href="/accounts" className="font-medium underline">
-        Quay lại kho nick
+        Return to the nick vault
       </Link>
       .
     </div>

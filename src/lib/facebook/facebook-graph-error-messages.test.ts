@@ -2,63 +2,63 @@ import { describe, expect, it } from "vitest";
 import { describeGraphError, isTokenError, isTransientError } from "./facebook-graph-error-messages";
 
 describe("isTokenError", () => {
-  it("nhận diện token hết hạn theo mã phụ", () => {
+  it("detects an expired token by subcode", () => {
     expect(isTokenError({ code: 190, error_subcode: 463 })).toBe(true);
   });
 
-  it("nhận diện mọi OAuthException kể cả mã lạ", () => {
+  it("detects every OAuthException even with an unknown code", () => {
     expect(isTokenError({ type: "OAuthException", code: 999 })).toBe(true);
   });
 
-  it("không nhầm lỗi thiếu quyền thành lỗi token", () => {
+  it("does not mistake a permissions error for a token error", () => {
     // Mã 200 là thiếu quyền — kết nối lại không chữa được, phải sửa quyền của app.
     expect(isTokenError({ code: 200 })).toBe(false);
   });
 
-  it("không có payload thì không kết luận", () => {
+  it("does not classify a missing payload", () => {
     expect(isTokenError(null)).toBe(false);
   });
 });
 
 describe("isTransientError", () => {
-  it("mã giới hạn tần suất là lỗi tạm thời", () => {
+  it("classifies rate-limit codes as transient", () => {
     expect(isTransientError({ code: 4 })).toBe(true);
     expect(isTransientError({ code: 613 })).toBe(true);
   });
 
-  it("token hỏng không phải lỗi tạm thời — thử lại vô ích", () => {
+  it("does not classify a broken token as transient", () => {
     expect(isTransientError({ code: 190 })).toBe(false);
   });
 });
 
 describe("describeGraphError", () => {
-  it("nói rõ phải làm gì khi token hết hạn", () => {
-    const message = describeGraphError({ code: 190, error_subcode: 463 }, "lỗi chung");
-    expect(message).toContain("hết hạn");
+  it("explains what to do when a token expires", () => {
+    const message = describeGraphError({ code: 190, error_subcode: 463 }, "generic error");
+    expect(message).toContain("expired");
     expect(message).toContain("/facebook");
   });
 
-  it("giữ nguyên văn của Facebook và mã để tra cứu", () => {
+  it("preserves Facebook's message and diagnostic codes", () => {
     const message = describeGraphError(
       { code: 200, message: "Permissions error", error_subcode: 33 },
-      "lỗi chung",
+      "generic error",
     );
     expect(message).toContain("Permissions error");
-    expect(message).toContain("mã 200");
-    expect(message).toContain("mã phụ 33");
+    expect(message).toContain("code 200");
+    expect(message).toContain("subcode 33");
   });
 
-  it("cảnh báo dừng lại khi Facebook khóa thao tác vì vi phạm chính sách", () => {
-    expect(describeGraphError({ code: 368 }, "lỗi chung")).toContain("DỪNG");
+  it("warns operators to stop when Facebook blocks actions for a policy violation", () => {
+    expect(describeGraphError({ code: 368 }, "generic error")).toContain("STOP");
   });
 
-  it("dùng câu dự phòng khi mã lạ hoàn toàn", () => {
-    expect(describeGraphError({ code: 987654 }, "Graph API trả về HTTP 500.")).toContain(
-      "Graph API trả về HTTP 500.",
+  it("uses the fallback for a completely unknown code", () => {
+    expect(describeGraphError({ code: 987654 }, "The Graph API returned HTTP 500.")).toContain(
+      "The Graph API returned HTTP 500.",
     );
   });
 
-  it("không có payload thì trả đúng câu dự phòng", () => {
-    expect(describeGraphError(null, "mất mạng")).toBe("mất mạng");
+  it("returns the exact fallback when the payload is missing", () => {
+    expect(describeGraphError(null, "network unavailable")).toBe("network unavailable");
   });
 });

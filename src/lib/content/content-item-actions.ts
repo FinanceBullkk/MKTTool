@@ -39,7 +39,7 @@ export const createContentItem = guardedAction(async function createContentItem(
   revalidatePath("/queue/new");
   return {
     ok: true,
-    message: `Đã lưu "${parsed.data.title}". Sang hàng đợi để xếp lịch đăng.`,
+    message: `Saved "${parsed.data.title}". Open the posting queue to schedule it.`,
   };
 });
 
@@ -66,7 +66,7 @@ export const updateContentItem = guardedAction(async function updateContentItem(
       data: { ...rest, links: stringifyLinks(parseLinksInput(linksText)) },
     });
   } catch (error) {
-    return { ok: false, message: describeUnexpectedDbError(error, "sửa content") };
+    return { ok: false, message: describeUnexpectedDbError(error, "edit content") };
   }
 
   const recheck = await recheckJobsMatching({ contentItemId: id });
@@ -74,7 +74,7 @@ export const updateContentItem = guardedAction(async function updateContentItem(
   revalidatePath("/content");
   revalidatePath(`/content/${id}`);
   revalidatePath("/queue");
-  return { ok: true, message: `Đã lưu "${rest.title}".${describeRecheck(recheck)}` };
+  return { ok: true, message: `Saved "${rest.title}".${describeRecheck(recheck)}` };
 });
 
 export const deleteContentItem = guardedAction(async function deleteContentItem(
@@ -85,22 +85,22 @@ export const deleteContentItem = guardedAction(async function deleteContentItem(
     where: { id: contentItemId },
     include: { _count: { select: { jobs: true } } },
   });
-  if (!item) return { ok: false, message: "Không tìm thấy content." };
+  if (!item) return { ok: false, message: "Content item not found." };
 
   const blocked = blockDeleteWhenReferenced(
     `content "${item.title}"`,
-    [{ label: "job đã xếp lịch", count: item._count.jobs }],
-    "Bài đã xếp lịch là dữ liệu bộ luật dùng để so trùng cho những bài sau — bỏ qua job đó " +
-      "ở hàng đợi thay vì xóa bài gốc.",
+    [{ label: "scheduled job", count: item._count.jobs }],
+    "Scheduled content is evidence used by the posting rules to detect later duplicates. " +
+      "Skip that job in the posting queue instead of deleting the original content item.",
   );
   if (blocked) return { ok: false, message: blocked.message };
 
   try {
     await prisma.contentItem.delete({ where: { id: contentItemId } });
   } catch (error) {
-    return { ok: false, message: describeUnexpectedDbError(error, "xóa content") };
+    return { ok: false, message: describeUnexpectedDbError(error, "delete content") };
   }
 
   revalidatePath("/content");
-  return { ok: true, message: `Đã xóa "${item.title}".` };
+  return { ok: true, message: `Deleted "${item.title}".` };
 });

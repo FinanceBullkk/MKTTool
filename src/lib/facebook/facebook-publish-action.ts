@@ -28,12 +28,12 @@ export const publishJobToPage = guardedAction(async function publishJobToPage(
     where: { id: jobId },
     include: { contentItem: true, target: true },
   });
-  if (!job) return { ok: false, message: "Không tìm thấy job." };
+  if (!job) return { ok: false, message: "Job not found." };
 
   if (job.target.platform !== "FACEBOOK_PAGE") {
     return {
       ok: false,
-      message: `Đích "${job.target.name}" không phải Fanpage. Chỉ Fanpage đăng được bằng API.`,
+      message: `Target "${job.target.name}" is not a Facebook Page. Only Facebook Pages can be published through the API.`,
     };
   }
   // Chốt phạm vi đặt ngay sau lượt kiểm loại đích và TRƯỚC mọi thứ chạm tới Graph API.
@@ -49,7 +49,7 @@ export const publishJobToPage = guardedAction(async function publishJobToPage(
   if (job.status !== "PENDING") {
     return {
       ok: false,
-      message: "Chỉ đăng được job đang chờ. Job bị chặn phải gỡ luật hoặc ghi đè trước.",
+      message: "Only pending jobs can be posted. Resolve or override the blocking rule first.",
     };
   }
 
@@ -57,7 +57,7 @@ export const publishJobToPage = guardedAction(async function publishJobToPage(
   if (!page) {
     return {
       ok: false,
-      message: `Đích "${job.target.name}" chưa nối với Fanpage nào. Vào /facebook kết nối trước.`,
+      message: `Target "${job.target.name}" is not connected to a Facebook Page. Connect it on /facebook first.`,
     };
   }
 
@@ -78,7 +78,7 @@ export const publishJobToPage = guardedAction(async function publishJobToPage(
   if (claimed.count === 0) {
     return {
       ok: false,
-      message: "Job này vừa được người khác đăng hoặc đổi trạng thái. Tải lại trang để xem hiện trạng.",
+      message: "Another operator just posted this job or changed its status. Reload the page to see its current state.",
     };
   }
 
@@ -90,7 +90,7 @@ export const publishJobToPage = guardedAction(async function publishJobToPage(
     result = await publishToPage(page.pageId, toPostContent(job.contentItem), { imageUrl });
   } catch (error) {
     const message =
-      error instanceof FacebookPublishError ? error.message : "Lỗi không xác định khi đăng bài.";
+      error instanceof FacebookPublishError ? error.message : "An unknown error occurred while posting.";
 
     await prisma.postJob.update({
       where: { id: jobId },
@@ -128,7 +128,7 @@ export const publishJobToPage = guardedAction(async function publishJobToPage(
   const marked = await markPostJobPosted(jobId, result.postUrl, ["PUBLISHING"]).catch(
     (error: unknown) => ({
       ok: false as const,
-      message: error instanceof Error ? error.message : "lỗi không rõ khi ghi trạng thái",
+      message: error instanceof Error ? error.message : "unknown status-write error",
     }),
   );
 
@@ -140,10 +140,10 @@ export const publishJobToPage = guardedAction(async function publishJobToPage(
     return {
       ok: false,
       message:
-        `ĐÃ ĐĂNG THÀNH CÔNG lên "${page.name}" (${result.postUrl}) nhưng không ghi được trạng thái ` +
-        `job: ${marked.message} — ĐỪNG bấm đăng lại. Vào hàng đợi bấm "Đã đăng" và dán chính link này.`,
+        `POSTED SUCCESSFULLY to "${page.name}" (${result.postUrl}), but the job status could not be recorded: ` +
+        `${marked.message}. DO NOT post again. Open the posting queue, select "Posted", and paste this exact link.`,
     };
   }
 
-  return { ok: true, message: `Đã đăng lên "${page.name}". Mở link ở cột trạng thái để kiểm tra.` };
+  return { ok: true, message: `Posted to "${page.name}". Open the link in the status column to verify it.` };
 });

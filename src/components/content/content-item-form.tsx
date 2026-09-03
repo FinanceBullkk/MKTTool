@@ -56,7 +56,7 @@ export function ContentItemForm({
       bodyRef.current.focus();
       setPasteError(null);
     } catch {
-      setPasteError("Trình duyệt không cho đọc clipboard — dán tay bằng Ctrl+V.");
+      setPasteError("The browser blocked clipboard access. Paste manually with Ctrl+V.");
     }
   }
 
@@ -66,14 +66,14 @@ export function ContentItemForm({
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="block sm:col-span-2">
           <span className={LABEL_CLASS}>
-            Tiêu đề <span className="text-red-600">*</span>
+            Title <span className="text-red-600">*</span>
           </span>
           <input className={FIELD_CLASS} name="title" defaultValue={defaults?.title} required />
         </label>
 
         <label className="block sm:col-span-2">
           <span className={LABEL_CLASS}>
-            Thân bài <span className="text-red-600">*</span>
+            Body <span className="text-red-600">*</span>
           </span>
           <textarea
             className={FIELD_CLASS}
@@ -88,14 +88,14 @@ export function ContentItemForm({
             onClick={pasteIntoBody}
             className="mt-2 rounded-md border border-neutral-300 px-3 py-1.5 text-xs transition hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-800"
           >
-            Dán từ clipboard
+            Paste from clipboard
           </button>
           {pasteError ? <span className="ml-2 text-xs text-red-600">{pasteError}</span> : null}
         </label>
 
         <label className="block">
           <span className={LABEL_CLASS}>
-            Loại <span className="text-red-600">*</span>
+            Type <span className="text-red-600">*</span>
           </span>
           <select className={FIELD_CLASS} name="type" defaultValue={defaults?.type ?? "VALUE"} required>
             {CONTENT_TYPES.map((type) => (
@@ -105,13 +105,13 @@ export function ContentItemForm({
             ))}
           </select>
           <span className="mt-1 block text-xs text-neutral-500">
-            Có nhắc tên sản phẩm/dịch vụ của mình thì là quảng cáo, kể cả nhắc khéo.
+            Any mention of your product or service is promotional, including indirect mentions.
           </span>
         </label>
 
         <label className="block">
           <span className={LABEL_CLASS}>
-            Người viết <span className="text-red-600">*</span>
+            Author <span className="text-red-600">*</span>
           </span>
           <input
             className={FIELD_CLASS}
@@ -122,16 +122,17 @@ export function ContentItemForm({
         </label>
 
         <label className="block sm:col-span-2">
-          <span className={LABEL_CLASS}>Link trong bài</span>
+          <span className={LABEL_CLASS}>Links in the post</span>
           <textarea
             className={FIELD_CLASS}
             name="linksText"
             rows={2}
             defaultValue={defaults?.linksText}
-            placeholder="Mỗi dòng một link"
+            placeholder="One link per line"
           />
           <span className="mt-1 block text-xs text-neutral-500">
-            Link gõ thẳng trong thân bài cũng được tự nhận, ô này chỉ để khai thêm.
+            Links written directly in the body are detected automatically. Use this field only for
+            additional links.
           </span>
         </label>
       </div>
@@ -153,7 +154,7 @@ export function ContentItemForm({
         disabled={pending}
         className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-neutral-700 disabled:opacity-50 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-300"
       >
-        {pending ? "Đang lưu…" : (submitLabel ?? "Lưu content")}
+        {pending ? "Saving…" : (submitLabel ?? "Save content")}
       </button>
     </form>
   );

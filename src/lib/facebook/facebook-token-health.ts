@@ -36,8 +36,8 @@ export function evaluateTokenHealth(input: TokenHealthInput, now: Date = new Dat
       level: "INVALID",
       daysRemaining: null,
       message: input.tokenNote?.trim()
-        ? `Token bị Facebook từ chối: ${input.tokenNote}`
-        : "Token bị Facebook từ chối ở lần gọi gần nhất. Kết nối lại.",
+        ? `Facebook rejected the token: ${input.tokenNote}`
+        : "Facebook rejected the token on the latest request. Reconnect it.",
       usable: false,
     };
   }
@@ -46,7 +46,7 @@ export function evaluateTokenHealth(input: TokenHealthInput, now: Date = new Dat
     return {
       level: "OK",
       daysRemaining: null,
-      message: "Token không có hạn (sinh từ user token dài hạn).",
+      message: "The token does not expire because it was created from a long-lived user token.",
       usable: true,
     };
   }
@@ -57,7 +57,7 @@ export function evaluateTokenHealth(input: TokenHealthInput, now: Date = new Dat
     return {
       level: "EXPIRED",
       daysRemaining: remaining,
-      message: "Token đã hết hạn. Vào /facebook bấm kết nối lại.",
+      message: "The token has expired. Reconnect it on /facebook.",
       usable: false,
     };
   }
@@ -67,8 +67,8 @@ export function evaluateTokenHealth(input: TokenHealthInput, now: Date = new Dat
       level: "WARN",
       daysRemaining: remaining,
       message:
-        `Token còn ${remaining} ngày. Kết nối lại ngay — hết hạn giữa chừng là mọi Page ` +
-        `dưới nick này ngừng đăng được cùng lúc.`,
+        `The token has ${remaining} days left. Reconnect it now; if it expires mid-operation, ` +
+        `every Page under this nick will stop posting at once.`,
       usable: true,
     };
   }
@@ -76,7 +76,7 @@ export function evaluateTokenHealth(input: TokenHealthInput, now: Date = new Dat
   return {
     level: "OK",
     daysRemaining: remaining,
-    message: `Token còn ${remaining} ngày.`,
+    message: `The token has ${remaining} days left.`,
     usable: true,
   };
 }
@@ -89,8 +89,8 @@ export const TOKEN_HEALTH_CLASS: Record<TokenHealthLevel, string> = {
 };
 
 export const TOKEN_HEALTH_LABEL: Record<TokenHealthLevel, string> = {
-  OK: "Token tốt",
-  WARN: "Sắp hết hạn",
-  EXPIRED: "Hết hạn",
-  INVALID: "Bị từ chối",
+  OK: "Token valid",
+  WARN: "Expiring soon",
+  EXPIRED: "Expired",
+  INVALID: "Rejected",
 };

@@ -32,8 +32,8 @@ export function ParkedOverviewAlerts({
         {duplicatePostedUrls.length > 0 ? (
           <AlertBanner tone="amber">
             <p className="font-medium">
-              {duplicatePostedUrls.length} link bị dán cho nhiều bài khác nhau — nhiều khả năng bấm
-              &quot;Đã đăng&quot; nhầm link:
+              {duplicatePostedUrls.length} links were assigned to multiple jobs. A job was probably
+              marked &quot;Posted&quot; with the wrong link:
             </p>
             <ul className="mt-2 space-y-1">
               {duplicatePostedUrls.map((conflict) => (
@@ -42,17 +42,17 @@ export function ParkedOverviewAlerts({
                     {conflict.threadKey}
                   </a>{" "}
                   <span className="text-neutral-600 dark:text-neutral-400">
-                    — {conflict.jobs.map((job) => `“${job.contentTitle}”`).join(" và ")}
+                    — {conflict.jobs.map((job) => `“${job.contentTitle}”`).join(" and ")}
                   </span>
                 </li>
               ))}
             </ul>
             <p className="mt-2">
-              Bài nào chưa đăng thật thì{" "}
+              If a job was not actually posted,{" "}
               <Link href="/queue?status=POSTED" className="underline">
-                trả job đó về Chờ đăng
+                return it to Pending
               </Link>{" "}
-              — để nguyên là luật 7 coi content đó đã dùng rồi và sẽ chặn khi bạn đăng nó thật.
+              . Otherwise, rule 7 treats that content as already used and blocks the real post.
             </p>
           </AlertBanner>
         ) : null}
@@ -62,7 +62,8 @@ export function ParkedOverviewAlerts({
         {suspectPostedUrls.length > 0 ? (
           <AlertBanner tone="amber">
             <p className="font-medium">
-              {suspectPostedUrls.length} link đã gán trỏ về bài có tiêu đề khác hẳn content:
+              {suspectPostedUrls.length} assigned links point to posts whose titles differ sharply
+              from the stored content:
             </p>
             <ul className="mt-2 space-y-1">
               {suspectPostedUrls.map((suspect) => (
@@ -71,15 +72,16 @@ export function ParkedOverviewAlerts({
                     {suspect.postedUrl}
                   </a>{" "}
                   <span className="text-neutral-600 dark:text-neutral-400">
-                    — job của {suspect.accountUsername}, content “{suspect.contentTitle}”
+                    — job for {suspect.accountUsername}, content “{suspect.contentTitle}”
                   </span>
                 </li>
               ))}
             </ul>
             <p className="mt-2">
-              Sửa tiêu đề lúc đăng cũng ra thế này, nên mở link kiểm trước. Đúng là dán nhầm thì{" "}
+              Editing the title while posting can also trigger this warning, so inspect the link
+              first. If the wrong link was pasted,{" "}
               <Link href="/queue?status=POSTED" className="underline">
-                trả job về Chờ đăng
+                return the job to Pending
               </Link>
               .
             </p>
@@ -89,7 +91,7 @@ export function ParkedOverviewAlerts({
         {tokenWarnings.broken.length > 0 ? (
           <AlertBanner tone="red">
             <p className="font-medium">
-              {tokenWarnings.broken.length} Fanpage không đăng được vì token hỏng:
+              {tokenWarnings.broken.length} Facebook Pages cannot post because their tokens are invalid:
             </p>
             <ul className="mt-2 space-y-1">
               {tokenWarnings.broken.map((warning) => (
@@ -101,7 +103,7 @@ export function ParkedOverviewAlerts({
             </ul>
             <p className="mt-2">
               <Link href="/facebook" className="underline">
-                kết nối lại ở trang Facebook
+                reconnect them on the Facebook page
               </Link>
             </p>
           </AlertBanner>
@@ -109,10 +111,10 @@ export function ParkedOverviewAlerts({
   
         {tokenWarnings.expiringSoon.length > 0 ? (
           <AlertBanner tone="amber">
-            {tokenWarnings.expiringSoon.length} Fanpage có token sắp hết hạn — hết giữa chừng là mọi
-            Page dưới cùng một nick ngừng đăng được cùng lúc.{" "}
+            {tokenWarnings.expiringSoon.length} Facebook Pages have expiring tokens. If a token
+            expires mid-operation, every Page under the same nick stops posting at once.{" "}
             <Link href="/facebook" className="underline">
-              kết nối lại
+              Reconnect now
             </Link>
             .
           </AlertBanner>
@@ -130,9 +132,9 @@ export function ParkedOverviewAlerts({
   
         {blockedJobCount > 0 ? (
           <AlertBanner tone="amber">
-            {blockedJobCount} job bị bộ luật chặn khi kiểm tra lại —{" "}
+            {blockedJobCount} jobs were blocked when the posting rules rechecked them -{" "}
             <Link href="/queue?status=BLOCKED" className="underline">
-              xem lý do
+              view the reasons
             </Link>
             .
           </AlertBanner>

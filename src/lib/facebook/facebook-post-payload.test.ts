@@ -4,28 +4,28 @@ import { buildPagePostPayload, buildPostUrl, composeMessage } from "./facebook-p
 const PAGE_ID = "123456789";
 
 describe("composeMessage", () => {
-  it("ghép tiêu đề và thân bài bằng dòng trống", () => {
-    expect(composeMessage({ title: "Tiêu đề", body: "Thân bài", links: [] })).toBe(
-      "Tiêu đề\n\nThân bài",
+  it("joins the title and body with a blank line", () => {
+    expect(composeMessage({ title: "Title", body: "Body", links: [] })).toBe(
+      "Title\n\nBody",
     );
   });
 
-  it("không lặp tiêu đề khi thân bài đã mở đầu bằng chính nó", () => {
-    const message = composeMessage({ title: "Tiêu đề", body: "Tiêu đề\nnội dung", links: [] });
-    expect(message).toBe("Tiêu đề\nnội dung");
+  it("does not duplicate the title when the body already starts with it", () => {
+    const message = composeMessage({ title: "Title", body: "Title\nContent", links: [] });
+    expect(message).toBe("Title\nContent");
   });
 
-  it("thiếu một trong hai phần vẫn ra nội dung dùng được", () => {
-    expect(composeMessage({ title: "", body: "Chỉ thân bài", links: [] })).toBe("Chỉ thân bài");
-    expect(composeMessage({ title: "Chỉ tiêu đề", body: "", links: [] })).toBe("Chỉ tiêu đề");
+  it("produces usable content when either the title or body is missing", () => {
+    expect(composeMessage({ title: "", body: "Body only", links: [] })).toBe("Body only");
+    expect(composeMessage({ title: "Title only", body: "", links: [] })).toBe("Title only");
   });
 });
 
 describe("buildPagePostPayload", () => {
-  it("một link thì đưa vào tham số link để Facebook dựng thẻ xem trước", () => {
+  it("sends one link as the link parameter so Facebook builds a preview", () => {
     const payload = buildPagePostPayload(PAGE_ID, {
-      title: "Tiêu đề",
-      body: "Thân bài",
+      title: "Title",
+      body: "Body",
       links: ["https://example.com"],
     });
 
@@ -34,10 +34,10 @@ describe("buildPagePostPayload", () => {
     expect(payload.params.message).not.toContain("https://example.com");
   });
 
-  it("nhiều link thì dán hết vào cuối bài, không bỏ sót link nào", () => {
+  it("appends every link when there is more than one", () => {
     const payload = buildPagePostPayload(PAGE_ID, {
-      title: "Tiêu đề",
-      body: "Thân bài",
+      title: "Title",
+      body: "Body",
       links: ["https://a.com", "https://b.com"],
     });
 
@@ -46,12 +46,12 @@ describe("buildPagePostPayload", () => {
     expect(payload.params.message).toContain("https://b.com");
   });
 
-  it("không có link thì không gửi tham số link", () => {
+  it("does not send a link parameter when there are no links", () => {
     const payload = buildPagePostPayload(PAGE_ID, { title: "T", body: "B", links: [] });
     expect(payload.params).not.toHaveProperty("link");
   });
 
-  it("bỏ qua link rỗng lẫn trong mảng", () => {
+  it("ignores blank links in the array", () => {
     const payload = buildPagePostPayload(PAGE_ID, {
       title: "T",
       body: "B",
@@ -60,7 +60,7 @@ describe("buildPagePostPayload", () => {
     expect(payload.params.link).toBe("https://example.com");
   });
 
-  it("có ảnh thì đổi sang /photos và dùng caption thay message", () => {
+  it("uses the photos endpoint and caption when an image is present", () => {
     const payload = buildPagePostPayload(
       PAGE_ID,
       { title: "T", body: "B", links: [] },
@@ -73,27 +73,27 @@ describe("buildPagePostPayload", () => {
     expect(payload.params).not.toHaveProperty("message");
   });
 
-  it("ảnh toàn khoảng trắng thì coi như không có ảnh", () => {
+  it("treats a whitespace-only image URL as no image", () => {
     const payload = buildPagePostPayload(PAGE_ID, { title: "T", body: "B", links: [] }, { imageUrl: "   " });
     expect(payload.path).toBe(`${PAGE_ID}/feed`);
   });
 });
 
 describe("buildPostUrl", () => {
-  it("tách id dạng {pageId}_{postId} thành URL xem bài", () => {
+  it("turns a {pageId}_{postId} ID into a viewable post URL", () => {
     expect(buildPostUrl(PAGE_ID, "123456789_987")).toBe(
       "https://www.facebook.com/123456789/posts/987",
     );
   });
 
-  it("ưu tiên post_id khi Facebook trả về id ảnh ở /photos", () => {
+  it("prefers post_id when Facebook returns an image ID from /photos", () => {
     // /photos trả `id` là id ảnh, `post_id` mới là bài trên tường.
     expect(buildPostUrl(PAGE_ID, "555", "123456789_987")).toBe(
       "https://www.facebook.com/123456789/posts/987",
     );
   });
 
-  it("id trần vẫn ra URL mở được", () => {
+  it("turns a bare ID into a viewable URL", () => {
     expect(buildPostUrl(PAGE_ID, "987")).toBe("https://www.facebook.com/123456789/posts/987");
   });
 });

@@ -638,7 +638,7 @@ describe("deletion is blocked while referenced data remains", () => {
     const result = await deleteContentItem(seeded.contentId);
 
     expect(result.ok).toBe(false);
-    expect(result.message).toContain("1 job đã xếp lịch");
+    expect(result.message).toContain("1 scheduled job");
     expect(await prisma.contentItem.count()).toBe(1);
   });
 

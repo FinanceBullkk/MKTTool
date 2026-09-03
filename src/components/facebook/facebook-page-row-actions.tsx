@@ -47,7 +47,7 @@ export function FacebookPageRowActions({
         disabled={pending || adminOptions.length === 0}
         onChange={(event) => run(() => assignPageAdmin(pageId, event.target.value))}
       >
-        <option value="">— chưa gán nick —</option>
+        <option value="">— no administrator nick —</option>
         {adminOptions.map((option) => (
           <option key={option.id} value={option.id}>
             {option.username}
@@ -63,15 +63,15 @@ export function FacebookPageRowActions({
             disabled={pending}
             onClick={() => run(() => disconnectPage(pageId))}
           >
-            Gỡ &quot;{pageName}&quot;?
+            Remove &quot;{pageName}&quot;?
           </button>
           <button type="button" className={BUTTON_CLASS} onClick={() => setConfirming(false)}>
-            Thôi
+            Cancel
           </button>
         </div>
       ) : (
         <button type="button" className={BUTTON_CLASS} onClick={() => setConfirming(true)}>
-          Gỡ Page
+          Remove Page
         </button>
       )}
 
