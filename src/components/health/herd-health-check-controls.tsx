@@ -42,13 +42,13 @@ export function HerdHealthCheckControls({
           disabled={pending || running || accountCount === 0}
           onClick={() => startTransition(async () => setResult(await startHerdHealthCheck()))}
         >
-          {pending ? "Đang khởi động…" : `Dò cả đàn (${accountCount} nick)`}
+          {pending ? "Starting..." : `Check all nicks (${accountCount} nick)`}
         </button>
 
         {running ? (
           <span className="text-xs text-amber-700 dark:text-amber-400">
-            Đang chạy trên máy {host} — bắt đầu {minutesElapsed} phút trước. Tải lại trang để xem
-            bảng đầy dần.
+            Running on host {host}; started {minutesElapsed} minutes ago. Reload the page to watch
+            the table fill in.
           </span>
         ) : null}
       </div>
@@ -66,9 +66,9 @@ export function HerdHealthCheckControls({
       ) : null}
 
       <p className="text-xs text-neutral-500">
-        Lượt đầy đủ nghỉ ngẫu nhiên 30-90 giây giữa các nick nên mất gần mười phút — chủ ý, vì
-        tám lượt xem profile bắn ra trong ba giây từ một IP là hành vi của máy, và chính bộ dò
-        sẽ bị chặn trước tiên. Chạy nền ở tiến trình riêng, đóng tab không ảnh hưởng.
+        A full run waits a random 30-90 seconds between nicks, so it takes almost ten minutes. This
+        prevents a burst of profile views from one IP from looking automated and getting the
+        observer proxy blocked. The run continues in a separate process if this tab closes.
       </p>
     </div>
   );

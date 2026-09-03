@@ -47,7 +47,7 @@ afterAll(async () => {
 });
 
 describe("tickDailyHealthCheck", () => {
-  it("thiếu biến giờ hẹn thì KHÔNG chạy và KHÔNG ghi sổ", async () => {
+  it("does not run or record when the schedule is disabled", async () => {
     const launcher = fakeLauncher();
 
     const result = await tickDailyHealthCheck({
@@ -62,7 +62,7 @@ describe("tickDailyHealthCheck", () => {
     expect(await readScheduledJobRun(DAILY_HEALTH_CHECK_JOB_KEY)).toBeNull();
   });
 
-  it("chưa tới giờ hẹn thì chưa đụng gì tới sổ", async () => {
+  it("does not write a record before the scheduled time", async () => {
     const launcher = fakeLauncher();
 
     const result = await tickDailyHealthCheck({
@@ -77,7 +77,7 @@ describe("tickDailyHealthCheck", () => {
     expect(await readScheduledJobRun(DAILY_HEALTH_CHECK_JOB_KEY)).toBeNull();
   });
 
-  it("tới giờ thì bắn một lượt và ghi sổ là ĐÃ BẮN", async () => {
+  it("starts and records a run at the scheduled time", async () => {
     const launcher = fakeLauncher(777);
 
     const result = await tickDailyHealthCheck({
@@ -99,7 +99,7 @@ describe("tickDailyHealthCheck", () => {
   /**
    * Nhịp một phút nghĩa là hàm này chạy 1440 lần mỗi ngày. Bắn quá một lượt là bắn 1440 lượt.
    */
-  it("nhịp kế tiếp trong cùng ngày KHÔNG bắn lại", async () => {
+  it("does not start another run later on the same day", async () => {
     const launcher = fakeLauncher();
     const tick = (now: Date) =>
       tickDailyHealthCheck({
@@ -118,7 +118,7 @@ describe("tickDailyHealthCheck", () => {
     expect(launcher.calls).toHaveLength(1);
   });
 
-  it("hôm sau thì bắn lượt mới", async () => {
+  it("starts a new run on the next day", async () => {
     const launcher = fakeLauncher();
     const tick = (now: Date) =>
       tickDailyHealthCheck({
@@ -139,7 +139,7 @@ describe("tickDailyHealthCheck", () => {
    * Không có proxy quan sát viên thì tiến trình dò chết ngay dòng đầu, mà `stdio: "ignore"` nuốt
    * sạch câu lỗi — sổ sẽ ghi "đã bắn" cho một thứ chưa từng chạy. Phải chặn TRƯỚC khi sinh.
    */
-  it("chưa có proxy quan sát viên thì KHÔNG sinh tiến trình, và sổ nói rõ vì sao", async () => {
+  it("skips without an observer proxy and records the reason", async () => {
     const launcher = fakeLauncher();
 
     const result = await tickDailyHealthCheck({
@@ -153,14 +153,14 @@ describe("tickDailyHealthCheck", () => {
     expect(launcher.calls).toHaveLength(0);
     const row = await readScheduledJobRun(DAILY_HEALTH_CHECK_JOB_KEY);
     expect(row?.outcome).toBe("SKIPPED");
-    expect(row?.detail).toContain("proxy quan sát viên");
+    expect(row?.detail).toContain("observer proxy");
   });
 
   /**
    * Bỏ qua rồi thì **không thử lại mỗi phút**. Thứ đang chặn cần một người sửa, còn thử lại chỉ
    * đẻ ra mười lăm tiếng log rác che mất dòng đáng đọc.
    */
-  it("đã bỏ qua thì nhịp sau không thử lại trong ngày", async () => {
+  it("does not retry a skipped run later on the same day", async () => {
     const launcher = fakeLauncher();
     const tick = (now: Date, count: number) =>
       tickDailyHealthCheck({
@@ -186,7 +186,7 @@ describe("tickDailyHealthCheck", () => {
    * Đúng cái bẫy đã làm CI đỏ 06/08/2026, trong khi máy dev xanh vì lượt chạy rơi trúng khung 30
    * phút đó. Thứ sửa nó là `tickDailyHealthCheck` truyền `now` xuống `readHealthCheckLockStatus`.
    */
-  it("đang có lượt dò chạy dở thì bỏ qua, kèm câu nói ai đang giữ", async () => {
+  it("skips an overlapping run and identifies the lock holder", async () => {
     const launcher = fakeLauncher();
     const held = await acquireHealthCheckLock({ now: new Date(AFTER.getTime() - 120_000) });
 
@@ -199,14 +199,14 @@ describe("tickDailyHealthCheck", () => {
       });
 
       expect(result.status).toBe("skipped");
-      expect(result.message).toContain(`tiến trình ${process.pid}`);
+      expect(result.message).toContain(`process ${process.pid}`);
       expect(launcher.calls).toHaveLength(0);
     } finally {
       await held.release();
     }
   });
 
-  it("sinh tiến trình hỏng thì ghi SKIPPED chứ không ghi ĐÃ BẮN", async () => {
+  it("records SKIPPED instead of LAUNCHED when process creation fails", async () => {
     const launcher = fakeLauncher(null);
 
     const result = await tickDailyHealthCheck({
@@ -220,7 +220,7 @@ describe("tickDailyHealthCheck", () => {
     expect((await readScheduledJobRun(DAILY_HEALTH_CHECK_JOB_KEY))?.outcome).toBe("SKIPPED");
   });
 
-  it("giờ hẹn khai sai dạng thì NÉM LỖI, không im lặng coi như tắt", async () => {
+  it("throws for an invalid schedule instead of treating it as disabled", async () => {
     await expect(
       tickDailyHealthCheck({ now: AFTER, env: { [DAILY_HEALTH_CHECK_ENV]: "9h00" } }),
     ).rejects.toThrow(/HH:MM/);
@@ -228,18 +228,20 @@ describe("tickDailyHealthCheck", () => {
 });
 
 describe("readDailyHealthCheckSchedule", () => {
-  it("lịch tắt thì nói tắt, không nói lỗi", async () => {
+  it("reports a disabled schedule without a configuration error", async () => {
     expect(await readDailyHealthCheckSchedule({})).toMatchObject({ at: null, configError: null });
   });
 
-  it("khai sai thì trả về câu lỗi để hiện lên màn hình", async () => {
+  it("returns an invalid schedule error for the UI", async () => {
     const view = await readDailyHealthCheckSchedule({ [DAILY_HEALTH_CHECK_ENV]: "25:00" });
 
     expect(view.at).toBeNull();
-    expect(view.configError).toContain("ngoài một ngày");
+    expect(view.configError).toContain("25:00");
+    expect(view.configError).toContain("0-23");
+    expect(view.configError).toContain("0-59");
   });
 
-  it("kèm theo lượt gần nhất trong sổ", async () => {
+  it("includes the latest scheduled run in the schedule view", async () => {
     await tickDailyHealthCheck({
       now: AFTER,
       env: AT_9,

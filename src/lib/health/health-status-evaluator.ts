@@ -59,7 +59,7 @@ export interface HealthEvaluationInput {
 /** Liệt kê vài khóa đầu, còn lại gộp thành "và N nữa" — câu cảnh báo phải đọc được. */
 function listKeys(keys: readonly string[], limit = 3): string {
   const shown = keys.slice(0, limit).join(", ");
-  return keys.length > limit ? `${shown} và ${keys.length - limit} bài nữa` : shown;
+  return keys.length > limit ? `${shown} and ${keys.length - limit} more` : shown;
 }
 
 export interface HealthEvaluation {
@@ -78,8 +78,8 @@ export function evaluateHealth(input: HealthEvaluationInput): HealthEvaluation {
   if (navigationError) {
     return conclude(
       "ERROR",
-      `Không mở được trang profile: ${navigationError} ` +
-        "Chưa biết gì về sức khỏe nick — đừng coi đây là tin tốt.",
+      `Could not open the profile page: ${navigationError}. ` +
+        "Nick health is unknown. Fix the error and run the check again; do not treat this as good news.",
     );
   }
 
@@ -89,21 +89,24 @@ export function evaluateHealth(input: HealthEvaluationInput): HealthEvaluation {
   if (checkpoint?.scope === "PROBE") {
     return conclude(
       "ERROR",
-      `${checkpoint.reason} Lần dò này không kết luận được gì về nick. ` +
-        "Giãn lịch dò hoặc đổi proxy quan sát viên rồi chạy lại.",
+      `${checkpoint.reason} This check says nothing about the nick. ` +
+        "Space out checks or change the observer proxy, then run it again.",
     );
   }
 
   if (checkpoint?.scope === "ACCOUNT") {
     return conclude(
       "CHECKPOINT",
-      `${checkpoint.reason} Nick đã bị cách ly, mọi job của nó sẽ bị bộ luật chặn. ` +
-        "Xử lý tay trên nền tảng, KHÔNG tự giải captcha.",
+      `${checkpoint.reason} The nick is quarantined, so the posting rules will block all of its jobs. ` +
+        "Handle the checkpoint manually on the platform; do not automate CAPTCHA solving.",
     );
   }
 
   if (!profile) {
-    return conclude("ERROR", "Bộ dò không trả về kết quả đọc trang nào. Xem log của lần chạy.");
+    return conclude(
+      "ERROR",
+      "The checker returned no readable page result. Review the run log, fix the failure, and run the check again.",
+    );
   }
 
   // Reddit trả về ĐÚNG MỘT trang cho bốn tình huống khác nhau: nick bị ẩn toàn cục, username
@@ -118,15 +121,13 @@ export function evaluateHealth(input: HealthEvaluationInput): HealthEvaluation {
     return conclude(
       "SHADOWBANNED",
       input.profileSeenBefore
-        ? "Reddit không còn tìm thấy trang profile này, dù lần dò trước vẫn đọc được nó. " +
-            "Nick vừa biến mất khỏi mắt người ngoài — shadowban toàn cục, hoặc nick đã bị xóa. " +
-            "Dừng đăng bằng nick này ngay; đăng tiếp chỉ tốn content."
-        : "Reddit không tìm thấy trang profile này khi xem ở chế độ chưa đăng nhập. Bốn nguyên " +
-            "nhân cho ra cùng một trang: nick bị ẩn toàn cục, username khai sai trong kho, nick " +
-            "đã bị xóa, hoặc nick chưa từng tồn tại. Chưa có lượt dò nào từng đọc được profile " +
-            "này nên chưa loại trừ được cái nào — KIỂM CHÍNH TẢ USERNAME trước đã. Nick vẫn bị " +
-            "cách ly cho tới khi xác minh, vì để một nick đã bị ẩn đăng tiếp thì tốn content " +
-            "mà không ai biết.",
+        ? "Reddit can no longer find this profile page, although an earlier check could read it. " +
+            "The nick has disappeared from public view: it may be globally shadowbanned or deleted. " +
+            "Stop posting with this nick now; continuing would only waste content."
+        : "Reddit cannot find this profile page while signed out. The same page can mean one of four things: " +
+            "the nick is globally shadowbanned, the username is wrong in the vault, the nick was deleted, or it never existed. " +
+            "No earlier check has successfully read this profile, so none of those causes can be ruled out. " +
+            "Check the username spelling first. Keep the nick quarantined until it is verified, because continuing to post with a hidden nick would waste content without anyone noticing.",
     );
   }
 
@@ -139,8 +140,8 @@ export function evaluateHealth(input: HealthEvaluationInput): HealthEvaluation {
   if (visiblePosts === null) {
     return conclude(
       "ERROR",
-      "Đọc được trang profile nhưng không đọc được danh sách bài, nên không đối chiếu được " +
-        `với ${expectedPosts} bài đã đăng. Mở tay old.reddit.com để đối chiếu.`,
+      "The profile page loaded, but the post list could not be read, so the checker cannot compare it " +
+        `with the ${expectedPosts} recorded posts. Open old.reddit.com manually to verify the page, then run the check again.`,
     );
   }
 
@@ -159,13 +160,12 @@ export function evaluateHealth(input: HealthEvaluationInput): HealthEvaluation {
     const howMany = untracked.length > 0 ? untracked.length : untrackedByCount;
     return conclude(
       "UNTRACKED_POSTS",
-      `Người ngoài thấy ${visiblePosts} bài trong ${windowDays} ngày qua nhưng kho chỉ ghi ` +
-        `${expectedPosts} — ${howMany} bài không có job nào tương ứng` +
+      `Public viewers can see ${visiblePosts} posts from the last ${windowDays} days, but the vault records only ` +
+        `${expectedPosts}; ${howMany} posts have no matching job` +
         (untracked.length > 0 ? ` (${listKeys(untracked)})` : "") +
-        ". Bộ luật đếm theo job, nên mỗi bài không được ghi làm nó ĐẾM THIẾU: hạn mức ngày, " +
-        "giãn cách cùng đích, tỷ lệ promo và chặn đụng độ thread đều đang dễ dãi hơn thực tế. " +
-        "Vào /queue ghi lại. Kể cả bài đăng tay để nuôi nick hay bài của chủ cũ khi mua nick " +
-        "cổ cũng nên ghi — bộ luật chỉ biết những gì được ghi lại.",
+        ". The posting rules count jobs, so every unrecorded post makes the daily cap, same-target cooldown, " +
+        "promotional ratio, and thread-collision checks more permissive than reality. Record the missing posts in /queue. " +
+        "Include manual nurturing posts and posts from a previous owner; the rules know only what has been recorded.",
     );
   }
 
@@ -176,22 +176,19 @@ export function evaluateHealth(input: HealthEvaluationInput): HealthEvaluation {
   if (expectedPosts === 0) {
     return conclude(
       "NO_BASELINE",
-      `Nick hiện ra bình thường với người ngoài, nhưng chưa bài nào được đánh dấu đã đăng ` +
-        `trong ${windowDays} ngày qua nên không có gì để đối chiếu — ` +
-        "đây mới là “nhìn thấy nick”, chưa phải “nhìn thấy bài của nick”. " +
-        "Nick đang nghỉ thì bình thường; còn nếu vừa đăng thật thì vào /queue bấm “Đã đăng”, " +
-        "vì không đánh dấu là bộ dò mù mà bảng vẫn xanh.",
+      `The nick is publicly visible, but no posts were marked as posted in the last ${windowDays} days, so there is no comparison baseline. ` +
+        "This proves only that the nick is visible, not that its posts are visible. An inactive nick is fine; " +
+        'if it posted recently, open /queue and click "Mark as posted" so the checker is not blind while the dashboard still looks healthy.',
     );
   }
 
   if (visiblePosts === 0) {
     return conclude(
       "SHADOWBANNED",
-      `Nick hiện ra bình thường nhưng KHÔNG bài nào trong ${expectedPosts} bài đã đăng ` +
-        `${windowDays} ngày qua nhìn thấy được từ ngoài. Đây là kiểu ẩn từng bài — ` +
-        "nguy hiểm hơn shadowban toàn cục vì nhìn từ trong vẫn thấy đủ. " +
-        "Cũng có thể mod đã xóa hết bài, nên mở tay một link bài ở chế độ ẩn danh để xác nhận " +
-        "trước khi bỏ nick — nhưng cho tới lúc xác nhận thì cứ coi như đang bị ẩn.",
+      `The nick is publicly visible, but none of its ${expectedPosts} recorded posts from the last ${windowDays} days are visible from outside. ` +
+        "This suggests per-post hiding, which is more dangerous than a global shadowban because the posts still look normal when signed in. " +
+        "Moderators may also have removed every post, so open one post link in a private window to confirm before retiring the nick. " +
+        "Until confirmed, treat the nick as shadowbanned and stop posting.",
     );
   }
 
@@ -200,16 +197,15 @@ export function evaluateHealth(input: HealthEvaluationInput): HealthEvaluation {
   if (visiblePosts < expectedPosts * VISIBLE_POST_WARN_RATIO) {
     return conclude(
       "WARN",
-      `Chỉ thấy ${visiblePosts}/${expectedPosts} bài đã đăng trong ${windowDays} ngày qua. ` +
-        (missing.length > 0 ? `Không thấy: ${listKeys(missing)}. ` : "") +
-        "Có thể do mod xóa bài, cũng có thể là bị ẩn từng bài. Theo dõi thêm vài ngày; " +
-        "tỷ lệ tụt tiếp thì dừng đăng.",
+      `Only ${visiblePosts}/${expectedPosts} recorded posts from the last ${windowDays} days are publicly visible. ` +
+        (missing.length > 0 ? `Not found: ${listKeys(missing)}. ` : "") +
+        "Moderators may have removed posts, or individual posts may be hidden. Monitor for a few more days; " +
+        "if the ratio keeps falling, stop posting.",
     );
   }
 
   return conclude(
     "HEALTHY",
-    `Thấy ${visiblePosts}/${expectedPosts} bài đã đăng trong ${windowDays} ngày qua ` +
-      "từ góc nhìn người ngoài.",
+    `${visiblePosts}/${expectedPosts} recorded posts from the last ${windowDays} days are visible to public viewers.`,
   );
 }

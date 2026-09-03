@@ -23,8 +23,8 @@ afterAll(async () => {
   await prisma.healthCheckLock.deleteMany();
 });
 
-describe("runHealthCheck — khóa chống chạy chồng", () => {
-  it("từ chối khi đã có lượt khác giữ khóa", async () => {
+describe("runHealthCheck lock enforcement", () => {
+  it("rejects when another run holds the lock", async () => {
     const held = await acquireHealthCheckLock();
     try {
       await expect(runHealthCheck()).rejects.toThrow(HealthCheckBusyError);
@@ -38,26 +38,26 @@ describe("runHealthCheck — khóa chống chạy chồng", () => {
    * nếu thứ tự đúng thì lỗi nói "đang có lượt chạy dở", chứ không phải "chưa có proxy quan sát
    * viên" — dù trong database quả thật chưa có proxy nào.
    */
-  it("giành khóa trước khi chạm database hay mở trình duyệt", async () => {
+  it("acquires the lock before reading the database or opening the browser", async () => {
     const held = await acquireHealthCheckLock();
     try {
-      await expect(runHealthCheck()).rejects.toThrow(/lượt dò chạy dở/);
+      await expect(runHealthCheck()).rejects.toThrow(/health check is already running/);
     } finally {
       await held.release();
     }
   });
 
-  it("thả khóa xong thì lượt sau giành được", async () => {
+  it("allows the next failure path after the lock is released", async () => {
     const held = await acquireHealthCheckLock();
     await held.release();
 
     // Không còn ai giữ khóa, nên lỗi phải là lỗi TIẾP THEO trên đường đi (thiếu proxy quan sát
     // viên), chứng minh khóa đã được thả sạch chứ không kẹt lại.
-    await expect(runHealthCheck()).rejects.toThrow(/proxy quan sát viên/);
+    await expect(runHealthCheck()).rejects.toThrow(/observer proxy/);
   });
 
   /** Lượt chạy hỏng giữa chừng KHÔNG được để lại khóa — nếu không bộ dò tự khóa mình 30 phút. */
-  it("thả khóa cả khi lượt chạy ném lỗi", async () => {
+  it("releases the lock when a run fails", async () => {
     await expect(runHealthCheck()).rejects.toThrow();
 
     // Giành lại được ngay = khóa đã được thả trong finally.

@@ -207,7 +207,10 @@ export async function recordHealthCheck(
         data: {
           accountId: account.id,
           action: AUDIT_ACTIONS.HEALTH_STATUS_FORCED,
-          detail: `Bộ dò đổi trạng thái sang ${statusChangedTo}: ${evaluation.detail}`.slice(0, 500),
+          detail: `Health checker changed status to ${statusChangedTo}: ${evaluation.detail}`.slice(
+            0,
+            500,
+          ),
         },
       }),
     );

@@ -98,7 +98,10 @@ export function matchDiscoveredPosts(
       continue;
     }
     for (const post of claimants) {
-      ambiguous.push({ post, reason: `${claimants.length} bài cùng khớp một job — không dám chọn hộ` });
+      ambiguous.push({
+        post,
+        reason: `${claimants.length} posts match the same job, so the checker will not choose one automatically`,
+      });
     }
   }
 
@@ -118,20 +121,22 @@ function findSoleCandidate(
 
   const sameSub = jobs.filter((job) => subredditKey(job.subreddit) === subredditKey(post.subreddit));
   if (sameSub.length === 0) {
-    return reject(`không có job nào đang chờ ở r/${post.subreddit} — bài đăng ngoài công cụ?`);
+    return reject(`no pending job targets r/${post.subreddit}; was this post made outside the tool?`);
   }
 
   const inWindow = sameSub.filter((job) => withinWindow(post, job));
   if (inWindow.length === 0) {
-    return reject(`job ở r/${post.subreddit} đều cách giờ đăng quá ${MATCH_WINDOW_HOURS} tiếng`);
+    return reject(
+      `all jobs for r/${post.subreddit} are more than ${MATCH_WINDOW_HOURS} hours from the post time`,
+    );
   }
 
   const byTitle = inWindow.filter((job) => titleMatchesPermalink(job.contentTitle, post.permalinkUrl));
   if (byTitle.length === 0) {
-    return reject("tiêu đề trong link không khớp content của job nào");
+    return reject("The title in the link does not match any job's content");
   }
   if (byTitle.length > 1) {
-    return reject(`${byTitle.length} job cùng khớp — không dám chọn hộ`);
+    return reject(`${byTitle.length} jobs match, so the checker will not choose one automatically`);
   }
 
   return byTitle[0].id;

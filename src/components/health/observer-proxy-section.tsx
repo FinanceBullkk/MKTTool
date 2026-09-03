@@ -18,24 +18,24 @@ export async function ObserverProxySection() {
   const activeCount = proxies.filter((proxy) => proxy.active).length;
 
   return (
-    <Card title={`Proxy quan sát viên — ${proxies.length} IP, ${activeCount} đang bật`}>
+    <Card title={`Observer proxies - ${proxies.length} IPs, ${activeCount} enabled`}>
       <p className="mb-4 text-sm text-neutral-600 dark:text-neutral-400">
-        Dùng để dò shadowban từ góc nhìn người ngoài. <strong>Tuyệt đối không đăng nhập nick nào
-        bằng IP này</strong>, kể cả một lần — dò bằng chính proxy của nick là tự nhìn mình trong
-        gương rồi kết luận người ngoài cũng thấy vậy. Nên mua loại residential, khác nhà cung cấp
-        với proxy dùng cho nick.
+        Use these proxies to check shadowbans from a public viewer&apos;s perspective.{" "}
+        <strong>Never sign in to any nick through these IPs, even once.</strong> Checking through a
+        nick&apos;s own proxy would only confirm what the nick itself can see. Prefer a residential
+        proxy from a different provider than the nick proxies.
       </p>
 
       {proxies.length === 0 ? (
         <EmptyState>
-          Chưa có proxy quan sát viên. Thiếu nó thì bộ dò shadowban dừng ngay từ đầu — cố ý như
-          vậy, vì dò bằng IP nhà còn tệ hơn không dò. Khai một cái vào đây rồi bấm{" "}
-          <strong>&quot;Dò cả đàn&quot;</strong> ở trang Sức khỏe là chạy được ngay, không cần
-          mở terminal.
+          No observer proxy is configured, so shadowban checks stop before making any request. This
+          is intentional: checking from a home IP is worse than not checking. Add one here, then
+          click <strong>&quot;Check all nicks&quot;</strong> on the Nick health page; no terminal is
+          required.
         </EmptyState>
       ) : (
         <DataTable
-          headers={["Nhãn", "Địa chỉ", "Quốc gia", "Trạng thái", "Lần kiểm gần nhất", "Ghi chú", ""]}
+          headers={["Label", "Address", "Country", "Status", "Last check", "Notes", ""]}
         >
           {proxies.map((proxy) => (
             <tr key={proxy.id}>
@@ -46,7 +46,7 @@ export async function ObserverProxySection() {
               <td className="py-2 pr-4">{proxy.country}</td>
               <td className="py-2 pr-4">
                 <StatusBadge
-                  label={proxy.active ? "đang bật" : "đã tắt"}
+                  label={proxy.active ? "enabled" : "disabled"}
                   className={
                     proxy.active
                       ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
@@ -73,29 +73,30 @@ export async function ObserverProxySection() {
       )}
 
       <details className="mt-4">
-        <summary className="cursor-pointer text-sm font-medium">Thêm proxy quan sát viên</summary>
+        <summary className="cursor-pointer text-sm font-medium">Add observer proxy</summary>
         <div className="mt-3">
-          <ActionForm action={createObserverProxy} submitLabel="Thêm proxy quan sát viên">
-            <Field label="Nhãn" name="label" required placeholder="observer-01-de" />
+          <ActionForm action={createObserverProxy} submitLabel="Add observer proxy">
+            <Field label="Label" name="label" required placeholder="observer-01-de" />
             <Field label="Host" name="host" required placeholder="1.2.3.4" />
             <Field label="Port" name="port" type="number" required placeholder="8080" />
             <Field label="Username" name="username" required />
-            <Field label="Mật khẩu" name="password" type="password" required />
+            <Field label="Password" name="password" type="password" required />
             <Field
-              label="Quốc gia"
+              label="Country"
               name="country"
               required
               placeholder="DE"
-              hint="Không cần khớp quốc gia nick — đây là góc nhìn người lạ, càng khác càng đúng vai"
+              hint="It does not need to match the nick's country; this proxy represents an unrelated public viewer"
             />
             <Field
-              label="Ghi chú"
+              label="Notes"
               name="notes"
-              placeholder="Nhà cung cấp, ngày hết hạn…"
+              placeholder="Provider, expiration date..."
             />
             <p className="text-xs text-neutral-500">
-              Chỉ nhận giao thức HTTP: Chromium không xác thực được với SOCKS5, nó bỏ qua user và
-              mật khẩu rồi đi tiếp — hoặc hỏng, hoặc tệ hơn là chạy bằng IP nhà mà không ai biết.
+              HTTP only. Chromium cannot authenticate SOCKS5 with a username and password; it may
+              ignore the credentials and fail, or worse, connect through the home IP without anyone
+              noticing.
             </p>
           </ActionForm>
         </div>

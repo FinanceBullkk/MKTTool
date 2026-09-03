@@ -28,7 +28,7 @@ describe("parseRedditProfile", () => {
    * Tín hiệu chính. Đo trên Reddit thật 03/08/2026: nick không tồn tại (và nick bị shadowban
    * toàn cục) trả HTTP 404, còn nick có thật trả 200.
    */
-  it("HTTP 404 là MISSING, bất kể trang chứa chữ gì", () => {
+  it("returns MISSING for HTTP 404 regardless of page contents", () => {
     const parsed = parseRedditProfile({ html: profileHtml(""), status: 404 });
     expect(parsed.kind).toBe("MISSING");
   });
@@ -38,7 +38,7 @@ describe("parseRedditProfile", () => {
    * goes by that name", nhưng vẫn có đủ header, thanh điều hướng và ô đăng nhập. Bản parser cũ
    * nhận nhầm nó là profile rỗng — tức là nick chết mà báo còn sống.
    */
-  it("trang 404 đầy đủ khung sườn KHÔNG bị nhận nhầm là profile rỗng", () => {
+  it("does not mistake a complete 404 page for an empty profile", () => {
     const notFound = '<div id="header-bottom-left">nav</div><h1>page not found</h1>';
     expect(parseRedditProfile({ html: notFound, status: 404 }).kind).toBe("MISSING");
     // Ngay cả khi mất mã HTTP, tiêu đề trang vẫn cứu được.
@@ -47,18 +47,18 @@ describe("parseRedditProfile", () => {
     );
   });
 
-  it("giữ nhận diện câu chữ cũ của Reddit", () => {
+  it("keeps recognizing Reddit's legacy missing-profile message", () => {
     const parsed = parseRedditProfile({ html: "<p>Sorry, nobody on Reddit goes by that name.</p>" });
     expect(parsed.kind).toBe("MISSING");
   });
 
   /** Reddit đổi HTML thì phải nói không đọc được — tuyệt đối không được im lặng báo khỏe. */
-  it("HTML lạ trả về UNPARSEABLE chứ không phải hồ sơ rỗng", () => {
-    const parsed = parseRedditProfile({ html: "<html><body><p>trang gì đó</p></body></html>" });
+  it("returns UNPARSEABLE for unknown HTML instead of an empty profile", () => {
+    const parsed = parseRedditProfile({ html: "<html><body><p>unknown page</p></body></html>" });
     expect(parsed.kind).toBe("UNPARSEABLE");
   });
 
-  it("đếm bài và comment tách nhau", () => {
+  it("counts posts and comments separately", () => {
     const html = profileHtml(
       thing("link", NOW.getTime()) + thing("comment", NOW.getTime()) + thing("link", NOW.getTime()),
     );
@@ -70,7 +70,7 @@ describe("parseRedditProfile", () => {
     expect(parsed.commentCount).toBe(1);
   });
 
-  it("cộng karma bài với karma comment", () => {
+  it("adds post karma and comment karma", () => {
     const karma = '<span class="karma">1,200</span><span class="karma comment-karma">34</span>';
     const parsed = parseRedditProfile({ html: profileHtml("", karma), status: 200 });
 
@@ -79,7 +79,7 @@ describe("parseRedditProfile", () => {
     expect(parsed.karma).toBe(1234);
   });
 
-  it("không có ô karma thì trả null, không trả 0", () => {
+  it("returns null instead of zero when the karma field is missing", () => {
     const parsed = parseRedditProfile({ html: '<div id="siteTable"></div>', status: 200 });
 
     expect(parsed.kind).toBe("OK");
@@ -89,7 +89,7 @@ describe("parseRedditProfile", () => {
     expect(parsed.karma).toBeNull();
   });
 
-  it("profile có thật nhưng chưa đăng gì thì OK với danh sách rỗng", () => {
+  it("returns an empty post list for a real profile with no activity", () => {
     const parsed = parseRedditProfile({ html: profileHtml(""), status: 200 });
 
     expect(parsed.kind).toBe("OK");
@@ -102,7 +102,7 @@ describe("parseRedditProfile", () => {
    * `normalizeThreadUrl()` mà luật 8 và job trong kho đang dùng, nếu không hai bên không
    * bao giờ ghép được với nhau.
    */
-  it("đọc khóa bài từ data-permalink, cùng dạng khóa với job trong kho", () => {
+  it("reads the post key from data-permalink using the stored job format", () => {
     const parsed = parseRedditProfile({
       html: profileHtml(thing("link", NOW.getTime())),
       status: 200,
@@ -113,7 +113,7 @@ describe("parseRedditProfile", () => {
     expect(parsed.posts[0]?.threadKey).toBe("reddit:1veg99o");
   });
 
-  it("thiếu data-permalink thì lùi về data-fullname", () => {
+  it("falls back to data-fullname when data-permalink is missing", () => {
     const html = profileHtml(
       `<div class=" thing " data-type="link" data-timestamp="${NOW.getTime()}" ` +
         `data-fullname="t3_1veg99o"></div>`,
@@ -130,7 +130,7 @@ describe("parseRedditProfile", () => {
    * tốn thêm request nào. Thiếu chúng thì bộ dò biết "có bài chưa ghi" mà không tự gán được
    * cho job nào: gán cần biết bài nằm ở sub nào và link đầy đủ để lưu vào kho.
    */
-  it("đọc luôn link đầy đủ và tên sub của từng bài", () => {
+  it("reads the full URL and subreddit for each post", () => {
     const parsed = parseRedditProfile({
       html: profileHtml(thing("link", NOW.getTime())),
       status: 200,
@@ -145,7 +145,7 @@ describe("parseRedditProfile", () => {
     expect(parsed.posts[0]?.subreddit).toBe("Trove");
   });
 
-  it("permalink cụt thì lùi về data-subreddit", () => {
+  it("falls back to data-subreddit when the permalink is incomplete", () => {
     const html = profileHtml(
       `<div class=" thing " data-type="link" data-timestamp="${NOW.getTime()}" ` +
         `data-fullname="t3_1veg99o" data-subreddit="selfhosted"></div>`,
@@ -159,7 +159,7 @@ describe("parseRedditProfile", () => {
     expect(parsed.posts[0]?.permalinkUrl).toBeNull();
   });
 
-  it("không có thuộc tính nhận dạng nào thì vẫn đếm được bài, chỉ là không ghép được", () => {
+  it("counts posts without identifiers but cannot match them", () => {
     // Đếm được mà không nhận dạng được thì vẫn hơn bỏ sót: bỏ qua bài này là thu nhỏ con số
     // "người ngoài thấy mấy bài", tức làm một nick đang bị ẩn trông khỏe hơn thực tế.
     const html = profileHtml(
@@ -182,11 +182,11 @@ describe("postsWithin", () => {
     subreddit: null,
   });
 
-  it("chỉ giữ bài trong cửa sổ quan sát", () => {
+  it("keeps only posts inside the observation window", () => {
     expect(postsWithin([at(1), at(6), at(30)], 7, NOW)).toHaveLength(2);
   });
 
-  it("không có bài nào thì trả mảng rỗng", () => {
+  it("returns an empty array when there are no posts", () => {
     expect(postsWithin([], 7, NOW)).toEqual([]);
   });
 });

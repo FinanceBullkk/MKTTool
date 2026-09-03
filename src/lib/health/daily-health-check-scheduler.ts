@@ -85,7 +85,10 @@ export async function tickDailyHealthCheck(
 
   const at = readDailyScheduleTime(env[DAILY_HEALTH_CHECK_ENV]);
   if (!at) {
-    return { status: "disabled", message: `Lịch dò đang tắt (chưa khai ${DAILY_HEALTH_CHECK_ENV}).` };
+    return {
+      status: "disabled",
+      message: `Daily health checks are disabled because ${DAILY_HEALTH_CHECK_ENV} is not set.`,
+    };
   }
 
   const record = await readScheduledJobRun(DAILY_HEALTH_CHECK_JOB_KEY);
@@ -112,7 +115,7 @@ export async function tickDailyHealthCheck(
     // thời gian nhất khi có nhiều bản chạy song song.
     return {
       status: "lost-race",
-      message: "Một bản khác của app vừa giành lượt hôm nay.",
+      message: "Another app instance claimed today's scheduled run first.",
     };
   }
 
@@ -124,12 +127,12 @@ export async function tickDailyHealthCheck(
 
   const { pid } = launch();
   if (pid === null) {
-    const detail = "Không sinh được tiến trình dò — xem log của máy chủ.";
+    const detail = "The health-check process could not be started. Review the server log.";
     await recordScheduledRunOutcome(DAILY_HEALTH_CHECK_JOB_KEY, "SKIPPED", detail);
     return { status: "skipped", message: detail };
   }
 
-  const launched = `Đã bắn lượt dò ở tiến trình ${pid}.`;
+  const launched = `Started the health check in process ${pid}.`;
   await recordScheduledRunOutcome(DAILY_HEALTH_CHECK_JOB_KEY, "LAUNCHED", launched);
   return { status: "launched", message: launched };
 }
@@ -159,15 +162,15 @@ async function reasonToSkip(
   const running = await readHealthCheckLockStatus({ now });
   if (running.running) {
     return (
-      `Bỏ qua: đang có một lượt dò chạy dở (máy ${running.host}, tiến trình ${running.pid}, ` +
-      `bắt đầu ${running.minutesElapsed} phút trước). Lượt đó đã đủ số liệu cho hôm nay.`
+      `Skipped: a health check is already running (host ${running.host}, process ${running.pid}, ` +
+      `started ${running.minutesElapsed} minutes ago). That run will provide today's data.`
     );
   }
 
   if ((await countActiveObserverProxies()) === 0) {
     return (
-      "Bỏ qua: chưa có proxy quan sát viên nào đang bật. Khai một cái ở trang Proxy — dò bằng " +
-      "IP nhà hoặc bằng chính proxy của nick còn tệ hơn không dò."
+      "Skipped: no observer proxy is enabled. Configure one on the Proxy page. " +
+      "Checking from a home IP or from the nick's own proxy is worse than not checking."
     );
   }
 
@@ -216,21 +219,21 @@ export function startDailyHealthCheckScheduler(): { stop: () => void } | null {
     at = readDailyScheduleTime(process.env[DAILY_HEALTH_CHECK_ENV]);
   } catch (error) {
     console.error(
-      `[lịch dò] KHÔNG bật được: ${error instanceof DailyScheduleError ? error.message : error}`,
+      `[health schedule] Could not start: ${error instanceof DailyScheduleError ? error.message : error}`,
     );
     return null;
   }
 
   if (!at) {
     console.log(
-      `[lịch dò] Đang tắt. Khai ${DAILY_HEALTH_CHECK_ENV}="09:00" để bộ dò tự chạy mỗi ngày.`,
+      `[health schedule] Disabled. Set ${DAILY_HEALTH_CHECK_ENV}="09:00" to run the checker daily.`,
     );
     return null;
   }
 
   running = true;
   console.log(
-    `[lịch dò] Bật: ${formatTimeOfDay(at)} mỗi ngày theo ${loadTeamTimezone()}.`,
+    `[health schedule] Enabled: ${formatTimeOfDay(at)} every day in ${loadTeamTimezone()}.`,
   );
 
   const tick = async () => {
@@ -239,10 +242,10 @@ export function startDailyHealthCheckScheduler(): { stop: () => void } | null {
       // Nhịp bình thường (chưa tới giờ / hôm nay quyết rồi) không ghi log: 1440 dòng mỗi ngày
       // là cách chôn vùi đúng dòng đáng đọc.
       if (result.status !== "too-early" && result.status !== "already-decided") {
-        console.log(`[lịch dò] ${result.message}`);
+        console.log(`[health schedule] ${result.message}`);
       }
     } catch (error) {
-      console.error("[lịch dò] Nhịp kiểm tra hỏng:", error);
+      console.error("[health schedule] Tick failed:", error);
     }
   };
 

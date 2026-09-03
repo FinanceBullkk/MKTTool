@@ -38,46 +38,46 @@ interface VerdictPresentation {
 
 export const VERDICT_PRESENTATION: Record<HealthVerdict, VerdictPresentation> = {
   CHECKPOINT: {
-    label: "Dính checkpoint",
+    label: "Checkpointed",
     severity: 0,
     className: "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300",
-    hint: "Nền tảng đang chặn đường vào. Xử lý tay, KHÔNG tự giải captcha.",
+    hint: "The platform is blocking access. Handle it manually; do not automate CAPTCHA solving.",
   },
   SHADOWBANNED: {
-    label: "Bị ẩn",
+    label: "Shadowbanned",
     severity: 1,
     className: "bg-orange-100 text-orange-800 dark:bg-orange-950 dark:text-orange-300",
-    hint: "Người ngoài không thấy bài của nick này. Dừng đăng ngay.",
+    hint: "Public viewers cannot see this nick's posts. Stop posting immediately.",
   },
   ERROR: {
-    label: "Không dò được",
+    label: "Check failed",
     severity: 2,
     className: "bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300",
-    hint: "Chưa biết nick khỏe hay không — đọc lý do rồi sửa bộ dò, đừng coi là khỏe.",
+    hint: "Nick health is unknown. Read the reason, fix the checker, and do not treat this as healthy.",
   },
   WARN: {
-    label: "Nghi ngờ",
+    label: "Suspected",
     severity: 3,
     className: "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300",
-    hint: "Thấy ít bài hơn số đã đăng. Theo dõi thêm vài ngày trước khi kết luận.",
+    hint: "Fewer posts are visible than were recorded. Monitor for a few more days before deciding.",
   },
   UNTRACKED_POSTS: {
-    label: "Có bài chưa ghi",
+    label: "Unrecorded posts found",
     severity: 4,
     className: "bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300",
-    hint: "Người ngoài thấy bài mà kho không có. Bộ luật đang đếm thiếu — vào /queue ghi lại.",
+    hint: "Public viewers found posts missing from the vault. Record them in /queue so the rules count correctly.",
   },
   NO_BASELINE: {
-    label: "Chưa đối chiếu được",
+    label: "No comparison baseline",
     severity: 5,
     className: "bg-slate-200 text-slate-800 dark:bg-slate-800 dark:text-slate-300",
-    hint: "Thấy nick, chưa thấy bài nào để so. Nhớ bấm “Đã đăng” sau mỗi lần đăng.",
+    hint: 'The nick is visible, but there are no recorded posts to compare. Click "Mark as posted" after each post.',
   },
   HEALTHY: {
-    label: "Khỏe",
+    label: "Healthy",
     severity: 6,
     className: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300",
-    hint: "Người ngoài nhìn thấy nick và bài của nó bình thường.",
+    hint: "Public viewers can see the nick and its posts normally.",
   },
 };
 

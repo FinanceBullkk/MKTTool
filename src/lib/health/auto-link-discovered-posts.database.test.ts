@@ -76,7 +76,7 @@ async function createPendingJob(seeded: Seeded, title: string) {
   const content = await prisma.contentItem.create({
     data: {
       title,
-      body: `Thân bài của "${title}", đủ dài để không bị coi là bài rỗng khi chấm luật.`,
+      body: `The body for "${title}" is long enough to be evaluated by the posting rules.`,
       type: "VALUE",
       authorName: "team",
     },
@@ -116,7 +116,7 @@ describe("autoLinkDiscoveredPosts", () => {
     await clearAll();
   });
 
-  it("gán link vào job khớp và để lại đủ dấu vết như bấm tay", async () => {
+  it("links a matching job and records the same evidence as a manual action", async () => {
     const job = await createPendingJob(seeded, "Is trove still alive? Will Gamigo continue?");
 
     const result = await autoLinkDiscoveredPosts(seeded.accountId, [discovered()]);
@@ -141,7 +141,7 @@ describe("autoLinkDiscoveredPosts", () => {
     expect(audit?.detail).toContain(job.id);
   });
 
-  it("tiêu đề không khớp thì KHÔNG ghi gì, chỉ nêu lý do", async () => {
+  it("does not write when the title differs and returns the reason", async () => {
     // Đúng ca 04/08/2026: cùng nick, cùng sub, đúng giờ — chỉ khác nội dung. Gán ở đây là
     // tự tay tạo lại lỗi dán nhầm link mà tính năng này sinh ra để dọn.
     const job = await createPendingJob(seeded, "Looking for a game similar to trove");
@@ -149,7 +149,7 @@ describe("autoLinkDiscoveredPosts", () => {
     const result = await autoLinkDiscoveredPosts(seeded.accountId, [discovered()]);
 
     expect(result.linkedKeys).toHaveLength(0);
-    expect(result.ambiguous[0].reason).toContain("tiêu đề");
+    expect(result.ambiguous[0].reason).toContain("title");
 
     const untouched = await prisma.postJob.findUnique({ where: { id: job.id } });
     expect(untouched?.status).toBe("PENDING");
@@ -157,7 +157,7 @@ describe("autoLinkDiscoveredPosts", () => {
     expect(await prisma.interaction.count()).toBe(0);
   });
 
-  it("bài ở sub không có job nào thì báo là bài đăng ngoài công cụ", async () => {
+  it("reports a post in a subreddit with no matching job as external", async () => {
     await createPendingJob(seeded, "Is trove still alive? Will Gamigo continue?");
 
     const result = await autoLinkDiscoveredPosts(seeded.accountId, [
@@ -170,11 +170,11 @@ describe("autoLinkDiscoveredPosts", () => {
     ]);
 
     expect(result.linkedKeys).toHaveLength(0);
-    expect(result.ambiguous[0].reason).toContain("đăng ngoài công cụ");
+    expect(result.ambiguous[0].reason).toContain("outside the tool");
     expect(await prisma.postJob.count({ where: { status: "POSTED" } })).toBe(0);
   });
 
-  it("job đã đăng rồi thì không bị gán đè", async () => {
+  it("does not overwrite a job that is already posted", async () => {
     const job = await createPendingJob(seeded, "Is trove still alive? Will Gamigo continue?");
     await prisma.postJob.update({
       where: { id: job.id },

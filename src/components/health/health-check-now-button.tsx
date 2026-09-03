@@ -15,7 +15,7 @@ import { useState } from "react";
 
 export function HealthCheckNowButton({
   accountId,
-  label = "Dò lại ngay",
+  label = "Check again now",
 }: {
   accountId: string;
   label?: string;
@@ -41,7 +41,10 @@ export function HealthCheckNowButton({
       setMessage({ tone, text: data.message });
       if (data.ok) router.refresh();
     } catch {
-      setMessage({ tone: "loi", text: "Không gọi được bộ dò. Xem log của dev server." });
+      setMessage({
+        tone: "loi",
+        text: "The health check could not be started. Review the development server log and try again.",
+      });
     } finally {
       setPending(false);
     }
@@ -61,7 +64,7 @@ export function HealthCheckNowButton({
         disabled={pending}
         className="rounded-md border border-neutral-300 px-2 py-1 text-xs transition hover:bg-neutral-100 disabled:opacity-50 dark:border-neutral-700 dark:hover:bg-neutral-800"
       >
-        {pending ? "Đang dò…" : label}
+        {pending ? "Checking..." : label}
       </button>
       {message ? <p className={`text-xs ${TONE_CLASS[message.tone]}`}>{message.text}</p> : null}
     </div>

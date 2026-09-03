@@ -41,7 +41,7 @@ afterAll(async () => {
 });
 
 describe("acquireHealthCheckLock", () => {
-  it("giành được khóa khi chưa ai giữ, và ghi đúng một hàng", async () => {
+  it("acquires and records the lock when it is free", async () => {
     const held = await acquireHealthCheckLock({ now: NOW });
 
     const row = await readRow();
@@ -52,7 +52,7 @@ describe("acquireHealthCheckLock", () => {
     await held.release();
   });
 
-  it("lượt thứ hai bị từ chối khi lượt đầu còn đang chạy", async () => {
+  it("rejects a second run while the first is active", async () => {
     const first = await acquireHealthCheckLock({ now: NOW });
     try {
       await expect(acquireHealthCheckLock({ now: NOW })).rejects.toThrow(HealthCheckBusyError);
@@ -61,21 +61,21 @@ describe("acquireHealthCheckLock", () => {
     }
   });
 
-  it("thông báo bận nói rõ máy nào, tiến trình nào, giữ bao lâu rồi", async () => {
+  it("describes the host, process, and elapsed time in the busy error", async () => {
     const first = await acquireHealthCheckLock({ now: NOW });
     const later = new Date(NOW.getTime() + 5 * 60_000);
 
     try {
-      await expect(acquireHealthCheckLock({ now: later })).rejects.toThrow(/5 phút/);
+      await expect(acquireHealthCheckLock({ now: later })).rejects.toThrow(/5 minutes/);
       await expect(acquireHealthCheckLock({ now: later })).rejects.toThrow(
-        new RegExp(`tiến trình ${process.pid}`),
+        new RegExp(`process ${process.pid}`),
       );
     } finally {
       await first.release();
     }
   });
 
-  it("thả khóa xong thì lượt sau giành được", async () => {
+  it("allows another run after release", async () => {
     const first = await acquireHealthCheckLock({ now: NOW });
     await first.release();
 
@@ -85,7 +85,7 @@ describe("acquireHealthCheckLock", () => {
     await second.release();
   });
 
-  it("giành được khóa mồ côi để quá hạn", async () => {
+  it("takes over a stale orphaned lock", async () => {
     await acquireHealthCheckLock({ now: NOW }); // cố ý không thả — giả cảnh tiến trình bị giết
     const muchLater = new Date(NOW.getTime() + STALE_AFTER_MS + 60_000);
 
@@ -103,7 +103,7 @@ describe("acquireHealthCheckLock", () => {
    * vượt 30 phút và lượt sau tưởng nó đã chết rồi chen vào chạy song song, đúng thứ khóa này sinh
    * ra để chặn. Nay chỉ cần lượt đang chạy còn đập nhịp là nó giữ được khóa, dù chạy bao lâu.
    */
-  it("lượt chạy dài nhưng còn đập nhịp thì KHÔNG bị coi là mồ côi", async () => {
+  it("keeps a long-running lock active while heartbeats continue", async () => {
     const long = await acquireHealthCheckLock({ now: NOW });
     const wayPastStale = new Date(NOW.getTime() + STALE_AFTER_MS * 3);
 
@@ -120,7 +120,7 @@ describe("acquireHealthCheckLock", () => {
   });
 
   /** Ngừng đập nhịp = tiến trình đã chết. Đó mới là thứ đáng giành khóa. */
-  it("ngừng đập nhịp quá hạn thì vẫn giành được khóa", async () => {
+  it("takes over after heartbeats become stale", async () => {
     const dead = await acquireHealthCheckLock({ now: NOW });
     await dead.renew(new Date(NOW.getTime() + 60_000)); // nhịp cuối rồi tắt ngang
 
@@ -135,7 +135,7 @@ describe("acquireHealthCheckLock", () => {
    * đập nhịp được vào hàng của chủ mới thì nó giữ hộ khóa cho một tiến trình không còn quyền,
    * và chủ mới bị đẩy sang mồ côi oan.
    */
-  it("lượt đã bị giành khóa thì đập nhịp không chạm được hàng của chủ mới", async () => {
+  it("prevents an old owner from renewing a replaced lock", async () => {
     const stale = await acquireHealthCheckLock({ now: NOW });
     const muchLater = new Date(NOW.getTime() + STALE_AFTER_MS + 60_000);
     const fresh = await acquireHealthCheckLock({ now: muchLater });
@@ -148,7 +148,7 @@ describe("acquireHealthCheckLock", () => {
   });
 
   /** `startedAt` vẫn phải nói "giữ từ lúc nào" — nhịp tim không được nuốt mất câu đó. */
-  it("đập nhịp không đổi startedAt, nên câu 'giữ bao lâu rồi' vẫn đúng", async () => {
+  it("keeps startedAt unchanged when renewing the heartbeat", async () => {
     const held = await acquireHealthCheckLock({ now: NOW });
 
     try {
@@ -162,7 +162,7 @@ describe("acquireHealthCheckLock", () => {
     }
   });
 
-  it("khóa vừa quá hạn một chút vẫn được tôn trọng, không giành ẩu", async () => {
+  it("does not take over just before the stale threshold", async () => {
     const first = await acquireHealthCheckLock({ now: NOW });
     const justUnder = new Date(NOW.getTime() + STALE_AFTER_MS - 1_000);
 
@@ -181,7 +181,7 @@ describe("acquireHealthCheckLock", () => {
    * chạy thật mất khóa giữa chừng — và hai lượt sau đó chồng nhau, đúng thứ cả module này sinh
    * ra để chặn.
    */
-  it("release() của lượt đã bị giành khóa không xóa khóa của chủ mới", async () => {
+  it("does not delete a new owner's lock when the stale owner releases", async () => {
     const stale = await acquireHealthCheckLock({ now: NOW });
     const muchLater = new Date(NOW.getTime() + STALE_AFTER_MS + 60_000);
     const fresh = await acquireHealthCheckLock({ now: muchLater });
@@ -195,7 +195,7 @@ describe("acquireHealthCheckLock", () => {
     expect(await readRow()).toBeNull();
   });
 
-  it("release() gọi hai lần không ném lỗi", async () => {
+  it("allows release to be called twice", async () => {
     const held = await acquireHealthCheckLock({ now: NOW });
 
     await held.release();
@@ -204,7 +204,7 @@ describe("acquireHealthCheckLock", () => {
 });
 
 describe("readHealthCheckLockStatus", () => {
-  it("không có ai giữ thì báo không chạy", async () => {
+  it("reports no active run when the lock is absent", async () => {
     expect(await readHealthCheckLockStatus({ now: NOW })).toMatchObject({
       running: false,
       host: null,
@@ -212,7 +212,7 @@ describe("readHealthCheckLockStatus", () => {
     });
   });
 
-  it("đang có lượt chạy thì báo máy, tiến trình và số phút", async () => {
+  it("reports the host, process, and elapsed time for an active run", async () => {
     const held = await acquireHealthCheckLock({ now: NOW });
     const later = new Date(NOW.getTime() + 7 * 60_000);
 
@@ -230,7 +230,7 @@ describe("readHealthCheckLockStatus", () => {
    * một khái niệm là hai thứ sớm muộn cũng lệch nhau, và lúc lệch thì giao diện nói "đang chạy"
    * trong khi bấm nút lại giành được khóa.
    */
-  it("khóa mồ côi báo là KHÔNG chạy, nhưng vẫn nói máy nào bỏ lại", async () => {
+  it("reports a stale lock as not running while retaining holder details", async () => {
     await acquireHealthCheckLock({ now: NOW });
     const muchLater = new Date(NOW.getTime() + STALE_AFTER_MS + 60_000);
 
@@ -240,7 +240,7 @@ describe("readHealthCheckLockStatus", () => {
     expect(status.host).toBeTruthy();
   });
 
-  it("đọc trạng thái KHÔNG giành mất khóa của lượt đang chạy", async () => {
+  it("reads lock status without taking ownership", async () => {
     const held = await acquireHealthCheckLock({ now: NOW });
 
     await readHealthCheckLockStatus({ now: NOW });

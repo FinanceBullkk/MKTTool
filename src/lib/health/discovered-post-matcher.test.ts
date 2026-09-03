@@ -38,7 +38,7 @@ function job(overrides: Partial<CandidateJob> = {}): CandidateJob {
 }
 
 describe("subredditKey", () => {
-  it("quy mọi cách viết tên sub về một khóa", () => {
+  it("normalizes subreddit names and URLs to one key", () => {
     // Đích trong kho lưu `r/Trove`, permalink trả `Trove`, người dùng có thể gõ cả URL.
     expect(subredditKey("r/Trove")).toBe("trove");
     expect(subredditKey("Trove")).toBe("trove");
@@ -47,7 +47,7 @@ describe("subredditKey", () => {
 });
 
 describe("matchDiscoveredPosts", () => {
-  it("một bài, một job cùng sub, đúng giờ, khớp tiêu đề → gán", () => {
+  it("matches one post to one job with the same subreddit, time, and title", () => {
     const outcome = matchDiscoveredPosts([post()], [job()]);
 
     expect(outcome.matches).toHaveLength(1);
@@ -55,24 +55,24 @@ describe("matchDiscoveredPosts", () => {
     expect(outcome.ambiguous).toHaveLength(0);
   });
 
-  it("khác sub thì không gán, dù tiêu đề khớp", () => {
+  it("does not match a different subreddit even when the title matches", () => {
     const outcome = matchDiscoveredPosts([post()], [job({ subreddit: "r/selfhosted" })]);
 
     expect(outcome.matches).toHaveLength(0);
-    expect(outcome.ambiguous[0].reason).toContain("không có job nào đang chờ");
+    expect(outcome.ambiguous[0].reason).toContain("no pending job targets");
   });
 
-  it("đăng cách giờ dự kiến quá 24 tiếng thì không gán", () => {
+  it("does not match a post more than 24 hours from the scheduled time", () => {
     const outcome = matchDiscoveredPosts(
       [post({ postedAt: new Date(SCHEDULED.getTime() + 30 * HOUR) })],
       [job()],
     );
 
     expect(outcome.matches).toHaveLength(0);
-    expect(outcome.ambiguous[0].reason).toContain("quá 24 tiếng");
+    expect(outcome.ambiguous[0].reason).toContain("more than 24 hours");
   });
 
-  it("đúng ca 04/08/2026: cùng sub, đúng giờ, nhưng tiêu đề là bài khác → KHÔNG gán", () => {
+  it("does not match the same subreddit and time when the title differs", () => {
     // Nếu bộ ghép bỏ cửa tiêu đề, nó sẽ tự tạo lại đúng lỗi dán nhầm link phải sửa bằng tay.
     const outcome = matchDiscoveredPosts(
       [post()],
@@ -80,17 +80,17 @@ describe("matchDiscoveredPosts", () => {
     );
 
     expect(outcome.matches).toHaveLength(0);
-    expect(outcome.ambiguous[0].reason).toContain("tiêu đề");
+    expect(outcome.ambiguous[0].reason).toContain("title");
   });
 
-  it("hai job cùng khớp một bài thì không chọn hộ", () => {
+  it("does not choose when two jobs match one post", () => {
     const outcome = matchDiscoveredPosts([post()], [job(), job({ id: "job-2" })]);
 
     expect(outcome.matches).toHaveLength(0);
-    expect(outcome.ambiguous[0].reason).toContain("không dám chọn hộ");
+    expect(outcome.ambiguous[0].reason).toContain("will not choose one automatically");
   });
 
-  it("hai bài cùng khớp một job thì KHÔNG bài nào được gán", () => {
+  it("does not link either post when two posts match one job", () => {
     // Ca này từng là chỗ dễ sai nhất: gán bài đầu rồi từ chối bài sau nghe có vẻ hợp lý, nhưng
     // thứ tự đọc trang không phải bằng chứng về bài nào là bài thật.
     const outcome = matchDiscoveredPosts(
@@ -100,10 +100,10 @@ describe("matchDiscoveredPosts", () => {
 
     expect(outcome.matches).toHaveLength(0);
     expect(outcome.ambiguous).toHaveLength(2);
-    expect(outcome.ambiguous[0].reason).toContain("2 bài cùng khớp một job");
+    expect(outcome.ambiguous[0].reason).toContain("2 posts match the same job");
   });
 
-  it("bài đăng ngoài công cụ vẫn được nêu ra kèm lý do, không bị nuốt", () => {
+  it("returns unmatched external posts with a reason", () => {
     // Nick mua lại hoặc bài nuôi nick — không gán được là đúng, nhưng im lặng thì sai:
     // bài không được ghi làm bốn luật giữ nhịp đếm thiếu.
     const outcome = matchDiscoveredPosts([post()], []);
