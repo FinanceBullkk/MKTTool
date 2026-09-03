@@ -1,7 +1,3 @@
-import {
-  currentDeviceBrowserReadiness,
-  REQUIRED_SETUP_BROWSER_CAPABILITIES,
-} from "@/lib/relay/current-device-browser-health";
 import type {
   SetupPrimaryAction,
   SetupState,
@@ -72,15 +68,15 @@ export function setupStateMachine(input: SetupStateMachineInput): SetupStateResu
     return result(
       "Needs repair",
       { kind: "ADMIN", label: "Contact an administrator", href: "/relay-devices" },
-      "The installed compatibility set could not be verified.",
+      "The installed Relay version could not be verified.",
     );
   }
 
   if (input.update.status === "required") {
     return result(
       "Needs repair",
-      { kind: "UPDATE", label: "Download the current installer", href: "/setup#download" },
-      "This PC needs the current MKTTool for Windows release.",
+      { kind: "UPDATE", label: "Download the current Relay", href: "/setup#download" },
+      "Relay on this PC is older than the release currently provided by MKTTool.",
     );
   }
 
@@ -111,8 +107,8 @@ export function setupStateMachine(input: SetupStateMachineInput): SetupStateResu
   if (input.relay.status === "unreachable") {
     return result(
       "Needs repair",
-      { kind: "UPDATE", label: "Download the Windows installer", href: "/setup#download" },
-      "MKTTool is not running on this PC.",
+      { kind: "UPDATE", label: "Download Relay", href: "/setup#download" },
+      "Relay is not running on this PC.",
     );
   }
 
@@ -165,28 +161,9 @@ export function setupStateMachine(input: SetupStateMachineInput): SetupStateResu
     );
   }
 
-  const browser = currentDeviceBrowserReadiness(
-    health.browser,
-    REQUIRED_SETUP_BROWSER_CAPABILITIES,
-  );
-  if (!browser.ready) {
-    const becomingReady = ["browser-offline", "engine-not-ready"].includes(browser.state);
-    return becomingReady
-      ? result(
-          "Starting",
-          { kind: "WAIT", label: "Checking again automatically" },
-          browser.message,
-        )
-      : result(
-          "Needs repair",
-          { kind: "UPDATE", label: "Download the current installer", href: "/setup#download" },
-          browser.message,
-        );
-  }
-
   return result(
     "Ready",
-    { kind: "CONTINUE", label: "Continue (technical checks passed)", href: "/" },
-    "MKTTool technical checks passed on this PC. Identity isolation and production rollout remain unproven.",
+    { kind: "CONTINUE", label: "Relay PC is ready" },
+    "Relay is current, registered, and configured on this PC. Browser readiness remains a separate rollout boundary.",
   );
 }

@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
 import Link from "next/link";
-import { Download, ChevronRight, AlertTriangle } from "lucide-react";
+import { ChevronRight, Info } from "lucide-react";
+import { useState, type ReactNode } from "react";
 import { RelayEnrollCard } from "@/components/relay/relay-enroll-card";
 import { WorkspaceSetupChecklist } from "@/components/setup/workspace-setup-checklist";
 import type { SetupChecklist } from "@/lib/setup/setup-checklist";
@@ -10,287 +10,111 @@ import type { SetupChecklist } from "@/lib/setup/setup-checklist";
 export function OnboardingStepper({
   viewer,
   checklist,
-  installerDownloadUrl,
-  installerRelease,
-  installerEvidenceHref,
-  enrollCard,
-  checklistView,
+  relayDownloadSection,
 }: {
   viewer: { userId: string; email: string; isAdmin: boolean };
   checklist: SetupChecklist;
-  installerDownloadUrl: string;
-  installerRelease: InstallerDisplayMetadata;
-  /** Sanitized, authenticated release facts; never a filesystem path or secret-bearing URL. */
-  installerEvidenceHref?: string;
-  enrollCard?: ReactNode;
-  checklistView?: ReactNode;
+  relayDownloadSection: ReactNode;
 }) {
   const [activeStep, setActiveStep] = useState<1 | 2 | 3>(1);
-  const downloadable = installerRelease.available && installerRelease.metadataComplete;
   const workspaceReady = checklist.handoff.nextStepId === null;
-  const versionLabel = installerRelease.version ?? "chưa công bố";
+
+  function selectStep(step: 1 | 2 | 3) {
+    setActiveStep(step);
+    const targetId = step === 1 ? "download" : step === 2 ? "register" : "handoff";
+    window.history.replaceState(null, "", `#${targetId}`);
+    window.requestAnimationFrame(() => document.getElementById(targetId)?.scrollIntoView());
+  }
 
   return (
-    <div className="flex-1 flex flex-col min-w-0 min-h-0 p-6 overflow-y-auto max-w-5xl mx-auto space-y-6">
-      {/* 1. Page Title */}
+    <div className="mx-auto flex min-h-0 min-w-0 max-w-5xl flex-1 flex-col space-y-6 overflow-y-auto p-6">
       <div>
-        <h1 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
+        <h1 className="flex items-center gap-2 text-xl font-bold tracking-tight text-white">
           <span>⚙️</span>
           <span>Relay PC setup</span>
         </h1>
-        <p className="text-xs text-neutral-400 mt-1">
-          Three steps prepare this Relay PC: install MKT Browser, connect Relay, and verify the
-          technical handoff conditions.
+        <p className="mt-1 text-xs text-neutral-400">
+          Three steps connect this PC to the shared identity workspace: download Relay, register the
+          PC, then receive nick and proxy assignments.
         </p>
       </div>
 
-      {/* 2. Stepper Header Tabs */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        {/* Step 1 */}
-        <button
-          type="button"
-          onClick={() => setActiveStep(1)}
-          className={`p-3.5 rounded-2xl border text-left transition flex items-center gap-3 cursor-pointer ${
-            activeStep === 1
-              ? "bg-purple-950/30 border-purple-500/40 shadow-lg shadow-purple-500/10"
-              : "bg-white/[0.02] border-white/[0.06] hover:bg-white/[0.04]"
-          }`}
-        >
-          <div
-            className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs ${
-              activeStep === 1
-                ? "bg-purple-500 text-white shadow-md shadow-purple-500/40"
-                : "bg-white/[0.06] text-neutral-400"
-            }`}
-          >
-            1
-          </div>
-          <div>
-            <div className="text-xs font-bold text-white">Bước 1: Tải MKT Browser</div>
-            <div className="text-[11px] text-neutral-400">MKT Browser installer with Relay</div>
-          </div>
-        </button>
-
-        {/* Step 2 */}
-        <button
-          type="button"
-          onClick={() => setActiveStep(2)}
-          className={`p-3.5 rounded-2xl border text-left transition flex items-center gap-3 cursor-pointer ${
-            activeStep === 2
-              ? "bg-purple-950/30 border-purple-500/40 shadow-lg shadow-purple-500/10"
-              : "bg-white/[0.02] border-white/[0.06] hover:bg-white/[0.04]"
-          }`}
-        >
-          <div
-            className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs ${
-              activeStep === 2
-                ? "bg-purple-500 text-white shadow-md shadow-purple-500/40"
-                : "bg-white/[0.06] text-neutral-400"
-            }`}
-          >
-            2
-          </div>
-          <div>
-            <div className="text-xs font-bold text-white">Step 2: Register this Relay PC</div>
-            <div className="text-[11px] text-neutral-400">Enroll the PC and bind its key</div>
-          </div>
-        </button>
-
-        {/* Step 3 */}
-        <button
-          type="button"
-          onClick={() => setActiveStep(3)}
-          className={`p-3.5 rounded-2xl border text-left transition flex items-center gap-3 cursor-pointer ${
-            activeStep === 3
-              ? "bg-purple-950/30 border-purple-500/40 shadow-lg shadow-purple-500/10"
-              : "bg-white/[0.02] border-white/[0.06] hover:bg-white/[0.04]"
-          }`}
-        >
-          <div
-            className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs ${
-              activeStep === 3
-                ? "bg-purple-500 text-white shadow-md shadow-purple-500/40"
-                : "bg-white/[0.06] text-neutral-400"
-            }`}
-          >
-            3
-          </div>
-          <div>
-            <div className="text-xs font-bold text-white">Bước 3: Kiểm tra điều kiện pilot</div>
-            <div className="text-[11px] text-neutral-400">Các kiểm tra kỹ thuật và ràng buộc vận hành</div>
-          </div>
-        </button>
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+        <StepButton
+          number={1}
+          active={activeStep === 1}
+          title="Step 1: Download Relay"
+          description="Install the current Relay package on this PC"
+          onClick={() => selectStep(1)}
+        />
+        <StepButton
+          number={2}
+          active={activeStep === 2}
+          title="Step 2: Register this Relay PC"
+          description="Enroll the PC and request approval"
+          onClick={() => selectStep(2)}
+        />
+        <StepButton
+          number={3}
+          active={activeStep === 3}
+          title="Step 3: Receive nicks and proxies"
+          description="Complete the shared vault handoff"
+          onClick={() => selectStep(3)}
+        />
       </div>
 
-      {/* 3. Step Content Panes */}
-      {activeStep === 1 && (
-        <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-xl p-6 space-y-6">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div className="space-y-1">
-              <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                <span>⬇️</span>
-                <span>Bộ cài đặt MKT Browser {versionLabel} cho Windows</span>
-              </h3>
-              <p className="text-xs text-neutral-400 max-w-xl">
-                Install MKT Browser on this Relay PC. This is a controlled internal Windows beta:
-                use one browser profile at a time and keep login and input human-controlled. Browser
-                profile state, proxy settings, and local data stay on this Relay PC. Identity
-                isolation is not proven.
-              </p>
-            </div>
-
-            {downloadable ? (
-               <a
-                 href={installerDownloadUrl}
-                 className="brand-btn px-5 py-2.5 rounded-xl text-xs font-semibold text-white inline-flex items-center gap-2 shadow-lg shadow-purple-500/25"
-               >
-                 <Download size={14} />
-                 <span>
-                   Tải MKTBrowser-win-x64.exe
-                   {installerRelease.sizeBytes ? ` (${formatBytes(installerRelease.sizeBytes)})` : ""}
-                 </span>
-               </a>
-             ) : (
-               <span
-                 aria-disabled="true"
-                 className="px-5 py-2.5 rounded-xl text-xs font-semibold text-neutral-500 inline-flex items-center gap-2 bg-white/[0.04]"
-               >
-                 <Download size={14} />
-                 <span>Chưa thể tải — thiếu metadata phát hành</span>
-               </span>
-             )}
-           </div>
-
-           {!downloadable ? (
-             <div className="rounded-xl bg-amber-500/10 border border-amber-500/20 p-4 text-xs text-amber-200 space-y-1">
-               <div className="font-bold">Bộ cài chưa được xác nhận để phát hành</div>
-               <p className="text-neutral-300 text-[11px] leading-relaxed">
-                 {installerRelease.available
-                   ? `Object đã tồn tại nhưng thiếu tuple bắt buộc: ${installerRelease.metadataMissing.join(", ")}. Không tải hoặc chạy bản này.`
-                   : "Máy chủ chưa có object và metadata phát hành đầy đủ cho ứng viên hiện tại."}
-               </p>
-             </div>
-           ) : null}
-
-           {downloadable ? (
-             <dl className="grid gap-x-8 gap-y-2 text-[11px] text-neutral-300 sm:grid-cols-[auto_1fr]">
-               <dt className="text-neutral-500">Installer SHA-256</dt>
-               <dd className="font-mono break-all">{installerRelease.checksum}</dd>
-                <dt className="text-neutral-500">Bundled Relay</dt>
-               <dd>
-                 v{installerRelease.bundledRelayVersion} /{" "}
-                 <span className="font-mono break-all">{installerRelease.bundledRelaySha256}</span>
-                </dd>
-                <dt className="text-neutral-500">Candidate</dt>
-                <dd className="font-mono break-all">{installerRelease.candidateId}</dd>
-                <dt className="text-neutral-500">Payload manifest</dt>
-                <dd className="font-mono break-all">
-                  {installerRelease.payloadManifestSha256} ({installerRelease.payloadFileCount} files)
-                </dd>
-               <dt className="text-neutral-500">Browser source</dt>
-               <dd className="font-mono break-all">
-                 commit {installerRelease.browserSourceSha}; tree {installerRelease.browserSourceTree}
-               </dd>
-               <dt className="text-neutral-500">Engine pin</dt>
-               <dd>
-                 {installerRelease.engineKind} / {installerRelease.engineChannel} /{" "}
-                 {installerRelease.engineVersion} /{" "}
-                 <span className="font-mono break-all">{installerRelease.engineSha256}</span>
-               </dd>
-                <dt className="text-neutral-500">Signing</dt>
-                <dd>{signingLabel(installerRelease.signingStatus)}</dd>
-                {installerRelease.signingStatus === "unsigned-internal-exception" ? (
-                  <>
-                    <dt className="text-neutral-500">Unsigned exception expires</dt>
-                    <dd>{installerRelease.signingExceptionExpiresAt}</dd>
-                  </>
-                ) : null}
-                {installerEvidenceHref ? (
-                  <>
-                    <dt className="text-neutral-500">Evidence</dt>
-                    <dd>
-                      <a className="underline" href={installerEvidenceHref}>
-                        Open sanitized release provenance
-                      </a>
-                    </dd>
-                  </>
-                ) : null}
-             </dl>
-           ) : null}
-
-          {/* SmartScreen guidance is shown only for a complete, explicitly unsigned tuple. */}
-          {downloadable && installerRelease.signingStatus === "unsigned-internal-exception" ? (
-          <div className="rounded-xl bg-amber-500/10 border border-amber-500/20 p-4 text-xs text-amber-200 space-y-2">
-            <div className="font-bold flex items-center gap-1.5 text-amber-300">
-              <AlertTriangle size={14} />
-              <span>Kiểm soát SmartScreen cho ngoại lệ nội bộ:</span>
-            </div>
-            <p className="text-neutral-300 text-[11px] leading-relaxed">
-              Chỉ tiếp tục sau khi SHA-256 ở trên khớp chính xác và ngoại lệ chưa hết
-              hạn. Không tắt Defender hoặc SmartScreen. Nếu bất kỳ metadata nào khác, dừng
-              và báo sự cố.
-            </p>
-            <div className="flex items-center gap-2 font-mono text-[11px] text-amber-300 bg-black/40 p-2.5 rounded-lg">
-              <span>1. Bấm vào <strong>&quot;More info&quot;</strong></span>
-              <span>➔</span>
-              <span>2. Chọn <strong>&quot;Run anyway&quot;</strong> để tiếp tục cài đặt.</span>
-            </div>
-          </div>
-          ) : null}
-
-          <div className="pt-2 flex justify-end">
-            <button
-              type="button"
-              onClick={() => setActiveStep(2)}
-              className="px-4 py-2 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] text-xs font-medium text-white transition inline-flex items-center gap-1.5 cursor-pointer"
-            >
-              <span>Tiếp tục: Bước 2</span>
-              <ChevronRight size={14} />
-            </button>
+      {activeStep === 1 ? (
+        <div className="space-y-4">
+          {relayDownloadSection}
+          <div className="flex justify-end pt-2">
+            <NextButton label="Continue: Step 2" onClick={() => selectStep(2)} />
           </div>
         </div>
-      )}
+      ) : null}
 
-      {activeStep === 2 && (
-        <div className="space-y-4">
-          {enrollCard || <RelayEnrollCard viewer={viewer} />}
-          <div className="flex justify-between items-center pt-2">
-            <button
-              type="button"
-              onClick={() => setActiveStep(1)}
-              className="px-4 py-2 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] text-xs font-medium text-neutral-400 hover:text-white transition cursor-pointer"
-            >
-              ← Quay lại Bước 1
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveStep(3)}
-              className="px-4 py-2 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] text-xs font-medium text-white transition inline-flex items-center gap-1.5 cursor-pointer"
-            >
-              <span>Tiếp tục: Bước 3</span>
-              <ChevronRight size={14} />
-            </button>
+      {activeStep === 2 ? (
+        <div id="register" className="space-y-4 scroll-mt-6">
+          <RelayEnrollCard viewer={viewer} onDownloadRelay={() => selectStep(1)} />
+          <div className="flex items-center justify-between pt-2">
+            <BackButton label="Back to Step 1" onClick={() => selectStep(1)} />
+            <NextButton label="Continue: Step 3" onClick={() => selectStep(3)} />
           </div>
         </div>
-      )}
+      ) : null}
 
-      {activeStep === 3 && (
-        <div className="space-y-4">
-          {checklistView || <WorkspaceSetupChecklist checklist={checklist} isAdmin={viewer.isAdmin} />}
-          
-          <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5 flex items-center justify-between">
+      {activeStep === 3 ? (
+        <div id="handoff" className="space-y-4 scroll-mt-6">
+          <WorkspaceSetupChecklist checklist={checklist} isAdmin={viewer.isAdmin} />
+
+          <div className="rounded-2xl border border-sky-500/20 bg-sky-500/[0.06] p-5">
+            <div className="flex items-start gap-3">
+              <Info className="mt-0.5 shrink-0 text-sky-300" size={18} />
+              <div className="space-y-1">
+                <h4 className="text-xs font-bold text-white">MKT Browser is outside this setup</h4>
+                <p className="text-[11px] leading-relaxed text-neutral-300">
+                  MKT Browser is not distributed from this page and is not required to download
+                  Relay, register a Relay PC, or receive nick and proxy assignments. It remains in
+                  the separate Browser rollout lane, with no identity-isolation approval implied.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 text-lg">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-emerald-500/20 bg-emerald-500/10 text-lg text-emerald-400">
                 🚀
               </div>
               <div>
                 <h4 className="text-xs font-bold text-white">
-                  {workspaceReady ? "Workspace handoff checks recorded" : "Workspace handoff is still pending"}
+                  {workspaceReady
+                    ? "Workspace handoff checks recorded"
+                    : "Workspace handoff is still pending"}
                 </h4>
                 <p className="text-[11px] text-neutral-400">
                   {workspaceReady
-                    ? "The identity workspace is ready for handoff. Browser installer availability is separate and does not grant Browser rollout or identity-isolation approval."
-                    : "Finish the highlighted workspace handoff steps. Browser installer availability is informational and does not block workspace readiness."}
+                    ? "The shared identity workspace is ready for handoff."
+                    : "Finish the highlighted nick, proxy, owner, and Relay PC handoff steps."}
                 </p>
               </div>
             </div>
@@ -298,7 +122,7 @@ export function OnboardingStepper({
             {workspaceReady ? (
               <Link
                 href="/"
-                className="brand-btn px-4 py-2 rounded-xl text-xs font-semibold text-white inline-flex items-center gap-2"
+                className="brand-btn inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold text-white"
               >
                 <span>Open Dashboard</span>
                 <ChevronRight size={14} />
@@ -306,47 +130,72 @@ export function OnboardingStepper({
             ) : null}
           </div>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }
 
-export interface InstallerDisplayMetadata {
-  available: boolean;
-  metadataComplete: boolean;
-  metadataMissing: string[];
-  sizeBytes: number | null;
-  version: string | null;
-  checksum: string | null;
-  bundledRelayVersion: number | null;
-  bundledRelaySha256: string | null;
-  payloadManifestSha256: string | null;
-  payloadFileCount: number | null;
-  candidateId: string | null;
-  browserSourceSha: string | null;
-  browserSourceTree: string | null;
-  engineKind: string | null;
-  engineChannel: string | null;
-  engineVersion: string | null;
-  engineSha256: string | null;
-  signingStatus: "authenticode" | "unsigned-internal-exception" | "unknown";
-  signingExceptionExpiresAt: string | null;
+function StepButton({
+  number,
+  active,
+  title,
+  description,
+  onClick,
+}: {
+  number: number;
+  active: boolean;
+  title: string;
+  description: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex cursor-pointer items-center gap-3 rounded-2xl border p-3.5 text-left transition ${
+        active
+          ? "border-purple-500/40 bg-purple-950/30 shadow-lg shadow-purple-500/10"
+          : "border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.04]"
+      }`}
+    >
+      <div
+        className={`flex h-9 w-9 items-center justify-center rounded-xl text-xs font-bold ${
+          active
+            ? "bg-purple-500 text-white shadow-md shadow-purple-500/40"
+            : "bg-white/[0.06] text-neutral-400"
+        }`}
+      >
+        {number}
+      </div>
+      <div>
+        <div className="text-xs font-bold text-white">{title}</div>
+        <div className="text-[11px] text-neutral-400">{description}</div>
+      </div>
+    </button>
+  );
 }
 
-function signingLabel(status: InstallerDisplayMetadata["signingStatus"]): string {
-  if (status === "authenticode") return "Authenticode verified";
-  if (status === "unsigned-internal-exception") return "Unsigned — internal exception only";
-  return "Unknown — do not distribute";
+function BackButton({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="cursor-pointer rounded-xl bg-white/[0.05] px-4 py-2 text-xs font-medium text-neutral-400 transition hover:bg-white/[0.1] hover:text-white"
+    >
+      ← {label}
+    </button>
+  );
 }
 
-function formatBytes(bytes: number): string {
-  if (!Number.isFinite(bytes) || bytes <= 0) return "";
-  const units = ["B", "KB", "MB", "GB"];
-  let value = bytes;
-  let unit = 0;
-  while (value >= 1024 && unit < units.length - 1) {
-    value /= 1024;
-    unit += 1;
-  }
-  return `${value.toFixed(unit === 0 ? 0 : 1)} ${units[unit]}`;
+function NextButton({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="inline-flex cursor-pointer items-center gap-1.5 rounded-xl bg-white/[0.05] px-4 py-2 text-xs font-medium text-white transition hover:bg-white/[0.1]"
+    >
+      <span>{label}</span>
+      <ChevronRight size={14} />
+    </button>
+  );
 }

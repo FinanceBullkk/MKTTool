@@ -25,8 +25,10 @@ const STARTING_RETRY_MS = 5_000;
 
 export function RelayEnrollCard({
   viewer,
+  onDownloadRelay,
 }: {
   viewer: { userId: string; email: string; isAdmin: boolean };
+  onDownloadRelay?: () => void;
 }) {
   const [relay, setRelay] = useState<SetupRelayHealth>({ status: "unchecked" });
   const [device, setDevice] = useState<SetupDeviceRegistry>({ status: "unknown" });
@@ -242,6 +244,7 @@ export function RelayEnrollCard({
         email={viewer.email}
         busy={busy}
         detail={detail}
+        onDownloadRelay={onDownloadRelay}
         onAction={verdict.action.kind === "CONFIRM" && health ? bindThisPc : confirmThisPc}
       />
       <SetupSupportDetails health={health} />

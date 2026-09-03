@@ -107,8 +107,10 @@ the queue, posting rules, warmup, and publishing paths do not silently activate 
 > **Setup conflict boundary:** the combined installer persists its read-only conflict detector beside
 > MKT Browser. `get_runtime_info` adds `local-install-ready-v1` only when that detector verifies the
 > expected Browser and Relay ownership, ports `47821`/`47822`, MultiZen process state, and startup
-> entries. `/setup` requires this runtime-dependent capability and routes absence to installer repair;
-> ordinary Relay profile operations retain the base managed-capability requirement.
+> entries. The Relay-first `/setup` journey no longer consumes this Browser capability: Relay PC
+> registration and identity-workspace handoff can complete without distributing Browser. Browser
+> profile operations retain their managed-capability checks, so this UX separation does not grant
+> Browser readiness, rollout approval, or identity-isolation approval.
 
 > **P0 rollout boundary:** automated proxy-egress, lease-journal, and technical readiness checks are green, but
 > `license-capacity-v1` is not advertised because vendor start/heartbeat/end state is not connected

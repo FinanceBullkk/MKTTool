@@ -204,8 +204,14 @@ proxy, không cần tài khoản nào, và kiểm tra được phần lớn ch�
 
 ## Workspace input order
 
-`/setup` now keeps two checklists separate so the shared identity workspace can be handed over
-without reopening a parked posting workflow.
+`/setup` now presents one Relay-first operator journey before the database-backed readiness list:
+
+1. **Download Relay** from the existing authenticated release channel and install it on this PC.
+2. **Register this Relay PC** and wait for administrator approval when required.
+3. **Receive nicks and proxies** by completing the shared-vault handoff below.
+
+The final step keeps workspace handoff separate from the parked posting checklist, so handing over
+the shared identity workspace does not reopen a posting workflow.
 
 **Workspace handoff determines readiness:**
 
@@ -217,7 +223,10 @@ without reopening a parked posting workflow.
 4. **Owner and PC assignment** (`/accounts`) — bind every active account to its responsible operator
    and Relay device.
 
-Browser installer availability is displayed separately and does not block workspace readiness.
+MKT Browser is not distributed from `/setup`. It appears only as a secondary boundary notice and as
+diagnostic data inside the collapsed support details for the separate Browser lane. Browser health
+does not block Relay download, Relay PC registration, or workspace readiness. No Browser rollout or
+identity-isolation approval is implied.
 
 **Posting preparation is a separate checklist:** publishing targets, content, and the first queued
 job remain implemented, but this branch is hidden while all posting platforms are outside the
