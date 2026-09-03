@@ -34,9 +34,11 @@ export interface ProxyItemData {
 export function ProxyConsole({
   proxies,
   isAdmin,
+  adminContactEmail,
 }: {
   proxies: ProxyItemData[];
   isAdmin: boolean;
+  adminContactEmail: string;
 }) {
   const [filter, setFilter] = useState<"all" | "active" | "unassigned" | "error">("all");
   const [search, setSearch] = useState("");
@@ -186,7 +188,22 @@ export function ProxyConsole({
           </div>
           <h3 className="text-sm font-semibold text-white">Chưa có proxy nào phù hợp</h3>
           <p className="mt-1 text-xs text-neutral-400 max-w-sm">
-            Bấm nút <strong>&quot;Thêm Proxy&quot;</strong> để nạp IP tĩnh 4G Mobile hoặc Dân cư cho dàn tài khoản.
+            {proxies.length > 0 ? (
+              "Không có proxy khớp bộ lọc hiện tại. Đổi bộ lọc hoặc từ khóa tìm kiếm để xem lại kho."
+            ) : isAdmin ? (
+              <>
+                Bấm nút <strong>&quot;Thêm Proxy&quot;</strong> để nạp IP tĩnh 4G Mobile hoặc Dân cư
+                cho dàn tài khoản.
+              </>
+            ) : (
+              <>
+                ADMIN phụ trách nạp và gán proxy. Liên hệ quản trị viên tại{" "}
+                <a href={`mailto:${adminContactEmail}`} className="underline">
+                  {adminContactEmail}
+                </a>{" "}
+                rồi chờ proxy được chuẩn bị.
+              </>
+            )}
           </p>
         </div>
       ) : (

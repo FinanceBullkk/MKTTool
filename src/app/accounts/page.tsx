@@ -11,6 +11,7 @@ import { AccountReadinessCell } from "@/components/vault/account-readiness-badge
 import { AccountVaultForm } from "@/components/vault/account-vault-form";
 import { describeAccountReadiness } from "@/lib/accounts/account-readiness";
 import { createAccount } from "@/lib/accounts/vault-create-actions";
+import { readAdminContactEmail } from "@/lib/auth/allowed-emails";
 import { readActor } from "@/lib/auth/require-actor";
 import {
   accountAgeInDays,
@@ -48,6 +49,7 @@ export default async function AccountsPage() {
 
   const canCreate = freeProxies.length > 0;
   const defaultColdStartUntil = defaultColdStartDayKey();
+  const adminContactEmail = readAdminContactEmail();
 
   return (
     <>
@@ -117,10 +119,23 @@ export default async function AccountsPage() {
       <Card title="Thêm nick">
         {!canCreate ? (
           <EmptyState>
-            Cần có ít nhất 1 proxy chưa gắn nick trước đã.{" "}
-            <Link href="/proxies" className="underline">
-              Thêm proxy
-            </Link>
+            {viewer?.role === "ADMIN" ? (
+              <>
+                Cần có ít nhất 1 proxy chưa gắn nick trước đã.{" "}
+                <Link href="/proxies" className="underline">
+                  Thêm proxy
+                </Link>
+              </>
+            ) : (
+              <>
+                Kho hiện chưa có proxy rảnh. ADMIN phụ trách nạp và gán proxy; liên hệ quản trị
+                viên tại{" "}
+                <a href={`mailto:${adminContactEmail}`} className="underline">
+                  {adminContactEmail}
+                </a>{" "}
+                rồi chờ proxy được chuẩn bị.
+              </>
+            )}
           </EmptyState>
         ) : (
           <AccountVaultForm action={createAccount} submitLabel="Thêm nick">

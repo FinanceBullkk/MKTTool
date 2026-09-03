@@ -27,7 +27,7 @@ export function OnboardingStepper({
 }) {
   const [activeStep, setActiveStep] = useState<1 | 2 | 3>(1);
   const downloadable = installerRelease.available && installerRelease.metadataComplete;
-  const workspaceReady = checklist.nextStepId === null && downloadable;
+  const workspaceReady = checklist.handoff.nextStepId === null;
   const versionLabel = installerRelease.version ?? "chưa công bố";
 
   return (
@@ -283,12 +283,12 @@ export function OnboardingStepper({
               </div>
               <div>
                 <h4 className="text-xs font-bold text-white">
-                  {workspaceReady ? "Technical setup checks recorded" : "Technical setup is still pending"}
+                  {workspaceReady ? "Workspace handoff checks recorded" : "Workspace handoff is still pending"}
                 </h4>
                 <p className="text-[11px] text-neutral-400">
                   {workspaceReady
-                    ? "You may return to the dashboard for the controlled internal beta. Identity isolation is not proven, and login, OTP, CAPTCHA, typing, and posting remain human-controlled."
-                    : "Finish the highlighted workspace steps and verify the installer tuple before opening a profile. Identity isolation is not proven, and all login, OTP, CAPTCHA, typing, and posting remain human-controlled."}
+                    ? "The identity workspace is ready for handoff. Browser installer availability is separate and does not grant Browser rollout or identity-isolation approval."
+                    : "Finish the highlighted workspace handoff steps. Browser installer availability is informational and does not block workspace readiness."}
                 </p>
               </div>
             </div>

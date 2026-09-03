@@ -1,4 +1,5 @@
 import { readActor } from "@/lib/auth/require-actor";
+import { readAdminContactEmail } from "@/lib/auth/allowed-emails";
 import { prisma } from "@/lib/db/prisma-client";
 import { ProxyConsole } from "@/components/proxies/proxy-console";
 
@@ -14,6 +15,13 @@ export default async function ProxiesPage() {
   ]);
 
   const isAdmin = viewer?.role === "ADMIN";
+  const adminContactEmail = readAdminContactEmail();
 
-  return <ProxyConsole proxies={proxies} isAdmin={isAdmin} />;
+  return (
+    <ProxyConsole
+      proxies={proxies}
+      isAdmin={isAdmin}
+      adminContactEmail={adminContactEmail}
+    />
+  );
 }

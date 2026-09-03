@@ -284,7 +284,9 @@ describe("createPostJob — phạm vi bàn giao đóng", () => {
     const result = await createPostJob(null, draftForm(seeded));
 
     expect(result.ok).toBe(false);
-    expect(result.message).toContain("ROLLOUT_PLATFORMS");
+    expect(result.message).toContain("chỉ dùng để xem lịch sử");
+    expect(result.message).toContain("/accounts");
+    expect(result.message).not.toContain("ROLLOUT_PLATFORMS");
     expect(await prisma.postJob.count()).toBe(0);
   });
 

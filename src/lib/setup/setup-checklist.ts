@@ -21,6 +21,7 @@
  */
 import { prisma } from "@/lib/db/prisma-client";
 import { describeAccountReadiness } from "@/lib/accounts/account-readiness";
+import { isPostingFullyParked } from "@/lib/platforms/rollout-scope";
 
 export type SetupStepState = "done" | "todo" | "partial";
 
@@ -39,15 +40,31 @@ export interface SetupStep {
   adminOnly?: boolean;
 }
 
-export interface SetupChecklist {
+export interface SetupChecklistSection {
   steps: SetupStep[];
   /** Bước đầu tiên chưa xong — thứ trang này highlight. `null` khi đã đủ. */
   nextStepId: string | null;
   doneCount: number;
 }
 
+export interface SetupChecklist {
+  /** Các bước đủ để bàn giao kho danh tính, không phụ thuộc pipeline đăng bài. */
+  handoff: SetupChecklistSection;
+  /** Giữ riêng để hiện lại khi ít nhất một nền tảng quay vào phạm vi bàn giao. */
+  posting: SetupChecklistSection & { inRolloutScope: boolean };
+}
+
 function plural(count: number, unit: string, empty: string): string {
   return count === 0 ? empty : `${count} ${unit}`;
+}
+
+function summarize(steps: SetupStep[]): SetupChecklistSection {
+  const next = steps.find((step) => step.state !== "done");
+  return {
+    steps,
+    nextStepId: next?.id ?? null,
+    doneCount: steps.filter((step) => step.state === "done").length,
+  };
 }
 
 export async function loadSetupChecklist(): Promise<SetupChecklist> {
@@ -82,7 +99,7 @@ export async function loadSetupChecklist(): Promise<SetupChecklist> {
     return !codes.some((code) => ["NO_OWNER", "NO_DEVICE", "DEVICE_REVOKED", "CLUSTER_DRIFT"].includes(code));
   }).length;
 
-  const steps: SetupStep[] = [
+  const handoffSteps: SetupStep[] = [
     {
       id: "relay",
       title: "Install MKTTool on team PCs",
@@ -136,6 +153,9 @@ export async function loadSetupChecklist(): Promise<SetupChecklist> {
       linkLabel: "Review incomplete accounts",
       adminOnly: true,
     },
+  ];
+
+  const postingSteps: SetupStep[] = [
     {
       id: "targets",
       title: "Add publishing targets",
@@ -165,11 +185,11 @@ export async function loadSetupChecklist(): Promise<SetupChecklist> {
     },
   ];
 
-  const next = steps.find((step) => step.state !== "done");
-
   return {
-    steps,
-    nextStepId: next?.id ?? null,
-    doneCount: steps.filter((step) => step.state === "done").length,
+    handoff: summarize(handoffSteps),
+    posting: {
+      ...summarize(postingSteps),
+      inRolloutScope: !isPostingFullyParked(),
+    },
   };
 }

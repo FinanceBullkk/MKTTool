@@ -93,6 +93,13 @@ export function readEmailAccessList(env: EmailAccessEnv = process.env): EmailAcc
   return { allowed, admins };
 }
 
+/** Đầu mối hỗ trợ duy nhất lấy từ thứ tự đã cấu hình trong `ADMIN_EMAILS`. */
+export function readAdminContactEmail(env: EmailAccessEnv = process.env): string {
+  const [contact] = readEmailAccessList(env).admins;
+  if (!contact) throw new Error("Không có email quản trị viên để làm đầu mối hỗ trợ.");
+  return contact;
+}
+
 /** Email này có được phép đăng nhập không. */
 export function isEmailAllowed(email: string, list: EmailAccessList): boolean {
   return list.allowed.includes(normalizeEmail(email));

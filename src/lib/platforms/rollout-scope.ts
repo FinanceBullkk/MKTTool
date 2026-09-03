@@ -41,6 +41,17 @@ import { TARGET_PLATFORMS } from "./platform-family";
 /** Tên biến môi trường mở lại nền tảng. Ở đây để test và tài liệu cùng đọc một chỗ. */
 export const ROLLOUT_SCOPE_ENV = "ROLLOUT_PLATFORMS";
 
+const PLATFORM_LABELS: Record<string, string> = {
+  REDDIT: "Reddit",
+  FACEBOOK_PAGE: "Facebook Fanpage",
+  FACEBOOK_GROUP: "Facebook Group",
+};
+
+/** Nhãn dành cho operator; enum kỹ thuật không đi thẳng ra thông báo. */
+export function rolloutPlatformLabel(platform: string): string {
+  return PLATFORM_LABELS[platform.toUpperCase()] ?? "Nền tảng này";
+}
+
 /**
  * Đọc phạm vi từ môi trường ở **thời điểm gọi**, không phải lúc nạp module.
  *
@@ -86,9 +97,10 @@ export function isPostingFullyParked(): boolean {
  * trang mà quyết định phạm vi đã bỏ lại phía sau.
  */
 export function parkedPlatformMessage(platform: string): string {
+  const label = rolloutPlatformLabel(platform);
   return (
-    `${platform} đã ra khỏi phạm vi bàn giao từ 02/09/2026 nên đường đăng bị khóa. ` +
-    `Trang vẫn xem được, nhưng không đăng được. Mở lại là quyết định của chủ dự án ` +
-    `(đặt ${ROLLOUT_SCOPE_ENV}), kèm theo mọi mục còn treo của nền tảng đó.`
+    `${label} đã ra khỏi phạm vi bàn giao từ 02/09/2026 nên không đăng được. ` +
+    `Trang này chỉ dùng để xem lịch sử. Quay lại kho nick tại /accounts để tiếp tục; ` +
+    `nếu nghiệp vụ này được mở lại, liên hệ chủ dự án.`
   );
 }
