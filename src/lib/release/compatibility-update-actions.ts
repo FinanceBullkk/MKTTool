@@ -25,6 +25,7 @@ import { signedManifestDigest } from "./compatibility-manifest-crypto";
 const requestSchema = z.object({
   deviceId: z.string().min(1, "Device is required."),
   repairMissingState: z.enum(["true", "false"]).default("false").transform((value) => value === "true"),
+  expectedTargetSequence: z.coerce.number().int().positive("Target sequence is required."),
 });
 
 export interface CompatibilityUpdateTicketResult extends ActionResult {
@@ -66,6 +67,12 @@ export const issueCompatibilityUpdateTicket = adminAction(
         return {
           ok: false,
           message: `The configured compatibility smoke ObserverProxy "${label}" is missing or inactive.`,
+        };
+      }
+      if (release.manifest.manifest.sequence !== parsed.data.expectedTargetSequence) {
+        return {
+          ok: false,
+          message: "The signed compatibility target changed. Review the new target before retrying.",
         };
       }
 

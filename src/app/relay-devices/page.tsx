@@ -226,6 +226,7 @@ export default async function RelayDevicesPage() {
                       {!device.revokedAt ? (
                         <RelayCompatibilityUpdateButton
                           deviceId={device.id}
+                          deviceName={device.name}
                           devicePublicKey={device.publicKey}
                         />
                       ) : null}

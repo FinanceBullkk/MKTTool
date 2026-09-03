@@ -26,15 +26,17 @@
  * thẳng lên máy chủ. Nhờ vậy **việc chung hằng ngày vẫn chạy khi cầu nối tắt**, và cầu nối chỉ
  * cần thiết đúng lúc thật sự có bí mật mới.
  */
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { ActionResult } from "@/lib/actions/action-result";
 import { RelayOutdatedNotice } from "@/components/relay/relay-outdated-notice";
+import { describeSelectionChange, type LabeledSelection, type SelectionChange } from "@/lib/forms/selection-change";
 import {
   describeRelayFailure,
   encryptForVault,
   outdatedRelayVersion,
 } from "@/lib/relay/relay-browser-client";
 import type { EncryptForVaultReply } from "@/lib/relay/relay-endpoints";
+import { AccountProxyChangeConfirmation } from "./account-proxy-change-confirmation";
 
 /**
  * Ô nhập → cột trong `Account`.
@@ -52,21 +54,51 @@ export function AccountVaultForm({
   action,
   submitLabel,
   children,
+  proxyChange,
 }: {
   action: (prev: ActionResult | null, formData: FormData) => Promise<ActionResult>;
   submitLabel: string;
   children: React.ReactNode;
+  proxyChange?: {
+    initial: LabeledSelection | null;
+    options: LabeledSelection[];
+  };
 }) {
+  const formRef = useRef<HTMLFormElement>(null);
   const [state, setState] = useState<ActionResult | null>(null);
   const [pending, setPending] = useState(false);
+  const [proxyConfirmation, setProxyConfirmation] = useState<SelectionChange | null>(null);
   // Chỉ bật lên, không tắt — xem `noteRelayVersion` ở panel thao tác kho.
   const [outdatedVersion, setOutdatedVersion] = useState<number | null>(null);
 
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (pending) return;
 
     const formData = new FormData(event.currentTarget);
+    requestSubmit(formData);
+  }
+
+  function requestSubmit(formData: FormData) {
+    const change = proxyChange
+      ? describeSelectionChange({
+          initial: proxyChange.initial,
+          nextValue: String(formData.get("proxyId") ?? ""),
+          options: proxyChange.options,
+          emptyLabel: "No proxy assigned",
+        })
+      : null;
+    if (change && change.afterValue !== proxyConfirmation?.afterValue) {
+      setState(null);
+      setProxyConfirmation(change);
+      return;
+    }
+
+    void prepareAndSubmit(formData);
+  }
+
+  async function prepareAndSubmit(formData: FormData) {
+    setProxyConfirmation(null);
 
     // Lấy bí mật RA KHỎI FormData ngay, kể cả khi lát nữa có lỗi: từ dòng này trở đi không có
     // đường nào gửi chúng lên máy chủ nữa, dù nhánh nào chạy.
@@ -126,7 +158,7 @@ export function AccountVaultForm({
     // `method="post"` chứ không để mặc định: nếu vì lý do nào đó trình duyệt vẫn gửi form theo
     // đường của nó, dữ liệu phải nằm trong thân request chứ không nằm trong URL — thanh địa chỉ
     // và lịch sử duyệt web là hai nơi không bao giờ được có mật khẩu.
-    <form method="post" onSubmit={handleSubmit} className="space-y-4">
+    <form ref={formRef} method="post" onSubmit={handleSubmit} className="space-y-4">
       {outdatedVersion !== null ? <RelayOutdatedNotice relayVersion={outdatedVersion} /> : null}
 
       <div className="grid gap-4 sm:grid-cols-2">{children}</div>
@@ -143,13 +175,25 @@ export function AccountVaultForm({
         </p>
       ) : null}
 
-      <button
-        type="submit"
-        disabled={pending}
-        className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-neutral-700 disabled:opacity-50 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-300"
-      >
-        {pending ? "Đang lưu…" : submitLabel}
-      </button>
+      {proxyConfirmation ? (
+        <AccountProxyChangeConfirmation
+          change={proxyConfirmation}
+          pending={pending}
+          onConfirm={() => {
+            const form = formRef.current;
+            if (form) requestSubmit(new FormData(form));
+          }}
+          onCancel={() => setProxyConfirmation(null)}
+        />
+      ) : (
+        <button
+          type="submit"
+          disabled={pending}
+          className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-neutral-700 disabled:opacity-50 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-300"
+        >
+          {pending ? "Saving..." : submitLabel}
+        </button>
+      )}
     </form>
   );
 }
