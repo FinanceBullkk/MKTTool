@@ -65,9 +65,9 @@ export function buildPlaywrightProxy(proxy: ProxyRecordForLaunch): {
 
   if (config.protocol === "socks5" && config.username) {
     throw new ObserverSessionError(
-      `Proxy quan sát viên "${proxy.label}" khai socks5 kèm user/mật khẩu, nhưng Chromium ` +
-        `không xác thực được với SOCKS5 — nó sẽ bỏ qua thông tin đăng nhập. ` +
-        `Đổi giao thức sang http (hầu hết nhà bán phục vụ cả hai trên cùng cổng).`,
+      `Observer proxy "${proxy.label}" uses SOCKS5 with a username and password, but Chromium ` +
+        `cannot authenticate SOCKS5 and would ignore those credentials. ` +
+        `Change the protocol to HTTP; most providers support both protocols on the same port.`,
     );
   }
 
@@ -86,7 +86,7 @@ export async function openObserverSession(proxy: ProxyRecordForLaunch): Promise<
     browser = await chromium.launch({ headless: true, proxy: playwrightProxy });
   } catch (cause) {
     throw new ObserverSessionError(
-      `Không mở được Chromium cho bộ dò. Nếu đây là lần chạy đầu, cài trình duyệt bằng ` +
+      `Chromium could not be opened for the health checker. If this is the first run, install it with ` +
         `"npx playwright install chromium".`,
       { cause },
     );

@@ -23,6 +23,14 @@ names.
 | **ticket** (*vé*) | A short-lived, single-use encrypted instruction issued to one Relay PC. The browser transports it but cannot read its contents. | `src/lib/tickets`; `TicketEnvelope` |
 | **operator key** (*khóa vùng operator*) | The key held by Relay that opens nick credentials on an authorized Relay PC. The server stores only a sealed grant for the receiving PC. | `VAULT_KEY_OPERATOR`; `RelayDevice.operatorKeyGrant` |
 | **Relay PC revocation** (*thu hồi máy*) | The irreversible action that blocks a Relay PC from receiving new tickets. It does not erase secrets already stored on that PC. | `RelayDevice.revokedAt`; route `/relay-devices` |
+| **posting queue** (*hàng đợi*) | The schedule of posting jobs and their current rule verdicts. | Route `/queue`; Prisma model `PostJob` |
+| **posting target** (*đích đăng*) | The subreddit, Facebook Group, or Facebook Page that a job would publish to. | Prisma model `PlatformTarget` |
+| **posting rules** (*bộ luật*) | The safety checks evaluated for a proposed posting job. Each rule returns Allow, Warning, or Block with a user-readable reason. | `src/lib/rules` |
+| **rule verdict** (*kết luận luật*) | The stored result of one posting rule, including its level and explanation. | `PostJob.ruleVerdicts`; `RuleResult` |
+| **value post** (*bài hữu ích*) | A non-promotional contribution counted toward a target's promotional ratio. | Content type `VALUE` |
+| **promotional post** (*bài quảng cáo*) | A post that promotes the team's product or service and consumes promotional-ratio capacity. | Content type `PROMO` |
+| **thread collision** (*đụng độ thread*) | Two nicks under the same operation touching the same thread, which is a non-overridable coordination risk. | Rule `thread-collision`; `Interaction.threadKey` |
+| **health check** (*lần dò sức khỏe*) | An outside-visibility check used to detect stale, hidden, checkpointed, or untracked nick activity. | Prisma model `HealthCheck`; route `/health` |
 
 `Relay` or *cầu nối Relay* names the background software running on a **Relay PC**. Do not use
 those software terms as another name for the PC itself.
@@ -120,3 +128,13 @@ those software terms as another name for the PC itself.
 | `Sub cho phép đăng link` | `Subreddit allows link posts` |
 | `Đang dùng` | `Active` |
 | `Cài đặt` | `Settings` |
+| `Hàng đợi` | `Posting queue` |
+| `Xếp lịch đăng` | `Schedule a post` |
+| `Đích đăng` | `Posting target` |
+| `Bộ luật` | `Posting rules` |
+| `Kết luận luật` / `verdict` | `Rule verdict` |
+| `Bài hữu ích` | `Value post` |
+| `Bài quảng cáo` | `Promotional post` |
+| `Đụng độ thread` | `Thread collision` |
+| `Kết quả dò gần nhất` | `Latest health check` |
+| `Đăng được` / `Cân nhắc` / `Bị chặn` | `Can post` / `Consider` / `Blocked` |

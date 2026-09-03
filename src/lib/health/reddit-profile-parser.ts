@@ -203,8 +203,8 @@ export function parseRedditProfile(page: RedditProfilePage): RedditProfile {
     return {
       kind: "UNPARSEABLE",
       reason:
-        "Không nhận ra đây là trang profile Reddit bản cũ. Reddit có thể vừa đổi HTML, " +
-        "hoặc proxy quan sát viên bị trả về một trang khác. Mở tay old.reddit.com để đối chiếu.",
+        "This does not look like an old Reddit profile page. Reddit may have changed its HTML, " +
+        "or the observer proxy may have received a different page. Open old.reddit.com manually to compare.",
     };
   }
 

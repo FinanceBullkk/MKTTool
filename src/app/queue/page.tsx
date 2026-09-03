@@ -46,17 +46,17 @@ export default async function QueuePage({
     }),
   ]);
 
-  const filters = [{ value: undefined, label: "Tất cả" }, ...JOB_STATUSES.map((value) => ({
+  const filters = [{ value: undefined, label: "All" }, ...JOB_STATUSES.map((value) => ({
     value,
     label: getJobStatusPresentation(value).label,
   }))];
 
   return (
     <>
-      <ParkedScopeBanner what="hàng đợi đăng bài" />
+      <ParkedScopeBanner what="job queue" />
       <PageHeading
-        title="Hàng đợi"
-        description="Mỗi dòng là một lần đăng đã được bộ luật chấm. Đăng xong nhớ bấm 'Đã đăng' — dữ liệu đó nuôi chính bộ luật."
+        title="Posting queue"
+        description="Each line is a post evaluated by the posting rules. After publishing, click 'Posted' so that real activity feeds future rule checks."
       />
 
       <div className="mb-6 flex flex-wrap items-center gap-2">
@@ -80,33 +80,34 @@ export default async function QueuePage({
           href="/queue/new"
           className="ml-auto rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-neutral-700 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-300"
         >
-          Xếp lịch bài mới
+          Schedule a post
         </Link>
       </div>
 
-      <Card title={`Lịch đăng — ${jobs.length} job`}>
+      <Card title={`Posting schedule — ${jobs.length} job${jobs.length === 1 ? "" : "s"}`}>
         <QueueJobTable jobs={jobs} />
       </Card>
 
-      <Card title="Tỷ lệ promo theo cặp nick × đích">
+      <Card title="Promotional ratio by nick and target">
         <PromoRatioTable rows={promoRows} />
       </Card>
 
-      <Card title="Ghi tương tác thủ công">
+      <Card title="Manual interaction logging">
         {accounts.length === 0 || targets.length === 0 ? (
-          <EmptyState>Cần có ít nhất một nick và một đích trước đã.</EmptyState>
+          <EmptyState>Add at least one nick and one posting target before recording an interaction.</EmptyState>
         ) : (
           <InteractionForm accounts={accounts} targets={targets} />
         )}
       </Card>
 
-      <Card title="Tương tác gần đây">
+      <Card title="Recent interactions">
         {interactions.length === 0 ? (
           <EmptyState>
-            Chưa ghi tương tác nào. Không ghi thì luật chặn đụng độ thread không có gì để so.
+            No interactions recorded yet. Without these records, the thread-collision rule has
+            nothing to compare.
           </EmptyState>
         ) : (
-          <DataTable headers={["Lúc", "Nick", "Kiểu", "Đích", "Thread"]}>
+          <DataTable headers={["Time", "Nick", "Type", "Target", "Thread"]}>
             {interactions.map((interaction) => (
               <tr key={interaction.id}>
                 <td className="whitespace-nowrap py-2 pr-4 text-xs text-neutral-500">

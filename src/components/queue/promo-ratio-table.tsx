@@ -9,11 +9,11 @@ import type { PromoRatioRow } from "@/lib/queue/promo-ratio-summary";
 
 export function PromoRatioTable({ rows }: { rows: PromoRatioRow[] }) {
   if (rows.length === 0) {
-    return <EmptyState>Chưa có cặp nick × đích nào có bài.</EmptyState>;
+    return <EmptyState>No nick × target pair has posts yet.</EmptyState>;
   }
 
   return (
-    <DataTable headers={["Nick", "Đích", "Hữu ích / Cần", "Đã quảng cáo", "Còn thiếu"]}>
+    <DataTable headers={["Nick", "Target", "Value / Required", "Promotional", "Missing"]}>
       {rows.map((row) => (
         <tr key={`${row.accountUsername}:${row.targetName}`}>
           <td className="py-2 pr-4 font-medium">{row.accountUsername}</td>
@@ -24,10 +24,10 @@ export function PromoRatioTable({ rows }: { rows: PromoRatioRow[] }) {
           <td className="py-2 pr-4">{row.promoCount}</td>
           <td className="py-2 pr-4">
             {row.missingForNextPromo === 0 ? (
-              <span className="text-emerald-700 dark:text-emerald-400">được quảng cáo</span>
+              <span className="text-emerald-700 dark:text-emerald-400">Ready to promote</span>
             ) : (
               <span className="text-amber-700 dark:text-amber-400">
-                {row.missingForNextPromo} bài hữu ích
+                {row.missingForNextPromo} value post{row.missingForNextPromo === 1 ? "" : "s"}
               </span>
             )}
           </td>

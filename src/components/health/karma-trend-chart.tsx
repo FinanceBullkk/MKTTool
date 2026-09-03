@@ -23,8 +23,8 @@ export function KarmaTrendChart({ points }: { points: KarmaPoint[] }) {
   if (points.length < 2) {
     return (
       <p className="text-sm text-neutral-500">
-        Cần ít nhất hai lần dò đọc được karma mới vẽ được xu hướng.
-        {points.length === 1 ? ` Hiện có 1 điểm: ${points[0].karma} karma.` : ""}
+        At least two successful karma readings are required to draw a trend.
+        {points.length === 1 ? ` Current reading: ${points[0].karma} karma.` : ""}
       </p>
     );
   }
@@ -59,7 +59,7 @@ export function KarmaTrendChart({ points }: { points: KarmaPoint[] }) {
         viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
         className="w-full"
         role="img"
-        aria-label={`Karma từ ${first.karma} ngày ${formatDayMonth(first.at)} tới ${last.karma} ngày ${formatDayMonth(last.at)}`}
+        aria-label={`Karma changed from ${first.karma} on ${formatDayMonth(first.at)} to ${last.karma} on ${formatDayMonth(last.at)}`}
       >
         <polyline
           points={line}
@@ -92,9 +92,9 @@ export function KarmaTrendChart({ points }: { points: KarmaPoint[] }) {
 
       <p className="mt-1 text-xs text-neutral-600 dark:text-neutral-400">
         {first.karma} → {last.karma} karma ({change >= 0 ? "+" : ""}
-        {change} qua {sorted.length} lần dò).
+        {change} across {sorted.length} checks).
         {change === 0
-          ? " Karma đứng yên — nếu nick vẫn đăng đều thì đây là dấu hiệu bài không tới được ai."
+          ? " Karma is flat. If the nick is still posting regularly, its posts may not be reaching anyone."
           : ""}
       </p>
     </div>

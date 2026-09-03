@@ -146,11 +146,11 @@ export async function readHealthCheckLockStatus(
 
 /** Câu mô tả người đang giữ khóa, dùng trong thông báo bận. */
 export function describeLockHolder(holder: LockRow, now: Date): string {
-  return `máy ${holder.host}, tiến trình ${holder.pid}, bắt đầu ${minutesSince(holder.startedAt, now)} phút trước`;
+  return `host ${holder.host}, process ${holder.pid}, started ${minutesSince(holder.startedAt, now)} minutes ago`;
 }
 
 const BUSY_HINT =
-  "Hai lượt chạy chồng nhau làm proxy quan sát viên bắn request dồn dập và bị Reddit chặn.";
+  "Overlapping checks would burst requests through the observer proxy and may cause Reddit to block it.";
 
 /**
  * Giành khóa, hoặc ném `HealthCheckBusyError` nếu lượt khác đang chạy.
@@ -188,8 +188,8 @@ export async function acquireHealthCheckLock(
 
     if (!isStale(holder, now)) {
       throw new HealthCheckBusyError(
-        `Đang có một lượt dò chạy dở (${describeLockHolder(holder, now)}). ` +
-          `Chờ nó xong rồi thử lại. ${BUSY_HINT}`,
+        `A health check is already running (${describeLockHolder(holder, now)}). ` +
+          `Wait for it to finish, then try again. ${BUSY_HINT}`,
       );
     }
 
@@ -220,7 +220,7 @@ async function retryAfterClearing(mine: {
   } catch (error) {
     if (!isUniqueConstraintError(error)) throw error;
     throw new HealthCheckBusyError(
-      `Một lượt dò khác vừa giành khóa trước. Thử lại sau ít phút. ${BUSY_HINT}`,
+      `Another health check acquired the lock first. Try again in a few minutes. ${BUSY_HINT}`,
     );
   }
 

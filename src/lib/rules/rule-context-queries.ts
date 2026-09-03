@@ -105,7 +105,7 @@ export async function loadComparableContent(
   return jobs
     .filter((job) => platformFamily(job.target.platform) === family)
     .map((job) => ({
-      label: `${job.account.username} ở ${job.target.name} ngày ${formatDayMonth(job.scheduledAt)}`,
+      label: `${job.account.username} on ${job.target.name}, ${formatDayMonth(job.scheduledAt)}`,
       text: combineContentText(job.contentItem.title, job.contentItem.body),
     }));
 }

@@ -79,7 +79,7 @@ afterAll(async () => {
 });
 
 describe("pruneOldScreenshots", () => {
-  it("xóa ảnh quá hạn, giữ ảnh còn hạn", async () => {
+  it("deletes expired screenshots and keeps recent ones", async () => {
     const old = await seedCheck(accountId, "cu", SCREENSHOT_RETENTION_DAYS + 5);
     const recent = await seedCheck(accountId, "moi", 2);
 
@@ -97,7 +97,7 @@ describe("pruneOldScreenshots", () => {
   });
 
   /** Ảnh hết hạn được, nhưng lịch sử kết luận thì không — đó là thứ vẽ ra xu hướng. */
-  it("giữ nguyên bản ghi dò, chỉ gỡ đường dẫn ảnh", async () => {
+  it("keeps the health-check record and clears only the screenshot path", async () => {
     await seedCheck(accountId, "cu", SCREENSHOT_RETENTION_DAYS + 5);
 
     await pruneOldScreenshots({ now: NOW });
@@ -107,7 +107,7 @@ describe("pruneOldScreenshots", () => {
     expect(checks[0].verdict).toBe("SHADOWBANNED");
   });
 
-  it("bản ghi trỏ tới file đã biến mất vẫn được gỡ đường dẫn", async () => {
+  it("clears the screenshot path when the file is already missing", async () => {
     const orphan = await seedCheck(accountId, "mat-tu-truoc", SCREENSHOT_RETENTION_DAYS + 5, false);
 
     const result = await pruneOldScreenshots({ now: NOW });
@@ -118,7 +118,7 @@ describe("pruneOldScreenshots", () => {
     expect(after.screenshotPath).toBeNull();
   });
 
-  it("không có gì quá hạn thì không đụng vào đâu cả", async () => {
+  it("does not change anything when no screenshots are expired", async () => {
     await seedCheck(accountId, "moi", 1);
 
     const result = await pruneOldScreenshots({ now: NOW });
@@ -127,13 +127,13 @@ describe("pruneOldScreenshots", () => {
     expect(existsSync(path.join(DIR, "moi.png"))).toBe(true);
   });
 
-  it("đúng mốc hạn thì chưa xóa", async () => {
+  it("keeps screenshots exactly at the retention boundary", async () => {
     await seedCheck(accountId, "vua-du", SCREENSHOT_RETENTION_DAYS);
     const result = await pruneOldScreenshots({ now: NOW });
     expect(result.deleted).toBe(0);
   });
 
-  it("chỉnh được số ngày giữ", async () => {
+  it("supports a custom retention period", async () => {
     await seedCheck(accountId, "ba-ngay", 3);
     const result = await pruneOldScreenshots({ now: NOW, retentionDays: 2 });
     expect(result.deleted).toBe(1);

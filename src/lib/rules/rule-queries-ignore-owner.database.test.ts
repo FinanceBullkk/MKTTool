@@ -89,7 +89,7 @@ async function seedTwoOwners(): Promise<TwoOwners> {
   };
 }
 
-describe("truy vấn bộ luật không lọc theo chủ sở hữu", () => {
+describe("query rules without filtering by owner", () => {
   let seeded: TwoOwners;
 
   beforeEach(async () => {
@@ -102,7 +102,7 @@ describe("truy vấn bộ luật không lọc theo chủ sở hữu", () => {
     await prisma.$disconnect();
   });
 
-  it("luật 8 thấy nick của người khác đã chạm thread — dấu vết không thuộc về riêng ai", async () => {
+  it("rule 8 sees a nick of someone else has touched a thread - traces don't belong to anyone in particular", async () => {
     await prisma.interaction.create({
       data: {
         accountId: seeded.theirsAccountId,
@@ -118,17 +118,17 @@ describe("truy vấn bộ luật không lọc theo chủ sở hữu", () => {
 
     expect(
       collisions.map((row) => row.accountUsername),
-      "Nick của người B phải hiện ra khi nick của người A hỏi về cùng thread.\n" +
-        "Rỗng nghĩa là truy vấn đã bị lọc theo chủ sở hữu — luật 8 vừa mù đúng ca nó sinh ra để bắt.",
+      "Nick B must show up when Nick A asks about the same thread.\n" +
+        "Empty means the query was filtered by owner - rule 8 just missed its whole purpose to catch.",
     ).toEqual(["nick-nguoi-b"]);
   });
 
-  it("luật 8 (mức cảnh báo) thấy job của nick người khác quanh cùng đích", async () => {
+  it("rule 8 (warning level) sees job of someone else's nick around the same target", async () => {
     const at = new Date();
     const content = await prisma.contentItem.create({
       data: {
-        title: "Bài của người B",
-        body: "Ghi chép dài vừa đủ để không bị coi là bài rỗng khi bộ luật đọc tới.",
+        title: "Post by person B",
+        body: "Note long enough to not be considered empty post when the ruleset reads it.",
         type: "VALUE",
         authorName: "team",
       },
@@ -153,11 +153,11 @@ describe("truy vấn bộ luật không lọc theo chủ sở hữu", () => {
     expect(neighbors.map((row) => row.accountUsername)).toEqual(["nick-nguoi-b"]);
   });
 
-  it("luật 7 so trùng với bài của người khác — dùng lại bài đồng nghiệp vẫn là trùng", async () => {
+  it("rule 7 matches against posts of someone else - reusing colleague's post is still a match", async () => {
     const content = await prisma.contentItem.create({
       data: {
-        title: "Dựng backup cho homelab",
-        body: "Bài gốc của người B, đủ dài để phép so trùng có thứ thật sự để so sánh.",
+        title: "Back up for homelab",
+        body: "Original post by person B, long enough to actually compare something real when checking for a match.",
         type: "VALUE",
         authorName: "team",
       },

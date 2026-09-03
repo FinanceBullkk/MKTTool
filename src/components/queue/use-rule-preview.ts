@@ -76,12 +76,15 @@ export function useRulePreview(selection: PreviewSelection): PreviewState {
             state:
               data.ok && data.evaluation
                 ? { status: "ready", evaluation: data.evaluation }
-                : { status: "error", message: data.message ?? "Không chạy được bộ luật." },
+                : { status: "error", message: data.message ?? "Could not evaluate posting rules." },
           });
         })
         .catch((error: unknown) => {
           if (error instanceof DOMException && error.name === "AbortError") return;
-          setSettled({ key, state: { status: "error", message: "Không gọi được bộ luật." } });
+          setSettled({
+            key,
+            state: { status: "error", message: "Could not reach rule evaluation. Try again." },
+          });
         });
     }, DEBOUNCE_MS);
 

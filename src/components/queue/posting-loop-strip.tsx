@@ -11,31 +11,34 @@ export function PostingLoopStrip({ summary }: { summary: PostingLoopSummary }) {
   const steps: PipelineStep[] = [
     {
       key: "pending",
-      label: "Chờ đăng",
-      value: `${summary.pending} bài`,
+      label: "Pending",
+      value: `${summary.pending} post${summary.pending === 1 ? "" : "s"}`,
       state: summary.pending > 0 ? "ok" : "idle",
       href: "/queue?status=PENDING",
     },
     {
       key: "overdue",
-      label: "Quá giờ",
-      value: summary.overdue > 0 ? `${summary.overdue} bài` : "không có",
-      hint: summary.overdue > 0 ? "đăng rồi thì bấm Đã đăng" : undefined,
+      label: "Overdue",
+      value:
+        summary.overdue > 0
+          ? `${summary.overdue} post${summary.overdue === 1 ? "" : "s"}`
+          : "None",
+      hint: summary.overdue > 0 ? "If already published, click Posted" : undefined,
       state: summary.overdue > 0 ? "warn" : "ok",
       href: "/queue?status=PENDING",
     },
     {
       key: "posted",
-      label: "Đã đăng hôm nay",
-      value: `${summary.postedToday} bài`,
+      label: "Posted today",
+      value: `${summary.postedToday} post${summary.postedToday === 1 ? "" : "s"}`,
       state: summary.postedToday > 0 ? "ok" : "idle",
       href: "/queue?status=POSTED",
     },
     {
       key: "interactions",
-      label: "Tương tác 30 ngày",
-      value: `${summary.interactions30d} bản ghi`,
-      hint: "dữ liệu nuôi bộ luật",
+      label: "30-day interactions",
+      value: `${summary.interactions30d} record${summary.interactions30d === 1 ? "" : "s"}`,
+      hint: "This data feeds the rule set",
       state: "idle",
       href: "/queue",
     },

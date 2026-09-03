@@ -19,12 +19,12 @@ import { describeUnexpectedDbError, isUniqueConstraintError } from "@/lib/db/pri
 import { checkObserverProxyLiveness } from "@/lib/proxies/proxy-liveness-check";
 
 const observerProxyCreateSchema = z.object({
-  label: z.string().min(1, "Nhãn không được để trống"),
-  host: z.string().min(1, "Host không được để trống"),
-  port: z.coerce.number().int().min(1).max(65535, "Port phải nằm trong 1-65535"),
-  username: z.string().min(1, "Username không được để trống"),
-  password: z.string().min(1, "Mật khẩu không được để trống"),
-  country: z.string().min(1, "Quốc gia không được để trống"),
+  label: z.string().min(1, "Label is required"),
+  host: z.string().min(1, "Host is required"),
+  port: z.coerce.number().int().min(1).max(65535, "Port must be between 1 and 65535"),
+  username: z.string().min(1, "Username is required"),
+  password: z.string().min(1, "Password is required"),
+  country: z.string().min(1, "Country is required"),
   // Chỉ cho http: Chromium không xác thực được với SOCKS5, xem observer-browser-session.ts.
   protocol: z.literal("http").default("http"),
   notes: optionalText,
@@ -45,17 +45,20 @@ export const createObserverProxy = guardedAction(async function createObserverPr
     });
   } catch (error) {
     if (!isUniqueConstraintError(error)) {
-      return { ok: false, message: describeUnexpectedDbError(error, "thêm proxy quan sát viên") };
+      return { ok: false, message: describeUnexpectedDbError(error, "add the observer proxy") };
     }
-    return { ok: false, message: `Đã có proxy quan sát viên nhãn "${parsed.data.label}".` };
+    return {
+      ok: false,
+      message: `An observer proxy with the label "${parsed.data.label}" already exists. Use a different label.`,
+    };
   }
 
   revalidatePath("/proxies");
   return {
     ok: true,
     message:
-      `Đã thêm proxy quan sát viên "${parsed.data.label}". ` +
-      `Tuyệt đối không dùng IP này để đăng nhập nick nào, kể cả một lần.`,
+      `Added observer proxy "${parsed.data.label}". ` +
+      `Never use this IP to sign in to any nick, even once.`,
   };
 });
 
@@ -69,10 +72,13 @@ export const setObserverProxyActive = guardedAction(async function setObserverPr
     revalidatePath("/proxies");
     return {
       ok: true,
-      message: `Proxy quan sát viên "${proxy.label}" ${active ? "đã bật" : "đã tắt"}.`,
+      message: `Observer proxy "${proxy.label}" ${active ? "enabled" : "disabled"}.`,
     };
   } catch (error) {
-    return { ok: false, message: describeUnexpectedDbError(error, "đổi trạng thái proxy") };
+    return {
+      ok: false,
+      message: describeUnexpectedDbError(error, "change the observer proxy status"),
+    };
   }
 });
 
@@ -89,7 +95,9 @@ export const checkObserverProxy = guardedAction(async function checkObserverProx
   id: string,
 ): Promise<ActionResult> {
   const proxy = await prisma.observerProxy.findUnique({ where: { id } });
-  if (!proxy) return { ok: false, message: "Không tìm thấy proxy quan sát viên." };
+  if (!proxy) {
+    return { ok: false, message: "Observer proxy not found. Reload the page and try again." };
+  }
 
   const liveness = await checkObserverProxyLiveness(proxy);
   revalidatePath("/proxies");
@@ -105,8 +113,8 @@ export const deleteObserverProxy = guardedAction(async function deleteObserverPr
   try {
     const proxy = await prisma.observerProxy.delete({ where: { id } });
     revalidatePath("/proxies");
-    return { ok: true, message: `Đã xóa proxy quan sát viên "${proxy.label}".` };
+    return { ok: true, message: `Deleted observer proxy "${proxy.label}".` };
   } catch (error) {
-    return { ok: false, message: describeUnexpectedDbError(error, "xóa proxy quan sát viên") };
+    return { ok: false, message: describeUnexpectedDbError(error, "delete the observer proxy") };
   }
 });

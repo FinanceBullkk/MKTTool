@@ -13,11 +13,11 @@ import { formatTimeOfDay } from "@/lib/schedule/daily-run-schedule";
 
 /** Câu người đọc hiểu được, thay cho mã trạng thái trong sổ. */
 function describeOutcome(outcome: string): string {
-  if (outcome === "LAUNCHED") return "đã bắn lượt dò";
-  if (outcome === "SKIPPED") return "bỏ qua";
+  if (outcome === "LAUNCHED") return "started a health check";
+  if (outcome === "SKIPPED") return "skipped";
   // "CLAIMED" còn đọng lại nghĩa là tiến trình chết ngay giữa lúc quyết. Nói thẳng ra, đừng dịch
   // thành một câu nghe như bình thường.
-  return "quyết dở rồi mất tiến trình";
+  return "claimed the run, then the process disappeared";
 }
 
 export function DailyScheduleSummary({ schedule }: { schedule: DailyHealthCheckScheduleView }) {
@@ -26,8 +26,8 @@ export function DailyScheduleSummary({ schedule }: { schedule: DailyHealthCheckS
   if (configError) {
     return (
       <p className="text-sm text-red-700 dark:text-red-400">
-        Lịch dò <strong>không chạy</strong>: {configError} Sửa <code>{DAILY_HEALTH_CHECK_ENV}</code>{" "}
-        trong biến môi trường của máy chủ rồi khởi động lại.
+        Daily health checks are <strong>not running</strong>: {configError} Fix{" "}
+        <code>{DAILY_HEALTH_CHECK_ENV}</code> in the server environment, then restart the app.
       </p>
     );
   }
@@ -35,9 +35,9 @@ export function DailyScheduleSummary({ schedule }: { schedule: DailyHealthCheckS
   if (!at) {
     return (
       <p className="text-sm text-amber-700 dark:text-amber-400">
-        Lịch dò đang <strong>tắt</strong> — bộ dò chỉ chạy khi có người bấm nút. Bật bằng cách khai{" "}
-        <code>{DAILY_HEALTH_CHECK_ENV}=&quot;09:00&quot;</code> (giờ team) trong biến môi trường
-        của máy chủ rồi khởi động lại.
+        Daily health checks are <strong>disabled</strong>; checks run only when someone clicks a
+        button. Set <code>{DAILY_HEALTH_CHECK_ENV}=&quot;09:00&quot;</code> in the server
+        environment to enable a daily run in team time, then restart the app.
       </p>
     );
   }
@@ -45,18 +45,19 @@ export function DailyScheduleSummary({ schedule }: { schedule: DailyHealthCheckS
   return (
     <div className="space-y-2 text-sm">
       <p>
-        Tự chạy <strong>{formatTimeOfDay(at)}</strong> mỗi ngày theo giờ team.
+        Runs automatically at <strong>{formatTimeOfDay(at)}</strong> every day in team time.
       </p>
 
       {lastRun ? (
         <p className="text-xs text-neutral-500">
-          Lượt gần nhất: {formatDayMonthTime(lastRun.lastRunAt)} —{" "}
-          {describeOutcome(lastRun.outcome)} (máy {lastRun.host}).
+          Last scheduled run: {formatDayMonthTime(lastRun.lastRunAt)} -{" "}
+          {describeOutcome(lastRun.outcome)} (host {lastRun.host}).
           {lastRun.detail ? ` ${lastRun.detail}` : ""}
         </p>
       ) : (
         <p className="text-xs text-neutral-500">
-          Chưa có lượt tự động nào — mốc hẹn đầu tiên chưa tới, hoặc máy chủ vừa bật lịch.
+          No scheduled run yet. The first scheduled time has not arrived, or the server has just
+          enabled the schedule.
         </p>
       )}
     </div>

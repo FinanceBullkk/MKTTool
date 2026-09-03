@@ -2,14 +2,14 @@ import { describe, expect, it } from "vitest";
 import type { RuleEvaluation, RuleResult } from "@/lib/rules/rules-engine";
 import { canOverride, shouldBlockOnRecheck } from "./post-job-override-policy";
 
-const LY_DO = "Chiến dịch ra mắt, chấp nhận đăng dày hơn trong hôm nay.";
+const LY_DO = "Launch campaign, accept thicker posts today.";
 
 function makeResult(overrides: Partial<RuleResult> = {}): RuleResult {
   return {
     id: "daily-cap",
-    label: "Hạn mức ngày",
+    label: "Daily posting cap",
     level: "BLOCK",
-    reason: "Nick đã có 2 bài hôm nay.",
+    reason: "Nick has posted 2 times today.",
     overridable: true,
     ...overrides,
   };
@@ -29,44 +29,44 @@ function makeEvaluation(blocks: RuleResult[]): RuleEvaluation {
 
 const THREAD_COLLISION = makeResult({
   id: "thread-collision",
-  label: "Đụng độ thread",
-  reason: 'Nick "u/binh" của mình đã đăng ở đúng thread này.',
+  label: "Thread collision",
+  reason: "Nick \"u/binh\" of mine has posted in this thread.",
   overridable: false,
 });
 
 describe("canOverride", () => {
-  it("cho qua khi luật chặn đều ghi đè được và có lý do", () => {
+  it("allow overriding when the rule blocks and there is a reason", () => {
     expect(canOverride(makeEvaluation([makeResult()]), LY_DO)).toBe(true);
   });
 
-  it("từ chối khi thiếu lý do", () => {
+  it("reject when lacking a reason", () => {
     expect(canOverride(makeEvaluation([makeResult()]), null)).toBe(false);
     expect(canOverride(makeEvaluation([makeResult()]), undefined)).toBe(false);
   });
 
-  it("từ chối lý do chỉ toàn khoảng trắng", () => {
+  it("reject reason consisting only of whitespace", () => {
     expect(canOverride(makeEvaluation([makeResult()]), "   ")).toBe(false);
   });
 
-  it("từ chối khi có luật cấm ghi đè, dù lý do có hay tới đâu", () => {
+  it("reject when there is a blocking override rule, no matter how good the reason is", () => {
     expect(canOverride(makeEvaluation([THREAD_COLLISION]), LY_DO)).toBe(false);
   });
 
-  it("từ chối khi luật cấm ghi đè đi kèm luật ghi đè được", () => {
+  it("reject when the blocking override rule is accompanied by an overridable rule", () => {
     expect(canOverride(makeEvaluation([makeResult(), THREAD_COLLISION]), LY_DO)).toBe(false);
   });
 });
 
 describe("shouldBlockOnRecheck", () => {
-  it("không chặn khi bộ luật cho qua", () => {
+  it("do not block when the rule set allows it", () => {
     expect(shouldBlockOnRecheck(makeEvaluation([]), null)).toBe(false);
   });
 
-  it("chặn job bị luật chặn mà chưa từng ghi đè", () => {
+  it("block job that is blocked by a rule but not yet overridden", () => {
     expect(shouldBlockOnRecheck(makeEvaluation([makeResult()]), null)).toBe(true);
   });
 
-  it("để job đã ghi đè hợp lệ nằm chờ tiếp", () => {
+  it("to leave a valid overridden job waiting in the queue", () => {
     expect(shouldBlockOnRecheck(makeEvaluation([makeResult()]), LY_DO)).toBe(false);
   });
 
@@ -75,11 +75,11 @@ describe("shouldBlockOnRecheck", () => {
    * đúng thread. Bản cũ chỉ hỏi "có overrideReason không" nên job vẫn nằm PENDING —
    * luật duy nhất không cho ghi đè bị vượt qua bằng lý do viết cho một luật khác.
    */
-  it("chặn khi luật cấm ghi đè mới lòi ra, dù job đã có lý do ghi đè cũ", () => {
+  it("block when a new blocking override rule surfaces, even if the job already has an old override reason", () => {
     expect(shouldBlockOnRecheck(makeEvaluation([THREAD_COLLISION]), LY_DO)).toBe(true);
   });
 
-  it("chặn khi luật cấm ghi đè lòi ra bên cạnh luật cũ đã được ghi đè", () => {
+  it("block when a new blocking override rule surfaces alongside the old rule that has been overridden", () => {
     expect(shouldBlockOnRecheck(makeEvaluation([makeResult(), THREAD_COLLISION]), LY_DO)).toBe(true);
   });
 });

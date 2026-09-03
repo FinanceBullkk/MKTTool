@@ -79,8 +79,8 @@ async function loadObserverProxy() {
 
   if (!proxy) {
     throw new HealthCheckSetupError(
-      "Chưa có proxy quan sát viên nào đang bật. Thêm một proxy RIÊNG ở trang /proxies — " +
-        "proxy này không bao giờ được dùng để đăng nhập nick nào, kể cả một lần.",
+      "No observer proxy is enabled. Add a dedicated proxy on /proxies. " +
+        "Never use that proxy to sign in to any nick, even once.",
     );
   }
 
@@ -121,7 +121,7 @@ export async function runHealthCheck(
     const accounts = await loadAccounts(accountIds);
 
     if (accounts.length === 0) {
-      onProgress("Không có nick Reddit nào để dò.");
+      onProgress("There are no Reddit nicks to check.");
       return {
         checked: 0,
         byVerdict: {},
@@ -133,7 +133,7 @@ export async function runHealthCheck(
     }
 
     onProgress(
-      `Dò ${accounts.length} nick qua proxy quan sát viên "${proxy.label}" (${proxy.country}).`,
+      `Checking ${accounts.length} nicks through observer proxy "${proxy.label}" (${proxy.country}).`,
     );
 
     return await probeAll({
@@ -192,7 +192,9 @@ async function probeAll(input: {
             const outcome = await autoLinkDiscoveredPosts(account.id, posts);
             for (const line of outcome.lines) onProgress(`  ${account.username}: ${line}`);
             for (const item of outcome.ambiguous) {
-              onProgress(`  ${account.username}: KHÔNG gán ${item.post.threadKey} — ${item.reason}`);
+              onProgress(
+                `  ${account.username}: did not link ${item.post.threadKey} - ${item.reason}`,
+              );
             }
             return outcome.linkedKeys;
           },
@@ -208,14 +210,16 @@ async function probeAll(input: {
         if (result.unlinkablePosts > 0) {
           unlinkable += result.unlinkablePosts;
           onProgress(
-            `  ${account.username}: ${result.unlinkablePosts} bài lạ KHÔNG tự gán được vì thiếu ` +
-              `link hoặc tên sub trong HTML — nhiều khả năng Reddit đổi giao diện.`,
+            `  ${account.username}: ${result.unlinkablePosts} unrecognized posts could not be linked automatically because ` +
+              `the HTML contained no permalink or subreddit name. Reddit likely changed its page structure.`,
           );
         }
 
         if (recorded.statusChangedTo) {
           statusChanges.push({ username: account.username, to: recorded.statusChangedTo });
-          onProgress(`  → trạng thái nick đổi sang ${recorded.statusChangedTo}, mọi job bị chặn.`);
+          onProgress(
+            `  -> Nick status changed to ${recorded.statusChangedTo}; all of its jobs are now blocked.`,
+          );
         }
       } catch (error) {
         // Lỗi ngoài dự tính (mất kết nối database, đĩa đầy…). Ghi lại rồi đi tiếp.
@@ -234,7 +238,7 @@ async function probeAll(input: {
       if (!isLast) {
         const waitMs = randomSpacingMs(spacing);
         if (waitMs > 0) {
-          onProgress(`  … nghỉ ${Math.round(waitMs / 1000)} giây trước nick tiếp theo`);
+          onProgress(`  ... waiting ${Math.round(waitMs / 1000)} seconds before the next nick`);
           await sleep(waitMs);
         }
       }
@@ -247,9 +251,11 @@ async function probeAll(input: {
   // chắn chạy đều đặn. Dọn hỏng thì KHÔNG được làm hỏng kết quả dò — đó mới là thứ đáng giá.
   try {
     const pruned = await pruneOldScreenshots({ now });
-    if (pruned.deleted > 0) onProgress(`Đã dọn ${pruned.deleted} ảnh chụp quá hạn.`);
+    if (pruned.deleted > 0) onProgress(`Removed ${pruned.deleted} expired screenshots.`);
   } catch (error) {
-    onProgress(`Không dọn được ảnh cũ: ${error instanceof Error ? error.message : String(error)}`);
+    onProgress(
+      `Could not remove old screenshots: ${error instanceof Error ? error.message : String(error)}`,
+    );
   }
 
   return {

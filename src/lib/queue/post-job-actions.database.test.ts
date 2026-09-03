@@ -87,7 +87,7 @@ async function seed(): Promise<Seeded> {
       karma: 5000,
       visiblePosts: 0,
       expectedPosts: 0,
-      detail: "Dữ liệu dựng sẵn của test.",
+      detail: "Data for test.",
     },
   });
   const target = await prisma.platformTarget.create({
@@ -95,8 +95,8 @@ async function seed(): Promise<Seeded> {
   });
   const content = await prisma.contentItem.create({
     data: {
-      title: "Bài có sẵn trong kho",
-      body: "Ghi chép về chuyện dựng backup cho homelab, đủ dài để không bị coi là bài rỗng.",
+      title: "Content already in the library",
+      body: "Note about backing up the homelab, long enough not to be considered a blank post",
       type: "VALUE",
       authorName: "team",
     },
@@ -115,8 +115,8 @@ function form(fields: Record<string, string>): FormData {
 function draftForm(seeded: Seeded, overrides: Record<string, string> = {}): FormData {
   return form({
     contentMode: "draft",
-    title: "Bài gõ thẳng ở trang xếp lịch",
-    body: "Mình chạy restic đẩy sang một con NAS cũ, ổn định suốt hai năm, phần khó là chính sách giữ bản sao.",
+    title: "Post directly on the scheduling page",
+    body: "I ran restic to push to an old NAS, stable for two years, the difficult part is the retention policy to keep a copy.",
     type: "VALUE",
     authorName: "hao",
     linksText: "https://example.com/a\nhttps://example.com/b",
@@ -127,7 +127,7 @@ function draftForm(seeded: Seeded, overrides: Record<string, string> = {}): Form
   });
 }
 
-describe("createPostJob — nguồn content", () => {
+describe("createPostJob — source content", () => {
   let seeded: Seeded;
   const scopeBefore = process.env.ROLLOUT_PLATFORMS;
 
@@ -152,13 +152,13 @@ describe("createPostJob — nguồn content", () => {
     await clearAll();
   });
 
-  it("lưu nháp thành ContentItem rồi cho job trỏ vào nó", async () => {
+  it("Save as draft to ContentItem and have job point to it", async () => {
     const result = await createPostJob(null, draftForm(seeded));
     expect(result.ok).toBe(true);
 
     const saved = await prisma.contentItem.findFirst({ where: { authorName: "hao" } });
     expect(saved).not.toBeNull();
-    expect(saved?.title).toBe("Bài gõ thẳng ở trang xếp lịch");
+    expect(saved?.title).toBe("Post directly on the scheduling page");
     expect(saved?.type).toBe("VALUE");
     // Ô link là textarea nhiều dòng, phải vào kho dạng JSON array như đường /content.
     expect(JSON.parse(saved?.links ?? "[]")).toEqual([
@@ -172,7 +172,7 @@ describe("createPostJob — nguồn content", () => {
     expect(job?.ruleVerdicts).not.toBeNull();
   });
 
-  it("nháp thiếu ô bắt buộc thì không tạo gì cả", async () => {
+  it("If draft is missing required fields, nothing is created at all", async () => {
     const result = await createPostJob(null, draftForm(seeded, { title: "" }));
 
     expect(result.ok).toBe(false);
@@ -181,7 +181,7 @@ describe("createPostJob — nguồn content", () => {
     expect(await prisma.contentItem.count()).toBe(1);
   });
 
-  it("đường 'chọn từ kho' vẫn tạo job và không đẻ thêm content", async () => {
+  it("The 'choose from library' path still creates a job and doesn't spawn additional content", async () => {
     const result = await createPostJob(
       null,
       form({
@@ -209,7 +209,7 @@ describe("createPostJob — nguồn content", () => {
    * vào nó. Tính "cùng sống hoặc cùng không" khi tiến trình chết giữa chừng là do giao dịch bảo
    * đảm — không dựng lại được trong test vì `AuditLog` không có ràng buộc nào để ép nó hỏng.
    */
-  it("job ghi đè luật luôn kèm một dòng nhật ký trỏ đúng vào nó", async () => {
+  it("Job overwrites the rule always with a log entry pointing directly to it", async () => {
     // Nick đang cách ly → luật 1 chặn, và luật 1 CHO ghi đè.
     await prisma.account.update({
       where: { id: seeded.accountId },
@@ -218,13 +218,13 @@ describe("createPostJob — nguồn content", () => {
 
     const result = await createPostJob(
       null,
-      draftForm(seeded, { overrideReason: "khách đang chờ bài này, chấp nhận rủi ro" }),
+      draftForm(seeded, { overrideReason: "Customer waiting for this post, accept risk" }),
     );
 
     expect(result.ok).toBe(true);
 
     const job = await prisma.postJob.findFirstOrThrow();
-    expect(job.overrideReason).toContain("chấp nhận rủi ro");
+    expect(job.overrideReason).toContain("accept risk");
 
     const entries = await prisma.auditLog.findMany({ where: { action: "RULE_OVERRIDDEN" } });
     expect(entries).toHaveLength(1);
@@ -234,14 +234,14 @@ describe("createPostJob — nguồn content", () => {
   });
 
   /** Không ghi đè thì không có gì để ghi nhật ký — sổ chỉ nên có dòng khi thật sự có chuyện. */
-  it("job bình thường không đẻ ra dòng nhật ký ghi đè", async () => {
+  it("Job normally does not spawn an override log entry", async () => {
     const result = await createPostJob(null, draftForm(seeded));
 
     expect(result.ok).toBe(true);
     expect(await prisma.auditLog.count({ where: { action: "RULE_OVERRIDDEN" } })).toBe(0);
   });
 
-  it("form không khai contentMode thì vẫn hiểu là chọn từ kho", async () => {
+  it("form does not declare contentMode, still assumes choose from library", async () => {
     const result = await createPostJob(
       null,
       form({
@@ -264,7 +264,7 @@ describe("createPostJob — nguồn content", () => {
  * Bộ này chứng minh thứ thật sự quan trọng: phạm vi đóng thì **không có job nào ra đời**, kể cả
  * khi mọi thứ khác đều hợp lệ và người dùng có nhập lý do ghi đè.
  */
-describe("createPostJob — phạm vi bàn giao đóng", () => {
+describe("createPostJob — rollout scope closing", () => {
   let seeded: Seeded;
   const scopeBefore = process.env.ROLLOUT_PLATFORMS;
 
@@ -280,34 +280,34 @@ describe("createPostJob — phạm vi bàn giao đóng", () => {
     await clearAll();
   });
 
-  it("từ chối xếp lịch và không ghi job nào vào cơ sở dữ liệu", async () => {
+  it("reject scheduling and do not save any job to the database", async () => {
     const result = await createPostJob(null, draftForm(seeded));
 
     expect(result.ok).toBe(false);
-    expect(result.message).toContain("chỉ dùng để xem lịch sử");
+    expect(result.message).toContain("only for viewing history");
     expect(result.message).toContain("/accounts");
     expect(result.message).not.toContain("ROLLOUT_PLATFORMS");
     expect(await prisma.postJob.count()).toBe(0);
   });
 
-  it("lý do ghi đè không mở được quyết định phạm vi", async () => {
+  it("override reason does not open the rollout scope decision", async () => {
     const result = await createPostJob(
       null,
-      draftForm(seeded, { overrideReason: "Sếp bảo đăng gấp cho kịp chiến dịch hôm nay" }),
+      draftForm(seeded, { overrideReason: "Boss says post urgently to make it in today's campaign" }),
     );
 
     expect(result.ok).toBe(false);
     expect(await prisma.postJob.count()).toBe(0);
   });
 
-  it("nháp bị từ chối thì cũng không để lại ContentItem mồ côi trong kho", async () => {
+  it("Draft rejected also does not leave an orphan ContentItem in the library", async () => {
     const before = await prisma.contentItem.count();
     await createPostJob(null, draftForm(seeded));
 
     expect(await prisma.contentItem.count()).toBe(before);
   });
 
-  it("mở đúng nền tảng của đích thì xếp lịch lại được", async () => {
+  it("Open the right platform of the target and scheduling will work again", async () => {
     const target = await prisma.platformTarget.findUniqueOrThrow({
       where: { id: seeded.targetId },
       select: { platform: true },

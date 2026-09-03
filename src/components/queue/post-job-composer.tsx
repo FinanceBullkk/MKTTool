@@ -180,11 +180,11 @@ export function PostJobComposer({
       <div className="rounded-md border border-neutral-200 p-4 dark:border-neutral-800">
         {preview.status === "idle" ? (
           <p className="text-sm text-neutral-500">
-            Chọn đủ content, nick, đích và giờ để bộ luật chạy.
+            Select content, a nick, a target, and a posting time to run the rules.
           </p>
         ) : null}
         {preview.status === "loading" ? (
-          <p className="text-sm text-neutral-500">Đang chạy bộ luật…</p>
+          <p className="text-sm text-neutral-500">Evaluating posting rules...</p>
         ) : null}
         {preview.status === "error" ? (
           <p className="text-sm text-red-700 dark:text-red-400">{preview.message}</p>
@@ -195,7 +195,7 @@ export function PostJobComposer({
       {canOverride ? (
         <label className="block">
           <span className="mb-1 block text-xs font-medium text-red-700 dark:text-red-400">
-            Lý do ghi đè (bắt buộc, ghi vào nhật ký)
+            Override reason (required; recorded in the audit log)
           </span>
           <textarea
             className={FIELD_CLASS}
@@ -203,14 +203,14 @@ export function PostJobComposer({
             rows={2}
             value={overrideReason}
             onChange={(event) => setOverrideReason(event.target.value)}
-            placeholder="Ví dụ: sub này thực tế không áp luật 9:1, đã hỏi mod."
+            placeholder="Example: This subreddit does not enforce the 9:1 rule; confirmed with a moderator."
           />
         </label>
       ) : null}
 
       {blocked && !evaluation.overridable ? (
         <p className="text-sm font-medium text-red-700 dark:text-red-400">
-          Luật đụng độ thread không cho ghi đè. Đổi nick khác hoặc chọn thread khác.
+          The thread-collision rule cannot be overridden. Choose another nick or thread.
         </p>
       ) : null}
 
@@ -231,7 +231,7 @@ export function PostJobComposer({
         disabled={submitDisabled}
         className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-neutral-700 disabled:opacity-50 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-300"
       >
-        {pending ? "Đang lưu…" : blocked ? "Ghi đè và xếp lịch" : "Xếp lịch"}
+        {pending ? "Saving..." : blocked ? "Override and schedule" : "Schedule"}
       </button>
     </form>
   );

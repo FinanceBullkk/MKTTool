@@ -15,14 +15,14 @@ import { HealthCheckNowButton } from "./health-check-now-button";
 function LastCheckCell({ row }: { row: AccountHealthRow }) {
   if (!row.latest) {
     return (
-      <span className="text-amber-700 dark:text-amber-400">chưa dò lần nào</span>
+      <span className="text-amber-700 dark:text-amber-400">Never checked</span>
     );
   }
 
   return (
     <span className={row.stale ? "text-amber-700 dark:text-amber-400" : "text-neutral-600 dark:text-neutral-400"}>
       {formatDayMonthTime(row.latest.checkedAt)}
-      {row.stale ? ` (${row.daysSinceCheck} ngày trước — đã cũ)` : ""}
+      {row.stale ? ` (${row.daysSinceCheck} days ago - stale)` : ""}
     </span>
   );
 }
@@ -31,14 +31,14 @@ export function AccountHealthTable({ rows }: { rows: AccountHealthRow[] }) {
   if (rows.length === 0) {
     return (
       <EmptyState>
-        Chưa có nick Reddit nào. Bộ dò chỉ làm việc với Reddit — Fanpage đăng bằng Graph API
-        chính thức nên không có chuyện bị ẩn thầm lặng.
+        No Reddit nicks yet. The checker covers only Reddit; Facebook Pages publish through the
+        official Graph API, where failures are returned directly instead of silently hiding posts.
       </EmptyState>
     );
   }
 
   return (
-    <DataTable headers={["Nick", "Kết luận", "Karma", "Thấy / đã đăng", "Lần dò cuối", ""]}>
+    <DataTable headers={["Nick", "Verdict", "Karma", "Visible / posted", "Last check", ""]}>
       {rows.map((row) => {
         const presentation = row.latest ? getVerdictPresentation(row.latest.verdict) : null;
 
@@ -54,7 +54,7 @@ export function AccountHealthTable({ rows }: { rows: AccountHealthRow[] }) {
                 <StatusBadge label={presentation.label} className={presentation.className} />
               ) : (
                 <StatusBadge
-                  label="chưa biết"
+                  label="Unknown"
                   className="bg-neutral-200 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400"
                 />
               )}

@@ -13,7 +13,7 @@ export function ruleAccountHealth(ctx: RuleContext): RuleVerdict {
 
   const presentation = getStatusPresentation(ctx.account.status);
   return block(
-    `Nick đang ở trạng thái "${presentation.label}" — chỉ nick khỏe mới được đăng. ${presentation.hint}`,
+    `Nick status is "${presentation.label}". Only a healthy nick can publish. ${presentation.hint}`,
   );
 }
 
@@ -26,8 +26,8 @@ export function ruleColdStart(ctx: RuleContext): RuleVerdict {
   if (msRemaining > 0) {
     const days = Math.ceil(msRemaining / MS_PER_DAY);
     return block(
-      `Nick còn ${days} ngày cold-start (tới ${formatDayMonth(until)}). ` +
-        "Trong cold-start chỉ đọc và tương tác nhẹ, cấm đăng bài.",
+      `Nick has ${days} day${days === 1 ? "" : "s"} of cold start remaining (until ${formatDayMonth(until)}). ` +
+        "During cold start, only reading and light interaction are allowed; do not publish posts.",
     );
   }
 
@@ -35,8 +35,8 @@ export function ruleColdStart(ctx: RuleContext): RuleVerdict {
   const daysSinceEnd = Math.abs(msRemaining) / MS_PER_DAY;
   if (daysSinceEnd < ctx.thresholds.coldStartWarnDays) {
     return warn(
-      `Nick vừa hết cold-start ngày ${formatDayMonth(until)} — đi nhẹ vài hôm đầu, ` +
-        "đừng đăng dồn.",
+      `Nick's cold start ended on ${formatDayMonth(until)}. Ease back in for the first few days; ` +
+        "do not post in bursts.",
     );
   }
 

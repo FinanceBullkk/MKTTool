@@ -28,7 +28,7 @@ export function RevertToPendingControl({ jobId }: { jobId: string }) {
       } catch {
         // Không có nhánh này thì lỗi phía server thành promise reject không ai bắt,
         // và dòng job đứng im như thể chưa bấm gì.
-        setResult({ ok: false, message: "Thao tác hỏng. Xem log của dev server." });
+        setResult({ ok: false, message: "Action failed. Check the development server logs and try again." });
       }
       setArmed(false);
     });
@@ -39,11 +39,12 @@ export function RevertToPendingControl({ jobId }: { jobId: string }) {
       {armed ? (
         <div className="space-y-1">
           <p className="text-xs text-neutral-600 dark:text-neutral-400">
-            Chỉ trả về khi bài CHƯA thật sự lên. Link và dấu vết đụng thread sẽ bị xóa.
+            Only revert if the post was not actually published. Its saved URL and thread-collision
+            trace will be removed.
           </p>
           <div className="flex flex-wrap items-center gap-1">
             <button type="button" className={SMALL_BUTTON_CLASS} disabled={pending} onClick={revert}>
-              {pending ? "Đang trả…" : "Trả về thật"}
+              {pending ? "Reverting..." : "Confirm revert"}
             </button>
             <button
               type="button"
@@ -51,7 +52,7 @@ export function RevertToPendingControl({ jobId }: { jobId: string }) {
               disabled={pending}
               onClick={() => setArmed(false)}
             >
-              Thôi
+              Cancel
             </button>
           </div>
         </div>
@@ -65,7 +66,7 @@ export function RevertToPendingControl({ jobId }: { jobId: string }) {
             setArmed(true);
           }}
         >
-          Trả về chờ đăng
+          Return to pending
         </button>
       )}
 

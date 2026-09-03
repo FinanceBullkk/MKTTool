@@ -41,7 +41,7 @@ export function JobRowActions({
       } catch {
         // Không có nhánh này thì lỗi phía server thành promise reject không ai bắt,
         // và dòng job đứng im như thể chưa bấm gì.
-        setResult({ ok: false, message: "Thao tác hỏng. Xem log của dev server." });
+        setResult({ ok: false, message: "Action failed. Check the development server logs and try again." });
       }
     });
   }
@@ -61,7 +61,7 @@ export function JobRowActions({
               disabled={pending}
               onClick={() => run(() => recheckJob(jobId))}
             >
-              Kiểm tra lại
+              Check again
             </button>
             <button
               type="button"
@@ -69,7 +69,7 @@ export function JobRowActions({
               disabled={pending}
               onClick={() => run(() => markJobSkipped(jobId))}
             >
-              Bỏ qua
+              Skip
             </button>
           </>
         ) : (
@@ -87,7 +87,7 @@ export function JobRowActions({
           thấy bài vừa lên và tự gán link vào job này — không phải copy link dán lại.
           Chỉ Reddit, và chỉ khi job còn mở: job đã chốt thì không còn gì để gán. */}
       {targetPlatform === "REDDIT" && open ? (
-        <HealthCheckNowButton accountId={accountId} label="Quét & gán link" />
+        <HealthCheckNowButton accountId={accountId} label="Check and attach link" />
       ) : null}
 
       {result ? (

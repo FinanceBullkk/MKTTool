@@ -23,7 +23,7 @@ import { recheckOneJob } from "./recheck-jobs-batch";
 
 const urlSchema = z
   .string()
-  .url("Link bài đăng không hợp lệ")
+  .url("Invalid post URL. Paste the full URL of the published post.")
   // Cùng chốt với form ghi tương tác: `markPostJobPosted` ghi kèm một Interaction, nên một link
   // không rút được về id bài để lại đúng loại dấu vết mà luật 8 không đối chiếu được.
   .refine((value) => !isUnresolvableShareLink(value), UNRESOLVABLE_SHARE_LINK_MESSAGE);
@@ -91,9 +91,9 @@ async function requireOpenJob(
   jobId: string,
 ): Promise<{ ok: true } | { ok: false; message: string }> {
   const job = await prisma.postJob.findUnique({ where: { id: jobId }, select: { status: true } });
-  if (!job) return { ok: false, message: "Không tìm thấy job." };
+  if (!job) return { ok: false, message: "Job not found. Refresh the queue and try again." };
   if (!isOpenJobStatus(job.status)) {
-    return { ok: false, message: "Chỉ đổi được job đang chờ hoặc đang bị chặn." };
+    return { ok: false, message: "Only pending or blocked jobs can be changed. Refresh the queue and check its status." };
   }
   return { ok: true };
 }
@@ -107,7 +107,10 @@ export const markJobSkipped = guardedAction(async function markJobSkipped(
 
   await prisma.postJob.update({ where: { id: jobId }, data: { status: "SKIPPED" } });
   revalidatePath("/queue");
-  return { ok: true, message: "Đã bỏ qua job. Nó không còn tính vào hạn mức và tỷ lệ promo nữa." };
+  return {
+    ok: true,
+    message: "Job skipped. It no longer counts toward the daily cap or promotional ratio.",
+  };
 });
 
 /**
@@ -122,9 +125,9 @@ export const recheckJob = guardedAction(async function recheckJob(
   jobId: string,
 ): Promise<ActionResult> {
   const job = await prisma.postJob.findUnique({ where: { id: jobId } });
-  if (!job) return { ok: false, message: "Không tìm thấy job." };
+  if (!job) return { ok: false, message: "Job not found. Refresh the queue and try again." };
   if (!isOpenJobStatus(job.status)) {
-    return { ok: false, message: "Chỉ kiểm tra lại được job đang chờ hoặc đang bị chặn." };
+    return { ok: false, message: "Only pending or blocked jobs can be rechecked. Refresh the queue and check its status." };
   }
 
   // Cùng lõi với lúc chấm lại cả mẻ sau khi sửa content/đích/nick — hai đường phải cho ra

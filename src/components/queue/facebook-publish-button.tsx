@@ -33,17 +33,17 @@ export function FacebookPublishButton({ jobId }: { jobId: string }) {
           disabled={pending}
           onClick={publish}
         >
-          {pending ? "Đang đăng…" : "Đăng lên Page"}
+          {pending ? "Publishing..." : "Publish to Page"}
         </button>
         <button type="button" className={BUTTON_CLASS} onClick={() => setExpanded((open) => !open)}>
-          + ảnh
+          + Image
         </button>
       </div>
 
       {expanded ? (
         <input
           className="w-56 rounded-md border border-neutral-300 px-2 py-1 text-xs dark:border-neutral-700 dark:bg-neutral-900"
-          placeholder="Link ảnh (bỏ trống = đăng text)"
+          placeholder="Image URL (leave blank = post text)"
           value={imageUrl}
           onChange={(event) => setImageUrl(event.target.value)}
         />

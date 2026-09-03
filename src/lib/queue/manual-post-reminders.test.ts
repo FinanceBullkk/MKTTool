@@ -8,36 +8,36 @@ import { buildReminderCopyTexts } from "./manual-post-reminders";
  * ngay nhưng chỉ thấy SAU KHI đã đăng, mà bài Reddit sửa được thì cũng đã có người đọc rồi.
  */
 describe("buildReminderCopyTexts", () => {
-  const content = { title: "Tiêu đề", body: "Thân bài.", links: [] as string[] };
+  const content = { title: "Title", body: "Post body", links: [] as string[] };
 
-  it("thân bài để copy KHÔNG kèm tiêu đề — Reddit có ô tiêu đề riêng", () => {
-    expect(buildReminderCopyTexts(content).bodyToCopy).toBe("Thân bài.");
+  it("excludes the title from Reddit body copy because Reddit has a separate title field", () => {
+    expect(buildReminderCopyTexts(content).bodyToCopy).toBe("Post body");
   });
 
-  it("khối gộp có cả tiêu đề lẫn thân bài — Facebook Group chỉ có một ô", () => {
-    expect(buildReminderCopyTexts(content).messageToCopy).toBe("Tiêu đề\n\nThân bài.");
+  it("combines title and body for the single Facebook Group post field", () => {
+    expect(buildReminderCopyTexts(content).messageToCopy).toBe("Title\n\nPost body");
   });
 
-  it("link dán kèm cuối cả hai dạng — link ngoài thân bài là link biến mất khỏi bài", () => {
+  it("appends links to both copy formats so they are not omitted from the post", () => {
     const withLinks = buildReminderCopyTexts({
       ...content,
       links: ["https://a.example", "https://b.example"],
     });
 
-    expect(withLinks.bodyToCopy).toBe("Thân bài.\n\nhttps://a.example\nhttps://b.example");
-    expect(withLinks.messageToCopy).toContain("Tiêu đề");
+    expect(withLinks.bodyToCopy).toBe("Post body\n\nhttps://a.example\nhttps://b.example");
+    expect(withLinks.messageToCopy).toContain("Title");
     expect(withLinks.messageToCopy).toContain("https://b.example");
   });
 
-  it("không có link thì không để lại dòng trống thừa ở cuối", () => {
+  it("does not leave a trailing blank line when there are no links", () => {
     const texts = buildReminderCopyTexts(content);
     expect(texts.bodyToCopy).not.toMatch(/\n\s*$/);
     expect(texts.messageToCopy).not.toMatch(/\n\s*$/);
   });
 
-  it("thân bài rỗng thì khối gộp chỉ còn tiêu đề, không có dòng trống dẫn đầu", () => {
-    const texts = buildReminderCopyTexts({ title: "Chỉ tiêu đề", body: "", links: [] });
-    expect(texts.messageToCopy).toBe("Chỉ tiêu đề");
+  it("returns only the title for a Facebook Group post with an empty body", () => {
+    const texts = buildReminderCopyTexts({ title: "Just title", body: "", links: [] });
+    expect(texts.messageToCopy).toBe("Just title");
     expect(texts.bodyToCopy).toBe("");
   });
 });

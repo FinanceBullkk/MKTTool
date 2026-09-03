@@ -38,15 +38,15 @@ function interactionForm(threadUrl: string): FormData {
   return data;
 }
 
-describe("chặn link share ở đầu vào", () => {
-  it("đánh dấu đã đăng bằng link share thì bị từ chối", async () => {
+describe("block share link at input", () => {
+  it("marking as posted with share link is rejected", async () => {
     const result = await markJobPosted("job-1", SHARE_LINK);
 
     expect(result.ok).toBe(false);
     expect(result.message).toBe(UNRESOLVABLE_SHARE_LINK_MESSAGE);
   });
 
-  it("ghi tương tác bằng link share thì bị từ chối", async () => {
+  it("posting interaction with share link is rejected", async () => {
     const result = await recordInteraction(null, interactionForm(SHARE_LINK));
 
     expect(result.ok).toBe(false);
@@ -58,7 +58,7 @@ describe("chặn link share ở đầu vào", () => {
    * sau (không có job/đích thật trong test này) — điều cần chứng minh là nó KHÔNG ngã vì thông báo
    * link share, nếu không thì chốt đang chặn cả việc bình thường.
    */
-  it("link đầy đủ không bị chốt này chặn", async () => {
+  it("link full URL not blocked by this lock", async () => {
     const marked = await markJobPosted("job-1", PERMALINK).catch(() => ({ message: "" }));
     expect(marked.message).not.toBe(UNRESOLVABLE_SHARE_LINK_MESSAGE);
   });
