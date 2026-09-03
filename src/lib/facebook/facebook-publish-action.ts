@@ -12,6 +12,10 @@ import type { ActionResult } from "@/lib/actions/action-result";
 import { AUDIT_ACTIONS } from "@/lib/audit/audit-log-actions";
 import { guardedAction } from "@/lib/auth/guarded-action";
 import { prisma } from "@/lib/db/prisma-client";
+import {
+  isPlatformInRolloutScope,
+  parkedPlatformMessage,
+} from "@/lib/platforms/rollout-scope";
 import { markPostJobPosted } from "@/lib/queue/post-job-mark-posted";
 import { FacebookPublishError, publishToPage, toPostContent } from "./facebook-page-publisher";
 
@@ -32,6 +36,16 @@ export const publishJobToPage = guardedAction(async function publishJobToPage(
       message: `Đích "${job.target.name}" không phải Fanpage. Chỉ Fanpage đăng được bằng API.`,
     };
   }
+  // Chốt phạm vi đặt ngay sau lượt kiểm loại đích và TRƯỚC mọi thứ chạm tới Graph API.
+  //
+  // Đây là lối vào duy nhất trong công cụ gây ra hiệu ứng ra ngoài thế giới: một bài thật xuất
+  // hiện trên một Fanpage thật. Job có thể xóa, trạng thái có thể sửa, còn bài đã đăng thì chỉ
+  // gỡ được bằng tay trên Facebook. Cho nên nếu chỉ một chỗ trong file này được chặn thì phải
+  // là chỗ này.
+  if (!isPlatformInRolloutScope(job.target.platform)) {
+    return { ok: false, message: parkedPlatformMessage(job.target.platform) };
+  }
+
   if (job.status !== "PENDING") {
     return {
       ok: false,

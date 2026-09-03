@@ -129,13 +129,26 @@ function draftForm(seeded: Seeded, overrides: Record<string, string> = {}): Form
 
 describe("createPostJob — nguồn content", () => {
   let seeded: Seeded;
+  const scopeBefore = process.env.ROLLOUT_PLATFORMS;
 
   beforeEach(async () => {
+    // Mở phạm vi cho đúng những gì bộ test này kiểm.
+    //
+    // Từ 02/09/2026 mọi nền tảng mặc định đóng (`rollout-scope.ts`), nên không đặt biến này thì
+    // `createPostJob` từ chối ngay và cả bộ test đỏ vì một lý do không liên quan tới thứ nó
+    // định kiểm. Ở đây kiểm CƠ CHẾ tạo job — nguồn content, nhật ký ghi đè — chứ không kiểm
+    // quyết định phạm vi; quyết định đó có bộ test riêng ở `platforms/rollout-scope.test.ts`.
+    //
+    // Khai thẳng ở đây thay vì đặt trong config chung: một dòng đọc được ngay tại chỗ nói rõ
+    // bộ test này chạy được là nhờ phạm vi đang mở, thay vì để người đọc sau tự đoán.
+    process.env.ROLLOUT_PLATFORMS = "REDDIT,FACEBOOK_PAGE,FACEBOOK_GROUP";
     await clearAll();
     seeded = await seed();
   });
 
   afterAll(async () => {
+    if (scopeBefore === undefined) delete process.env.ROLLOUT_PLATFORMS;
+    else process.env.ROLLOUT_PLATFORMS = scopeBefore;
     await clearAll();
   });
 
@@ -238,6 +251,68 @@ describe("createPostJob — nguồn content", () => {
         scheduledAt: SCHEDULED_AT.toISOString(),
       }),
     );
+
+    expect(result.ok).toBe(true);
+    expect(await prisma.postJob.count()).toBe(1);
+  });
+});
+
+/**
+ * Chốt phạm vi bàn giao — kiểm bằng hành vi thật qua cơ sở dữ liệu, không phải bằng quét chuỗi.
+ *
+ * Quét chuỗi ở `platforms/rollout-scope.test.ts` chỉ chứng minh chốt còn được gọi trong file.
+ * Bộ này chứng minh thứ thật sự quan trọng: phạm vi đóng thì **không có job nào ra đời**, kể cả
+ * khi mọi thứ khác đều hợp lệ và người dùng có nhập lý do ghi đè.
+ */
+describe("createPostJob — phạm vi bàn giao đóng", () => {
+  let seeded: Seeded;
+  const scopeBefore = process.env.ROLLOUT_PLATFORMS;
+
+  beforeEach(async () => {
+    delete process.env.ROLLOUT_PLATFORMS;
+    await clearAll();
+    seeded = await seed();
+  });
+
+  afterAll(async () => {
+    if (scopeBefore === undefined) delete process.env.ROLLOUT_PLATFORMS;
+    else process.env.ROLLOUT_PLATFORMS = scopeBefore;
+    await clearAll();
+  });
+
+  it("từ chối xếp lịch và không ghi job nào vào cơ sở dữ liệu", async () => {
+    const result = await createPostJob(null, draftForm(seeded));
+
+    expect(result.ok).toBe(false);
+    expect(result.message).toContain("ROLLOUT_PLATFORMS");
+    expect(await prisma.postJob.count()).toBe(0);
+  });
+
+  it("lý do ghi đè không mở được quyết định phạm vi", async () => {
+    const result = await createPostJob(
+      null,
+      draftForm(seeded, { overrideReason: "Sếp bảo đăng gấp cho kịp chiến dịch hôm nay" }),
+    );
+
+    expect(result.ok).toBe(false);
+    expect(await prisma.postJob.count()).toBe(0);
+  });
+
+  it("nháp bị từ chối thì cũng không để lại ContentItem mồ côi trong kho", async () => {
+    const before = await prisma.contentItem.count();
+    await createPostJob(null, draftForm(seeded));
+
+    expect(await prisma.contentItem.count()).toBe(before);
+  });
+
+  it("mở đúng nền tảng của đích thì xếp lịch lại được", async () => {
+    const target = await prisma.platformTarget.findUniqueOrThrow({
+      where: { id: seeded.targetId },
+      select: { platform: true },
+    });
+    process.env.ROLLOUT_PLATFORMS = target.platform;
+
+    const result = await createPostJob(null, draftForm(seeded));
 
     expect(result.ok).toBe(true);
     expect(await prisma.postJob.count()).toBe(1);

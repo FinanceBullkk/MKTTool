@@ -66,9 +66,20 @@ owner decision.
 
 Consequences worth keeping straight:
 
-- **Nothing in code enforces this.** `TARGET_PLATFORMS` still lists `REDDIT`, `FACEBOOK_PAGE`, and
-  `FACEBOOK_GROUP`; the screens still render and the buttons still work. The boundary holds by
-  agreement, not by a check that fails closed. If it must fail closed, that is a separate change.
+- **The posting boundary now fails closed in code — 2 September 2026.** `TARGET_PLATFORMS` still
+  lists `REDDIT`, `FACEBOOK_PAGE`, and `FACEBOOK_GROUP`, and the parked screens still render and
+  stay reachable by URL, because the decision was to withdraw the platforms rather than delete the
+  implementation. What changed is that the two write paths refuse: `createPostJob` rejects a target
+  whose platform is out of scope before the rules engine runs, and `publishJobToPage` rejects before
+  it reaches the Graph API. `src/lib/platforms/rollout-scope.ts` is the single source of truth, it
+  defaults to no platform in scope, and an unrecognised platform is treated as out of scope.
+  Re-entry is deliberate and operational rather than a code edit: set `ROLLOUT_PLATFORMS` (a
+  comma-separated list) on the deployment. Whoever sets it inherits that platform's open items,
+  including the unowned cross-operator publish path on Facebook Pages.
+- **What still holds by agreement.** Scope enforcement covers posting. Reading the parked screens,
+  recording manual interactions, and connecting a Facebook page are not blocked; they create no
+  outward post. The home page carries a scope notice derived from the same source of truth, so the
+  screen and the guard cannot drift apart.
 - **The rollout surface is now small.** With both platforms out, no posting path remains, so the
   team-facing product is a shared identity vault rather than a posting console. That is a coherent
   thing to hand over, but it is much less than what is built.

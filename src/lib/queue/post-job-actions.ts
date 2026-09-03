@@ -24,6 +24,10 @@ import { AUDIT_ACTIONS } from "@/lib/audit/audit-log-actions";
 import { guardedAction } from "@/lib/auth/guarded-action";
 import { parseLinksInput, stringifyLinks } from "@/lib/content/content-types";
 import { prisma } from "@/lib/db/prisma-client";
+import {
+  isPlatformInRolloutScope,
+  parkedPlatformMessage,
+} from "@/lib/platforms/rollout-scope";
 import type { ContentSource } from "@/lib/rules/rule-context-builder";
 import { serializeEvaluation, summarizeEvaluation } from "@/lib/rules/rules-engine";
 import { canOverride } from "./post-job-override-policy";
@@ -110,6 +114,25 @@ export const createPostJob = guardedAction(async function createPostJob(
   if (!fields.success) return { ok: false, message: firstError(fields.error) };
 
   const { overrideReason, ...job } = fields.data;
+
+  // Chặn phạm vi TRƯỚC bộ luật, không phải sau.
+  //
+  // Bộ luật trả lời "bài này đăng lúc này có an toàn cho nick không". Phạm vi trả lời một câu
+  // khác hẳn: "nền tảng này có còn được giao cho team không". Câu thứ hai không có ghi đè —
+  // `overrideReason` mở được luật giữ nhịp, nhưng không mở được một quyết định phạm vi.
+  //
+  // Đặt trước còn để người bấm nhận đúng câu trả lời: xếp lịch cho một nền tảng đã đóng mà
+  // nhận về "vướng luật 3, nhập lý do ghi đè" là chỉ đường sai — họ sẽ nhập lý do và vẫn bị
+  // chặn, hoặc tệ hơn là ghi đè thành công vào một đường đăng lẽ ra đã khóa.
+  const scheduledTarget = await prisma.platformTarget.findUnique({
+    where: { id: job.targetId },
+    select: { platform: true, name: true },
+  });
+  if (!scheduledTarget) return { ok: false, message: "Không tìm thấy đích đăng." };
+  if (!isPlatformInRolloutScope(scheduledTarget.platform)) {
+    return { ok: false, message: parkedPlatformMessage(scheduledTarget.platform) };
+  }
+
   const preview = await previewPostJobRules({ ...job, content: toContentSource(content.input) });
   if (!preview.ok) return { ok: false, message: preview.message };
 
