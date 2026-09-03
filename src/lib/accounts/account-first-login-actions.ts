@@ -78,7 +78,7 @@ export const markFirstLogin = guardedAction(async function markFirstLogin(
       data: {
         accountId,
         action: AUDIT_ACTIONS.ACCOUNT_FIRST_LOGIN,
-        detail: `${actor.email} khai đã đăng nhập được nick vào profile của nó`,
+        detail: `${actor.email} confirmed the nick signed in to its browser profile`,
         actorId: actor.userId,
       },
     }),

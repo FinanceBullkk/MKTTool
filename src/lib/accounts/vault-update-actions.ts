@@ -155,16 +155,16 @@ export const updateAccount = guardedAction(async function updateAccount(
   const auditDetailParts = [
     existing.status === data.status
       ? `karma ${data.karma}, ${data.status}`
-      : `karma ${data.karma}, trạng thái ${existing.status} → ${data.status}`,
+      : `karma ${data.karma}, status ${existing.status} → ${data.status}`,
   ];
   if (existing.proxyId !== nextProxyId) {
     auditDetailParts.push(
-      `proxy ${existing.proxyId ?? "không gắn"} → ${nextProxyId ?? "không gắn"}`,
+      `proxy ${existing.proxyId ?? "unassigned"} → ${nextProxyId ?? "unassigned"}`,
     );
   }
   if (existing.antidetectProfileId !== nextAntidetectProfileId) {
     auditDetailParts.push(
-      `browser profile ${existing.antidetectProfileId ?? "không có"} → ${nextAntidetectProfileId ?? "không có"}`,
+      `browser profile ${existing.antidetectProfileId ?? "none"} → ${nextAntidetectProfileId ?? "none"}`,
     );
   }
 

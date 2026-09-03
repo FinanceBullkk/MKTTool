@@ -153,3 +153,26 @@ those software terms as another name for the PC itself.
 | `Dùng được` / `Đang đóng` | `Available` / `Closed` |
 | `Chú ý` / `Đang hỏng` | `Attention` / `Broken` |
 | `Xóa thật` / `Thôi` | `Delete permanently` / `Cancel` |
+| `proxy không dùng được` | `unusable proxy` |
+| `nick có cụm đã hỏng` | `nick has a broken assignment` |
+| `Quản trị viên gán lại cụm` | `An administrator reassigns the nick` |
+| `nick chưa dùng được vì còn thiếu cấu hình` | `nick is not ready because configuration is missing` |
+| `trang Chuẩn bị` | `Setup page` |
+| `Sao lưu ra ngoài Railway` | `Off-Railway backup` |
+| `nick cần xử lý tay` | `nick needs manual attention` |
+
+Audit-log `detail` text is display copy too, and reads as `<actor email> <detail>`:
+
+| Before | After |
+|---|---|
+| `gỡ chủ của nick` | `removed the nick owner` |
+| `giao nick cho …` | `assigned the nick to …` |
+| `gỡ ghim khỏi máy …` | `unpinned the nick from Relay PC …` |
+| `ghim nick vào máy …` | `pinned the nick to Relay PC …` |
+| `chuyển nick từ máy … sang máy …` | `moved the nick from Relay PC … to Relay PC …` |
+| `khai đã đăng nhập được nick vào profile của nó` | `confirmed the nick signed in to its browser profile` |
+| `tạo profile … trên máy …` | `created browser profile … on Relay PC …` |
+| `trạng thái` / `không gắn` / `không có` | `status` / `unassigned` / `none` |
+
+Audit `action` enum values are unchanged; only the human-readable `detail` is translated. Rows
+written before this change keep their original Vietnamese text.

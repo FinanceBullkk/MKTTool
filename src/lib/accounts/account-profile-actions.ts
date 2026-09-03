@@ -276,7 +276,7 @@ export const recordCreatedProfile = guardedAction(async function recordCreatedPr
       data: {
         accountId,
         action: AUDIT_ACTIONS.ACCOUNT_PROFILE_CREATED,
-        detail: `${actor.email} tạo profile ${profileId} trên máy "${device.name}"`,
+        detail: `${actor.email} created browser profile ${profileId} on Relay PC "${device.name}"`,
         actorId: actor.userId,
       },
     }),
@@ -284,7 +284,7 @@ export const recordCreatedProfile = guardedAction(async function recordCreatedPr
       data: {
         accountId,
         action: AUDIT_ACTIONS.ACCOUNT_DEVICE_PINNED,
-        detail: `${actor.email} ghim nick vào máy "${device.name}" khi tạo profile`,
+        detail: `${actor.email} pinned the nick to Relay PC "${device.name}" while creating the browser profile`,
         actorId: actor.userId,
       },
     }),
