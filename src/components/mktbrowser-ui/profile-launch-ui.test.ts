@@ -17,6 +17,7 @@ const PROFILE: ProfileItemData = {
   notes: null,
   firstLoginAt: null,
   antidetectProfileId: "profile-a",
+  owner: { email: "operator@example.test" },
   device: { id: "device-a", name: "Operator PC", userId: "user-a" },
   proxy: {
     id: "proxy-a",
@@ -58,6 +59,8 @@ describe("profile launch UI", () => {
     expect(markup).not.toContain(PROFILE.proxy!.lastExitIp);
     expect(markup).not.toContain(String(PROFILE.proxy!.port));
     expect(markup).not.toContain(PROFILE.proxy!.label);
+    expect(markup).toContain("operator@example.test");
+    expect(markup).toContain("Operator PC");
     expect(markup).not.toMatch(/cloakbrowser|chromium|\bMCP\b|47821|47822/i);
   });
 

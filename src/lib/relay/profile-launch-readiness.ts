@@ -205,7 +205,9 @@ export function describeProfileLaunchFailure(outcome: RelayOutcome<unknown>): st
     : "Relay rejected the browser profile launch. Open Setup and retry.";
 }
 
-export function describeProfileTicketFailure(status: number): string {
+export function describeProfileTicketFailure(status: number, serverMessage?: string): string {
+  const cleanedMessage = serverMessage?.trim();
+  if (cleanedMessage) return cleanedMessage;
   if (status === 404) return "This nick is no longer available. Refresh the page.";
   if (status === 403) return "This launch request is no longer authorized. Refresh and retry.";
   if (status === 409) {

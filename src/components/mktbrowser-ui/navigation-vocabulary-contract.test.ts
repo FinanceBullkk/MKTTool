@@ -46,6 +46,7 @@ describe("Phase 2 navigation and vocabulary contract", () => {
     expect(detail).toContain('"Relay PC"');
     expect(actions).toContain("Open browser profile");
     expect(table).toContain("Open on this Relay PC");
+    expect(table).toContain("Owner");
     expect(table).toContain("Relay PC not assigned");
     expect(table).not.toContain("Local PC");
     expect(tiktokSheet).toContain("Create TikTok nick");

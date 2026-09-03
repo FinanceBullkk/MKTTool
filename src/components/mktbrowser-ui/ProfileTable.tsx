@@ -36,6 +36,7 @@ export function ProfileTable({
               <th scope="col" className="py-3 px-4">Status</th>
               <th scope="col" className="py-3 px-4">Tags & niche</th>
               <th scope="col" className="py-3 px-4">Proxy</th>
+              <th scope="col" className="py-3 px-4">Owner</th>
               <th scope="col" className="py-3 px-4">Relay PC</th>
               <th scope="col" className="py-3 px-4 text-right">Action</th>
             </tr>
@@ -94,10 +95,10 @@ function ProfileTableRow({
 
     try {
       const response = await fetch(`/api/accounts/${profile.id}/launch`, { method: "POST" });
-      const body = (await response.json()) as { ok: boolean; ticket?: string };
+      const body = (await response.json()) as { ok: boolean; message?: string; ticket?: string };
 
       if (!body.ok || !body.ticket) {
-        alert(describeProfileTicketFailure(response.status));
+        alert(describeProfileTicketFailure(response.status, body.message));
         return;
       }
 
@@ -188,12 +189,17 @@ function ProfileTableRow({
         )}
       </td>
 
-      {/* 5. Device */}
+      {/* 5. Owner */}
+      <td className="py-3 px-4 text-xs text-neutral-400">
+        <span>{profile.owner?.email ?? "Owner not assigned"}</span>
+      </td>
+
+      {/* 6. Device */}
       <td className="py-3 px-4 text-xs text-neutral-400">
         <span>{profile.device?.name || "Relay PC not assigned"}</span>
       </td>
 
-      {/* 6. Action */}
+      {/* 7. Action */}
       <td className="py-3 px-4 text-right">
         <div className="flex items-center justify-end gap-2">
           <button

@@ -48,6 +48,7 @@ export function profileMatchesSearchQuery(
     profile.proxy?.label,
     profile.proxy?.host,
     profile.proxy?.lastExitIp,
+    profile.owner?.email,
     profile.device?.name,
   ].some((value) => value?.toLowerCase().includes(query));
 }
