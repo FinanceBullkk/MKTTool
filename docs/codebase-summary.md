@@ -501,6 +501,13 @@ Hai cái bẫy đã vấp và đã có test canh:
 `accountUpdateSchema` không có `platform` (nền tảng cố định sau khi tạo nên form không gửi lên) —
 `updateAccount` phải đọc nền tảng từ DB rồi mới chấm. Quên bước đó là đường sửa lỏng hơn đường tạo.
 
+The same `updateAccount` read now includes `proxyId` and `antidetectProfileId`. A normalized proxy
+change requires ADMIN, while shared operational edits retain their existing authorization. The detail
+form branches by role: ADMIN receives the selector and confirmation, while OPERATOR receives the
+current proxy read-only plus the contact from `ADMIN_EMAILS`. The transactional `ACCOUNT_UPDATED`
+row appends `proxy <before> → <after>` or `browser profile <before> → <after>` only when that value
+changes; proxy endpoints and credentials never enter the audit detail.
+
 ## Đã gọi Graph API thật — 03/08/2026
 
 Phase 04 nghiệm thu xong bằng một bài đăng thật lên Fanpage nháp. Ba chi tiết đáng ghi:

@@ -44,6 +44,12 @@ terms are fixed in the [UI glossary](docs/ui-glossary.md): a **nick** is a share
 **browser profile** is local data on one PC, and a **Relay PC** is the registered PC that receives
 tickets.
 
+Changing an existing nick's proxy is an **ADMIN** responsibility. Operators still update shared
+day-to-day fields such as karma, status, and voice, but the edit form shows the current proxy
+read-only with the primary contact from `ADMIN_EMAILS`. Proxy and browser-profile ID changes are
+recorded as before-to-after values in the same transaction as the account update; browser-profile
+authorization itself is unchanged pending a separate owner decision.
+
 ## What it is
 
 This is not a bot farm. It is a shared nick vault and operator console: every browser-backed nick
