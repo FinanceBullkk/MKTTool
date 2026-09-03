@@ -6,11 +6,11 @@ import {
   resolveBackupSource,
 } from "./backup-source";
 
-const LOCAL = "postgresql://postgres:matkhau@localhost:5432/mkttool_dev";
-const REMOTE = "postgresql://postgres:matkhau@shortline.proxy.rlwy.net:41234/railway?sslmode=require";
+const LOCAL = "postgresql://postgres:p@localhost:5432/mkttool_dev";
+const REMOTE = "postgresql://postgres:p@shortline.proxy.rlwy.net:41234/railway?sslmode=require";
 
 describe("resolveBackupSource", () => {
-  it("nguồn local đọc DATABASE_URL", () => {
+  it("reads DATABASE_URL for the local source", () => {
     expect(resolveBackupSource("local", { DATABASE_URL: LOCAL })).toEqual({
       kind: "local",
       databaseUrl: LOCAL,
@@ -18,7 +18,7 @@ describe("resolveBackupSource", () => {
     });
   });
 
-  it("nguồn remote đọc biến riêng, và tên file mang dấu prod", () => {
+  it("reads the dedicated remote variable and marks the filename as prod", () => {
     const source = resolveBackupSource("remote", { [REMOTE_DATABASE_URL_ENV]: REMOTE });
 
     expect(source.databaseUrl).toBe(REMOTE);
@@ -30,14 +30,14 @@ describe("resolveBackupSource", () => {
    * Nhánh quan trọng nhất: `--remote` mà lặng lẽ lùi về database máy mình sẽ dựng ra một file tên
    * `mkttool-prod-…` chứa dữ liệu thử — bản sao lưu nói dối, và chỉ lộ ra vào ngày cần tới nó.
    */
-  it("thiếu biến remote thì NÉM LỖI, không lùi về DATABASE_URL", () => {
+  it("THROWS when the remote variable is missing instead of falling back to DATABASE_URL", () => {
     expect(() => resolveBackupSource("remote", { DATABASE_URL: LOCAL })).toThrow(BackupSourceError);
     expect(() => resolveBackupSource("remote", { DATABASE_URL: LOCAL })).toThrow(
       new RegExp(REMOTE_DATABASE_URL_ENV),
     );
   });
 
-  it("biến chỉ có khoảng trắng tính là chưa khai", () => {
+  it("treats a whitespace-only variable as unset", () => {
     expect(() => resolveBackupSource("remote", { [REMOTE_DATABASE_URL_ENV]: "   " })).toThrow(
       BackupSourceError,
     );
@@ -46,18 +46,18 @@ describe("resolveBackupSource", () => {
 });
 
 describe("describeDatabaseTarget", () => {
-  it("nói rõ host và tên database", () => {
+  it("names the host and database", () => {
     expect(describeDatabaseTarget(REMOTE)).toBe("shortline.proxy.rlwy.net:41234/railway");
     expect(describeDatabaseTarget(LOCAL)).toBe("localhost:5432/mkttool_dev");
   });
 
   /** Câu này in ra màn hình và có thể lọt vào log — mật khẩu database là chìa vào cả kho. */
-  it("KHÔNG bao giờ để lộ mật khẩu", () => {
-    expect(describeDatabaseTarget(REMOTE)).not.toContain("matkhau");
-    expect(describeDatabaseTarget(LOCAL)).not.toContain("matkhau");
+  it("NEVER exposes the password", () => {
+    expect(describeDatabaseTarget(REMOTE)).not.toContain("password");
+    expect(describeDatabaseTarget(LOCAL)).not.toContain("password");
   });
 
-  it("URL hỏng thì trả câu vô hại, không ném lỗi và không in nguyên chuỗi", () => {
-    expect(describeDatabaseTarget("khong-phai-url")).toBe("(URL không đọc được)");
+  it("returns safe text for an invalid URL without throwing or printing the raw value", () => {
+    expect(describeDatabaseTarget("not-a-url")).toBe("(unreadable URL)");
   });
 });

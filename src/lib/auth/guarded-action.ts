@@ -52,7 +52,7 @@ function toActionResult(error: unknown): ActionResult {
   return {
     ok: false,
     message: error.needsLogin
-      ? `${error.message} Tải lại trang để đăng nhập.`
+      ? `${error.message} Reload the page to sign in.`
       : error.message,
   };
 }

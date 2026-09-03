@@ -50,10 +50,10 @@ export const GET = guardedRoute(async function GET(_actor, request: Request) {
 
   // Người dùng bấm "Hủy" ở dialog Facebook.
   const denied = query.get("error_description") ?? query.get("error");
-  if (denied) return back(request, { error: `Facebook từ chối cấp quyền: ${denied}` });
+  if (denied) return back(request, { error: `Facebook denied authorization: ${denied}` });
 
   const code = query.get("code");
-  if (!code) return back(request, { error: "Facebook không trả về mã ủy quyền." });
+  if (!code) return back(request, { error: "Facebook did not return an authorization code." });
 
   const cookieStore = await cookies();
   const expectedState = cookieStore.get(OAUTH_STATE_COOKIE)?.value;
@@ -61,7 +61,7 @@ export const GET = guardedRoute(async function GET(_actor, request: Request) {
 
   if (!expectedState || expectedState !== query.get("state")) {
     return back(request, {
-      error: "Chuỗi state không khớp — bỏ qua lần kết nối này. Bấm kết nối lại từ đầu.",
+      error: "The OAuth state did not match, so this connection attempt was discarded. Start the connection again.",
     });
   }
 
@@ -76,25 +76,25 @@ export const GET = guardedRoute(async function GET(_actor, request: Request) {
     if (pages.length === 0) {
       return back(request, {
         error:
-          `Nick "${identity.name}" không quản trị Fanpage nào, hoặc chưa tick chọn Page ở màn hình ` +
-          `cấp quyền. Kết nối lại và nhớ chọn Page.`,
+          `Nick "${identity.name}" does not manage any Facebook Pages, or no Page was selected on the ` +
+          `authorization screen. Connect again and select a Page.`,
       });
     }
 
     const saved = await saveConnectionWithPages(identity, longLived, pages);
     const skipped =
       saved.skippedPages.length > 0
-        ? ` Chưa nối đích cho: ${saved.skippedPages.join(", ")} (trùng tên đích đã có) — sửa tên đích ở /targets rồi kết nối lại.`
+        ? ` Targets were not connected for: ${saved.skippedPages.join(", ")} (an existing target has the same name). Rename the target under /targets, then connect again.`
         : "";
 
     return back(request, {
-      connected: `Đã kết nối "${identity.name}" với ${saved.savedPages} Fanpage.${skipped}`,
+      connected: `Connected "${identity.name}" to ${saved.savedPages} Facebook Page${saved.savedPages === 1 ? "" : "s"}.${skipped}`,
     });
   } catch (error) {
     const message =
       error instanceof FacebookConfigError
         ? error.message
-        : toUserMessage(error, "Lỗi không xác định khi lấy token Facebook.");
+        : toUserMessage(error, "An unknown error occurred while retrieving the Facebook token.");
     return back(request, { error: message });
   }
 });

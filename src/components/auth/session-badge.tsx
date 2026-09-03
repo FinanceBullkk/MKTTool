@@ -13,7 +13,7 @@ import Link from "next/link";
 import { readActor } from "@/lib/auth/require-actor";
 import { SignOutButton } from "./sign-out-button";
 
-const ROLE_LABEL = { ADMIN: "quản trị viên", OPERATOR: "vận hành" } as const;
+const ROLE_LABEL = { ADMIN: "administrator", OPERATOR: "operator" } as const;
 
 export async function SessionBadge() {
   const actor = await readActor();
@@ -24,7 +24,7 @@ export async function SessionBadge() {
         href="/login"
         className="rounded-md px-2 py-1 text-sm font-medium text-neutral-600 underline-offset-2 transition hover:text-neutral-900 hover:underline dark:text-neutral-400 dark:hover:text-neutral-100"
       >
-        Đăng nhập
+        Sign in
       </Link>
     );
   }

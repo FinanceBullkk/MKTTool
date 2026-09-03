@@ -30,19 +30,19 @@ const NOI_CHI_DUONG_TAI = [
   ["src", "components", "vault", "antidetect-profile-card.tsx"],
 ];
 
-describe("đường dẫn trong luồng chuẩn bị", () => {
-  it.each(NOI_CHI_DUONG_TAI)("%s/%s/%s/%s không còn chỉ sang trang tải cũ", (...segments) => {
+describe("setup flow links", () => {
+  it.each(NOI_CHI_DUONG_TAI)("%s/%s/%s/%s no longer points to the old download page", (...segments) => {
     const source = doc(...segments);
     expect(
       source.includes("/relay-download"),
-      `${segments.join("/")} vẫn trỏ tới "/relay-download". Phần tải đã về "/setup#download" — ` +
-        "trang cũ chỉ còn là đường chuyển tiếp, nên link này bắt người dùng đi thêm một nhịp " +
-        "chuyển hướng để tới đúng chỗ vốn có thể tới thẳng.",
+      `${segments.join("/")} still points to "/relay-download". Downloads now live at "/setup#download". ` +
+        "The old page only redirects, so this link makes the operator take an unnecessary redirect " +
+        "instead of going directly to the available action.",
     ).toBe(false);
     expect(source).toContain("/setup#download");
   });
 
-  it("phần tải có đúng mốc neo mà mọi link kia đang trỏ tới", () => {
+  it("keeps the download anchor targeted by every setup link", () => {
     // Không có `id="download"` thì mọi `#download` ở trên rơi vào đầu trang, và người tới từ dải
     // "cầu nối bản cũ" phải tự dò xuống — im lặng, không có gì hỏng để mà thấy.
     expect(doc("src", "components", "setup", "relay-download-section.tsx")).toContain('id="download"');
@@ -54,7 +54,7 @@ describe("đường dẫn trong luồng chuẩn bị", () => {
     expect(page).toContain("<RelayDownloadSection");
   });
 
-  it("trang tải cũ vẫn tồn tại, chỉ chuyển tiếp", () => {
+  it("keeps the old download page as a redirect", () => {
     // Xóa hẳn thì địa chỉ nằm trong tài liệu vận hành và trong tin nhắn cũ ăn 404, và người đọc
     // kết luận công cụ hỏng chứ không kết luận là trang đã dọn đi chỗ khác.
     const page = doc("src", "app", "relay-download", "page.tsx");

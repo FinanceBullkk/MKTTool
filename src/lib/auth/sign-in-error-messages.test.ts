@@ -12,7 +12,7 @@ import { signInErrorDiagnostic, signInErrorMessage } from "./sign-in-error-messa
 const context = { adminContactEmail: "admin@mkttool.local" };
 
 describe("signInErrorMessage", () => {
-  it("nêu đúng email bị từ chối", () => {
+  it("names the rejected email address", () => {
     const message = signInErrorMessage("EMAIL_NOT_ALLOWED:anhhao9a2.xt@gmail.com", context);
 
     // Email phải xuất hiện nguyên vẹn: gõ nhầm một chữ và đăng nhập nhầm tài khoản Google
@@ -25,7 +25,7 @@ describe("signInErrorMessage", () => {
     expect(message).not.toContain("EMAIL_NOT_ALLOWED:");
   });
 
-  it("giữ chi tiết cấu hình ở diagnostic server, không đưa cho operator", () => {
+  it("keeps configuration details in server diagnostics and away from operators", () => {
     const message = signInErrorMessage("invalid_code", context);
 
     expect(message).toContain("admin@mkttool.local");
@@ -34,32 +34,32 @@ describe("signInErrorMessage", () => {
     expect(signInErrorDiagnostic("invalid_code")).toContain("GOOGLE_CLIENT_SECRET");
   });
 
-  it("đổi state_not_found thành hướng thử lại, không hiện host hoặc tên biến", () => {
+  it("turns state_not_found into retry guidance without exposing hosts or variables", () => {
     const message = signInErrorMessage("state_not_found", context);
 
-    expect(message).toContain("đăng nhập lại");
+    expect(message).toContain("sign in again");
     expect(message).not.toContain("BETTER_AUTH_URL");
     expect(message).not.toContain("state not found");
     expect(signInErrorDiagnostic("state_not_found")).toContain("BETTER_AUTH_URL");
   });
 
-  it("không hiện câu kỹ thuật dài bị Better Auth nối bằng gạch dưới", () => {
-    const mangled = "Khong_tao_duoc_tai_khoan_vi_mot_ly_do_nao_do_rat_dai_dong_khong_doc_noi";
+  it("does not display a long technical message mangled by Better Auth", () => {
+    const mangled = "Could_not_create_an_account_because_of_a_long_unreadable_technical_failure";
 
     const message = signInErrorMessage(mangled, context);
-    expect(message).toContain("Không thể hoàn tất");
-    expect(message).not.toContain("Khong tao duoc tai khoan");
+    expect(message).toContain("could not be completed");
+    expect(message).not.toContain("Could not create an account");
   });
 
-  it("mã lạ chỉ nằm trong diagnostic server", () => {
-    expect(signInErrorMessage("mot_ma_moi_toanh", context)).not.toContain("mot_ma_moi_toanh");
-    expect(signInErrorDiagnostic("mot_ma_moi_toanh")).toContain("mot_ma_moi_toanh");
+  it("keeps unknown codes in server diagnostics only", () => {
+    expect(signInErrorMessage("brand_new_code", context)).not.toContain("brand_new_code");
+    expect(signInErrorDiagnostic("brand_new_code")).toContain("brand_new_code");
   });
 
-  it("lấy email vừa dùng từ câu do proxy gửi nhưng không hiện cả câu kỹ thuật", () => {
+  it("extracts the attempted email from proxy text without displaying the full technical message", () => {
     const message = signInErrorMessage("EMAIL_NOT_ALLOWED", {
       ...context,
-      description: "Tài khoản operator@example.com không còn quyền dùng công cụ này.",
+      description: "Account operator@example.com is no longer allowed to use this tool.",
     });
 
     expect(message).toContain("operator@example.com");

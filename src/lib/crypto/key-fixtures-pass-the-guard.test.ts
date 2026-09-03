@@ -185,7 +185,7 @@ function resolveValue(rhs: string, source: string, depth = 0): string | null {
     }
   }
 
-  throw new Error(`không giải được vế phải: ${trimmed.slice(0, 80)}`);
+  throw new Error(`could not resolve right-hand side: ${trimmed.slice(0, 80)}`);
 }
 
 function collectFixtures(): { fixtures: Fixture[]; unresolved: string[] } {
@@ -222,20 +222,20 @@ function collectFixtures(): { fixtures: Fixture[]; unresolved: string[] } {
 
 const { fixtures, unresolved } = collectFixtures();
 
-describe("khóa cố định trong repo phải qua được chốt khuôn mẫu", () => {
-  it("tìm thấy fixture để kiểm — phép quét không được im lặng rỗng", () => {
+describe("fixed keys in the repository pass the placeholder guard", () => {
+  it("finds fixtures so the scan cannot silently inspect nothing", () => {
     // Không có dòng này thì một regex hỏng biến cả file thành xanh vĩnh viễn mà không ai biết.
     // Con số chỉ cần là "nhiều", không cần chính xác: ghim số đúng là bắt người thêm test phải
     // sửa nó, và rồi họ sẽ hạ nó xuống.
     expect(fixtures.length).toBeGreaterThan(20);
   });
 
-  it("giải được mọi dạng fixture đang có trong repo", () => {
+  it("resolves every fixture form currently used in the repository", () => {
     // Gặp dạng viết mới thì đỏ ở đây kèm tên file, thay vì bị bỏ qua âm thầm.
     expect(unresolved).toEqual([]);
   });
 
-  it("mọi fixture đều qua được chốt", () => {
+  it("accepts every fixture", () => {
     const rejected = fixtures
       .map((fixture) => ({ fixture, reason: describePlaceholderSecret(Buffer.from(fixture.hex, "hex")) }))
       .filter((entry) => entry.reason !== null)
@@ -245,10 +245,10 @@ describe("khóa cố định trong repo phải qua được chốt khuôn mẫu"
     expect(rejected).toEqual([]);
   });
 
-  it("mọi fixture đều đúng 32 byte", () => {
+  it("requires every fixture to be exactly 32 bytes", () => {
     const wrongLength = fixtures
       .filter((fixture) => fixture.hex.length !== 64)
-      .map((fixture) => `${fixture.file} — ${fixture.envName} (${fixture.hex.length} ký tự)`);
+      .map((fixture) => `${fixture.file} - ${fixture.envName} (${fixture.hex.length} characters)`);
 
     expect(wrongLength).toEqual([]);
   });

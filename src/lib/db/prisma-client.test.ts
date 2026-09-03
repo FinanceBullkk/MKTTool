@@ -29,14 +29,14 @@ afterEach(() => {
   vi.unstubAllEnvs();
 });
 
-describe("prisma-client dựng trễ", () => {
-  it("nạp module được dù KHÔNG có DATABASE_URL — đây là thứ next build đòi hỏi", async () => {
+describe("lazy prisma-client initialization", () => {
+  it("loads the module without DATABASE_URL as required by next build", async () => {
     vi.stubEnv("DATABASE_URL", "");
 
     await expect(import("./prisma-client")).resolves.toHaveProperty("prisma");
   });
 
-  it("chưa chạm tới thì chưa dựng client, tức chưa mở connection pool", async () => {
+  it("does not create the client or connection pool before first access", async () => {
     const { prisma } = await import("./prisma-client");
 
     expect(globalForPrisma.prisma).toBeUndefined();
@@ -48,11 +48,11 @@ describe("prisma-client dựng trễ", () => {
     await (globalForPrisma.prisma as { $disconnect(): Promise<void> }).$disconnect();
   });
 
-  it("thiếu DATABASE_URL mà chạm vào thì vẫn báo đúng câu chỉ dẫn cũ", async () => {
+  it("keeps the remediation message when DATABASE_URL is missing on first access", async () => {
     vi.stubEnv("DATABASE_URL", "");
     const { prisma } = await import("./prisma-client");
 
-    expect(() => prisma.account).toThrow(/Thiếu DATABASE_URL/);
+    expect(() => prisma.account).toThrow(/DATABASE_URL is missing/);
   });
 
   /**
@@ -60,7 +60,7 @@ describe("prisma-client dựng trễ", () => {
    * chứ không phải client thật — và kiểu hỏng đó chỉ hiện ra ở đúng những chỗ viết
    * `const { $transaction } = prisma`, tức là không hiện ra cho tới khi có người viết như vậy.
    */
-  it("phương thức lấy rời khỏi client vẫn giữ được this", async () => {
+  it("preserves this binding for methods extracted from the client", async () => {
     const { prisma } = await import("./prisma-client");
 
     const { $disconnect } = prisma;

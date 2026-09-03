@@ -84,17 +84,17 @@ function maxCheckedPeriod(length: number): number {
 export function describePlaceholderSecret(secret: Buffer): string | null {
   const distinct = new Set(secret).size;
   if (distinct < MIN_DISTINCT_BYTES) {
-    return `chỉ có ${distinct} giá trị byte khác nhau trên ${secret.length} byte`;
+    return `only ${distinct} distinct byte values across ${secret.length} bytes`;
   }
 
   for (let period = 1; period <= maxCheckedPeriod(secret.length); period += 1) {
     if (secret.length % period !== 0) continue;
     if (isRepeatingBlock(secret, period)) {
-      return `lặp lại một khối ${period} byte`;
+      return `repeats a ${period}-byte block`;
     }
   }
 
-  if (isCounterRun(secret)) return "một dãy đếm tăng hoặc giảm đều";
+  if (isCounterRun(secret)) return "a uniformly increasing or decreasing sequence";
 
   return null;
 }

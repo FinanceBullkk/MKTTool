@@ -29,7 +29,7 @@ const NGUON = readFileSync(
 );
 
 describe("publish-windows-installer", () => {
-  it("so bản cầu nối trong ruột với sàn, và thoát khác 0 khi thấp hơn", () => {
+  it("compares the bundled Relay version with the floor and exits non-zero when it is lower", () => {
     expect(NGUON).toContain("MIN_RELAY_VERSION");
     expect(NGUON).toMatch(/if \(relayVersion < MIN_RELAY_VERSION\)/);
     // Chốt chặn phải DỪNG, không chỉ cảnh báo. Một dòng in đỏ rồi vẫn đẩy lên là đúng thứ đã xảy ra.
@@ -37,18 +37,18 @@ describe("publish-windows-installer", () => {
     expect(chot.slice(0, chot.indexOf("\n  }"))).toContain("process.exit(1)");
   });
 
-  it("đòi --relay-version, và không bịa ra số khi thiếu", () => {
+  it("requires --relay-version and does not invent a value when it is missing", () => {
     expect(NGUON).toContain('flag("relay-version")');
     // Nằm trong mệnh đề thiếu-tham-số cùng với hai cờ kia, nên quên là không chạy được.
     expect(NGUON).toMatch(/!filePath \|\| !version \|\| !candidateId \|\| !relayVersionRaw/);
     expect(NGUON).toContain('flag("candidate-id")');
   });
 
-  it("ghi con số đó vào metadata, nếu không thì trang chuẩn bị chẳng đọc được gì", () => {
+  it("writes the Relay version to metadata so the setup page can read it", () => {
     expect(NGUON).toContain("WINDOWS_INSTALLER_RELAY_VERSION_METADATA_KEY");
   });
 
-  it("sàn hiện tại là số dương — phép so ở trên chỉ có nghĩa khi sàn có nghĩa", () => {
+  it("keeps the current floor positive so the comparison is meaningful", () => {
     expect(Number.isSafeInteger(MIN_RELAY_VERSION)).toBe(true);
     expect(MIN_RELAY_VERSION).toBeGreaterThan(0);
   });

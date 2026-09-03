@@ -50,7 +50,7 @@ describe("machineOrGuardedRoute", () => {
   });
 
   it("falls back to the login check when the machine key is absent or wrong", async () => {
-    requireActor.mockRejectedValue(new FakeAuthorizationError("chưa đăng nhập", true));
+    requireActor.mockRejectedValue(new FakeAuthorizationError("not signed in", true));
 
     const response = await route(() => false)(new Request("https://x.test/"));
 
@@ -68,7 +68,7 @@ describe("machineOrGuardedRoute", () => {
   });
 
   it("answers a wrong key exactly as it answers no key, so it is not a guessing oracle", async () => {
-    requireActor.mockRejectedValue(new FakeAuthorizationError("chưa đăng nhập", true));
+    requireActor.mockRejectedValue(new FakeAuthorizationError("not signed in", true));
 
     const wrongKey = await route(() => false)(new Request("https://x.test/"));
     const noKey = await route(() => false)(new Request("https://x.test/"));
@@ -78,7 +78,7 @@ describe("machineOrGuardedRoute", () => {
   });
 
   it("reports 403 rather than 401 when the caller is known but not allowed", async () => {
-    requireActor.mockRejectedValue(new FakeAuthorizationError("không đủ quyền", false));
+    requireActor.mockRejectedValue(new FakeAuthorizationError("not allowed", false));
 
     expect((await route(() => false)(new Request("https://x.test/"))).status).toBe(403);
   });

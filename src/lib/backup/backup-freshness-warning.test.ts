@@ -6,20 +6,20 @@ const base = {
   enabled: true,
   lastRunAt: NOW,
   lastOutcome: "LAUNCHED",
-  lastDetail: "Đã tải lên R2: mkttool/2026-08/…",
+  lastDetail: "Uploaded to R2: mkttool/2026-08/...",
   now: NOW,
 };
 
 describe("evaluateBackupFreshness", () => {
-  it("im lặng khi tính năng đang tắt — người vận hành không đổi được biến máy chủ", () => {
+  it("stays silent when the feature is disabled because operators cannot change server variables", () => {
     expect(evaluateBackupFreshness({ ...base, enabled: false, lastRunAt: null })).toBeNull();
   });
 
-  it("im lặng khi vừa sao lưu xong", () => {
+  it("stays silent immediately after a successful backup", () => {
     expect(evaluateBackupFreshness(base)).toBeNull();
   });
 
-  it("bật rồi mà chưa chạy lượt nào thì báo VÀNG", () => {
+  it("returns an AMBER warning when enabled but never run", () => {
     const w = evaluateBackupFreshness({ ...base, lastRunAt: null, lastOutcome: null });
 
     expect(w?.kind).toBe("NEVER_RAN");
@@ -30,11 +30,11 @@ describe("evaluateBackupFreshness", () => {
    * Lượt hỏng là tin xấu NGAY, không đợi tới ngưỡng cũ — vì nó nói ra được lý do, mà lý do mới là
    * thứ sửa được. Đợi hai ngày rồi mới kêu là vứt đi thông tin duy nhất có ích.
    */
-  it("lượt gần nhất hỏng thì báo ĐỎ ngay, kèm nguyên lý do", () => {
+  it("returns a RED warning immediately after the latest failure and includes its reason", () => {
     const w = evaluateBackupFreshness({
       ...base,
       lastOutcome: "SKIPPED",
-      lastDetail: "R2 từ chối (HTTP 403): SignatureDoesNotMatch",
+      lastDetail: "R2 rejected the request (HTTP 403): SignatureDoesNotMatch",
     });
 
     expect(w?.kind).toBe("LAST_FAILED");
@@ -47,7 +47,7 @@ describe("evaluateBackupFreshness", () => {
    * app chết, biến bị gỡ, tiến trình treo. Không có lỗi nào để đọc, nên nếu chỗ này im thì không
    * còn chỗ nào kêu.
    */
-  it("lượt cuối thành công nhưng đã cũ thì vẫn báo ĐỎ", () => {
+  it("returns a RED warning when the latest successful backup is stale", () => {
     const w = evaluateBackupFreshness({
       ...base,
       lastRunAt: new Date("2026-08-03T03:00:00Z"),
@@ -55,10 +55,10 @@ describe("evaluateBackupFreshness", () => {
 
     expect(w?.kind).toBe("STALE");
     expect(w?.tone).toBe("red");
-    expect(w?.message).toContain("3 ngày");
+    expect(w?.message).toContain("3 days");
   });
 
-  it("mới một ngày thì chưa kêu — lịch chạy mỗi ngày, trễ vài tiếng là bình thường", () => {
+  it("does not warn after only one day because a few hours of delay is normal", () => {
     expect(
       evaluateBackupFreshness({ ...base, lastRunAt: new Date("2026-08-05T03:00:00Z") }),
     ).toBeNull();

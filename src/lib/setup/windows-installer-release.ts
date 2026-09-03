@@ -148,7 +148,7 @@ export async function readWindowsInstallerRelease(): Promise<WindowsInstallerRel
 }
 
 async function readFromR2(config: R2Config): Promise<WindowsInstallerRelease> {
-  const expectedPath = `ngăn R2 "${config.bucket}", object "${WINDOWS_INSTALLER_R2_KEY}"`;
+  const expectedPath = `R2 bucket "${config.bucket}", object "${WINDOWS_INSTALLER_R2_KEY}"`;
   // Lỗi mạng và lỗi cấu hình KHÔNG được biến thành "chưa có gói" — cùng lý lẽ với gói cầu nối:
   // hai chuyện đó dẫn tới hai việc phải làm khác hẳn nhau, và câu "chưa phát hành" sẽ cử người
   // quản trị đi dựng lại một gói vốn đã nằm sẵn trên ngăn.

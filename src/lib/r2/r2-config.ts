@@ -88,8 +88,8 @@ export function readR2Config(
 
   if (missing.length > 0) {
     throw new R2ConfigError(
-      `Cấu hình R2 khai thiếu ${missing.join(", ")}. Khai đủ cả bốn biến, hoặc bỏ trống cả bốn ` +
-        `để tắt hẳn — khai một nửa thì tính năng không chạy mà nhìn như đang chạy.`,
+      `The R2 configuration is missing ${missing.join(", ")}. Set all four variables, or leave all ` +
+        `four empty to disable the feature; a partial configuration cannot run safely.`,
     );
   }
 

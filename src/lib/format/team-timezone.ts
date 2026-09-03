@@ -38,9 +38,9 @@ export interface WallClock {
 export function parseTeamTimezone(raw: string | undefined): string {
   if (!raw || raw.trim() === "") {
     throw new TeamTimezoneError(
-      'Thiếu TEAM_TIMEZONE. Thêm `TEAM_TIMEZONE="Asia/Ho_Chi_Minh"` vào .env rồi khởi động lại.\n' +
-        "Không có biến này thì mỗi máy cắt ngày theo giờ của chính nó, và bộ luật ra kết quả " +
-        "khác nhau tùy ai mở — sai lặng lẽ, không có thông báo nào.",
+      'TEAM_TIMEZONE is missing. Add `TEAM_TIMEZONE="Asia/Ho_Chi_Minh"` to .env, then restart.\n' +
+        "Without this variable, each machine divides days using its own clock and posting rules " +
+        "can return different results for different operators without any warning.",
     );
   }
 
@@ -50,8 +50,8 @@ export function parseTeamTimezone(raw: string | undefined): string {
     new Intl.DateTimeFormat("en-US", { timeZone });
   } catch {
     throw new TeamTimezoneError(
-      `TEAM_TIMEZONE "${timeZone}" không phải tên múi giờ IANA hợp lệ. ` +
-        "Đúng phải có dạng vùng/thành phố, ví dụ Asia/Ho_Chi_Minh.",
+      `TEAM_TIMEZONE "${timeZone}" is not a valid IANA time-zone name. ` +
+        "Use a region/city value such as Asia/Ho_Chi_Minh.",
     );
   }
   return timeZone;

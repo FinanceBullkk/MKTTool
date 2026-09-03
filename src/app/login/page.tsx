@@ -21,7 +21,7 @@ import {
 } from "@/lib/auth/sign-in-error-messages";
 
 export const metadata: Metadata = {
-  title: "Đăng nhập — MKTTool",
+  title: "Sign in - MKTTool",
 };
 
 export default async function LoginPage({
@@ -38,14 +38,14 @@ export default async function LoginPage({
 
   return (
     <div className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-6 py-10">
-      <h1 className="mb-2 text-2xl font-semibold">Đăng nhập</h1>
+      <h1 className="mb-2 text-2xl font-semibold">Sign in</h1>
       <p className="mb-6 text-sm text-neutral-400">
-        Công cụ dùng tài khoản Google. Hãy chọn đúng email đã được quản trị viên mời.
+        This tool uses Google accounts. Choose the email address invited by an administrator.
       </p>
 
       {error ? (
         <AlertBanner tone="red">
-          <p className="mb-1 font-medium">Lần đăng nhập trước không thành công</p>
+          <p className="mb-1 font-medium">The previous sign-in attempt failed</p>
           <p>{signInErrorMessage(error, { adminContactEmail, description })}</p>
         </AlertBanner>
       ) : null}
@@ -53,7 +53,7 @@ export default async function LoginPage({
       <GoogleSignInButton callbackURL={callbackURL === "/setup" ? "/setup" : "/"} />
 
       <p className="mt-6 text-xs text-neutral-400">
-        Cần được cấp quyền hoặc hỗ trợ đăng nhập? Liên hệ quản trị viên tại{" "}
+        Need access or sign-in help? Contact an administrator at{" "}
         <a href={`mailto:${adminContactEmail}`} className="underline">
           {adminContactEmail}
         </a>

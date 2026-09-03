@@ -67,15 +67,15 @@ export function readEmailAccessList(env: EmailAccessEnv = process.env): EmailAcc
 
   if (allowed.length === 0) {
     throw new Error(
-      "Thiếu ALLOWED_EMAILS — không có nó thì bất kỳ ai có tài khoản Google cũng đăng nhập được.\n" +
-        'Thêm vào .env, ví dụ: ALLOWED_EMAILS="ban@gmail.com,dongnghiep@gmail.com"',
+      "ALLOWED_EMAILS is missing. Without it, anyone with a Google account could sign in.\n" +
+        'Add it to .env, for example: ALLOWED_EMAILS="you@example.com,colleague@example.com"',
     );
   }
 
   if (admins.length === 0) {
     throw new Error(
-      "Thiếu ADMIN_EMAILS — phải có ít nhất một quản trị viên, nếu không sẽ không ai phân công\n" +
-        'được nick cho người khác. Ví dụ: ADMIN_EMAILS="ban@gmail.com"',
+      "ADMIN_EMAILS is missing. At least one administrator is required so someone can assign\n" +
+        'nicks to teammates. For example: ADMIN_EMAILS="you@example.com"',
     );
   }
 
@@ -85,8 +85,8 @@ export function readEmailAccessList(env: EmailAccessEnv = process.env): EmailAcc
   const missing = admins.filter((admin) => !allowed.includes(admin));
   if (missing.length > 0) {
     throw new Error(
-      `ADMIN_EMAILS có email không nằm trong ALLOWED_EMAILS: ${missing.join(", ")}.\n` +
-        "Quản trị viên vẫn phải nằm trong danh sách được phép đăng nhập — thêm họ vào ALLOWED_EMAILS.",
+      `ADMIN_EMAILS contains email addresses that are not in ALLOWED_EMAILS: ${missing.join(", ")}.\n` +
+        "Administrators must also be allowed to sign in. Add them to ALLOWED_EMAILS.",
     );
   }
 
@@ -96,7 +96,7 @@ export function readEmailAccessList(env: EmailAccessEnv = process.env): EmailAcc
 /** Đầu mối hỗ trợ duy nhất lấy từ thứ tự đã cấu hình trong `ADMIN_EMAILS`. */
 export function readAdminContactEmail(env: EmailAccessEnv = process.env): string {
   const [contact] = readEmailAccessList(env).admins;
-  if (!contact) throw new Error("Không có email quản trị viên để làm đầu mối hỗ trợ.");
+  if (!contact) throw new Error("No administrator email is available as a support contact.");
   return contact;
 }
 

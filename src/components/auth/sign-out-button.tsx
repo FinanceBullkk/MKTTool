@@ -26,7 +26,7 @@ export function SignOutButton() {
       }}
       className="rounded-md px-2 py-1 text-neutral-600 underline-offset-2 transition hover:text-neutral-900 hover:underline disabled:opacity-50 dark:text-neutral-400 dark:hover:text-neutral-100"
     >
-      {pending ? "Đang thoát…" : "Đăng xuất"}
+      {pending ? "Signing out..." : "Sign out"}
     </button>
   );
 }

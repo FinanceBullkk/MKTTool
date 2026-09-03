@@ -79,7 +79,7 @@ describe("GET /api/healthz", () => {
 
   // Sự cố 30/08/2026 chạy nhiều giờ mà không để lại dòng log nào, vì hai catch ở đây nuốt sạch
   // nguyên nhân. Thân phản hồi vẫn phải sạch, nhưng log máy chủ thì phải có.
-  it("ghi nguyên nhân ra log máy chủ mà không đưa vào thân phản hồi", async () => {
+  it("logs the cause on the server without exposing it in the response body", async () => {
     const logged = vi.spyOn(console, "error").mockImplementation(() => {});
     mocks.readRelease.mockRejectedValue(new Error("must-not-leak-to-body"));
 

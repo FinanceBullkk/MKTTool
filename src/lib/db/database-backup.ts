@@ -71,7 +71,7 @@ export async function dumpDatabaseTo(
 ): Promise<void> {
   if (existsSync(filePath)) {
     throw new Error(
-      `Đã có file ${filePath}. Sao lưu không ghi đè bản cũ — đổi tên hoặc chờ sang giây kế tiếp.`,
+      `File ${filePath} already exists. Backups do not overwrite older files; rename it or wait until the next second.`,
     );
   }
 
@@ -130,13 +130,13 @@ function describePgDumpFailure(code: number | null, stderr: string): string {
   const goc = stderr.trim();
   if (/server version mismatch/i.test(goc)) {
     return (
-      `pg_dump trên máy này cũ hơn database đang nối tới nên nó từ chối dump.\n${goc}\n\n` +
-      "Cách xử: cài Postgres client có major ≥ major của server, rồi khai đường dẫn tới nó " +
-      'trong .env — ví dụ PG_DUMP_PATH="C:\\Program Files\\PostgreSQL\\18\\bin\\pg_dump.exe". ' +
-      "Không cần gỡ bản cũ đang dùng cho database dưới máy."
+      `The local pg_dump is older than the connected database and refused the backup.\n${goc}\n\n` +
+      "Install a Postgres client whose major version is at least the server major, then set its path " +
+      'in .env, for example PG_DUMP_PATH="C:\\Program Files\\PostgreSQL\\18\\bin\\pg_dump.exe". ' +
+      "You do not need to uninstall the older client used by the local database."
     );
   }
-  return `pg_dump dừng với mã ${code}.${goc ? `\n${goc}` : ""}`;
+  return `pg_dump exited with code ${code}.${goc ? `\n${goc}` : ""}`;
 }
 
 /** Khoảng chờ sau `SIGTERM` trước khi `SIGKILL`, để `pg_dump` kịp hủy truy vấn đang mở. */
@@ -185,8 +185,8 @@ function runPgDump(
       settle(() =>
         reject(
           new Error(
-            `pg_dump không xong sau ${Math.round(timeoutMs / 1000)} giây nên đã bị buộc dừng. ` +
-              "File sinh ra dở dang, không dùng làm bản sao được. Kiểm lại đường mạng tới database.",
+            `pg_dump did not finish within ${Math.round(timeoutMs / 1000)} seconds and was stopped. ` +
+              "The partial file cannot be used as a backup. Check the network path to the database, then retry.",
           ),
         ),
       );
@@ -200,12 +200,12 @@ function runPgDump(
         reject(
           cause.code === "ENOENT"
             ? new Error(
-                `Không chạy được lệnh ${PG_DUMP_COMMAND}. ` +
+                `Could not run ${PG_DUMP_COMMAND}. ` +
                   (process.env.PG_DUMP_PATH
-                    ? "PG_DUMP_PATH trong .env đang trỏ vào một đường dẫn không tồn tại."
-                    : "Thêm thư mục bin của Postgres vào PATH " +
-                      '(mặc định trên Windows: "C:\\Program Files\\PostgreSQL\\17\\bin") ' +
-                      "rồi mở lại terminal."),
+                    ? "PG_DUMP_PATH in .env points to a path that does not exist. Correct it, then retry."
+                    : "Add the Postgres bin directory to PATH " +
+                      '(Windows default: "C:\\Program Files\\PostgreSQL\\17\\bin") ' +
+                      "and reopen the terminal."),
               )
             : cause,
         ),

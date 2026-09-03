@@ -34,26 +34,26 @@ afterEach(() => {
 });
 
 describe("parseVaultKey", () => {
-  it("chấp nhận khóa hex 64 ký tự", () => {
+  it("accepts a 64-character hex key", () => {
     expect(parseVaultKey(SERVER_HEX, "VAULT_KEY_SERVER")).toHaveLength(32);
   });
 
-  it("từ chối khóa thiếu, sai độ dài, hoặc không phải hex", () => {
+  it("rejects missing, incorrectly sized, or non-hex keys", () => {
     expect(() => parseVaultKey(undefined, "VAULT_KEY_SERVER")).toThrow(VaultKeyError);
-    expect(() => parseVaultKey("", "VAULT_KEY_SERVER")).toThrow(/Thiếu VAULT_KEY_SERVER/);
-    expect(() => parseVaultKey("abcd", "VAULT_KEY_SERVER")).toThrow(/64 ký tự hex/);
+    expect(() => parseVaultKey("", "VAULT_KEY_SERVER")).toThrow(/Missing VAULT_KEY_SERVER/);
+    expect(() => parseVaultKey("abcd", "VAULT_KEY_SERVER")).toThrow(/64 hex characters/);
     expect(() => parseVaultKey("z".repeat(64), "VAULT_KEY_SERVER")).toThrow(
-      /chỉ được chứa ký tự hex/,
+      /only hex characters/,
     );
   });
 
-  it("nói tên nguồn trong lỗi — hai khóa thì phải biết khóa nào sai", () => {
-    expect(() => parseVaultKey("abcd", "--new-key")).toThrow(/--new-key phải dài/);
+  it("names the source in errors so operators know which key is invalid", () => {
+    expect(() => parseVaultKey("abcd", "--new-key")).toThrow(/--new-key must be exactly/);
   });
 });
 
 describe("loadVaultKey", () => {
-  it("đọc đúng biến môi trường của từng vùng", () => {
+  it("reads the correct environment variable for each domain", () => {
     process.env[VAULT_KEY_ENV.server] = SERVER_HEX;
     process.env[VAULT_KEY_ENV.operator] = OPERATOR_HEX;
 
@@ -61,19 +61,19 @@ describe("loadVaultKey", () => {
     expect(loadVaultKey("operator").toString("hex")).toBe(OPERATOR_HEX);
   });
 
-  it("thiếu khóa vùng này thì không mượn khóa vùng kia", () => {
+  it("does not borrow another domain's key when one is missing", () => {
     process.env[VAULT_KEY_ENV.server] = SERVER_HEX;
-    expect(() => loadVaultKey("operator")).toThrow(/Thiếu VAULT_KEY_OPERATOR/);
+    expect(() => loadVaultKey("operator")).toThrow(/Missing VAULT_KEY_OPERATOR/);
   });
 
-  it("còn VAULT_KEY cũ thì nói thẳng phải đặt cả hai biến mới bằng giá trị đó", () => {
+  it("explains how to migrate when the legacy VAULT_KEY is still present", () => {
     process.env.VAULT_KEY = SERVER_HEX;
 
-    expect(() => loadVaultKey("server")).toThrow(/VAULT_KEY không còn được đọc nữa/);
-    expect(() => loadVaultKey("server")).toThrow(/VAULT_KEY_OPERATOR="<giá trị VAULT_KEY hiện tại>"/);
+    expect(() => loadVaultKey("server")).toThrow(/VAULT_KEY is no longer read/);
+    expect(() => loadVaultKey("server")).toThrow(/VAULT_KEY_OPERATOR="<current VAULT_KEY value>"/);
   });
 
-  it("cảnh báo khi hai vùng dùng chung một khóa — cấu hình nhìn y hệt lúc đã tách xong", () => {
+  it("warns when both domains share one key", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     process.env[VAULT_KEY_ENV.server] = SERVER_HEX;
     process.env[VAULT_KEY_ENV.operator] = SERVER_HEX;
@@ -82,10 +82,10 @@ describe("loadVaultKey", () => {
     loadVaultKey("operator");
 
     expect(warn).toHaveBeenCalledTimes(1); // một lần mỗi tiến trình, không spam mỗi request
-    expect(warn.mock.calls[0][0]).toMatch(/CÙNG một khóa/);
+    expect(warn.mock.calls[0][0]).toMatch(/SAME key/);
   });
 
-  it("hai khóa khác nhau thì không cảnh báo gì", () => {
+  it("does not warn when the domains use different keys", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     process.env[VAULT_KEY_ENV.server] = SERVER_HEX;
     process.env[VAULT_KEY_ENV.operator] = OPERATOR_HEX;
@@ -96,7 +96,7 @@ describe("loadVaultKey", () => {
     expect(warn).not.toHaveBeenCalled();
   });
 
-  it("cache khóa, và resetVaultKeyCache trả về đọc lại từ env", () => {
+  it("caches keys and reads the environment again after resetVaultKeyCache", () => {
     process.env[VAULT_KEY_ENV.server] = SERVER_HEX;
     expect(loadVaultKey("server").toString("hex")).toBe(SERVER_HEX);
 

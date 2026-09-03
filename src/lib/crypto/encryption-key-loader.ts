@@ -74,7 +74,7 @@ export function parseVaultKey(
 ): Buffer {
   if (!raw || raw.trim() === "") {
     throw new VaultKeyError(
-      `Thiếu ${source}. Chạy \`npm run vault:keygen\` rồi dán giá trị vào file .env.`,
+      `Missing ${source}. Run \`npm run vault:keygen\`, then paste the value into .env.`,
     );
   }
 
@@ -82,13 +82,13 @@ export function parseVaultKey(
 
   if (hex.length !== VAULT_KEY_HEX_LENGTH) {
     throw new VaultKeyError(
-      `${source} phải dài đúng ${VAULT_KEY_HEX_LENGTH} ký tự hex (${VAULT_KEY_BYTES} byte), ` +
-        `đang có ${hex.length} ký tự.`,
+      `${source} must be exactly ${VAULT_KEY_HEX_LENGTH} hex characters (${VAULT_KEY_BYTES} bytes); ` +
+        `received ${hex.length} characters.`,
     );
   }
 
   if (!/^[0-9a-fA-F]+$/.test(hex)) {
-    throw new VaultKeyError(`${source} chỉ được chứa ký tự hex (0-9, a-f).`);
+    throw new VaultKeyError(`${source} may contain only hex characters (0-9, a-f).`);
   }
 
   const key = Buffer.from(hex, "hex");
@@ -105,12 +105,12 @@ export function parseVaultKey(
   const placeholder = options.allowPlaceholder ? null : describePlaceholderSecret(key);
   if (placeholder) {
     throw new VaultKeyError(
-      `${source} trông như một khóa điền tạm (${placeholder}). Khóa này mở ra bí mật của nick — ` +
-        "đoán được nó thì mọi bản sao lưu lấy được đều đọc ra chữ.\n" +
-        "Máy chưa có dữ liệu thật: sinh khóa mới bằng `npm run vault:keygen` rồi dán vào .env.\n" +
-        "Đã lỡ chạy thật với khóa này: ĐỪNG đổi .env tay — dữ liệu đang mã hóa bằng đúng nó. " +
-        `Xoay sang khóa mới bằng \`npm run vault:rekey -- --domain=<vùng> --new-key=<hex>\`, ` +
-        "script đó vẫn đọc được khóa cũ.",
+      `${source} looks like a placeholder key (${placeholder}). This key opens nick secrets, so ` +
+        "anyone who guesses it can read every obtained backup in plaintext.\n" +
+        "If this machine has no real data, generate a new key with `npm run vault:keygen` and paste it into .env.\n" +
+        "If real data was already encrypted with this key, DO NOT edit .env manually because the data still depends on it. " +
+        `Rotate to a new key with \`npm run vault:rekey -- --domain=<domain> --new-key=<hex>\`; ` +
+        "the script can still read the old key.",
     );
   }
 
@@ -128,17 +128,17 @@ export function parseVaultKey(
 function explainMissingKey(envName: string): string {
   if (process.env[LEGACY_ENV]?.trim()) {
     return (
-      `Thiếu ${envName}. Kho đã tách làm hai vùng khóa nên ${LEGACY_ENV} không còn được đọc nữa.\n` +
-      `Trước mắt đặt CẢ HAI biến bằng đúng giá trị ${LEGACY_ENV} đang có — dữ liệu trong database ` +
-      `đang mã hóa bằng khóa đó:\n` +
-      `  ${VAULT_KEY_ENV.server}="<giá trị ${LEGACY_ENV} hiện tại>"\n` +
-      `  ${VAULT_KEY_ENV.operator}="<giá trị ${LEGACY_ENV} hiện tại>"\n` +
-      `Tách thành hai khóa khác nhau là việc của \`npm run vault:rekey -- --domain=operator\`, ` +
-      `làm sau khi app chạy lại được.`
+      `Missing ${envName}. The vault now has two key domains, so ${LEGACY_ENV} is no longer read.\n` +
+      `For now, set BOTH new variables to the current ${LEGACY_ENV} value because the database ` +
+      `is still encrypted with that key:\n` +
+      `  ${VAULT_KEY_ENV.server}="<current ${LEGACY_ENV} value>"\n` +
+      `  ${VAULT_KEY_ENV.operator}="<current ${LEGACY_ENV} value>"\n` +
+      `Separate them later with \`npm run vault:rekey -- --domain=operator\`, ` +
+      `after the app is running again.`
     );
   }
 
-  return `Thiếu ${envName}. Chạy \`npm run vault:keygen\` rồi dán giá trị vào file .env.`;
+  return `Missing ${envName}. Run \`npm run vault:keygen\`, then paste the value into .env.`;
 }
 
 /**
@@ -196,9 +196,9 @@ function warnOnceIfKeysIdentical(): void {
 
   warnedAboutIdenticalKeys = true;
   console.warn(
-    `⚠️  ${VAULT_KEY_ENV.server} và ${VAULT_KEY_ENV.operator} đang là CÙNG một khóa. ` +
-      `Hai vùng chưa thật sự tách — chạy \`npm run vault:rekey -- --domain=operator --new-key=<hex>\` ` +
-      `để tách, rồi gỡ ${VAULT_KEY_ENV.operator} khỏi máy chủ.`,
+    `WARNING: ${VAULT_KEY_ENV.server} and ${VAULT_KEY_ENV.operator} currently use the SAME key. ` +
+      `The domains are not actually separated. Run \`npm run vault:rekey -- --domain=operator --new-key=<hex>\` ` +
+      `to separate them, then remove ${VAULT_KEY_ENV.operator} from the server.`,
   );
 }
 

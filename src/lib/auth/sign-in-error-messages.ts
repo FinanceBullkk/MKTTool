@@ -23,22 +23,22 @@ export interface SignInErrorContext {
 
 /** Copy dành cho người dùng; chi tiết cấu hình nằm trong `SERVER_DIAGNOSTICS`. */
 const USER_MESSAGES: Record<string, string> = {
-  invalid_code: "Google chưa hoàn tất bước xác nhận đăng nhập. Bấm đăng nhập lại để thử lần nữa.",
+  invalid_code: "Google could not complete sign-in verification. Sign in again to retry.",
   user_creation_failed:
-    "Không thể tạo phiên dùng công cụ từ tài khoản Google này. Bấm đăng nhập lại để thử lần nữa.",
-  access_denied: "Bạn đã hủy ở màn hình Google. Bấm đăng nhập lại nếu muốn tiếp tục.",
+    "A tool session could not be created from this Google account. Sign in again to retry.",
+  access_denied: "Google sign-in was cancelled. Sign in again if you want to continue.",
   state_not_found:
-    "Phiên xác nhận đăng nhập đã hết hoặc không còn hợp lệ. Quay lại đây và bấm đăng nhập lại.",
+    "The sign-in verification session expired or is no longer valid. Return here and sign in again.",
   state_mismatch:
-    "Phiên xác nhận đăng nhập không còn khớp. Quay lại đây và bấm đăng nhập lại từ đầu.",
+    "The sign-in verification session no longer matches. Return here and start sign-in again.",
   unable_to_get_user_info:
-    "Google chưa trả đủ thông tin tài khoản để đăng nhập. Bấm đăng nhập lại để thử lần nữa.",
+    "Google did not provide enough account information to sign in. Sign in again to retry.",
   email_not_found:
-    "Google không trả về email cho tài khoản này nên công cụ chưa thể xác định người dùng.",
-  oauth_provider_not_found: "Đăng nhập Google hiện chưa sẵn sàng trên máy chủ.",
-  no_code: "Google chưa hoàn tất lượt đăng nhập. Bấm đăng nhập lại để thử lần nữa.",
+    "Google did not provide an email address for this account, so the tool cannot identify the user.",
+  oauth_provider_not_found: "Google sign-in is not currently available on the server.",
+  no_code: "Google did not complete sign-in. Sign in again to retry.",
   invalid_callback_request:
-    "Lượt đăng nhập quay về không hợp lệ. Quay lại đây và bấm đăng nhập lại từ đầu.",
+    "The returning sign-in request was invalid. Return here and start sign-in again.",
 };
 
 /** Chỉ ghi ở server; không trả các tên biến hoặc lệnh này về màn hình login. */
@@ -76,7 +76,7 @@ function attemptedEmail(code: string, description?: string): string | null {
 }
 
 function contactInstruction(adminContactEmail: string): string {
-  return `Nếu vẫn không vào được, liên hệ quản trị viên tại ${adminContactEmail}.`;
+  return `If you still cannot sign in, contact an administrator at ${adminContactEmail}.`;
 }
 
 export function signInErrorDiagnostic(code: string): string {
@@ -106,12 +106,12 @@ export function signInErrorMessage(code: string, context: SignInErrorContext): s
   if (key === "EMAIL_NOT_ALLOWED") {
     const email = attemptedEmail(code, context.description);
     return (
-      `${email ? `Email ${email}` : "Email vừa dùng"} chưa được cấp quyền dùng công cụ này. ` +
-      `Đăng nhập lại bằng đúng tài khoản đã được mời, hoặc liên hệ quản trị viên tại ` +
+      `${email ? `Email ${email}` : "The email just used"} is not allowed to use this tool. ` +
+      `Sign in again with the invited account, or contact an administrator at ` +
       `${context.adminContactEmail}.`
     );
   }
 
-  const message = USER_MESSAGES[key] ?? "Không thể hoàn tất lượt đăng nhập này.";
+  const message = USER_MESSAGES[key] ?? "This sign-in attempt could not be completed.";
   return `${message} ${contactInstruction(context.adminContactEmail)}`;
 }

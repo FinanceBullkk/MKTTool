@@ -37,7 +37,7 @@ import { readTrustedProxyConfig } from "./trusted-proxy-config";
 function requiredEnv(name: string, huong_dan: string): string {
   const value = process.env[name];
   if (!value) {
-    throw new Error(`Thiếu ${name}. ${huong_dan}`);
+    throw new Error(`Missing ${name}. ${huong_dan}`);
   }
   return value;
 }
@@ -107,7 +107,7 @@ function createAuth() {
      */
     secret: requiredEnv(
       "BETTER_AUTH_SECRET",
-      "Sinh bằng: node -e \"console.log(require('crypto').randomBytes(32).toString('hex'))\"",
+      "Generate it with: node -e \"console.log(require('crypto').randomBytes(32).toString('hex'))\"",
     ),
 
     /**
@@ -119,8 +119,11 @@ function createAuth() {
 
     socialProviders: {
       google: {
-        clientId: requiredEnv("GOOGLE_CLIENT_ID", "Lấy ở Google Cloud Console — xem README."),
-        clientSecret: requiredEnv("GOOGLE_CLIENT_SECRET", "Lấy cùng chỗ với GOOGLE_CLIENT_ID."),
+        clientId: requiredEnv("GOOGLE_CLIENT_ID", "Get it from Google Cloud Console; see README."),
+        clientSecret: requiredEnv(
+          "GOOGLE_CLIENT_SECRET",
+          "Get it from the same place as GOOGLE_CLIENT_ID.",
+        ),
       },
     },
 

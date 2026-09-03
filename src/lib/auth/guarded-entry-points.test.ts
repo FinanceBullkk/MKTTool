@@ -97,10 +97,10 @@ function isPending(relativePath: string): boolean {
   return (NOT_YET_GUARDED as readonly string[]).includes(relativePath);
 }
 
-describe("mọi server action đều được gác", () => {
+describe("all server actions are guarded", () => {
   const actionFiles = walkTypeScriptFiles(SRC_DIR).filter(isServerActionFile);
 
-  it("tìm thấy các file 'use server' — phép quét không âm thầm quét vào chỗ trống", () => {
+  it("finds 'use server' files so the scan cannot silently inspect nothing", () => {
     // Không có phép kiểm này thì một lỗi đường dẫn biến cả bộ test thành xanh giả: quét 0 file
     // thì 0 vi phạm, và không có gì nói rằng nó vừa ngừng bảo vệ.
     expect(actionFiles.length).toBeGreaterThan(5);
@@ -116,17 +116,17 @@ describe("mọi server action đều được gác", () => {
 
     expect(
       unguarded,
-      `${file.relativePath} có export chưa gác: ${unguarded.join(", ")}\n\n` +
-        `Trong file "use server", MỌI hàm export là một endpoint POST riêng mà người lạ gọi\n` +
-        `thẳng được. Bọc lại bằng một trong: ${ACTION_GUARDS.join(" / ")}\n\n` +
-        `  export const tenHam = guardedAction(async (actor, thamSo) => { ... });\n\n` +
-        `Đừng sửa bằng cách thêm "await requireActor()" vào đầu thân hàm — dòng đó quên được\n` +
-        `và lách được (nằm trong nhánh if), nên phép kiểm này cố ý không chấp nhận.`,
+      `${file.relativePath} has unguarded exports: ${unguarded.join(", ")}\n\n` +
+        `In a "use server" file, EVERY exported function is a separate POST endpoint that an\n` +
+        `outsider can call directly. Wrap it with one of: ${ACTION_GUARDS.join(" / ")}\n\n` +
+        `  export const functionName = guardedAction(async (actor, parameter) => { ... });\n\n` +
+        `Do not fix this by adding "await requireActor()" at the start of the function body.\n` +
+        `That line can be forgotten or bypassed inside a conditional, so this check rejects it.`,
     ).toEqual([]);
   });
 });
 
-describe("mọi route handler đều được gác", () => {
+describe("all route handlers are guarded", () => {
   const routeFiles = walkTypeScriptFiles(SRC_DIR).filter(
     (file) =>
       file.relativePath.endsWith("/route.ts") &&
@@ -135,7 +135,7 @@ describe("mọi route handler đều được gác", () => {
       ),
   );
 
-  it("tìm thấy các route handler", () => {
+  it("finds route handlers", () => {
     expect(routeFiles.length).toBeGreaterThan(3);
   });
 
@@ -147,16 +147,16 @@ describe("mọi route handler đều được gác", () => {
 
     expect(
       unguarded,
-      `${file.relativePath} có phương thức chưa gác: ${unguarded.join(", ")}\n\n` +
-        `Bọc lại bằng một trong: ${ROUTE_GUARDS.join(" / ")}\n\n` +
+      `${file.relativePath} has unguarded methods: ${unguarded.join(", ")}\n\n` +
+        `Wrap them with one of: ${ROUTE_GUARDS.join(" / ")}\n\n` +
         `  export const POST = guardedRoute(async (actor, request: Request) => { ... });\n\n` +
-        `Giữ nguyên lớp isSameOrigin đang có — nó chống CSRF, còn lớp này kiểm danh tính.\n` +
-        `Hai lớp chặn hai nhóm tấn công khác nhau, không thay thế nhau được.`,
+        `Keep the existing isSameOrigin layer. It prevents CSRF while this layer verifies identity.\n` +
+        `The two layers block different attack classes and cannot replace each other.`,
     ).toEqual([]);
   });
 });
 
-describe("hàng đợi chưa gác", () => {
+describe("unguarded entry-point backlog", () => {
   /**
    * Trước đây chỗ này có hai phép kiểm cho TỪNG dòng trong hàng đợi ("file còn tồn tại không",
    * "thật sự còn chưa gác không"). Cả hai chỉ có việc để làm khi hàng đợi còn dòng, và chúng
@@ -171,14 +171,14 @@ describe("hàng đợi chưa gác", () => {
    * `guarded-entry-points.test.ts` báo đỏ vì một action mới chưa gác — khai tên vào
    * `NOT_YET_GUARDED` không làm test xanh trở lại nữa.
    */
-  it("rỗng — không còn lối vào nào chưa gác", () => {
+  it("is empty because no unguarded entry points remain", () => {
     expect(
       NOT_YET_GUARDED as readonly string[],
-      `NOT_YET_GUARDED phải rỗng.\n\n` +
-        `Cờ -H 127.0.0.1 đã được bỏ khỏi package.json, nghĩa là app nghe trên mọi card mạng.\n` +
-        `Mỗi dòng ở đây là một server action hoặc route handler mà người lạ trong cùng mạng\n` +
-        `gọi thẳng được, không cần đăng nhập — gồm cả đường mở profile và đường lộ credential.\n\n` +
-        `Gác lối vào đó bằng guardedAction / guardedRoute thay vì khai tên vào danh sách.`,
+      `NOT_YET_GUARDED must be empty.\n\n` +
+        `The -H 127.0.0.1 flag was removed from package.json, so the app listens on every network interface.\n` +
+        `Every entry here is a server action or route handler that another host on the network can\n` +
+        `call without signing in, including browser-profile launch and credential-disclosure paths.\n\n` +
+        `Guard the entry point with guardedAction / guardedRoute instead of adding it to this list.`,
     ).toEqual([]);
   });
 });

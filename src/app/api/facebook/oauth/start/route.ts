@@ -58,7 +58,7 @@ export const GET = guardedRoute(async function GET(_actor, request: Request) {
     return NextResponse.redirect(authorizeUrl);
   } catch (error) {
     const message =
-      error instanceof FacebookConfigError ? error.message : "Không mở được luồng OAuth.";
+      error instanceof FacebookConfigError ? error.message : "Could not start the OAuth flow. Try again.";
     return back(request, message);
   }
 });

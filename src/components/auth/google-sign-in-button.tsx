@@ -34,8 +34,7 @@ export function GoogleSignInButton({ callbackURL = "/" }: { callbackURL?: string
     // hoặc máy chủ dừng vì thiếu GOOGLE_CLIENT_ID / BETTER_AUTH_SECRET.
     if (failure) {
       setError(
-        failure.message ??
-          "Không bắt đầu được luồng đăng nhập. Chạy `npm run auth:check` để xem thiếu biến nào.",
+        "Google sign-in could not start. Try again, then contact an administrator if it still fails.",
       );
       setPending(false);
     }
@@ -50,7 +49,7 @@ export function GoogleSignInButton({ callbackURL = "/" }: { callbackURL?: string
         className="flex w-full items-center justify-center gap-3 rounded-md bg-neutral-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-neutral-700 disabled:opacity-50 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-300"
       >
         <GoogleMark />
-        {pending ? "Đang chuyển sang Google…" : "Đăng nhập bằng Google"}
+        {pending ? "Redirecting to Google..." : "Sign in with Google"}
       </button>
 
       {error ? <p className="text-sm text-red-700 dark:text-red-400">{error}</p> : null}

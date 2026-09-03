@@ -34,4 +34,4 @@ export function isSameOrigin(request: Request): boolean {
 }
 
 export const CROSS_ORIGIN_MESSAGE =
-  "Lời gọi đến từ trang khác nên bị từ chối. Thao tác này chỉ chạy được từ chính giao diện MKTTool.";
+  "The request came from another site and was rejected. Perform this action from the MKTTool interface.";

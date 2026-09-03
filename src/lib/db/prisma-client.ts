@@ -37,7 +37,7 @@ import { PrismaClient } from "@prisma/client";
 function createPrismaClient(): PrismaClient {
   const url = process.env.DATABASE_URL;
   if (!url) {
-    throw new Error("Thiếu DATABASE_URL. Sao chép .env.example thành .env rồi điền giá trị.");
+    throw new Error("DATABASE_URL is missing. Copy .env.example to .env, then add the value.");
   }
 
   const adapter = new PrismaPg({ connectionString: url });
