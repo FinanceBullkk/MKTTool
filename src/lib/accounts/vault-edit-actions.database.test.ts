@@ -293,6 +293,37 @@ describe("ô bí mật để trống là giữ nguyên", () => {
   });
 });
 
+describe("quyền và nhật ký đổi proxy", () => {
+  it("ADMIN đổi proxy và audit ghi chiều đổi", async () => {
+    const replacementProxy = await prisma.proxy.create({
+      data: {
+        label: "proxy-moi",
+        host: "127.0.0.2",
+        port: 1081,
+        username: "user02",
+        passwordEnc: encryptCredential("mat-khau-moi", loadVaultKey("server")),
+        country: "US",
+        protocol: "http",
+      },
+    });
+
+    const result = await updateAccount(
+      null,
+      accountForm(seeded, { proxyId: replacementProxy.id }),
+    );
+
+    expect(result.ok).toBe(true);
+    const after = await prisma.account.findUniqueOrThrow({ where: { id: seeded.accountId } });
+    expect(after.proxyId).toBe(replacementProxy.id);
+    const log = await prisma.auditLog.findFirstOrThrow({
+      where: { accountId: seeded.accountId, action: "ACCOUNT_UPDATED" },
+    });
+    expect(log.detail).toBe(
+      `karma 500, ALIVE, proxy ${seeded.proxyId} → ${replacementProxy.id}`,
+    );
+  });
+});
+
 /**
  * Đo thật 04/08/2026: lượt dò đầu tiên cách ly nhầm một nick khỏe rồi ghi lý do cách ly. Người
  * dùng sửa trạng thái về ALIVE, nhưng lý do cũ nằm lại — trang chi tiết hiện đồng thời nhãn

@@ -18,6 +18,20 @@ the archive location.
 
 ---
 
+## 3 September 2026 — proxy reassignment becomes ADMIN-only and auditable
+
+- **PR #55 authorization decision closed:** `updateAccount` now requires ADMIN when the normalized
+  submitted `proxyId` differs from the stored value. Operators retain shared edits when proxy stays
+  unchanged, including karma, status, and voice.
+- **Role-aware edit form:** ADMIN keeps the proxy selector and confirmation-on-real-change behavior.
+  OPERATOR sees the current proxy read-only and the primary contact derived from `ADMIN_EMAILS`.
+- **Assignment audit evidence:** `ACCOUNT_UPDATED` detail records proxy and browser-profile ID
+  before-to-after values only when they change, inside the existing account-update transaction and
+  without proxy endpoints or credentials.
+- **Authorization boundary preserved:** browser-profile ID changes remain available under the prior
+  policy and now leave an audit trail. Whether to restrict them like proxy assignment remains a
+  separate owner decision. No migration or rollout-scope change was made.
+
 ## 3 September 2026 — shared-use safety rejects stale account writes
 
 - **Ownership is visible:** Home and `/accounts` now show each nick's owner and Relay PC. Missing

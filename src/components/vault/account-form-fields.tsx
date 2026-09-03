@@ -86,6 +86,7 @@ export function AccountFormFields({
   platform,
   viewer,
   teamMembers,
+  proxyEditAccess,
 }: {
   /** Lúc sửa phải gồm cả proxy đang gắn cho chính nick này, không chỉ proxy còn trống. */
   proxies: SelectOption[];
@@ -103,8 +104,13 @@ export function AccountFormFields({
   /** Chỉ form **tạo** truyền hai ô dưới đây; form sửa đổi chủ ở thẻ Phân công cụm. */
   viewer?: FormViewer;
   teamMembers?: { id: string; email: string }[];
+  proxyEditAccess?: { isAdmin: boolean; adminContactEmail: string };
 }) {
   const editing = defaults !== undefined;
+  const proxyIsReadOnly = editing && proxyEditAccess?.isAdmin === false;
+  const currentProxyLabel = defaults?.proxyId
+    ? (proxies.find((proxy) => proxy.id === defaults.proxyId)?.label ?? defaults.proxyId)
+    : "— không gắn (chỉ nick Facebook) —";
 
   // Nick Reddit là chuyện thường ngày của công cụ này, nên nó là mặc định — đỡ một cú bấm ở mọi
   // lượt nhập. Người thêm nick Facebook thấy ngay là form đổi hình dạng khi chọn.
@@ -206,20 +212,33 @@ export function AccountFormFields({
         hint="Nick này viết về cái gì. Ví dụ: self-hosting, phần cứng cũ giá rẻ."
       />
 
-      <SelectField
-        label="Proxy"
-        name="proxyId"
-        defaultValue={defaults?.proxyId ?? undefined}
-        hint={
-          editing
-            ? `${PROXY_HINT_TAIL} Chỉ hiện proxy còn trống và proxy đang gắn cho nick này.`
-            : `${PROXY_HINT_TAIL} ${proxies.length} proxy chưa gắn nick.`
-        }
-        options={[
-          { value: "", label: "— không gắn (chỉ nick Facebook) —" },
-          ...proxies.map((proxy) => ({ value: proxy.id, label: proxy.label })),
-        ]}
-      />
+      {proxyIsReadOnly ? (
+        <>
+          <input type="hidden" name="proxyId" value={defaults?.proxyId ?? ""} />
+          <Field
+            label="Proxy"
+            name="proxyIdDisplay"
+            defaultValue={currentProxyLabel}
+            disabled
+            hint={`Changing a nick's proxy is an ADMIN task. Contact ${proxyEditAccess.adminContactEmail} to request the change.`}
+          />
+        </>
+      ) : (
+        <SelectField
+          label="Proxy"
+          name="proxyId"
+          defaultValue={defaults?.proxyId ?? undefined}
+          hint={
+            editing
+              ? `${PROXY_HINT_TAIL} Chỉ hiện proxy còn trống và proxy đang gắn cho nick này.`
+              : `${PROXY_HINT_TAIL} ${proxies.length} proxy chưa gắn nick.`
+          }
+          options={[
+            { value: "", label: "— không gắn (chỉ nick Facebook) —" },
+            ...proxies.map((proxy) => ({ value: proxy.id, label: proxy.label })),
+          ]}
+        />
+      )}
 
       {/* Chỉ ở form TẠO. Đổi chủ về sau là việc của thẻ Phân công cụm, chỗ duy nhất biết đối
           chiếu chủ với máy giữ profile. Ô này tồn tại vì nick sinh ra vô chủ thì chính người vừa

@@ -41,6 +41,19 @@ conditional update and audit rows share one transaction, and a stale loser retur
 queue-recheck writes. Real-PostgreSQL tests execute two sequential writes from one revision and prove
 that the second changes nothing. No schema migration or app-wide locking mechanism was added.
 
+## Proxy assignment authorization and audit — 3 September 2026
+
+The owner decision left by PR #55 is closed with options B + D. `updateAccount` compares the
+normalized submitted proxy with the stored `proxyId` and requires ADMIN only when that value changes;
+operators retain the existing shared ability to update karma, status, voice, and browser-profile ID.
+The operator edit form renders the current proxy read-only and points to the primary administrator
+contact derived from `ADMIN_EMAILS`; only ADMIN receives the editable selector and consequential
+proxy-change confirmation.
+
+`ACCOUNT_UPDATED` audit detail now appends before-to-after proxy and browser-profile IDs only when
+each value changes. The audit row stays in the same transaction as the conditional account write and
+contains no proxy endpoint or credential. No migration or rollout-scope change was made.
+
 ## Relay-first setup handoff — 3 September 2026
 
 `/setup` now leads operators through the existing Relay release channel in three steps: download

@@ -43,6 +43,8 @@ const decryptAsOperator = (encoded: string) =>
   decryptCredential(encoded, loadVaultKey("operator"));
 
 let accountId: string;
+let proxyId: string;
+let replacementProxyId: string;
 
 /** Form sửa nick — mọi trường bắt buộc, cộng thêm phần ghi đè tùy bài. */
 async function updateForm(overrides: Record<string, string> = {}): Promise<FormData> {
@@ -61,6 +63,7 @@ async function updateForm(overrides: Record<string, string> = {}): Promise<FormD
     status: "ALIVE",
     karma: "500",
     antidetectProfileId: "profile-anna",
+    proxyId,
     ...overrides,
   };
   for (const [key, value] of Object.entries(fields)) form.set(key, value);
@@ -70,6 +73,7 @@ async function updateForm(overrides: Record<string, string> = {}): Promise<FormD
 beforeEach(async () => {
   await prisma.auditLog.deleteMany();
   await prisma.account.deleteMany();
+  await prisma.proxy.deleteMany();
   await prisma.user.deleteMany();
 
   await prisma.user.createMany({
@@ -79,6 +83,30 @@ beforeEach(async () => {
     ],
   });
 
+  const [proxy, replacementProxy] = await Promise.all([
+    prisma.proxy.create({
+      data: {
+        label: "proxy-anna",
+        host: "127.0.0.1",
+        port: 1080,
+        username: "anna",
+        passwordEnc: encryptCredential("proxy-cu", loadVaultKey("server")),
+        country: "US",
+      },
+    }),
+    prisma.proxy.create({
+      data: {
+        label: "proxy-thay-the",
+        host: "127.0.0.2",
+        port: 1081,
+        username: "anna-moi",
+        passwordEnc: encryptCredential("proxy-moi", loadVaultKey("server")),
+        country: "GB",
+      },
+    }),
+  ]);
+  proxyId = proxy.id;
+  replacementProxyId = replacementProxy.id;
 
   const account = await prisma.account.create({
     data: {
@@ -87,6 +115,8 @@ beforeEach(async () => {
       passwordEnc: encryptForOperator("mat-khau-cu"),
       emailAddress: "anna@example.test",
       emailPasswordEnc: encryptForOperator("mat-khau-email-cu"),
+      antidetectProfileId: "profile-anna",
+      proxyId,
       status: "ALIVE",
       karma: 500,
       ownerId: OWNER_ID,
@@ -131,6 +161,27 @@ describe("nick của người khác", () => {
     expect(totp.ok).toBe(false);
   });
 
+  it("từ chối đổi proxy và không ghi account hay audit", async () => {
+    const before = await prisma.account.findUniqueOrThrow({ where: { id: accountId } });
+
+    const result = await updateAccount(
+      null,
+      await updateForm({ proxyId: replacementProxyId }),
+    );
+
+    expect(result).toEqual({
+      ok: false,
+      message:
+        "Changing a nick's proxy is an ADMIN task. Contact an administrator to request the change.",
+    });
+    expect(await prisma.account.findUniqueOrThrow({ where: { id: accountId } })).toEqual(before);
+    expect(
+      await prisma.auditLog.count({
+        where: { accountId, action: "ACCOUNT_UPDATED" },
+      }),
+    ).toBe(0);
+  });
+
   /**
    * Phía còn lại của ranh giới, và là phía dễ siết nhầm: sửa vận hành cho nick của đồng nghiệp
    * là việc chung hằng ngày. Chặn ở đây thì phép kiểm sẽ bị gỡ chứ không được sửa.
@@ -145,6 +196,42 @@ describe("nick của người khác", () => {
     const after = await prisma.account.findUniqueOrThrow({ where: { id: accountId } });
     expect(after.karma).toBe(900);
     expect(after.status).toBe("CHECKPOINT");
+  });
+
+  it("CHO PHÉP sửa karma, trạng thái và giọng khi proxy không đổi", async () => {
+    const result = await updateAccount(
+      null,
+      await updateForm({
+        karma: "901",
+        status: "CHECKPOINT",
+        quarantineReason: "bị hỏi lại",
+        voice: "ngắn gọn",
+      }),
+    );
+
+    expect(result.ok).toBe(true);
+    const after = await prisma.account.findUniqueOrThrow({ where: { id: accountId } });
+    expect(after.karma).toBe(901);
+    expect(after.status).toBe("CHECKPOINT");
+    expect(after.voice).toBe("ngắn gọn");
+    expect(after.proxyId).toBe(proxyId);
+  });
+
+  it("CHO PHÉP đổi browser profile và ghi chiều đổi vào audit", async () => {
+    const result = await updateAccount(
+      null,
+      await updateForm({ antidetectProfileId: "profile-anna-moi" }),
+    );
+
+    expect(result.ok).toBe(true);
+    const after = await prisma.account.findUniqueOrThrow({ where: { id: accountId } });
+    expect(after.antidetectProfileId).toBe("profile-anna-moi");
+    const log = await prisma.auditLog.findFirstOrThrow({
+      where: { accountId, action: "ACCOUNT_UPDATED" },
+    });
+    expect(log.detail).toBe(
+      "karma 500, ALIVE, browser profile profile-anna → profile-anna-moi",
+    );
   });
 
   /** Ô bí mật để trống nghĩa là "giữ nguyên" — không phải một lần ghi đè, nên không bị gác. */

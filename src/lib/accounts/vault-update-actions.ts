@@ -17,7 +17,7 @@ import { revalidatePath } from "next/cache";
 import type { ActionResult } from "@/lib/actions/action-result";
 import { AUDIT_ACTIONS } from "@/lib/audit/audit-log-actions";
 import { adminAction, guardedAction } from "@/lib/auth/guarded-action";
-import { requireNickOwner } from "@/lib/auth/require-actor";
+import { requireAdmin, requireNickOwner } from "@/lib/auth/require-actor";
 import { encryptCredential } from "@/lib/crypto/credential-encryption";
 import { loadVaultKey } from "@/lib/crypto/encryption-key-loader";
 import { prisma } from "@/lib/db/prisma-client";
@@ -100,6 +100,8 @@ export const updateAccount = guardedAction(async function updateAccount(
   // Ba cột bí mật vào đây đã là ciphertext do cầu nối bọc — xem chú thích ở `createAccount`.
   const { id, revision, passwordEnc, emailPasswordEnc, totpSecretEnc, ...data } =
     parsed.data;
+  const nextProxyId = data.proxyId?.trim() || null;
+  const nextAntidetectProfileId = data.antidetectProfileId?.trim() || null;
 
   // `platform` không sửa được nên form không gửi lên — phải đọc từ DB thì mới chấm được luật
   // "Reddit bắt buộc proxy + profile antidetect". `status` đọc kèm để ghi được nhật ký "đổi từ
@@ -107,9 +109,16 @@ export const updateAccount = guardedAction(async function updateAccount(
   // đúng vào lúc cần nó — lúc đi tìm ai đã kéo một nick từ SHADOWBANNED về HEALTHY.
   const existing = await prisma.account.findUnique({
     where: { id },
-    select: { platform: true, status: true },
+    select: { platform: true, status: true, proxyId: true, antidetectProfileId: true },
   });
   if (!existing) return { ok: false, message: "Không tìm thấy nick cần sửa." };
+
+  if (nextProxyId !== existing.proxyId) {
+    await requireAdmin(
+      actor,
+      "Changing a nick's proxy is an ADMIN task. Contact an administrator to request the change.",
+    );
+  }
 
   /**
    * Ghi đè bí mật thì phải là chủ nick — **đối xứng với `requestCredentialTicket`**.
@@ -137,6 +146,22 @@ export const updateAccount = guardedAction(async function updateAccount(
   const identityError = validatePlatformAccountFields(existing.platform, data, { creating: false });
   if (identityError) return { ok: false, message: identityError };
 
+  const auditDetailParts = [
+    existing.status === data.status
+      ? `karma ${data.karma}, ${data.status}`
+      : `karma ${data.karma}, trạng thái ${existing.status} → ${data.status}`,
+  ];
+  if (existing.proxyId !== nextProxyId) {
+    auditDetailParts.push(
+      `proxy ${existing.proxyId ?? "không gắn"} → ${nextProxyId ?? "không gắn"}`,
+    );
+  }
+  if (existing.antidetectProfileId !== nextAntidetectProfileId) {
+    auditDetailParts.push(
+      `browser profile ${existing.antidetectProfileId ?? "không có"} → ${nextAntidetectProfileId ?? "không có"}`,
+    );
+  }
+
   let didUpdate = false;
   try {
     didUpdate = await prisma.$transaction(async (tx) => {
@@ -146,8 +171,8 @@ export const updateAccount = guardedAction(async function updateAccount(
           ...data,
           // Với Prisma, `undefined` nghĩa là GIỮ NGUYÊN — nên ô để trống phải ép về `null`, không
           // thì gỡ proxy khỏi một nick Facebook sẽ im lặng không có tác dụng gì.
-          antidetectProfileId: data.antidetectProfileId?.trim() || null,
-          proxyId: data.proxyId?.trim() || null,
+          antidetectProfileId: nextAntidetectProfileId,
+          proxyId: nextProxyId,
           // Cùng lý do: xóa trắng ô giọng phải thật sự xóa, không thì nick giữ mãi một làn viết
           // mà người dùng tưởng đã bỏ.
           voice: data.voice?.trim() || null,
@@ -173,10 +198,7 @@ export const updateAccount = guardedAction(async function updateAccount(
           // Trạng thái đổi thì ghi cả chiều đổi. Đây là đường thứ hai ép được trạng thái nick —
           // đường kia là bộ dò sức khỏe, và nó đã ghi `HEALTH_STATUS_FORCED` kèm chiều đổi từ lâu.
           // Hai đường tới cùng một hậu quả thì nhật ký của chúng phải đọc được như nhau.
-          detail:
-            existing.status === data.status
-              ? `karma ${data.karma}, ${data.status}`
-              : `karma ${data.karma}, trạng thái ${existing.status} → ${data.status}`,
+          detail: auditDetailParts.join(", "),
           actorId: actor.userId,
         },
       });
