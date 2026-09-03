@@ -52,8 +52,8 @@ async function seed() {
 
   const content = await prisma.contentItem.create({
     data: {
-      title: "Tiêu đề bài",
-      body: "Thân bài.",
+      title: "Post title",
+      body: "Post body",
       links: JSON.stringify(["https://example.com"]),
       type: "VALUE",
       authorName: "hao",
@@ -64,8 +64,8 @@ async function seed() {
     (
       [
         ["REDDIT", "r/selfhosted"],
-        ["FACEBOOK_GROUP", "Group nội bộ"],
-        ["FACEBOOK_PAGE", "Fanpage nháp"],
+        ["FACEBOOK_GROUP", "Internal group"],
+        ["FACEBOOK_PAGE", "Flimsy fanpage"],
       ] as const
     ).map(([platform, name]) =>
       prisma.platformTarget.create({
@@ -81,7 +81,7 @@ describe("loadDueManualPostReminders", () => {
   beforeEach(clearAll);
   afterAll(clearAll);
 
-  it("hiện bài Reddit đến hạn — đây là lỗ hổng cũ, Reddit từng bị bỏ sót hoàn toàn", async () => {
+  it("Show that Reddit posts are due - this is an old hole, Reddit was completely overlooked", async () => {
     const { accountId, contentId, targets } = await seed();
     const reddit = targets.find((target) => target.platform === "REDDIT")!;
 
@@ -101,7 +101,7 @@ describe("loadDueManualPostReminders", () => {
     expect(reminders[0]?.targetName).toBe("r/selfhosted");
   });
 
-  it("hiện cả Reddit lẫn Group, nhưng KHÔNG hiện Fanpage — Fanpage đăng bằng một nút", async () => {
+  it("Show both Reddit and Group, but DO NOT show Fanpage - Fanpage posted with one button", async () => {
     const { accountId, contentId, targets } = await seed();
 
     await Promise.all(
@@ -125,7 +125,7 @@ describe("loadDueManualPostReminders", () => {
     expect(platforms).toEqual(["FACEBOOK_GROUP", "REDDIT"]);
   });
 
-  it("bỏ qua job quá xa và job không còn chờ đăng", async () => {
+  it("Skip jobs too far and jobs no longer waiting to be posted", async () => {
     const { accountId, contentId, targets } = await seed();
     const reddit = targets.find((target) => target.platform === "REDDIT")!;
 
@@ -152,7 +152,7 @@ describe("loadDueManualPostReminders", () => {
     expect(await loadDueManualPostReminders(NOW)).toHaveLength(0);
   });
 
-  it("đánh dấu quá giờ cho bài đã tới hạn mà chưa đăng", async () => {
+  it("Mark past due for posts that are overdue and not yet posted", async () => {
     const { accountId, contentId, targets } = await seed();
     const reddit = targets.find((target) => target.platform === "REDDIT")!;
 
@@ -169,7 +169,7 @@ describe("loadDueManualPostReminders", () => {
     expect((await loadDueManualPostReminders(NOW))[0]?.overdue).toBe(true);
   });
 
-  it("bài Reddit mang sẵn thân bài tách khỏi tiêu đề, kèm link", async () => {
+  it("Reddit post with ready body, separate title, and link", async () => {
     const { accountId, contentId, targets } = await seed();
     const reddit = targets.find((target) => target.platform === "REDDIT")!;
 
@@ -184,9 +184,9 @@ describe("loadDueManualPostReminders", () => {
     });
 
     const reminder = (await loadDueManualPostReminders(NOW))[0];
-    expect(reminder?.contentTitle).toBe("Tiêu đề bài");
-    expect(reminder?.bodyToCopy).not.toContain("Tiêu đề bài");
+    expect(reminder?.contentTitle).toBe("Post title");
+    expect(reminder?.bodyToCopy).not.toContain("Post title");
     expect(reminder?.bodyToCopy).toContain("https://example.com");
-    expect(reminder?.messageToCopy).toContain("Tiêu đề bài");
+    expect(reminder?.messageToCopy).toContain("Post title");
   });
 });

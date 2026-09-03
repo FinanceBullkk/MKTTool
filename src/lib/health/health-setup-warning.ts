@@ -49,11 +49,10 @@ export function evaluateHealthSetup(input: HealthSetupInput): HealthSetupWarning
     return {
       kind: "NO_OBSERVER_PROXY",
       message:
-        "Bộ dò shadowban chưa chạy được: kho chưa có proxy quan sát viên nào đang bật. " +
-        "Chưa dò nghĩa là chưa biết bài của nick còn hiện với người ngoài không — và im lặng " +
-        "không phải là tin tốt.",
+        "The shadowban checker cannot run because the vault has no enabled observer proxy. " +
+        "Without a check, nobody knows whether this nick's posts are still visible to public viewers; silence is not good news.",
       href: "/proxies",
-      linkLabel: "khai proxy quan sát viên",
+      linkLabel: "configure an observer proxy",
       tone: "red",
     };
   }
@@ -62,10 +61,9 @@ export function evaluateHealthSetup(input: HealthSetupInput): HealthSetupWarning
     return {
       kind: "NEVER_CHECKED",
       message:
-        `${input.neverCheckedCount} nick chưa được dò lần nào — chưa biết chúng có đang bị ẩn ` +
-        `với người ngoài không.`,
+        `${input.neverCheckedCount} nicks have never been checked, so their visibility to public viewers is unknown.`,
       href: "/health",
-      linkLabel: 'bấm "Dò cả đàn"',
+      linkLabel: 'click "Check all nicks"',
       tone: "amber",
     };
   }
@@ -74,9 +72,9 @@ export function evaluateHealthSetup(input: HealthSetupInput): HealthSetupWarning
     return {
       kind: "STALE",
       message:
-        `${input.staleCount} nick chưa được dò gần đây — số liệu trên bảng không còn đáng tin.`,
+        `${input.staleCount} nicks have not been checked recently, so the dashboard data is no longer reliable.`,
       href: "/health",
-      linkLabel: "dò lại",
+      linkLabel: "run the checks again",
       tone: "amber",
     };
   }

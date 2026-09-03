@@ -49,11 +49,11 @@ interface RuleDefinition {
 }
 
 const RULES: RuleDefinition[] = [
-  { id: "account-health", label: "Sức khỏe nick", evaluate: ruleAccountHealth, overridable: true },
+  { id: "account-health", label: "Nick health", evaluate: ruleAccountHealth, overridable: true },
   { id: "cold-start", label: "Cold start", evaluate: ruleColdStart, overridable: true },
   {
     id: "target-eligibility",
-    label: "Điều kiện đích",
+    label: "Target eligibility",
     evaluate: ruleTargetEligibility,
     overridable: true,
   },
@@ -61,28 +61,28 @@ const RULES: RuleDefinition[] = [
   // chính mình nên không áp — xem COMMUNITY_PLATFORMS trong platform-family.ts.
   {
     id: "daily-cap",
-    label: "Hạn mức ngày",
+    label: "Daily posting cap",
     evaluate: ruleDailyCap,
     overridable: true,
     platforms: COMMUNITY_PLATFORMS,
   },
   {
     id: "target-cooldown",
-    label: "Nghỉ giữa 2 bài",
+    label: "Same-target cooldown",
     evaluate: ruleTargetCooldown,
     overridable: true,
     platforms: COMMUNITY_PLATFORMS,
   },
   {
     id: "promo-ratio",
-    label: "Tỷ lệ promo",
+    label: "Promotional ratio",
     evaluate: rulePromoRatio,
     overridable: true,
     platforms: COMMUNITY_PLATFORMS,
   },
   {
     id: "content-similarity",
-    label: "Trùng nội dung",
+    label: "Content similarity",
     evaluate: ruleContentSimilarity,
     overridable: true,
   },
@@ -95,17 +95,17 @@ const RULES: RuleDefinition[] = [
   // Ghi "Đụng độ thread ✓" trong checklist là để người dùng tưởng đã kiểm thứ chưa kiểm.
   {
     id: "thread-collision",
-    label: "Đụng độ thread (nick khác cùng đích)",
+    label: "Same-target collision (another nick)",
     evaluate: ruleThreadCollision,
     overridable: false,
     platforms: COMMUNITY_PLATFORMS,
   },
-  { id: "link-policy", label: "Chính sách link", evaluate: ruleLinkPolicy, overridable: true },
+  { id: "link-policy", label: "Link policy", evaluate: ruleLinkPolicy, overridable: true },
   // Chỉ Reddit: Fanpage đăng bằng Graph API nên đăng hỏng là báo lỗi ngay, không có kiểu
   // bài lên mà không ai thấy. Xem đầu file rule-health-check.ts.
   {
     id: "health-check",
-    label: "Kết quả dò gần nhất",
+    label: "Latest health check",
     evaluate: ruleHealthCheck,
     overridable: true,
     platforms: ["REDDIT"],
@@ -185,16 +185,16 @@ export function evaluateRules(ctx: RuleContext): RuleEvaluation {
 /** Một dòng tóm tắt cho bảng hàng đợi và thông báo của server action. */
 export function summarizeEvaluation(evaluation: RuleEvaluation): string {
   if (evaluation.level === "BLOCK") {
-    return `Bị chặn bởi ${evaluation.blocks.length} luật: ${evaluation.blocks
+    return `Blocked by ${evaluation.blocks.length} rule${evaluation.blocks.length === 1 ? "" : "s"}: ${evaluation.blocks
       .map((result) => result.label)
       .join(", ")}.`;
   }
   if (evaluation.level === "WARN") {
-    return `Đăng được nhưng có ${evaluation.warnings.length} cảnh báo: ${evaluation.warnings
+    return `Allowed with ${evaluation.warnings.length} warning${evaluation.warnings.length === 1 ? "" : "s"}: ${evaluation.warnings
       .map((result) => result.label)
       .join(", ")}.`;
   }
-  return "Không vi phạm luật nào.";
+  return "No posting rules were violated.";
 }
 
 export function serializeEvaluation(evaluation: RuleEvaluation): string {

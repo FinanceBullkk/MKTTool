@@ -12,14 +12,14 @@ function input(overrides: Partial<HealthSetupInput> = {}): HealthSetupInput {
 }
 
 describe("evaluateHealthSetup", () => {
-  it("chưa có nick Reddit thì không cảnh báo gì — đó là cài đặt mới, không phải lỗi", () => {
+  it("does not warn when there are no Reddit nicks", () => {
     const warning = evaluateHealthSetup(
       input({ redditAccountCount: 0, activeObserverProxyCount: 0, neverCheckedCount: 0 }),
     );
     expect(warning).toBeNull();
   });
 
-  it("thiếu proxy quan sát viên thì nói ĐÚNG nguyên nhân đó, không nói 'chưa dò gần đây'", () => {
+  it("reports the missing observer proxy instead of suggesting another check", () => {
     // Đây là lỗi mà phase này sinh ra để sửa: câu cũ gợi ý "chạy lại đi" trong khi sự thật là
     // KHÔNG THỂ chạy, nên dải cảnh báo không bao giờ tắt được.
     const warning = evaluateHealthSetup(
@@ -31,12 +31,12 @@ describe("evaluateHealthSetup", () => {
     expect(warning?.tone).toBe("red");
   });
 
-  it("proxy quan sát viên bị TẮT hết cũng tính như không có", () => {
+  it("treats all disabled observer proxies as missing", () => {
     const warning = evaluateHealthSetup(input({ activeObserverProxyCount: 0 }));
     expect(warning?.kind).toBe("NO_OBSERVER_PROXY");
   });
 
-  it("có proxy rồi mà chưa nick nào được dò thì trỏ về trang Sức khỏe", () => {
+  it("links to Nick health when nicks have never been checked", () => {
     const warning = evaluateHealthSetup(input({ neverCheckedCount: 2 }));
 
     expect(warning?.kind).toBe("NEVER_CHECKED");
@@ -44,20 +44,20 @@ describe("evaluateHealthSetup", () => {
     expect(warning?.message).toContain("2 nick");
   });
 
-  it("chưa dò lần nào được ưu tiên hơn dò-lâu-rồi", () => {
+  it("prioritizes never-checked nicks over stale checks", () => {
     // Hai chuyện khác nhau và cần hai việc khác nhau; gộp lại là mất thông tin.
     const warning = evaluateHealthSetup(input({ neverCheckedCount: 1, staleCount: 3 }));
     expect(warning?.kind).toBe("NEVER_CHECKED");
   });
 
-  it("đã dò hết nhưng lâu rồi thì giữ câu cũ", () => {
+  it("warns when every nick was checked but the results are stale", () => {
     const warning = evaluateHealthSetup(input({ staleCount: 3 }));
 
     expect(warning?.kind).toBe("STALE");
     expect(warning?.tone).toBe("amber");
   });
 
-  it("mọi thứ đủ và mới thì im lặng", () => {
+  it("returns no warning when setup and checks are current", () => {
     expect(evaluateHealthSetup(input())).toBeNull();
   });
 });

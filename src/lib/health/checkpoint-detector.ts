@@ -35,26 +35,26 @@ interface Pattern {
 
 /** Đường dẫn mà nền tảng chỉ dùng cho màn hình chặn. So trên pathname đã hạ chữ thường. */
 const BLOCKING_PATHS: readonly { path: string; scope: CheckpointScope; reason: string }[] = [
-  { path: "/checkpoint", scope: "ACCOUNT", reason: "Nền tảng chuyển sang màn hình checkpoint." },
-  { path: "/quarantine", scope: "ACCOUNT", reason: "Nội dung bị đưa vào diện cách ly." },
-  { path: "/suspended", scope: "ACCOUNT", reason: "Nền tảng báo tài khoản bị treo." },
-  { path: "/challenge", scope: "PROBE", reason: "Nền tảng bắt người xem qua màn hình thử thách." },
+  { path: "/checkpoint", scope: "ACCOUNT", reason: "The platform redirected to a checkpoint screen." },
+  { path: "/quarantine", scope: "ACCOUNT", reason: "The platform placed the account in quarantine." },
+  { path: "/suspended", scope: "ACCOUNT", reason: "The platform reports that the account is suspended." },
+  { path: "/challenge", scope: "PROBE", reason: "The platform is challenging the public viewer." },
 ];
 
 const PATTERNS: readonly Pattern[] = [
   {
     scope: "ACCOUNT",
-    reason: "Trang profile báo tài khoản đã bị treo.",
+    reason: "The profile page reports that the account is suspended.",
     needles: [
       "this account has been suspended",
       "your account has been suspended",
       "account has been permanently suspended",
-      "tài khoản đã bị tạm khóa",
+      "t\u00e0i kho\u1ea3n \u0111\u00e3 b\u1ecb t\u1ea1m kh\u00f3a",
     ],
   },
   {
     scope: "ACCOUNT",
-    reason: "Nền tảng đòi xác minh lại danh tính hoặc email trước khi cho xem.",
+    reason: "The platform requires identity or email verification before the profile can be viewed.",
     needles: [
       "verify your email address to continue",
       "we need to confirm it's you",
@@ -64,7 +64,7 @@ const PATTERNS: readonly Pattern[] = [
   },
   {
     scope: "PROBE",
-    reason: "Bị chắn bằng captcha — proxy quan sát viên đang bị nghi, không phải nick.",
+    reason: "A CAPTCHA blocked the check. The observer proxy is under suspicion, not the nick.",
     // CỐ Ý không có "recaptcha" và "g-recaptcha": đo 03/08/2026 thì MỌI trang old.reddit.com
     // đều nhúng script reCAPTCHA cho ô đăng nhập ở sidebar, kể cả trang profile bình thường.
     // Để hai cụm đó ở đây là bộ dò báo "bị captcha" cho mọi nick, mọi lần — tức là mù hoàn toàn
@@ -80,7 +80,7 @@ const PATTERNS: readonly Pattern[] = [
   },
   {
     scope: "PROBE",
-    reason: "Bị chặn vì gọi quá nhiều — giãn lịch dò hoặc đổi proxy quan sát viên.",
+    reason: "The viewer was rate-limited. Space out checks or change the observer proxy.",
     needles: [
       "too many requests",
       "you've been blocked by network security",

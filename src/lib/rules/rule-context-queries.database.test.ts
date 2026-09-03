@@ -83,12 +83,12 @@ async function seed(): Promise<Seeded> {
 
   const content = (title: string, type: string) =>
     prisma.contentItem.create({
-      data: { title, body: `Nội dung ${title}`, type, authorName: "team" },
+      data: { title, body: `content${title}`, type, authorName: "team" },
     });
 
   const [value, promo] = await Promise.all([
     content("Backup homelab", "VALUE"),
-    content("Ra mắt bản mới", "PROMO"),
+    content("release new version", "PROMO"),
   ]);
 
   return {
@@ -126,7 +126,7 @@ afterAll(async () => {
 });
 
 describe("loadOwnJobs", () => {
-  it("chỉ lấy job của đúng nick đó", async () => {
+  it("only take jobs of the correct nick", async () => {
     await makeJob({
       accountId: db.anna,
       targetId: db.reddit1,
@@ -147,7 +147,7 @@ describe("loadOwnJobs", () => {
    * Job đã bỏ qua / bị chặn / lỗi không được chiếm chỗ trong lịch: nếu tính vào, hạn mức ngày
    * và tỷ lệ promo sẽ chặn oan những bài hoàn toàn hợp lệ.
    */
-  it.each(["SKIPPED", "BLOCKED", "FAILED"])("không tính job trạng thái %s", async (status) => {
+  it.each(["SKIPPED", "BLOCKED", "FAILED"])("exclude jobs with status %s", async (status) => {
     await makeJob({
       accountId: db.anna,
       targetId: db.reddit1,
@@ -159,7 +159,7 @@ describe("loadOwnJobs", () => {
     expect(await loadOwnJobs(db.anna)).toHaveLength(0);
   });
 
-  it.each(["PENDING", "POSTED"])("có tính job trạng thái %s", async (status) => {
+  it.each(["PENDING", "POSTED"])("include jobs with status %s", async (status) => {
     await makeJob({
       accountId: db.anna,
       targetId: db.reddit1,
@@ -172,7 +172,7 @@ describe("loadOwnJobs", () => {
   });
 
   /** Chấm lại một job phải bỏ chính nó ra, nếu không nó tự chặn mình. */
-  it("bỏ đúng job đang được chấm lại", async () => {
+  it("exclude the job being regraded", async () => {
     const job = await makeJob({
       accountId: db.anna,
       targetId: db.reddit1,
@@ -200,7 +200,7 @@ describe("loadThreadCollisions", () => {
     });
   }
 
-  it("thấy dấu vết của nick KHÁC trên cùng thread", async () => {
+  it("see traces of OTHER nicks on the same thread", async () => {
     await recordInteraction(db.binh, THREAD, db.reddit1);
 
     const collisions = await loadThreadCollisions(THREAD, db.anna);
@@ -212,19 +212,19 @@ describe("loadThreadCollisions", () => {
    * Lọc sai chiều ở đây là hỏng nặng nhất: nick tự đụng chính mình thì luật 8 chặn oan
    * mọi bài tiếp theo của nick đó trên thread nó vừa đăng.
    */
-  it("KHÔNG tính dấu vết của chính nick đang xét", async () => {
+  it("DO NOT count traces of the current nick being examined", async () => {
     await recordInteraction(db.anna, THREAD, db.reddit1);
 
     expect(await loadThreadCollisions(THREAD, db.anna)).toHaveLength(0);
   });
 
-  it("thread khác thì không tính", async () => {
+  it("do not count if thread is different", async () => {
     await recordInteraction(db.binh, "reddit:thread-khac", db.reddit1);
 
     expect(await loadThreadCollisions(THREAD, db.anna)).toHaveLength(0);
   });
 
-  it("không có khóa thread thì trả rỗng, không quét cả bảng", async () => {
+  it("if no thread key, return empty, do not scan entire table", async () => {
     await recordInteraction(db.binh, THREAD, db.reddit1);
 
     expect(await loadThreadCollisions(null, db.anna)).toEqual([]);
@@ -234,7 +234,7 @@ describe("loadThreadCollisions", () => {
 describe("loadSameTargetNeighbors", () => {
   const WARN_HOURS = 6;
 
-  it("thấy job của nick khác trong cửa sổ, cả trước lẫn sau mốc", async () => {
+  it("see other nick's job in the window, both before and after the mark", async () => {
     await makeJob({
       accountId: db.binh,
       targetId: db.reddit1,
@@ -251,7 +251,7 @@ describe("loadSameTargetNeighbors", () => {
     expect(await loadSameTargetNeighbors(db.reddit1, db.anna, AT, WARN_HOURS)).toHaveLength(2);
   });
 
-  it("không tính job ngoài cửa sổ", async () => {
+  it("do not count jobs outside the window", async () => {
     await makeJob({
       accountId: db.binh,
       targetId: db.reddit1,
@@ -262,7 +262,7 @@ describe("loadSameTargetNeighbors", () => {
     expect(await loadSameTargetNeighbors(db.reddit1, db.anna, AT, WARN_HOURS)).toHaveLength(0);
   });
 
-  it("không tính job của chính nick đang xét", async () => {
+  it("do not count the current nick's job", async () => {
     await makeJob({
       accountId: db.anna,
       targetId: db.reddit1,
@@ -273,7 +273,7 @@ describe("loadSameTargetNeighbors", () => {
     expect(await loadSameTargetNeighbors(db.reddit1, db.anna, AT, WARN_HOURS)).toHaveLength(0);
   });
 
-  it("không tính hoạt động ở đích khác", async () => {
+  it("do not count activity at a different target", async () => {
     await makeJob({
       accountId: db.binh,
       targetId: db.reddit2,
@@ -284,7 +284,7 @@ describe("loadSameTargetNeighbors", () => {
     expect(await loadSameTargetNeighbors(db.reddit1, db.anna, AT, WARN_HOURS)).toHaveLength(0);
   });
 
-  it("gộp cả tương tác đã ghi tay lẫn job đã xếp, sắp mới nhất trước", async () => {
+  it("combine both manual interactions and scheduled jobs, sort newest first", async () => {
     await prisma.interaction.create({
       data: {
         accountId: db.binh,
@@ -306,7 +306,7 @@ describe("loadSameTargetNeighbors", () => {
     expect(neighbors.map((row) => row.kind)).toEqual(["POST", "UPVOTE"]);
   });
 
-  it("bỏ đúng job đang được chấm lại", async () => {
+  it("exclude the job being regraded", async () => {
     const job = await makeJob({
       accountId: db.binh,
       targetId: db.reddit1,
@@ -321,7 +321,7 @@ describe("loadSameTargetNeighbors", () => {
 });
 
 describe("loadComparableContent", () => {
-  it("lấy bài của MỌI nick, không riêng nick đang xét", async () => {
+  it("get posts from EVERY nick, not just the current one", async () => {
     await makeJob({
       accountId: db.binh,
       targetId: db.reddit1,
@@ -333,7 +333,7 @@ describe("loadComparableContent", () => {
   });
 
   /** Gộp họ nền tảng: Fanpage và Group đều là Facebook, trùng nội dung giữa hai chỗ vẫn lộ. */
-  it("gộp FACEBOOK_PAGE với FACEBOOK_GROUP thành một họ", async () => {
+  it("combine FACEBOOK_PAGE and FACEBOOK_GROUP into one family", async () => {
     await makeJob({
       accountId: db.anna,
       targetId: db.group,
@@ -344,7 +344,7 @@ describe("loadComparableContent", () => {
     expect(await loadComparableContent("FACEBOOK_PAGE", AT, 30)).toHaveLength(1);
   });
 
-  it("không so bài Reddit với bài Facebook", async () => {
+  it("do not compare Reddit posts to Facebook posts", async () => {
     await makeJob({
       accountId: db.anna,
       targetId: db.fanpage,
@@ -355,7 +355,7 @@ describe("loadComparableContent", () => {
     expect(await loadComparableContent("REDDIT", AT, 30)).toHaveLength(0);
   });
 
-  it("không lấy bài cũ hơn cửa sổ so trùng", async () => {
+  it("do not take old posts from the window to compare duplicates", async () => {
     await makeJob({
       accountId: db.binh,
       targetId: db.reddit1,
@@ -366,7 +366,7 @@ describe("loadComparableContent", () => {
     expect(await loadComparableContent("REDDIT", AT, 30)).toHaveLength(0);
   });
 
-  it("bỏ đúng job đang được chấm lại", async () => {
+  it("exclude the job being regraded", async () => {
     const job = await makeJob({
       accountId: db.anna,
       targetId: db.reddit1,

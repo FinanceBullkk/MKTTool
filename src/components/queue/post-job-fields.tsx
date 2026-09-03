@@ -71,7 +71,7 @@ export function ContentSelect({
         onChange={(event) => onChange(event.target.value)}
         required
       >
-        <option value="">— chọn —</option>
+        <option value="">— select —</option>
         {contents.map((content) => (
           <option key={content.id} value={content.id}>
             [{CONTENT_TYPE_LABELS[content.type as ContentType] ?? content.type}] {content.title} —{" "}
@@ -103,7 +103,7 @@ export function AccountSelect({
         onChange={(event) => onChange(event.target.value)}
         required
       >
-        <option value="">— chọn —</option>
+        <option value="">— select —</option>
         {accounts.map((account) => (
           <option key={account.id} value={account.id}>
             {account.username} ({account.platform})
@@ -127,7 +127,7 @@ export function TargetSelect({
 }) {
   return (
     <label className="block">
-      <FieldLabel label="Đích đăng" />
+      <FieldLabel label="Posting target" />
       <select
         className={FIELD_CLASS}
         id="field-target"
@@ -136,7 +136,7 @@ export function TargetSelect({
         onChange={(event) => onChange(event.target.value)}
         required
       >
-        <option value="">— chọn —</option>
+        <option value="">— select —</option>
         {targets.map((target) => (
           <option key={target.id} value={target.id}>
             {target.name}
@@ -145,7 +145,7 @@ export function TargetSelect({
       </select>
       {filtered ? (
         <span className="mt-1 block text-xs text-neutral-500">
-          Chỉ hiện đích cùng nền tảng với nick.
+          Only targets compatible with the selected nick are shown.
         </span>
       ) : null}
     </label>
@@ -161,7 +161,7 @@ export function ScheduledAtField({
 }) {
   return (
     <label className="block">
-      <FieldLabel label="Giờ đăng" />
+      <FieldLabel label="Posting time" />
       <input
         className={FIELD_CLASS}
         id="field-scheduled"
@@ -172,7 +172,7 @@ export function ScheduledAtField({
         required
       />
       <span className="mt-1 block text-xs text-neutral-500">
-        Luật chạy theo giờ này, không phải giờ hiện tại.
+        Rules use this scheduled time, not the current time.
       </span>
     </label>
   );

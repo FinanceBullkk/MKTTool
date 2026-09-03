@@ -32,13 +32,13 @@ export default async function HealthPage() {
 
   return (
     <>
-      <ParkedScopeBanner what="dò shadowban Reddit" />
+      <ParkedScopeBanner what="Reddit shadowban checks" />
       <PageHeading
-        title="Sức khỏe nick"
-        description="Dò từ góc nhìn người ngoài, qua proxy quan sát viên. Shadowban im lặng — không đo thì ba tháng sau mới biết cả cụm đã chết."
+        title="Nick health"
+        description="Check each nick from a public viewer's perspective through an observer proxy. Shadowbans are silent; without checks, the whole group can fail before anyone notices."
       />
 
-      <Card title="Đàn nick">
+      <Card title="Nick health checks">
         <div className="mb-4">
           <HerdHealthCheckControls
             running={lockStatus.running}
@@ -51,18 +51,18 @@ export default async function HealthPage() {
         <AccountHealthTable rows={rows} />
 
         <p className="mt-4 text-xs text-neutral-500">
-          Nút &quot;Dò lại ngay&quot; ở từng dòng chỉ dò một nick, dùng khi đang soi một nick đáng
-          ngờ. Nút &quot;Dò cả đàn&quot; chạy đúng lệnh <code>npm run health</code>, chỉ khác là
-          không phải mở terminal.
+          The &quot;Check again now&quot; button checks only that nick. Use &quot;Check all
+          nicks&quot; for a full run equivalent to <code>npm run health</code>, without opening a
+          terminal.
         </p>
       </Card>
 
-      <Card title="Lịch dò hằng ngày">
+      <Card title="Daily health-check schedule">
         <DailyScheduleSummary schedule={schedule} />
       </Card>
 
       {withTrend.length > 0 ? (
-        <Card title={`Xu hướng karma ${KARMA_TREND_DAYS} ngày`}>
+        <Card title={`Karma trend - ${KARMA_TREND_DAYS} days`}>
           <div className="space-y-6">
             {withTrend.map(({ row, points }) => (
               <div key={row.id}>
@@ -78,14 +78,17 @@ export default async function HealthPage() {
         </Card>
       ) : null}
 
-      <Card title="Lịch sử dò">
+      <Card title="Health-check history">
         {recent.length === 0 ? (
           <EmptyState>
-            Chưa có lần dò nào. Thêm proxy quan sát viên ở <Link href="/proxies" className="underline">trang Proxy</Link>{" "}
-            rồi chạy <code>npm run health</code>.
+            No health checks yet. Add an observer proxy on the{" "}
+            <Link href="/proxies" className="underline">
+              Proxy page
+            </Link>{" "}
+            and run <code>npm run health</code>.
           </EmptyState>
         ) : (
-          <DataTable headers={["Lúc", "Nick", "Kết luận", "Karma", "Thấy / đã đăng", "Lý do"]}>
+          <DataTable headers={["Time", "Nick", "Verdict", "Karma", "Visible / posted", "Reason"]}>
             {recent.map((check) => {
               const presentation = getVerdictPresentation(check.verdict);
               return (
@@ -111,7 +114,7 @@ export default async function HealthPage() {
                     {check.detail}
                     {check.screenshotPath ? (
                       <span className="mt-1 block font-mono text-[11px] text-neutral-500">
-                        ảnh: {check.screenshotPath}
+                        image: {check.screenshotPath}
                       </span>
                     ) : null}
                   </td>

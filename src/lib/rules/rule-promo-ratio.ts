@@ -22,19 +22,19 @@ export function rulePromoRatio(ctx: RuleContext): RuleVerdict {
   const { valueCount, promoCount } = ctx.promoTally;
   const required = (promoCount + 1) * ratio;
   const missing = required - valueCount;
-  const tally = `${valueCount} bài hữu ích / ${promoCount} bài quảng cáo`;
+  const tally = `${valueCount} value posts / ${promoCount} promotional posts`;
 
   if (missing > 0) {
     return block(
-      `Luật ${ratio}:1 — ở ${ctx.target.name} nick mới có ${tally}. ` +
-        `Còn thiếu ${missing} bài hữu ích nữa mới được đăng bài quảng cáo này.`,
+      `${ctx.target.name} uses a ${ratio}:1 rule; this nick currently has ${tally}. ` +
+        `Add ${missing} more value post${missing === 1 ? "" : "s"} before publishing this promotion.`,
     );
   }
 
   if (missing === 0) {
     return warn(
-      `Vừa đủ hạn mức ${ratio}:1 ở ${ctx.target.name} (${tally}). Đăng xong là hết quota — ` +
-        `phải có thêm ${ratio} bài hữu ích mới được quảng cáo lần nữa.`,
+      `The nick only just meets the ${ratio}:1 ratio on ${ctx.target.name} (${tally}). ` +
+        `After this post, add ${ratio} more value posts before the next promotion.`,
     );
   }
 

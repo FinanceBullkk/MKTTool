@@ -42,16 +42,16 @@ export function ruleHealthCheck(ctx: RuleContext): RuleVerdict {
 
   if (!latest) {
     return warn(
-      "Nick chưa được dò shadowban lần nào, nên chưa biết bài của nó có hiện với người ngoài " +
-        "không. Thêm proxy quan sát viên ở /proxies rồi chạy `npm run health`.",
+      "This nick has never been checked for a shadowban, so we do not know whether its posts are " +
+        "visible to outsiders. Add an observer proxy in /proxies, then run `npm run health`.",
     );
   }
 
   if (latest.verdict === "SHADOWBANNED" || latest.verdict === "CHECKPOINT") {
     return block(
-      `Lần dò gần nhất (${formatDayMonth(latest.checkedAt)}) kết luận nick đang ở tình trạng ` +
-        `"${latest.verdict}". Trạng thái nick có thể đã được gỡ cách ly bằng tay, nhưng chưa có ` +
-        "lần dò nào chứng minh nick đã hồi phục. Chạy `npm run health` cho nick này trước.",
+      `The latest check (${formatDayMonth(latest.checkedAt)}) reported "${latest.verdict}". ` +
+        "The nick may have been released from quarantine manually, but no later check proves it recovered. " +
+        "Run `npm run health` for this nick before posting.",
     );
   }
 
@@ -60,39 +60,39 @@ export function ruleHealthCheck(ctx: RuleContext): RuleVerdict {
   // phụ thuộc kết luận đó cũ hay mới.
   if (!JUDGEABLE_VERDICTS.has(latest.verdict)) {
     return block(
-      `Lần dò gần nhất (${formatDayMonth(latest.checkedAt)}) trả về kết luận "${latest.verdict}" ` +
-        "mà luật này chưa biết cách chấm. Không hiểu kết quả thì không được coi là khỏe — " +
-        "dạy luật 10 cách chấm kết luận đó (rule-health-check.ts) rồi đăng lại.",
+      `The latest check (${formatDayMonth(latest.checkedAt)}) returned "${latest.verdict}", which ` +
+        "this rule does not know how to evaluate. An unknown result cannot be treated as healthy. " +
+        "Teach rule 10 how to evaluate it in rule-health-check.ts before posting again.",
     );
   }
 
   const daysOld = (ctx.at.getTime() - latest.checkedAt.getTime()) / MS_PER_DAY;
   if (daysOld > ctx.thresholds.healthCheckStaleDays) {
     return warn(
-      `Lần dò gần nhất đã ${Math.floor(daysOld)} ngày trước (${formatDayMonth(latest.checkedAt)}). ` +
-        "Shadowban im lặng — số liệu cũ không nói được gì về hôm nay.",
+      `The latest check was ${Math.floor(daysOld)} days ago (${formatDayMonth(latest.checkedAt)}). ` +
+        "Shadowbans are silent, so stale data cannot confirm the nick is healthy today.",
     );
   }
 
   if (latest.verdict === "ERROR") {
     return warn(
-      `Lần dò gần nhất không kết luận được (${formatDayMonth(latest.checkedAt)}): bộ dò bị chặn ` +
-        "hoặc Reddit đổi HTML. Xem lý do ở /health — đang đăng mà không có ai canh.",
+      `The latest check was inconclusive (${formatDayMonth(latest.checkedAt)}): the checker was blocked ` +
+        "or Reddit changed its HTML. Review the reason on /health before posting without visibility checks.",
     );
   }
 
   if (latest.verdict === "NO_BASELINE") {
     return warn(
-      `Lần dò gần nhất (${formatDayMonth(latest.checkedAt)}) chỉ thấy nick còn hiện ra, chưa ` +
-        "kiểm được bài nào vì không bài nào được đánh dấu đã đăng. Nick mới hoặc đang nghỉ thì " +
-        "bình thường; đăng rồi mà quên bấm “Đã đăng” thì bộ dò đang mù mà bảng vẫn xanh.",
+      `The latest check (${formatDayMonth(latest.checkedAt)}) found the nick, but could not verify any ` +
+        "posts because none were marked as posted. This is normal for a new or resting nick; if posts " +
+        "were published without clicking \"Posted\", the checker is blind even while the dashboard looks healthy.",
     );
   }
 
   if (latest.verdict === "WARN") {
     return warn(
-      `Lần dò gần nhất thấy ít bài hơn số đã đăng (${formatDayMonth(latest.checkedAt)}). ` +
-        "Có thể chỉ là mod xóa bài, cũng có thể là bị ẩn từng bài — xem chi tiết ở /health.",
+      `The latest check found fewer posts than the queue records (${formatDayMonth(latest.checkedAt)}). ` +
+        "A moderator may have removed a post, or individual posts may be hidden. Review the details on /health.",
     );
   }
 
@@ -101,9 +101,9 @@ export function ruleHealthCheck(ctx: RuleContext): RuleVerdict {
   // KHÔNG được im: luật 4, 5 và 6 đang đếm thiếu đúng số bài mà bộ dò vừa nhìn thấy.
   if (latest.verdict === "UNTRACKED_POSTS") {
     return warn(
-      `Lần dò gần nhất (${formatDayMonth(latest.checkedAt)}) thấy bài mà kho không có. ` +
-        "Nick không sao, nhưng hạn mức ngày, giãn cách và tỷ lệ promo đang đếm thiếu — " +
-        "vào /queue ghi lại những bài đó trước khi xếp thêm.",
+      `The latest check (${formatDayMonth(latest.checkedAt)}) found posts that are missing from the queue. ` +
+        "The nick appears healthy, but daily caps, cooldowns, and promotional ratios are undercounted. " +
+        "Record those posts in /queue before scheduling more.",
     );
   }
 

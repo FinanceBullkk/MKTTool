@@ -28,11 +28,11 @@ import { DEFAULT_RULE_THRESHOLDS, applyThresholdOverrides } from "@/lib/rules/ru
 import { ALLOW } from "@/lib/rules/rule-types";
 
 const interactionSchema = z.object({
-  accountId: z.string().min(1, "Chọn nick"),
-  targetId: z.string().min(1, "Chọn đích"),
+  accountId: z.string().min(1, "Select a nick"),
+  targetId: z.string().min(1, "Select a posting target"),
   threadUrl: z
     .string()
-    .url("Link thread không hợp lệ")
+    .url("Invalid thread URL. Paste the full URL of the thread.")
     // Chặn ở đây chứ không ở `normalizeThreadUrl`: lõi nhận cả permalink do bộ dò lấy về từ
     // Reddit, thứ không cần kiểm. Chỗ cần kiểm là chuỗi người gõ.
     .refine((value) => !isUnresolvableShareLink(value), UNRESOLVABLE_SHARE_LINK_MESSAGE),
@@ -50,14 +50,19 @@ export const recordInteraction = guardedAction(async function recordInteraction(
 ): Promise<ActionResult> {
   const parsed = interactionSchema.safeParse(Object.fromEntries(formData.entries()));
   if (!parsed.success) {
-    return { ok: false, message: parsed.error.issues[0]?.message ?? "Dữ liệu không hợp lệ" };
+    return {
+      ok: false,
+      message: parsed.error.issues[0]?.message ?? "Invalid interaction data. Check the fields and try again.",
+    };
   }
 
   const { threadUrl, note, ...rest } = parsed.data;
   const threadKey = normalizeThreadUrl(threadUrl);
 
   const target = await prisma.platformTarget.findUnique({ where: { id: rest.targetId } });
-  if (!target) return { ok: false, message: "Không tìm thấy đích." };
+  if (!target) {
+    return { ok: false, message: "Posting target not found. Refresh the page and choose a target again." };
+  }
 
   const thresholdRows = await prisma.ruleConfig.findMany();
   const thresholds = applyThresholdOverrides(thresholdRows, DEFAULT_RULE_THRESHOLDS);
@@ -102,7 +107,7 @@ export const recordInteraction = guardedAction(async function recordInteraction(
     ok: true,
     message:
       verdict.level === "WARN"
-        ? `Đã ghi nhận. Cảnh báo: ${verdict.reason}`
-        : "Đã ghi nhận tương tác. Nick khác sẽ bị chặn nếu đụng vào thread này.",
+        ? `Recorded. Warning: ${verdict.reason}`
+        : "Interaction recorded. Another nick will be blocked if it touches this thread.",
   };
 });

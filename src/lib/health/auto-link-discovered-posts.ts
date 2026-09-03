@@ -77,12 +77,12 @@ export async function autoLinkDiscoveredPosts(
     const written = await markPostJobPosted(match.jobId, match.post.permalinkUrl);
     if (!written.ok) {
       // Job vừa đổi trạng thái ở nơi khác giữa lúc dò. Không phải lỗi của ai, nhưng phải nói ra.
-      ambiguous.push({ post: match.post, reason: `không ghi được: ${written.message}` });
+      ambiguous.push({ post: match.post, reason: `could not record the post: ${written.message}` });
       continue;
     }
 
     linkedKeys.push(match.post.threadKey);
-    lines.push(`tự gán ${match.post.threadKey} → job ${match.jobId}`);
+    lines.push(`automatically linked ${match.post.threadKey} to job ${match.jobId}`);
 
     // AuditLog là chỗ DUY NHẤT phân biệt "người bấm" với "bộ dò tự gán": Interaction dùng chung
     // một ghi chú cho mọi đường ghi (xem post-job-mark-posted.ts), nên nếu không ghi ở đây thì

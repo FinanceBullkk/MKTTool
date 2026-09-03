@@ -26,18 +26,18 @@ export function ruleThreadCollision(ctx: ThreadCollisionContext): RuleVerdict {
 
   if (collision) {
     return block(
-      `Nick "${collision.accountUsername}" của mình đã ${getInteractionKindLabel(collision.kind)} ` +
-        `ở đúng thread này lúc ${formatDayMonthTime(collision.at)}. Hai nick cùng chủ đụng một ` +
-        "thread là tín hiệu phối hợp — luật này không cho ghi đè.",
+      `Your nick "${collision.accountUsername}" already ${getInteractionKindLabel(collision.kind)} ` +
+        `this exact thread at ${formatDayMonthTime(collision.at)}. Two nicks under one owner touching ` +
+        "the same thread is a coordination signal; this rule cannot be overridden.",
     );
   }
 
   const [neighbor] = ctx.sameTargetNeighbors;
   if (neighbor) {
     return warn(
-      `Nick "${neighbor.accountUsername}" của mình vừa hoạt động ở ${ctx.target.name} lúc ` +
-        `${formatDayMonthTime(neighbor.at)} (trong vòng ${ctx.thresholds.threadCollisionWarnHours} ` +
-        "tiếng). Khác thread nên chưa chặn, nhưng giãn giờ ra thì an toàn hơn.",
+      `Your nick "${neighbor.accountUsername}" was active on ${ctx.target.name} at ` +
+        `${formatDayMonthTime(neighbor.at)} (within ${ctx.thresholds.threadCollisionWarnHours} hours). ` +
+        "It was a different thread, so this is not blocked, but spacing the activity out is safer.",
     );
   }
 
@@ -123,8 +123,8 @@ function meaningfulQuery(params: URLSearchParams): string {
 const REDDIT_SHARE_PATH = /^\/r\/[^/]+\/s\/[a-z0-9]+\/?$/;
 
 export const UNRESOLVABLE_SHARE_LINK_MESSAGE =
-  "Link share dạng /s/ không rút được về id bài, nên luật chặn đụng độ thread sẽ không nhận ra " +
-  "hai nick vào cùng một bài. Mở link đó ra rồi dán link đầy đủ (link có /comments/).";
+  "A Reddit /s/ share link cannot be resolved to a post ID, so the thread-collision rule cannot " +
+  "detect two nicks touching the same post. Open the share link, then paste the full /comments/ URL.";
 
 /** Người dùng vừa dán một link mà khóa đụng độ không thể phân giải. */
 export function isUnresolvableShareLink(raw: string): boolean {

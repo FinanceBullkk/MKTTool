@@ -15,14 +15,14 @@ import {
 const TROVE_ALIVE = "/r/Trove/comments/1veg99o/is_trove_still_alive_will_gamigo_continue_to/";
 
 describe("readPermalinkSlug", () => {
-  it("đọc slug từ permalink tương đối lẫn URL đầy đủ", () => {
+  it("reads slugs from relative permalinks and full URLs", () => {
     expect(readPermalinkSlug(TROVE_ALIVE)).toBe("is_trove_still_alive_will_gamigo_continue_to");
     expect(readPermalinkSlug(`https://www.reddit.com${TROVE_ALIVE}`)).toBe(
       "is_trove_still_alive_will_gamigo_continue_to",
     );
   });
 
-  it("link không có slug thì trả null, không trả chuỗi rỗng", () => {
+  it("returns null instead of an empty string when the link has no slug", () => {
     // Link chia sẻ và permalink cụt là chuyện thường — "không có slug" phải khác "slug lệch".
     expect(readPermalinkSlug("https://redd.it/1veg99o")).toBeNull();
     expect(readPermalinkSlug("https://www.reddit.com/r/Trove/comments/1veg99o/")).toBeNull();
@@ -30,27 +30,27 @@ describe("readPermalinkSlug", () => {
 });
 
 describe("titleSlugScore", () => {
-  it("tiêu đề gốc khớp trọn slug", () => {
+  it("matches the original title to the full slug", () => {
     expect(
       titleSlugScore("Is trove still alive? Will Gamigo continue to develop it? ", TROVE_ALIVE),
     ).toBe(1);
   });
 
-  it("hai bài cùng chủ đề nhưng khác nội dung thì không khớp", () => {
+  it("does not match different content about the same topic", () => {
     // Đúng cặp có thật 04/08/2026: link của bài A bị dán cho job của bài B, cả hai đều về Trove.
     const score = titleSlugScore("Looking for a game similar to trove", TROVE_ALIVE);
     expect(score).not.toBeNull();
     expect(score).toBeLessThan(0.6);
   });
 
-  it("không so được thì trả null chứ không trả 0", () => {
+  it("returns null instead of zero when no comparison is possible", () => {
     // 0 nghĩa là "đã so và lệch hẳn"; null nghĩa là "chưa so được". Gộp hai thứ này lại là
     // biến mọi link thiếu slug thành một cảnh báo sai.
-    expect(titleSlugScore("Bài gì đó", "https://redd.it/1veg99o")).toBeNull();
+    expect(titleSlugScore("Some post", "https://redd.it/1veg99o")).toBeNull();
     expect(titleSlugScore("", TROVE_ALIVE)).toBeNull();
   });
 
-  it("bỏ qua từ quá ngắn để chúng không tự đẩy tỷ lệ lên", () => {
+  it("ignores short words so they do not inflate the score", () => {
     // Slug này có `is` và `to`; tiêu đề dưới đây cũng có, mà hai bài chẳng liên quan gì nhau.
     // Đếm mấy từ đó là cho điểm không công cho mọi cặp tiếng Anh bất kỳ.
     expect(titleSlugScore("to it is a game about backups", TROVE_ALIVE)).toBe(0);
@@ -58,12 +58,12 @@ describe("titleSlugScore", () => {
 });
 
 describe("titleMatchesPermalink", () => {
-  it("khớp thì cho tự ghi, lệch hoặc không so được thì không", () => {
+  it("allows automatic linking only when the title matches", () => {
     expect(titleMatchesPermalink("Is trove still alive? Will Gamigo continue?", TROVE_ALIVE)).toBe(
       true,
     );
     expect(titleMatchesPermalink("Looking for a game similar to trove", TROVE_ALIVE)).toBe(false);
     // Không so được phải là KHÔNG khớp: tự ghi dựa trên thứ chưa kiểm là kiểu sai tệ nhất ở đây.
-    expect(titleMatchesPermalink("Bài gì đó", "https://redd.it/1veg99o")).toBe(false);
+    expect(titleMatchesPermalink("Some post", "https://redd.it/1veg99o")).toBe(false);
   });
 });

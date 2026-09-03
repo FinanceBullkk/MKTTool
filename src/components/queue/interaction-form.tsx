@@ -18,7 +18,7 @@ export function InteractionForm({
   targets: { id: string; name: string }[];
 }) {
   return (
-    <ActionForm action={recordInteraction} submitLabel="Ghi tương tác">
+    <ActionForm action={recordInteraction} submitLabel="Record interaction">
       <SelectField
         label="Nick"
         name="accountId"
@@ -29,7 +29,7 @@ export function InteractionForm({
         }))}
       />
       <SelectField
-        label="Đích"
+        label="Target"
         name="targetId"
         required
         options={targets.map((target) => ({ value: target.id, label: target.name }))}
@@ -39,10 +39,10 @@ export function InteractionForm({
         name="threadUrl"
         required
         placeholder="https://www.reddit.com/r/selfhosted/comments/…"
-        hint="Dán nguyên link, công cụ tự rút về id bài để so. Link share dạng /s/ thì mở ra lấy link đầy đủ — dạng đó không rút được."
+        hint="Paste the full URL; the tool extracts the post ID for comparison. Reddit /s/ share links cannot be resolved, so open the share link and paste its full /comments/ URL."
       />
       <SelectField
-        label="Kiểu"
+        label="Type"
         name="kind"
         required
         defaultValue="COMMENT"
@@ -51,7 +51,7 @@ export function InteractionForm({
           label: INTERACTION_KIND_LABELS[kind],
         }))}
       />
-      <Field label="Ghi chú" name="note" placeholder="Tuỳ chọn" />
+      <Field label="Notes" name="note" placeholder="Optional" />
     </ActionForm>
   );
 }

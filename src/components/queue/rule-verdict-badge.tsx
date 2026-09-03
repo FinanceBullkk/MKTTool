@@ -4,15 +4,15 @@ import type { RuleLevel } from "@/lib/rules/rule-types";
 
 const LEVEL_PRESENTATION: Record<RuleLevel, { label: string; className: string }> = {
   ALLOW: {
-    label: "Đăng được",
+    label: "Can post",
     className: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300",
   },
   WARN: {
-    label: "Cân nhắc",
+    label: "Consider",
     className: "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300",
   },
   BLOCK: {
-    label: "Bị chặn",
+    label: "Blocked",
     className: "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300",
   },
 };
@@ -44,7 +44,7 @@ function RuleResultRow({ result }: { result: RuleResult }) {
         <span className="font-medium">{result.label}</span>
         {result.reason ? ` — ${result.reason}` : null}
         {result.level === "BLOCK" && !result.overridable ? (
-          <span className="ml-1 font-medium">(không cho ghi đè)</span>
+          <span className="ml-1 font-medium">(not overridable)</span>
         ) : null}
       </span>
     </li>
@@ -68,8 +68,8 @@ export function RuleVerdictPanel({ evaluation }: { evaluation: RuleEvaluation })
         <RuleVerdictBadge level={evaluation.level} />
         <span className="text-xs text-neutral-500">
           {failed.length === 0
-            ? `Qua cả ${evaluation.results.length} luật`
-            : `${passed.length}/${evaluation.results.length} luật qua`}
+            ? `Passed all ${evaluation.results.length} rules`
+            : `${passed.length}/${evaluation.results.length} rules passed`}
         </span>
       </div>
 
@@ -82,7 +82,7 @@ export function RuleVerdictPanel({ evaluation }: { evaluation: RuleEvaluation })
       {passed.length > 0 ? (
         <details>
           <summary className="cursor-pointer text-xs text-neutral-500">
-            Xem {passed.length} luật đã qua
+            View {passed.length} passed rule{passed.length === 1 ? "" : "s"}
           </summary>
           <ul className="mt-2 space-y-1.5">
             {passed.map((result) => (
@@ -94,7 +94,7 @@ export function RuleVerdictPanel({ evaluation }: { evaluation: RuleEvaluation })
 
       {skipped.length > 0 ? (
         <p className="text-xs text-neutral-500">
-          Không áp dụng cho nền tảng này: {skipped.map((rule) => rule.label).join(", ")}.
+          Not applicable to this platform: {skipped.map((rule) => rule.label).join(", ")}.
         </p>
       ) : null}
     </div>

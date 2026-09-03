@@ -15,11 +15,11 @@ function input(overrides: Partial<HealthEvaluationInput> = {}): HealthEvaluation
 }
 
 describe("evaluateHealth", () => {
-  it("thấy đủ bài thì khỏe", () => {
+  it("reports healthy when every recorded post is visible", () => {
     expect(evaluateHealth(input()).verdict).toBe("HEALTHY");
   });
 
-  it("Reddit không tìm thấy trang profile thì cách ly nick, dù chưa rõ nguyên nhân", () => {
+  it("quarantines a missing profile even when the exact cause is unknown", () => {
     // Vẫn CÁCH LY ở cả hai nhánh, có chủ ý: cách ly nhầm một nick khỏe thì ồn ào và sửa được
     // bằng tay, còn để một nick đã bị ẩn đăng tiếp thì im lặng và tốn content mỗi ngày.
     const result = evaluateHealth(input({ profile: { kind: "MISSING" } }));
@@ -27,7 +27,7 @@ describe("evaluateHealth", () => {
     expect(result.shadowbanned).toBe(true);
   });
 
-  it("chưa từng thấy profile thì câu chữ phải nêu khả năng username khai sai", () => {
+  it("mentions a possible username error when the profile has never been seen", () => {
     // Lượt dò thật đầu tiên (04/08/2026) cách ly nhầm một nick khỏe vì username trong kho là
     // nhãn tự đặt. Reddit trả CÙNG một trang cho bốn nguyên nhân — khẳng định "shadowban toàn
     // cục" ở đây là nói chắc hơn thứ đo được.
@@ -35,65 +35,65 @@ describe("evaluateHealth", () => {
       input({ profile: { kind: "MISSING" }, profileSeenBefore: false }),
     );
 
-    expect(result.detail).toContain("USERNAME");
-    expect(result.detail).not.toContain("shadowban toàn cục");
+    expect(result.detail).toContain("username spelling");
+    expect(result.detail).not.toContain("globally shadowbanned or deleted");
   });
 
-  it("từng thấy profile rồi mà giờ mất thì mới nói chắc", () => {
+  it("uses stronger wording when an earlier check saw the profile", () => {
     // Có lượt dò cũ đọc được trang thì loại trừ được khả năng gõ sai username.
     const result = evaluateHealth(input({ profile: { kind: "MISSING" }, profileSeenBefore: true }));
 
-    expect(result.detail).toContain("lần dò trước");
-    expect(result.detail).not.toContain("USERNAME");
+    expect(result.detail).toContain("an earlier check could read it");
+    expect(result.detail).not.toContain("username spelling");
   });
 
-  it("đã đăng nhưng không thấy bài nào = bị ẩn từng bài", () => {
+  it("reports shadowbanned when recorded posts are all hidden", () => {
     expect(evaluateHealth(input({ expectedPosts: 3, visiblePosts: 0 })).verdict).toBe(
       "SHADOWBANNED",
     );
   });
 
-  it("thấy dưới một nửa số bài thì cảnh báo, chưa kết luận", () => {
+  it("warns when fewer than half of recorded posts are visible", () => {
     expect(evaluateHealth(input({ expectedPosts: 10, visiblePosts: 3 })).verdict).toBe("WARN");
   });
 
-  it("đúng một nửa thì chưa cảnh báo", () => {
+  it("does not warn at exactly half visible", () => {
     expect(evaluateHealth(input({ expectedPosts: 10, visiblePosts: 5 })).verdict).toBe("HEALTHY");
   });
 
   // ── Ba nhánh dưới đây là lý do file này tồn tại: bộ dò mù thì phải nói là mù ──
 
-  it("lỗi mở trang là ERROR, không phải HEALTHY", () => {
-    const result = evaluateHealth(input({ navigationError: "hết giờ chờ." }));
+  it("reports an error when profile navigation fails", () => {
+    const result = evaluateHealth(input({ navigationError: "Timed out." }));
     expect(result.verdict).toBe("ERROR");
     expect(result.shadowbanned).toBe(false);
   });
 
-  it("HTML không đọc được là ERROR", () => {
+  it("reports an error when the profile HTML cannot be parsed", () => {
     const result = evaluateHealth(
-      input({ profile: { kind: "UNPARSEABLE", reason: "Reddit đổi HTML." } }),
+      input({ profile: { kind: "UNPARSEABLE", reason: "Reddit changed its HTML." } }),
     );
     expect(result.verdict).toBe("ERROR");
   });
 
-  it("captcha phía bộ dò là ERROR — KHÔNG được cách ly nick vì proxy bị bóp", () => {
+  it("treats observer CAPTCHA as a checker error, not a nick checkpoint", () => {
     const result = evaluateHealth(
-      input({ checkpoint: { scope: "PROBE", reason: "Bị chắn bằng captcha." } }),
+      input({ checkpoint: { scope: "PROBE", reason: "Blocked by CAPTCHA." } }),
     );
     expect(result.verdict).toBe("ERROR");
   });
 
-  it("checkpoint phía nick mới là CHECKPOINT", () => {
+  it("reports a nick checkpoint as CHECKPOINT", () => {
     const result = evaluateHealth(
-      input({ checkpoint: { scope: "ACCOUNT", reason: "Tài khoản bị treo." } }),
+      input({ checkpoint: { scope: "ACCOUNT", reason: "The account is suspended." } }),
     );
     expect(result.verdict).toBe("CHECKPOINT");
   });
 
-  it("chặn đường được xét trước nội dung trang", () => {
+  it("checks blocking signals before profile contents", () => {
     const result = evaluateHealth(
       input({
-        checkpoint: { scope: "ACCOUNT", reason: "Tài khoản bị treo." },
+        checkpoint: { scope: "ACCOUNT", reason: "The account is suspended." },
         profile: { kind: "OK", karma: 1, posts: [], commentCount: 0 },
         visiblePosts: 4,
       }),
@@ -101,14 +101,14 @@ describe("evaluateHealth", () => {
     expect(result.verdict).toBe("CHECKPOINT");
   });
 
-  it("chưa bài nào đánh dấu đã đăng thì KHÔNG được nói khỏe", () => {
+  it("does not report healthy when no posts were marked as posted", () => {
     const result = evaluateHealth(input({ expectedPosts: 0, visiblePosts: 0 }));
     expect(result.verdict).toBe("NO_BASELINE");
     expect(result.shadowbanned).toBe(false);
-    expect(result.detail).toContain("chưa phải");
+    expect(result.detail).toContain("no comparison baseline");
   });
 
-  it("thấy bài mà kho chưa ghi bài nào là CÓ BÀI CHƯA GHI, không phải 'chưa đối chiếu được'", () => {
+  it("reports unrecorded posts instead of no baseline when public posts exist", () => {
     // Từng trả NO_BASELINE với lý do "số bài thấy được không chứng minh bài MÌNH đăng có hiện
     // ra". Đúng cho câu hỏi shadowban, nhưng nó bỏ qua một câu hỏi khác và nghiêm trọng hơn:
     // ba bài đó KHÔNG có trong kho, nên bốn luật giữ nhịp đang đếm thiếu.
@@ -118,7 +118,7 @@ describe("evaluateHealth", () => {
     expect(result.shadowbanned).toBe(false);
   });
 
-  it("có khóa bài thì chỉ đích danh bài chưa ghi", () => {
+  it("names unrecorded posts when thread keys are available", () => {
     const result = evaluateHealth(
       input({ expectedPosts: 1, visiblePosts: 2, untrackedPostKeys: ["reddit:1veg99o"] }),
     );
@@ -127,17 +127,17 @@ describe("evaluateHealth", () => {
     expect(result.detail).toContain("reddit:1veg99o");
   });
 
-  it("không đọc được khóa nào thì vẫn kết luận được bằng số lượng", () => {
+  it("uses the post counts when thread keys are unavailable", () => {
     // Nếu chỉ dựa vào khóa thì nick nào bộ dò không đọc được data-permalink sẽ im lặng trở lại.
     const result = evaluateHealth(input({ expectedPosts: 1, visiblePosts: 3 }));
     expect(result.verdict).toBe("UNTRACKED_POSTS");
   });
 
-  it("CÓ BÀI CHƯA GHI không được ép đổi trạng thái nick — hỏng là sổ sách, không phải nick", () => {
+  it("does not force a nick status for unrecorded posts", () => {
     expect(statusForcedBy("UNTRACKED_POSTS")).toBeNull();
   });
 
-  it("job không thấy bài tương ứng thì WARN nói rõ link nào", () => {
+  it("names missing recorded posts in a warning", () => {
     const result = evaluateHealth(
       input({ expectedPosts: 10, visiblePosts: 3, missingPostKeys: ["reddit:abc123"] }),
     );
@@ -146,11 +146,11 @@ describe("evaluateHealth", () => {
     expect(result.detail).toContain("reddit:abc123");
   });
 
-  it("NO_BASELINE không được ép đổi trạng thái nick", () => {
+  it("does not force a nick status when there is no baseline", () => {
     expect(statusForcedBy("NO_BASELINE")).toBeNull();
   });
 
-  it("đọc được profile nhưng không đọc được danh sách bài là ERROR", () => {
+  it("reports an error when the profile loads but the post list cannot be read", () => {
     const result = evaluateHealth(input({ expectedPosts: 3, visiblePosts: null }));
     expect(result.verdict).toBe("ERROR");
   });

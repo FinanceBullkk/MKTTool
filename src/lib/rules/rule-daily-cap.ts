@@ -16,14 +16,14 @@ export function ruleDailyCap(ctx: RuleContext): RuleVerdict {
 
   if (postsSameDay >= maxPostsPerDay) {
     return block(
-      `Nick đã có ${postsSameDay} bài trong ngày ${day} — hạn mức là ${maxPostsPerDay} bài/ngày. ` +
-        "Dời bài này sang hôm khác.",
+      `Nick already has ${postsSameDay} posts on ${day}; the limit is ${maxPostsPerDay} posts per day. ` +
+        "Move this post to another day.",
     );
   }
 
   if (postsSameDay >= warnPostsPerDay) {
     return warn(
-      `Đây là bài thứ ${postsSameDay + 1} của nick trong ngày ${day}. Giãn giờ ra vài tiếng.`,
+      `This would be post number ${postsSameDay + 1} for the nick on ${day}. Space the posts a few hours apart.`,
     );
   }
 

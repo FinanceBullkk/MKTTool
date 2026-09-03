@@ -59,9 +59,13 @@ async function findAutoPostTraceId(job: RevertableJob): Promise<string | null> {
 
 export async function revertPostJobToPending(jobId: string): Promise<ActionResult> {
   const job = await prisma.postJob.findUnique({ where: { id: jobId } });
-  if (!job) return { ok: false, message: "Không tìm thấy job." };
+  if (!job) return { ok: false, message: "Job not found. Refresh the queue and try again." };
   if (isOpenJobStatus(job.status)) {
-    return { ok: false, message: "Job này vẫn đang chờ hoặc đang bị chặn — không có gì để trả về." };
+    return {
+      ok: false,
+      message:
+        "This job is still pending or blocked, so there is nothing to revert. Refresh the queue and choose a completed job.",
+    };
   }
 
   const traceId = await findAutoPostTraceId(job);
@@ -79,17 +83,17 @@ export async function revertPostJobToPending(jobId: string): Promise<ActionResul
   // Verdict cũ được chấm ở bối cảnh khác, và chính job này vừa thôi được đếm là đã đăng — để
   // nguyên verdict cũ là mời người dùng đăng theo một kết luận đã hết hạn.
   const outcome = await recheckOneJob({ ...job, status: "PENDING" });
-  const removedTrace = traceId ? " Dấu vết đụng thread của bài đó đã xóa." : "";
+  const removedTrace = traceId ? " Its thread-interaction trace was removed." : "";
 
   if (!outcome.ok) {
     return {
       ok: true,
-      message: `Đã trả job về chờ đăng.${removedTrace} Chưa chấm lại luật được: ${outcome.message}`,
+      message: `Job returned to pending.${removedTrace} Rules could not be rechecked: ${outcome.message}`,
     };
   }
 
   return {
     ok: true,
-    message: `Đã trả job về chờ đăng.${removedTrace} ${summarizeEvaluation(outcome.evaluation)}`,
+    message: `Job returned to pending.${removedTrace} ${summarizeEvaluation(outcome.evaluation)}`,
   };
 }

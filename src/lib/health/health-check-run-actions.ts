@@ -24,9 +24,9 @@ export const startHerdHealthCheck = guardedAction(async function startHerdHealth
     return {
       ok: false,
       message:
-        `Đang có một lượt dò chạy dở (máy ${running.host}, tiến trình ${running.pid}, bắt đầu ` +
-        `${running.minutesElapsed} phút trước). Chờ nó xong rồi bấm lại — hai lượt chồng nhau ` +
-        `làm proxy quan sát viên bắn request dồn dập và bị Reddit chặn.`,
+        `A health check is already running (host ${running.host}, process ${running.pid}, started ` +
+        `${running.minutesElapsed} minutes ago). Wait for it to finish, then try again. ` +
+        `Overlapping checks would burst requests through the observer proxy and may cause Reddit to block it.`,
     };
   }
 
@@ -37,14 +37,17 @@ export const startHerdHealthCheck = guardedAction(async function startHerdHealth
     return {
       ok: false,
       message:
-        "Chưa có proxy quan sát viên nào đang bật, nên bộ dò không chạy được. Khai một cái ở " +
-        "trang Proxy — dò bằng IP nhà hoặc bằng chính proxy của nick còn tệ hơn không dò.",
+        "No observer proxy is enabled, so the health checker cannot run. Configure one on the Proxy page. " +
+        "Checking from a home IP or from the nick's own proxy is worse than not checking.",
     };
   }
 
   const { pid } = launchHealthCheckProcess();
   if (pid === null) {
-    return { ok: false, message: "Không sinh được tiến trình dò. Xem log của dev server." };
+    return {
+      ok: false,
+      message: "The health-check process could not be started. Review the development server log and try again.",
+    };
   }
 
   revalidatePath("/health");
@@ -53,7 +56,7 @@ export const startHerdHealthCheck = guardedAction(async function startHerdHealth
   return {
     ok: true,
     message:
-      `Đã khởi động lượt dò ở tiến trình ${pid}. Lượt đầy đủ mất gần mười phút vì phải nghỉ ` +
-      `30-90 giây giữa các nick — tải lại trang này để xem bảng đầy dần. Đóng tab cũng không sao.`,
+      `Health check started in process ${pid}. A full run takes almost ten minutes because it waits ` +
+      `30-90 seconds between nicks. Reload this page to watch the table fill in; closing the tab will not stop the run.`,
   };
 });

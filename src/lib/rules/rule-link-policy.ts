@@ -19,14 +19,14 @@ export function ruleLinkPolicy(ctx: RuleContext): RuleVerdict {
 
   if (!ctx.target.allowsLinks) {
     return block(
-      `${ctx.target.name} cấm đăng link nhưng bài có ${linkCount} link. ` +
-        "Bỏ link đi, hoặc để link ở bình luận sau khi bài đã sống.",
+      `${ctx.target.name} does not allow links, but this post contains ${linkCount}. ` +
+        "Remove the links, or add one in a comment after the post is live.",
     );
   }
 
   if (linkCount >= ctx.thresholds.linkCountWarn) {
     return warn(
-      `Bài có ${linkCount} link. Càng nhiều link càng dễ dính bộ lọc tự động — giữ 1 link thôi.`,
+      `This post contains ${linkCount} links. More links increase the risk of automated filtering; keep only one.`,
     );
   }
 

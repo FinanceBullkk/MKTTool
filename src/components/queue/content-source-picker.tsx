@@ -102,15 +102,15 @@ export function ContentSourcePicker({
 
       <div className="flex flex-wrap gap-1">
         <Tab active={mode === "draft"} onClick={() => onModeChange("draft")}>
-          Viết mới
+          Write new
         </Tab>
         <Tab
           active={mode === "library"}
           disabled={contents.length === 0}
-          title={contents.length === 0 ? "Kho chưa có bài nào" : undefined}
+          title={contents.length === 0 ? "The content library is empty" : undefined}
           onClick={() => onModeChange("library")}
         >
-          Chọn từ kho
+          Choose from library
         </Tab>
       </div>
 
@@ -122,7 +122,7 @@ export function ContentSourcePicker({
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="block sm:col-span-2">
             <span className={LABEL_CLASS}>
-              Tiêu đề <span className="text-red-600">*</span>
+              Title <span className="text-red-600">*</span>
             </span>
             <input
               className={FIELD_CLASS}
@@ -136,7 +136,7 @@ export function ContentSourcePicker({
 
           <label className="block sm:col-span-2">
             <span className={LABEL_CLASS}>
-              Thân bài <span className="text-red-600">*</span>
+              Post body <span className="text-red-600">*</span>
             </span>
             <textarea
               className={FIELD_CLASS}
@@ -150,7 +150,7 @@ export function ContentSourcePicker({
 
           <label className="block">
             <span className={LABEL_CLASS}>
-              Loại <span className="text-red-600">*</span>
+              Type <span className="text-red-600">*</span>
             </span>
             <select
               className={FIELD_CLASS}
@@ -165,13 +165,13 @@ export function ContentSourcePicker({
               ))}
             </select>
             <span className="mt-1 block text-xs text-neutral-500">
-              Có nhắc tên sản phẩm/dịch vụ của mình thì là quảng cáo, kể cả nhắc khéo.
+              Treat it as promotional if it mentions your product or service, even indirectly.
             </span>
           </label>
 
           <label className="block">
             <span className={LABEL_CLASS}>
-              Người viết <span className="text-red-600">*</span>
+              Author <span className="text-red-600">*</span>
             </span>
             <input
               className={FIELD_CLASS}
@@ -183,17 +183,17 @@ export function ContentSourcePicker({
           </label>
 
           <label className="block sm:col-span-2">
-            <span className={LABEL_CLASS}>Link trong bài</span>
+            <span className={LABEL_CLASS}>Links in post</span>
             <textarea
               className={FIELD_CLASS}
               name="linksText"
               rows={2}
               value={draft.linksText}
               onChange={(event) => update({ linksText: event.target.value })}
-              placeholder="Mỗi dòng một link"
+              placeholder="One link per line"
             />
             <span className="mt-1 block text-xs text-neutral-500">
-              Bài này sẽ được lưu vào kho content khi bấm xếp lịch.
+              This post will be saved to the content library when you schedule it.
             </span>
           </label>
         </div>

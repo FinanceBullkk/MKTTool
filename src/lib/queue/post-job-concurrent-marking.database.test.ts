@@ -115,7 +115,7 @@ async function seed(): Promise<Seeded> {
       karma: 5000,
       visiblePosts: 0,
       expectedPosts: 0,
-      detail: "Dữ liệu dựng sẵn của test.",
+      detail: "Data for test.",
     },
   });
 
@@ -127,7 +127,7 @@ async function seed(): Promise<Seeded> {
   });
 
   const connection = await prisma.facebookConnection.create({
-    data: { fbUserId: "fb-user-1", name: "Người nối Page", accessTokenEnc: "x" },
+    data: { fbUserId: "fb-user-1", name: "Page Connector", accessTokenEnc: "x" },
   });
   await prisma.facebookPage.create({
     data: {
@@ -150,7 +150,7 @@ async function createPendingJob(seeded: Seeded, targetId: string, title: string)
   const content = await prisma.contentItem.create({
     data: {
       title,
-      body: `Ghi chép ${title}: chuyện dựng backup cho homelab, đủ dài để không bị coi là bài rỗng.`,
+      body: `Draft ${title}: story about backing up the homelab, long enough not to be considered an empty post.`,
       type: "VALUE",
       authorName: "team",
     },
@@ -171,7 +171,7 @@ function countOk(results: readonly { ok: boolean }[]): number {
   return results.filter((result) => result.ok).length;
 }
 
-describe("hai lượt ghi chồng nhau trên một job", () => {
+describe("two overrides on one job", () => {
   let seeded: Seeded;
   const scopeBefore = process.env.ROLLOUT_PLATFORMS;
 
@@ -191,8 +191,8 @@ describe("hai lượt ghi chồng nhau trên một job", () => {
     await clearAll();
   });
 
-  it("chỉ gọi Graph MỘT lần dù hai người cùng bấm đăng Fanpage", async () => {
-    const job = await createPendingJob(seeded, seeded.pageTargetId, "Bài Fanpage");
+  it("only call Graph ONE time even though two people press post to Fanpage", async () => {
+    const job = await createPendingJob(seeded, seeded.pageTargetId, "Fanpage Post");
 
     const results = await Promise.all([publishJobToPage(job.id), publishJobToPage(job.id)]);
 
@@ -205,8 +205,8 @@ describe("hai lượt ghi chồng nhau trên một job", () => {
     expect(await prisma.interaction.count()).toBe(1);
   });
 
-  it("người thua cuộc nhận câu giải thích, không phải màn hình đứng im", async () => {
-    const job = await createPendingJob(seeded, seeded.pageTargetId, "Bài Fanpage thứ hai");
+  it("The loser gets a hint, not a blank screen", async () => {
+    const job = await createPendingJob(seeded, seeded.pageTargetId, "Second Fanpage Post");
 
     const results = (await Promise.all([
       publishJobToPage(job.id),
@@ -214,11 +214,11 @@ describe("hai lượt ghi chồng nhau trên một job", () => {
     ])) as { ok: boolean; message: string }[];
 
     const refused = results.find((result) => !result.ok);
-    expect(refused?.message).toMatch(/người khác|đang được đăng/);
+    expect(refused?.message).toMatch(/ng\u01b0\u1eddi kh\u00e1c|\u0111ang \u0111\u01b0\u1ee3c \u0111\u0103ng/);
   });
 
-  it("tám lượt đánh dấu đã đăng cùng lúc chỉ để lại một dấu vết", async () => {
-    const job = await createPendingJob(seeded, seeded.redditTargetId, "Bài Reddit");
+  it("eight people marking the same job as posted at once only leaves one trace", async () => {
+    const job = await createPendingJob(seeded, seeded.redditTargetId, "Reddit Post");
 
     const results = await Promise.all(
       Array.from({ length: 8 }, () => markJobPosted(job.id, REDDIT_URL)),
@@ -229,8 +229,8 @@ describe("hai lượt ghi chồng nhau trên một job", () => {
     expect(countOk(results as { ok: boolean }[])).toBe(1);
   });
 
-  it("bộ dò tự gán chạy trúng lúc người bấm cũng chỉ để lại một dấu vết", async () => {
-    const job = await createPendingJob(seeded, seeded.redditTargetId, "Bài bị dò trúng");
+  it("the checker automatically matches and hits at the same time as the human, only leaving one trace", async () => {
+    const job = await createPendingJob(seeded, seeded.redditTargetId, "Post discovered by the checker");
 
     // Đường của bộ dò sức khỏe (`auto-link-discovered-posts.ts`) gọi thẳng lõi, không đi qua
     // server action. Hai đường ghi khác nhau vào cùng một job là ca có thật: bộ dò chạy theo
@@ -244,11 +244,11 @@ describe("hai lượt ghi chồng nhau trên một job", () => {
     expect(countOk([byScanner, byHuman] as { ok: boolean }[])).toBe(1);
   });
 
-  it("job kẹt ở ĐANG ĐĂNG vẫn cứu được bằng nút Đã đăng", async () => {
+  it("Job stuck in PUBLISHING still saved by the Posted button", async () => {
     // Ca xảy ra khi tiến trình chết giữa lúc gọi Graph: bài đã lên tường nhưng job chưa kịp
     // chốt. Câu mà đường đăng dặn người dùng là *vào hàng đợi bấm "Đã đăng"* — nên đường đó
     // phải nhận được job đang ở PUBLISHING, nếu không lời dặn dẫn vào ngõ cụt.
-    const job = await createPendingJob(seeded, seeded.redditTargetId, "Bài kẹt giữa chừng");
+    const job = await createPendingJob(seeded, seeded.redditTargetId, "Post stuck in the middle");
     await prisma.postJob.update({ where: { id: job.id }, data: { status: "PUBLISHING" } });
 
     const rescued = await markJobPosted(job.id, REDDIT_URL);

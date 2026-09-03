@@ -27,7 +27,10 @@ export function ObserverProxyRowActions({ id, active }: { id: string; active: bo
       try {
         setResult(await action());
       } catch {
-        setResult({ ok: false, message: "Thao tác hỏng. Xem log của dev server." });
+        setResult({
+          ok: false,
+          message: "The action failed. Review the development server log and try again.",
+        });
       }
     });
   }
@@ -41,7 +44,7 @@ export function ObserverProxyRowActions({ id, active }: { id: string; active: bo
           disabled={pending}
           onClick={() => run(() => checkObserverProxy(id))}
         >
-          {pending ? "Đang kiểm…" : "Kiểm"}
+          {pending ? "Checking..." : "Check"}
         </button>
         <button
           type="button"
@@ -49,17 +52,19 @@ export function ObserverProxyRowActions({ id, active }: { id: string; active: bo
           disabled={pending}
           onClick={() => run(() => setObserverProxyActive(id, !active))}
         >
-          {active ? "Tắt" : "Bật"}
+          {active ? "Disable" : "Enable"}
         </button>
         <button
           type="button"
           className={`${BUTTON_CLASS} text-red-700 dark:text-red-400`}
           disabled={pending}
           onClick={() => {
-            if (confirm("Xóa hẳn proxy quan sát viên này?")) run(() => deleteObserverProxy(id));
+            if (confirm("Permanently delete this observer proxy?")) {
+              run(() => deleteObserverProxy(id));
+            }
           }}
         >
-          Xóa
+          Delete
         </button>
       </div>
       {result ? (
