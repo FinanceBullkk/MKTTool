@@ -44,7 +44,7 @@ export function FirstLoginCard({
         const result = await markFirstLogin(accountId);
         setFeedback({ kind: result.ok ? "ok" : "error", text: result.message });
       } catch {
-        setFeedback({ kind: "error", text: "Không gọi được máy chủ. Tải lại trang rồi thử lại." });
+        setFeedback({ kind: "error", text: "Could not reach the server. Refresh and try again." });
       }
     });
   }
@@ -52,40 +52,41 @@ export function FirstLoginCard({
   return (
     <div className="space-y-3">
       <p className="text-sm text-neutral-600 dark:text-neutral-400">
-        Profile của nick này đã dựng xong nhưng <strong>chưa ai đăng nhập vào nó lần nào</strong> —
-        công cụ tạo ra một trình duyệt trắng, mang sẵn proxy và cấu hình profile, không có phiên
-        đăng nhập nào. Đây là trạng thái cục bộ; nó không chứng minh cô lập danh tính. Làm nốt bằng
-        ba nút ở thẻ <strong>Thao tác</strong> ngay bên dưới:
+        This nick has a browser profile, but <strong>nobody has signed in to it yet</strong>. The
+        profile is a blank local browser workspace with the assigned proxy and no signed-in session.
+        This local state does not prove identity isolation. Finish the handoff with the controls in
+        the actions card below:
       </p>
 
       <ol className="ml-5 list-decimal space-y-1 text-sm text-neutral-600 dark:text-neutral-400">
         <li>
-          <strong>Mở profile</strong> — cửa sổ trình duyệt cục bộ mang proxy của nick hiện ra
+          Select <strong>Open browser profile</strong> to open the local browser window with this
+          nick&apos;s proxy.
         </li>
         <li>
-          Vào trang nền tảng và đăng nhập{" "}
+          Go to the platform and sign in{" "}
           {usesGoogleLogin ? (
             <>
-              bằng nút <em>Continue with Google</em>, tự lấy bí mật ở nút{" "}
-              <strong>Mật khẩu Google</strong> và <strong>Mã OTP</strong>
+              with <em>Continue with Google</em>, using <strong>Google password</strong> and{" "}
+              <strong>OTP code</strong> from the actions card
             </>
           ) : (
             <>
-              bằng nút <strong>Mật khẩu nick</strong> và <strong>Mã OTP</strong>
+              using <strong>Nick password</strong> and <strong>OTP code</strong> from the actions card
             </>
           )}
         </li>
-        <li>Quay lại đây bấm nút bên dưới</li>
+        <li>Return here and confirm the first sign-in with the button below.</li>
       </ol>
 
       <button type="button" className={BUTTON_CLASS} disabled={pending} onClick={danhDau}>
-        {pending ? "Đang ghi…" : "Đã đăng nhập được"}
+        {pending ? "Saving..." : "First sign-in completed"}
       </button>
 
       <p className="text-xs text-neutral-500">
-        Làm ngay đầu cold-start, đừng để tới hôm định đăng bài: đăng nhập lần đầu từ một IP lạ là
-        lúc hay bị đòi xác minh nhất. Người vận hành phải tự xử lý đăng nhập, OTP và CAPTCHA; công
-        cụ không tự động hóa bước này.
+        Do this at the start of cold-start, not on the planned posting day: a first sign-in from a
+        new IP is when verification is most likely. The operator must handle sign-in, OTP, and
+        CAPTCHA manually; the tool does not automate this step.
       </p>
 
       {feedback ? (

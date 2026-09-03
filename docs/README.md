@@ -1,6 +1,6 @@
 # Tài liệu MKTTool — bắt đầu từ đâu
 
-**Updated:** 30 August 2026
+**Updated:** 3 September 2026
 
 ## Current release entry point
 
@@ -22,6 +22,7 @@ Repo này có 12+ file tài liệu. Đừng đọc hết. Tra theo câu hỏi b�
 | Deferred macOS reference (not v1) | [macos-development-setup.md](macos-development-setup.md) — retained for MKB-07, not the current demo path |
 | Dự án giải quyết vấn đề gì, cho ai, không làm gì | [project-overview-pdr.md](project-overview-pdr.md) |
 | "Shadowban", "cold-start", "proxy quan sát viên" nghĩa là gì | [domain-glossary.md](domain-glossary.md) |
+| UI gọi nick, profile trình duyệt và máy Relay thế nào | [ui-glossary.md](ui-glossary.md) |
 | Làm tới đâu rồi, tiếp theo làm gì, cái gì đang chặn | [development-roadmap.md](development-roadmap.md) |
 | Đã đổi những gì, ngày nào | [project-changelog.md](project-changelog.md) |
 | Đưa web lên máy chủ thật (Railway) | [deployment-guide.md](deployment-guide.md) |

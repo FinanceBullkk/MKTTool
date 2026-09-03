@@ -18,6 +18,21 @@ the archive location.
 
 ---
 
+## 3 September 2026 — nick-vault navigation and vocabulary
+
+- **Nick vault is discoverable:** the left rail now includes `/accounts`, and all five navigation
+  labels remain visible without hover.
+- **Home matches the product scope:** the main heading, CTA, counts, filters, and empty states now
+  describe the team nick vault. The CTA opens `/accounts`; Home no longer presents TikTok browser
+  profile creation as the primary next action. `TeamScopeNotice` and rollout-scope behavior are unchanged.
+- **False header signals removed:** search now lives on Home and filters visible nick fields. The
+  non-working global search, `Ctrl K` hint, and untrustworthy global running/total counters are gone;
+  accurate local browser profile state stays on Home.
+- **Canonical UI terms documented and applied:** **nick** means the shared `Account` record,
+  **browser profile** means local data on one PC, and **Relay PC** means the registered
+  `RelayDevice`. This is display copy only; setup behavior, ownership/concurrency rules, routes,
+  database fields, models, and parked platform scope are unchanged.
+
 ## 3 September 2026 — workspace handoff and role-aware recovery copy
 
 - **Workspace handoff unblocked:** `/setup` now calculates workspace readiness from Relay, account

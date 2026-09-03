@@ -54,8 +54,8 @@ export default async function AccountsPage() {
   return (
     <>
       <PageHeading
-        title="Tài khoản"
-        description="Một nick = một proxy = một profile cấu hình. Database ép ràng buộc này; đây không phải bằng chứng cô lập danh tính."
+        title="Nick vault"
+        description="For browser-backed identities: one nick = one proxy = one browser profile. The database enforces the binding; it is not proof of identity isolation."
       />
 
       <Card title={`Danh sách — ${accounts.length} nick`}>

@@ -36,10 +36,11 @@ export function OnboardingStepper({
       <div>
         <h1 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
           <span>⚙️</span>
-          <span>Thiết lập Máy Vận Hành (MKT Setup)</span>
+          <span>Relay PC setup</span>
         </h1>
         <p className="text-xs text-neutral-400 mt-1">
-          Quy trình chuẩn bị máy 3 bước: Tải trình duyệt MKT Browser, kết nối cầu nối Relay và kích hoạt bảo mật.
+          Three steps prepare this Relay PC: install MKT Browser, connect Relay, and verify the
+          technical handoff conditions.
         </p>
       </div>
 
@@ -66,7 +67,7 @@ export function OnboardingStepper({
           </div>
           <div>
             <div className="text-xs font-bold text-white">Bước 1: Tải MKT Browser</div>
-            <div className="text-[11px] text-neutral-400">Bộ cài đặt Chromium + Relay</div>
+            <div className="text-[11px] text-neutral-400">MKT Browser installer with Relay</div>
           </div>
         </button>
 
@@ -90,8 +91,8 @@ export function OnboardingStepper({
             2
           </div>
           <div>
-            <div className="text-xs font-bold text-white">Bước 2: Kết nối Relay hiện tại</div>
-            <div className="text-[11px] text-neutral-400">Ghi danh & Gán khóa máy</div>
+            <div className="text-xs font-bold text-white">Step 2: Register this Relay PC</div>
+            <div className="text-[11px] text-neutral-400">Enroll the PC and bind its key</div>
           </div>
         </button>
 
@@ -131,9 +132,10 @@ export function OnboardingStepper({
                 <span>Bộ cài đặt MKT Browser {versionLabel} cho Windows</span>
               </h3>
               <p className="text-xs text-neutral-400 max-w-xl">
-                Cài đặt ứng dụng MKT Browser trên máy tính của bạn. Đây là beta nội bộ Windows có
-                kiểm soát: dùng một profile mỗi lần, đăng nhập và nhập liệu bằng người thật; trạng
-                thái, proxy và cài đặt profile được giữ cục bộ. Tính cô lập danh tính chưa được chứng minh.
+                Install MKT Browser on this Relay PC. This is a controlled internal Windows beta:
+                use one browser profile at a time and keep login and input human-controlled. Browser
+                profile state, proxy settings, and local data stay on this Relay PC. Identity
+                isolation is not proven.
               </p>
             </div>
 

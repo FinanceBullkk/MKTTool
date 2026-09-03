@@ -6,32 +6,13 @@ import { TeamScopeNotice } from "@/components/layout/team-scope-notice";
 export const dynamic = "force-dynamic";
 
 export default async function OverviewPage() {
-  const [accounts, freeProxies, devices] = await Promise.all([
-    prisma.account.findMany({
-      include: {
-        proxy: true,
-        device: { select: { id: true, name: true, userId: true } },
-      },
-      orderBy: [{ createdAt: "desc" }],
-    }),
-    prisma.proxy.findMany({
-      where: { account: null },
-      orderBy: { label: "asc" },
-      select: {
-        id: true,
-        label: true,
-        host: true,
-        port: true,
-        country: true,
-        type: true,
-      },
-    }),
-    prisma.relayDevice.findMany({
-      where: { revokedAt: null },
-      orderBy: { name: "asc" },
-      select: { id: true, name: true },
-    }),
-  ]);
+  const accounts = await prisma.account.findMany({
+    include: {
+      proxy: true,
+      device: { select: { id: true, name: true, userId: true } },
+    },
+    orderBy: [{ createdAt: "desc" }],
+  });
 
   const profiles = accounts.map((acc) => ({
     id: acc.id,
@@ -69,11 +50,7 @@ export default async function OverviewPage() {
   return (
     <>
       <TeamScopeNotice />
-      <Constellation
-        profiles={profiles}
-        freeProxies={freeProxies}
-        devices={devices}
-      />
+      <Constellation profiles={profiles} />
     </>
   );
 }

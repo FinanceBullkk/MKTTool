@@ -73,7 +73,9 @@ type Feedback = {
 
 /** Cầu nối trả lời được nhưng không kèm id thì chính câu của nó là câu đáng hiện. */
 function moTaNguyenNhan(sent: RelayOutcome<RelayReply>): string {
-  return sent.status === "ok" ? sent.data.message : describeSlowRelayFailure(sent, "dựng profile");
+  return sent.status === "ok"
+    ? sent.data.message
+    : describeSlowRelayFailure(sent, "create browser profile");
 }
 
 interface RelayState {
@@ -159,7 +161,7 @@ export function AntidetectProfileCard({
       if (outcome.status !== "ok") {
         return {
           ok: false,
-          text: `Không hỏi lại được danh sách profile để kiểm. ${describeRelayFailure(outcome)}`,
+          text: `Could not refresh the browser profile list. ${describeRelayFailure(outcome)}`,
         };
       }
 
@@ -170,12 +172,12 @@ export function AntidetectProfileCard({
         ok: false,
         text:
           trung.length === 0
-            ? `Không thấy profile nào tên "${tenMongDoi}" trên máy này, nên nhiều khả năng lượt ` +
-              `tạo chưa chạy tới nơi. Bấm lại.`
-            : `Found ${trung.length} MKT Browser profiles named "${tenMongDoi}", which indicates ` +
+            ? `No browser profile named "${tenMongDoi}" was found on this Relay PC, so the ` +
+              `creation probably did not finish. Try again.`
+            : `Found ${trung.length} browser profiles named "${tenMongDoi}", which indicates ` +
               `an earlier creation attempt failed. The tool cannot guess which one is correct. ` +
               `Open MKT Browser, remove the duplicates, then paste the remaining ID into the ` +
-              `"Antidetect profile ID" field on the Edit account card.`,
+              `"Browser profile ID" field in the nick edit form.`,
       };
     },
     [],
@@ -239,11 +241,12 @@ export function AntidetectProfileCard({
   if (relayOld) {
     return (
       <p className="text-sm text-neutral-600 dark:text-neutral-400">
-        Cầu nối trên máy này là bản cũ nên chưa tạo được profile từ đây. Tải bản mới ở{" "}
+        Relay on this PC is outdated and cannot create a browser profile here. Download the current
+        version from{" "}
         <a href="/setup#download" className="underline">
           /setup
         </a>{" "}
-        — trong lúc chờ, vẫn dán id profile vào thẻ &quot;Sửa nick&quot; như trước.
+        or paste the browser profile ID into the nick edit form.
       </p>
     );
   }
@@ -252,24 +255,24 @@ export function AntidetectProfileCard({
     <div className="space-y-3">
       {proxyCountry === null ? (
         <p className="text-sm text-amber-700 dark:text-amber-400">
-          Nick chưa gắn proxy nên chưa dựng được cấu hình profile — công cụ căn locale và múi giờ
-          theo quốc gia của proxy. Gắn proxy ở thẻ &quot;Sửa nick&quot; trước.
+          This nick has no proxy, so its browser profile configuration cannot be created. Assign a
+          proxy in the nick edit form first; locale and timezone follow the proxy country.
         </p>
       ) : plan?.ok ? (
         <>
           <p className="text-sm text-neutral-600 dark:text-neutral-400">
-            This will create a profile with proxy <strong>{proxyLabel}</strong> and locale/timezone
-            settings <strong>{plan.plan.localeId}</strong> / <strong>{plan.plan.timezone}</strong> /{" "}
-            <strong>{plan.plan.device}</strong>, matched to the proxy country. This is a profile
-            configuration convenience, not proof of identity isolation, so you do not need to use
-            &quot;Match proxy&quot; in MKT Browser.
+            This will create a browser profile with proxy <strong>{proxyLabel}</strong> and
+            locale/timezone settings <strong>{plan.plan.localeId}</strong> /{" "}
+            <strong>{plan.plan.timezone}</strong> / <strong>{plan.plan.device}</strong>, matched to
+            the proxy country. This is a browser profile configuration convenience, not proof of
+            identity isolation, so you do not need to use &quot;Match proxy&quot; in MKT Browser.
           </p>
           <button type="button" className={BUTTON_CLASS} disabled={busy} onClick={taoProfile}>
-            {busy ? "Đang tạo…" : "Tạo profile trên máy này"}
+            {busy ? "Creating..." : "Create browser profile on this Relay PC"}
           </button>
           <p className="text-xs text-neutral-500">
-            Tạo xong, nick được ghim vào máy này — dữ liệu profile được giữ cục bộ và Relay chỉ
-            cho máy được gán mở. Điều đó không chứng minh cô lập danh tính của trình duyệt.
+            After creation, the nick is assigned to this Relay PC. Browser profile data stays local,
+            and Relay allows only the assigned PC to open it. This does not prove identity isolation.
           </p>
         </>
       ) : (
@@ -279,7 +282,7 @@ export function AntidetectProfileCard({
       {relay && relay.profiles.length > 0 ? (
         <details className="text-sm">
           <summary className="cursor-pointer text-neutral-600 dark:text-neutral-400">
-            Hoặc dùng một profile đã có trên máy này ({relay.profiles.length})
+            Or use a browser profile already on this Relay PC ({relay.profiles.length})
           </summary>
           <ul className="mt-2 space-y-1">
             {relay.profiles.map((profile) => (
@@ -295,8 +298,9 @@ export function AntidetectProfileCard({
             ))}
           </ul>
           <p className="mt-2 text-xs text-neutral-500">
-            Chép id vào ô &quot;Id profile antidetect&quot; ở thẻ Sửa nick. Nhớ đối chiếu quốc gia
-            proxy với múi giờ — lệch nhau nghĩa là profile đó chưa căn theo proxy.
+            Paste the ID into &quot;Browser profile ID&quot; in the nick edit form. Check the proxy country
+            against the timezone; a mismatch means the browser profile is not aligned with that
+            proxy.
           </p>
         </details>
       ) : null}

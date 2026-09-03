@@ -102,19 +102,19 @@ export async function loadSetupChecklist(): Promise<SetupChecklist> {
   const handoffSteps: SetupStep[] = [
     {
       id: "relay",
-      title: "Install MKTTool on team PCs",
+      title: "Register team Relay PCs",
       state: devices > 0 ? "done" : "todo",
-      status: plural(devices, "active PCs", "No active PC is registered"),
-      why: "A registered PC is required before a managed launch can be attempted; remaining identity, network, and operator gates still apply.",
+      status: plural(devices, "active Relay PCs", "No active Relay PC is registered"),
+      why: "A registered Relay PC is required before a managed browser profile can be opened; remaining identity, network, and operator gates still apply.",
       href: "/relay-devices",
-      linkLabel: "Open the device registry",
+      linkLabel: "Open the Relay PC registry",
     },
     {
       id: "proxies",
       title: "Buy and import proxies",
       state: proxies > 0 ? "done" : "todo",
       status: plural(proxies, "proxies in the workspace", "No proxies have been imported"),
-      why: "Buy proxies before accounts so an established account is never first opened from the wrong country.",
+      why: "Buy proxies before nicks so an established nick is never first opened from the wrong country.",
       href: "/proxies",
       linkLabel: "Import proxies",
       adminOnly: true,
@@ -124,33 +124,33 @@ export async function loadSetupChecklist(): Promise<SetupChecklist> {
       title: "Add an observer proxy",
       state: observerProxies > 0 ? "done" : "todo",
       status: plural(observerProxies, "active observer proxies", "No active observer proxy"),
-      why: "Shadowban checks need an outsider view through a separate IP and provider from account proxies.",
+      why: "Shadowban checks need an outsider view through a separate IP and provider from nick proxies.",
       href: "/proxies",
       linkLabel: "Add an observer proxy",
       adminOnly: true,
     },
     {
       id: "accounts",
-      title: "Add accounts",
+      title: "Add nicks",
       state: accounts.length > 0 ? "done" : "todo",
-      status: plural(accounts.length, "active accounts", "No active accounts"),
-      why: "Each account needs its proxy, writing voice, and cold-start period recorded before use.",
+      status: plural(accounts.length, "active nicks", "No active nicks"),
+      why: "Each nick needs its proxy, writing voice, and cold-start period recorded before use.",
       href: "/accounts",
-      linkLabel: "Add an account",
+      linkLabel: "Add a nick",
     },
     {
       id: "clusters",
-      title: "Assign each account to an owner and PC",
+      title: "Assign each nick to an owner and Relay PC",
       // Chưa gán được cái nào thì là CHƯA LÀM, không phải "đang dở" — "đang dở" nói rằng đã bắt
       // đầu, và người đọc sẽ đi tìm xem mình đã làm tới đâu trong khi chưa có gì để tìm.
       state: clustered === 0 ? "todo" : clustered === accounts.length ? "done" : "partial",
       status:
         accounts.length === 0
-          ? "No accounts are available to assign"
-          : `${clustered}/${accounts.length} accounts have an owner and PC`,
-      why: "A profile ID is local to the PC that created it, so every account needs one stable owner and PC; this does not prove identity isolation.",
+          ? "No nicks are available to assign"
+          : `${clustered}/${accounts.length} nicks have an owner and Relay PC`,
+      why: "A browser profile ID is local to the Relay PC that created it, so every nick needs one stable owner and Relay PC; this does not prove identity isolation.",
       href: "/accounts",
-      linkLabel: "Review incomplete accounts",
+      linkLabel: "Review incomplete nicks",
       adminOnly: true,
     },
   ];
@@ -161,7 +161,7 @@ export async function loadSetupChecklist(): Promise<SetupChecklist> {
       title: "Add publishing targets",
       state: targets > 0 ? "done" : "todo",
       status: plural(targets, "active targets", "No active targets"),
-      why: "Each subreddit needs its real posting rules, including karma, account age, and link limits.",
+      why: "Each subreddit needs its real posting rules, including karma, nick age, and link limits.",
       href: "/targets",
       linkLabel: "Add a target",
     },

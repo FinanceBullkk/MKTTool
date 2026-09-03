@@ -183,10 +183,10 @@ export function AccountFormFields({
           được sau khi nick đã tồn tại. */}
       {editing ? (
         <Field
-          label="Id profile antidetect"
+          label="Browser profile ID"
           name="antidetectProfileId"
           defaultValue={defaults?.antidetectProfileId ?? undefined}
-          hint="Usually filled automatically by Create profile. Enter it manually when the profile was created in MKT Browser on another machine."
+          hint="Usually filled automatically when the browser profile is created. Enter it manually when MKT Browser created the profile on another Relay PC."
         />
       ) : null}
 
@@ -230,7 +230,7 @@ export function AccountFormFields({
             label="Người phụ trách"
             name="ownerId"
             defaultValue={viewer.userId}
-            hint="Chỉ hiện người đã đăng nhập ít nhất một lần. Người này sẽ là người dựng profile trên máy của họ."
+            hint="Only teammates who have signed in at least once appear. This person creates the browser profile on their Relay PC."
             options={(teamMembers ?? []).map((member) => ({
               value: member.id,
               label: member.email,

@@ -1,15 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Grid3x3, List, Plus } from "lucide-react";
+import Link from "next/link";
+import { ArrowRight, Grid3x3, List, Search } from "lucide-react";
 import { ProfileTile, type ProfileItemData } from "./ProfileTile";
 import { ProfileTable } from "./ProfileTable";
-import {
-  NewTikTokProfileSheet,
-  type DeviceOption,
-  type FreeProxyOption,
-} from "@/components/tiktok/new-tiktok-profile-sheet";
-import { Kbd } from "./Atoms";
 import { fetchRelayProfiles, pingRelay } from "@/lib/relay/relay-browser-client";
 import {
   currentRelayLaunchReadiness,
@@ -20,6 +15,7 @@ import {
   isProfileRunning,
   profileListCounts,
   profileMatchesListFilter,
+  profileMatchesSearchQuery,
   type ProfileListFilter,
 } from "./profile-list-state";
 
@@ -31,27 +27,21 @@ interface FilterChip {
 }
 
 const FILTERS: FilterChip[] = [
-  { id: "all", label: "All" },
-  { id: "running", label: "Running" },
-  { id: "warmup", label: "Warmup" },
-  { id: "error", label: "Errors" },
-  { id: "idle", label: "Idle" },
+  { id: "all", label: "All nicks" },
+  { id: "running", label: "Open on this Relay PC" },
+  { id: "warmup", label: "Cold-start" },
+  { id: "error", label: "Needs attention" },
+  { id: "idle", label: "Not open on this Relay PC" },
 ];
 
 export function Constellation({
   profiles,
-  freeProxies,
-  devices,
-  searchQuery = "",
 }: {
   profiles: ProfileItemData[];
-  freeProxies: FreeProxyOption[];
-  devices: DeviceOption[];
-  searchQuery?: string;
 }) {
   const [filter, setFilter] = useState<FilterChip["id"]>("all");
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
-  const [sheetOpen, setSheetOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const [checkingLocal, setCheckingLocal] = useState(true);
   const [localReadiness, setLocalReadiness] = useState<LocalLaunchReadiness>(() =>
     currentRelayLaunchReadiness(null),
@@ -100,19 +90,14 @@ export function Constellation({
 
   const filtered = useMemo(() => {
     return profiles.filter((p) => {
-      // Search
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase();
-        const matchName = p.username.toLowerCase().includes(q);
-        const matchVoice = (p.voice || "").toLowerCase().includes(q);
-        const matchProxy = (p.proxy?.lastExitIp || p.proxy?.host || "").toLowerCase().includes(q);
-        const matchNotes = (p.notes || "").toLowerCase().includes(q);
-        if (!matchName && !matchVoice && !matchProxy && !matchNotes) return false;
-      }
-
-      return profileMatchesListFilter(p, filter, runningProfileIds);
+      return (
+        profileMatchesSearchQuery(p, searchQuery) &&
+        profileMatchesListFilter(p, filter, runningProfileIds)
+      );
     });
   }, [profiles, searchQuery, filter, runningProfileIds]);
+
+  const hasActiveFilter = searchQuery.trim() !== "" || filter !== "all";
 
   return (
     <div
@@ -122,14 +107,20 @@ export function Constellation({
       className="flex-1 flex flex-col min-w-0 min-h-0 p-6 max-w-6xl mx-auto w-full"
     >
       {/* 1. Header Row */}
-      <div className="flex items-center justify-between gap-4 mb-4">
-        <div className="flex items-baseline gap-2.5">
-          <h1 className="text-xl font-bold text-white tracking-tight">All profiles</h1>
-          <div className="flex items-center gap-1.5 text-xs text-neutral-400 font-mono">
-            <span>{profiles.length} total</span>
-            <span>·</span>
-            <span>{counts.warmup} warmup</span>
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <div className="flex flex-wrap items-baseline gap-2.5">
+            <h1 className="text-xl font-bold text-white tracking-tight">Team nick vault</h1>
+            <div className="flex items-center gap-1.5 text-xs text-neutral-400 font-mono">
+              <span>{profiles.length} {profiles.length === 1 ? "nick" : "nicks"}</span>
+              <span>·</span>
+              <span>{counts.warmup} cold-start</span>
+            </div>
           </div>
+          <p className="mt-1 text-xs text-neutral-400">
+            Shared identity records for the whole team. Each browser profile is local data on one
+            Relay PC.
+          </p>
         </div>
 
         <div className="flex items-center gap-3">
@@ -157,17 +148,26 @@ export function Constellation({
             </button>
           </div>
 
-          {/* New Profile Button */}
-          <button
-            type="button"
-            onClick={() => setSheetOpen(true)}
+          <Link
+            href="/accounts"
             className="brand-btn px-4 py-2 rounded-xl text-xs font-semibold text-white inline-flex items-center gap-2 cursor-pointer shadow-lg shadow-purple-500/25"
           >
-            <Plus size={15} strokeWidth={2.5} />
-            <span>New profile</span>
-            <Kbd>Ctrl N</Kbd>
-          </button>
+            <span>Open nick vault</span>
+            <ArrowRight size={14} />
+          </Link>
         </div>
+      </div>
+
+      <div className="mb-3 flex w-full max-w-xl items-center gap-2.5 rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-2 focus-within:border-purple-500/40 focus-within:bg-white/[0.05]">
+        <Search size={14} className="shrink-0 text-neutral-400" />
+        <input
+          type="search"
+          value={searchQuery}
+          onChange={(event) => setSearchQuery(event.target.value)}
+          aria-label="Search nicks"
+          placeholder="Search nicks by username, voice, proxy, or notes..."
+          className="min-w-0 flex-1 bg-transparent text-[13px] text-white placeholder:text-neutral-400 focus:outline-none"
+        />
       </div>
 
       {/* 2. Filter Chips Row */}
@@ -196,15 +196,6 @@ export function Constellation({
             </button>
           );
         })}
-
-        <div className="h-4 w-px bg-white/[0.08] mx-1" />
-
-        <span className="px-2.5 py-1 rounded-lg text-[11px] font-mono bg-white/[0.03] border border-white/[0.06] text-neutral-400 select-none">
-          mkttool
-        </span>
-        <span className="px-2.5 py-1 rounded-lg text-[11px] font-mono bg-white/[0.03] border border-white/[0.06] text-neutral-400 select-none">
-          tiktok
-        </span>
       </div>
 
       <div
@@ -219,7 +210,7 @@ export function Constellation({
           />
           <span className="truncate text-neutral-300">
             {checkingLocal && localReadiness.state === "checking"
-              ? "Checking local browser technical conditions..."
+              ? "Checking local browser profile conditions..."
               : localReadiness.message}
           </span>
         </div>
@@ -236,25 +227,42 @@ export function Constellation({
       </div>
 
       {/* 3. Cards Grid or List View */}
-      {filtered.length === 0 ? (
+      {profiles.length === 0 ? (
         <div className="flex-1 flex flex-col items-center justify-center p-12 text-center rounded-2xl bg-white/[0.01] border border-white/[0.04]">
           <div className="w-12 h-12 rounded-2xl bg-white/[0.03] border border-white/[0.06] flex items-center justify-center text-2xl mb-3">
-            🎬
+            🗂️
           </div>
-          <h3 className="text-sm font-semibold text-white">No profiles yet</h3>
+          <h3 className="text-sm font-semibold text-white">No nicks in the team vault</h3>
           <p className="mt-1 max-w-sm text-xs text-neutral-400">
-            Select <strong>&quot;New profile&quot;</strong> to create a profile-local browser workspace
-            with its assigned proxy. Identity isolation is not yet proven; keep use to one profile
-            and human-controlled login/input.
+            Open the nick vault to add an identity record or review assigned nicks. A browser
+            profile is separate local data on a Relay PC, not a vault record.
           </p>
-          <button
-            type="button"
-            onClick={() => setSheetOpen(true)}
+          <Link
+            href="/accounts"
             className="brand-btn mt-4 px-4 py-2 rounded-xl text-xs font-semibold text-white inline-flex items-center gap-1.5 cursor-pointer"
           >
-            <Plus size={14} />
-            <span>Create first profile</span>
-          </button>
+            <span>Open nick vault</span>
+            <ArrowRight size={14} />
+          </Link>
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="flex-1 flex flex-col items-center justify-center p-12 text-center rounded-2xl bg-white/[0.01] border border-white/[0.04]">
+          <h3 className="text-sm font-semibold text-white">No matching nicks</h3>
+          <p className="mt-1 max-w-sm text-xs text-neutral-400">
+            Try another search or clear the filters to see the whole team vault again.
+          </p>
+          {hasActiveFilter ? (
+            <button
+              type="button"
+              onClick={() => {
+                setSearchQuery("");
+                setFilter("all");
+              }}
+              className="mt-4 rounded-xl border border-white/[0.08] bg-white/[0.04] px-4 py-2 text-xs font-semibold text-white transition hover:bg-white/[0.08]"
+            >
+              Clear search and filters
+            </button>
+          ) : null}
         </div>
       ) : viewMode === "list" ? (
         <ProfileTable
@@ -276,14 +284,6 @@ export function Constellation({
           ))}
         </div>
       )}
-
-      {/* 4. Modal New Profile */}
-      <NewTikTokProfileSheet
-        isOpen={sheetOpen}
-        onClose={() => setSheetOpen(false)}
-        freeProxies={freeProxies}
-        devices={devices}
-      />
     </div>
   );
 }

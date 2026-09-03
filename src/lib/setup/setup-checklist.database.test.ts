@@ -239,6 +239,6 @@ describe("bước phân công cụm", () => {
 
     const step = await stateOf("clusters");
     // Không còn nick nào để phân công, nên bước lùi về trạng thái rỗng chứ không báo 0/1.
-    expect(step.status).toContain("No accounts");
+    expect(step.status).toContain("No nicks");
   });
 });

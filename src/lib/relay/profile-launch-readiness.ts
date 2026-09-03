@@ -32,7 +32,7 @@ export interface LocalProfileInventorySnapshot {
 export function currentRelayLaunchReadiness(
   outcome: RelayOutcome<RelayHealth & RelayReply> | null,
 ): LocalLaunchReadiness {
-  if (!outcome) return blocked("checking", "Checking local browser technical conditions...");
+  if (!outcome) return blocked("checking", "Checking local browser profile conditions...");
   if (outcome.status === "unreachable") {
     return blocked("relay-offline", "Start Relay on this PC, then check again.");
   }
@@ -48,13 +48,13 @@ export function currentRelayLaunchReadiness(
     return blocked("relay-rejected", "Relay could not report local readiness. Open Setup and retry.");
   }
   if (!Number.isSafeInteger(health.relayVersion) || health.relayVersion < RELAY_VERSION) {
-    return blocked("relay-outdated", "Update Relay on this PC before launching a profile.");
+    return blocked("relay-outdated", "Update Relay on this PC before opening a browser profile.");
   }
   if (health.retirementPending || health.configured === false) {
-    return blocked("relay-unconfigured", "Finish Relay setup on this PC before launching a profile.");
+    return blocked("relay-unconfigured", "Finish Relay setup on this PC before opening a browser profile.");
   }
   if (outcome.status === "rejected") {
-    return blocked("relay-rejected", "Relay is not ready for profile launch. Open Setup and retry.");
+    return blocked("relay-rejected", "Relay is not ready to open a browser profile. Open Setup and retry.");
   }
 
   const browser = currentDeviceBrowserReadiness(health.browser);
@@ -105,12 +105,12 @@ export function profileLaunchReadiness(
   local: LocalLaunchReadiness,
 ): LocalLaunchReadiness {
   if (profile.isRunning) {
-    return blocked("running", "This profile is already running on this PC.", local.deviceId);
+    return blocked("running", "This browser profile is already open on this Relay PC.", local.deviceId);
   }
   if (!getStatusPresentation(profile.status).canLaunch) {
     return blocked(
       "account-blocked",
-      "This account status does not allow browser launch.",
+      "This nick status does not allow the browser profile to open.",
       local.deviceId,
     );
   }
@@ -125,10 +125,10 @@ export function profileLaunchReadiness(
     );
   }
   if (!profile.antidetectProfileId) {
-    return blocked("profile-missing", "Create the managed profile before launch.", local.deviceId);
+    return blocked("profile-missing", "Create the browser profile before opening it.", local.deviceId);
   }
   if (!profile.device) {
-    return blocked("device-missing", "Assign this account to a Relay device before launch.");
+    return blocked("device-missing", "Assign this nick to a Relay PC before opening its browser profile.");
   }
   if (!local.ready) return local;
   if (!local.deviceId) {
@@ -140,7 +140,7 @@ export function profileLaunchReadiness(
   if (profile.device.id !== local.deviceId) {
     return blocked(
       "wrong-device",
-      "Open this page on the PC assigned to this account.",
+      "Open this page on the Relay PC assigned to this nick.",
       local.deviceId,
     );
   }
@@ -166,7 +166,7 @@ export function safeProxyPresentation(proxy: {
 
 const LAUNCH_FAILURE_MESSAGE_BY_CODE: Record<string, string> = {
   RECOVERY_PENDING: "The local browser is recovering a prior session. Retry after recovery finishes.",
-  NO_CAPACITY: "All local browser capacity is in use or cooling. Close a running profile, then retry.",
+  NO_CAPACITY: "All local browser capacity is in use or cooling. Close an open browser profile, then retry.",
   CAPACITY_UNKNOWN: "The local browser could not verify available capacity. Keep it open and retry.",
   BROWSER_OFFLINE: "Open MKT Browser on this PC, then retry.",
   ENGINE_NOT_READY: "The local browser is not ready. Open it and retry.",
@@ -175,7 +175,7 @@ const LAUNCH_FAILURE_MESSAGE_BY_CODE: Record<string, string> = {
   CAPABILITY_MISSING: "Update MKT Browser on this PC, then retry.",
   UNKNOWN_TOOL: "Update MKT Browser on this PC, then retry.",
   PROXY_REJECTED: "The assigned proxy could not start. Check the proxy and retry.",
-  PROFILE_ALREADY_RUNNING: "This profile is already running on this PC.",
+  PROFILE_ALREADY_RUNNING: "This browser profile is already open on this Relay PC.",
 };
 
 export function describeProfileLaunchFailure(outcome: RelayOutcome<unknown>): string {
@@ -202,15 +202,15 @@ export function describeProfileLaunchFailure(outcome: RelayOutcome<unknown>): st
         : null;
   return code && LAUNCH_FAILURE_MESSAGE_BY_CODE[code]
     ? LAUNCH_FAILURE_MESSAGE_BY_CODE[code]
-    : "Relay rejected the profile launch. Open Setup and retry.";
+    : "Relay rejected the browser profile launch. Open Setup and retry.";
 }
 
 export function describeProfileTicketFailure(status: number): string {
-  if (status === 404) return "This account is no longer available. Refresh the page.";
+  if (status === 404) return "This nick is no longer available. Refresh the page.";
   if (status === 403) return "This launch request is no longer authorized. Refresh and retry.";
   if (status === 409) {
     return (
-      "The account, assigned proxy, or device is not ready. Review the account setup and retry."
+      "The nick, assigned proxy, or Relay PC is not ready. Review the nick setup and retry."
     );
   }
   return "MKTTool could not prepare a safe launch ticket. Retry or contact an administrator.";

@@ -32,11 +32,11 @@ export function ProfileTable({
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="border-b border-white/[0.06] bg-white/[0.03] text-[11px] font-semibold uppercase tracking-wider text-neutral-400 font-mono">
-              <th scope="col" className="py-3 px-4">Profile & channel</th>
+              <th scope="col" className="py-3 px-4">Nick</th>
               <th scope="col" className="py-3 px-4">Status</th>
               <th scope="col" className="py-3 px-4">Tags & niche</th>
               <th scope="col" className="py-3 px-4">Proxy</th>
-              <th scope="col" className="py-3 px-4">Device</th>
+              <th scope="col" className="py-3 px-4">Relay PC</th>
               <th scope="col" className="py-3 px-4 text-right">Action</th>
             </tr>
           </thead>
@@ -109,7 +109,7 @@ function ProfileTableRow({
 
       alert(describeProfileLaunchFailure(sent));
     } catch {
-      alert("Could not send the profile launch request to Relay.");
+      alert("Could not send the browser profile launch request to Relay.");
     } finally {
       setBusy(false);
     }
@@ -143,7 +143,7 @@ function ProfileTableRow({
         {isRunning ? (
           <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-medium bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            running
+            Open on this Relay PC
           </span>
         ) : isCold ? (
           <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-medium bg-amber-500/10 text-amber-300 border border-amber-500/20">
@@ -151,7 +151,7 @@ function ProfileTableRow({
           </span>
         ) : (
           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-white/[0.04] text-neutral-400">
-            idle
+            Not open on this Relay PC
           </span>
         )}
       </td>
@@ -190,7 +190,7 @@ function ProfileTableRow({
 
       {/* 5. Device */}
       <td className="py-3 px-4 text-xs text-neutral-400">
-        <span>{profile.device?.name || "Local PC"}</span>
+        <span>{profile.device?.name || "Relay PC not assigned"}</span>
       </td>
 
       {/* 6. Action */}
@@ -211,11 +211,11 @@ function ProfileTableRow({
             {busy ? (
               <Loader2 size={12} className="animate-spin" />
             ) : isRunning ? (
-              <span>Running</span>
+              <span>Open on this Relay PC</span>
             ) : (
               <>
                 <Play size={10} fill="currentColor" />
-                <span>Launch</span>
+                <span>Open browser profile</span>
               </>
             )}
           </button>

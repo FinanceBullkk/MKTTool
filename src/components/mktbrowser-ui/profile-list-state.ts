@@ -32,6 +32,26 @@ export function profileListCounts(
   };
 }
 
+export function profileMatchesSearchQuery(
+  profile: ProfileItemData,
+  searchQuery: string,
+): boolean {
+  const query = searchQuery.trim().toLowerCase();
+  if (query === "") return true;
+
+  return [
+    profile.username,
+    profile.platform,
+    profile.voice,
+    profile.contentAngle,
+    profile.notes,
+    profile.proxy?.label,
+    profile.proxy?.host,
+    profile.proxy?.lastExitIp,
+    profile.device?.name,
+  ].some((value) => value?.toLowerCase().includes(query));
+}
+
 export function profileMatchesListFilter(
   profile: ProfileItemData,
   filter: ProfileListFilter,

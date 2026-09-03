@@ -185,23 +185,23 @@ export class AdsPowerAdapter implements AntidetectAdapter {
    * Trả mảng rỗng thì giao diện sẽ hiện "máy này chưa có profile nào" — một câu **nói dối**, và
    * người dùng sẽ đi tạo profile mới trong khi kho của họ đầy. Ném lỗi thì họ đọc được đúng lý do.
    */
-  private chuaHoTro(viec: string): never {
+  private chuaHoTro(action: string): never {
     throw new AntidetectError(
-      `${PROVIDER} chưa hỗ trợ ${viec} qua MKTTool. Làm trong app AdsPower rồi dán id profile ` +
-        `vào ô "Id profile antidetect" ở trang chi tiết nick.`,
+      `${PROVIDER} does not support ${action} through MKTTool. Complete it in AdsPower, then paste ` +
+        `the browser profile ID into the nick detail page.`,
       PROVIDER,
     );
   }
 
   async listProfiles(): Promise<never> {
-    return this.chuaHoTro("liệt kê profile");
+    return this.chuaHoTro("listing browser profiles");
   }
 
   async fingerprintOptions(): Promise<never> {
-    return this.chuaHoTro("đọc danh mục vân tay");
+    return this.chuaHoTro("reading fingerprint options");
   }
 
   async createProfile(): Promise<never> {
-    return this.chuaHoTro("tạo profile");
+    return this.chuaHoTro("creating browser profiles");
   }
 }
