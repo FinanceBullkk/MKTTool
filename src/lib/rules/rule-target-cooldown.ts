@@ -17,15 +17,15 @@ export function ruleTargetCooldown(ctx: RuleContext): RuleVerdict {
 
   if (hours < targetCooldownHours) {
     return block(
-      `Nick có bài khác ở ${ctx.target.name} cách bài này ${rounded} tiếng — ` +
-        `cần cách ít nhất ${targetCooldownHours} tiếng.`,
+      `Nick has another post on ${ctx.target.name} only ${rounded} hours from this one; ` +
+        `posts must be at least ${targetCooldownHours} hours apart.`,
     );
   }
 
   if (hours < targetCooldownWarnHours) {
     return warn(
-      `Bài gần nhất của nick ở ${ctx.target.name} chỉ cách ${rounded} tiếng. ` +
-        `Thoải mái nhất là để cách ${targetCooldownWarnHours} tiếng.`,
+      `The nick's nearest post on ${ctx.target.name} is only ${rounded} hours away. ` +
+        `For a safer cadence, keep at least ${targetCooldownWarnHours} hours between posts.`,
     );
   }
 

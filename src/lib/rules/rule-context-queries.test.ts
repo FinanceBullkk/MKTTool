@@ -44,12 +44,12 @@ function job(overrides: Partial<OwnJob> = {}): OwnJob {
 }
 
 describe("countPostsSameDay", () => {
-  it("đếm bài trong cùng ngày theo múi giờ team", () => {
+  it("count posts in the same day according to team timezone", () => {
     const jobs = [job({ scheduledAt: gioTeam(10, 0, 5) }), job({ scheduledAt: gioTeam(10, 23, 55) })];
     expect(countPostsSameDay(jobs, AT)).toBe(2);
   });
 
-  it("không đếm bài của ngày khác", () => {
+  it("do not count posts from other days", () => {
     const jobs = [job({ scheduledAt: gioTeam(9, 23, 59) }), job({ scheduledAt: gioTeam(11, 0, 1) })];
     expect(countPostsSameDay(jobs, AT)).toBe(0);
   });
@@ -58,7 +58,7 @@ describe("countPostsSameDay", () => {
    * Nửa đêm là mốc dễ lệch nhất: cắt theo UTC thì "hôm nay" của team bị cắt sai chỗ,
    * và hạn mức ngày sẽ đếm nhầm sang ngày hôm trước.
    */
-  it("nhận đúng nửa đêm đầu ngày, loại đúng nửa đêm ngày kế", () => {
+  it("accept midnight at the start of the day, reject midnight at the start of the next day", () => {
     const dayStart = gioTeam(10, 0, 0);
     const nextDayStart = gioTeam(11, 0, 0);
 
@@ -66,18 +66,18 @@ describe("countPostsSameDay", () => {
     expect(countPostsSameDay([job({ scheduledAt: nextDayStart })], AT)).toBe(0);
   });
 
-  it("không có bài nào thì đếm 0", () => {
+  it("no posts, count 0", () => {
     expect(countPostsSameDay([], AT)).toBe(0);
   });
 });
 
 describe("hoursToNearestSameTarget", () => {
-  it("bỏ qua bài ở đích khác", () => {
+  it("skip posts at a different target", () => {
     const jobs = [job({ targetId: "tgt-khac", scheduledAt: new Date(AT.getTime() + HOUR) })];
     expect(hoursToNearestSameTarget(jobs, "tgt-1", AT)).toBeNull();
   });
 
-  it("lấy khoảng cách gần nhất khi có nhiều bài", () => {
+  it("get the nearest time when there are many posts", () => {
     const jobs = [
       job({ scheduledAt: new Date(AT.getTime() - 10 * HOUR) }),
       job({ scheduledAt: new Date(AT.getTime() - 3 * HOUR) }),
@@ -87,18 +87,18 @@ describe("hoursToNearestSameTarget", () => {
   });
 
   /** Bài đã xếp ở tương lai cũng phải giữ khoảng nghỉ — đo hai chiều, không chỉ nhìn về quá khứ. */
-  it("đo cả bài ở tương lai", () => {
+  it("measure both future posts as well, not just looking back", () => {
     const jobs = [job({ scheduledAt: new Date(AT.getTime() + 5 * HOUR) })];
     expect(hoursToNearestSameTarget(jobs, "tgt-1", AT)).toBe(5);
   });
 
-  it("không có bài cùng đích thì trả null", () => {
+  it("if no posts with the same target, return null", () => {
     expect(hoursToNearestSameTarget([], "tgt-1", AT)).toBeNull();
   });
 });
 
 describe("tallyPromoRatio", () => {
-  it("đếm riêng bài hữu ích và bài quảng cáo của đúng đích đó", () => {
+  it("count separately useful posts and promotional posts for the exact same target", () => {
     const jobs = [
       job({ contentItem: { type: "VALUE" } }),
       job({ contentItem: { type: "VALUE" } }),
@@ -109,14 +109,14 @@ describe("tallyPromoRatio", () => {
   });
 
   /** Loại nội dung lạ phải tính là VALUE, không được âm thầm bỏ qua khỏi cả hai vế. */
-  it("tính loại content lạ là bài hữu ích", () => {
+  it("consider odd content type as useful", () => {
     expect(tallyPromoRatio([job({ contentItem: { type: "GI_DO_LA" } })], "tgt-1")).toEqual({
       valueCount: 1,
       promoCount: 0,
     });
   });
 
-  it("chưa có bài nào thì cả hai vế bằng 0", () => {
+  it("if no posts at all, both sides are 0", () => {
     expect(tallyPromoRatio([], "tgt-1")).toEqual({ valueCount: 0, promoCount: 0 });
   });
 });

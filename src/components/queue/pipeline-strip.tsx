@@ -87,7 +87,7 @@ function StepNode({ step }: { step: PipelineStep }) {
     return (
       <button
         type="button"
-        title="Bấm để nhảy tới ô nhập"
+        title="Click to jump to input field"
         className={`${className} ${interactive}`}
         onClick={() => focusField(focusId)}
       >

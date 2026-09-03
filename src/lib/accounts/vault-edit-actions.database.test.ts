@@ -497,8 +497,8 @@ describe("pending jobs are rechecked after updates", () => {
     const result = await updateTarget(null, targetForm(seeded, { minKarma: "9000" }));
 
     expect(result.ok).toBe(true);
-    expect(result.message).toContain("chấm lại");
-    expect(result.message).toContain("BỊ CHẶN");
+    expect(result.message).toContain("Rechecked 1 pending job");
+    expect(result.message).toContain("moved to Blocked");
 
     const job = await prisma.postJob.findUniqueOrThrow({ where: { id: seeded.jobId } });
     expect(job.status).toBe("BLOCKED");
@@ -535,7 +535,7 @@ describe("pending jobs are rechecked after updates", () => {
     expect(result.ok).toBe(true);
     const job = await prisma.postJob.findUniqueOrThrow({ where: { id: seeded.jobId } });
     expect(job.status).toBe("BLOCKED");
-    expect(job.ruleVerdicts).toContain("Tỷ lệ promo");
+    expect(job.ruleVerdicts).toContain("Promotional ratio");
   });
 
   it("keeps a job PENDING after a harmless update", async () => {

@@ -31,7 +31,7 @@ function makeContext(overrides: Partial<RuleContext> = {}): RuleContext {
       promoRatio: 9,
       allowsLinks: true,
     },
-    content: { type: "VALUE", title: "Backup homelab", body: "Restic + NAS cũ.", links: [] },
+    content: { type: "VALUE", title: "Backup homelab", body: "Restic + old NAS.", links: [] },
     postsSameDay: 0,
     hoursToNearestPostSameTarget: null,
     promoTally: { valueCount: 0, promoCount: 0 },
@@ -48,7 +48,7 @@ function makeContext(overrides: Partial<RuleContext> = {}): RuleContext {
 
 function levelOf(ctx: RuleContext, ruleId: string) {
   const result = evaluateRules(ctx).results.find((entry) => entry.id === ruleId);
-  if (!result) throw new Error(`Không có luật ${ruleId}`);
+  if (!result) throw new Error(`Rule not found: ${ruleId}`);
   return result.level;
 }
 
@@ -56,15 +56,15 @@ function reasonOf(ctx: RuleContext, ruleId: string): string {
   return evaluateRules(ctx).results.find((entry) => entry.id === ruleId)?.reason ?? "";
 }
 
-describe("ngữ cảnh sạch", () => {
-  it("không vi phạm luật nào", () => {
+describe("context is clean", () => {
+  it("no violations", () => {
     const evaluation = evaluateRules(makeContext());
     expect(evaluation.level).toBe("ALLOW");
     expect(evaluation.blocks).toHaveLength(0);
     expect(evaluation.warnings).toHaveLength(0);
   });
 
-  it("chạy đủ 10 luật, mỗi luật báo cáo một lần", () => {
+  it("run all 10 rules, each reporting once", () => {
     expect(evaluateRules(makeContext()).results).toHaveLength(10);
   });
 });
@@ -74,24 +74,24 @@ function facebookPageContext(overrides: Partial<RuleContext> = {}): RuleContext 
   const base = makeContext();
   return {
     ...base,
-    account: { ...base.account, platform: "FACEBOOK", username: "Trang Cửa Hàng" },
-    target: { ...base.target, name: "Fanpage chính thức", platform: "FACEBOOK_PAGE" },
+    account: { ...base.account, platform: "FACEBOOK", username: "Main Shop Page" },
+    target: { ...base.target, name: "Official Fanpage", platform: "FACEBOOK_PAGE" },
     ...overrides,
   };
 }
 
-describe("luật theo nền tảng", () => {
+describe("rules by platform", () => {
   const COMMUNITY_ONLY = ["daily-cap", "target-cooldown", "promo-ratio", "thread-collision"];
   /** Chỉ Reddit mới có bộ dò shadowban — xem đầu rule-health-check.ts. */
   const REDDIT_ONLY = ["health-check"];
 
-  it("Reddit chạy đủ 10 luật, không bỏ luật nào", () => {
+  it("Reddit runs all 10 rules, skipping none", () => {
     const evaluation = evaluateRules(makeContext());
     expect(evaluation.results).toHaveLength(10);
     expect(evaluation.skipped).toHaveLength(0);
   });
 
-  it("Facebook Group giữ 4 luật cộng đồng, chỉ bỏ luật dò shadowban", () => {
+  it("Facebook Group keeps 4 community rules, only skipping health check rule", () => {
     const ctx = facebookPageContext({
       target: { ...makeContext().target, name: "Group Homelab VN", platform: "FACEBOOK_GROUP" },
     });
@@ -99,7 +99,7 @@ describe("luật theo nền tảng", () => {
     expect(evaluateRules(ctx).skipped.map((rule) => rule.id)).toEqual(REDDIT_ONLY);
   });
 
-  it("Fanpage bỏ 4 luật giữ nhịp cộng luật dò, giữ 5 luật còn lại", () => {
+  it("Fanpage skips four community-cadence rules and the Reddit health check", () => {
     const evaluation = evaluateRules(facebookPageContext());
 
     expect(evaluation.skipped.map((rule) => rule.id).sort()).toEqual(
@@ -115,27 +115,27 @@ describe("luật theo nền tảng", () => {
     ]);
   });
 
-  it("Fanpage đăng 5 bài một ngày không bị chặn — chuyện thường của kênh thương hiệu", () => {
+  it("allows a Fanpage to publish five posts per day as a normal brand cadence", () => {
     const evaluation = evaluateRules(facebookPageContext({ postsSameDay: 5 }));
     expect(evaluation.level).toBe("ALLOW");
   });
 
-  it("Fanpage đăng liên tiếp cùng ngày không bị luật nghỉ 24h chặn", () => {
+  it("Fanpage posts consecutively on the same day without being blocked by 24-hour cooldown rule", () => {
     const evaluation = evaluateRules(facebookPageContext({ hoursToNearestPostSameTarget: 2 }));
     expect(evaluation.level).toBe("ALLOW");
   });
 
-  it("Fanpage đăng toàn bài quảng cáo không bị tỷ lệ 9:1 chặn", () => {
+  it("Fanpage posts all promotional posts without being blocked by 9:1 ratio", () => {
     const evaluation = evaluateRules(
       facebookPageContext({
-        content: { type: "PROMO", title: "Giảm giá 20%", body: "Tuần này thôi.", links: [] },
+        content: { type: "PROMO", title: "20% discount", body: "This week only.", links: [] },
         promoTally: { valueCount: 0, promoCount: 12 },
       }),
     );
     expect(evaluation.level).toBe("ALLOW");
   });
 
-  it("Fanpage trả lời dưới bài của chính mình không bị luật đụng độ chặn", () => {
+  it("Fanpage replying under its own post does not get blocked by collision rule", () => {
     const evaluation = evaluateRules(
       facebookPageContext({
         threadCollisions: [{ accountUsername: "Nick admin", kind: "COMMENT", at: AT }],
@@ -145,51 +145,51 @@ describe("luật theo nền tảng", () => {
     expect(evaluation.overridable).toBe(true);
   });
 
-  it("Fanpage VẪN bị chặn bởi luật sức khỏe nick — luật này áp cho mọi nền tảng", () => {
+  it("Fanpage IS blocked by nick health check rule — this rule applies to all platforms", () => {
     const base = facebookPageContext();
     const ctx = { ...base, account: { ...base.account, status: "CHECKPOINT" } };
     expect(levelOf(ctx, "account-health")).toBe("BLOCK");
   });
 
-  it("Fanpage VẪN bị chặn khi copy nguyên si bài đã đăng — Meta nhìn thấy hết", () => {
+  it("Fanpage IS blocked when copying entire content of posted article — Meta sees it all", () => {
     const ctx = facebookPageContext({
       recentContentSamePlatform: [
-        { label: "Fanpage phụ ngày 05/08", text: "Backup homelab\nRestic + NAS cũ." },
+        { label: "Secondary Fanpage on 05/08", text: "Backup homelab\nRestic + old NAS." },
       ],
     });
     expect(levelOf(ctx, "content-similarity")).toBe("BLOCK");
   });
 
-  it("luật bị bỏ KHÔNG lặng lẽ biến mất — nêu tên trong skipped để người dùng biết", () => {
+  it("rules skipped MUST NOT silently disappear — list names in skipped to inform users", () => {
     const labels = evaluateRules(facebookPageContext()).skipped.map((rule) => rule.label);
-    expect(labels).toContain("Hạn mức ngày");
-    expect(labels).toContain("Đụng độ thread (nick khác cùng đích)");
-    expect(labels).toContain("Kết quả dò gần nhất");
+    expect(labels).toContain("Daily posting cap");
+    expect(labels).toContain("Same-target collision (another nick)");
+    expect(labels).toContain("Latest health check");
   });
 });
 
-describe("luật 10 — kết quả dò gần nhất", () => {
-  it("vừa dò xong và khỏe thì cho qua", () => {
+describe("rule 10 — most recent check result", () => {
+  it("allows a recently checked healthy nick", () => {
     expect(levelOf(makeContext(), "health-check")).toBe("ALLOW");
   });
 
-  it("chưa dò lần nào thì cảnh báo — không có tin xấu không phải là tin tốt", () => {
+  it("warns when a nick has never been checked because no evidence is not healthy evidence", () => {
     expect(levelOf(makeContext({ latestHealthCheck: null }), "health-check")).toBe("WARN");
   });
 
-  it("dò lâu rồi thì cảnh báo, số liệu cũ không nói được gì về hôm nay", () => {
+  it("warns when the latest check is too old to describe current health", () => {
     const ctx = makeContext({
       latestHealthCheck: { verdict: "HEALTHY", checkedAt: new Date(AT.getTime() - 9 * DAY) },
     });
     expect(levelOf(ctx, "health-check")).toBe("WARN");
-    expect(reasonOf(ctx, "health-check")).toContain("9 ngày trước");
+    expect(reasonOf(ctx, "health-check")).toContain("9 days ago");
   });
 
   /**
    * Lý do chính khiến luật này tồn tại tách khỏi luật 1: luật 1 đọc `status` — thứ người tự
    * đặt — nên gỡ cách ly bằng tay là nó cho qua ngay. Luật này đọc thứ người ngoài nhìn thấy.
    */
-  it("gỡ cách ly bằng tay mà chưa dò lại thì VẪN bị chặn", () => {
+  it("still blocks after manual quarantine release without a fresh check", () => {
     const ctx = makeContext({
       account: { ...makeContext().account, status: "ALIVE" },
       latestHealthCheck: { verdict: "SHADOWBANNED", checkedAt: new Date(AT.getTime() - 1 * DAY) },
@@ -198,14 +198,14 @@ describe("luật 10 — kết quả dò gần nhất", () => {
     expect(levelOf(ctx, "health-check")).toBe("BLOCK");
   });
 
-  it("bộ dò đang mù (ERROR) thì cảnh báo, không im lặng cho qua", () => {
+  it("warns when the checker is blind instead of silently allowing the post", () => {
     const ctx = makeContext({
       latestHealthCheck: { verdict: "ERROR", checkedAt: new Date(AT.getTime() - 1 * HOUR) },
     });
     expect(levelOf(ctx, "health-check")).toBe("WARN");
   });
 
-  it("thấy ít bài hơn số đã đăng thì cảnh báo", () => {
+  it("warns when fewer posts are visible than the queue records", () => {
     const ctx = makeContext({
       latestHealthCheck: { verdict: "WARN", checkedAt: new Date(AT.getTime() - 1 * HOUR) },
     });
@@ -217,12 +217,12 @@ describe("luật 10 — kết quả dò gần nhất", () => {
    * trạng thái của một nick đăng đều nhưng không ai bấm "Đã đăng" — đúng lúc cần cảnh báo
    * nhất thì cũng đúng lúc dễ trông như khỏe nhất.
    */
-  it("dò xong nhưng không có bài nào để đối chiếu thì cảnh báo, không cho qua", () => {
+  it("warns when a completed check has no posted baseline", () => {
     const ctx = makeContext({
       latestHealthCheck: { verdict: "NO_BASELINE", checkedAt: new Date(AT.getTime() - 1 * HOUR) },
     });
     expect(levelOf(ctx, "health-check")).toBe("WARN");
-    expect(reasonOf(ctx, "health-check")).toContain("Đã đăng");
+    expect(reasonOf(ctx, "health-check")).toContain("Posted");
   });
 
   /**
@@ -233,31 +233,31 @@ describe("luật 10 — kết quả dò gần nhất", () => {
    * `statusForcedBy` trong health-verdict.ts, nó cố ý không cách ly nick vì kết luận này). Nhưng
    * cũng không được im, vì luật 4, 5 và 6 đang đếm thiếu đúng số bài mà bộ dò vừa nhìn thấy.
    */
-  it("thấy bài mà kho không có thì cảnh báo — luật đếm số đang thiếu dữ liệu", () => {
+  it("warns when visible posts are missing from the queue counts", () => {
     const ctx = makeContext({
       latestHealthCheck: { verdict: "UNTRACKED_POSTS", checkedAt: new Date(AT.getTime() - HOUR) },
     });
     expect(levelOf(ctx, "health-check")).toBe("WARN");
-    expect(reasonOf(ctx, "health-check")).toContain("đếm thiếu");
+    expect(reasonOf(ctx, "health-check")).toContain("undercounted");
   });
 
   /**
    * Luật 1 chặn mọi `status` nó không nhận ra; luật này từng làm ngược lại — cùng một họ dữ liệu,
    * hai mặc định trái nhau, và cái mặc định sai nằm ở đúng luật đọc thứ người ngoài nhìn thấy.
    */
-  it("kết luận lạ thì CHẶN, không cho qua", () => {
+  it("blocks an unknown verdict instead of allowing it", () => {
     const ctx = makeContext({
       latestHealthCheck: { verdict: "SOMETHING_NEW", checkedAt: new Date(AT.getTime() - HOUR) },
     });
     expect(levelOf(ctx, "health-check")).toBe("BLOCK");
-    expect(reasonOf(ctx, "health-check")).toContain("chưa biết cách chấm");
+    expect(reasonOf(ctx, "health-check")).toContain("does not know how to evaluate");
   });
 
   /**
    * Nhánh "kết luận lạ" phải đứng TRƯỚC phép kiểm cũ/mới. Nếu đứng sau, một kết luận lạ mà lại cũ
    * sẽ bị nhánh "số liệu cũ" nuốt mất và trả WARN — tức vẫn cho đăng, đúng lỗ hổng vừa bịt.
    */
-  it("kết luận lạ mà lại cũ thì vẫn CHẶN, không rơi vào nhánh cảnh báo số liệu cũ", () => {
+  it("still blocks a stale unknown verdict instead of treating it as stale data", () => {
     const ctx = makeContext({
       latestHealthCheck: { verdict: "SOMETHING_NEW", checkedAt: new Date(AT.getTime() - 9 * DAY) },
     });
@@ -269,20 +269,20 @@ describe("luật 10 — kết quả dò gần nhất", () => {
    * nick bị chặn trên máy chủ. Đây là nửa thứ hai của việc luật 10 giữ danh sách riêng — nửa đầu
    * là chặn lúc chạy, nửa này là báo lúc phát triển.
    */
-  it("mọi kết luận bộ dò phát ra đều được luật 10 chấm, không cái nào rơi vào nhánh lạ", () => {
+  it("evaluates every checker verdict without falling into the unknown branch", () => {
     for (const verdict of HEALTH_VERDICTS) {
       const ctx = makeContext({
         latestHealthCheck: { verdict, checkedAt: new Date(AT.getTime() - HOUR) },
       });
-      expect(reasonOf(ctx, "health-check") ?? "", `kết luận ${verdict}`).not.toContain(
-        "chưa biết cách chấm",
+      expect(reasonOf(ctx, "health-check") ?? "", `verdict ${verdict}`).not.toContain(
+        "does not know how to evaluate",
       );
     }
   });
 });
 
-describe("luật 1 — sức khỏe nick", () => {
-  it("chặn mọi trạng thái không phải ALIVE", () => {
+describe("rule 1 — nick health", () => {
+  it("blocks every status other than ALIVE", () => {
     for (const status of ["COLD_START", "CHECKPOINT", "SHADOWBANNED", "DEAD"]) {
       const ctx = makeContext({ account: { ...makeContext().account, status } });
       expect(levelOf(ctx, "account-health")).toBe("BLOCK");
@@ -290,16 +290,16 @@ describe("luật 1 — sức khỏe nick", () => {
   });
 });
 
-describe("luật 2 — cold start", () => {
-  it("chặn khi giờ đăng còn nằm trong cold-start, kèm số ngày còn lại", () => {
+describe("rule 2 — cold start", () => {
+  it("blocks a post scheduled during cold start and reports the remaining days", () => {
     const ctx = makeContext({
       account: { ...makeContext().account, coldStartUntil: new Date(AT.getTime() + 5 * DAY) },
     });
     expect(levelOf(ctx, "cold-start")).toBe("BLOCK");
-    expect(reasonOf(ctx, "cold-start")).toContain("5 ngày");
+    expect(reasonOf(ctx, "cold-start")).toContain("5 days");
   });
 
-  it("cho qua khi bài được xếp vào sau ngày hết cold-start", () => {
+  it("allows a post scheduled after cold start ends", () => {
     const ctx = makeContext({
       at: new Date(AT.getTime() + 10 * DAY), // xếp lịch 10 ngày nữa
       account: { ...makeContext().account, coldStartUntil: new Date(AT.getTime() + 5 * DAY) },
@@ -308,54 +308,54 @@ describe("luật 2 — cold start", () => {
     expect(levelOf(ctx, "cold-start")).toBe("ALLOW");
   });
 
-  it("cảnh báo trong vài ngày đầu vừa hết cold-start", () => {
+  it("warns during the first few days after cold start ends", () => {
     const ctx = makeContext({
       account: { ...makeContext().account, coldStartUntil: new Date(AT.getTime() - 12 * HOUR) },
     });
     expect(levelOf(ctx, "cold-start")).toBe("WARN");
   });
 
-  it("nick không đặt cold-start thì bỏ qua luật này", () => {
+  it("allows a nick with no cold-start date", () => {
     const ctx = makeContext({ account: { ...makeContext().account, coldStartUntil: null } });
     expect(levelOf(ctx, "cold-start")).toBe("ALLOW");
   });
 });
 
-describe("luật 3 — điều kiện đích", () => {
-  it("chặn khi thiếu karma", () => {
+describe("rule 3 — target eligibility", () => {
+  it("blocks insufficient karma", () => {
     const ctx = makeContext({ account: { ...makeContext().account, karma: 50 } });
     expect(levelOf(ctx, "target-eligibility")).toBe("BLOCK");
     expect(reasonOf(ctx, "target-eligibility")).toContain("100 karma");
   });
 
-  it("chặn khi nick chưa đủ tuổi", () => {
+  it("blocks a nick that is too new", () => {
     const ctx = makeContext({
       account: { ...makeContext().account, platformCreatedAt: new Date(AT.getTime() - 10 * DAY) },
     });
     expect(levelOf(ctx, "target-eligibility")).toBe("BLOCK");
   });
 
-  it("cảnh báo khi karma dư dưới 20%", () => {
+  it("warns when karma is less than 20% above the minimum", () => {
     const ctx = makeContext({ account: { ...makeContext().account, karma: 110 } });
     expect(levelOf(ctx, "target-eligibility")).toBe("WARN");
   });
 
-  it("cảnh báo khi sub đòi tuổi nick mà chưa nhập ngày tạo", () => {
+  it("warns when the target requires account age but the creation date is missing", () => {
     const ctx = makeContext({ account: { ...makeContext().account, platformCreatedAt: null } });
     expect(levelOf(ctx, "target-eligibility")).toBe("WARN");
   });
 });
 
-describe("luật 4 — hạn mức ngày", () => {
-  it("cảnh báo ở bài thứ hai, chặn từ bài thứ ba", () => {
+describe("rule 4 — daily limit", () => {
+  it("warn at post two, block from post three", () => {
     expect(levelOf(makeContext({ postsSameDay: 0 }), "daily-cap")).toBe("ALLOW");
     expect(levelOf(makeContext({ postsSameDay: 1 }), "daily-cap")).toBe("WARN");
     expect(levelOf(makeContext({ postsSameDay: 2 }), "daily-cap")).toBe("BLOCK");
   });
 });
 
-describe("luật 5 — nghỉ giữa 2 bài cùng đích", () => {
-  it("chặn dưới 24 tiếng, cảnh báo dưới 48, cho qua sau đó", () => {
+describe("rule 5 — same-target cooldown", () => {
+  it("block within 24 hours, warn under 48, allow after that", () => {
     expect(levelOf(makeContext({ hoursToNearestPostSameTarget: 5 }), "target-cooldown")).toBe("BLOCK");
     expect(levelOf(makeContext({ hoursToNearestPostSameTarget: 30 }), "target-cooldown")).toBe("WARN");
     expect(levelOf(makeContext({ hoursToNearestPostSameTarget: 72 }), "target-cooldown")).toBe("ALLOW");
@@ -363,33 +363,38 @@ describe("luật 5 — nghỉ giữa 2 bài cùng đích", () => {
   });
 });
 
-describe("luật 6 — tỷ lệ promo 9:1", () => {
-  const promo = { type: "PROMO" as const, title: "Thử app của bên mình", body: "Link ở dưới.", links: [] };
+describe("rule 6 — 9:1 promo ratio", () => {
+  const promo = {
+    type: "PROMO" as const,
+    title: "Try our app",
+    body: "Link below.",
+    links: [],
+  };
 
-  it("bài hữu ích không bao giờ dính luật này", () => {
+  it("useful post never hits this rule", () => {
     expect(levelOf(makeContext({ promoTally: { valueCount: 0, promoCount: 0 } }), "promo-ratio")).toBe(
       "ALLOW",
     );
   });
 
-  it("chặn và nói rõ còn thiếu mấy bài hữu ích", () => {
+  it("blocks and reports how many value posts are missing", () => {
     const ctx = makeContext({ content: promo, promoTally: { valueCount: 3, promoCount: 0 } });
     expect(levelOf(ctx, "promo-ratio")).toBe("BLOCK");
-    expect(reasonOf(ctx, "promo-ratio")).toContain("thiếu 6 bài hữu ích");
+    expect(reasonOf(ctx, "promo-ratio")).toContain("Add 6 more value posts");
   });
 
-  it("đủ 9 bài hữu ích thì cho qua kèm cảnh báo hết quota", () => {
+  it("warns when this promotion exactly consumes the available ratio", () => {
     const ctx = makeContext({ content: promo, promoTally: { valueCount: 9, promoCount: 0 } });
     expect(levelOf(ctx, "promo-ratio")).toBe("WARN");
   });
 
-  it("tỷ lệ trượt: bài quảng cáo thứ hai đòi thêm 9 bài hữu ích nữa", () => {
+  it("requires another nine value posts before a second promotion", () => {
     const ctx = makeContext({ content: promo, promoTally: { valueCount: 10, promoCount: 1 } });
     expect(levelOf(ctx, "promo-ratio")).toBe("BLOCK");
-    expect(reasonOf(ctx, "promo-ratio")).toContain("thiếu 8 bài hữu ích");
+    expect(reasonOf(ctx, "promo-ratio")).toContain("Add 8 more value posts");
   });
 
-  it("đích không áp tỷ lệ (promoRatio = 0) thì bỏ qua", () => {
+  it("if no ratio (promoRatio = 0) then ignore target", () => {
     const ctx = makeContext({
       content: promo,
       target: { ...makeContext().target, promoRatio: 0 },
@@ -399,31 +404,34 @@ describe("luật 6 — tỷ lệ promo 9:1", () => {
   });
 });
 
-describe("luật 7 — trùng nội dung", () => {
-  const original = { label: "u/bob ở r/selfhosted ngày 05/08", text: "Backup homelab\nRestic + NAS cũ." };
+describe("rule 7 — duplicate content", () => {
+  const original = {
+    label: "u/bob on r/selfhosted, 05/08",
+    text: "Backup homelab\nRestic + old NAS.",
+  };
 
-  it("chặn bài copy nguyên si của nick khác cùng nền tảng", () => {
+  it("block post copying verbatim of other user on same platform", () => {
     const ctx = makeContext({ recentContentSamePlatform: [original] });
     expect(levelOf(ctx, "content-similarity")).toBe("BLOCK");
     expect(reasonOf(ctx, "content-similarity")).toContain("u/bob");
   });
 
-  it("bài khác hẳn thì cho qua", () => {
+  it("allow if content is different", () => {
     const ctx = makeContext({
       recentContentSamePlatform: [
-        { label: "u/bob", text: "Giá thuê văn phòng quận 1 tăng mạnh trong quý này." },
+        { label: "u/bob", text: "Office rent in district 1 rises strongly this quarter." },
       ],
     });
     expect(levelOf(ctx, "content-similarity")).toBe("ALLOW");
   });
 
-  it("danh sách đối chứng rỗng (bài đầu tiên) thì cho qua", () => {
+  it("allows the first post when there is no comparison set", () => {
     expect(levelOf(makeContext(), "content-similarity")).toBe("ALLOW");
   });
 });
 
-describe("luật 8 — đụng độ thread", () => {
-  it("chặn khi nick khác của mình đã chạm đúng thread đó", () => {
+describe("rule 8 — thread collision", () => {
+  it("blocks when another managed nick has touched the exact thread", () => {
     const ctx = makeContext({
       threadCollisions: [{ accountUsername: "u/bob", kind: "COMMENT", at: new Date(AT.getTime() - HOUR) }],
     });
@@ -431,7 +439,7 @@ describe("luật 8 — đụng độ thread", () => {
     expect(reasonOf(ctx, "thread-collision")).toContain("u/bob");
   });
 
-  it("không cho ghi đè khi luật này chặn", () => {
+  it("does not allow an override when thread collision blocks", () => {
     const evaluation = evaluateRules(
       makeContext({
         threadCollisions: [{ accountUsername: "u/bob", kind: "UPVOTE", at: AT }],
@@ -441,7 +449,7 @@ describe("luật 8 — đụng độ thread", () => {
     expect(evaluation.overridable).toBe(false);
   });
 
-  it("chỉ cảnh báo khi nick khác hoạt động cùng sub nhưng khác thread", () => {
+  it("only warns when another managed nick is active on the same target but a different thread", () => {
     const ctx = makeContext({
       sameTargetNeighbors: [{ accountUsername: "u/bob", kind: "POST", at: AT }],
     });
@@ -449,8 +457,8 @@ describe("luật 8 — đụng độ thread", () => {
   });
 });
 
-describe("luật 9 — chính sách link", () => {
-  it("chặn khi đích cấm link mà bài có link", () => {
+describe("rule 9 — link policy", () => {
+  it("block when target disallows links and post contains links", () => {
     const ctx = makeContext({
       target: { ...makeContext().target, allowsLinks: false },
       content: { ...makeContext().content, links: ["https://vidu.com"] },
@@ -458,21 +466,21 @@ describe("luật 9 — chính sách link", () => {
     expect(levelOf(ctx, "link-policy")).toBe("BLOCK");
   });
 
-  it("cảnh báo khi bài có từ 2 link trở lên", () => {
+  it("warn when post contains 2 or more links", () => {
     const ctx = makeContext({
       content: { ...makeContext().content, links: ["https://a.com", "https://b.com"] },
     });
     expect(levelOf(ctx, "link-policy")).toBe("WARN");
   });
 
-  it("một link ở đích cho phép link thì không sao", () => {
+  it("allows one link when the target permits links", () => {
     const ctx = makeContext({ content: { ...makeContext().content, links: ["https://a.com"] } });
     expect(levelOf(ctx, "link-policy")).toBe("ALLOW");
   });
 });
 
-describe("gộp verdict", () => {
-  it("mức nặng nhất thắng và gom hết lý do, không dừng ở luật chặn đầu tiên", () => {
+describe("combine verdicts", () => {
+  it("most severe verdict wins and combines all reasons, don't stop at first blocking rule", () => {
     const evaluation = evaluateRules(
       makeContext({
         account: { ...makeContext().account, status: "DEAD", karma: 1 },
@@ -489,44 +497,46 @@ describe("gộp verdict", () => {
     expect(evaluation.overridable).toBe(true); // toàn luật cho phép ghi đè
   });
 
-  it("chỉ có cảnh báo thì kết luận là WARN", () => {
+  it("if only warnings, conclude as WARN", () => {
     expect(evaluateRules(makeContext({ postsSameDay: 1 })).level).toBe("WARN");
   });
 
-  it("giữ nguyên qua một vòng lưu/đọc JSON", () => {
+  it("preserve across one round of JSON serialization/deserialization", () => {
     const evaluation = evaluateRules(makeContext({ postsSameDay: 2 }));
     expect(deserializeEvaluation(serializeEvaluation(evaluation))).toEqual(evaluation);
   });
 
-  it("JSON hỏng không làm sập trang", () => {
-    expect(deserializeEvaluation("{ không phải json")).toBeNull();
+  it("broken JSON does not crash page", () => {
+    expect(deserializeEvaluation("{ not json")).toBeNull();
     expect(deserializeEvaluation(null)).toBeNull();
   });
 
-  it("verdict cũ chưa có trường skipped vẫn đọc được, bù mảng rỗng", () => {
+  it("reads a legacy verdict without a skipped field and supplies an empty array", () => {
     // Bản ghi lưu trước khi có luật theo nền tảng — không được làm sập trang hàng đợi.
+    const legacyLabel = "H\u1ea1n m\u1ee9c ng\u00e0y";
     const legacy = JSON.stringify({
       level: "ALLOW",
-      results: [{ id: "daily-cap", label: "Hạn mức ngày", level: "ALLOW", reason: null, overridable: true }],
+      results: [{ id: "daily-cap", label: legacyLabel, level: "ALLOW", reason: null, overridable: true }],
       blocks: [],
       warnings: [],
       overridable: true,
     });
     expect(deserializeEvaluation(legacy)?.skipped).toEqual([]);
+    expect(deserializeEvaluation(legacy)?.results[0]?.label).toBe(legacyLabel);
   });
 });
 
-describe("ngưỡng chỉnh được", () => {
-  it("giá trị trong RuleConfig ghi đè mặc định", () => {
+describe("editable rule thresholds", () => {
+  it("value in RuleConfig overrides default", () => {
     const thresholds = applyThresholdOverrides([{ key: "maxPostsPerDay", value: "5" }]);
     expect(thresholds.maxPostsPerDay).toBe(5);
     expect(levelOf(makeContext({ postsSameDay: 3, thresholds }), "daily-cap")).toBe("WARN");
   });
 
-  it("key lạ hoặc giá trị hỏng bị bỏ qua, quay về mặc định chặt hơn", () => {
+  it("ignore unknown keys or broken values, revert to stricter default", () => {
     const thresholds = applyThresholdOverrides([
       { key: "khongCoLuatNay", value: "9" },
-      { key: "maxPostsPerDay", value: "nhiều lắm" },
+      { key: "maxPostsPerDay", value: "too much is enough" },
       { key: "similarityBlock", value: "-1" },
     ]);
     expect(thresholds).toEqual(DEFAULT_RULE_THRESHOLDS);
@@ -534,7 +544,7 @@ describe("ngưỡng chỉnh được", () => {
 });
 
 describe("normalizeThreadUrl", () => {
-  it("rút mọi biến thể permalink Reddit về cùng một khóa", () => {
+  it("collapse all Reddit permalink variants to same key", () => {
     const key = normalizeThreadUrl("https://www.reddit.com/r/selfhosted/comments/1a2b3c/backup_setup/");
     expect(normalizeThreadUrl("https://old.reddit.com/r/selfhosted/comments/1a2b3c/")).toBe(key);
     expect(normalizeThreadUrl("https://reddit.com/r/selfhosted/comments/1a2b3c/khac_slug/?utm=share")).toBe(
@@ -549,7 +559,7 @@ describe("normalizeThreadUrl", () => {
    * đầy đủ, nên hai nick vào cùng một thread bằng hai dạng link thì luật 8 không thấy đụng độ.
    * Mà luật 8 là luật DUY NHẤT không cho ghi đè, nên bỏ lọt ở đây là bỏ lọt hẳn.
    */
-  it("link rút gọn redd.it ra cùng khóa với permalink đầy đủ", () => {
+  it("collapse redd.it shortlinks to same key as full permalink", () => {
     const key = normalizeThreadUrl("https://www.reddit.com/r/selfhosted/comments/1a2b3c/backup/");
 
     expect(normalizeThreadUrl("https://redd.it/1a2b3c")).toBe(key);
@@ -558,12 +568,12 @@ describe("normalizeThreadUrl", () => {
   });
 
   /** Khớp đúng host, không phải "có chứa chuỗi redd.it" — nếu không thì tên miền giả cũng lọt. */
-  it("host chỉ giống chứ không phải redd.it thì KHÔNG được coi là link Reddit", () => {
+  it("host matching only, not redd.it, is NOT considered a Reddit link", () => {
     expect(normalizeThreadUrl("https://notredd.it/1a2b3c")).toBe("notredd.it/1a2b3c");
     expect(normalizeThreadUrl("https://redd.it.evil.com/1a2b3c")).toBe("redd.it.evil.com/1a2b3c");
   });
 
-  it("link share /s/ KHÔNG rút được, nên ra một khóa khác hẳn permalink", () => {
+  it("cannot resolve /s/ share links, so they produce a different key from a permalink", () => {
     // Ghi lại hành vi thật để không ai tưởng nhầm là đã xử lý: mã sau /s/ là mã mờ, chỉ redirect
     // của Reddit mới phân giải được. Vì vậy chốt nằm ở đầu vào, xem isUnresolvableShareLink.
     expect(normalizeThreadUrl("https://www.reddit.com/r/trove/s/abcdefgh12")).not.toBe(
@@ -571,7 +581,7 @@ describe("normalizeThreadUrl", () => {
     );
   });
 
-  it("URL thường thì bỏ www, tham số theo dõi và dấu / cuối", () => {
+  it("normalize typical URLs by removing www, tracking params, and trailing /", () => {
     expect(normalizeThreadUrl("https://www.facebook.com/pages/abc/?ref=bookmarks")).toBe(
       "facebook.com/pages/abc",
     );
@@ -582,7 +592,7 @@ describe("normalizeThreadUrl", () => {
 
   // Đây là bug đã sửa: bỏ nguyên query string thì mọi permalink.php ra cùng một khóa,
   // và luật 8 (không cho ghi đè) chặn nhầm vĩnh viễn.
-  it("hai thread Facebook khác nhau nhưng cùng path cho hai khóa khác nhau", () => {
+  it("two different Facebook threads but same path yields two different keys", () => {
     const first = normalizeThreadUrl("https://www.facebook.com/permalink.php?story_fbid=111&id=999");
     const second = normalizeThreadUrl("https://www.facebook.com/permalink.php?story_fbid=222&id=999");
 
@@ -592,19 +602,19 @@ describe("normalizeThreadUrl", () => {
     );
   });
 
-  it("cùng một thread Facebook viết khác thứ tự tham số vẫn ra cùng khóa", () => {
+  it("same Facebook thread with params in different order still yields same key", () => {
     expect(normalizeThreadUrl("https://www.facebook.com/permalink.php?story_fbid=111&id=999")).toBe(
       normalizeThreadUrl("https://facebook.com/permalink.php?id=999&story_fbid=111&fbclid=abc"),
     );
   });
 
-  it("hai bài Reddit khác nhau cho hai khóa khác nhau", () => {
+  it("two different Reddit posts yield two different keys", () => {
     expect(normalizeThreadUrl("https://reddit.com/r/x/comments/aaa/")).not.toBe(
       normalizeThreadUrl("https://reddit.com/r/x/comments/bbb/"),
     );
   });
 
-  it("chuỗi không phải URL vẫn dùng được làm khóa", () => {
+  it("non-URL string still used as key", () => {
     expect(normalizeThreadUrl("  Thread ABC  ")).toBe("thread abc");
   });
 });
@@ -617,14 +627,14 @@ describe("normalizeThreadUrl", () => {
  * không gọi mạng được, nên chặn lúc người ta dán — lúc họ còn đang mở đúng cái link đó.
  */
 describe("isUnresolvableShareLink", () => {
-  it("bắt link share /s/ của Reddit ở mọi biến thể host", () => {
+  it("catch Reddit's /s/ share link at all host variations", () => {
     expect(isUnresolvableShareLink("https://www.reddit.com/r/trove/s/AbCdEfGh12")).toBe(true);
     expect(isUnresolvableShareLink("https://reddit.com/r/trove/s/abcdefgh12")).toBe(true);
     expect(isUnresolvableShareLink("https://old.reddit.com/r/trove/s/abcdefgh12/")).toBe(true);
     expect(isUnresolvableShareLink("reddit.com/r/trove/s/abcdefgh12")).toBe(true);
   });
 
-  it("KHÔNG chặn những link vẫn rút được — nếu không thì chốt này chặn cả việc bình thường", () => {
+  it("DO NOT block links that still resolve — otherwise this rule blocks normal functionality", () => {
     expect(
       isUnresolvableShareLink("https://www.reddit.com/r/trove/comments/1veg99o/tieu_de/"),
     ).toBe(false);
@@ -636,13 +646,13 @@ describe("isUnresolvableShareLink", () => {
   });
 
   /** Host chỉ trông giống Reddit thì không phải việc của chốt này. */
-  it("không nhận nhầm tên miền giả", () => {
+  it("do not accept fake domains", () => {
     expect(isUnresolvableShareLink("https://reddit.com.evil.test/r/x/s/abc")).toBe(false);
     expect(isUnresolvableShareLink("https://notreddit.com/r/x/s/abc")).toBe(false);
   });
 
   /** Bài Reddit có sub đặt tên là "s" vẫn phải đăng được — path phải khớp đúng /r/<sub>/s/<id>. */
-  it("không chặn path chỉ tình cờ có đoạn s", () => {
+  it("do not block paths that happen to contain an s", () => {
     expect(isUnresolvableShareLink("https://www.reddit.com/r/s/comments/1veg99o/tieu_de/")).toBe(
       false,
     );

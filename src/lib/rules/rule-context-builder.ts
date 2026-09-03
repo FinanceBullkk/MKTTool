@@ -55,17 +55,17 @@ export async function buildRuleContext(
     prisma.ruleConfig.findMany(),
   ]);
 
-  if (!account) return { ok: false, message: "Không tìm thấy nick." };
-  if (!target) return { ok: false, message: "Không tìm thấy đích đăng." };
+  if (!account) return { ok: false, message: "Nick not found. Refresh the page and try again." };
+  if (!target) return { ok: false, message: "Posting target not found. Refresh the page and try again." };
   if (!isPlatformCompatible(account.platform, target.platform)) {
     return {
       ok: false,
-      message: `Nick ${account.platform} không đăng được lên đích ${target.platform}.`,
+      message: `A ${account.platform} nick cannot post to a ${target.platform} target. Choose a compatible nick or target.`,
     };
   }
 
   const content = await resolveContent(input.content);
-  if (!content) return { ok: false, message: "Không tìm thấy content." };
+  if (!content) return { ok: false, message: "Content not found. Choose an existing content item or enter a new draft." };
 
   const thresholds = applyThresholdOverrides(thresholdRows);
   const threadKey = input.threadUrl ? normalizeThreadUrl(input.threadUrl) : null;

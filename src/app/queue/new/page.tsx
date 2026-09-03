@@ -28,20 +28,20 @@ export default async function NewPostJobPage() {
   // vào kho lúc lưu. Thiếu nick hoặc đích thì mới thật sự không xếp lịch được.
   const missing = [
     accounts.length === 0 ? { label: "nick", href: "/accounts" } : null,
-    targets.length === 0 ? { label: "đích đăng", href: "/targets" } : null,
+    targets.length === 0 ? { label: "posting target", href: "/targets" } : null,
   ].filter((item) => item !== null);
 
   return (
     <>
       <PageHeading
-        title="Xếp lịch đăng"
-        description="Viết bài mới ngay tại đây hoặc lấy từ kho. Bộ luật chạy khi đủ content, nick, đích và giờ — thấy đèn trước khi bấm, không phải sau."
+        title="Schedule a post"
+        description="Write a new post here or choose one from the content library. Rules run once content, nick, target, and posting time are ready, so you see the verdict before saving."
       />
 
       <Card>
         {missing.length > 0 ? (
           <EmptyState>
-            Còn thiếu {missing.map((item) => item.label).join(", ")}. Thêm ở{" "}
+            Missing {missing.map((item) => item.label).join(", ")}. Add it at{" "}
             {missing.map((item, index) => (
               <span key={item.href}>
                 {index > 0 ? ", " : ""}
@@ -65,7 +65,7 @@ export default async function NewPostJobPage() {
 
       <p className="text-sm text-neutral-500">
         <Link href="/queue" className="underline">
-          ← Về hàng đợi
+          ← Back to queue
         </Link>
       </p>
     </>

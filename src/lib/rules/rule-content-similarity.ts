@@ -21,16 +21,16 @@ export function ruleContentSimilarity(ctx: RuleContext): RuleVerdict {
 
   if (match.score >= similarityBlock) {
     return block(
-      `Giống ${percent}% với bài "${match.candidate.label}" trên cùng nền tảng. ` +
-        "Đăng nội dung na ná giữa nhiều nick cùng nền tảng là nguyên nhân shadowban số 1 — " +
-        "viết lại hẳn hoặc đổi sang nền tảng khác.",
+      `${percent}% similar to "${match.candidate.label}" on the same platform. ` +
+        "Publishing similar content through multiple nicks on one platform is a major shadowban risk. " +
+        "Rewrite it completely or use another platform.",
     );
   }
 
   if (match.score >= similarityWarn) {
     return warn(
-      `Giống ${percent}% với bài "${match.candidate.label}". Chưa tới ngưỡng chặn nhưng nên ` +
-        "đổi mở bài và ví dụ cho khác đi.",
+      `${percent}% similar to "${match.candidate.label}". It is below the blocking threshold, but ` +
+        "change the opening and examples to make the post more distinct.",
     );
   }
 

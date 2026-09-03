@@ -5,7 +5,7 @@ function job(overrides: Partial<Parameters<typeof findDuplicatePostedUrls>[0][nu
   return {
     jobId: "job-1",
     contentItemId: "content-1",
-    contentTitle: "Bài A",
+    contentTitle: "Post A",
     accountUsername: "nick-1",
     postedUrl: "https://www.reddit.com/r/Trove/comments/1veg99o/a/",
     ...overrides,
@@ -13,27 +13,27 @@ function job(overrides: Partial<Parameters<typeof findDuplicatePostedUrls>[0][nu
 }
 
 describe("findDuplicatePostedUrls", () => {
-  it("hai content khác nhau dán cùng một link là lỗi — báo", () => {
+  it("two different contents posting the same link is an error — report", () => {
     // Ca thật 04/08/2026: job thứ hai được bấm "Đã đăng" với link của bài thứ nhất, nên nội
     // dung của nó bị kho coi là đã đăng trong khi chưa từng lên Reddit.
     const conflicts = findDuplicatePostedUrls([
       job(),
-      job({ jobId: "job-2", contentItemId: "content-2", contentTitle: "Bài B" }),
+      job({ jobId: "job-2", contentItemId: "content-2", contentTitle: "Post B" }),
     ]);
 
     expect(conflicts).toHaveLength(1);
     expect(conflicts[0]?.threadKey).toBe("reddit:1veg99o");
-    expect(conflicts[0]?.jobs.map((entry) => entry.contentTitle)).toEqual(["Bài A", "Bài B"]);
+    expect(conflicts[0]?.jobs.map((entry) => entry.contentTitle)).toEqual(["Post A", "Post B"]);
   });
 
-  it("cùng một content dán cùng link thì KHÔNG báo", () => {
+  it("Posting the same content with the same link does NOT report", () => {
     // Chuyện bình thường và có thật: một bài xếp lịch hai lần, hoặc đăng lại đúng bài đó.
     // Báo cả trường hợp này là dạy người dùng phớt lờ cảnh báo.
     const conflicts = findDuplicatePostedUrls([job(), job({ jobId: "job-2" })]);
     expect(conflicts).toEqual([]);
   });
 
-  it("nhận ra trùng dù hai link ở hai dạng khác nhau", () => {
+  it("recognize as duplicate even if two links are in two different forms", () => {
     const conflicts = findDuplicatePostedUrls([
       job(),
       job({
@@ -46,7 +46,7 @@ describe("findDuplicatePostedUrls", () => {
     expect(conflicts).toHaveLength(1);
   });
 
-  it("hai bài khác nhau ở hai link khác nhau thì im lặng", () => {
+  it("silent about two posts in two different links", () => {
     const conflicts = findDuplicatePostedUrls([
       job(),
       job({
@@ -59,7 +59,7 @@ describe("findDuplicatePostedUrls", () => {
     expect(conflicts).toEqual([]);
   });
 
-  it("gom được cả ba job trở lên vào một nhóm", () => {
+  it("Can gather all three jobs or more into one group", () => {
     const conflicts = findDuplicatePostedUrls([
       job(),
       job({ jobId: "job-2", contentItemId: "content-2" }),
@@ -69,7 +69,7 @@ describe("findDuplicatePostedUrls", () => {
     expect(conflicts[0]?.jobs).toHaveLength(3);
   });
 
-  it("kho trống thì không báo gì", () => {
+  it("Empty space doesn't report anything", () => {
     expect(findDuplicatePostedUrls([])).toEqual([]);
   });
 });

@@ -16,26 +16,26 @@ function row(contentTitle: string, postedUrl = TROVE_ALIVE) {
 }
 
 describe("findSuspectPostedUrls", () => {
-  it("bắt ca 04/08/2026: link của bài khác bị gán cho job này", () => {
+  it("catch 04/08/2026: link of another post assigned to this job", () => {
     const suspects = findSuspectPostedUrls([row("Looking for a game similar to trove")]);
 
     expect(suspects).toHaveLength(1);
     expect(suspects[0].jobId).toBe("job-1");
   });
 
-  it("im lặng khi tiêu đề khớp link", () => {
+  it("silent when title matches link", () => {
     expect(
       findSuspectPostedUrls([row("Is trove still alive? Will Gamigo continue to develop it?")]),
     ).toHaveLength(0);
   });
 
-  it("im lặng khi link không có slug để so", () => {
+  it("silent when link does not have a slug to compare", () => {
     // redd.it và permalink cụt là link hợp lệ. Coi "không so được" là "lệch" thì mọi link
     // dạng ngắn đều thành báo động giả.
-    expect(findSuspectPostedUrls([row("Bài gì đó", "https://redd.it/1veg99o")])).toHaveLength(0);
+    expect(findSuspectPostedUrls([row("Some post", "https://redd.it/1veg99o")])).toHaveLength(0);
   });
 
-  it("im lặng khi tiêu đề chỉ khác một phần — người ta có quyền sửa tiêu đề lúc đăng", () => {
+  it("silent when title only differs slightly — user has right to edit title when posting", () => {
     // Ngưỡng báo (0.2) thấp hơn hẳn ngưỡng cho phép tự ghi (0.6): khoảng giữa là vùng "khác
     // một chút", nơi im lặng đúng hơn là hỏi.
     const suspects = findSuspectPostedUrls([row("Trove still alive in 2026? Gamigo roadmap")]);

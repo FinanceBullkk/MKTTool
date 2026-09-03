@@ -20,9 +20,9 @@ const VERDICT_STATE: Record<RuleLevel, StepState> = {
 };
 
 const VERDICT_LABEL: Record<RuleLevel, string> = {
-  ALLOW: "Đăng được",
-  WARN: "Cân nhắc",
-  BLOCK: "Bị chặn",
+  ALLOW: "Can post",
+  WARN: "Consider",
+  BLOCK: "Blocked",
 };
 
 export interface ComposeSelection {
@@ -45,7 +45,7 @@ function fieldStep(
   return {
     key,
     label,
-    value: value ?? "chưa chọn",
+    value: value ?? "Not selected",
     hint: value ? hint : undefined,
     state: value ? "ok" : "idle",
     focusId,
@@ -57,12 +57,12 @@ function fieldStep(
  * nền tảng đó. Ghi cứng thì chặng này tự mâu thuẫn — "10 luật · qua 5/5".
  */
 function ruleStep(preview: PreviewState): PipelineStep {
-  const base = { key: "rules", label: "Bộ luật" };
+  const base = { key: "rules", label: "Rule set" };
 
-  if (preview.status === "idle") return { ...base, value: "chờ đủ 4 ô", state: "idle" };
-  if (preview.status === "loading") return { ...base, value: "đang chấm…", state: "idle" };
+  if (preview.status === "idle") return { ...base, value: "Complete all 4 fields", state: "idle" };
+  if (preview.status === "loading") return { ...base, value: "Evaluating...", state: "idle" };
   if (preview.status === "error") {
-    return { ...base, value: "không chấm được", hint: "xem lý do bên dưới", state: "bad" };
+    return { ...base, value: "Could not evaluate", hint: "See the reason below", state: "bad" };
   }
 
   const { evaluation } = preview;
@@ -70,8 +70,8 @@ function ruleStep(preview: PreviewState): PipelineStep {
 
   return {
     ...base,
-    value: VERDICT_LABEL[evaluation.level] ?? "Bị chặn",
-    hint: `qua ${passed}/${evaluation.results.length} luật`,
+    value: VERDICT_LABEL[evaluation.level] ?? "Blocked",
+    hint: `Passed ${passed}/${evaluation.results.length} rules`,
     state: VERDICT_STATE[evaluation.level] ?? "bad",
   };
 }
@@ -85,11 +85,11 @@ export function buildComposeSteps(selection: ComposeSelection): PipelineStep[] {
       "Content",
       selection.contentLabel,
       draft ? "field-draft-title" : "field-content",
-      draft ? "viết mới, sẽ vào kho" : "lấy từ kho",
+      draft ? "New draft; saved to library" : "From content library",
     ),
     fieldStep("account", "Nick", selection.accountLabel, "field-account"),
-    fieldStep("target", "Đích", selection.targetLabel, "field-target"),
-    fieldStep("scheduled", "Giờ đăng", selection.scheduledLabel, "field-scheduled"),
+    fieldStep("target", "Target", selection.targetLabel, "field-target"),
+    fieldStep("scheduled", "Posting time", selection.scheduledLabel, "field-scheduled"),
     ruleStep(selection.preview),
   ];
 }

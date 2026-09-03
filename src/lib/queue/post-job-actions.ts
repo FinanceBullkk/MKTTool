@@ -26,7 +26,7 @@ import { parseLinksInput, stringifyLinks } from "@/lib/content/content-types";
 import { prisma } from "@/lib/db/prisma-client";
 import {
   isPlatformInRolloutScope,
-  parkedPlatformMessage,
+  rolloutPlatformLabel,
 } from "@/lib/platforms/rollout-scope";
 import type { ContentSource } from "@/lib/rules/rule-context-builder";
 import { serializeEvaluation, summarizeEvaluation } from "@/lib/rules/rules-engine";
@@ -34,16 +34,16 @@ import { canOverride } from "./post-job-override-policy";
 import { joinReasons, previewPostJobRules } from "./post-job-rule-preview";
 
 const jobFieldsSchema = z.object({
-  accountId: z.string().min(1, "Chọn nick"),
-  targetId: z.string().min(1, "Chọn đích đăng"),
+  accountId: z.string().min(1, "Select a nick"),
+  targetId: z.string().min(1, "Select a posting target"),
   scheduledAt: dateTimeInput,
   overrideReason: z.preprocess(
     (value) => (typeof value === "string" && value.trim() === "" ? undefined : value),
-    z.string().min(10, "Lý do ghi đè phải nói rõ vì sao — ít nhất 10 ký tự").optional(),
+    z.string().min(10, "Explain the override reason in at least 10 characters").optional(),
   ),
 });
 
-const fromLibrarySchema = z.object({ contentItemId: z.string().min(1, "Chọn content") });
+const fromLibrarySchema = z.object({ contentItemId: z.string().min(1, "Select content") });
 
 /** Nháp dùng ĐÚNG bộ ô của kho content — vì lát nữa nó thành một bản ghi trong kho thật. */
 const draftSchema = contentItemCreateSchema;
@@ -80,6 +80,14 @@ function toContentSource(input: ContentInput): ContentSource {
 
   const { type, title, body } = input.draft;
   return { draft: { type, title, body, links: input.links } };
+}
+
+function parkedPostingMessage(platform: string): string {
+  return (
+    `${rolloutPlatformLabel(platform)} left the team rollout scope on 02/09/2026, so posting is disabled. ` +
+    "This page is available only for viewing history. Return to the nick vault at /accounts; " +
+    "contact the project owner if this workflow should be reopened."
+  );
 }
 
 /**
@@ -128,9 +136,11 @@ export const createPostJob = guardedAction(async function createPostJob(
     where: { id: job.targetId },
     select: { platform: true, name: true },
   });
-  if (!scheduledTarget) return { ok: false, message: "Không tìm thấy đích đăng." };
+  if (!scheduledTarget) {
+    return { ok: false, message: "Posting target not found. Refresh the page and choose a target again." };
+  }
   if (!isPlatformInRolloutScope(scheduledTarget.platform)) {
-    return { ok: false, message: parkedPlatformMessage(scheduledTarget.platform) };
+    return { ok: false, message: parkedPostingMessage(scheduledTarget.platform) };
   }
 
   const preview = await previewPostJobRules({ ...job, content: toContentSource(content.input) });
@@ -144,8 +154,8 @@ export const createPostJob = guardedAction(async function createPostJob(
     return {
       ok: false,
       message: !evaluation.overridable
-        ? `Không xếp lịch được, luật này không cho ghi đè. ${joinReasons(evaluation)}`
-        : `Bị chặn: ${joinReasons(evaluation)} — nhập lý do ghi đè nếu vẫn muốn xếp lịch.`,
+        ? `Cannot schedule because a blocking rule cannot be overridden. ${joinReasons(evaluation)} Choose another nick, target, or time.`
+        : `Blocked: ${joinReasons(evaluation)} Enter an override reason if you still want to schedule.`,
     };
   }
 
@@ -179,7 +189,7 @@ export const createPostJob = guardedAction(async function createPostJob(
         data: {
           accountId: job.accountId,
           action: AUDIT_ACTIONS.RULE_OVERRIDDEN,
-          detail: `job ${postJob.id} — ${joinReasons(evaluation)} — lý do: ${overrideReason}`.slice(
+          detail: `job ${postJob.id} — ${joinReasons(evaluation)} — reason: ${overrideReason}`.slice(
             0,
             900,
           ),
@@ -197,12 +207,12 @@ export const createPostJob = guardedAction(async function createPostJob(
     revalidatePath("/queue/new");
   }
 
-  const savedNote = savedDraftTitle ? ` Content "${savedDraftTitle}" đã vào kho.` : "";
+  const savedNote = savedDraftTitle ? ` Content "${savedDraftTitle}" was saved to the library.` : "";
   return {
     ok: true,
     message:
       evaluation.level === "BLOCK"
-        ? `Đã xếp lịch bằng cách GHI ĐÈ luật. ${summarizeEvaluation(evaluation)}${savedNote}`
-        : `Đã xếp lịch. ${summarizeEvaluation(evaluation)}${savedNote}`,
+        ? `Scheduled by overriding the rule. ${summarizeEvaluation(evaluation)}${savedNote}`
+        : `Scheduled. ${summarizeEvaluation(evaluation)}${savedNote}`,
   };
 });

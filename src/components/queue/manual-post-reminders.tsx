@@ -34,23 +34,23 @@ function copyButtonsFor(reminder: ManualPostReminder): CopyButton[] {
   if (reminder.targetPlatform === "REDDIT") {
     return [
       {
-        label: "Copy tiêu đề",
+        label: "Copy title",
         text: reminder.contentTitle,
-        doneMessage: "Đã copy tiêu đề. Dán vào ô Title của Reddit.",
+        doneMessage: "Title copied. Paste into Reddit's Title field.",
       },
       {
-        label: "Copy thân bài",
+        label: "Copy post content",
         text: reminder.bodyToCopy,
-        doneMessage: "Đã copy thân bài. Dán vào ô Text của Reddit.",
+        doneMessage: "Post content copied. Paste into Reddit's Text field.",
       },
     ];
   }
 
   return [
     {
-      label: "Copy nội dung",
+      label: "Copy content",
       text: reminder.messageToCopy,
-      doneMessage: "Đã copy nội dung. Dán vào ô đăng bài của group.",
+      doneMessage: "Content copied. Paste it into the group's post field.",
     },
   ];
 }
@@ -64,7 +64,7 @@ function ReminderRow({ reminder }: { reminder: ManualPostReminder }) {
       await navigator.clipboard.writeText(button.text);
       setFeedback({ ok: true, text: button.doneMessage });
     } catch {
-      setFeedback({ ok: false, text: "Trình duyệt không cho copy. Mở content rồi copy tay." });
+      setFeedback({ ok: false, text: "The browser blocked copying. Open the content item and copy it manually." });
     }
   }
 
@@ -76,7 +76,7 @@ function ReminderRow({ reminder }: { reminder: ManualPostReminder }) {
       const body = (await response.json()) as { ok: boolean; message: string };
       setFeedback({ ok: body.ok, text: body.message });
     } catch {
-      setFeedback({ ok: false, text: "Không gọi được API mở profile." });
+      setFeedback({ ok: false, text: "Could not request the browser profile launch. Try again or open it from the nick vault." });
     } finally {
       setBusy(false);
     }
@@ -90,10 +90,10 @@ function ReminderRow({ reminder }: { reminder: ManualPostReminder }) {
         </span>
         <span className={reminder.overdue ? "font-medium text-amber-700 dark:text-amber-400" : ""}>
           {formatDayMonthTime(reminder.scheduledAt)}
-          {reminder.overdue ? " (quá giờ)" : ""}
+          {reminder.overdue ? " (overdue)" : ""}
         </span>
         <span className="font-medium">{reminder.accountUsername}</span>
-        <span className="text-neutral-500">đăng vào</span>
+        <span className="text-neutral-500">post to</span>
         <a href={reminder.targetUrl} target="_blank" rel="noreferrer" className="underline">
           {reminder.targetName}
         </a>
@@ -103,7 +103,7 @@ function ReminderRow({ reminder }: { reminder: ManualPostReminder }) {
       {/* items-start: ô dán link mở ra thì rơi xuống dưới, mấy nút copy đứng nguyên chỗ cũ. */}
       <div className="mt-2 flex flex-wrap items-start gap-1">
         <button type="button" className={BUTTON_CLASS} disabled={busy} onClick={launchProfile}>
-          Mở profile
+          Open profile
         </button>
         {copyButtonsFor(reminder).map((button) => (
           <button

@@ -27,9 +27,11 @@ export const AUTO_POST_INTERACTION_NOTE = "tự ghi khi đánh dấu job đã đ
 
 /** Câu từ chối ứng với trạng thái job đọc được lúc thua cuộc giành chỗ. */
 function refusalFor(status: string): string {
-  if (status === "POSTED") return "Job này đã được đánh dấu đã đăng rồi.";
-  if (status === "PUBLISHING") return "Job này đang được đăng ở nơi khác — chờ nó xong rồi tải lại.";
-  return "Job này đã bỏ qua hoặc đã đánh dấu lỗi — không đánh dấu đã đăng được.";
+  if (status === "POSTED") return "This job is already marked as posted. Refresh the queue to see its current state.";
+  if (status === "PUBLISHING") {
+    return "This job is being published elsewhere. Wait for it to finish, then refresh the queue.";
+  }
+  return "This job was skipped or marked as failed, so it cannot be marked as posted. Return it to pending first.";
 }
 
 /**
@@ -42,7 +44,7 @@ export async function markPostJobPosted(
   fromStatuses: readonly string[] = OPEN_JOB_STATUSES,
 ): Promise<ActionResult> {
   const job = await prisma.postJob.findUnique({ where: { id: jobId } });
-  if (!job) return { ok: false, message: "Không tìm thấy job." };
+  if (!job) return { ok: false, message: "Job not found. Refresh the queue and try again." };
 
   // Kiểm sớm chỉ để có câu từ chối tử tế cho trường hợp thường gặp — bấm hai lần cách nhau vài
   // giây. Nó KHÔNG phải chỗ bảo đảm đúng đắn: chỗ đó là điều kiện `status` trong `updateMany`
@@ -89,5 +91,8 @@ export async function markPostJobPosted(
     return { ok: false, message: refusalFor(current?.status ?? "POSTED") };
   }
 
-  return { ok: true, message: "Đã ghi nhận bài đăng. Nick khác sẽ bị chặn nếu đụng vào thread này." };
+  return {
+    ok: true,
+    message: "Post recorded. Another nick will be blocked if it touches this thread.",
+  };
 }

@@ -87,7 +87,7 @@ async function seed(): Promise<Seeded> {
       karma: 5000,
       visiblePosts: 0,
       expectedPosts: 0,
-      detail: "Dữ liệu dựng sẵn của test.",
+      detail: "Data for test.",
     },
   });
   const target = await prisma.platformTarget.create({
@@ -102,7 +102,7 @@ async function createPendingJob(seeded: Seeded, title: string, hoursFromNow: num
   const content = await prisma.contentItem.create({
     data: {
       title,
-      body: `Ghi chép ${title}: chuyện dựng backup cho homelab, đủ dài để không bị coi là bài rỗng.`,
+      body: `Draft ${title}: story about backing up the homelab, long enough not to be considered an empty post.`,
       type: "VALUE",
       authorName: "team",
     },
@@ -131,8 +131,8 @@ describe("revertPostJobToPending", () => {
     await clearAll();
   });
 
-  it("gỡ trạng thái ĐÃ ĐĂNG, xóa link và xóa dấu vết đụng thread", async () => {
-    const job = await createPendingJob(seeded, "Bài dán nhầm link", 2);
+  it("remove the POSTED status, delete the link and erase any thread interference traces", async () => {
+    const job = await createPendingJob(seeded, "post with mismatched link", 2);
     expect((await markJobPosted(job.id, POSTED_URL)).ok).toBe(true);
     expect(await prisma.interaction.count()).toBe(1);
 
@@ -149,9 +149,9 @@ describe("revertPostJobToPending", () => {
     expect(reverted?.ruleVerdicts).not.toBeNull();
   });
 
-  it("hai job dán trùng một link: gỡ job này vẫn giữ dấu vết của bài đăng thật", async () => {
-    const real = await createPendingJob(seeded, "Bài đăng thật", 2);
-    const mispasted = await createPendingJob(seeded, "Bài dán nhầm link của bài trên", 26);
+  it("two jobs with the same link pasted: removing this job still keeps the traces of the actual post", async () => {
+    const real = await createPendingJob(seeded, "post that was mistakenly pasted with a mismatched link", 2);
+    const mispasted = await createPendingJob(seeded, "two jobs with the same link pasted: removing this job still keeps the traces of the actual post", 26);
     expect((await markJobPosted(real.id, POSTED_URL)).ok).toBe(true);
     expect((await markJobPosted(mispasted.id, POSTED_URL)).ok).toBe(true);
     expect(await prisma.interaction.count()).toBe(2);
@@ -165,8 +165,8 @@ describe("revertPostJobToPending", () => {
     expect(stillPosted?.postedUrl).toBe(POSTED_URL);
   });
 
-  it("job BỎ QUA cũng trả về được, và không có dấu vết nào để xóa", async () => {
-    const job = await createPendingJob(seeded, "Bài bỏ qua nhầm", 2);
+  it("skipped job also returns successfully, and there are no traces to delete", async () => {
+    const job = await createPendingJob(seeded, "job skipped by mistake", 2);
     await prisma.postJob.update({ where: { id: job.id }, data: { status: "SKIPPED" } });
 
     expect((await revertPostJobToPending(job.id)).ok).toBe(true);
@@ -176,19 +176,19 @@ describe("revertPostJobToPending", () => {
     expect(await prisma.interaction.count()).toBe(0);
   });
 
-  it("từ chối job đang chờ — không có gì để trả về", async () => {
-    const job = await createPendingJob(seeded, "Bài đang chờ", 2);
+  it("reject pending job - there is nothing to return", async () => {
+    const job = await createPendingJob(seeded, "Job is still pending or being blocked — nothing to return.", 2);
 
     const result = await revertPostJobToPending(job.id);
 
     expect(result.ok).toBe(false);
-    expect(result.message).toContain("đang chờ");
+    expect(result.message).toContain("still pending");
   });
 
-  it("job không tồn tại thì báo lỗi chứ không ném ngoại lệ", async () => {
+  it("Job not found — throw error instead of throwing exception.", async () => {
     const result = await revertPostJobToPending("khong-co-that");
 
     expect(result.ok).toBe(false);
-    expect(result.message).toContain("Không tìm thấy job");
+    expect(result.message).toContain("Job not found");
   });
 });

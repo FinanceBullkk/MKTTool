@@ -28,7 +28,7 @@ export interface QueueJob {
 
 function VerdictCell({ job }: { job: QueueJob }) {
   const evaluation = deserializeEvaluation(job.ruleVerdicts);
-  if (!evaluation) return <span className="text-xs text-neutral-400">chưa chấm</span>;
+  if (!evaluation) return <span className="text-xs text-neutral-400">Not evaluated</span>;
 
   const problems = [...evaluation.blocks, ...evaluation.warnings];
 
@@ -44,7 +44,7 @@ function VerdictCell({ job }: { job: QueueJob }) {
       ) : null}
       {job.overrideReason ? (
         <p className="text-xs font-medium text-red-700 dark:text-red-400">
-          Ghi đè: {job.overrideReason}
+          Override reason: {job.overrideReason}
         </p>
       ) : null}
     </div>
@@ -53,7 +53,7 @@ function VerdictCell({ job }: { job: QueueJob }) {
 
 export function QueueJobTable({ jobs }: { jobs: QueueJob[] }) {
   if (jobs.length === 0) {
-    return <EmptyState>Không có job nào khớp bộ lọc.</EmptyState>;
+    return <EmptyState>No jobs match the filter.</EmptyState>;
   }
 
   // Khóa gom nhóm có năm; nhãn hiển thị mới là `28/07`. Dùng chuỗi hiển thị làm khóa
@@ -71,9 +71,9 @@ export function QueueJobTable({ jobs }: { jobs: QueueJob[] }) {
       {[...byDay.entries()].map(([day, { label, jobs: dayJobs }]) => (
         <div key={day}>
           <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-neutral-500">
-            {label} — {dayJobs.length} bài
+            {label} — {dayJobs.length} post{dayJobs.length === 1 ? "" : "s"}
           </h3>
-          <DataTable headers={["Giờ", "Content", "Nick", "Đích", "Trạng thái", "Luật", "Thao tác"]}>
+          <DataTable headers={["Time", "Content", "Nick", "Target", "Status", "Rules", "Actions"]}>
             {dayJobs.map((job) => {
               const status = getJobStatusPresentation(job.status);
               const type = job.contentItem.type as ContentType;
@@ -102,7 +102,7 @@ export function QueueJobTable({ jobs }: { jobs: QueueJob[] }) {
                         rel="noreferrer"
                         className="mt-1 block text-xs underline"
                       >
-                        xem bài
+                        View post
                       </a>
                     ) : null}
                     {job.errorMessage ? (

@@ -38,7 +38,10 @@ export type RecheckOutcome =
  */
 export async function recheckOneJob(job: RecheckableJob): Promise<RecheckOutcome> {
   if (!isOpenJobStatus(job.status)) {
-    return { ok: false, message: "Chỉ kiểm tra lại được job đang chờ hoặc đang bị chặn." };
+    return {
+      ok: false,
+      message: "Only pending or blocked jobs can be rechecked. Refresh the queue and check its status.",
+    };
   }
 
   const preview = await previewPostJobRules({
@@ -112,12 +115,12 @@ export async function recheckJobsMatching(
 export function describeRecheck(result: BatchRecheckResult): string {
   if (result.checked === 0 && result.failed === 0) return "";
 
-  const parts = [`Đã chấm lại ${result.checked} job đang chờ`];
+  const parts = [`Rechecked ${result.checked} pending job${result.checked === 1 ? "" : "s"}`];
   if (result.blocked > 0) {
-    parts.push(`${result.blocked} job chuyển sang BỊ CHẶN — xem lý do ở hàng đợi`);
+    parts.push(`${result.blocked} moved to Blocked; review the reasons in the queue`);
   }
   if (result.failed > 0) {
-    parts.push(`${result.failed} job không chấm được (thiếu nick, đích hoặc content)`);
+    parts.push(`${result.failed} could not be checked because its nick, target, or content is missing`);
   }
 
   return ` ${parts.join(", ")}.`;
