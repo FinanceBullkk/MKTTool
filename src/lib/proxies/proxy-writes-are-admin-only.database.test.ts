@@ -64,7 +64,7 @@ function proxyForm(fields: Record<string, string>): FormData {
 /** Mọi lối ghi phải trả về lời từ chối, không phải ném lỗi trần — xem `guarded-action.ts`. */
 function expectRefused(result: { ok: boolean; message?: string }) {
   expect(result.ok).toBe(false);
-  expect(result.message).toContain("qu\u1ea3n tr\u1ecb vi\u00ean");
+  expect(result.message).toContain("administrator");
 }
 
 beforeEach(async () => {

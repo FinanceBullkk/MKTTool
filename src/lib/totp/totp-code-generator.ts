@@ -56,7 +56,7 @@ export async function generateTotpCode(secret: string, nowMs: number = Date.now(
     code = await totp.generate({ secret: normalized, epoch: epochSeconds });
   } catch (cause) {
     throw new TotpGenerationError(
-      "Không sinh được mã OTP. Kiểm tra lại TOTP secret (phải là chuỗi base32 hợp lệ).",
+      "Could not generate an OTP. Check that the TOTP secret is valid base32, then try again.",
       { cause },
     );
   }

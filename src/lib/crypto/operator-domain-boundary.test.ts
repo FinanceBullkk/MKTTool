@@ -65,8 +65,8 @@ function collectSourceFiles(root: string, relative = ""): string[] {
   return files;
 }
 
-describe("máy chủ không giữ đường mở khóa vùng operator", () => {
-  it("không file nào ngoài test và script gọi loadVaultKey(\"operator\")", () => {
+describe("the server has no path to open the operator key domain", () => {
+  it("allows only tests and scripts to call loadVaultKey(\"operator\")", () => {
     const root = process.cwd();
     const files = [
       ...collectSourceFiles(root, "src"),
@@ -86,7 +86,7 @@ describe("máy chủ không giữ đường mở khóa vùng operator", () => {
    * Không có phép kiểm này thì một lần sửa regex hỏng biến nó thành một bài test luôn xanh —
    * đúng kiểu hỏng tệ nhất của một phép kiểm an toàn.
    */
-  it("mẫu tìm kiếm bắt được các cách gõ khác nhau", () => {
+  it("matches equivalent call formatting", () => {
     expect(FORBIDDEN.test('loadVaultKey("operator")')).toBe(true);
     expect(FORBIDDEN.test("loadVaultKey('operator')")).toBe(true);
     expect(FORBIDDEN.test('loadVaultKey( "operator" )')).toBe(true);
@@ -94,7 +94,7 @@ describe("máy chủ không giữ đường mở khóa vùng operator", () => {
   });
 
   /** Và phải thật sự có file để quét — đường dẫn sai thì danh sách rỗng cũng "đạt". */
-  it("có quét được file thật", () => {
+  it("scans real source files", () => {
     expect(collectSourceFiles(process.cwd(), "src").length).toBeGreaterThan(50);
   });
 });

@@ -141,7 +141,7 @@ describe("another operator's nick", () => {
     );
 
     expect(result.ok).toBe(false);
-    expect(result.message).toContain("người khác phụ trách");
+    expect(result.message).toContain("belongs to another operator");
 
     const after = await prisma.account.findUniqueOrThrow({ where: { id: accountId } });
     expect(decryptAsOperator(after.passwordEnc ?? "")).toBe("mat-khau-cu");
@@ -275,7 +275,7 @@ describe("ownerless nick", () => {
     );
 
     expect(result.ok).toBe(false);
-    expect(result.message).toContain("chưa được phân công");
+    expect(result.message).toContain("has not been assigned to anyone");
   });
 });
 

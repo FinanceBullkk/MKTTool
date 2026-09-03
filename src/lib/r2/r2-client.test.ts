@@ -48,12 +48,12 @@ function fakeFetch(reply: () => Response) {
 }
 
 describe("headObject", () => {
-  it("404 trả null chứ không ném", async () => {
+  it("returns null for 404 instead of throwing", async () => {
     const fetchImpl = fakeFetch(() => respond(404));
     expect(await headObject({ config: CONFIG, key: KEY, fetchImpl })).toBeNull();
   });
 
-  it("đọc dung lượng, mốc ghi và metadata tự đặt", async () => {
+  it("reads size, last-modified time, and custom metadata", async () => {
     const fetchImpl = fakeFetch(() => respond(200, {
         "content-length": "34078720",
         "last-modified": "Thu, 06 Aug 2026 06:36:14 GMT",
@@ -69,7 +69,7 @@ describe("headObject", () => {
     expect(info?.metadata).toEqual({ sha256: "abc123" });
   });
 
-  it("mốc ghi hỏng thì KHÔNG thành Invalid Date", async () => {
+  it("does NOT return Invalid Date for a malformed timestamp", async () => {
     // Một `Invalid Date` đi tiếp tới giao diện sẽ hiện ra "NaN" — màn hình mà người đọc không biết
     // phải tin gì nữa. Thà lệch vài giây.
     const fetchImpl = fakeFetch(() => respond(200, { "last-modified": "not-a-date" }));
@@ -81,7 +81,7 @@ describe("headObject", () => {
   // Bên gọi bỏ cuộc mà request vẫn chạy tiếp là nguồn gốc sự cố 30/08/2026: probe readiness quá
   // hạn ở 450 ms nhưng `HEAD` vẫn sống tới 15 s, và những request mồ côi đó chồng lên nhau đúng
   // lúc R2 đang chậm.
-  it("hủy theo tín hiệu của bên gọi, không chờ hết hạn riêng", async () => {
+  it("uses the caller's abort signal instead of waiting for a separate timeout", async () => {
     const controller = new AbortController();
     const fetchImpl = fakeFetch(() => respond(200));
     await headObject({ config: CONFIG, key: KEY, fetchImpl, signal: controller.signal });
@@ -92,7 +92,7 @@ describe("headObject", () => {
     expect(passed.aborted).toBe(true);
   });
 
-  it("ký bằng SHA-256 của thân RỖNG", async () => {
+  it("signs with the SHA-256 hash of an EMPTY body", async () => {
     // Khai sai băm payload là chữ ký lệch, và R2 chỉ nói "SignatureDoesNotMatch" — câu không chỉ
     // được chỗ sai.
     const fetchImpl = fakeFetch(() => respond(200));
@@ -103,7 +103,7 @@ describe("headObject", () => {
     expect(headers.Authorization).toContain("Credential=AKIAIOSFODNN7EXAMPLE/");
   });
 
-  it("lỗi khác 404 thì ném KÈM thân phản hồi", async () => {
+  it("throws with the response body for errors other than 404", async () => {
     // R2 nêu đích danh mã lỗi trong XML, và `AccessDenied` với `NoSuchBucket` dẫn tới hai việc
     // phải làm khác hẳn nhau. Còn mỗi "HTTP 403" thì không đi sửa được gì.
     const fetchImpl = fakeFetch(() => respond(403, {}, "<Error><Code>AccessDenied</Code></Error>"));
@@ -118,7 +118,7 @@ describe("headObject", () => {
 });
 
 describe("getObject", () => {
-  it("trả luồng đọc được, không phải buffer", async () => {
+  it("returns a readable stream rather than a buffer", async () => {
     const fetchImpl = fakeFetch(() => respond(200, { "content-length": "5" }, "hello"));
     const { body, info } = await getObject({ config: CONFIG, key: KEY, fetchImpl });
 
@@ -126,7 +126,7 @@ describe("getObject", () => {
     expect(await new Response(body).text()).toBe("hello");
   });
 
-  it("mất file giữa chừng thì ném — người gọi đã hỏi HEAD trước rồi", async () => {
+  it("throws when the file disappears after the caller already checked HEAD", async () => {
     const fetchImpl = fakeFetch(() => respond(404));
     await expect(getObject({ config: CONFIG, key: KEY, fetchImpl })).rejects.toThrow(
       R2DownloadError,
@@ -135,12 +135,12 @@ describe("getObject", () => {
 });
 
 describe("putObject", () => {
-  it("metadata được thêm tiền tố và nằm trong danh sách header ĐƯỢC KÝ", async () => {
+  it("prefixes metadata and includes it in the SIGNED header list", async () => {
     const fetchImpl = fakeFetch(() => respond(200));
     await putObject({
       config: CONFIG,
       key: KEY,
-      body: Buffer.from("gói"),
+      body: Buffer.from("package"),
       contentType: "application/zip",
       metadata: { sha256: "deadbeef" },
       fetchImpl,
@@ -152,7 +152,7 @@ describe("putObject", () => {
     expect(headers.Authorization).toContain("x-amz-meta-sha256");
   });
 
-  it("không có metadata thì không sinh header thừa", async () => {
+  it("does not add metadata headers when metadata is absent", async () => {
     const fetchImpl = fakeFetch(() => respond(200));
     await putObject({
       config: CONFIG,
@@ -166,7 +166,7 @@ describe("putObject", () => {
     expect(Object.keys(headers).some((name) => name.startsWith("x-amz-meta-"))).toBe(false);
   });
 
-  it("ký điều kiện không ghi đè cho object bất biến", async () => {
+  it("signs the no-overwrite condition for immutable objects", async () => {
     const fetchImpl = fakeFetch(() => respond(200));
     await putObject({
       config: CONFIG,
@@ -182,7 +182,7 @@ describe("putObject", () => {
     expect(headers.Authorization).toContain("if-none-match");
   });
 
-  it("R2 từ chối thì ném R2UploadError", async () => {
+  it("throws R2UploadError when R2 rejects the request", async () => {
     const fetchImpl = fakeFetch(() => respond(403, {}, "<Code>SignatureDoesNotMatch</Code>"));
 
     await expect(

@@ -28,7 +28,7 @@ afterAll(async () => {
 });
 
 describe("claimScheduledRun", () => {
-  it("giành được lượt đầu tiên và tự tạo hàng", async () => {
+  it("claims the first run and creates the row", async () => {
     expect(await claimScheduledRun({ key: KEY, scheduledFor: SCHEDULED_FOR, now: NOW })).toBe(true);
 
     const row = await readScheduledJobRun(KEY);
@@ -42,14 +42,14 @@ describe("claimScheduledRun", () => {
    * là hai lượt dò chồng nhau — `HealthCheckLock` vẫn đỡ được, nhưng lượt thua sẽ chết lặng lẽ
    * bên trong một tiến trình con có `stdio: "ignore"`, và sổ này sẽ ghi "đã bắn" cho cả hai.
    */
-  it("bản thứ hai của CÙNG mốc hẹn không giành được", async () => {
+  it("rejects a second claim for the SAME scheduled time", async () => {
     await claimScheduledRun({ key: KEY, scheduledFor: SCHEDULED_FOR, now: NOW });
 
     const second = await claimScheduledRun({
       key: KEY,
       scheduledFor: SCHEDULED_FOR,
       now: new Date(NOW.getTime() + 1_000),
-      host: "máy-khác",
+      host: "other-machine",
     });
 
     expect(second).toBe(false);
@@ -57,14 +57,14 @@ describe("claimScheduledRun", () => {
     expect((await readScheduledJobRun(KEY))?.lastRunAt).toEqual(NOW);
   });
 
-  it("hai bản chạy đồng thời thì đúng MỘT bản thắng", async () => {
+  it("allows exactly ONE winner among concurrent instances", async () => {
     const results = await Promise.all(
       Array.from({ length: 5 }, (_, index) =>
         claimScheduledRun({
           key: KEY,
           scheduledFor: SCHEDULED_FOR,
           now: new Date(NOW.getTime() + index),
-          host: `máy-${index}`,
+          host: `machine-${index}`,
         }),
       ),
     );
@@ -72,7 +72,7 @@ describe("claimScheduledRun", () => {
     expect(results.filter(Boolean)).toHaveLength(1);
   });
 
-  it("mốc hẹn của NGÀY HÔM SAU thì giành được, dù hàng đã có", async () => {
+  it("claims the NEXT DAY'S run even when the row already exists", async () => {
     await claimScheduledRun({ key: KEY, scheduledFor: SCHEDULED_FOR, now: NOW });
 
     const tomorrow = new Date(SCHEDULED_FOR.getTime() + 24 * 3_600_000);
@@ -80,9 +80,9 @@ describe("claimScheduledRun", () => {
     expect((await readScheduledJobRun(KEY))?.lastRunAt).toEqual(tomorrow);
   });
 
-  it("giành lại lượt mới xóa `detail` của lượt cũ", async () => {
+  it("clears the previous detail when claiming a new run", async () => {
     await claimScheduledRun({ key: KEY, scheduledFor: SCHEDULED_FOR, now: NOW });
-    await recordScheduledRunOutcome(KEY, "SKIPPED", "chưa có proxy quan sát viên");
+    await recordScheduledRunOutcome(KEY, "SKIPPED", "observer proxy is missing");
 
     const tomorrow = new Date(SCHEDULED_FOR.getTime() + 24 * 3_600_000);
     await claimScheduledRun({ key: KEY, scheduledFor: tomorrow, now: tomorrow });
@@ -93,15 +93,15 @@ describe("claimScheduledRun", () => {
 });
 
 describe("recordScheduledRunOutcome", () => {
-  it("ghi đè kết cục và lý do, giữ nguyên mốc đã giành", async () => {
+  it("updates outcome and detail while preserving the claimed timestamp", async () => {
     await claimScheduledRun({ key: KEY, scheduledFor: SCHEDULED_FOR, now: NOW });
 
-    await recordScheduledRunOutcome(KEY, "LAUNCHED", "Đã bắn lượt dò ở tiến trình 123.");
+    await recordScheduledRunOutcome(KEY, "LAUNCHED", "Started the health check in process 123.");
 
     expect(await readScheduledJobRun(KEY)).toMatchObject({
       lastRunAt: NOW,
       outcome: "LAUNCHED",
-      detail: "Đã bắn lượt dò ở tiến trình 123.",
+      detail: "Started the health check in process 123.",
     });
   });
 });

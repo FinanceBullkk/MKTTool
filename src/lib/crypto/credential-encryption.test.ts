@@ -12,24 +12,24 @@ const KEY = randomBytes(32);
 const OTHER_KEY = randomBytes(32);
 
 describe("credential-encryption", () => {
-  it("mã hóa rồi giải mã trả về đúng chuỗi gốc", () => {
-    const secret = "MatKhau!@#123 với tiếng Việt";
+  it("returns the original string after encryption and decryption", () => {
+    const secret = "Password!@#123 with Unicode café";
     expect(decryptCredential(encryptCredential(secret, KEY), KEY)).toBe(secret);
   });
 
-  it("mã hóa cùng một đầu vào hai lần cho ciphertext khác nhau (IV ngẫu nhiên)", () => {
+  it("produces different ciphertext for the same input because the IV is random", () => {
     const a = encryptCredential("same-input", KEY);
     const b = encryptCredential("same-input", KEY);
     expect(a).not.toBe(b);
     expect(decryptCredential(a, KEY)).toBe(decryptCredential(b, KEY));
   });
 
-  it("sai khóa thì ném CredentialDecryptionError, không trả về rác", () => {
+  it("throws CredentialDecryptionError for the wrong key instead of returning garbage", () => {
     const encoded = encryptCredential("top-secret", KEY);
     expect(() => decryptCredential(encoded, OTHER_KEY)).toThrow(CredentialDecryptionError);
   });
 
-  it("sửa ciphertext thì phát hiện được nhờ auth tag", () => {
+  it("detects modified ciphertext through the authentication tag", () => {
     const encoded = encryptCredential("top-secret", KEY);
     const parts = encoded.split(".");
     const tampered = Buffer.from(parts[3], "base64url");
@@ -38,19 +38,19 @@ describe("credential-encryption", () => {
     expect(() => decryptCredential(parts.join("."), KEY)).toThrow(CredentialDecryptionError);
   });
 
-  it("ciphertext không chứa plaintext dạng trần", () => {
+  it("does not include plaintext inside the ciphertext", () => {
     const encoded = encryptCredential("SuperSecretPassword", KEY);
     expect(encoded).not.toContain("SuperSecretPassword");
   });
 
-  it("từ chối chuỗi sai định dạng", () => {
-    expect(() => decryptCredential("khong-phai-dinh-dang", KEY)).toThrow(
+  it("rejects malformed encrypted values", () => {
+    expect(() => decryptCredential("not-a-valid-format", KEY)).toThrow(
       CredentialDecryptionError,
     );
-    expect(() => decryptCredential("v2.a.b.c", KEY)).toThrow(/Phiên bản mã hóa không hỗ trợ/);
+    expect(() => decryptCredential("v2.a.b.c", KEY)).toThrow(/Unsupported encryption version/);
   });
 
-  it("xử lý chuỗi rỗng và giá trị null cho field không bắt buộc", () => {
+  it("handles empty strings and null for optional fields", () => {
     expect(encryptOptionalCredential(null, KEY)).toBeNull();
     expect(encryptOptionalCredential("", KEY)).toBeNull();
     expect(decryptOptionalCredential(null, KEY)).toBeNull();

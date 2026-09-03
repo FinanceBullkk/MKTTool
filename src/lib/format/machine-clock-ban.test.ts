@@ -63,8 +63,8 @@ function sourceFiles(dir: string): string[] {
   });
 }
 
-describe("cấm đọc giờ theo máy", () => {
-  it("không file nào trong src/ gọi họ hàm ngày giờ theo giờ máy", () => {
+describe("machine-clock reads are banned", () => {
+  it("allows no src/ file to call local-machine date and time methods", () => {
     const viPham: string[] = [];
 
     for (const file of sourceFiles(SRC_DIR)) {
@@ -80,19 +80,19 @@ describe("cấm đọc giờ theo máy", () => {
 
     expect(
       viPham,
-      "Dùng hàm trong vietnamese-date-format.ts thay vì đọc giờ theo máy:\n" + viPham.join("\n"),
+      "Use functions from vietnamese-date-format.ts instead of reading machine-local time:\n" + viPham.join("\n"),
     ).toEqual([]);
   });
 
   // Bản thân phép quét cũng phải chứng minh nó còn bắt được — một regex hỏng thì mãi mãi
   // xanh, và đó là kiểu test tệ nhất: nó dạy người đọc tin vào thứ không còn kiểm gì.
-  it("phép quét thật sự bắt được chuỗi vi phạm", () => {
+  it("detects representative violations", () => {
     expect("date.getHours()").toMatch(BANNED_PATTERN);
     expect("value.toLocaleDateString('vi-VN')").toMatch(BANNED_PATTERN);
     expect("start.setHours(0, 0, 0, 0)").toMatch(BANNED_PATTERN);
   });
 
-  it("phép quét không bắt oan hàm UTC và hàm tên gần giống", () => {
+  it("does not flag UTC methods or similarly named functions", () => {
     expect("date.getUTCHours()").not.toMatch(BANNED_PATTERN);
     expect("date.getTime()").not.toMatch(BANNED_PATTERN);
     expect("buildGetDateRange()").not.toMatch(BANNED_PATTERN);

@@ -24,15 +24,15 @@ export function postgresToolEnv(databaseUrl: string): PostgresToolEnv {
     url = new URL(databaseUrl);
   } catch {
     throw new Error(
-      `DATABASE_URL không phải một URL hợp lệ. Dạng đúng: ` +
-        `postgresql://user:mật_khẩu@localhost:5432/mkttool_dev`,
+      `DATABASE_URL is not a valid URL. Expected format: ` +
+        `postgresql://user:password@localhost:5432/mkttool_dev`,
     );
   }
 
   if (url.protocol !== "postgres:" && url.protocol !== "postgresql:") {
     throw new Error(
-      `DATABASE_URL phải bắt đầu bằng postgresql:// (đang là "${url.protocol}//"). ` +
-        `Bản SQLite cũ dùng "file:" — nếu còn thấy nó thì .env chưa cập nhật.`,
+      `DATABASE_URL must start with postgresql:// (currently "${url.protocol}//"). ` +
+        `The old SQLite version used "file:"; if it is still present, update .env.`,
     );
   }
 
@@ -40,7 +40,7 @@ export function postgresToolEnv(databaseUrl: string): PostgresToolEnv {
   const database = decodeURIComponent(url.pathname.replace(/^\//, ""));
   if (!database) {
     throw new Error(
-      "DATABASE_URL thiếu tên database ở cuối. Ví dụ: .../mkttool_dev chứ không phải .../",
+      "DATABASE_URL is missing the database name. Use .../mkttool_dev, not .../.",
     );
   }
 

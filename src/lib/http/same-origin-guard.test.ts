@@ -15,7 +15,7 @@ function post(options: { origin?: string; host?: string }): Request {
 }
 
 describe("isSameOrigin", () => {
-  it("cho qua khi Origin trùng header Host", () => {
+  it("allows a request when Origin matches the Host header", () => {
     expect(isSameOrigin(post({ origin: "http://localhost:3000", host: "localhost:3000" }))).toBe(
       true,
     );
@@ -23,29 +23,29 @@ describe("isSameOrigin", () => {
 
   // Đây là bug đã sửa: dùng new URL(request.url).host thì Next luôn báo localhost:3000,
   // nên mở app bằng 127.0.0.1 — đúng địa chỉ README hướng dẫn — bị chặn nhầm.
-  it("cho qua khi mở app bằng 127.0.0.1 dù request.url báo localhost", () => {
+  it("allows 127.0.0.1 even when request.url reports localhost", () => {
     expect(isSameOrigin(post({ origin: "http://127.0.0.1:3000", host: "127.0.0.1:3000" }))).toBe(
       true,
     );
   });
 
-  it("chặn trang web khác — đây là đường tấn công thật vì app không có đăng nhập", () => {
-    expect(isSameOrigin(post({ origin: "https://trang-la.com", host: "127.0.0.1:3000" }))).toBe(
+  it("blocks another website", () => {
+    expect(isSameOrigin(post({ origin: "https://other-site.com", host: "127.0.0.1:3000" }))).toBe(
       false,
     );
   });
 
-  it("chặn khi cùng host nhưng khác cổng", () => {
+  it("blocks the same host on a different port", () => {
     expect(isSameOrigin(post({ origin: "http://127.0.0.1:8080", host: "127.0.0.1:3000" }))).toBe(
       false,
     );
   });
 
-  it("thiếu Origin thì chặn — trình duyệt luôn gửi header này cho POST", () => {
+  it("blocks a POST request with no Origin header", () => {
     expect(isSameOrigin(post({ host: "127.0.0.1:3000" }))).toBe(false);
   });
 
-  it("Origin rác không làm hàm ném lỗi", () => {
-    expect(isSameOrigin(post({ origin: "khong-phai-url", host: "127.0.0.1:3000" }))).toBe(false);
+  it("returns false rather than throwing for an invalid Origin", () => {
+    expect(isSameOrigin(post({ origin: "not-a-url", host: "127.0.0.1:3000" }))).toBe(false);
   });
 });

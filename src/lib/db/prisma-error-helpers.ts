@@ -19,6 +19,6 @@ export function isUniqueConstraintError(error: unknown): boolean {
  * sẵn ngay cạnh, và đó là nơi duy nhất giữ được stack trace.
  */
 export function describeUnexpectedDbError(error: unknown, action: string): string {
-  console.error(`[db] lỗi khi ${action}:`, error);
-  return `Lỗi không mong đợi khi ${action}. Chi tiết nằm ở terminal đang chạy npm run dev.`;
+  console.error(`[db] error while ${action}:`, error);
+  return `An unexpected error occurred while ${action}. Details are in the terminal running npm run dev.`;
 }

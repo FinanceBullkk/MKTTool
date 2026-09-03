@@ -33,8 +33,8 @@ afterEach(() => {
   rmSync(thuMuc, { recursive: true, force: true });
 });
 
-describe("readWindowsInstallerRelease — đường đĩa", () => {
-  it("đọc được gói nằm ở đường đã khai", async () => {
+describe("readWindowsInstallerRelease - disk path", () => {
+  it("reads the package from the configured path", async () => {
     const duongDan = path.join(thuMuc, "MKTBrowser-win-x64.exe");
     writeFileSync(duongDan, Buffer.alloc(2048, 7));
     process.env.MKT_BROWSER_INSTALLER_PATH = duongDan;
@@ -51,8 +51,8 @@ describe("readWindowsInstallerRelease — đường đĩa", () => {
     expect(release.metadataComplete).toBe(false);
   });
 
-  it("không có file thì nói ra ĐÃ TÌM Ở ĐÂU, không chỉ nói là không có", async () => {
-    const duongDan = path.join(thuMuc, "khong-ton-tai.exe");
+  it("reports where it looked when the file is missing", async () => {
+    const duongDan = path.join(thuMuc, "missing.exe");
     process.env.MKT_BROWSER_INSTALLER_PATH = duongDan;
 
     const release = await readWindowsInstallerRelease();
@@ -73,26 +73,26 @@ describe("readWindowsInstallerRelease — đường đĩa", () => {
  * lớn hơn thật thì trang bảo "khỏi tải" cho một gói mang cầu nối bị từ chối.
  */
 describe("parseBundledRelayVersion", () => {
-  it("đọc số nguyên dương", () => {
+  it("reads a positive integer", () => {
     expect(parseBundledRelayVersion("15")).toBe(15);
   });
 
-  it("thiếu metadata là CHƯA BIẾT, không phải 0", () => {
+  it("treats missing metadata as unknown instead of zero", () => {
     // Gói 0.3.2 đã nằm trên ngăn trước khi có khoá này, nên nhánh `undefined` là nhánh chạy thật
     // cho tới lần phát hành kế tiếp — không phải nhánh phòng xa.
     expect(parseBundledRelayVersion(undefined)).toBeNull();
   });
 
-  it.each(["", "mười lăm", "15.5", "0", "-13", "1e999", "  "])(
-    "rác không thành số: %j",
+  it.each(["", "fifteen", "15.5", "0", "-13", "1e999", "  "])(
+    "does not convert invalid input into a number: %j",
     (raw) => {
       expect(parseBundledRelayVersion(raw)).toBeNull();
     },
   );
 
-  it("đọc từ đĩa thì không có số nào — và null đó phải là null, không phải undefined lọt lưới", async () => {
+  it("returns an explicit null Relay version for a disk release", async () => {
     const file = path.join(thuMuc, "MKT-Browser-Setup.exe");
-    writeFileSync(file, "giả lập");
+    writeFileSync(file, "mock installer");
     process.env.MKT_BROWSER_INSTALLER_PATH = file;
 
     const release = await readWindowsInstallerRelease();

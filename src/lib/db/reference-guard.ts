@@ -40,6 +40,6 @@ export function blockDeleteWhenReferenced(
     .join(", ");
 
   return {
-    message: `Không xóa được ${subject}: còn ${listed} trỏ tới. ${alternative}`,
+    message: `Cannot delete ${subject}: ${listed} still reference it. ${alternative}`,
   };
 }

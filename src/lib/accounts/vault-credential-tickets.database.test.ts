@@ -241,7 +241,7 @@ describe("rejection paths", () => {
     const result = await requestCredentialTicket(accountId, "password");
 
     expect("ok" in result && result.ok).toBe(false);
-    expect("message" in result && result.message).toContain("người khác phụ trách");
+    expect("message" in result && result.message).toContain("belongs to another operator");
   });
 
   it("fails closed for an unassigned nick and explains the next step", async () => {
@@ -249,7 +249,7 @@ describe("rejection paths", () => {
 
     const result = await requestOtpTicket(accountId);
 
-    expect("message" in result && result.message).toContain("chưa được phân công");
+    expect("message" in result && result.message).toContain("has not been assigned to anyone");
   });
 
   it("explains where to register when no Relay PC is available", async () => {

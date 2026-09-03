@@ -18,21 +18,21 @@ afterEach(() => {
 });
 
 describe("requestProtocol", () => {
-  it("lấy từ x-forwarded-proto khi có", () => {
+  it("reads x-forwarded-proto when present", () => {
     expect(requestProtocol(get({ forwardedProto: "https" }))).toBe("https");
   });
 
   // Một số lớp proxy nối chuỗi: "https,http". Giá trị đầu là giao thức người dùng thật sự dùng.
-  it("lấy giá trị ĐẦU khi header là chuỗi nhiều giá trị", () => {
+  it("uses the FIRST value from a multi-value header", () => {
     expect(requestProtocol(get({ forwardedProto: "https, http" }))).toBe("https");
   });
 
-  it("thiếu header thì production đoán https", () => {
+  it("defaults to https in production when the header is missing", () => {
     vi.stubEnv("NODE_ENV", "production");
     expect(requestProtocol(get())).toBe("https");
   });
 
-  it("thiếu header thì dev đoán http", () => {
+  it("defaults to http in development when the header is missing", () => {
     vi.stubEnv("NODE_ENV", "development");
     expect(requestProtocol(get())).toBe("http");
   });
@@ -43,36 +43,36 @@ describe("appBaseUrl", () => {
    * Đây là lỗi đã sửa, đo trên máy chủ thật 06/08/2026: dùng `request.url` thì địa chỉ quay về
    * thành `https://localhost:3000` — giao thức của Railway ghép với host nội bộ trong container.
    */
-  it("dùng header Host, KHÔNG dùng host trong request.url", () => {
+  it("uses the Host header rather than the host in request.url", () => {
     const request = get({ host: "mkttool-web-production.up.railway.app", forwardedProto: "https" });
     expect(appBaseUrl(request)).toBe("https://mkttool-web-production.up.railway.app");
     expect(appBaseUrl(request)).not.toContain("localhost");
   });
 
-  it("giữ nguyên cổng khi mở dưới máy dev", () => {
+  it("preserves the port in development", () => {
     vi.stubEnv("NODE_ENV", "development");
     expect(appBaseUrl(get({ host: "127.0.0.1:3000" }))).toBe("http://127.0.0.1:3000");
   });
 
-  it("thiếu header Host thì lùi về request.url thay vì ném lỗi", () => {
+  it("falls back to request.url when Host is missing instead of throwing", () => {
     expect(appBaseUrl(get())).toBe("http://localhost:3000/api/facebook/oauth/callback?code=x");
   });
 });
 
 describe("appUrl", () => {
-  it("ghép đường dẫn và tham số vào đúng địa chỉ trình duyệt đang mở", () => {
+  it("joins the path and parameters to the browser-visible address", () => {
     const url = appUrl(
       get({ host: "mkttool-web-production.up.railway.app", forwardedProto: "https" }),
       "/facebook",
-      { connected: 'Đã kết nối "Anh Hao" với 1 Fanpage.' },
+      { connected: 'Connected "Anh Hao" to 1 Facebook Page.' },
     );
 
     expect(url.origin).toBe("https://mkttool-web-production.up.railway.app");
     expect(url.pathname).toBe("/facebook");
-    expect(url.searchParams.get("connected")).toBe('Đã kết nối "Anh Hao" với 1 Fanpage.');
+    expect(url.searchParams.get("connected")).toBe('Connected "Anh Hao" to 1 Facebook Page.');
   });
 
-  it("không có tham số thì ra địa chỉ trần", () => {
+  it("returns the plain address when no parameters are provided", () => {
     vi.stubEnv("NODE_ENV", "development");
     expect(appUrl(get({ host: "localhost:3000" }), "/facebook").toString()).toBe(
       "http://localhost:3000/facebook",

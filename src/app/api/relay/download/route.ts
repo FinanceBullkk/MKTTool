@@ -38,9 +38,9 @@ export const GET = guardedRoute(async function GET(_actor, request: Request) {
       {
         ok: false,
         message:
-          `Máy chủ này chưa có gói cài nào để tải (đã tìm ở ${release.expectedPath}). ` +
-          `Người quản trị dựng bằng "npm run relay:build" trên một máy Windows rồi đẩy lên ` +
-          `bằng "npm run relay:publish".`,
+          `This server has no Relay package available to download (checked ${release.expectedPath}). ` +
+          `An administrator must build it on Windows with "npm run relay:build", then upload it ` +
+          `with "npm run relay:publish".`,
       },
       { status: 404 },
     );

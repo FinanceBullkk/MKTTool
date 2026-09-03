@@ -102,8 +102,8 @@ export async function tickDailyBackup(
     return {
       status: "disabled",
       message: at
-        ? "Sao lưu lên R2 đang tắt (chưa khai biến R2_*)."
-        : `Sao lưu lên R2 đang tắt (chưa khai ${DAILY_BACKUP_ENV}).`,
+        ? "R2 backups are disabled because the R2_* variables are not configured."
+        : `R2 backups are disabled because ${DAILY_BACKUP_ENV} is not configured.`,
     };
   }
 
@@ -126,7 +126,7 @@ export async function tickDailyBackup(
     now,
   });
   if (!claimed) {
-    return { status: "lost-race", message: "Một bản khác của app vừa giành lượt hôm nay." };
+    return { status: "lost-race", message: "Another app instance claimed today's run first." };
   }
 
   // File đệm nằm ở thư mục tạm của hệ điều hành, KHÔNG ở `data/backups/`: chỗ đó là nơi cất bản
@@ -142,8 +142,8 @@ export async function tickDailyBackup(
     // ra đúng thứ nguy hiểm nhất: một bản sao lưu trông như thật. Coi là thất bại.
     if (contents.totalRows === 0) {
       const detail =
-        "Bản dump KHÔNG có hàng dữ liệu nào — không tải lên. Database nguồn đang rỗng, " +
-        "hoặc DATABASE_URL trỏ nhầm chỗ.";
+        "The dump contains NO data rows, so it was not uploaded. The source database is empty, " +
+        "or DATABASE_URL points to the wrong database.";
       await recordScheduledRunOutcome(DAILY_BACKUP_JOB_KEY, "SKIPPED", detail);
       return { status: "failed", message: detail };
     }
@@ -152,12 +152,13 @@ export async function tickDailyBackup(
     await upload({ config, key, body });
 
     const detail =
-      `Đã tải lên R2: ${key} (${Math.round(body.length / 1024)} KB, ` +
-      `${contents.totalRows} hàng trong ${contents.tablesWithRows} bảng).`;
+      `Uploaded to R2: ${key} (${Math.round(body.length / 1024)} KB, ` +
+      `${contents.totalRows} ${contents.totalRows === 1 ? "row" : "rows"} across ` +
+      `${contents.tablesWithRows} ${contents.tablesWithRows === 1 ? "table" : "tables"}).`;
     await recordScheduledRunOutcome(DAILY_BACKUP_JOB_KEY, "LAUNCHED", detail);
     return { status: "uploaded", message: detail };
   } catch (error) {
-    const detail = `Sao lưu hỏng: ${error instanceof Error ? error.message : String(error)}`;
+    const detail = `Backup failed: ${error instanceof Error ? error.message : String(error)}`;
     await recordScheduledRunOutcome(DAILY_BACKUP_JOB_KEY, "SKIPPED", detail);
     return { status: "failed", message: detail };
   } finally {
@@ -214,29 +215,29 @@ export function startDailyBackupScheduler(): { stop: () => void } | null {
     configured = readR2Config(process.env) !== null;
   } catch (error) {
     console.error(
-      `[sao lưu] KHÔNG bật được: ${error instanceof DailyScheduleError ? error.message : error}`,
+      `[backup] Could not start: ${error instanceof DailyScheduleError ? error.message : error}`,
     );
     return null;
   }
 
   if (!at || !configured) {
     console.log(
-      `[sao lưu] Đang tắt. Khai ${DAILY_BACKUP_ENV}="03:00" và bốn biến R2_* để tự sao lưu mỗi ngày.`,
+      `[backup] Disabled. Set ${DAILY_BACKUP_ENV}="03:00" and all four R2_* variables to run daily backups.`,
     );
     return null;
   }
 
   running = true;
-  console.log(`[sao lưu] Bật: ${formatTimeOfDay(at)} mỗi ngày theo ${loadTeamTimezone()}, lên R2.`);
+  console.log(`[backup] Enabled at ${formatTimeOfDay(at)} daily in ${loadTeamTimezone()}, uploading to R2.`);
 
   const tick = async () => {
     try {
       const result = await tickDailyBackup();
       if (result.status !== "too-early" && result.status !== "already-decided") {
-        console.log(`[sao lưu] ${result.message}`);
+        console.log(`[backup] ${result.message}`);
       }
     } catch (error) {
-      console.error("[sao lưu] Nhịp kiểm tra hỏng:", error);
+      console.error("[backup] Scheduler tick failed:", error);
     }
   };
 

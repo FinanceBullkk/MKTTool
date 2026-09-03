@@ -52,8 +52,8 @@ export function evaluateBackupFreshness(
     return {
       kind: "NEVER_RAN",
       message:
-        "Lịch sao lưu đã bật nhưng chưa chạy lượt nào — chưa có bản sao nào nằm ngoài Railway. " +
-        "Bình thường nếu vừa bật; quá một ngày mà vẫn vậy thì bộ lịch không chạy.",
+        "The backup schedule is enabled but has never run, so no backup exists outside Railway. " +
+        "This is normal immediately after enabling it; if it remains this way for more than one day, the scheduler is not running.",
       tone: "amber",
     };
   }
@@ -64,9 +64,8 @@ export function evaluateBackupFreshness(
     return {
       kind: "LAST_FAILED",
       message:
-        `Lượt sao lưu gần nhất KHÔNG thành công${input.lastDetail ? `: ${input.lastDetail}` : "."} ` +
-        `Bộ lịch chỉ thử lại vào ngày mai, nên chừng nào chưa sửa thì mỗi ngày thêm một ngày ` +
-        `không có bản sao mới.`,
+        `The latest backup FAILED${input.lastDetail ? `: ${input.lastDetail}` : "."} ` +
+        `The scheduler retries only tomorrow, so fix the cause now to avoid another day without a new backup.`,
       tone: "red",
     };
   }
@@ -76,8 +75,8 @@ export function evaluateBackupFreshness(
     return {
       kind: "STALE",
       message:
-        `Bản sao lưu mới nhất đã ${days} ngày tuổi, trong khi lịch chạy mỗi ngày. Sổ không ghi ` +
-        `lỗi nào — nghĩa là bộ lịch đang KHÔNG chạy, chứ không phải nó chạy rồi hỏng.`,
+        `The newest backup is ${days} days old even though the schedule runs daily. No failure was recorded, ` +
+        `which means the scheduler is NOT running rather than running and failing. Restart or repair the scheduler.`,
       tone: "red",
     };
   }

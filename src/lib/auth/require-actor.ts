@@ -67,7 +67,7 @@ export async function checkActor(requestHeaders: Headers): Promise<ActorCheck> {
   const session = await getAuth().api.getSession({ headers: requestHeaders });
 
   if (!session?.user?.email) {
-    return { ok: false, needsLogin: true, message: "Chưa đăng nhập." };
+    return { ok: false, needsLogin: true, message: "You are not signed in." };
   }
 
   const { email, id } = session.user;
@@ -80,7 +80,7 @@ export async function checkActor(requestHeaders: Headers): Promise<ActorCheck> {
       ok: false,
       // Đăng nhập lại cũng vô ích, nên đừng đẩy về màn hình đăng nhập rồi để họ quay vòng.
       needsLogin: false,
-      message: `Tài khoản ${email} không còn quyền dùng công cụ này.`,
+      message: `Account ${email} is no longer allowed to use this tool.`,
     };
   }
 
@@ -122,7 +122,7 @@ export async function readActor(): Promise<Actor | null> {
 /** Như `requireActor` nhưng bắt buộc vai trò ADMIN. */
 export async function requireAdmin(
   actor?: Actor,
-  denialMessage = "Việc này chỉ quản trị viên làm được.",
+  denialMessage = "Only an administrator can perform this action.",
 ): Promise<Actor> {
   const currentActor = actor ?? (await requireActor());
 
@@ -154,21 +154,21 @@ export async function requireNickOwner(actor: Actor, accountId: string): Promise
   });
 
   if (!account) {
-    throw new AuthorizationError("Không tìm thấy nick này.", false);
+    throw new AuthorizationError("This nick could not be found.", false);
   }
 
   // Nick chưa phân công thì chỉ ADMIN lấy được bí mật — đã trả về ở trên. Tới đây nghĩa là
   // OPERATOR đang hỏi một nick không có chủ: từ chối. Mặc định đóng, không mặc định mở.
   if (account.ownerId === null) {
     throw new AuthorizationError(
-      `Nick "${account.username}" chưa được phân công cho ai. Nhờ quản trị viên gán chủ trước.`,
+      `Nick "${account.username}" has not been assigned to anyone. Ask an administrator to assign a nick owner first.`,
       false,
     );
   }
 
   if (account.ownerId !== actor.userId) {
     throw new AuthorizationError(
-      `Nick "${account.username}" do người khác phụ trách — chỉ chủ nick lấy được mật khẩu và OTP của nó.`,
+      `Nick "${account.username}" belongs to another operator. Only its owner can read its password and OTP.`,
       false,
     );
   }

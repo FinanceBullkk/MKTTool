@@ -18,7 +18,7 @@ cm2	5.6.7.8
 
 
 COPY public."Account" (id, username) FROM stdin;
-cm9	nick_mot
+cm9	nick_one
 \\.
 
 
@@ -30,7 +30,7 @@ ALTER TABLE ONLY public."Proxy" ADD CONSTRAINT "Proxy_pkey" PRIMARY KEY (id);
 `;
 
 describe("summarizeDumpContents", () => {
-  it("đếm hàng và chỉ tính bảng CÓ dữ liệu", () => {
+  it("counts rows and includes only tables WITH data", () => {
     // Ba khối COPY nhưng chỉ hai bảng có hàng — bảng rỗng không nói gì về nội dung bản sao.
     expect(summarizeDumpContents(DUMP_WITH_DATA)).toEqual({ tablesWithRows: 2, totalRows: 3 });
   });
@@ -39,20 +39,20 @@ describe("summarizeDumpContents", () => {
    * Nhánh cả module sinh ra để bắt: `pg_dump` chạy trên database rỗng vẫn cho ra file .sql hợp
    * lệ, đủ cấu trúc bảng, và mọi phép kiểm khác đều xanh.
    */
-  it("dump của database rỗng ra số 0, chứ không ra lỗi", () => {
+  it("returns zero counts for an empty database dump instead of an error", () => {
     const structureOnly = DUMP_WITH_DATA.replace(/COPY[\s\S]*?\\\.\n/g, "");
 
     expect(summarizeDumpContents(structureOnly)).toEqual({ tablesWithRows: 0, totalRows: 0 });
   });
 
-  it("đọc được file xuống dòng kiểu Windows", () => {
+  it("reads Windows-style line endings", () => {
     expect(summarizeDumpContents(DUMP_WITH_DATA.replace(/\n/g, "\r\n"))).toEqual({
       tablesWithRows: 2,
       totalRows: 3,
     });
   });
 
-  it("chuỗi rỗng ra số 0", () => {
+  it("returns zero counts for an empty string", () => {
     expect(summarizeDumpContents("")).toEqual({ tablesWithRows: 0, totalRows: 0 });
   });
 
@@ -60,11 +60,11 @@ describe("summarizeDumpContents", () => {
    * Dữ liệu có thể chứa chuỗi trông giống câu lệnh SQL — `pg_dump` không đóng khung gì cả, nên
    * chỉ dòng `\.` đứng một mình mới là dấu kết. Đếm nhầm ở đây là báo sai số hàng.
    */
-  it("dòng dữ liệu trông giống SQL vẫn được tính là dữ liệu", () => {
+  it("counts data rows that resemble SQL statements", () => {
     const tricky = [
       "COPY public.\"Content\" (id, body) FROM stdin;",
       "cm1\tCOPY public.\"X\" (a) FROM stdin;",
-      "cm2\tALTER TABLE gì đó",
+      "cm2\tALTER TABLE something",
       "\\.",
       "",
     ].join("\n");

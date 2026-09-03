@@ -29,9 +29,9 @@ function sign(overrides: Partial<Parameters<typeof signRequest>[0]> = {}) {
   return signRequest(
     {
       method: "PUT",
-      path: "/kho/mkttool-prod-20260806.sql",
+      path: "/vault/mkttool-prod-20260806.sql",
       host: "abc123.r2.cloudflarestorage.com",
-      payload: Buffer.from("noi dung ban sao luu"),
+      payload: Buffer.from("backup contents"),
       now: NOW,
       ...overrides,
     },
@@ -46,7 +46,7 @@ function part(headers: Record<string, string>, name: string): string {
 }
 
 describe("amzDate", () => {
-  it("luôn UTC, bỏ dấu phân cách và bỏ mili giây", () => {
+  it("always uses UTC without separators or milliseconds", () => {
     expect(amzDate(NOW)).toBe("20260806T031500Z");
   });
 
@@ -55,14 +55,14 @@ describe("amzDate", () => {
    * thức của AWS, không phải "hôm nay" của nghiệp vụ — trộn hai thứ đó là chữ ký hỏng vào đúng
    * lúc nửa đêm giờ team, kiểu hỏng chỉ xảy ra mỗi ngày một lần trong bảy tiếng.
    */
-  it("cắt ngày theo UTC chứ không theo giờ team", () => {
+  it("uses the UTC date rather than the team-time date", () => {
     // 20:00Z ngày 05/08 = 03:00 sáng 06/08 giờ Việt Nam.
     expect(amzDate(new Date("2026-08-05T20:00:00Z"))).toBe("20260805T200000Z");
   });
 });
 
 describe("signRequest", () => {
-  it("header ký được sắp xếp và viết thường", () => {
+  it("sorts and lowercases signed headers", () => {
     const headers = sign({
       headers: {
         "Content-Type": "application/sql",
@@ -75,11 +75,11 @@ describe("signRequest", () => {
     );
   });
 
-  it("credential scope đúng dạng ngày/vùng/dịch vụ/aws4_request", () => {
+  it("formats credential scope as date/region/service/aws4_request", () => {
     expect(part(sign(), "Credential")).toBe("AKIAIOSFODNN7EXAMPLE/20260806/auto/s3/aws4_request");
   });
 
-  it("tự thêm host và x-amz-date, không tự thêm gì khác", () => {
+  it("adds host and x-amz-date without adding unrelated headers", () => {
     const headers = sign();
 
     expect(headers.host).toBe("abc123.r2.cloudflarestorage.com");
@@ -90,37 +90,37 @@ describe("signRequest", () => {
     expect(part(headers, "SignedHeaders")).toBe("host;x-amz-date");
   });
 
-  it("Authorization đúng dạng AWS đòi — không có dấu phẩy sau tên thuật toán", () => {
+  it("formats Authorization as AWS requires without a comma after the algorithm", () => {
     expect(sign().Authorization).toMatch(
       /^AWS4-HMAC-SHA256 Credential=\S+, SignedHeaders=\S+, Signature=[0-9a-f]{64}$/,
     );
   });
 
   /** Giá trị header bị cắt đầu đuôi và gộp khoảng trắng liên tiếp — quy tắc của AWS. */
-  it("khoảng trắng thừa trong giá trị header không đổi chữ ký", () => {
+  it("ignores extra whitespace in header values when signing", () => {
     const gọn = sign({ headers: { "Content-Type": "application/sql" } });
     const thừa = sign({ headers: { "Content-Type": "  application/sql  " } });
 
     expect(thừa.Authorization).toBe(gọn.Authorization);
   });
 
-  it("tên header viết hoa hay thường cũng ra cùng chữ ký", () => {
+  it("produces the same signature regardless of header-name case", () => {
     const thường = sign({ headers: { "content-type": "application/sql" } });
     const hoa = sign({ headers: { "CONTENT-TYPE": "application/sql" } });
 
     expect(hoa.Authorization).toBe(thường.Authorization);
   });
 
-  it("đổi một byte trong nội dung là đổi chữ ký", () => {
-    const a = sign({ payload: Buffer.from("noi dung ban sao luu") });
-    const b = sign({ payload: Buffer.from("noi dung ban sao luv") });
+  it("changes the signature when one payload byte changes", () => {
+    const a = sign({ payload: Buffer.from("backup contents") });
+    const b = sign({ payload: Buffer.from("backup contentz") });
 
     expect(a.Authorization).not.toBe(b.Authorization);
   });
 
-  it("đổi đường dẫn là đổi chữ ký", () => {
-    expect(sign({ path: "/kho/a.sql" }).Authorization).not.toBe(
-      sign({ path: "/kho/b.sql" }).Authorization,
+  it("changes the signature when the path changes", () => {
+    expect(sign({ path: "/vault/a.sql" }).Authorization).not.toBe(
+      sign({ path: "/vault/b.sql" }).Authorization,
     );
   });
 
@@ -128,7 +128,7 @@ describe("signRequest", () => {
    * Mốc neo DUY NHẤT lấy từ tài liệu AWS: chuỗi băm của nội dung rỗng. Tài liệu in thẳng giá trị
    * này trong ví dụ `CanonicalHeaders`, nên nó là thứ đối chiếu được với bên ngoài.
    */
-  it("băm nội dung rỗng khớp giá trị tài liệu AWS in ra", () => {
+  it("matches the empty-body hash published in AWS documentation", () => {
     expect(createHash("sha256").update(Buffer.alloc(0)).digest("hex")).toBe(
       "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     );
@@ -140,27 +140,27 @@ describe("signRequest", () => {
    * chấp nhận chữ ký hay không. Sửa cách ghép có chủ ý thì cập nhật con số này — nhưng phải kèm
    * một lượt tải lên thật để biết bên kia còn nhận.
    */
-  it("cùng đầu vào luôn ra cùng chữ ký", () => {
+  it("produces the same signature for the same input", () => {
     expect(part(sign(), "Signature")).toBe(part(sign(), "Signature"));
     expect(part(sign(), "Signature")).toHaveLength(64);
   });
 });
 
 describe("encodeObjectKey", () => {
-  it("giữ nguyên dấu gạch chéo giữa các đoạn", () => {
-    expect(encodeObjectKey("mkttool/2026/08/ban-sao.sql")).toBe("mkttool/2026/08/ban-sao.sql");
+  it("preserves slashes between path segments", () => {
+    expect(encodeObjectKey("mkttool/2026/08/backup.sql")).toBe("mkttool/2026/08/backup.sql");
   });
 
-  it("mã hóa khoảng trắng thành %20, không thành dấu cộng", () => {
-    expect(encodeObjectKey("ban sao.sql")).toBe("ban%20sao.sql");
+  it("encodes spaces as %20 rather than plus signs", () => {
+    expect(encodeObjectKey("backup file.sql")).toBe("backup%20file.sql");
   });
 
   /** `encodeURIComponent` bỏ sót đúng năm ký tự này, mà AWS đòi mã hóa cả chúng. */
-  it("mã hóa cả !'()* — chỗ encodeURIComponent bỏ sót", () => {
+  it("encodes !'()* characters omitted by encodeURIComponent", () => {
     expect(encodeObjectKey("a!b'c(d)e*f")).toBe("a%21b%27c%28d%29e%2Af");
   });
 
-  it("chữ cái, số và -._~ giữ nguyên", () => {
+  it("preserves letters, digits, and -._~", () => {
     expect(encodeObjectKey("mkttool-prod_20260806.sql~1")).toBe("mkttool-prod_20260806.sql~1");
   });
 });

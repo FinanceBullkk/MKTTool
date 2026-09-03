@@ -23,7 +23,7 @@ import { dumpDatabaseTo } from "./database-backup";
 
 const SOURCE: BackupSource = {
   kind: "local",
-  databaseUrl: "postgresql://postgres:matkhau@localhost:5432/mkttool_test",
+  databaseUrl: "postgresql://postgres:password@localhost:5432/mkttool_test",
   namePrefix: "mkttool",
 };
 
@@ -47,25 +47,25 @@ function scratchPath(name: string): string {
   return path.join(tmpdir(), `mkttool-test-${Date.now()}-${name}.sql`);
 }
 
-describe("dumpDatabaseTo — trần thời gian", () => {
-  it("pg_dump treo thì hỏng ra lỗi rõ ràng, không treo theo", async () => {
+describe("dumpDatabaseTo timeout", () => {
+  it("fails clearly when pg_dump hangs instead of hanging forever", async () => {
     const child = fakeChild();
     spawnMock.mockReturnValue(child);
 
     // Tiến trình giả không bao giờ phát `close`. Không có trần thì `await` này đứng mãi.
-    await expect(dumpDatabaseTo(scratchPath("treo"), SOURCE, TIMEOUT_MS)).rejects.toThrow(
-      /không xong sau/,
+    await expect(dumpDatabaseTo(scratchPath("hanging"), SOURCE, TIMEOUT_MS)).rejects.toThrow(
+      /did not finish within/,
     );
 
     // SIGTERM trước, để `pg_dump` thật có cơ hội hủy truy vấn đang mở thay vì bị chặt ngang.
     expect(child.kill).toHaveBeenCalledWith("SIGTERM");
   });
 
-  it("đóng bình thường thì hủy hẹn giờ — không có SIGTERM muộn", async () => {
+  it("cancels the timeout after a normal close so no late SIGTERM occurs", async () => {
     const child = fakeChild();
     spawnMock.mockReturnValue(child);
 
-    const done = dumpDatabaseTo(scratchPath("binh-thuong"), SOURCE, TIMEOUT_MS);
+    const done = dumpDatabaseTo(scratchPath("normal"), SOURCE, TIMEOUT_MS);
     child.emit("close", 0);
     await expect(done).resolves.toBeUndefined();
 
@@ -75,11 +75,11 @@ describe("dumpDatabaseTo — trần thời gian", () => {
     expect(child.kill).not.toHaveBeenCalled();
   });
 
-  it("mã thoát khác 0 mang theo stderr của Postgres vào thông báo", async () => {
+  it("includes Postgres stderr when the exit code is nonzero", async () => {
     const child = fakeChild();
     spawnMock.mockReturnValue(child);
 
-    const done = dumpDatabaseTo(scratchPath("ma-loi"), SOURCE, TIMEOUT_MS);
+    const done = dumpDatabaseTo(scratchPath("error-code"), SOURCE, TIMEOUT_MS);
     child.stderr.emit("data", Buffer.from('pg_dump: error: connection to server failed\n'));
     child.emit("close", 1);
 
@@ -87,7 +87,7 @@ describe("dumpDatabaseTo — trần thời gian", () => {
   });
 });
 
-describe("dumpDatabaseTo — pg_dump cũ hơn server", () => {
+describe("dumpDatabaseTo with pg_dump older than the server", () => {
   /**
    * Ca đã xảy ra thật 08/08/2026: Railway lên Postgres 18, máy dev còn client 17, và
    * `npm run db:backup:remote` gãy — đúng bước phải chạy TRƯỚC mỗi lần deploy đổi cấu trúc
@@ -97,11 +97,11 @@ describe("dumpDatabaseTo — pg_dump cũ hơn server", () => {
     "pg_dump: error: aborting because of server version mismatch\n" +
     "pg_dump: detail: server version: 18.4 (Debian 18.4-1.pgdg13+1); pg_dump version: 17.10";
 
-  it("giữ nguyên văn của Postgres và nói thêm phải làm gì", async () => {
+  it("preserves the Postgres message and adds remediation", async () => {
     const child = fakeChild();
     spawnMock.mockReturnValue(child);
 
-    const done = dumpDatabaseTo(scratchPath("lech-ban"), SOURCE, TIMEOUT_MS);
+    const done = dumpDatabaseTo(scratchPath("version-mismatch"), SOURCE, TIMEOUT_MS);
     child.stderr.emit("data", Buffer.from(LOI_LECH_BAN));
     child.emit("close", 1);
 
@@ -113,21 +113,21 @@ describe("dumpDatabaseTo — pg_dump cũ hơn server", () => {
     expect(message).toContain("pg_dump version: 17.10");
     // ...và câu chỉ đường, thứ nguyên văn của Postgres không có.
     expect(message).toContain("PG_DUMP_PATH");
-    expect(message).toMatch(/major ≥ major của server/);
+    expect(message).toMatch(/major version is at least the server major/);
   });
 
-  it("lỗi thường thì KHÔNG bị gắn nhầm câu chỉ đường về phiên bản", async () => {
+  it("does NOT add version remediation to an unrelated failure", async () => {
     // Gợi ý sai chỗ đắt hơn không gợi ý: nó cử người đi cài Postgres mới trong khi thứ hỏng là
     // đường mạng tới database.
     const child = fakeChild();
     spawnMock.mockReturnValue(child);
 
-    const done = dumpDatabaseTo(scratchPath("loi-thuong"), SOURCE, TIMEOUT_MS);
+    const done = dumpDatabaseTo(scratchPath("ordinary-error"), SOURCE, TIMEOUT_MS);
     child.stderr.emit("data", Buffer.from("pg_dump: error: connection to server failed"));
     child.emit("close", 1);
 
     const message = ((await done.catch((e: Error) => e)) as Error).message;
     expect(message).not.toContain("PG_DUMP_PATH");
-    expect(message).toContain("mã 1");
+    expect(message).toContain("code 1");
   });
 });

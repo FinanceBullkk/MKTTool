@@ -68,13 +68,13 @@ describe("backupObjectKey", () => {
    * Gom theo tháng của **giờ team**. 20:00Z ngày 31/07 đã là 03:00 sáng 01/08 ở Việt Nam — lấy
    * tháng theo UTC thì bản sao đầu tháng rơi nhầm vào thư mục tháng trước, mỗi tháng một lần.
    */
-  it("gom theo năm-tháng của giờ team, không phải giờ UTC", () => {
+  it("groups by year and month in team time rather than UTC", () => {
     expect(backupObjectKey(new Date("2026-07-31T20:00:00Z"))).toBe(
       "mkttool/2026-08/mkttool-prod-20260801-030000.sql",
     );
   });
 
-  it("tên file xếp theo tên là xếp theo thời gian", () => {
+  it("sorts filenames chronologically when sorted lexically", () => {
     const sớm = backupObjectKey(new Date("2026-08-05T20:00:00Z"));
     const muộn = backupObjectKey(new Date("2026-08-06T20:00:00Z"));
 
@@ -83,7 +83,7 @@ describe("backupObjectKey", () => {
 });
 
 describe("tickDailyBackup", () => {
-  it("thiếu giờ hẹn thì tắt, không đụng sổ", async () => {
+  it("stays disabled without a scheduled time and does not touch the ledger", async () => {
     const r = recorder();
     const result = await tickDailyBackup({ now: AFTER, env: R2, ...r });
 
@@ -91,7 +91,7 @@ describe("tickDailyBackup", () => {
     expect(await readScheduledJobRun(DAILY_BACKUP_JOB_KEY)).toBeNull();
   });
 
-  it("có giờ hẹn nhưng chưa khai R2 thì cũng tắt", async () => {
+  it("stays disabled when a scheduled time exists but R2 is not configured", async () => {
     const r = recorder();
     const result = await tickDailyBackup({ now: AFTER, env: AT_3, ...r });
 
@@ -99,15 +99,15 @@ describe("tickDailyBackup", () => {
     expect(r.uploads).toHaveLength(0);
   });
 
-  it("khai R2 thiếu một nửa thì NÉM LỖI, không lặng lẽ coi như tắt", async () => {
+  it("THROWS for a partial R2 configuration instead of silently disabling", async () => {
     const nửa = { ...AT_3, [R2_ENV.accountId]: "acc123", [R2_ENV.bucket]: "b" };
 
     await expect(tickDailyBackup({ now: AFTER, env: nửa, ...recorder() })).rejects.toThrow(
-      /khai thiếu/,
+      /configuration is missing/,
     );
   });
 
-  it("chưa tới giờ thì chưa đụng sổ", async () => {
+  it("does not touch the ledger before the scheduled time", async () => {
     const r = recorder();
     const result = await tickDailyBackup({ now: BEFORE, env: ENV, ...r });
 
@@ -115,7 +115,7 @@ describe("tickDailyBackup", () => {
     expect(await readScheduledJobRun(DAILY_BACKUP_JOB_KEY)).toBeNull();
   });
 
-  it("tới giờ thì tải lên và ghi sổ", async () => {
+  it("uploads and records the run when due", async () => {
     const r = recorder();
     const result = await tickDailyBackup({ now: AFTER, env: ENV, ...r });
 
@@ -125,10 +125,10 @@ describe("tickDailyBackup", () => {
 
     const row = await readScheduledJobRun(DAILY_BACKUP_JOB_KEY);
     expect(row?.outcome).toBe("LAUNCHED");
-    expect(row?.detail).toContain("1 hàng trong 1 bảng");
+    expect(row?.detail).toContain("1 row across 1 table");
   });
 
-  it("nhịp kế tiếp trong ngày KHÔNG tải lại", async () => {
+  it("does NOT upload again on the next tick that day", async () => {
     const r = recorder();
     await tickDailyBackup({ now: AFTER, env: ENV, ...r });
     const second = await tickDailyBackup({
@@ -146,24 +146,24 @@ describe("tickDailyBackup", () => {
    * hợp lệ đủ cấu trúc bảng — tải nó lên rồi ghi "thành công" là dựng ra đúng thứ nguy hiểm nhất
    * mà tính năng này sinh ra để tránh: một bản sao lưu trông như thật.
    */
-  it("dump rỗng thì KHÔNG tải lên, và ghi sổ là thất bại", async () => {
+  it("does NOT upload an empty dump and records failure", async () => {
     const r = recorder(DUMP_EMPTY);
     const result = await tickDailyBackup({ now: AFTER, env: ENV, ...r });
 
     expect(result.status).toBe("failed");
     expect(r.uploads).toHaveLength(0);
     expect((await readScheduledJobRun(DAILY_BACKUP_JOB_KEY))?.detail).toContain(
-      "KHÔNG có hàng dữ liệu",
+      "NO data rows",
     );
   });
 
-  it("R2 từ chối thì ghi nguyên câu lỗi vào sổ, không nuốt", async () => {
+  it("records the full R2 rejection instead of swallowing it", async () => {
     const r = recorder();
     const result = await tickDailyBackup({
       now: AFTER,
       env: ENV,
       dumpTo: r.dumpTo,
-      upload: () => Promise.reject(new Error("R2 từ chối (HTTP 403): SignatureDoesNotMatch")),
+      upload: () => Promise.reject(new Error("R2 rejected the request (HTTP 403): SignatureDoesNotMatch")),
     });
 
     expect(result.status).toBe("failed");
@@ -173,13 +173,13 @@ describe("tickDailyBackup", () => {
   });
 
   /** Hỏng rồi thì tới mai mới thử lại — thứ đang chặn cần một người sửa. */
-  it("hỏng rồi thì nhịp sau không thử lại trong ngày", async () => {
+  it("does not retry later the same day after a failure", async () => {
     const r = recorder();
     await tickDailyBackup({
       now: AFTER,
       env: ENV,
       dumpTo: r.dumpTo,
-      upload: () => Promise.reject(new Error("mạng hỏng")),
+      upload: () => Promise.reject(new Error("network failure")),
     });
 
     const next = await tickDailyBackup({
@@ -194,14 +194,14 @@ describe("tickDailyBackup", () => {
 });
 
 describe("readDailyBackupSchedule", () => {
-  it("nói rõ tắt vì thiếu giờ hẹn hay thiếu R2", async () => {
+  it("distinguishes a missing scheduled time from missing R2 configuration", async () => {
     expect(await readDailyBackupSchedule(R2)).toMatchObject({ at: null, r2Configured: true });
     expect(await readDailyBackupSchedule(AT_3)).toMatchObject({ r2Configured: false });
   });
 
-  it("khai R2 thiếu một nửa thì trả câu lỗi để hiện lên màn hình", async () => {
+  it("returns a displayable error for a partial R2 configuration", async () => {
     const view = await readDailyBackupSchedule({ ...AT_3, [R2_ENV.bucket]: "b" });
 
-    expect(view.configError).toContain("khai thiếu");
+    expect(view.configError).toContain("configuration is missing");
   });
 });

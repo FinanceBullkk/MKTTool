@@ -73,13 +73,13 @@ export const POST = guardedRoute(async function POST(
   });
 
   if (!account) {
-    return NextResponse.json({ ok: false, message: "Không tìm thấy nick." }, { status: 404 });
+    return NextResponse.json({ ok: false, message: "Nick not found." }, { status: 404 });
   }
 
   const presentation = getStatusPresentation(account.status);
   if (!presentation.canLaunch) {
     return NextResponse.json(
-      { ok: false, message: `Không mở được: ${presentation.hint}` },
+      { ok: false, message: `Cannot open the browser profile: ${presentation.hint}` },
       { status: 409 },
     );
   }
@@ -90,18 +90,18 @@ export const POST = guardedRoute(async function POST(
   const { proxy, antidetectProfileId } = account;
   if (!antidetectProfileId || !proxy) {
     const thieu = [
-      !antidetectProfileId ? "id profile antidetect" : null,
+      !antidetectProfileId ? "browser profile ID" : null,
       !proxy ? "proxy" : null,
     ].filter(Boolean);
     return NextResponse.json(
       {
         ok: false,
         message:
-          `Nick này chưa có ${thieu.join(" và ")}, nên không mở profile được. ` +
+          `This nick has no ${thieu.join(" and ")}, so its browser profile cannot be opened. ` +
           (account.platform === "FACEBOOK"
-            ? "Nick Facebook không bắt buộc có hai thứ đó vì Fanpage đăng bằng Graph API — " +
-              "muốn mở trình duyệt riêng cho nó thì vào trang chi tiết nick khai thêm."
-            : "Vào trang chi tiết nick khai đủ rồi thử lại."),
+            ? "Facebook nicks do not require those fields because Facebook Pages publish through the Graph API. " +
+              "To open a dedicated browser for this nick, add the missing fields on its detail page."
+            : "Add the missing fields on the nick detail page, then try again."),
       },
       { status: 409 },
     );
@@ -123,8 +123,8 @@ export const POST = guardedRoute(async function POST(
       {
         ok: false,
         message:
-          `Không mở profile — proxy "${proxy.label}" không dùng được: ${liveness.message} ` +
-          `Sửa hoặc đổi proxy ở /proxies rồi thử lại.`,
+          `Cannot open the browser profile because proxy "${proxy.label}" is unusable: ${liveness.message} ` +
+          `Fix or replace the proxy under /proxies, then try again.`,
       },
       { status: 409 },
     );
@@ -152,7 +152,7 @@ export const POST = guardedRoute(async function POST(
     const message =
       error instanceof ProxyConfigError
         ? error.message
-        : "Không dựng được vé mở profile. Xem log của máy chủ.";
+        : "Could not create the browser-profile launch ticket. Check the server logs.";
     return NextResponse.json({ ok: false, message }, { status: 502 });
   }
 
@@ -162,7 +162,7 @@ export const POST = guardedRoute(async function POST(
       data: {
         accountId: id,
         action: AUDIT_ACTIONS.PROFILE_LAUNCH_TICKET_ISSUED,
-        detail: `proxy ${proxy.label} (${proxy.protocol}) → máy "${recipient.recipient.deviceName}"`,
+        detail: `proxy ${proxy.label} (${proxy.protocol}) -> Relay PC "${recipient.recipient.deviceName}"`,
         actorId: actor.userId,
       },
     }),
@@ -175,8 +175,8 @@ export const POST = guardedRoute(async function POST(
     // Câu này nói về phép đo của MÁY CHỦ. Việc đẩy proxy và mở profile có thành công không thì
     // cầu nối trả lời, và giao diện ghép hai câu lại.
     message:
-      `Proxy ${proxy.label} (${proxy.country}, ${proxy.protocol}) kiểm xong: ${liveness.message} ` +
-      `Lưu ý phép đo đó là của công cụ chứ không phải của trình duyệt — lần đầu mở một profile ` +
-      `mới vẫn nên vào ipinfo.io đối chiếu lại.`,
+      `Proxy ${proxy.label} (${proxy.country}, ${proxy.protocol}) passed the tool check: ${liveness.message} ` +
+      `This measurement came from the tool, not the browser. The first time you open a new browser ` +
+      `profile, confirm its address again at ipinfo.io.`,
   });
 });

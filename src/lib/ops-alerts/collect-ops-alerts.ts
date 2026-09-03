@@ -45,12 +45,12 @@ export function vaultKeySeparationAlert(env: VaultKeyEnv = process.env): OpsAler
       tone: "red",
       audience: "ADMIN",
       message:
-        `${VAULT_KEY_ENV.server} và ${VAULT_KEY_ENV.operator} đang là CÙNG một khóa, nên kho ` +
-        `chưa thật sự tách hai vùng: chiếm được máy chủ là mở được mật khẩu, email và TOTP của ` +
-        `mọi nick.`,
+        `${VAULT_KEY_ENV.server} and ${VAULT_KEY_ENV.operator} use the SAME key, so the vault ` +
+        `domains are not actually separated. A server compromise would expose every nick password, ` +
+        `email address, and TOTP secret.`,
       action:
-        `Tách khóa: \`npm run vault:rekey -- --domain=operator --new-key=<hex>\`, rồi gỡ hẳn ` +
-        `${VAULT_KEY_ENV.operator} khỏi môi trường máy chủ và khởi động lại.`,
+        `Separate the keys with \`npm run vault:rekey -- --domain=operator --new-key=<hex>\`, then remove ` +
+        `${VAULT_KEY_ENV.operator} from the server environment and restart.`,
     };
   }
 
@@ -60,11 +60,11 @@ export function vaultKeySeparationAlert(env: VaultKeyEnv = process.env): OpsAler
       tone: "amber",
       audience: "ADMIN",
       message:
-        `Máy chủ vẫn đang giữ ${VAULT_KEY_ENV.operator}. Hai vùng đã tách thật, nhưng bản sao ` +
-        `khóa mở bí mật nick còn nằm trên máy chủ — chỗ duy nhất giữ nó phải là máy operator.`,
+        `The server still holds ${VAULT_KEY_ENV.operator}. The domains are separated, but a copy ` +
+        `of the key that opens nick secrets remains on the server; only operator machines should hold it.`,
       action:
-        `Gỡ ${VAULT_KEY_ENV.operator} khỏi môi trường máy chủ rồi khởi động lại. App chạy đủ ` +
-        `chức năng khi không có biến này — có test canh điều đó.`,
+        `Remove ${VAULT_KEY_ENV.operator} from the server environment, then restart. The app remains ` +
+        `fully functional without this variable, as covered by tests.`,
     };
   }
 
@@ -93,9 +93,9 @@ export function dailyHealthCheckScheduleAlert(env: VaultKeyEnv = process.env): O
       tone: "red",
       audience: "ADMIN",
       message:
-        `${DAILY_HEALTH_CHECK_ENV} khai sai nên lịch dò shadowban KHÔNG chạy: ` +
+        `${DAILY_HEALTH_CHECK_ENV} is invalid, so scheduled health checks are NOT running: ` +
         `${error instanceof Error ? error.message : String(error)}`,
-      action: `Sửa ${DAILY_HEALTH_CHECK_ENV} về dạng HH:MM (ví dụ "09:00") rồi khởi động lại.`,
+      action: `Set ${DAILY_HEALTH_CHECK_ENV} to HH:MM format, such as "09:00", then restart.`,
     };
   }
 
@@ -104,11 +104,10 @@ export function dailyHealthCheckScheduleAlert(env: VaultKeyEnv = process.env): O
     tone: "amber",
     audience: "ADMIN",
     message:
-      "Lịch dò shadowban đang tắt, nên bộ dò chỉ chạy khi có người bấm nút. Bảng sức khỏe vẫn " +
-      "trông đầy đủ trong lúc số liệu mỗi ngày một cũ đi — shadowban thì im lặng.",
+      "Scheduled health checks are disabled, so checks run only when someone starts one manually. " +
+      "The health table can look complete while its data becomes older each day, and shadowbans are silent.",
     action:
-      `Khai ${DAILY_HEALTH_CHECK_ENV}="09:00" (giờ team) trong biến môi trường của máy chủ rồi ` +
-      `khởi động lại.`,
+      `Set ${DAILY_HEALTH_CHECK_ENV}="09:00" in team time in the server environment, then restart.`,
   };
 }
 
@@ -132,10 +131,10 @@ export function backupNotConfiguredAlert(env: VaultKeyEnv = process.env): OpsAle
       id: "backup-config-invalid",
       tone: "red",
       audience: "ADMIN",
-      message: `Sao lưu ra ngoài Railway KHÔNG chạy vì cấu hình sai: ${
+      message: `Backups outside Railway are NOT running because the configuration is invalid: ${
         error instanceof Error ? error.message : String(error)
       }`,
-      action: `Sửa ${DAILY_BACKUP_ENV} và bốn biến R2_* trong biến môi trường máy chủ rồi khởi động lại.`,
+      action: `Correct ${DAILY_BACKUP_ENV} and all four R2_* variables in the server environment, then restart.`,
     };
   }
 
@@ -144,11 +143,11 @@ export function backupNotConfiguredAlert(env: VaultKeyEnv = process.env): OpsAle
     tone: "amber",
     audience: "ADMIN",
     message:
-      "Chưa có bản sao lưu nào nằm ngoài Railway. Sao lưu ổ đĩa của Railway (nếu có) nằm cùng " +
-      "tài khoản với bản gốc, nên nó không chống được ca mất cả dự án hoặc mất tài khoản.",
+      "No backup exists outside Railway. Railway disk backups, if enabled, share the same account " +
+      "as the original and do not protect against losing the entire project or account.",
     action:
-      `Khai ${DAILY_BACKUP_ENV}="03:00" cùng bốn biến R2_* trong biến môi trường của máy chủ. ` +
-      `Bucket phải để riêng tư, và token R2 chỉ nên có quyền ghi vào đúng bucket đó.`,
+      `Set ${DAILY_BACKUP_ENV}="03:00" and all four R2_* variables in the server environment. ` +
+      `Keep the bucket private and limit the R2 token to writing only to that bucket.`,
   };
 }
 

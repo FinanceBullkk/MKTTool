@@ -53,7 +53,7 @@ export function readDailyScheduleTime(raw: string | undefined): TimeOfDay | null
   const match = TIME_PATTERN.exec(raw.trim());
   if (!match) {
     throw new DailyScheduleError(
-      `Giờ hẹn "${raw}" không đúng dạng. Phải là HH:MM theo giờ team, ví dụ "09:00".`,
+      `Scheduled time "${raw}" has the wrong format. Use HH:MM in team time, such as "09:00".`,
     );
   }
 
@@ -61,7 +61,7 @@ export function readDailyScheduleTime(raw: string | undefined): TimeOfDay | null
   const minute = Number(match[2]);
   if (hour > 23 || minute > 59) {
     throw new DailyScheduleError(
-      `Giờ hẹn "${raw}" nằm ngoài một ngày. Giờ 0-23, phút 0-59, ví dụ "09:00".`,
+      `Scheduled time "${raw}" is outside a valid day. Use hours 0-23 and minutes 0-59, such as "09:00".`,
     );
   }
 
@@ -123,7 +123,7 @@ export function decideDailyRun(input: {
     return {
       verdict: "TOO_EARLY",
       scheduledFor,
-      reason: `Chưa tới giờ hẹn ${clock} của hôm nay.`,
+      reason: `Today's scheduled time of ${clock} has not arrived yet.`,
     };
   }
 
@@ -131,13 +131,13 @@ export function decideDailyRun(input: {
     return {
       verdict: "ALREADY_DECIDED",
       scheduledFor,
-      reason: `Lượt ${clock} của hôm nay đã quyết xong rồi.`,
+      reason: `Today's ${clock} run has already been decided.`,
     };
   }
 
   return {
     verdict: "RUN",
     scheduledFor,
-    reason: `Tới lượt ${clock} của hôm nay.`,
+    reason: `Today's ${clock} run is due.`,
   };
 }

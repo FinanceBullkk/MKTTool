@@ -76,14 +76,14 @@ export function parseEncryptedCredential(encoded: string): EncryptedParts {
 
   if (parts.length !== 4) {
     throw new CredentialDecryptionError(
-      `Chuỗi mã hóa sai định dạng: cần 4 phần, nhận được ${parts.length}.`,
+      `Invalid encrypted value: expected 4 parts, received ${parts.length}.`,
     );
   }
 
   const [version, ivPart, authTagPart, ciphertextPart] = parts;
 
   if (version !== FORMAT_VERSION) {
-    throw new CredentialDecryptionError(`Phiên bản mã hóa không hỗ trợ: "${version}".`);
+    throw new CredentialDecryptionError(`Unsupported encryption version: "${version}".`);
   }
 
   const iv = Buffer.from(ivPart, "base64url");
@@ -91,15 +91,15 @@ export function parseEncryptedCredential(encoded: string): EncryptedParts {
   const ciphertext = Buffer.from(ciphertextPart, "base64url");
 
   if (iv.length !== IV_BYTES) {
-    throw new CredentialDecryptionError(`IV phải dài ${IV_BYTES} byte, nhận được ${iv.length}.`);
+    throw new CredentialDecryptionError(`The IV must be ${IV_BYTES} bytes; received ${iv.length}.`);
   }
   if (authTag.length !== AUTH_TAG_BYTES) {
     throw new CredentialDecryptionError(
-      `Auth tag phải dài ${AUTH_TAG_BYTES} byte, nhận được ${authTag.length}.`,
+      `The authentication tag must be ${AUTH_TAG_BYTES} bytes; received ${authTag.length}.`,
     );
   }
   if (ciphertext.length === 0) {
-    throw new CredentialDecryptionError("Chuỗi mã hóa rỗng phần nội dung.");
+    throw new CredentialDecryptionError("The encrypted value has an empty ciphertext section.");
   }
 
   return { iv, authTag, ciphertext };
@@ -133,7 +133,7 @@ export function decryptCredential(encoded: string, key: Buffer): string {
   } catch (cause) {
     // Không lộ chi tiết kỹ thuật ra ngoài — sai khóa và dữ liệu hỏng cho cùng một thông báo.
     throw new CredentialDecryptionError(
-      "Giải mã thất bại: sai khóa vùng hoặc dữ liệu đã bị sửa đổi.",
+      "Decryption failed because the domain key is wrong or the encrypted data was modified.",
       { cause },
     );
   }

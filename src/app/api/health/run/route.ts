@@ -29,12 +29,12 @@ export const POST = guardedRoute(async function POST(_actor, request: Request) {
   try {
     ({ accountId } = await request.json());
   } catch {
-    return NextResponse.json({ ok: false, message: "Body không phải JSON." }, { status: 400 });
+    return NextResponse.json({ ok: false, message: "The request body is not valid JSON." }, { status: 400 });
   }
 
   if (typeof accountId !== "string" || accountId.trim() === "") {
     return NextResponse.json(
-      { ok: false, message: "Thiếu accountId. Dò cả đàn thì chạy `npm run health`." },
+      { ok: false, message: "accountId is required. Run `npm run health` to check the full fleet." },
       { status: 400 },
     );
   }
@@ -47,7 +47,7 @@ export const POST = guardedRoute(async function POST(_actor, request: Request) {
 
     if (result.checked === 0) {
       return NextResponse.json(
-        { ok: false, message: "Không tìm thấy nick Reddit này, hoặc nick đã ở trạng thái Đã chết." },
+        { ok: false, message: "This Reddit nick was not found or is already marked Dead." },
         { status: 404 },
       );
     }
@@ -57,13 +57,13 @@ export const POST = guardedRoute(async function POST(_actor, request: Request) {
 
     // Số bài tự gán đứng TRƯỚC kết luận sức khỏe trong câu trả lời: người vừa đăng xong bấm
     // nút này để hỏi "bài của tôi vào kho chưa", không phải để hỏi karma bao nhiêu.
-    const linked = result.autoLinked > 0 ? `Đã tự gán link cho ${result.autoLinked} bài. ` : "";
+    const linked = result.autoLinked > 0 ? `Automatically linked ${result.autoLinked} post${result.autoLinked === 1 ? "" : "s"}. ` : "";
 
     // Bài lạ mà không gán được vì thiếu dữ liệu trong HTML là dấu hiệu Reddit đổi giao diện.
     // Nuốt nó đi thì người dùng chỉ thấy "bấm nút không có gì xảy ra".
     const blind =
       result.unlinkable > 0
-        ? ` ${result.unlinkable} bài lạ không tự gán được vì HTML thiếu link/tên sub — báo cho dev.`
+        ? ` ${result.unlinkable} untracked post${result.unlinkable === 1 ? "" : "s"} could not be linked because the HTML omitted the post URL or subreddit name. Report this to a developer.`
         : "";
 
     return NextResponse.json({
@@ -71,8 +71,8 @@ export const POST = guardedRoute(async function POST(_actor, request: Request) {
       verdict,
       autoLinked: result.autoLinked,
       message: changed
-        ? `${linked}Kết quả: ${verdict}. Trạng thái nick đã đổi sang ${changed.to} — bộ luật sẽ chặn mọi job của nó.${blind}`
-        : `${linked}Kết quả: ${verdict}.${blind}`,
+        ? `${linked}Result: ${verdict}. The nick status changed to ${changed.to}, so posting rules will block all of its jobs.${blind}`
+        : `${linked}Result: ${verdict}.${blind}`,
     });
   } catch (error) {
     // Bận là chuyện bình thường, không phải hỏng — 409 để giao diện nói "chờ chút" thay vì
@@ -84,7 +84,7 @@ export const POST = guardedRoute(async function POST(_actor, request: Request) {
     const message =
       error instanceof HealthCheckSetupError || error instanceof ObserverSessionError
         ? error.message
-        : "Lỗi không xác định khi dò sức khỏe nick.";
+        : "An unknown error occurred while checking nick health. Check the server logs.";
     return NextResponse.json({ ok: false, message }, { status: 502 });
   }
 });

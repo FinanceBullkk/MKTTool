@@ -49,12 +49,15 @@ export const POST = guardedRoute(async function POST(_actor, request: Request) {
   try {
     payload = await request.json();
   } catch {
-    return NextResponse.json({ ok: false, message: "Body không phải JSON." }, { status: 400 });
+    return NextResponse.json({ ok: false, message: "The request body is not valid JSON." }, { status: 400 });
   }
 
   const parsed = requestSchema.safeParse(payload);
   if (!parsed.success) {
-    return NextResponse.json({ ok: false, message: "Thiếu content, nick, đích hoặc giờ đăng." }, { status: 400 });
+    return NextResponse.json(
+      { ok: false, message: "Content, nick, posting target, and scheduled time are required." },
+      { status: 400 },
+    );
   }
 
   const result = await previewPostJobRules(parsed.data);

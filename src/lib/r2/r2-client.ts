@@ -168,11 +168,11 @@ export async function putObject(options: {
     });
   } catch (cause) {
     throw new R2UploadError(
-      `Không gọi được R2: ${cause instanceof Error ? cause.message : String(cause)}`,
+      `Could not reach R2: ${cause instanceof Error ? cause.message : String(cause)}`,
     );
   }
 
-  if (!response.ok) throw new R2UploadError(`R2 từ chối (${await describeFailure(response)})`);
+  if (!response.ok) throw new R2UploadError(`R2 rejected the request (${await describeFailure(response)})`);
 }
 
 function readObjectInfo(response: Response): R2ObjectInfo {
@@ -244,12 +244,12 @@ export async function headObject(options: {
     });
   } catch (cause) {
     throw new R2DownloadError(
-      `Không gọi được R2: ${cause instanceof Error ? cause.message : String(cause)}`,
+      `Could not reach R2: ${cause instanceof Error ? cause.message : String(cause)}`,
     );
   }
 
   if (response.status === 404) return null;
-  if (!response.ok) throw new R2DownloadError(`R2 từ chối (${await describeFailure(response)})`);
+  if (!response.ok) throw new R2DownloadError(`R2 rejected the request (${await describeFailure(response)})`);
 
   return readObjectInfo(response);
 }
@@ -298,12 +298,12 @@ export async function getObject(options: {
     });
   } catch (cause) {
     throw new R2DownloadError(
-      `Không gọi được R2: ${cause instanceof Error ? cause.message : String(cause)}`,
+      `Could not reach R2: ${cause instanceof Error ? cause.message : String(cause)}`,
     );
   }
 
-  if (!response.ok) throw new R2DownloadError(`R2 từ chối (${await describeFailure(response)})`);
-  if (!response.body) throw new R2DownloadError("R2 trả phản hồi rỗng.");
+  if (!response.ok) throw new R2DownloadError(`R2 rejected the request (${await describeFailure(response)})`);
+  if (!response.body) throw new R2DownloadError("R2 returned an empty response. Retry the request.");
 
   return { info: readObjectInfo(response), body: response.body };
 }

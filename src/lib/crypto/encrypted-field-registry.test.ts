@@ -51,19 +51,19 @@ function sortByName<T extends { name: string }>(fields: readonly T[]): T[] {
   return [...fields].sort((a, b) => a.name.localeCompare(b.name));
 }
 
-describe("registry cột mã hóa", () => {
+describe("encrypted field registry", () => {
   const fromSchema = readEncryptedFieldsFromSchema();
 
-  it("schema thật sự có cột mã hóa (bài test không tự vô hiệu hóa)", () => {
+  it("finds encrypted columns in the schema so the test cannot disable itself", () => {
     expect(fromSchema.size).toBeGreaterThan(0);
   });
 
-  it("khai đúng danh sách model có cột mã hóa", () => {
+  it("declares the exact models that contain encrypted columns", () => {
     const declared = ENCRYPTED_MODELS.map((entry) => entry.model).sort();
     expect(declared).toEqual([...fromSchema.keys()].sort());
   });
 
-  it("khai đủ mọi cột của từng model — thiếu một cột là xoay khóa làm hỏng cột đó", () => {
+  it("declares every encrypted column because a missing column breaks key rotation", () => {
     for (const entry of ENCRYPTED_MODELS) {
       const declared = sortByName(entry.fields).map((field) => field.name);
       const inSchema = sortByName(fromSchema.get(entry.model) ?? []).map((field) => field.name);
@@ -71,16 +71,16 @@ describe("registry cột mã hóa", () => {
     }
   });
 
-  it("mọi cột trong schema đều mang dấu vùng khóa — chia vùng là quyết định phải nghĩ", () => {
+  it("requires every schema column to declare its key domain", () => {
     const unmarked = [...fromSchema.entries()].flatMap(([model, fields]) =>
       fields.filter((field) => !field.domain).map((field) => `${model}.${field.name}`),
     );
-    expect(unmarked, "thiếu `// vault:server` hoặc `// vault:operator` trong schema.prisma").toEqual(
+    expect(unmarked, "missing `// vault:server` or `// vault:operator` in schema.prisma").toEqual(
       [],
     );
   });
 
-  it("vùng khóa khai trong registry khớp với dấu trong schema", () => {
+  it("matches registry key domains to schema markers", () => {
     for (const entry of ENCRYPTED_MODELS) {
       const inSchema = new Map(
         (fromSchema.get(entry.model) ?? []).map((field) => [field.name, field.domain]),
@@ -91,12 +91,12 @@ describe("registry cột mã hóa", () => {
     }
   });
 
-  it("credential của nick nằm trọn trong vùng operator — máy chủ không mở được cái nào", () => {
+  it("keeps every nick credential in the operator domain so the server cannot open them", () => {
     const account = ENCRYPTED_MODELS.find((entry) => entry.model === "Account");
     expect(account?.fields.every((field) => field.domain === "operator")).toBe(true);
   });
 
-  it("đếm tổng số cột khớp với schema, và tách theo vùng thì cộng lại đủ", () => {
+  it("matches the schema field count and partitions the total by domain", () => {
     const total = [...fromSchema.values()].reduce((sum, fields) => sum + fields.length, 0);
     expect(countEncryptedFields()).toBe(total);
     expect(countEncryptedFields("server") + countEncryptedFields("operator")).toBe(total);

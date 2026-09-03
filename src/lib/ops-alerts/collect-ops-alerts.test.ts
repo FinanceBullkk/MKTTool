@@ -17,40 +17,40 @@ function env(server?: string, operator?: string): Partial<Record<string, string>
 }
 
 describe("vaultKeySeparationAlert", () => {
-  it("im lặng khi máy chủ chỉ có khóa vùng server — đó là đích của GĐ3", () => {
+  it("stays silent when the server holds only the server-domain key", () => {
     expect(vaultKeySeparationAlert(env(KEY_A))).toBeNull();
   });
 
-  it("báo ĐỎ khi hai vùng dùng chung một khóa", () => {
+  it("returns a RED alert when both domains share one key", () => {
     const alert = vaultKeySeparationAlert(env(KEY_A, KEY_A));
 
     expect(alert?.id).toBe("vault-key-shared");
     expect(alert?.tone).toBe("red");
     // Câu phải nói ra hậu quả, không chỉ nói ra hiện tượng "hai biến giống nhau".
-    expect(alert?.message).toContain("chưa thật sự tách");
+    expect(alert?.message).toContain("not actually separated");
     expect(alert?.action).toContain("vault:rekey");
   });
 
-  it("so khóa không phân biệt hoa thường và khoảng trắng thừa", () => {
+  it("compares keys without case or surrounding whitespace", () => {
     // Cùng một khóa dán vào hai chỗ với cách viết khác nhau vẫn là CÙNG một khóa. Bỏ sót ca
     // này là bỏ sót đúng lúc cảnh báo cần kêu nhất.
     expect(vaultKeySeparationAlert(env(` ${KEY_A.toUpperCase()} `, KEY_A))?.tone).toBe("red");
   });
 
-  it("báo VÀNG khi đã tách khóa nhưng máy chủ còn giữ khóa vùng operator", () => {
+  it("returns an AMBER alert when the server still holds the separated operator key", () => {
     const alert = vaultKeySeparationAlert(env(KEY_A, KEY_B));
 
     expect(alert?.id).toBe("vault-key-operator-on-server");
     expect(alert?.tone).toBe("amber");
-    expect(alert?.action).toContain("Gỡ VAULT_KEY_OPERATOR");
+    expect(alert?.action).toContain("Remove VAULT_KEY_OPERATOR");
   });
 
-  it("KHÔNG báo khi thiếu khóa vùng server — chỗ đó đã hỏng ồn ào bằng lỗi", () => {
+  it("does NOT alert when the server-domain key is missing because that already fails loudly", () => {
     expect(vaultKeySeparationAlert(env(undefined, KEY_B))).toBeNull();
     expect(vaultKeySeparationAlert(env())).toBeNull();
   });
 
-  it("chuỗi rỗng tính là chưa đặt, không tính là hai khóa bằng nhau", () => {
+  it("treats empty strings as unset rather than equal keys", () => {
     expect(vaultKeySeparationAlert(env("   ", "   "))).toBeNull();
   });
 });
@@ -61,16 +61,16 @@ describe("dailyHealthCheckScheduleAlert", () => {
     ...(at === undefined ? {} : { HEALTH_CHECK_DAILY_AT: at }),
   });
 
-  it("im lặng ở máy dev — máy dev cố ý không bật lịch", () => {
+  it("stays silent in development where the schedule is intentionally disabled", () => {
     expect(dailyHealthCheckScheduleAlert({})).toBeNull();
     expect(dailyHealthCheckScheduleAlert({ NODE_ENV: "development" })).toBeNull();
   });
 
-  it("im lặng khi lịch đã bật", () => {
+  it("stays silent when the schedule is enabled", () => {
     expect(dailyHealthCheckScheduleAlert(prod("09:00"))).toBeNull();
   });
 
-  it("báo VÀNG khi máy chủ chạy mà chưa bật lịch", () => {
+  it("returns an AMBER alert when production runs without the schedule", () => {
     const alert = dailyHealthCheckScheduleAlert(prod());
 
     expect(alert?.id).toBe("health-check-schedule-off");
@@ -83,7 +83,7 @@ describe("dailyHealthCheckScheduleAlert", () => {
    * Khai sai nặng hơn chưa khai: người gõ `9h00` vào biến này ĐANG TIN là lịch đã bật, nên câu
    * cảnh báo phải nói ra đúng chỗ sai chứ không chỉ nói "chưa bật".
    */
-  it("báo ĐỎ khi khai sai dạng, kèm chỗ sai", () => {
+  it("returns a RED alert for invalid format and includes the bad value", () => {
     const alert = dailyHealthCheckScheduleAlert(prod("9h00"));
 
     expect(alert?.id).toBe("health-check-schedule-invalid");
@@ -93,23 +93,23 @@ describe("dailyHealthCheckScheduleAlert", () => {
 });
 
 describe("collectOpsAlerts", () => {
-  it("OPERATOR không thấy cảnh báo chỉ ADMIN sửa được", () => {
+  it("hides administrator-only alerts from operators", () => {
     expect(collectOpsAlerts("OPERATOR", env(KEY_A, KEY_A))).toEqual([]);
   });
 
-  it("ADMIN thấy cảnh báo cấu hình", () => {
+  it("shows configuration alerts to administrators", () => {
     const alerts = collectOpsAlerts("ADMIN", env(KEY_A, KEY_A));
 
     expect(alerts).toHaveLength(1);
     expect(alerts[0].id).toBe("vault-key-shared");
   });
 
-  it("không ai thấy gì khi cấu hình đã đúng đích", () => {
+  it("shows no alerts when configuration matches the target posture", () => {
     expect(collectOpsAlerts("ADMIN", env(KEY_A))).toEqual([]);
     expect(collectOpsAlerts("OPERATOR", env(KEY_A))).toEqual([]);
   });
 
-  it("mỗi mục có id, câu mô tả và việc phải làm — không mục nào thiếu đường đi tiếp", () => {
+  it("gives every alert an id, explanation, and next action", () => {
     for (const alert of collectOpsAlerts("ADMIN", env(KEY_A, KEY_B))) {
       expect(alert.id).not.toBe("");
       expect(alert.message.length).toBeGreaterThan(0);

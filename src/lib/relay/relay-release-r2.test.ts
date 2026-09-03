@@ -58,7 +58,7 @@ describe("readRelayReleaseR2Config", () => {
     // rằng máy chủ đang phục vụ gói từ R2 trong khi nó không hề.
     expect(() =>
       readRelayReleaseR2Config({ [RELAY_RELEASE_R2_ENV.bucket]: "mkttool-relay" }),
-    ).toThrow(/khai thi\u1ebfu/);
+    ).toThrow(/is missing/);
   });
 
   it("uses dedicated variables instead of borrowing backup-bucket variables", () => {

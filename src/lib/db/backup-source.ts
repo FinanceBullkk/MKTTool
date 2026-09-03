@@ -51,7 +51,7 @@ export function resolveBackupSource(
     const databaseUrl = env.DATABASE_URL?.trim();
     if (!databaseUrl) {
       throw new BackupSourceError(
-        "Thiếu DATABASE_URL. Sao chép .env.example thành .env rồi điền giá trị.",
+        "DATABASE_URL is missing. Copy .env.example to .env, then add the value.",
       );
     }
     return { kind, databaseUrl, namePrefix: "mkttool" };
@@ -60,11 +60,11 @@ export function resolveBackupSource(
   const databaseUrl = env[REMOTE_DATABASE_URL_ENV]?.trim();
   if (!databaseUrl) {
     throw new BackupSourceError(
-      `Thiếu ${REMOTE_DATABASE_URL_ENV}, nên không biết hút bản sao từ đâu.\n` +
-        `Lấy chuỗi nối của Postgres trên Railway (biến DATABASE_PUBLIC_URL của dịch vụ Postgres), ` +
-        `thêm "?sslmode=require", rồi khai vào .env của MÁY BẠN:\n` +
+      `Missing ${REMOTE_DATABASE_URL_ENV}, so the backup source is unknown.\n` +
+        `Copy the Railway Postgres connection string (the Postgres service's DATABASE_PUBLIC_URL), ` +
+        `append "?sslmode=require", then add it to .env on YOUR MACHINE:\n` +
         `  ${REMOTE_DATABASE_URL_ENV}="postgresql://…?sslmode=require"\n` +
-        `Đừng khai biến này trên chính máy chủ — ở đó database đã là DATABASE_URL rồi.`,
+        `Do not set this variable on the server itself; DATABASE_URL already identifies that database there.`,
     );
   }
 
@@ -80,11 +80,11 @@ export function resolveBackupSource(
 export function describeDatabaseTarget(databaseUrl: string): string {
   try {
     const url = new URL(databaseUrl);
-    const database = decodeURIComponent(url.pathname.replace(/^\//, "")) || "(không rõ tên)";
+    const database = decodeURIComponent(url.pathname.replace(/^\//, "")) || "(unknown name)";
     return `${url.hostname}:${url.port || "5432"}/${database}`;
   } catch {
     // Không parse được thì `postgresToolEnv` sẽ ném lỗi kèm hướng dẫn ngay sau đó. Ở đây chỉ cần
     // đừng làm hỏng dòng thông báo, và tuyệt đối đừng in nguyên URL — nó có mật khẩu.
-    return "(URL không đọc được)";
+    return "(unreadable URL)";
   }
 }

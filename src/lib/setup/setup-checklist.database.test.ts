@@ -15,7 +15,7 @@ const rolloutScopeBefore = process.env.ROLLOUT_PLATFORMS;
 async function stateOf(id: string) {
   const { handoff } = await loadSetupChecklist();
   const step = handoff.steps.find((entry) => entry.id === id);
-  if (!step) throw new Error(`Không có bước "${id}"`);
+  if (!step) throw new Error(`Step "${id}" was not found`);
   return step;
 }
 
@@ -38,10 +38,10 @@ async function seedNick(fields: { username: string; ownerId?: string; deviceId?:
     data: {
       platform: "REDDIT",
       username: fields.username,
-      passwordEnc: encryptCredential("mat-khau", loadVaultKey("operator")),
+      passwordEnc: encryptCredential("password", loadVaultKey("operator")),
       emailAddress: `${fields.username}@example.test`,
-      emailPasswordEnc: encryptCredential("mat-khau-email", loadVaultKey("operator")),
-      voice: "điềm đạm",
+      emailPasswordEnc: encryptCredential("email-password", loadVaultKey("operator")),
+      voice: "calm",
       contentAngle: "self-hosting",
       proxyId: proxy.id,
       antidetectProfileId: `profile-${fields.username}`,
@@ -71,8 +71,8 @@ afterAll(async () => {
   await prisma.$disconnect();
 });
 
-describe("kho rỗng", () => {
-  it("mọi bước đều chưa làm, và bước tiếp theo là cài cầu nối", async () => {
+describe("empty vault", () => {
+  it("keeps every step incomplete and makes Relay installation the next step", async () => {
     const checklist = await loadSetupChecklist();
 
     expect(checklist.handoff.doneCount).toBe(0);
@@ -84,7 +84,7 @@ describe("kho rỗng", () => {
     expect(checklist.posting.inRolloutScope).toBe(false);
   });
 
-  it("mỗi bước đều nói được VÌ SAO và đi được tới đâu", async () => {
+  it("gives every step a reason and a destination", async () => {
     const checklist = await loadSetupChecklist();
     const steps = [...checklist.handoff.steps, ...checklist.posting.steps];
 
@@ -96,10 +96,10 @@ describe("kho rỗng", () => {
   });
 });
 
-describe("bước xong dần theo kho", () => {
-  it("thêm máy rồi thì bước tiếp theo nhảy sang proxy", async () => {
+describe("steps complete as vault state changes", () => {
+  it("moves the next step to proxies after adding a Relay PC", async () => {
     await prisma.user.create({
-      data: { id: HA_ID, name: "Hà", email: "ha@mkttool.local", updatedAt: new Date() },
+      data: { id: HA_ID, name: "Ha", email: "ha@mkttool.local", updatedAt: new Date() },
     });
     await prisma.relayDevice.create({
       data: { name: "Laptop Dell", userId: HA_ID, publicKey: "a".repeat(64) },
@@ -111,13 +111,13 @@ describe("bước xong dần theo kho", () => {
     expect(checklist.handoff.nextStepId).toBe("proxies");
   });
 
-  it("máy đã thu hồi KHÔNG tính là đã cài", async () => {
+  it("does not count a revoked Relay PC as installed", async () => {
     await prisma.user.create({
-      data: { id: HA_ID, name: "Hà", email: "ha@mkttool.local", updatedAt: new Date() },
+      data: { id: HA_ID, name: "Ha", email: "ha@mkttool.local", updatedAt: new Date() },
     });
     await prisma.relayDevice.create({
       data: {
-        name: "Laptop mất",
+        name: "Lost laptop",
         userId: HA_ID,
         publicKey: "b".repeat(64),
         revokedAt: new Date(),
@@ -127,7 +127,7 @@ describe("bước xong dần theo kho", () => {
     expect((await stateOf("relay")).state).toBe("todo");
   });
 
-  it("proxy quan sát viên tắt KHÔNG tính là đã có", async () => {
+  it("does not count an inactive observer proxy as available", async () => {
     await prisma.observerProxy.create({
       data: {
         label: "Observer1",
@@ -144,10 +144,10 @@ describe("bước xong dần theo kho", () => {
   });
 });
 
-describe("ranh giới bàn giao và posting", () => {
-  it("bàn giao hoàn tất dù chưa có target, content hoặc job", async () => {
+describe("handoff and posting boundary", () => {
+  it("completes handoff without a posting target, content item, or job", async () => {
     await prisma.user.create({
-      data: { id: HA_ID, name: "Hà", email: "ha@mkttool.local", updatedAt: new Date() },
+      data: { id: HA_ID, name: "Ha", email: "ha@mkttool.local", updatedAt: new Date() },
     });
     const device = await prisma.relayDevice.create({
       data: { name: "Laptop Dell", userId: HA_ID, publicKey: "f".repeat(64) },
@@ -173,7 +173,7 @@ describe("ranh giới bàn giao và posting", () => {
     expect(checklist.posting.doneCount).toBe(0);
   });
 
-  it("chỉ hiện nhánh posting khi ít nhất một nền tảng được mở lại", async () => {
+  it("shows the posting branch only when at least one platform is reopened", async () => {
     expect((await loadSetupChecklist()).posting.inRolloutScope).toBe(false);
 
     process.env.ROLLOUT_PLATFORMS = "FACEBOOK_PAGE";
@@ -181,14 +181,14 @@ describe("ranh giới bàn giao và posting", () => {
   });
 });
 
-describe("bước phân công cụm", () => {
+describe("cluster assignment step", () => {
   beforeEach(async () => {
     await prisma.user.create({
-      data: { id: HA_ID, name: "Hà", email: "ha@mkttool.local", updatedAt: new Date() },
+      data: { id: HA_ID, name: "Ha", email: "ha@mkttool.local", updatedAt: new Date() },
     });
   });
 
-  it("nick chưa gán chủ và máy thì bước này chưa xong", async () => {
+  it("remains incomplete when a nick has no owner or Relay PC", async () => {
     await seedNick({ username: "anna" });
 
     const step = await stateOf("clusters");
@@ -196,7 +196,7 @@ describe("bước phân công cụm", () => {
     expect(step.status).toContain("0/1");
   });
 
-  it("gán một nửa thì là ĐANG DỞ, không phải xong", async () => {
+  it("reports partial progress instead of completion when only some nicks are assigned", async () => {
     const device = await prisma.relayDevice.create({
       data: { name: "Laptop Dell", userId: HA_ID, publicKey: "c".repeat(64) },
     });
@@ -208,7 +208,7 @@ describe("bước phân công cụm", () => {
     expect(step.status).toContain("1/2");
   });
 
-  it("gán đủ thì xong", async () => {
+  it("completes when every nick is assigned", async () => {
     const device = await prisma.relayDevice.create({
       data: { name: "Laptop Dell", userId: HA_ID, publicKey: "d".repeat(64) },
     });
@@ -217,10 +217,10 @@ describe("bước phân công cụm", () => {
     expect((await stateOf("clusters")).state).toBe("done");
   });
 
-  it("nick ghim máy đã thu hồi không tính là đã gán", async () => {
+  it("does not count a nick pinned to a revoked Relay PC as assigned", async () => {
     const device = await prisma.relayDevice.create({
       data: {
-        name: "Laptop mất",
+        name: "Lost laptop",
         userId: HA_ID,
         publicKey: "e".repeat(64),
         revokedAt: new Date(),
@@ -233,7 +233,7 @@ describe("bước phân công cụm", () => {
     expect(step.status).toContain("0/1");
   });
 
-  it("nick DEAD không bị đếm — nghỉ rồi thì thiếu gì cũng đúng", async () => {
+  it("does not count DEAD nicks because inactive records need no assignment", async () => {
     const anna = await seedNick({ username: "anna" });
     await prisma.account.update({ where: { id: anna.id }, data: { status: "DEAD" } });
 
