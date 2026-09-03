@@ -15,18 +15,18 @@ import { StatusBadge } from "@/components/ui/page-section";
 function tone(readiness: AccountReadiness): { label: string; className: string } {
   if (readiness.ready) {
     return {
-      label: "Đủ điều kiện cấu hình",
+      label: "Configuration ready",
       className: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400",
     };
   }
   if (readiness.waiting) {
     return {
-      label: "Đang chờ",
+      label: "Waiting",
       className: "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300",
     };
   }
   return {
-    label: "Chưa dùng được",
+    label: "Not ready",
     className: "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300",
   };
 }
@@ -62,8 +62,8 @@ export function AccountReadinessPanel({ readiness }: { readiness: AccountReadine
     <div className={`mb-6 rounded-md border px-4 py-3 text-sm ${boxClass}`}>
       <p className="font-medium">
         {readiness.waiting
-          ? "Cấu hình chưa đủ để thao tác — chỉ cần chờ:"
-          : `Cấu hình chưa đủ — còn ${readiness.blockers.length} việc:`}
+          ? "Setup is complete for now; wait for:"
+          : `Setup is incomplete. Resolve these ${readiness.blockers.length} items:`}
       </p>
       <ul className="mt-2 space-y-1">
         {readiness.blockers.map((blocker) => (

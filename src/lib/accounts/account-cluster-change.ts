@@ -66,15 +66,15 @@ export function describeClusterChange(input: ClusterChangeInput): ClusterChange 
         detail: "gỡ chủ của nick",
       });
       parts.push(
-        "đã gỡ chủ — từ giờ chỉ quản trị viên lấy được mật khẩu và OTP, vì nick không có chủ " +
-          "thì OPERATOR nào cũng bị từ chối",
+        "owner removed — only administrators can read the password and OTP now; all operators " +
+          "are denied while the nick has no owner",
       );
     } else {
       auditActions.push({
         action: AUDIT_ACTIONS.ACCOUNT_OWNER_ASSIGNED,
         detail: `giao nick cho ${ownerEmail}`,
       });
-      parts.push(`đã giao cho ${ownerEmail}`);
+      parts.push(`assigned to ${ownerEmail}`);
     }
   }
 
@@ -85,22 +85,22 @@ export function describeClusterChange(input: ClusterChangeInput): ClusterChange 
         detail: `gỡ ghim khỏi máy "${previousDeviceName}"`,
       });
       parts.push(
-        `đã gỡ ghim khỏi máy "${previousDeviceName}" — chưa ghim máy nào thì không mở profile ` +
-          `và không lấy được bí mật của nick`,
+        `unassigned from Relay PC "${previousDeviceName}" — without an assigned Relay PC, the ` +
+          `browser profile cannot be opened and the nick's secrets cannot be retrieved`,
       );
     } else if (before.deviceId === null) {
       auditActions.push({
         action: AUDIT_ACTIONS.ACCOUNT_DEVICE_PINNED,
         detail: `ghim nick vào máy "${deviceName}"`,
       });
-      parts.push(`đã ghim vào máy "${deviceName}"`);
+      parts.push(`assigned to Relay PC "${deviceName}"`);
     } else {
       auditActions.push({
         action: AUDIT_ACTIONS.ACCOUNT_DEVICE_MOVED,
         detail: `chuyển nick từ máy "${previousDeviceName}" sang máy "${deviceName}"`,
       });
       parts.push(
-        `đã chuyển từ máy "${previousDeviceName}" sang máy "${deviceName}". ${DEVICE_MOVE_WARNING}`,
+        `moved from Relay PC "${previousDeviceName}" to Relay PC "${deviceName}". ${DEVICE_MOVE_WARNING}`,
       );
     }
   }

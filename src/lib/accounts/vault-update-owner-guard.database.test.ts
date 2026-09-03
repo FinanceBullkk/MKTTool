@@ -129,12 +129,12 @@ afterAll(async () => {
   await prisma.$disconnect();
 });
 
-describe("nick của người khác", () => {
+describe("another operator's nick", () => {
   /**
    * Đối xứng với `requestCredentialTicket`. Không có phép kiểm này thì trạng thái là "tôi không đọc
    * được mật khẩu nick của bạn, nhưng tôi ghi đè được nó".
    */
-  it("từ chối ghi đè mật khẩu, và GIỮ NGUYÊN giá trị cũ", async () => {
+  it("rejects a password overwrite and preserves the current value", async () => {
     const result = await updateAccount(
       null,
       await updateForm({ passwordEnc: encryptForOperator("mat-khau-moi") }),
@@ -147,7 +147,7 @@ describe("nick của người khác", () => {
     expect(decryptAsOperator(after.passwordEnc ?? "")).toBe("mat-khau-cu");
   });
 
-  it("từ chối ghi đè mật khẩu email và TOTP secret", async () => {
+  it("rejects email-password and TOTP-secret overwrites", async () => {
     const email = await updateAccount(
       null,
       await updateForm({ emailPasswordEnc: encryptForOperator("moi") }),
@@ -161,7 +161,7 @@ describe("nick của người khác", () => {
     expect(totp.ok).toBe(false);
   });
 
-  it("từ chối đổi proxy và không ghi account hay audit", async () => {
+  it("rejects a proxy change without writing the account or audit log", async () => {
     const before = await prisma.account.findUniqueOrThrow({ where: { id: accountId } });
 
     const result = await updateAccount(
@@ -186,7 +186,7 @@ describe("nick của người khác", () => {
    * Phía còn lại của ranh giới, và là phía dễ siết nhầm: sửa vận hành cho nick của đồng nghiệp
    * là việc chung hằng ngày. Chặn ở đây thì phép kiểm sẽ bị gỡ chứ không được sửa.
    */
-  it("CHO PHÉP sửa phần vận hành — karma, trạng thái", async () => {
+  it("allows operational updates to karma and status", async () => {
     const result = await updateAccount(
       null,
       await updateForm({ karma: "900", status: "CHECKPOINT", quarantineReason: "bị hỏi lại" }),
@@ -198,7 +198,7 @@ describe("nick của người khác", () => {
     expect(after.status).toBe("CHECKPOINT");
   });
 
-  it("CHO PHÉP sửa karma, trạng thái và giọng khi proxy không đổi", async () => {
+  it("allows karma, status, and writing-voice updates when the proxy is unchanged", async () => {
     const result = await updateAccount(
       null,
       await updateForm({
@@ -217,7 +217,7 @@ describe("nick của người khác", () => {
     expect(after.proxyId).toBe(proxyId);
   });
 
-  it("CHO PHÉP đổi browser profile và ghi chiều đổi vào audit", async () => {
+  it("allows a browser profile change and records the before-to-after audit detail", async () => {
     const result = await updateAccount(
       null,
       await updateForm({ antidetectProfileId: "profile-anna-moi" }),
@@ -235,7 +235,7 @@ describe("nick của người khác", () => {
   });
 
   /** Ô bí mật để trống nghĩa là "giữ nguyên" — không phải một lần ghi đè, nên không bị gác. */
-  it("ô bí mật để trống thì không kích hoạt phép gác", async () => {
+  it("does not trigger the secret guard when secret fields are blank", async () => {
     const result = await updateAccount(
       null,
       await updateForm({ passwordEnc: "", emailPasswordEnc: "" }),
@@ -245,12 +245,12 @@ describe("nick của người khác", () => {
   });
 });
 
-describe("nick của chính mình", () => {
+describe("the operator's own nick", () => {
   beforeEach(async () => {
     await prisma.account.update({ where: { id: accountId }, data: { ownerId: OPERATOR_ID } });
   });
 
-  it("ghi đè được mật khẩu", async () => {
+  it("allows a password overwrite", async () => {
     const result = await updateAccount(
       null,
       await updateForm({ passwordEnc: encryptForOperator("mat-khau-moi") }),
@@ -262,13 +262,13 @@ describe("nick của chính mình", () => {
   });
 });
 
-describe("nick chưa có chủ", () => {
+describe("ownerless nick", () => {
   beforeEach(async () => {
     await prisma.account.update({ where: { id: accountId }, data: { ownerId: null } });
   });
 
   /** Mặc định đóng: nick không có chủ thì chỉ ADMIN chạm được bí mật — xem `requireNickOwner`. */
-  it("OPERATOR không ghi đè được bí mật", async () => {
+  it("prevents OPERATOR from overwriting secrets", async () => {
     const result = await updateAccount(
       null,
       await updateForm({ passwordEnc: encryptForOperator("mat-khau-moi") }),
@@ -279,12 +279,12 @@ describe("nick chưa có chủ", () => {
   });
 });
 
-describe("nhật ký đổi trạng thái", () => {
+describe("status-change audit log", () => {
   /**
    * Ép trạng thái KHÔNG bị gác theo chủ nick — chủ nick cũng ép được, nên phép kiểm đó không
    * nhắm đúng chỗ. Thứ giúp được là dấu vết đọc ra chiều đổi.
    */
-  it("ghi cả trạng thái cũ khi trạng thái đổi", async () => {
+  it("records the previous status when status changes", async () => {
     await updateAccount(
       null,
       await updateForm({ status: "SHADOWBANNED", quarantineReason: "mất bài" }),
@@ -299,7 +299,7 @@ describe("nhật ký đổi trạng thái", () => {
     expect(logs.at(-1)?.detail).toContain("SHADOWBANNED → ALIVE");
   });
 
-  it("không nhắc trạng thái cũ khi trạng thái giữ nguyên", async () => {
+  it("does not mention the previous status when status is unchanged", async () => {
     await updateAccount(null, await updateForm({ karma: "777" }));
 
     const log = await prisma.auditLog.findFirstOrThrow({ where: { accountId } });

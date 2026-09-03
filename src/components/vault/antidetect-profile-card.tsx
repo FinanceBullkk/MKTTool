@@ -229,7 +229,10 @@ export function AntidetectProfileCard({
             : undefined,
       });
     } catch {
-      setFeedback({ kind: "error", text: "Không gọi được máy chủ. Tải lại trang rồi thử lại." });
+      setFeedback({
+        kind: "error",
+        text: "The server could not be reached. Reload the page and try again.",
+      });
     } finally {
       setBusy(false);
     }

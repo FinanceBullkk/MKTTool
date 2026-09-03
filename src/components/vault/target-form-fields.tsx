@@ -24,17 +24,17 @@ export function TargetFormFields({ defaults }: { defaults?: TargetDefaults }) {
     <>
       {defaults ? null : (
         <SelectField
-          label="Nền tảng"
+          label="Platform"
           name="platform"
           required
           options={[
             { value: "REDDIT", label: "Reddit (subreddit)" },
             { value: "FACEBOOK_PAGE", label: "Facebook Page" },
-            { value: "FACEBOOK_GROUP", label: "Facebook Group (đăng tay)" },
+            { value: "FACEBOOK_GROUP", label: "Facebook Group (manual posting)" },
           ]}
         />
       )}
-      <Field label="Tên" name="name" required defaultValue={defaults?.name} placeholder="r/selfhosted" />
+      <Field label="Name" name="name" required defaultValue={defaults?.name} placeholder="r/selfhosted" />
       <Field
         label="URL"
         name="url"
@@ -43,42 +43,42 @@ export function TargetFormFields({ defaults }: { defaults?: TargetDefaults }) {
         placeholder="https://www.reddit.com/r/selfhosted/"
       />
       <Field
-        label="Karma tối thiểu"
+        label="Minimum karma"
         name="minKarma"
         type="number"
         defaultValue={defaults?.minKarma ?? 0}
-        hint="Nhiều sub ngách giờ đòi 100-500"
+        hint="Many niche subreddits now require 100-500 karma"
       />
       <Field
-        label="Tuổi nick tối thiểu (ngày)"
+        label="Minimum nick age (days)"
         name="minAccountAgeDays"
         type="number"
         defaultValue={defaults?.minAccountAgeDays ?? 0}
       />
       <Field
-        label="Tỷ lệ promo"
+        label="Promotional ratio"
         name="promoRatio"
         type="number"
         defaultValue={defaults?.promoRatio ?? 9}
-        hint="9 nghĩa là 9 bài hữu ích mới được 1 bài quảng cáo"
+        hint="9 means nine useful posts are required for each promotional post"
       />
       <CheckboxField
-        label="Sub cho phép đăng link"
+        label="Subreddit allows link posts"
         name="allowsLinks"
         defaultChecked={defaults?.allowsLinks ?? true}
       />
       {defaults ? (
         <CheckboxField
-          label="Đang dùng (bỏ tick là ẩn khỏi ô chọn lúc xếp lịch)"
+          label="Active (clear to hide from scheduling)"
           name="active"
           defaultChecked={defaults.active}
         />
       ) : null}
       <Field
-        label="Ghi chú"
+        label="Notes"
         name="notes"
         defaultValue={defaults?.notes ?? undefined}
-        placeholder="Mod hoạt động mạnh, luật riêng…"
+        placeholder="Active moderators, special rules..."
       />
     </>
   );

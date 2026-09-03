@@ -54,17 +54,21 @@ export const createProxy = adminAction(async function createProxy(
     if (!isUniqueConstraintError(error)) {
       return {
         ok: false,
-        message: describeUnexpectedDbError(error, "thêm proxy"),
+        message: describeUnexpectedDbError(error, "add the proxy"),
       };
     }
     return {
       ok: false,
-      message: "Proxy trùng nhãn hoặc trùng host/port/username đã có.",
+      message:
+        "A proxy with this label or host/port/username already exists. Use unique proxy details and try again.",
     };
   }
 
   revalidatePath("/proxies");
-  return { ok: true, message: `Đã thêm proxy "${parsed.data.label}".` };
+  return {
+    ok: true,
+    message: `Proxy "${parsed.data.label}" added. You can now assign it to a nick.`,
+  };
 });
 
 /**
@@ -130,14 +134,14 @@ export const createAccount = guardedAction(async function createAccount(
     if (!isUniqueConstraintError(error)) {
       return {
         ok: false,
-        message: describeUnexpectedDbError(error, "thêm nick"),
+        message: describeUnexpectedDbError(error, "add the nick"),
       };
     }
     return {
       ok: false,
       message:
-        "Không tạo được nick. Kiểm tra: proxy đã gắn nick khác chưa, " +
-        "profile antidetect đã dùng chưa, username đã tồn tại trên nền tảng này chưa.",
+        "The nick could not be created. Check whether its proxy or browser profile belongs to " +
+        "another nick, or whether the username already exists on this platform.",
     };
   }
 
@@ -147,8 +151,8 @@ export const createAccount = guardedAction(async function createAccount(
   return {
     ok: true,
     message:
-      `Đã thêm nick "${parsed.data.username}". Mở trang chi tiết của nó để dựng profile ` +
-      `antidetect — nick chưa có profile thì chưa mở được trình duyệt riêng.`,
+      `Nick "${parsed.data.username}" added. Open its details page to create a browser profile; ` +
+      `the nick cannot open in its own browser until that profile exists.`,
   };
 });
 
@@ -169,15 +173,18 @@ export const createTarget = guardedAction(async function createTarget(
     if (!isUniqueConstraintError(error)) {
       return {
         ok: false,
-        message: describeUnexpectedDbError(error, "thêm đích đăng"),
+        message: describeUnexpectedDbError(error, "add the posting target"),
       };
     }
     return {
       ok: false,
-      message: `Đích "${parsed.data.name}" đã tồn tại trên nền tảng này.`,
+      message: `Posting target "${parsed.data.name}" already exists on this platform. Use the existing target or choose another name.`,
     };
   }
 
   revalidatePath("/targets");
-  return { ok: true, message: `Đã thêm đích "${parsed.data.name}".` };
+  return {
+    ok: true,
+    message: `Posting target "${parsed.data.name}" added. It is now available for scheduling.`,
+  };
 });

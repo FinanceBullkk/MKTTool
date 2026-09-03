@@ -70,14 +70,17 @@ export const requestCreateProfileTicket = guardedAction(async function requestCr
 
   const parsed = fingerprintSchema.safeParse(fingerprint);
   if (!parsed.success) {
-    return { ok: false, message: "Cấu hình profile gửi lên không hợp lệ. Tải lại trang rồi thử lại." };
+    return {
+      ok: false,
+      message: "The browser profile configuration is invalid. Reload the page and try again.",
+    };
   }
 
   const account = await prisma.account.findUnique({
     where: { id: accountId },
     select: { username: true, platform: true, ownerId: true, antidetectProfileId: true, proxy: true },
   });
-  if (!account) return { ok: false, message: "Không tìm thấy nick." };
+  if (!account) return { ok: false, message: "Nick not found. Return to the nick vault and try again." };
 
   // Reject HERE, not only when saving the result, even though `recordCreatedProfile` checks again.
   //
@@ -90,10 +93,10 @@ export const requestCreateProfileTicket = guardedAction(async function requestCr
       ok: false,
       message:
         account.ownerId === null
-          ? `Nick "${account.username}" chưa có người phụ trách. Gán chủ ở thẻ Phân công cụm ` +
-            `trước — profile phải nằm trên máy của chủ nick.`
-          : `Nick "${account.username}" do người khác phụ trách. Profile chỉ tồn tại trên đúng ` +
-            `một máy, nên phải chính họ bấm nút này trên máy của họ.`,
+          ? `Nick "${account.username}" has no owner. Assign one in the Nick assignment card ` +
+            `first; its browser profile must stay on the owner's Relay PC.`
+          : `Nick "${account.username}" belongs to another operator. A browser profile exists on ` +
+            `exactly one Relay PC, so its owner must create it on their own PC.`,
     };
   }
 
@@ -111,8 +114,8 @@ export const requestCreateProfileTicket = guardedAction(async function requestCr
     return {
       ok: false,
       message:
-        "Nick chưa gắn proxy nên chưa biết căn cấu hình profile theo quốc gia nào. Gắn proxy ở thẻ " +
-        '"Sửa nick" trước — profile tạo ra sẽ mang sẵn proxy đó.',
+        "This nick has no proxy, so the browser profile cannot be aligned to a country. Assign a " +
+        'proxy in the "Edit nick" card first; the new browser profile will include that proxy.',
     };
   }
 
@@ -139,7 +142,7 @@ export const requestCreateProfileTicket = guardedAction(async function requestCr
       message:
         error instanceof ProxyConfigError
           ? error.message
-          : "Không dựng được vé tạo profile. Xem log của máy chủ.",
+          : "The browser profile ticket could not be created. Check the server log, then try again.",
     };
   }
 
@@ -177,7 +180,12 @@ export const recordCreatedProfile = guardedAction(async function recordCreatedPr
   input: unknown,
 ): Promise<ActionResult> {
   const parsed = recordSchema.safeParse(input);
-  if (!parsed.success) return { ok: false, message: "Thiếu dữ liệu để ghi profile vừa tạo." };
+  if (!parsed.success) {
+    return {
+      ok: false,
+      message: "The new browser profile details are incomplete. Reload the page and create it again.",
+    };
+  }
 
   const { accountId, profileId, deviceId } = parsed.data;
 
@@ -204,14 +212,14 @@ export const recordCreatedProfile = guardedAction(async function recordCreatedPr
     }),
   ]);
 
-  if (!account) return { ok: false, message: "Không tìm thấy nick." };
+  if (!account) return { ok: false, message: "Nick not found. Return to the nick vault and try again." };
 
   // 2. Máy nhận có phải máy của bạn, và còn dùng được không.
   if (!device || device.revokedAt || device.userId !== actor.userId) {
     return {
       ok: false,
       message:
-        "Máy vừa tạo profile không phải máy của bạn, hoặc đã bị thu hồi. Tải lại trang rồi thử lại.",
+        "The Relay PC that created this browser profile is not yours or has been revoked. Reload the page and try again from your registered Relay PC.",
     };
   }
 
@@ -229,10 +237,10 @@ export const recordCreatedProfile = guardedAction(async function recordCreatedPr
       ok: false,
       message:
         account.ownerId === null
-          ? `Nick "${account.username}" chưa có người phụ trách. Gán chủ ở thẻ Phân công cụm ` +
-            `trước — máy giữ profile phải là máy của chủ nick.`
-          : `Nick "${account.username}" do người khác phụ trách, nên profile của nó phải được tạo ` +
-            `trên máy của người đó. Nhờ chính họ bấm nút này.`,
+          ? `Nick "${account.username}" has no owner. Assign one in the Nick assignment card ` +
+            `first; its browser profile must stay on the owner's Relay PC.`
+          : `Nick "${account.username}" belongs to another operator, so its browser profile must ` +
+            `be created on that operator's Relay PC. Ask its owner to use this button.`,
     };
   }
 
@@ -253,7 +261,10 @@ export const recordCreatedProfile = guardedAction(async function recordCreatedPr
   // không phải một câu từ chối khó hiểu. Trình duyệt gọi lại sau khi mất mạng giữa chừng là
   // chuyện thường, và lúc đó profile đã sinh ra thật rồi.
   if (trung && trung.id !== accountId) {
-    return { ok: false, message: `Profile này đã gắn với nick "${trung.username}".` };
+    return {
+      ok: false,
+      message: `This browser profile already belongs to nick "${trung.username}". Use a different browser profile.`,
+    };
   }
 
   await prisma.$transaction([
@@ -284,7 +295,7 @@ export const recordCreatedProfile = guardedAction(async function recordCreatedPr
   return {
     ok: true,
     message:
-      `Đã gắn profile vào nick "${account.username}" và ghim nick vào máy "${device.name}". ` +
-      `Mở profile rồi đăng nhập nick lần đầu ngay trong đó.`,
+      `Browser profile assigned to nick "${account.username}" on Relay PC "${device.name}". ` +
+      `Open it and complete the nick's first sign-in there.`,
   };
 });

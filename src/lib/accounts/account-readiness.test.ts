@@ -30,26 +30,26 @@ function redditNick(overrides: Partial<ReadinessInput> = {}): ReadinessInput {
 const codesOf = (input: ReadinessInput) =>
   describeAccountReadiness(input).blockers.map((blocker) => blocker.code);
 
-describe("nick Reddit đủ điều kiện", () => {
-  it("không còn chặn nào", () => {
+describe("ready Reddit nick", () => {
+  it("has no blockers", () => {
     const result = describeAccountReadiness(redditNick());
 
     expect(result.ready).toBe(true);
     expect(result.waiting).toBe(false);
     expect(result.blockers).toEqual([]);
-    expect(result.summary).toBe("Sẵn sàng");
+    expect(result.summary).toBe("Ready");
   });
 });
 
-describe("từng điều kiện thiếu một cái", () => {
+describe("individual missing requirements", () => {
   it.each([
-    ["chưa ghi giọng viết", { voice: null }, "NO_VOICE"],
-    ["chưa gắn proxy", { proxy: null }, "NO_PROXY"],
-    ["proxy hỏng", { proxy: { lastCheckVerdict: "DEAD" } }, "PROXY_BROKEN"],
-    ["chưa có profile", { antidetectProfileId: null }, "NO_PROFILE"],
-    ["có profile nhưng chưa đăng nhập lần nào", { firstLoginAt: null }, "NOT_LOGGED_IN"],
-    ["chưa có chủ", { ownerId: null }, "NO_OWNER"],
-    ["chưa ghim máy", { device: null }, "NO_DEVICE"],
+    ["writing voice missing", { voice: null }, "NO_VOICE"],
+    ["proxy not assigned", { proxy: null }, "NO_PROXY"],
+    ["proxy unavailable", { proxy: { lastCheckVerdict: "DEAD" } }, "PROXY_BROKEN"],
+    ["browser profile missing", { antidetectProfileId: null }, "NO_PROFILE"],
+    ["browser profile exists but first sign-in is incomplete", { firstLoginAt: null }, "NOT_LOGGED_IN"],
+    ["nick owner not assigned", { ownerId: null }, "NO_OWNER"],
+    ["Relay PC not assigned", { device: null }, "NO_DEVICE"],
   ] as [string, Partial<ReadinessInput>, string][])("%s", (_name, overrides, code) => {
     const result = describeAccountReadiness(redditNick(overrides));
 
@@ -64,22 +64,22 @@ describe("từng điều kiện thiếu một cái", () => {
    * Chưa có profile thì chưa có chỗ nào để đăng nhập vào — hai dòng cùng lúc là bắt người đọc tự
    * suy ra thứ tự giữa chúng. Đây là lý do hai nhánh nối bằng `else if` chứ không rời nhau.
    */
-  it("chưa có profile thì KHÔNG báo kèm 'chưa đăng nhập'", () => {
+  it("does not add NOT_LOGGED_IN when the browser profile is already missing", () => {
     const codes = codesOf(redditNick({ antidetectProfileId: null, firstLoginAt: null }));
 
     expect(codes).toContain("NO_PROFILE");
     expect(codes).not.toContain("NOT_LOGGED_IN");
   });
 
-  it("proxy 'chưa kiểm lần nào' KHÔNG bị coi là hỏng", () => {
+  it("does not treat an unchecked proxy as unavailable", () => {
     // Cùng nguyên tắc với /proxies: chưa kiểm ≠ hỏng, và cũng ≠ khỏe. Ở đây nó không chặn, vì
     // thứ chặn thật là lần kiểm nói proxy chết — chưa kiểm thì `launch/route.ts` vẫn kiểm lúc bấm.
     expect(codesOf(redditNick({ proxy: { lastCheckVerdict: null } }))).toEqual([]);
   });
 });
 
-describe("máy và chủ phải khớp", () => {
-  it("máy đã thu hồi là chặn riêng, không lẫn với chưa ghim", () => {
+describe("Relay PC and nick owner must match", () => {
+  it("reports a revoked Relay PC separately from an unassigned one", () => {
     const result = describeAccountReadiness(
       redditNick({ device: { userId: "user-ha", revokedAt: NOW } }),
     );
@@ -87,7 +87,7 @@ describe("máy và chủ phải khớp", () => {
     expect(result.blockers.map((blocker) => blocker.code)).toEqual(["DEVICE_REVOKED"]);
   });
 
-  it("máy của người khác là cụm lệch", () => {
+  it("reports another owner's Relay PC as an assignment mismatch", () => {
     const result = describeAccountReadiness(
       redditNick({ device: { userId: "user-nam", revokedAt: null } }),
     );
@@ -96,7 +96,7 @@ describe("máy và chủ phải khớp", () => {
   });
 
   /** Nick không chủ mà có máy: đã bị `assignAccountCluster` chặn, nhưng cột vẫn phải đọc được. */
-  it("không chủ thì báo thiếu chủ, không báo lệch", () => {
+  it("reports a missing owner without also reporting assignment mismatch", () => {
     const codes = codesOf(redditNick({ ownerId: null }));
 
     expect(codes).toContain("NO_OWNER");
@@ -104,7 +104,7 @@ describe("máy và chủ phải khớp", () => {
   });
 });
 
-describe("nick Facebook — ranh giới quan trọng nhất", () => {
+describe("Facebook nick browser-stack boundary", () => {
   const fbNick = (overrides: Partial<ReadinessInput> = {}): ReadinessInput =>
     redditNick({
       platform: "FACEBOOK",
@@ -118,14 +118,14 @@ describe("nick Facebook — ranh giới quan trọng nhất", () => {
    * Fanpage đăng bằng Graph API: không mở trình duyệt, không proxy, không profile, nên không có
    * máy nào để ghim. Đòi đủ là bịa ra ba lỗi vĩnh viễn không sửa được.
    */
-  it("không proxy, không profile, không máy vẫn là SẴN SÀNG", () => {
+  it("is ready without a proxy, browser profile, or Relay PC", () => {
     const result = describeAccountReadiness(fbNick());
 
     expect(result.ready).toBe(true);
     expect(result.blockers).toEqual([]);
   });
 
-  it("vẫn phải có chủ — bí mật nick nào cũng cần người phụ trách", () => {
+  it("still requires an owner because every nick secret needs one", () => {
     expect(codesOf(fbNick({ ownerId: null }))).toEqual(["NO_OWNER"]);
   });
 
@@ -133,11 +133,11 @@ describe("nick Facebook — ranh giới quan trọng nhất", () => {
    * Khai một nửa là trạng thái tệ nhất: có id profile mà kho không biết nó nằm ở máy nào. Lúc đó
    * ranh giới "Facebook thì miễn" phải tắt.
    */
-  it("nhưng KHAI profile antidetect rồi thì phải ghim máy", () => {
+  it("requires a Relay PC after a browser profile ID is recorded", () => {
     expect(codesOf(fbNick({ antidetectProfileId: "profile-fb" }))).toEqual(["NO_DEVICE"]);
   });
 
-  it("proxy đã khai mà hỏng thì vẫn báo hỏng", () => {
+  it("still reports an assigned proxy when it is unavailable", () => {
     expect(codesOf(fbNick({ proxy: { lastCheckVerdict: "DEAD" } }))).toEqual(["PROXY_BROKEN"]);
   });
 
@@ -145,19 +145,19 @@ describe("nick Facebook — ranh giới quan trọng nhất", () => {
    * Fanpage đăng bằng Graph API với token chính thức — không ai "đăng nhập vào profile" cả, nên
    * mốc đó vĩnh viễn rỗng. Đòi nó là dựng thêm một lỗi thứ tư không bao giờ sửa được.
    */
-  it("KHÔNG đòi mốc đăng nhập lần đầu, kể cả khi đã khai profile", () => {
+  it("does not require first sign-in even when a browser profile ID is recorded", () => {
     const codes = codesOf(fbNick({ antidetectProfileId: "profile-fb", firstLoginAt: null }));
 
     expect(codes).toEqual(["NO_DEVICE"]);
   });
 });
 
-describe("chờ khác với thiếu", () => {
+describe("waiting differs from missing setup", () => {
   /**
    * Cold-start là ca duy nhất "chưa trọn vẹn nhưng không ai phải làm gì". Gộp nó với "chưa có
    * proxy" là nói sai: một cái cần người hành động, một cái chỉ cần thời gian trôi.
    */
-  it("cold-start là chặn loại CHỜ, không phải thiếu", () => {
+  it("treats cold-start as waiting rather than missing setup", () => {
     const result = describeAccountReadiness(
       redditNick({
         status: "COLD_START",
@@ -167,10 +167,10 @@ describe("chờ khác với thiếu", () => {
 
     expect(result.ready).toBe(false);
     expect(result.waiting).toBe(true);
-    expect(result.summary).toContain("cold-start còn 7 ngày");
+    expect(result.summary).toContain("7 cold-start days remaining");
   });
 
-  it("cold-start CỘNG thiếu proxy thì không còn là chờ nữa", () => {
+  it("is no longer waiting-only when cold-start and a missing proxy overlap", () => {
     const result = describeAccountReadiness(
       redditNick({
         status: "COLD_START",
@@ -181,10 +181,10 @@ describe("chờ khác với thiếu", () => {
 
     expect(result.waiting).toBe(false);
     // Câu tóm tắt nêu thứ phải LÀM, không nêu thứ phải chờ.
-    expect(result.summary).toBe("chưa gắn proxy");
+    expect(result.summary).toBe("proxy not assigned");
   });
 
-  it("nick đã chết thì chặn ngay từ trạng thái", () => {
+  it("blocks a dead nick through its status", () => {
     expect(codesOf(redditNick({ status: "DEAD" }))).toContain("STATUS");
   });
 });
@@ -197,36 +197,36 @@ describe("chờ khác với thiếu", () => {
  * chấm là SẴN SÀNG. Đó là kiểu nói dối tệ nhất mà cột này có thể mắc — nó bảo mở được đúng cái
  * nick sẽ chạy bằng IP nhà.
  */
-describe("nick TikTok — mở bằng trình duyệt, đòi đủ như Reddit", () => {
+describe("TikTok nick requires the browser stack like Reddit", () => {
   const tiktokNick = (overrides: Partial<ReadinessInput> = {}): ReadinessInput =>
     redditNick({ platform: "TIKTOK", ...overrides });
 
-  it("đủ điều kiện thì sẵn sàng", () => {
+  it("is ready when every requirement is met", () => {
     const result = describeAccountReadiness(tiktokNick());
 
     expect(result.ready).toBe(true);
     expect(result.blockers).toEqual([]);
   });
 
-  it("thiếu proxy KHÔNG được chấm là sẵn sàng", () => {
+  it("is not ready without a proxy", () => {
     const codes = codesOf(tiktokNick({ proxy: null }));
 
     expect(codes).toContain("NO_PROXY");
   });
 
-  it("thiếu profile antidetect thì chặn", () => {
+  it("is blocked without a browser profile", () => {
     expect(codesOf(tiktokNick({ antidetectProfileId: null }))).toContain("NO_PROFILE");
   });
 
-  it("chưa ghim máy thì chặn — id profile chỉ có nghĩa trên đúng máy tạo ra nó", () => {
+  it("is blocked without a Relay PC because the profile ID is local to its creator", () => {
     expect(codesOf(tiktokNick({ device: null }))).toContain("NO_DEVICE");
   });
 
-  it("có profile nhưng chưa đăng nhập lần nào thì chặn", () => {
+  it("is blocked when the browser profile exists but first sign-in is incomplete", () => {
     expect(codesOf(tiktokNick({ firstLoginAt: null }))).toContain("NOT_LOGGED_IN");
   });
 
-  it("proxy hỏng thì chặn, không phải chỉ cảnh báo", () => {
+  it("blocks an unavailable proxy rather than only warning", () => {
     expect(codesOf(tiktokNick({ proxy: { lastCheckVerdict: "DEAD" } }))).toContain("PROXY_BROKEN");
   });
 });

@@ -122,8 +122,8 @@ export function describeAccountReadiness(input: ReadinessInput): AccountReadines
   if (coldDays > 0) {
     blockers.push({
       code: "COLD_START",
-      label: `cold-start còn ${coldDays} ngày`,
-      fix: "Chỉ đọc và tương tác nhẹ tới hết cold-start. Không cần làm gì, chỉ chờ.",
+      label: `${coldDays} cold-start days remaining`,
+      fix: "Read and interact lightly until cold-start ends. No setup change is needed; just wait.",
       waitingOnly: true,
     });
   }
@@ -137,36 +137,36 @@ export function describeAccountReadiness(input: ReadinessInput): AccountReadines
   if (!input.voice) {
     blockers.push({
       code: "NO_VOICE",
-      label: "chưa ghi giọng viết",
+      label: "writing voice missing",
       fix:
-        "Ghi giọng và mảng nội dung ở thẻ Sửa nick. Máy chỉ canh trùng chữ lúc bấm đăng — " +
-        "giọng là phần bạn tự giữ, và giữ trước khi viết thì đỡ phải viết lại.",
+        "Add the writing voice and content focus in the Edit nick card. The tool checks repeated " +
+        "text only when you post; use these notes to keep the voice consistent before writing.",
     });
   }
 
   if (browserNick && !input.proxy) {
     blockers.push({
       code: "NO_PROXY",
-      label: "chưa gắn proxy",
-      fix: "Gán proxy ở thẻ Sửa nick. Nick mở bằng trình duyệt mà không proxy là chạy bằng IP nhà.",
+      label: "proxy not assigned",
+      fix: "Assign a proxy in the Edit nick card. Opening this nick without one would use your home IP.",
     });
   } else if (input.proxy && PROBLEM_VERDICTS.includes(input.proxy.lastCheckVerdict as never)) {
     // Proxy hỏng chặn mở profile ở `launch/route.ts`, nên nó là chặn thật chứ không phải cảnh báo.
     blockers.push({
       code: "PROXY_BROKEN",
-      label: "proxy hỏng",
-      fix: "Kiểm hoặc đổi proxy ở /proxies. Lần kiểm gần nhất nói proxy này không dùng được.",
+      label: "proxy unavailable",
+      fix: "Check or replace the proxy at /proxies. Its latest check reported that it is unavailable.",
     });
   }
 
   if (browserNick && !input.antidetectProfileId) {
     blockers.push({
       code: "NO_PROFILE",
-      label: "chưa có profile antidetect",
+      label: "browser profile missing",
       fix:
-        'Bấm "Tạo profile trên máy này" ở trang chi tiết nick — công cụ dựng profile mang sẵn ' +
-        "proxy và các cài đặt locale/múi giờ theo quốc gia, rồi ghim nick vào chính máy đó. " +
-        "Đây là cấu hình vận hành, không phải bằng chứng cô lập danh tính.",
+        'Select "Create browser profile on this Relay PC" on the nick details page. The tool ' +
+        "includes the proxy and country-aligned locale and timezone, then assigns the nick to this " +
+        "Relay PC. This is operational configuration, not proof of identity isolation.",
     });
   } else if (browserNick && !input.firstLoginAt) {
     // Profile có rồi nhưng chưa ai đăng nhập. Trạng thái này CHỈ tồn tại từ 07/08/2026: trước đó
@@ -177,10 +177,11 @@ export function describeAccountReadiness(input: ReadinessInput): AccountReadines
     // hiện hai dòng cùng lúc là bắt người đọc tự suy ra thứ tự giữa chúng.
     blockers.push({
       code: "NOT_LOGGED_IN",
-      label: "chưa đăng nhập lần nào",
+      label: "first sign-in incomplete",
       fix:
-        "Mở profile, tự đăng nhập nick vào đó, rồi bấm \"Đã đăng nhập được\" ở thẻ Đăng nhập lần " +
-        "đầu. Làm ngay đầu cold-start — đăng nhập lần đầu là lúc hay bị đòi xác minh nhất; công cụ không tự động hóa bước này.",
+        'Open the browser profile, sign in to the nick yourself, then select "Sign-in completed" ' +
+        "in the First sign-in card. Do this early in cold-start because verification is most likely " +
+        "on the first sign-in; the tool does not automate it.",
     });
   }
 
@@ -188,8 +189,8 @@ export function describeAccountReadiness(input: ReadinessInput): AccountReadines
   if (!input.ownerId) {
     blockers.push({
       code: "NO_OWNER",
-      label: "chưa có người phụ trách",
-      fix: "Quản trị viên gán ở thẻ Phân công cụm. Nick không chủ thì chỉ ADMIN mở được bí mật.",
+      label: "nick owner not assigned",
+      fix: "An administrator must assign an owner in the Nick assignment card. Only administrators can read secrets while the nick has no owner.",
     });
   }
 
@@ -200,20 +201,20 @@ export function describeAccountReadiness(input: ReadinessInput): AccountReadines
   if (needsDevice && !input.device) {
     blockers.push({
       code: "NO_DEVICE",
-      label: "chưa ghim máy",
-      fix: "Quản trị viên gán ở thẻ Phân công cụm. Id profile chỉ có nghĩa trên đúng máy tạo ra nó.",
+      label: "Relay PC not assigned",
+      fix: "An administrator must assign a Relay PC in the Nick assignment card. A browser profile ID is valid only on the PC that created it.",
     });
   } else if (input.device?.revokedAt) {
     blockers.push({
       code: "DEVICE_REVOKED",
-      label: "máy đã bị thu hồi",
-      fix: "Quản trị viên gán cụm sang một máy khác — máy đã thu hồi không nhận được vé nào.",
+      label: "Relay PC revoked",
+      fix: "An administrator must move the assignment to another Relay PC. A revoked PC cannot receive tickets.",
     });
   } else if (input.device && input.ownerId && input.device.userId !== input.ownerId) {
     blockers.push({
       code: "CLUSTER_DRIFT",
-      label: "cụm lệch",
-      fix: "Máy đang ghim không thuộc chủ nick. Quản trị viên gán lại cụm cho khớp.",
+      label: "assignment mismatch",
+      fix: "The assigned Relay PC does not belong to the nick owner. An administrator must correct the Nick assignment.",
     });
   }
 
@@ -228,7 +229,7 @@ export function describeAccountReadiness(input: ReadinessInput): AccountReadines
 }
 
 function summarize(blockers: ReadinessBlocker[], waiting: boolean): string {
-  if (blockers.length === 0) return "Sẵn sàng";
+  if (blockers.length === 0) return "Ready";
   if (waiting) return blockers.map((blocker) => blocker.label).join(", ");
 
   // Chặn thật lên trước, chặn loại chờ xuống sau: người đọc cần biết mình phải LÀM gì trước khi

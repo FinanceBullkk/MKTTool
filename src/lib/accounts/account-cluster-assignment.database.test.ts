@@ -123,8 +123,8 @@ afterAll(async () => {
   await prisma.$disconnect();
 });
 
-describe("bất biến máy thuộc chủ nick", () => {
-  it("từ chối ghim vào máy của người khác, và KHÔNG ghi gì", async () => {
+describe("Relay PC belongs to the nick owner invariant", () => {
+  it("rejects another person's Relay PC without writing anything", async () => {
     const result = await assignAccountCluster(null, await clusterForm(HA_ID, mayCuaNam));
 
     expect(result.ok).toBe(false);
@@ -141,17 +141,17 @@ describe("bất biến máy thuộc chủ nick", () => {
    * Máy đã thu hồi vẫn là máy của đúng người, nên nó lọt qua phép so `userId`. Nó phải bị chặn
    * bằng một phép kiểm riêng — không thì cụm trông hợp lệ mà vé không bao giờ tới nơi.
    */
-  it("từ chối ghim vào máy đã thu hồi", async () => {
+  it("rejects a revoked Relay PC", async () => {
     const result = await assignAccountCluster(null, await clusterForm(HA_ID, mayDaThuHoi));
 
     expect(result.ok).toBe(false);
-    expect(result.message).toContain("thu hồi");
+    expect(result.message).toContain("revoked");
 
     const after = await prisma.account.findUniqueOrThrow({ where: { id: accountId } });
     expect(after.deviceId).toBeNull();
   });
 
-  it("nhận cặp khớp, ghi cả hai hàng nhật ký", async () => {
+  it("accepts a matching owner and Relay PC and records both audit entries", async () => {
     const result = await assignAccountCluster(null, await clusterForm(HA_ID, mayCuaHa));
 
     expect(result.ok).toBe(true);
@@ -166,13 +166,13 @@ describe("bất biến máy thuộc chủ nick", () => {
   });
 });
 
-describe("gỡ chủ", () => {
+describe("remove nick owner", () => {
   beforeEach(async () => {
     await assignAccountCluster(null, await clusterForm(HA_ID, mayCuaHa));
     await prisma.auditLog.deleteMany();
   });
 
-  it("gỡ luôn máy — nick không chủ không ghim vào máy ai được", async () => {
+  it("also removes the Relay PC because an ownerless nick cannot stay assigned", async () => {
     const result = await assignAccountCluster(null, await clusterForm("", ""));
 
     expect(result.ok).toBe(true);
@@ -186,7 +186,7 @@ describe("gỡ chủ", () => {
     ]);
   });
 
-  it("từ chối gỡ chủ mà vẫn giữ máy", async () => {
+  it("rejects removing the owner while retaining the Relay PC", async () => {
     const result = await assignAccountCluster(null, await clusterForm("", mayCuaHa));
 
     expect(result.ok).toBe(false);
@@ -196,7 +196,7 @@ describe("gỡ chủ", () => {
   });
 });
 
-describe("đổi chủ", () => {
+describe("change nick owner", () => {
   beforeEach(async () => {
     await assignAccountCluster(null, await clusterForm(HA_ID, mayCuaHa));
     await prisma.auditLog.deleteMany();
@@ -206,7 +206,7 @@ describe("đổi chủ", () => {
    * Giao nick sang người khác thì máy cũ **không được đi theo**: nó là máy của người cũ, và cụm
    * lệch nghĩa là chủ mới xin được bí mật nhưng vé bay về máy người cũ.
    */
-  it("chuyển sang người khác kèm máy của họ ghi MOVED", async () => {
+  it("records MOVED when assigning another owner and their Relay PC", async () => {
     const result = await assignAccountCluster(null, await clusterForm(NAM_ID, mayCuaNam));
 
     expect(result.ok).toBe(true);
@@ -220,7 +220,7 @@ describe("đổi chủ", () => {
     ]);
   });
 
-  it("chuyển chủ mà bỏ trống ô máy thì nick mất ghim, không giữ máy người cũ", async () => {
+  it("removes the old Relay PC when changing owner without selecting a new PC", async () => {
     const result = await assignAccountCluster(null, await clusterForm(NAM_ID, ""));
 
     expect(result.ok).toBe(true);
@@ -230,8 +230,8 @@ describe("đổi chủ", () => {
   });
 });
 
-describe("người không còn trong ALLOWED_EMAILS", () => {
-  it("bị từ chối — gán cho họ là dựng ra nick không ai mở được", async () => {
+describe("teammate removed from ALLOWED_EMAILS", () => {
+  it("rejects assignment because nobody could access the nick afterward", async () => {
     const nguoiDaRoi = await prisma.user.create({
       data: { id: "user-cu", name: "Người cũ", email: "cu@mkttool.local", updatedAt: new Date() },
     });
@@ -239,12 +239,12 @@ describe("người không còn trong ALLOWED_EMAILS", () => {
     const result = await assignAccountCluster(null, await clusterForm(nguoiDaRoi.id, ""));
 
     expect(result.ok).toBe(false);
-    expect(result.message).toContain("ALLOWED_EMAILS");
+    expect(result.message).toContain("no longer has sign-in access");
   });
 });
 
-describe("optimistic concurrency khi phân công cụm", () => {
-  it("từ chối lượt ghi dùng revision cũ và không ghi account hay audit", async () => {
+describe("optimistic concurrency during nick assignment", () => {
+  it("rejects a stale revision without writing the account or audit log", async () => {
     const staleRevision = (
       await prisma.account.findUniqueOrThrow({
         where: { id: accountId },

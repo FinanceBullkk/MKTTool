@@ -24,7 +24,7 @@ export function ProxyFormFields({ defaults }: { defaults?: ProxyDefaults }) {
 
   return (
     <>
-      <Field label="Nhãn" name="label" required defaultValue={defaults?.label} placeholder="reddit-01-us" />
+      <Field label="Label" name="label" required defaultValue={defaults?.label} placeholder="reddit-01-us" />
       <Field label="Host" name="host" required defaultValue={defaults?.host} placeholder="1.2.3.4" />
       <Field
         label="Port"
@@ -35,11 +35,11 @@ export function ProxyFormFields({ defaults }: { defaults?: ProxyDefaults }) {
         placeholder="8080"
       />
       <SelectField
-        label="Giao thức"
+        label="Protocol"
         name="protocol"
         required
         defaultValue={defaults?.protocol ?? "http"}
-        hint="Phải khớp cổng nhà cung cấp cấp cho giao thức đó — SOCKS5 thường ở cổng khác HTTP"
+        hint="Use the provider's port for this protocol; SOCKS5 commonly uses a different port from HTTP"
         options={[
           { value: "http", label: "HTTP / HTTPS" },
           { value: "socks5", label: "SOCKS5" },
@@ -47,35 +47,35 @@ export function ProxyFormFields({ defaults }: { defaults?: ProxyDefaults }) {
       />
       <Field label="Username" name="username" required defaultValue={defaults?.username} />
       <Field
-        label="Mật khẩu"
+        label="Password"
         name="password"
         type="password"
         required={!editing}
-        hint={editing ? "Để trống là giữ nguyên mật khẩu đang dùng" : undefined}
+        hint={editing ? "Leave blank to keep the current password" : undefined}
       />
       <Field
-        label="Quốc gia"
+        label="Country"
         name="country"
         required
         defaultValue={defaults?.country}
         placeholder="US"
-        hint="Phải khớp quốc gia nick từng hoạt động"
+        hint="Must match the country where the nick has previously operated"
       />
       <SelectField
-        label="Loại"
+        label="Type"
         name="type"
         required
         defaultValue={defaults?.type ?? "STATIC_ISP"}
         options={[
-          { value: "STATIC_ISP", label: "Static ISP / Residential tĩnh" },
+          { value: "STATIC_ISP", label: "Static ISP / Static residential" },
           { value: "MOBILE", label: "Mobile 4G" },
         ]}
       />
       <Field
-        label="Ghi chú"
+        label="Notes"
         name="notes"
         defaultValue={defaults?.notes ?? undefined}
-        placeholder="Nhà cung cấp, ngày hết hạn…"
+        placeholder="Provider, expiration date..."
       />
     </>
   );

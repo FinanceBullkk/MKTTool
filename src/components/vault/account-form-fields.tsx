@@ -30,7 +30,7 @@ import { localDayKey } from "@/lib/format/vietnamese-date-format";
 import { VaultSecretField } from "./vault-secret-field";
 
 const PROXY_HINT_TAIL =
-  "Bắt buộc với nick Reddit. Nick Facebook bỏ trống được — Fanpage đăng bằng Graph API, không mở trình duyệt.";
+  "Required for Reddit nicks. Facebook nicks can leave it blank because Facebook Pages use the Graph API without opening a browser.";
 
 /**
  * Ô mã 2 lớp trước đây chỉ nói *"chuỗi base32 khi bật 2FA"* — đúng nhưng vô dụng với người chưa
@@ -38,8 +38,9 @@ const PROXY_HINT_TAIL =
  * Gợi ý phải trả lời được *lấy nó ở đâu*, không chỉ *nó bắt buộc hay không*.
  */
 const TOTP_HINT_REDDIT =
-  'Bật "Xác minh 2 bước" cho tài khoản Google → chọn Ứng dụng xác thực → chuỗi chữ+số hiện cạnh ' +
-  "mã QR. Có nó thì bấm Lấy OTP ngay trên máy, khỏi mò điện thoại. Chưa bật 2 lớp thì để trống.";
+  'In the Google Account, turn on "2-Step Verification", select "Authenticator app", then copy ' +
+  "the letter-and-number key shown beside the QR code. Save it here to request OTPs on this Relay " +
+  "PC without using the phone. Leave it blank if 2-Step Verification is not enabled.";
 
 export interface AccountDefaults {
   username: string;
@@ -110,7 +111,7 @@ export function AccountFormFields({
   const proxyIsReadOnly = editing && proxyEditAccess?.isAdmin === false;
   const currentProxyLabel = defaults?.proxyId
     ? (proxies.find((proxy) => proxy.id === defaults.proxyId)?.label ?? defaults.proxyId)
-    : "— không gắn (chỉ nick Facebook) —";
+    : "No proxy assigned (Facebook only)";
 
   // Nick Reddit là chuyện thường ngày của công cụ này, nên nó là mặc định — đỡ một cú bấm ở mọi
   // lượt nhập. Người thêm nick Facebook thấy ngay là form đổi hình dạng khi chọn.
@@ -121,7 +122,7 @@ export function AccountFormFields({
     <>
       {editing ? null : (
         <SelectField
-          label="Nền tảng"
+          label="Platform"
           name="platform"
           required
           defaultValue="REDDIT"
@@ -139,48 +140,48 @@ export function AccountFormFields({
           lại trong kho phải được canh giữ y như bí mật thật. Xem `validatePlatformAccountFields`. */}
       {reddit ? null : (
         <VaultSecretField
-          label="Mật khẩu nick"
+          label="Nick password"
           name="password"
           type="password"
           required={!editing}
-          hint={editing ? "Để trống là giữ nguyên" : undefined}
+          hint={editing ? "Leave blank to keep the current password" : undefined}
         />
       )}
 
       <Field
-        label={reddit ? "Email Google" : "Email gốc"}
+        label={reddit ? "Google email" : "Original email"}
         name="emailAddress"
         type="email"
         required
         defaultValue={defaults?.emailAddress}
         hint={
           reddit
-            ? "Tài khoản Google dùng để đăng nhập Reddit. Không có nó thì đừng mua nick — người bán lấy lại được"
-            : "Không có email gốc thì đừng mua nick — người bán lấy lại được"
+            ? "This Google Account signs in to Reddit. Do not buy the nick without it because the seller could recover the nick."
+            : "Do not buy the nick without its original email because the seller could recover the nick."
         }
       />
       <VaultSecretField
-        label={reddit ? "Mật khẩu Google" : "Mật khẩu email"}
+        label={reddit ? "Google password" : "Email password"}
         name="emailPassword"
         type="password"
         required={!editing}
         hint={
           editing
-            ? "Để trống là giữ nguyên"
+            ? "Leave blank to keep the current password"
             : reddit
-              ? "Đây mới là thứ mở được nick Reddit"
+              ? "This password opens the Google Account used to sign in to the Reddit nick"
               : undefined
         }
       />
       <VaultSecretField
-        label={reddit ? "Mã 2 lớp của Google" : "TOTP secret"}
+        label={reddit ? "Google 2FA secret" : "TOTP secret"}
         name="totpSecret"
         hint={
           editing
-            ? "Để trống là giữ nguyên. Gõ secret mới để thay. Cầu nối kiểm base32 trước khi bọc."
+            ? "Leave blank to keep the current secret. Enter a new secret to replace it; Relay validates base32 before encrypting it."
             : reddit
               ? TOTP_HINT_REDDIT
-              : "Chuỗi base32 khi bật 2FA. Để trống nếu chưa bật."
+              : "Enter the base32 secret from 2FA setup, or leave it blank if 2FA is not enabled."
         }
       />
 
@@ -200,16 +201,16 @@ export function AccountFormFields({
           trùng văn bản thật lúc bấm đăng; hai ô này đứng ở đầu kia của việc — nhắc làn viết trước
           khi viết, để đỡ phải viết lại. Không bắt buộc: thiếu thì cột "Sẵn sàng" nhắc (NO_VOICE). */}
       <Field
-        label="Giọng viết"
+        label="Writing voice"
         name="voice"
         defaultValue={defaults?.voice ?? undefined}
-        hint="Nick này nói kiểu gì. Ví dụ: điềm đạm, hay dẫn số liệu, ít dùng emoji."
+        hint="Describe how this nick writes, for example: calm, evidence-led, and sparing with emoji."
       />
       <Field
-        label="Mảng nội dung"
+        label="Content focus"
         name="contentAngle"
         defaultValue={defaults?.contentAngle ?? undefined}
-        hint="Nick này viết về cái gì. Ví dụ: self-hosting, phần cứng cũ giá rẻ."
+        hint="Describe what this nick writes about, for example: self-hosting or affordable older hardware."
       />
 
       {proxyIsReadOnly ? (
@@ -230,11 +231,11 @@ export function AccountFormFields({
           defaultValue={defaults?.proxyId ?? undefined}
           hint={
             editing
-              ? `${PROXY_HINT_TAIL} Chỉ hiện proxy còn trống và proxy đang gắn cho nick này.`
-              : `${PROXY_HINT_TAIL} ${proxies.length} proxy chưa gắn nick.`
+              ? `${PROXY_HINT_TAIL} Only unassigned proxies and this nick's current proxy are shown.`
+              : `${PROXY_HINT_TAIL} ${proxies.length} unassigned proxies available.`
           }
           options={[
-            { value: "", label: "— không gắn (chỉ nick Facebook) —" },
+            { value: "", label: "No proxy assigned (Facebook only)" },
             ...proxies.map((proxy) => ({ value: proxy.id, label: proxy.label })),
           ]}
         />
@@ -246,7 +247,7 @@ export function AccountFormFields({
       {!editing && viewer ? (
         viewer.isAdmin ? (
           <SelectField
-            label="Người phụ trách"
+            label="Nick owner"
             name="ownerId"
             defaultValue={viewer.userId}
             hint="Only teammates who have signed in at least once appear. This person creates the browser profile on their Relay PC."
@@ -257,11 +258,11 @@ export function AccountFormFields({
           />
         ) : (
           <Field
-            label="Người phụ trách"
+            label="Nick owner"
             name="ownerIdDisplay"
             defaultValue={viewer.email}
             disabled
-            hint="Nick bạn thêm là nick của bạn. Quản trị viên chuyển sang người khác được ở thẻ Phân công cụm."
+            hint="A nick you add belongs to you. An administrator can transfer it in the Nick assignment card."
           />
         )
       ) : null}
@@ -270,7 +271,7 @@ export function AccountFormFields({
           và schema tạo đã mặc định đúng giá trị đó. Xem `accountCreateBase`. */}
       {editing ? (
         <SelectField
-          label="Trạng thái"
+          label="Status"
           name="status"
           required
           defaultValue={defaults?.status}
@@ -282,10 +283,10 @@ export function AccountFormFields({
         name="karma"
         type="number"
         defaultValue={defaults?.karma ?? 0}
-        hint="Luật điều kiện đích chấm theo số này — cập nhật khi karma thật đổi"
+        hint="Posting target rules use this value, so update it when the nick's real karma changes"
       />
       <Field
-        label="Cold-start tới ngày"
+        label="Cold-start until"
         name="coldStartUntil"
         type="date"
         // Mốc 14 ngày là quy ước cố định của dự án, lặp lại ở mọi nick — điền sẵn thay vì bắt
@@ -293,35 +294,35 @@ export function AccountFormFields({
         defaultValue={dateInputValue(defaults?.coldStartUntil) ?? defaultColdStartUntil}
         hint={
           editing
-            ? "Trước mốc này nick chỉ được đọc, cấm đăng"
-            : "Điền sẵn 14 ngày kể từ hôm nay — mốc chuẩn cho nick vừa mua"
+            ? "Until this date, the nick may read but must not post"
+            : "Defaults to 14 days from today, the standard period for a newly purchased nick"
         }
       />
       <Field
-        label="Ngày tạo nick trên nền tảng"
+        label="Platform creation date"
         name="platformCreatedAt"
         type="date"
         defaultValue={dateInputValue(defaults?.platformCreatedAt)}
-        hint="Dùng để kiểm tra điều kiện tuổi nick của subreddit"
+        hint="Used to check subreddit requirements for nick age"
       />
       <Field
-        label="Ngày mua"
+        label="Purchase date"
         name="purchasedAt"
         type="date"
         defaultValue={dateInputValue(defaults?.purchasedAt)}
       />
       <Field
-        label="Ghi chú mua"
+        label="Purchase notes"
         name="purchaseNote"
         defaultValue={defaults?.purchaseNote ?? undefined}
-        placeholder="Nguồn, giá, quốc gia gốc"
+        placeholder="Source, price, original country"
       />
       {editing ? (
         <Field
-          label="Lý do cách ly"
+          label="Quarantine reason"
           name="quarantineReason"
           defaultValue={defaults?.quarantineReason ?? undefined}
-          placeholder="Vì sao nick bị treo — hiện ngay ở đầu trang chi tiết"
+          placeholder="Why the nick was quarantined; shown at the top of its details page"
         />
       ) : null}
     </>

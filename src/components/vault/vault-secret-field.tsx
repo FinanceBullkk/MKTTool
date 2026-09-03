@@ -59,7 +59,7 @@ export function VaultSecretField({
       type={type}
       required={required && ready}
       disabled={!ready}
-      hint={ready ? hint : "Đang chờ trang sẵn sàng…"}
+      hint={ready ? hint : "Waiting for the page to be ready..."}
     />
   );
 }

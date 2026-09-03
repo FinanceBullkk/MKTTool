@@ -193,8 +193,8 @@ afterAll(async () => {
   await prisma.$disconnect();
 });
 
-describe("ô bí mật để trống là giữ nguyên", () => {
-  it("sửa proxy không gõ mật khẩu thì mật khẩu cũ còn nguyên", async () => {
+describe("blank secret fields preserve current values", () => {
+  it("keeps the current proxy password when an update leaves it blank", async () => {
     const before = await prisma.proxy.findUniqueOrThrow({ where: { id: seeded.proxyId } });
 
     const result = await updateProxy(
@@ -220,7 +220,7 @@ describe("ô bí mật để trống là giữ nguyên", () => {
     expect(decryptCredential(after.passwordEnc, loadVaultKey("server"))).toBe("mat-khau-cu");
   });
 
-  it("gõ mật khẩu mới thì thay thật", async () => {
+  it("replaces the proxy password when a new one is entered", async () => {
     await updateProxy(
       null,
       form({
@@ -240,7 +240,7 @@ describe("ô bí mật để trống là giữ nguyên", () => {
     expect(decryptCredential(after.passwordEnc, loadVaultKey("server"))).toBe("mat-khau-moi");
   });
 
-  it("sửa nick không gõ ô bí mật nào thì cả ba giữ nguyên", async () => {
+  it("keeps all three nick secrets when an update leaves them blank", async () => {
     const before = await prisma.account.findUniqueOrThrow({ where: { id: seeded.accountId } });
 
     const result = await updateAccount(null, accountForm(seeded, { karma: "750" }));
@@ -263,7 +263,7 @@ describe("ô bí mật để trống là giữ nguyên", () => {
    * cầu nối. Bài test vì vậy còn chứng minh thêm một điều: máy chủ ghi thẳng thứ nó nhận, không
    * mã hóa lại bằng khóa nào của nó.
    */
-  it("mật khẩu nick mã hóa bằng khóa vùng operator, khóa server không mở được", async () => {
+  it("encrypts the nick password for the operator domain so the server key cannot open it", async () => {
     const boc = encryptForOperator("mat-khau-nick-moi");
 
     const result = await updateAccount(null, accountForm(seeded, { passwordEnc: boc }));
@@ -279,7 +279,7 @@ describe("ô bí mật để trống là giữ nguyên", () => {
    * Máy chủ không đọc nổi thứ nó nhận, nên phép kiểm duy nhất nó làm được là hình dạng — và nó
    * phải làm. Không có nó thì một form hỏng ghi mật khẩu trần vào database mà không gì báo.
    */
-  it("từ chối mật khẩu dạng trần lọt vào đường sửa", async () => {
+  it("rejects a plaintext password in the update path", async () => {
     const before = await prisma.account.findUniqueOrThrow({ where: { id: seeded.accountId } });
 
     const result = await updateAccount(
@@ -293,8 +293,8 @@ describe("ô bí mật để trống là giữ nguyên", () => {
   });
 });
 
-describe("quyền và nhật ký đổi proxy", () => {
-  it("ADMIN đổi proxy và audit ghi chiều đổi", async () => {
+describe("proxy-change authorization and audit log", () => {
+  it("allows ADMIN to change the proxy and records the before-to-after detail", async () => {
     const replacementProxy = await prisma.proxy.create({
       data: {
         label: "proxy-moi",
@@ -332,8 +332,8 @@ describe("quyền và nhật ký đổi proxy", () => {
  * Màn hình tự cãi nhau tệ hơn màn hình thiếu thông tin: người đọc phải đoán tin dòng nào, và
  * lần sau họ bỏ qua cả hai — kể cả lần cảnh báo thật.
  */
-describe("gỡ cách ly thì lý do cách ly đi theo", () => {
-  it("đổi trạng thái về ALIVE thì xóa lý do cách ly", async () => {
+describe("quarantine reason follows quarantine status", () => {
+  it("clears the quarantine reason when status returns to ALIVE", async () => {
     const quarantined = await prisma.account.update({
       where: { id: seeded.accountId },
       data: { status: "SHADOWBANNED", quarantineReason: "Bộ dò báo nick vô hình với người ngoài." },
@@ -353,7 +353,7 @@ describe("gỡ cách ly thì lý do cách ly đi theo", () => {
     expect(after.quarantineReason).toBeNull();
   });
 
-  it("gõ lý do vào ô mà trạng thái không phải cách ly thì cũng không lưu", async () => {
+  it("does not save a quarantine reason for a non-quarantined status", async () => {
     const result = await updateAccount(
       null,
       accountForm(seeded, { status: "COLD_START", quarantineReason: "gõ nhầm chỗ" }),
@@ -364,7 +364,7 @@ describe("gỡ cách ly thì lý do cách ly đi theo", () => {
     expect(after.quarantineReason).toBeNull();
   });
 
-  it("nick đang bị cách ly thật thì lý do được giữ", async () => {
+  it("preserves the reason while the nick remains quarantined", async () => {
     const result = await updateAccount(
       null,
       accountForm(seeded, { status: "CHECKPOINT", quarantineReason: "Dính captcha lúc mở profile." }),
@@ -384,7 +384,7 @@ describe("gỡ cách ly thì lý do cách ly đi theo", () => {
  * dụng gì — người dùng thấy thông báo "đã lưu", mở lại vẫn thấy proxy cũ, và không đoán được
  * vì sao. Hai test đầu canh đúng chỗ đó.
  */
-describe("proxy + profile antidetect theo nền tảng", () => {
+describe("platform-specific proxy and browser profile behavior", () => {
   async function makeFacebookAccount() {
     return prisma.account.create({
       data: {
@@ -400,7 +400,7 @@ describe("proxy + profile antidetect theo nền tảng", () => {
     });
   }
 
-  it("gỡ proxy khỏi nick Facebook thì gỡ THẬT, không im lặng giữ nguyên", async () => {
+  it("actually removes a Facebook nick's proxy instead of silently retaining it", async () => {
     const proxy = await prisma.proxy.create({
       data: {
         label: "proxy-fb",
@@ -443,7 +443,7 @@ describe("proxy + profile antidetect theo nền tảng", () => {
     expect(after.antidetectProfileId).toBeNull();
   });
 
-  it("gỡ xong thì proxy đó gắn được cho nick khác", async () => {
+  it("allows the removed proxy to be assigned to another nick", async () => {
     const fb = await makeFacebookAccount();
     await updateAccount(
       null,
@@ -463,11 +463,11 @@ describe("proxy + profile antidetect theo nền tảng", () => {
     expect(after.proxyId).toBeNull();
   });
 
-  it("nick Reddit xóa trắng proxy thì BỊ CHẶN, không nới theo Facebook", async () => {
+  it("blocks clearing a Reddit nick's proxy instead of applying the Facebook exception", async () => {
     const result = await updateAccount(null, accountForm(seeded, { proxyId: "" }));
 
     expect(result.ok).toBe(false);
-    expect(result.message).toContain("IP nhà");
+    expect(result.message).toContain("home IP");
     const after = await prisma.account.findUniqueOrThrow({ where: { id: seeded.accountId } });
     expect(after.proxyId).toBe(seeded.proxyId);
   });
@@ -483,7 +483,7 @@ describe("proxy + profile antidetect theo nền tảng", () => {
    * và `launch/route.ts` vẫn từ chối mở nick thiếu profile. Chỉ đổi chỗ chấm, từ *chặn lúc nhập*
    * sang *chấm điểm sẵn sàng*. Xóa trắng ô này còn là cách duy nhất để dựng lại một profile hỏng.
    */
-  it("nick Reddit xóa trắng profile antidetect thì CHO QUA — không còn là luật của form", async () => {
+  it("allows clearing a Reddit browser profile because it is no longer a form rule", async () => {
     const result = await updateAccount(null, accountForm(seeded, { antidetectProfileId: "" }));
 
     expect(result.ok).toBe(true);
@@ -492,8 +492,8 @@ describe("proxy + profile antidetect theo nền tảng", () => {
   });
 });
 
-describe("sửa xong thì chấm lại job đang chờ", () => {
-  it("nâng minKarma của đích quá karma nick thì job chuyển sang BLOCKED", async () => {
+describe("pending jobs are rechecked after updates", () => {
+  it("blocks a job when target minimum karma rises above the nick's karma", async () => {
     const result = await updateTarget(null, targetForm(seeded, { minKarma: "9000" }));
 
     expect(result.ok).toBe(true);
@@ -505,7 +505,7 @@ describe("sửa xong thì chấm lại job đang chờ", () => {
     expect(job.ruleVerdicts).toContain("BLOCK");
   });
 
-  it("hạ karma nick xuống dưới ngưỡng của đích thì job chuyển sang BLOCKED", async () => {
+  it("blocks a job when nick karma falls below the target threshold", async () => {
     const result = await updateAccount(null, accountForm(seeded, { karma: "0" }));
 
     expect(result.ok).toBe(true);
@@ -513,14 +513,14 @@ describe("sửa xong thì chấm lại job đang chờ", () => {
     expect(job.status).toBe("BLOCKED");
   });
 
-  it("đổi nick sang trạng thái chết thì job chuyển sang BLOCKED", async () => {
+  it("blocks a job when the nick status changes to dead", async () => {
     await updateAccount(null, accountForm(seeded, { status: "DEAD" }));
 
     const job = await prisma.postJob.findUniqueOrThrow({ where: { id: seeded.jobId } });
     expect(job.status).toBe("BLOCKED");
   });
 
-  it("sửa content thành bài quảng cáo thì job vướng luật tỷ lệ 9:1", async () => {
+  it("blocks a job under the 9:1 ratio rule when content becomes promotional", async () => {
     const result = await updateContentItem(
       null,
       form({
@@ -538,7 +538,7 @@ describe("sửa xong thì chấm lại job đang chờ", () => {
     expect(job.ruleVerdicts).toContain("Tỷ lệ promo");
   });
 
-  it("sửa thứ vô hại thì job vẫn ở PENDING", async () => {
+  it("keeps a job PENDING after a harmless update", async () => {
     const result = await updateTarget(null, targetForm(seeded, { notes: "mod dễ tính" }));
 
     expect(result.ok).toBe(true);
@@ -546,7 +546,7 @@ describe("sửa xong thì chấm lại job đang chờ", () => {
     expect(job.status).toBe("PENDING");
   });
 
-  it("job đã đăng KHÔNG bị chấm lại — trạng thái cuối là cuối", async () => {
+  it("does not recheck a posted job because terminal status is final", async () => {
     await prisma.postJob.update({ where: { id: seeded.jobId }, data: { status: "POSTED" } });
 
     await updateTarget(null, targetForm(seeded, { minKarma: "9000" }));
@@ -556,8 +556,8 @@ describe("sửa xong thì chấm lại job đang chờ", () => {
   });
 });
 
-describe("optimistic concurrency khi sửa nick", () => {
-  it("từ chối lượt ghi dùng revision cũ và không ghi account, audit hay verdict", async () => {
+describe("optimistic concurrency during nick updates", () => {
+  it("rejects a stale revision without writing the account, audit log, or verdict", async () => {
     const staleRevision = seeded.accountRevision;
 
     const winner = await updateAccount(
@@ -609,8 +609,8 @@ describe("optimistic concurrency khi sửa nick", () => {
   });
 });
 
-describe("xóa bị chặn khi còn dữ liệu trỏ tới", () => {
-  it("proxy đang gắn nick thì không xóa được", async () => {
+describe("deletion is blocked while referenced data remains", () => {
+  it("does not delete a proxy assigned to a nick", async () => {
     const result = await deleteProxy(seeded.proxyId);
 
     expect(result.ok).toBe(false);
@@ -618,7 +618,7 @@ describe("xóa bị chặn khi còn dữ liệu trỏ tới", () => {
     expect(await prisma.proxy.count()).toBe(1);
   });
 
-  it("nick còn job thì không xóa được", async () => {
+  it("does not delete a nick with a job", async () => {
     const result = await deleteAccount(seeded.accountId);
 
     expect(result.ok).toBe(false);
@@ -626,7 +626,7 @@ describe("xóa bị chặn khi còn dữ liệu trỏ tới", () => {
     expect(await prisma.account.count()).toBe(1);
   });
 
-  it("đích còn job thì không xóa được", async () => {
+  it("does not delete a posting target with a job", async () => {
     const result = await deleteTarget(seeded.targetId);
 
     expect(result.ok).toBe(false);
@@ -634,7 +634,7 @@ describe("xóa bị chặn khi còn dữ liệu trỏ tới", () => {
     expect(await prisma.platformTarget.count()).toBe(1);
   });
 
-  it("content đã xếp lịch thì không xóa được", async () => {
+  it("does not delete scheduled content", async () => {
     const result = await deleteContentItem(seeded.contentId);
 
     expect(result.ok).toBe(false);
@@ -642,7 +642,7 @@ describe("xóa bị chặn khi còn dữ liệu trỏ tới", () => {
     expect(await prisma.contentItem.count()).toBe(1);
   });
 
-  it("dọn hết thứ trỏ tới rồi thì xóa được, đúng thứ tự phụ thuộc", async () => {
+  it("deletes records in dependency order after references are removed", async () => {
     await prisma.postJob.deleteMany();
 
     expect((await deleteContentItem(seeded.contentId)).ok).toBe(true);
@@ -655,7 +655,7 @@ describe("xóa bị chặn khi còn dữ liệu trỏ tới", () => {
     expect(await prisma.proxy.count()).toBe(0);
   });
 
-  it("xóa nick vẫn giữ AuditLog — nhật ký phải sống lâu hơn thứ nó ghi lại", async () => {
+  it("retains AuditLog after nick deletion", async () => {
     await prisma.postJob.deleteMany();
     await prisma.auditLog.create({
       data: { accountId: seeded.accountId, action: "CREDENTIAL_REVEALED", detail: "password" },

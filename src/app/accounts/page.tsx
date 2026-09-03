@@ -59,22 +59,22 @@ export default async function AccountsPage() {
         description="For browser-backed identities: one nick = one proxy = one browser profile. The database enforces the binding; it is not proof of identity isolation."
       />
 
-      <Card title={`Danh sách — ${accounts.length} nick`}>
+      <Card title={`Team nick vault - ${accounts.length} nicks`}>
         {sorted.length === 0 ? (
-          <EmptyState>Chưa có nick nào.</EmptyState>
+          <EmptyState>No nicks in the team vault.</EmptyState>
         ) : (
           <DataTable
             headers={[
               "Nick",
               "Owner",
               "Relay PC",
-              "Kiểm tra thao tác",
-              "Nền tảng",
-              "Trạng thái",
-              "Giọng viết",
+              "Readiness",
+              "Platform",
+              "Status",
+              "Writing voice",
               "Proxy",
               "Karma",
-              "Tuổi nick",
+              "Nick age",
             ]}
           >
             {sorted.map((account) => {
@@ -128,7 +128,9 @@ export default async function AccountsPage() {
                   <td className="py-2 pr-4">
                     <StatusBadge label={presentation.label} className={presentation.className} />
                     {coldDays > 0 ? (
-                      <span className="ml-2 text-xs text-neutral-500">còn {coldDays} ngày</span>
+                      <span className="ml-2 text-xs text-neutral-500">
+                        {coldDays} days remaining
+                      </span>
                     ) : null}
                   </td>
                   <td className="py-2 pr-4 text-neutral-600 dark:text-neutral-400">
@@ -146,29 +148,29 @@ export default async function AccountsPage() {
         )}
       </Card>
 
-      <Card title="Thêm nick">
+      <Card title="Add nick">
         {!canCreate ? (
           <EmptyState>
             {viewer?.role === "ADMIN" ? (
               <>
-                Cần có ít nhất 1 proxy chưa gắn nick trước đã.{" "}
+                At least one unassigned proxy is required before adding a browser-backed nick.{" "}
                 <Link href="/proxies" className="underline">
-                  Thêm proxy
+                  Add proxy
                 </Link>
               </>
             ) : (
               <>
-                Kho hiện chưa có proxy rảnh. ADMIN phụ trách nạp và gán proxy; liên hệ quản trị
-                viên tại{" "}
+                No unassigned proxy is available. ADMIN is responsible for importing and assigning
+                proxies; contact the administrator at{" "}
                 <a href={`mailto:${adminContactEmail}`} className="underline">
                   {adminContactEmail}
                 </a>{" "}
-                rồi chờ proxy được chuẩn bị.
+                and wait for a proxy to be prepared.
               </>
             )}
           </EmptyState>
         ) : (
-          <AccountVaultForm action={createAccount} submitLabel="Thêm nick">
+          <AccountVaultForm action={createAccount} submitLabel="Add nick">
             <AccountFormFields
               proxies={freeProxies.map((proxy) => ({
                 id: proxy.id,

@@ -28,8 +28,8 @@ function change(
 const actionsOf = (result: ReturnType<typeof change>) =>
   result.auditActions.map((entry) => entry.action);
 
-describe("chủ nick", () => {
-  it("gán lần đầu ghi ACCOUNT_OWNER_ASSIGNED kèm email", () => {
+describe("nick owner", () => {
+  it("records ACCOUNT_OWNER_ASSIGNED with the email on first assignment", () => {
     const result = change(NOBODY, { ownerId: "u1", deviceId: null }, { ownerEmail: "ha@x.test" });
 
     expect(actionsOf(result)).toEqual([AUDIT_ACTIONS.ACCOUNT_OWNER_ASSIGNED]);
@@ -37,15 +37,15 @@ describe("chủ nick", () => {
     expect(result.message).toContain("ha@x.test");
   });
 
-  it("gỡ chủ ghi ACCOUNT_OWNER_CLEARED và nói rõ hệ quả", () => {
+  it("records ACCOUNT_OWNER_CLEARED and explains the consequence when ownership is removed", () => {
     const result = change({ ownerId: "u1", deviceId: null }, NOBODY);
 
     expect(actionsOf(result)).toEqual([AUDIT_ACTIONS.ACCOUNT_OWNER_CLEARED]);
     // Câu báo phải nói ra thứ người bấm chưa nghĩ tới: nick mất chủ là OPERATOR nào cũng bị từ chối.
-    expect(result.message).toContain("chỉ quản trị viên");
+    expect(result.message).toContain("only administrators");
   });
 
-  it("đổi chủ vẫn là ASSIGNED, không phải một loại riêng", () => {
+  it("records an owner change as ASSIGNED rather than a separate action", () => {
     const result = change(
       { ownerId: "u1", deviceId: null },
       { ownerId: "u2", deviceId: null },
@@ -56,8 +56,8 @@ describe("chủ nick", () => {
   });
 });
 
-describe("máy giữ nick", () => {
-  it("ghim lần đầu là PINNED", () => {
+describe("assigned Relay PC", () => {
+  it("records the first Relay PC assignment as PINNED", () => {
     const result = change(
       { ownerId: "u1", deviceId: null },
       { ownerId: "u1", deviceId: "d1" },
@@ -68,7 +68,7 @@ describe("máy giữ nick", () => {
     expect(result.message).toContain("Laptop Dell");
   });
 
-  it("gỡ ghim là UNPINNED và nêu tên máy cũ", () => {
+  it("records removal as UNPINNED and includes the previous Relay PC name", () => {
     const result = change(
       { ownerId: "u1", deviceId: "d1" },
       { ownerId: "u1", deviceId: null },
@@ -84,7 +84,7 @@ describe("máy giữ nick", () => {
    * sống ở hai nơi cùng lúc. Một loại chung với PINNED thì câu hỏi "nick này từng ở máy nào"
    * phải đi đọc `detail`, mà `detail` là chuỗi tự do.
    */
-  it("đổi máy là MOVED, và câu báo kèm cảnh báo xóa bản cũ", () => {
+  it("records a Relay PC change as MOVED and includes the old-copy warning", () => {
     const result = change(
       { ownerId: "u1", deviceId: "d1" },
       { ownerId: "u1", deviceId: "d2" },
@@ -98,8 +98,8 @@ describe("máy giữ nick", () => {
   });
 });
 
-describe("hai ô cùng đổi", () => {
-  it("ghi hai hàng, mỗi thứ một hàng", () => {
+describe("owner and Relay PC change together", () => {
+  it("records one audit entry for each changed field", () => {
     const result = change(NOBODY, { ownerId: "u1", deviceId: "d1" }, {
       ownerEmail: "ha@x.test",
       deviceName: "Laptop Dell",
@@ -116,7 +116,7 @@ describe("hai ô cùng đổi", () => {
    * vô hại là nhật ký không ai đọc — và nó chỉ có một công dụng duy nhất, vào đúng ngày phải
    * dựng lại chuyện đã xảy ra.
    */
-  it("không đổi gì thì không ghi hàng nào", () => {
+  it("records no audit entries when nothing changes", () => {
     const result = change({ ownerId: "u1", deviceId: "d1" }, { ownerId: "u1", deviceId: "d1" });
 
     expect(result.auditActions).toEqual([]);

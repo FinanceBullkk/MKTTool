@@ -142,8 +142,8 @@ afterAll(async () => {
   await prisma.$disconnect();
 });
 
-describe("đường thuận", () => {
-  it("ghi id profile VÀ ghim nick vào máy vừa tạo, trong một lượt", async () => {
+describe("successful path", () => {
+  it("records the browser profile ID and assigns the creating Relay PC in one operation", async () => {
     const result = await recordCreatedProfile({
       accountId,
       profileId: "profile-moi-tinh",
@@ -164,7 +164,7 @@ describe("đường thuận", () => {
     expect(actions).toContain(AUDIT_ACTIONS.ACCOUNT_DEVICE_PINNED);
   });
 
-  it("ghi lại lần nữa trên đúng máy đó vẫn được — bấm hai lần không hỏng", async () => {
+  it("allows the same browser profile to be recorded again on the same Relay PC", async () => {
     await recordCreatedProfile({ accountId, profileId: "p1", deviceId: mayCuaHa });
     const result = await recordCreatedProfile({ accountId, profileId: "p1", deviceId: mayCuaHa });
 
@@ -172,8 +172,8 @@ describe("đường thuận", () => {
   });
 });
 
-describe("năm phép kiểm", () => {
-  it("1 — nick của người khác thì bị từ chối", async () => {
+describe("five safety checks", () => {
+  it("1 - rejects a nick owned by another operator", async () => {
     const cuaNam = await seedNick("bob", { ownerId: NAM_ID });
 
     const result = await recordCreatedProfile({
@@ -187,7 +187,7 @@ describe("năm phép kiểm", () => {
     expect(sau.antidetectProfileId).toBeNull();
   });
 
-  it("2a — máy của người khác thì bị từ chối", async () => {
+  it("2a - rejects another operator's Relay PC", async () => {
     const result = await recordCreatedProfile({
       accountId,
       profileId: "p",
@@ -195,10 +195,10 @@ describe("năm phép kiểm", () => {
     });
 
     expect(result.ok).toBe(false);
-    expect(result.message).toContain("không phải máy của bạn");
+    expect(result.message).toContain("not yours");
   });
 
-  it("2b — máy đã thu hồi thì bị từ chối", async () => {
+  it("2b - rejects a revoked Relay PC", async () => {
     const result = await recordCreatedProfile({
       accountId,
       profileId: "p",
@@ -214,7 +214,7 @@ describe("năm phép kiểm", () => {
    * vào máy của chính mình — profile chỉ tồn tại trên một máy, nên chủ nick không mở nổi nick của
    * mình, và bất biến `deviceId != null ⟹ device.userId == ownerId` vỡ ngay lúc ghi.
    */
-  it("3 — ADMIN ghim nick của người khác vào máy MÌNH thì bị từ chối", async () => {
+  it("3 - rejects an ADMIN assigning another owner's nick to the ADMIN's Relay PC", async () => {
     phien.actor = PHIEN_ADMIN;
     const cuaNam = await seedNick("erin", { ownerId: NAM_ID });
 
@@ -225,14 +225,14 @@ describe("năm phép kiểm", () => {
     });
 
     expect(result.ok).toBe(false);
-    expect(result.message).toContain("người khác phụ trách");
+    expect(result.message).toContain("another operator");
 
     const sau = await prisma.account.findUniqueOrThrow({ where: { id: cuaNam } });
     expect(sau.antidetectProfileId).toBeNull();
     expect(sau.deviceId).toBeNull();
   });
 
-  it("3b — ADMIN tạo hộ nick CHƯA có chủ cũng bị từ chối, kèm chỗ gán chủ", async () => {
+  it("3b - rejects ADMIN creation for an ownerless nick and identifies where to assign it", async () => {
     phien.actor = PHIEN_ADMIN;
     const voChu = await seedNick("frank");
     await prisma.account.update({ where: { id: voChu }, data: { ownerId: null } });
@@ -244,7 +244,7 @@ describe("năm phép kiểm", () => {
     });
 
     expect(result.ok).toBe(false);
-    expect(result.message).toContain("Phân công cụm");
+    expect(result.message).toContain("Nick assignment");
   });
 
   /**
@@ -252,7 +252,7 @@ describe("năm phép kiểm", () => {
    * về đây — nếu không, tự ghim thành một đường vòng qua `assignAccountCluster` (vốn chỉ ADMIN gọi
    * được), và đích đến là mật khẩu proxy của nick người khác.
    */
-  it("4 — nick đã ghim ở máy KHÁC thì từ chối, không kéo về", async () => {
+  it("4 - rejects a nick already assigned to another Relay PC", async () => {
     const daGhim = await seedNick("carol", { deviceId: mayCuaNam });
 
     const result = await recordCreatedProfile({
@@ -272,7 +272,7 @@ describe("năm phép kiểm", () => {
     expect(sau.antidetectProfileId).toBeNull();
   });
 
-  it("5 — profile đã gắn nick khác thì từ chối kèm tên nick đó", async () => {
+  it("5 - rejects a browser profile already assigned to another nick and names it", async () => {
     const khac = await seedNick("dave");
     await recordCreatedProfile({ accountId: khac, profileId: "p-chung", deviceId: mayCuaHa });
 
@@ -287,8 +287,8 @@ describe("năm phép kiểm", () => {
   });
 });
 
-describe("dữ liệu vào không hợp lệ", () => {
-  it("thiếu trường thì từ chối chứ không ghi nửa vời", async () => {
+describe("invalid input", () => {
+  it("rejects missing fields without a partial write", async () => {
     const result = await recordCreatedProfile({ accountId, profileId: "" });
 
     expect(result.ok).toBe(false);

@@ -42,7 +42,7 @@ describe("Phase 2 navigation and vocabulary contract", () => {
 
     expect(accounts).toContain('title="Nick vault"');
     expect(setup).toContain("Relay PC setup");
-    expect(detail).toContain('["Browser profile"');
+    expect(detail).toContain('"Browser profile"');
     expect(detail).toContain('"Relay PC"');
     expect(actions).toContain("Open browser profile");
     expect(table).toContain("Open on this Relay PC");

@@ -92,7 +92,9 @@ function payloadOfKind<K extends TicketPayload["kind"]>(
   kind: K,
 ): Extract<TicketPayload, { kind: K }> {
   const value = payload as TicketPayload;
-  if (value?.kind !== kind) throw new Error(`Sai loại vé: mong ${kind}, nhận ${value?.kind}.`);
+  if (value?.kind !== kind) {
+    throw new Error(`Wrong ticket kind: expected ${kind}, received ${value?.kind}.`);
+  }
   return value as Extract<TicketPayload, { kind: K }>;
 }
 
@@ -147,10 +149,10 @@ afterAll(async () => {
   await prisma.$disconnect();
 });
 
-describe("vé bí mật đi hết vòng", () => {
-  it("cầu nối mở vé ra đúng mật khẩu", async () => {
+describe("credential ticket round trip", () => {
+  it("lets Relay open the ticket to the correct password", async () => {
     const issued = await requestCredentialTicket(accountId, "password");
-    if ("ok" in issued) throw new Error(`Đáng lẽ phát được vé: ${issued.message}`);
+    if ("ok" in issued) throw new Error(`Expected a ticket to be issued: ${issued.message}`);
 
     const payload = payloadOfKind(openAtRelay(issued.ticket).payload, "CREDENTIAL");
 
@@ -158,7 +160,7 @@ describe("vé bí mật đi hết vòng", () => {
     expect(issued.deviceName).toBe("Laptop của Operator");
   });
 
-  it("vé mật khẩu email mang đúng cột kia", async () => {
+  it("carries the email password in the matching ticket field", async () => {
     const issued = await requestCredentialTicket(accountId, "emailPassword");
     if ("ok" in issued) throw new Error(issued.message);
 
@@ -169,7 +171,7 @@ describe("vé bí mật đi hết vòng", () => {
     );
   });
 
-  it("vé OTP mang TOTP secret, cầu nối sinh được mã", async () => {
+  it("carries the TOTP secret so Relay can generate a code", async () => {
     const issued = await requestOtpTicket(accountId);
     if ("ok" in issued) throw new Error(issued.message);
 
@@ -181,7 +183,7 @@ describe("vé bí mật đi hết vòng", () => {
   });
 
   /** Trình duyệt chỉ là người đưa thư — nó cầm vé đi qua nhưng không đọc được gì bên trong. */
-  it("chuỗi vé không chứa mật khẩu dạng trần", async () => {
+  it("does not include plaintext passwords in the serialized ticket", async () => {
     const issued = await requestCredentialTicket(accountId, "password");
     if ("ok" in issued) throw new Error(issued.message);
 
@@ -204,15 +206,15 @@ describe("vé bí mật đi hết vòng", () => {
  * Không có bài này thì "đã tách vùng khóa" chỉ là lời khai: mọi bài test khác đều xanh y hệt
  * trong một hệ vẫn giải mã ngay tại máy chủ.
  */
-describe("máy chủ không có khóa operator", () => {
+describe("server without the operator key", () => {
   beforeEach(() => {
     delete process.env.VAULT_KEY_OPERATOR;
     resetVaultKeyCache();
   });
 
-  it("vẫn phát được vé mật khẩu, và cầu nối vẫn mở ra đúng", async () => {
+  it("still issues a password ticket that Relay can open", async () => {
     const issued = await requestCredentialTicket(accountId, "password");
-    if ("ok" in issued) throw new Error(`Đáng lẽ phát được vé: ${issued.message}`);
+    if ("ok" in issued) throw new Error(`Expected a ticket to be issued: ${issued.message}`);
 
     const payload = payloadOfKind(openAtRelay(issued.ticket).payload, "CREDENTIAL");
 
@@ -221,19 +223,19 @@ describe("máy chủ không có khóa operator", () => {
     expect(decryptCredential(payload.credentialCiphertext, loadVaultKey("operator"))).toBe(MAT_KHAU);
   });
 
-  it("vẫn phát được vé OTP", async () => {
+  it("still issues an OTP ticket", async () => {
     const issued = await requestOtpTicket(accountId);
 
     expect("ticket" in issued).toBe(true);
   });
 });
 
-describe("các nhánh từ chối", () => {
+describe("rejection paths", () => {
   /**
    * Chặn vẫn đúng ở bản cũ — thứ từng mất là **lời giải thích**: `AuthorizationError` ném trần
    * ra khỏi server action thì trình duyệt chỉ thấy promise reject, nút chết lặng không chữ nào.
    */
-  it("nick của người khác: trả câu giải thích, không ném lỗi", async () => {
+  it("returns an explanation instead of throwing for another operator's nick", async () => {
     await prisma.account.update({ where: { id: accountId }, data: { ownerId: NGUOI_KHAC_ID } });
 
     const result = await requestCredentialTicket(accountId, "password");
@@ -242,7 +244,7 @@ describe("các nhánh từ chối", () => {
     expect("message" in result && result.message).toContain("người khác phụ trách");
   });
 
-  it("nick chưa phân công: mặc định đóng, kèm câu nói phải làm gì", async () => {
+  it("fails closed for an unassigned nick and explains the next step", async () => {
     await prisma.account.update({ where: { id: accountId }, data: { ownerId: null } });
 
     const result = await requestOtpTicket(accountId);
@@ -250,7 +252,7 @@ describe("các nhánh từ chối", () => {
     expect("message" in result && result.message).toContain("chưa được phân công");
   });
 
-  it("chưa có máy nào trong sổ: nói rõ phải đăng ký ở đâu", async () => {
+  it("explains where to register when no Relay PC is available", async () => {
     await prisma.relayDevice.deleteMany();
 
     const result = await requestCredentialTicket(accountId, "password");
@@ -259,7 +261,7 @@ describe("các nhánh từ chối", () => {
   });
 
   /** Thu hồi phải chặn được **vé mới** — đó là toàn bộ lời hứa của nút thu hồi. */
-  it("máy đã thu hồi không nhận được vé mới", async () => {
+  it("does not issue new tickets to a revoked Relay PC", async () => {
     await prisma.relayDevice.update({
       where: { id: deviceId },
       data: { revokedAt: new Date() },
@@ -270,7 +272,7 @@ describe("các nhánh từ chối", () => {
     expect("ok" in result && result.ok).toBe(false);
   });
 
-  it("hai máy đang dùng mà không chọn: bắt chọn thay vì đoán bừa", async () => {
+  it("requires a selection instead of guessing when two Relay PCs are active", async () => {
     const second = generateRelayDeviceKeyPair();
     await prisma.relayDevice.create({
       data: { name: "Máy bàn", userId: OPERATOR_ID, publicKey: second.publicKeyHex },
@@ -281,7 +283,7 @@ describe("các nhánh từ chối", () => {
     expect("message" in result && result.message).toContain("chọn máy bạn đang ngồi");
   });
 
-  it("chọn máy của người khác thì bị từ chối", async () => {
+  it("rejects another operator's Relay PC", async () => {
     const other = generateRelayDeviceKeyPair();
     const otherDevice = await prisma.relayDevice.create({
       data: { name: "Máy người khác", userId: NGUOI_KHAC_ID, publicKey: other.publicKeyHex },
@@ -293,12 +295,12 @@ describe("các nhánh từ chối", () => {
     expect("ok" in result && result.ok).toBe(false);
   });
 
-  it("nick chưa lưu TOTP secret: nói ngay, không bắt đợi một tab trống", async () => {
+  it("reports a missing TOTP secret before opening an empty tab", async () => {
     await prisma.account.update({ where: { id: accountId }, data: { totpSecretEnc: null } });
 
     const result = await requestOtpTicket(accountId);
 
-    expect("message" in result && result.message).toContain("chưa lưu TOTP secret");
+    expect("message" in result && result.message).toContain("no saved TOTP secret");
   });
 });
 
@@ -307,8 +309,8 @@ describe("các nhánh từ chối", () => {
  *
  * `AuditLog` ghi lại đầy đủ, nhưng nhật ký là thứ đọc SAU — lúc đó thiệt hại đã xong.
  */
-describe("hạn nhịp", () => {
-  it("chặn lượt thứ 11 trong một phút, kèm số giây chờ", async () => {
+describe("rate limit", () => {
+  it("blocks the eleventh request in one minute and includes the wait time", async () => {
     for (let lan = 0; lan < 10; lan += 1) {
       const ok = await requestCredentialTicket(accountId, "password");
       expect("ticket" in ok).toBe(true);
@@ -321,7 +323,7 @@ describe("hạn nhịp", () => {
   });
 
   /** Người bị chặn vẫn phải được biết vì sao mình bị chặn, chứ không phải một nút im lặng. */
-  it("lượt bị chặn KHÔNG ghi vào nhật ký lộ credential", async () => {
+  it("does not audit a blocked credential request as a reveal", async () => {
     for (let lan = 0; lan < 11; lan += 1) {
       await requestCredentialTicket(accountId, "password");
     }
@@ -333,12 +335,12 @@ describe("hạn nhịp", () => {
   });
 });
 
-describe("nhật ký", () => {
+describe("audit log", () => {
   /**
    * Mốc ghi là lúc PHÁT VÉ, không phải lúc người dùng nhìn thấy mật khẩu — máy chủ tự biết mốc
    * đó, còn mốc kia thì nó chỉ biết nếu tin lời trình duyệt khai.
    */
-  it("ghi CREDENTIAL_REVEALED kèm cột nào và máy nào", async () => {
+  it("records CREDENTIAL_REVEALED with the field and Relay PC", async () => {
     await requestCredentialTicket(accountId, "emailPassword");
 
     const log = await prisma.auditLog.findFirstOrThrow({ where: { accountId } });
@@ -348,7 +350,7 @@ describe("nhật ký", () => {
     expect(log.actorId).toBe(OPERATOR_ID);
   });
 
-  it("ghi OTP_GENERATED kèm máy nhận", async () => {
+  it("records OTP_GENERATED with the receiving Relay PC", async () => {
     await requestOtpTicket(accountId);
 
     const log = await prisma.auditLog.findFirstOrThrow({ where: { accountId } });
@@ -357,7 +359,7 @@ describe("nhật ký", () => {
   });
 
   /** Không phát được vé thì không có bí mật nào rời kho — nhật ký phải im. */
-  it("không ghi gì khi bị từ chối vì không phải chủ nick", async () => {
+  it("records nothing when the requester does not own the nick", async () => {
     await prisma.account.update({ where: { id: accountId }, data: { ownerId: NGUOI_KHAC_ID } });
 
     await requestCredentialTicket(accountId, "password");

@@ -30,39 +30,40 @@ interface StatusPresentation {
 
 export const STATUS_PRESENTATION: Record<AccountStatus, StatusPresentation> = {
   DEAD: {
-    label: "Đã chết",
+    label: "Dead",
     severity: 0,
     className: "bg-neutral-200 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-400",
     canLaunch: false,
-    hint: "Nick không dùng được nữa. Không mở profile.",
+    hint: "This nick is no longer usable. Do not open its browser profile.",
   },
   CHECKPOINT: {
-    label: "Dính checkpoint",
+    label: "Checkpointed",
     severity: 1,
     className: "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300",
     canLaunch: false,
-    hint: "Nền tảng đang nghi ngờ nick này. Cách ly, người xử lý tay. KHÔNG tự giải captcha.",
+    hint:
+      "The platform is challenging this nick. Keep it quarantined and handle it manually. DO NOT automate CAPTCHA solving.",
   },
   SHADOWBANNED: {
-    label: "Bị ẩn",
+    label: "Shadowbanned",
     severity: 2,
     className: "bg-orange-100 text-orange-800 dark:bg-orange-950 dark:text-orange-300",
     canLaunch: false,
-    hint: "Bài đăng không hiện với người ngoài. Dừng đăng, chờ hồi phục.",
+    hint: "Posts are not visible to other people. Stop posting and wait for recovery.",
   },
   COLD_START: {
-    label: "Đang cold-start",
+    label: "Cold-start",
     severity: 3,
     className: "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300",
     canLaunch: true,
-    hint: "Chỉ đọc và tương tác nhẹ. Cấm đăng bài, cấm đổi thông tin hồ sơ.",
+    hint: "Read and interact lightly only. Do not post or change profile information.",
   },
   ALIVE: {
-    label: "Khỏe",
+    label: "Healthy",
     severity: 4,
     className: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300",
     canLaunch: true,
-    hint: "Hoạt động bình thường.",
+    hint: "Normal activity is allowed.",
   },
 };
 
