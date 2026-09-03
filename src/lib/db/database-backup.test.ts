@@ -23,7 +23,7 @@ import { dumpDatabaseTo } from "./database-backup";
 
 const SOURCE: BackupSource = {
   kind: "local",
-  databaseUrl: "postgresql://postgres:password@localhost:5432/mkttool_test",
+  databaseUrl: "postgresql://postgres:p@localhost:5432/mkttool_test",
   namePrefix: "mkttool",
 };
 

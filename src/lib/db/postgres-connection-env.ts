@@ -25,7 +25,7 @@ export function postgresToolEnv(databaseUrl: string): PostgresToolEnv {
   } catch {
     throw new Error(
       `DATABASE_URL is not a valid URL. Expected format: ` +
-        `postgresql://user:password@localhost:5432/mkttool_dev`,
+        `postgresql://user:<password>@localhost:5432/mkttool_dev`,
     );
   }
 

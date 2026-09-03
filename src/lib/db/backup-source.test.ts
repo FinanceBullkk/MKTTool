@@ -6,8 +6,8 @@ import {
   resolveBackupSource,
 } from "./backup-source";
 
-const LOCAL = "postgresql://postgres:password@localhost:5432/mkttool_dev";
-const REMOTE = "postgresql://postgres:password@shortline.proxy.rlwy.net:41234/railway?sslmode=require";
+const LOCAL = "postgresql://postgres:p@localhost:5432/mkttool_dev";
+const REMOTE = "postgresql://postgres:p@shortline.proxy.rlwy.net:41234/railway?sslmode=require";
 
 describe("resolveBackupSource", () => {
   it("reads DATABASE_URL for the local source", () => {
