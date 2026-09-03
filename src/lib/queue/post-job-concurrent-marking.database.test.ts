@@ -214,7 +214,7 @@ describe("two overrides on one job", () => {
     ])) as { ok: boolean; message: string }[];
 
     const refused = results.find((result) => !result.ok);
-    expect(refused?.message).toMatch(/ng\u01b0\u1eddi kh\u00e1c|\u0111ang \u0111\u01b0\u1ee3c \u0111\u0103ng/);
+    expect(refused?.message).toMatch(/Another operator|just posted/);
   });
 
   it("eight people marking the same job as posted at once only leaves one trace", async () => {

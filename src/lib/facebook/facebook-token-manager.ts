@@ -42,7 +42,7 @@ async function ensureTargetForPage(page: ManagedPage): Promise<string | null> {
       url: `https://www.facebook.com/${page.id}`,
       // Fanpage là kênh của chính mình: không có mod duyệt, không có luật karma.
       // Bốn luật giữ nhịp cũng không áp (xem COMMUNITY_PLATFORMS).
-      notes: "Tự tạo khi kết nối Fanpage qua Graph API.",
+      notes: "Created automatically when connecting a Facebook Page through the Graph API.",
     },
   });
   return created.id;
@@ -140,12 +140,12 @@ export async function verifyAllPageTokens(): Promise<TokenCheckResult[]> {
         where: { id: page.id },
         data: { tokenValid: true, tokenNote: null, tokenCheckedAt: new Date() },
       });
-      results.push({ pageId: page.pageId, name: page.name, ok: true, message: "Token còn dùng được." });
+      results.push({ pageId: page.pageId, name: page.name, ok: true, message: "The token is still usable." });
     } catch (error) {
       const message =
         error instanceof FacebookGraphError
           ? error.message
-          : "Không kiểm tra được token (lỗi cục bộ, không phải Facebook từ chối).";
+          : "Could not check the token because of a local error, not a Facebook rejection.";
 
       // Chỉ đánh dấu hỏng khi CHÍNH Facebook từ chối token. Mất mạng mà bôi đỏ hết
       // thì lần sau không ai tin cái đèn nữa.

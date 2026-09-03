@@ -73,7 +73,7 @@ async function request<T>(
     response = await fetch(url, init);
   } catch (cause) {
     throw new FacebookGraphError(
-      "Không gọi được Graph API — kiểm tra kết nối mạng của máy.",
+      "Could not reach the Graph API. Check this machine's network connection.",
       null,
       { cause },
     );
@@ -85,7 +85,7 @@ async function request<T>(
     body = JSON.parse(bodyText);
   } catch {
     throw new FacebookGraphError(
-      `Graph API trả về nội dung không phải JSON (HTTP ${response.status}).`,
+      `The Graph API returned non-JSON content (HTTP ${response.status}).`,
       null,
     );
   }
@@ -93,7 +93,7 @@ async function request<T>(
   const errorPayload = (body as GraphErrorEnvelope).error ?? null;
   if (!response.ok || errorPayload) {
     throw new FacebookGraphError(
-      describeGraphError(errorPayload, `Graph API trả về HTTP ${response.status}.`),
+      describeGraphError(errorPayload, `The Graph API returned HTTP ${response.status}.`),
       errorPayload,
     );
   }

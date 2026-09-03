@@ -10,10 +10,10 @@ import { isFacebookAppConfigured, redirectUri } from "@/lib/facebook/facebook-ap
 export const dynamic = "force-dynamic";
 
 const SETUP_STEPS = [
-  "Tạo app loại Business ở developers.facebook.com.",
-  "Thêm sản phẩm Facebook Login, bật quyền pages_manage_posts, pages_read_engagement, pages_show_list.",
-  `Khai redirect URI đúng bằng "${redirectUri()}" (Facebook so từng ký tự).`,
-  "Copy App ID và App Secret vào FACEBOOK_APP_ID / FACEBOOK_APP_SECRET trong .env rồi khởi động lại dev server.",
+  "Create a Business app at developers.facebook.com.",
+  "Add Facebook Login and enable pages_manage_posts, pages_read_engagement, and pages_show_list.",
+  `Register the redirect URI exactly as "${redirectUri()}" because Facebook compares every character.`,
+  "Copy the App ID and App Secret into FACEBOOK_APP_ID and FACEBOOK_APP_SECRET in .env, then restart the development server.",
 ];
 
 export default async function FacebookPage({
@@ -48,7 +48,7 @@ export default async function FacebookPage({
       <ParkedScopeBanner what="Facebook" />
       <PageHeading
         title="Facebook"
-        description="Fanpage đăng bằng Graph API chính thức — miễn phí và không vi phạm chính sách. Group phải đăng tay: Meta đã gỡ quyền tự đăng group từ 04/2024."
+        description="Facebook Pages use the official Graph API. Facebook Groups require manual posting because Meta removed group publishing access in April 2024."
       />
 
       {connected ? (
@@ -62,26 +62,26 @@ export default async function FacebookPage({
         </div>
       ) : null}
 
-      <Card title="Kết nối">
+      <Card title="Connect">
         {configured ? (
           <div className="space-y-4">
             <a
               href="/api/facebook/oauth/start"
               className="inline-block rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-neutral-700 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-300"
             >
-              Kết nối nick Facebook
+              Connect Facebook nick
             </a>
             <p className="text-xs text-neutral-500">
-              Đăng nhập bằng nick cá nhân đang quản trị Fanpage. Ở màn hình cấp quyền nhớ tick chọn
-              từng Page — bỏ sót Page nào là Page đó không hiện ở đây.
+              Sign in with the personal nick that administers the Facebook Pages. Select every Page
+              on the permission screen; any omitted Page will not appear here.
             </p>
             <CheckTokensButton />
           </div>
         ) : (
           <div className="space-y-3">
             <p className="text-sm text-neutral-600 dark:text-neutral-400">
-              Chưa cấu hình Meta App. Phần còn lại của công cụ vẫn chạy bình thường — làm 4 bước
-              này khi nào cần đăng Fanpage:
+              Meta App is not configured. The rest of the tool continues to work. Complete these
+              four steps when Facebook Page publishing is needed:
             </p>
             <ol className="list-decimal space-y-1 pl-5 text-sm">
               {SETUP_STEPS.map((step) => (
@@ -89,39 +89,40 @@ export default async function FacebookPage({
               ))}
             </ol>
             <p className="text-xs text-neutral-500">
-              Không cần App Review: chế độ Development đủ để đăng lên Page do chính mình quản trị.
+              App Review is not required. Development mode can publish to Pages you administer.
             </p>
           </div>
         )}
       </Card>
 
       {connections.length > 0 ? (
-        <Card title="Nick đã kết nối">
+        <Card title="Connected nicks">
           <FacebookConnectionTable connections={connections} />
         </Card>
       ) : null}
 
-      <Card title="Fanpage">
+      <Card title="Facebook Pages">
         <FacebookPageTable pages={pages} adminOptions={fbAccounts} />
       </Card>
 
-      <Card title="Facebook Group — vì sao không tự động">
+      <Card title="Facebook Groups - why posting is manual">
         <p className="text-sm text-neutral-600 dark:text-neutral-400">
-          Meta gỡ quyền <code>publish_to_groups</code> tháng 04/2024. Không công cụ nào tự đăng
-          group được nữa — Buffer, Hootsuite, Make đều đã bỏ tính năng này. Thứ tự nhận làm được
-          chỉ có thể là lái trình duyệt giả người dùng, và đó đúng là hành vi khiến nick bị khóa.
+          Meta removed the <code>publish_to_groups</code> permission in April 2024. Tools such as
+          Buffer, Hootsuite, and Make have removed this feature. Any service claiming otherwise
+          must drive a browser as if it were a user, which is exactly the behavior that risks a ban.
         </p>
         <p className="mt-3 text-sm text-neutral-600 dark:text-neutral-400">
-          Bài group vẫn xếp lịch bình thường ở{" "}
+          Facebook Group posts can still be scheduled in the{" "}
           <Link href="/queue" className="underline">
-            hàng đợi
+            posting queue
           </Link>{" "}
-          với đích loại Facebook Group, vẫn được bộ luật chấm 9 trong 10 luật — đúng như Reddit,
-          trừ luật dò shadowban vốn chỉ áp cho Reddit. Đến giờ,{" "}
+          and evaluated by nine of the ten posting rules, like Reddit except for the Reddit-only
+          shadowban check. When the job is due, the{" "}
           <Link href="/" className="underline">
-            trang tổng quan
+            Home page
           </Link>{" "}
-          nhắc việc kèm nút mở profile và copy nội dung — phần dán và bấm đăng là của người.
+          provides a reminder plus controls to open the browser profile and copy the content. The
+          operator still pastes the content and performs the final posting action.
         </p>
       </Card>
     </>

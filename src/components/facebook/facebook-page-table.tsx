@@ -36,14 +36,14 @@ export function FacebookPageTable({
   if (pages.length === 0) {
     return (
       <EmptyState>
-        Chưa có Fanpage nào. Kết nối một nick cá nhân quản trị Page ở khối trên — công cụ tự tạo
-        đích đăng tương ứng để xếp lịch được ngay.
+        No Facebook Pages are connected. Connect a personal nick that administers a Page above;
+        the tool automatically creates its posting target for scheduling.
       </EmptyState>
     );
   }
 
   return (
-    <DataTable headers={["Page", "Đích đăng", "Token", "Kiểm lần cuối", "Nick quản trị"]}>
+    <DataTable headers={["Page", "Posting target", "Token", "Last checked", "Administrator nick"]}>
       {pages.map((page) => {
         const health = evaluateTokenHealth({
           expiresAt: page.connection.expiresAt,
@@ -62,7 +62,7 @@ export function FacebookPageTable({
               >
                 {page.name}
               </a>
-              <div className="text-xs text-neutral-500">qua {page.connection.name}</div>
+              <div className="text-xs text-neutral-500">via {page.connection.name}</div>
             </td>
             <td className="py-2 pr-4 text-sm">
               {page.target ? (
@@ -71,7 +71,7 @@ export function FacebookPageTable({
                 </Link>
               ) : (
                 <span className="text-amber-700 dark:text-amber-400">
-                  chưa nối — không xếp lịch được
+                  not connected - scheduling unavailable
                 </span>
               )}
             </td>
@@ -85,7 +85,7 @@ export function FacebookPageTable({
               ) : null}
             </td>
             <td className="whitespace-nowrap py-2 pr-4 text-xs text-neutral-500">
-              {page.tokenCheckedAt ? formatDayMonthTime(page.tokenCheckedAt) : "chưa kiểm"}
+              {page.tokenCheckedAt ? formatDayMonthTime(page.tokenCheckedAt) : "not checked"}
             </td>
             <td className="py-2 pr-4">
               <FacebookPageRowActions

@@ -107,15 +107,15 @@ function readFileSyncCached(file: string): string {
   return content;
 }
 
-describe("mọi import dưới src/ phải trỏ vào thứ có trong Docker image", () => {
-  it("không có import nào thoát ra ngoài src/, scripts/, prisma/", () => {
+describe("src imports stay inside the Docker image", () => {
+  it("has no imports that escape src, scripts, or prisma", () => {
     // Đỏ ở đây nghĩa là: lượt deploy tới sẽ hỏng ở bước `npm run build` trong Docker, kèm câu
     // `Module not found`. Sửa bằng cách chuyển file được import vào trong image — ĐỪNG thêm thư
     // mục vào `DIRECTORIES_IN_IMAGE` trừ khi `Dockerfile` thật sự copy nó.
     expect(findEscapes()).toEqual([]);
   });
 
-  it("phép quét thật sự nhìn thấy import — không im lặng rỗng", () => {
+  it("proves the scan sees imports instead of silently returning empty", () => {
     // Một regex hỏng biến bài trên thành xanh vĩnh viễn. Con số chỉ cần là "nhiều".
     let counted = 0;
     for (const file of walk(path.join(REPO_ROOT, "src"))) {

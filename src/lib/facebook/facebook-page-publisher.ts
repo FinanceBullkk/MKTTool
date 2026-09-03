@@ -37,7 +37,7 @@ export async function publishToPage(
     where: { pageId },
     include: { connection: true },
   });
-  if (!page) throw new FacebookPublishError(`Chưa kết nối Fanpage có id "${pageId}".`);
+  if (!page) throw new FacebookPublishError(`No connected Facebook Page has ID "${pageId}".`);
 
   // Token hỏng thì gọi API cũng chỉ ăn lỗi — báo trước bằng câu người đọc hiểu được.
   const health = evaluateTokenHealth({
@@ -45,7 +45,7 @@ export async function publishToPage(
     tokenValid: page.tokenValid,
     tokenNote: page.tokenNote,
   });
-  if (!health.usable) throw new FacebookPublishError(`Không đăng được: ${health.message}`);
+  if (!health.usable) throw new FacebookPublishError(`Cannot post: ${health.message}`);
 
   const payload = buildPagePostPayload(page.pageId, content, options);
 
@@ -67,7 +67,7 @@ export async function publishToPage(
     }
     throw error instanceof FacebookGraphError
       ? new FacebookPublishError(error.message)
-      : new FacebookPublishError("Lỗi không xác định khi đăng lên Fanpage.");
+      : new FacebookPublishError("An unknown error occurred while posting to the Facebook Page.");
   }
 }
 

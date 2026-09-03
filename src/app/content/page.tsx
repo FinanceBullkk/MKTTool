@@ -25,23 +25,23 @@ export default async function ContentPage() {
 
   return (
     <>
-      <ParkedScopeBanner what="kho nội dung và pipeline đăng bài" />
+      <ParkedScopeBanner what="content library and posting pipeline" />
       <PageHeading
-        title="Kho content"
-        description="Team viết ở đâu cũng được, nhưng phải nằm ở đây thì bộ luật mới so trùng được. Content chưa xếp lịch thì chưa tính vào tỷ lệ nào cả."
+        title="Content library"
+        description="The team can write anywhere, but content must be stored here before the posting rules can detect duplicates. Unscheduled content does not count toward any ratio."
       />
 
-      <Card title={`Danh sách — ${items.length} bài`}>
+      <Card title={`Content items - ${items.length}`}>
         {items.length === 0 ? (
           <EmptyState>
-            Chưa có content nào. Nhập bài đầu tiên ở dưới, rồi sang{" "}
+            No content yet. Add the first item below, then open the{" "}
             <Link href="/queue/new" className="underline">
-              hàng đợi
+              posting queue
             </Link>{" "}
-            để xếp lịch.
+            to schedule it.
           </EmptyState>
         ) : (
-          <DataTable headers={["Tiêu đề", "Loại", "Người viết", "Link", "Đã xếp", "Ngày tạo", ""]}>
+          <DataTable headers={["Title", "Type", "Author", "Links", "Scheduled", "Created", ""]}>
             {items.map((item) => {
               const type = item.type as ContentType;
               return (
@@ -62,7 +62,7 @@ export default async function ContentPage() {
                     {item.authorName}
                   </td>
                   <td className="py-2 pr-4">{parseLinks(item.links).length}</td>
-                  <td className="py-2 pr-4">{item._count.jobs} job</td>
+                  <td className="py-2 pr-4">{item._count.jobs} jobs</td>
                   <td className="py-2 pr-4 text-xs text-neutral-500">
                     {formatDayMonth(item.createdAt)}
                   </td>
@@ -71,7 +71,7 @@ export default async function ContentPage() {
                       href={`/content/${item.id}`}
                       className="text-xs text-neutral-500 hover:underline"
                     >
-                      Sửa
+                      Edit
                     </Link>
                   </td>
                 </tr>
@@ -81,7 +81,7 @@ export default async function ContentPage() {
         )}
       </Card>
 
-      <Card title="Thêm content">
+      <Card title="Add content">
         <ContentItemForm />
       </Card>
     </>

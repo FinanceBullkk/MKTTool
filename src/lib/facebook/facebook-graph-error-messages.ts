@@ -41,40 +41,40 @@ function explain(payload: GraphErrorPayload): string | null {
   const { code, error_subcode: subcode } = payload;
 
   if (code === 190 && subcode === 463) {
-    return "Token đã hết hạn. Vào /facebook bấm kết nối lại để lấy token mới.";
+    return "The token has expired. Reconnect on /facebook to obtain a new token.";
   }
   if (code === 190 && subcode === 460) {
-    return "Token bị vô hiệu vì nick Facebook đổi mật khẩu. Kết nối lại ở /facebook.";
+    return "The token was invalidated because the Facebook nick changed its password. Reconnect on /facebook.";
   }
   if (code === 190 && subcode === 458) {
-    return "Nick Facebook đã gỡ Meta App này. Vào /facebook kết nối lại và cấp quyền.";
+    return "The Facebook nick removed this Meta App. Reconnect on /facebook and grant access again.";
   }
   if (code === 190 || code === 102) {
-    return "Token không dùng được nữa. Vào /facebook kết nối lại.";
+    return "The token is no longer usable. Reconnect on /facebook.";
   }
   if (code === 200 || code === 10) {
     return (
-      "Thiếu quyền. Nick đăng nhập phải là quản trị viên của Page, và Meta App phải được " +
-      "cấp pages_manage_posts + pages_read_engagement + pages_show_list."
+      "Missing permissions. The signed-in nick must be a Page administrator, and the Meta App " +
+      "must have pages_manage_posts + pages_read_engagement + pages_show_list."
     );
   }
   if (code === 368) {
     return (
-      "Facebook đang tạm khóa thao tác của Page/nick này vì vi phạm chính sách. " +
-      "DỪNG đăng, vào Facebook xem thông báo trước khi thử lại."
+      "Facebook has temporarily blocked actions for this Page or nick because of a policy violation. " +
+      "STOP posting and review the Facebook notice before trying again."
     );
   }
   if (code === 506) {
-    return "Facebook coi đây là bài trùng với bài vừa đăng. Sửa nội dung rồi đăng lại.";
+    return "Facebook considers this a duplicate of a recent post. Edit the content before posting again.";
   }
   if (code === 1609005) {
-    return "Facebook không lấy được nội dung xem trước của link. Kiểm tra link còn sống không.";
+    return "Facebook could not fetch the link preview. Check that the link is still reachable.";
   }
   if (TRANSIENT_ERROR_CODES.has(code ?? -1)) {
-    return "Facebook đang giới hạn tần suất hoặc gặp lỗi tạm thời. Chờ vài phút rồi thử lại.";
+    return "Facebook is rate-limiting requests or has a temporary error. Wait a few minutes and try again.";
   }
   if (code === 100) {
-    return "Facebook từ chối tham số gửi lên. Thường là thiếu nội dung hoặc link sai định dạng.";
+    return "Facebook rejected the submitted parameters. The content may be missing or the link may be malformed.";
   }
   return null;
 }
@@ -84,11 +84,11 @@ export function describeGraphError(payload: GraphErrorPayload | null, fallback: 
   if (!payload) return fallback;
 
   const parts = [explain(payload) ?? fallback];
-  if (payload.message) parts.push(`Facebook nói: "${payload.message}"`);
+  if (payload.message) parts.push(`Facebook says: "${payload.message}"`);
 
   const codes = [
-    payload.code !== undefined ? `mã ${payload.code}` : null,
-    payload.error_subcode !== undefined ? `mã phụ ${payload.error_subcode}` : null,
+    payload.code !== undefined ? `code ${payload.code}` : null,
+    payload.error_subcode !== undefined ? `subcode ${payload.error_subcode}` : null,
   ].filter(Boolean);
   if (codes.length > 0) parts.push(`(${codes.join(", ")})`);
 

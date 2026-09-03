@@ -8,14 +8,14 @@ function inDays(days: number): Date {
 }
 
 describe("evaluateTokenHealth", () => {
-  it("token còn dài ngày thì dùng được", () => {
+  it("keeps a long-lived token usable", () => {
     const health = evaluateTokenHealth({ expiresAt: inDays(45), tokenValid: true }, NOW);
     expect(health.level).toBe("OK");
     expect(health.daysRemaining).toBe(45);
     expect(health.usable).toBe(true);
   });
 
-  it("không có hạn thì coi là tốt, không phải là hỏng", () => {
+  it("treats a token without an expiry as valid", () => {
     // Page token sinh từ user token long-lived không có expires_in — đó là chuyện bình thường.
     const health = evaluateTokenHealth({ expiresAt: null, tokenValid: true }, NOW);
     expect(health.level).toBe("OK");
@@ -23,33 +23,33 @@ describe("evaluateTokenHealth", () => {
     expect(health.usable).toBe(true);
   });
 
-  it("cảnh báo khi còn đúng ngưỡng", () => {
+  it("warns at the exact threshold", () => {
     const health = evaluateTokenHealth({ expiresAt: inDays(TOKEN_WARN_DAYS), tokenValid: true }, NOW);
     expect(health.level).toBe("WARN");
     // Vẫn đăng được — cảnh báo là để kịp kết nối lại, không phải để chặn.
     expect(health.usable).toBe(true);
   });
 
-  it("hết hạn thì chặn đăng", () => {
+  it("blocks posting after expiry", () => {
     const health = evaluateTokenHealth({ expiresAt: inDays(-1), tokenValid: true }, NOW);
     expect(health.level).toBe("EXPIRED");
     expect(health.usable).toBe(false);
   });
 
-  it("Facebook đã từ chối thì chặn, kể cả khi hạn còn dài", () => {
+  it("blocks a Facebook-rejected token even when its expiry is far away", () => {
     // Nick admin đổi mật khẩu hoặc gỡ app: token chết trước hạn ghi trong DB.
     const health = evaluateTokenHealth(
-      { expiresAt: inDays(50), tokenValid: false, tokenNote: "mã 190" },
+      { expiresAt: inDays(50), tokenValid: false, tokenNote: "code 190" },
       NOW,
     );
     expect(health.level).toBe("INVALID");
     expect(health.usable).toBe(false);
-    expect(health.message).toContain("mã 190");
+    expect(health.message).toContain("code 190");
   });
 
-  it("token bị từ chối mà không ghi lý do vẫn báo được", () => {
+  it("provides guidance when a rejected token has no recorded reason", () => {
     const health = evaluateTokenHealth({ expiresAt: null, tokenValid: false }, NOW);
     expect(health.level).toBe("INVALID");
-    expect(health.message).toContain("Kết nối lại");
+    expect(health.message).toContain("Reconnect");
   });
 });

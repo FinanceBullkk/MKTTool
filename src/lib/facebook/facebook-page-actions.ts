@@ -15,17 +15,17 @@ export const checkAllPageTokens = guardedAction(async function checkAllPageToken
   _actor,
 ): Promise<ActionResult> {
   const results = await verifyAllPageTokens();
-  if (results.length === 0) return { ok: false, message: "Chưa kết nối Fanpage nào." };
+  if (results.length === 0) return { ok: false, message: "No Facebook Pages are connected." };
 
   const failed = results.filter((result) => !result.ok);
   revalidatePath("/facebook");
 
   if (failed.length === 0) {
-    return { ok: true, message: `${results.length} Page đều dùng được.` };
+    return { ok: true, message: `All ${results.length} Pages are usable.` };
   }
   return {
     ok: false,
-    message: `${failed.length}/${results.length} Page có vấn đề: ${failed
+    message: `${failed.length}/${results.length} Pages have problems: ${failed
       .map((result) => `${result.name} — ${result.message}`)
       .join(" | ")}`,
   };
@@ -43,21 +43,21 @@ export const assignPageAdmin = guardedAction(async function assignPageAdmin(
   accountId: string,
 ): Promise<ActionResult> {
   const parsed = z.string().min(1).safeParse(pageId);
-  if (!parsed.success) return { ok: false, message: "Thiếu id Page." };
+  if (!parsed.success) return { ok: false, message: "Page ID is required." };
 
   const adminAccountId = accountId.trim() === "" ? null : accountId;
 
   if (adminAccountId) {
     const account = await prisma.account.findUnique({ where: { id: adminAccountId } });
-    if (!account) return { ok: false, message: "Không tìm thấy nick." };
+    if (!account) return { ok: false, message: "Nick not found." };
     if (account.platform !== "FACEBOOK") {
-      return { ok: false, message: "Quản trị viên Page phải là nick Facebook." };
+      return { ok: false, message: "The Page administrator must be a Facebook nick." };
     }
   }
 
   await prisma.facebookPage.update({ where: { pageId }, data: { adminAccountId } });
   revalidatePath("/facebook");
-  return { ok: true, message: adminAccountId ? "Đã gán nick quản trị." : "Đã bỏ gán nick quản trị." };
+  return { ok: true, message: adminAccountId ? "Page administrator nick assigned." : "Page administrator nick unassigned." };
 });
 
 /**
@@ -69,13 +69,13 @@ export const disconnectPage = guardedAction(async function disconnectPage(
   pageId: string,
 ): Promise<ActionResult> {
   const page = await prisma.facebookPage.findUnique({ where: { pageId } });
-  if (!page) return { ok: false, message: "Không tìm thấy Page." };
+  if (!page) return { ok: false, message: "Page not found." };
 
   await prisma.facebookPage.delete({ where: { pageId } });
   revalidatePath("/facebook");
   return {
     ok: true,
-    message: `Đã gỡ "${page.name}". Đích đăng và lịch sử job giữ nguyên; kết nối lại là dùng tiếp được.`,
+    message: `Removed "${page.name}". Its posting target and job history remain; reconnect it to resume use.`,
   };
 });
 
@@ -88,12 +88,12 @@ export const disconnectConnection = guardedAction(async function disconnectConne
     where: { id: connectionId },
     include: { _count: { select: { pages: true } } },
   });
-  if (!connection) return { ok: false, message: "Không tìm thấy kết nối." };
+  if (!connection) return { ok: false, message: "Connection not found." };
 
   await prisma.facebookConnection.delete({ where: { id: connectionId } });
   revalidatePath("/facebook");
   return {
     ok: true,
-    message: `Đã ngắt kết nối "${connection.name}" và gỡ ${connection._count.pages} Page kèm theo.`,
+    message: `Disconnected "${connection.name}" and removed its ${connection._count.pages} Pages.`,
   };
 });

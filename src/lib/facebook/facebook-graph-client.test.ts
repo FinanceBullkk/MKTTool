@@ -6,42 +6,42 @@ import { FacebookGraphError, redactTokens } from "./facebook-graph-client";
  * thì đi thẳng ra màn hình lẫn AuditLog. Lọt một lần là token nằm trong database dạng trần.
  */
 describe("redactTokens", () => {
-  it("che tham số access_token trong chuỗi bất kỳ", () => {
-    const redacted = redactTokens("gọi tới /me?access_token=EAAabc123xyz&fields=id");
+  it("redacts an access_token parameter in arbitrary text", () => {
+    const redacted = redactTokens("calling /me?access_token=EAAabc123xyz&fields=id");
     expect(redacted).toContain("access_token=***");
     expect(redacted).not.toContain("EAAabc123xyz");
   });
 
-  it("che cả app secret và token đem đi đổi", () => {
+  it("redacts both the app secret and exchange token", () => {
     const redacted = redactTokens("client_secret=abc123&fb_exchange_token=xyz789");
     expect(redacted).toBe("client_secret=***&fb_exchange_token=***");
   });
 
-  it("che token trần đứng một mình theo tiền tố EAA", () => {
+  it("redacts a standalone token with the EAA prefix", () => {
     const token = `EAA${"x".repeat(40)}`;
-    expect(redactTokens(`Facebook nói: token ${token} hỏng`)).not.toContain(token);
+    expect(redactTokens(`Facebook says: token ${token} failed`)).not.toContain(token);
   });
 
-  it("không đụng vào văn bản thường", () => {
-    const text = "Token đã hết hạn. Vào /facebook bấm kết nối lại.";
+  it("does not alter ordinary text", () => {
+    const text = "The token has expired. Reconnect on /facebook.";
     expect(redactTokens(text)).toBe(text);
   });
 });
 
 describe("FacebookGraphError", () => {
-  it("che token ngay trong thông báo lỗi", () => {
-    const error = new FacebookGraphError("hỏng với access_token=EAAsecret999", null);
+  it("redacts a token inside an error message", () => {
+    const error = new FacebookGraphError("failed with access_token=EAAsecret999", null);
     expect(error.message).toContain("access_token=***");
   });
 
-  it("đánh dấu lỗi token để nơi gọi biết phải kết nối lại chứ không thử lại", () => {
-    const error = new FacebookGraphError("hết hạn", { code: 190, error_subcode: 463 });
+  it("marks token errors so callers reconnect instead of retrying", () => {
+    const error = new FacebookGraphError("expired", { code: 190, error_subcode: 463 });
     expect(error.tokenExpired).toBe(true);
     expect(error.transient).toBe(false);
   });
 
-  it("đánh dấu lỗi tạm thời để nơi gọi biết thử lại được", () => {
-    const error = new FacebookGraphError("quá tần suất", { code: 4 });
+  it("marks transient errors so callers know they can retry", () => {
+    const error = new FacebookGraphError("rate limited", { code: 4 });
     expect(error.transient).toBe(true);
     expect(error.tokenExpired).toBe(false);
   });

@@ -38,8 +38,8 @@ function setScope(value: string | undefined) {
   else process.env[ROLLOUT_SCOPE_ENV] = value;
 }
 
-describe("phạm vi bàn giao", () => {
-  it("không đặt biến môi trường thì mọi nền tảng đều đóng", () => {
+describe("rollout scope", () => {
+  it("parks every platform when the environment variable is unset", () => {
     setScope(undefined);
     expect(isPlatformInRolloutScope("FACEBOOK_PAGE")).toBe(false);
     expect(isPlatformInRolloutScope("REDDIT")).toBe(false);
@@ -47,12 +47,12 @@ describe("phạm vi bàn giao", () => {
     expect(isPostingFullyParked()).toBe(true);
   });
 
-  it("chuỗi rỗng cũng là đóng, không phải là mở hết", () => {
+  it("treats an empty value as fully parked instead of fully open", () => {
     setScope("");
     expect(isPostingFullyParked()).toBe(true);
   });
 
-  it("mở đúng nền tảng được liệt kê, không mở lây sang nền tảng khác", () => {
+  it("opens only listed platforms", () => {
     setScope("FACEBOOK_PAGE");
     expect(isPlatformInRolloutScope("FACEBOOK_PAGE")).toBe(true);
     expect(isPlatformInRolloutScope("FACEBOOK_GROUP")).toBe(false);
@@ -61,60 +61,60 @@ describe("phạm vi bàn giao", () => {
     expect(isPostingFullyParked()).toBe(false);
   });
 
-  it("bỏ qua khoảng trắng và không phân biệt hoa thường", () => {
+  it("ignores whitespace and letter case", () => {
     setScope(" facebook_page , reddit ");
     expect(isPlatformInRolloutScope("FACEBOOK_PAGE")).toBe(true);
     expect(isPlatformInRolloutScope("REDDIT")).toBe(true);
   });
 
-  it("loại đích lạ thì đóng — không biết là không mở", () => {
+  it("parks unknown target types", () => {
     setScope("FACEBOOK_PAGE");
     expect(isPlatformInRolloutScope("TIKTOK")).toBe(false);
     expect(isPlatformInRolloutScope("")).toBe(false);
   });
 
-  it("câu từ chối dùng nhãn thân thiện và chỉ operator đường quay lại", () => {
+  it("uses a friendly label and gives operators a route back", () => {
     const message = parkedPlatformMessage("FACEBOOK_PAGE");
-    expect(message).toContain("Facebook Fanpage");
-    expect(message).toContain("chỉ dùng để xem lịch sử");
-    expect(message).toContain("không đăng được");
+    expect(message).toContain("Facebook Page");
+    expect(message).toContain("viewing history only");
+    expect(message).toContain("posting is unavailable");
     expect(message).toContain("/accounts");
     expect(message).not.toContain("FACEBOOK_PAGE");
     expect(message).not.toContain(ROLLOUT_SCOPE_ENV);
   });
 
-  it("không in enum lạ ra cho operator", () => {
-    expect(rolloutPlatformLabel("SOME_NEW_PLATFORM")).toBe("Nền tảng này");
+  it("does not expose an unknown enum to operators", () => {
+    expect(rolloutPlatformLabel("SOME_NEW_PLATFORM")).toBe("This platform");
   });
 
-  it("banner nói rõ chỉ xem lịch sử và có link về kho nick", () => {
+  it("states that the banner is history-only and links to the nick vault", () => {
     const markup = renderToStaticMarkup(
-      createElement(ParkedScopeBanner, { what: "hàng đợi đăng bài" }),
+      createElement(ParkedScopeBanner, { what: "posting queue" }),
     );
 
-    expect(markup).toContain("chỉ dùng để xem");
-    expect(markup).toContain("không đăng được");
+    expect(markup).toContain("viewing history only");
+    expect(markup).toContain("posting is unavailable");
     expect(markup).toContain('href="/accounts"');
-    expect(markup).not.toContain("phạm vi TikTok hiện tại");
+    expect(markup).not.toContain("current TikTok scope");
   });
 });
 
-describe("chốt chặn đã nối vào lối vào đăng bài", () => {
+describe("posting entry-point rollout guards", () => {
   const read = (relative: string) => readFileSync(join(process.cwd(), relative), "utf8");
 
-  it("đường publish Fanpage gọi chốt phạm vi", () => {
+  it("guards the Facebook Page publish path", () => {
     const source = read("src/lib/facebook/facebook-publish-action.ts");
     expect(source).toContain("isPlatformInRolloutScope");
     expect(source).toContain("if (!isPlatformInRolloutScope(job.target.platform))");
   });
 
-  it("đường xếp lịch job gọi chốt phạm vi", () => {
+  it("guards the job scheduling path", () => {
     const source = read("src/lib/queue/post-job-actions.ts");
     expect(source).toContain("isPlatformInRolloutScope");
     expect(source).toContain("if (!isPlatformInRolloutScope(scheduledTarget.platform))");
   });
 
-  it("chốt phạm vi đứng TRƯỚC lượt gọi Graph API", () => {
+  it("checks rollout scope before calling the Graph API", () => {
     const source = read("src/lib/facebook/facebook-publish-action.ts");
     const guard = source.indexOf("isPlatformInRolloutScope(job.target.platform)");
     const publish = source.indexOf("publishToPage(");

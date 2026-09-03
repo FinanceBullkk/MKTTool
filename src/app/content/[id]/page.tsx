@@ -31,20 +31,20 @@ export default async function ContentDetailPage({ params }: { params: Promise<{ 
   return (
     <>
       <Link href="/content" className="mb-4 inline-block text-sm text-neutral-500 hover:underline">
-        ← Về kho content
+        ← Back to content library
       </Link>
 
-      <PageHeading title={item.title} description={`${item.authorName} viết`} />
+      <PageHeading title={item.title} description={`Written by ${item.authorName}`} />
 
-      <Card title="Sửa content">
+      <Card title="Edit content">
         <p className="mb-4 text-sm text-neutral-600 dark:text-neutral-400">
-          Sửa xong là mọi job đang chờ dùng bài này được chấm lại ngay: độ trùng nội dung và
-          chính sách link tính trên thân bài, tỷ lệ promo tính trên loại bài. Job hết an toàn
-          sẽ chuyển sang BỊ CHẶN và báo lại số lượng.
+          Saving immediately rechecks every pending job that uses this item. Duplicate-content and
+          link-policy rules use the body, while the promotional ratio uses the content type. Jobs
+          that are no longer safe move to BLOCKED, and the result reports how many changed.
         </p>
         <ContentItemForm
           action={updateContentItem}
-          submitLabel="Lưu"
+          submitLabel="Save"
           defaults={{
             id: item.id,
             title: item.title,
@@ -56,11 +56,11 @@ export default async function ContentDetailPage({ params }: { params: Promise<{ 
         />
       </Card>
 
-      <Card title={`Job dùng bài này — ${item.jobs.length}`}>
+      <Card title={`Jobs using this content - ${item.jobs.length}`}>
         {item.jobs.length === 0 ? (
-          <EmptyState>Chưa xếp lịch cho bài này. Chưa xếp thì chưa tính vào tỷ lệ nào cả.</EmptyState>
+          <EmptyState>This content has not been scheduled and does not count toward any ratio.</EmptyState>
         ) : (
-          <DataTable headers={["Giờ đăng", "Nick", "Đích", "Trạng thái"]}>
+          <DataTable headers={["Scheduled time", "Nick", "Target", "Status"]}>
             {item.jobs.map((job) => {
               const status = getJobStatusPresentation(job.status);
               return (
@@ -82,10 +82,11 @@ export default async function ContentDetailPage({ params }: { params: Promise<{ 
         )}
       </Card>
 
-      <Card title="Xóa">
+      <Card title="Delete">
         <p className="mb-3 text-sm text-neutral-600 dark:text-neutral-400">
-          Chỉ xóa được khi chưa xếp lịch lần nào. Bài đã xếp là đối chứng để bộ luật so trùng
-          cho những bài sau — bỏ qua job ở hàng đợi thay vì xóa bài gốc.
+          You can delete only content that has never been scheduled. Scheduled content is evidence
+          used by the posting rules to detect later duplicates. Skip its job in the posting queue
+          instead of deleting the original item.
         </p>
         <DeleteEntityButton
           action={deleteContentItem.bind(null, item.id)}

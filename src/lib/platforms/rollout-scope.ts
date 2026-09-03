@@ -43,13 +43,13 @@ export const ROLLOUT_SCOPE_ENV = "ROLLOUT_PLATFORMS";
 
 const PLATFORM_LABELS: Record<string, string> = {
   REDDIT: "Reddit",
-  FACEBOOK_PAGE: "Facebook Fanpage",
+  FACEBOOK_PAGE: "Facebook Page",
   FACEBOOK_GROUP: "Facebook Group",
 };
 
 /** Nhãn dành cho operator; enum kỹ thuật không đi thẳng ra thông báo. */
 export function rolloutPlatformLabel(platform: string): string {
-  return PLATFORM_LABELS[platform.toUpperCase()] ?? "Nền tảng này";
+  return PLATFORM_LABELS[platform.toUpperCase()] ?? "This platform";
 }
 
 /**
@@ -99,8 +99,8 @@ export function isPostingFullyParked(): boolean {
 export function parkedPlatformMessage(platform: string): string {
   const label = rolloutPlatformLabel(platform);
   return (
-    `${label} đã ra khỏi phạm vi bàn giao từ 02/09/2026 nên không đăng được. ` +
-    `Trang này chỉ dùng để xem lịch sử. Quay lại kho nick tại /accounts để tiếp tục; ` +
-    `nếu nghiệp vụ này được mở lại, liên hệ chủ dự án.`
+    `${label} was removed from the rollout scope on 2 September 2026, so posting is unavailable. ` +
+    `This page is for viewing history only. Return to the nick vault at /accounts to continue; ` +
+    `contact the project owner if this workflow needs to be reopened.`
   );
 }

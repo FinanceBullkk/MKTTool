@@ -32,18 +32,18 @@ export function describeRedirectHostMismatch(
     expectedHost = new URL(configuredRedirectUri).host;
   } catch {
     return (
-      `FACEBOOK_REDIRECT_URI trong .env không phải URL hợp lệ ("${configuredRedirectUri}"). ` +
-      `Phải là địa chỉ đầy đủ, ví dụ http://localhost:3000/api/facebook/oauth/callback.`
+      `FACEBOOK_REDIRECT_URI in .env is not a valid URL ("${configuredRedirectUri}"). ` +
+      `Use a complete address, for example http://localhost:3000/api/facebook/oauth/callback.`
     );
   }
 
   if (expectedHost === requestHost) return null;
 
   return (
-    `Đang mở app bằng "${requestHost}" nhưng FACEBOOK_REDIRECT_URI khai "${expectedHost}". ` +
-    `Facebook sẽ trả về "${expectedHost}", và trình duyệt coi đó là host khác nên không gửi ` +
-    `cookie chống CSRF — kết nối sẽ hỏng với thông báo sai chỗ. ` +
-    `Mở lại app bằng "http://${expectedHost}" rồi bấm kết nối, ` +
-    `hoặc sửa FACEBOOK_REDIRECT_URI cho khớp và khai lại đúng chuỗi đó trong Meta App.`
+    `The app is open at "${requestHost}", but FACEBOOK_REDIRECT_URI uses "${expectedHost}". ` +
+    `Facebook will return to "${expectedHost}", which the browser treats as a different host and ` +
+    `will not send the CSRF cookie. The connection will then fail with a misleading error. ` +
+    `Reopen the app at "http://${expectedHost}" and connect again, or update FACEBOOK_REDIRECT_URI ` +
+    `to match and register that exact value in the Meta App.`
   );
 }

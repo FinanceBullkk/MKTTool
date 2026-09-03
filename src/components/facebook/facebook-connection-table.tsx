@@ -21,7 +21,7 @@ export interface FacebookConnectionRow {
 
 export function FacebookConnectionTable({ connections }: { connections: FacebookConnectionRow[] }) {
   return (
-    <DataTable headers={["Nick Facebook", "Số Page", "Hạn token", "Thao tác"]}>
+    <DataTable headers={["Facebook nick", "Pages", "Token expiry", "Actions"]}>
       {connections.map((connection) => {
         // `tokenValid` luôn true ở đây: cờ hỏng được ghi trên từng Page, vì chính lời gọi
         // đăng bài mới là chỗ Facebook từ chối và nói cho mình biết.

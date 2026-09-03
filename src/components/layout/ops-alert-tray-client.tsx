@@ -34,14 +34,14 @@ const TONE: Record<OpsAlertTone, { box: string; text: string; dot: string; chip:
     text: "text-amber-200/90",
     dot: "bg-amber-400",
     chip: "bg-amber-500/20 text-amber-300",
-    label: "Chú ý",
+    label: "Attention",
   },
   red: {
     box: "border-red-500/25 bg-red-950/25",
     text: "text-red-200/90",
     dot: "bg-red-400",
     chip: "bg-red-500/20 text-red-300",
-    label: "Đang hỏng",
+    label: "Broken",
   },
 };
 
@@ -55,7 +55,7 @@ export function OpsAlertTrayClient({ alerts }: { alerts: AlertItem[] }) {
     // vừa xảy ra cần cắt ngang người dùng.
     <section
       role="status"
-      aria-label="Cảnh báo vận hành"
+      aria-label="Operational alerts"
       className="max-w-6xl mx-auto w-full px-6 pt-3 pb-1 z-10 space-y-1.5"
     >
       {alerts.map((alert) => {
@@ -92,7 +92,7 @@ export function OpsAlertTrayClient({ alerts }: { alerts: AlertItem[] }) {
                 onClick={() => setCollapsed(!collapsed)}
                 className="text-[11px] opacity-70 hover:opacity-100 underline font-medium cursor-pointer flex-shrink-0"
               >
-                {collapsed ? "Chi tiết" : "Thu gọn"}
+                {collapsed ? "Details" : "Collapse"}
               </button>
             ) : null}
           </div>

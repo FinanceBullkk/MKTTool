@@ -104,11 +104,11 @@ export async function loadOverviewPageData() {
   }
 
   const counters: OverviewCounter[] = [
-    { label: "Chờ đăng", value: pendingJobCount, href: "/queue?status=PENDING" },
+    { label: "Pending posts", value: pendingJobCount, href: "/queue?status=PENDING" },
     { label: "Content", value: contentCount, href: "/content" },
-    { label: "Tài khoản", value: accounts.length, href: "/accounts" },
+    { label: "Nicks", value: accounts.length, href: "/accounts" },
     { label: "Proxy", value: proxyCount, href: "/proxies" },
-    { label: "Đích đăng", value: targetCount, href: "/targets" },
+    { label: "Posting targets", value: targetCount, href: "/targets" },
   ];
 
   return {

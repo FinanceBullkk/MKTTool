@@ -17,7 +17,7 @@ function isGuarded(pathname: string): boolean {
   return config.matcher.some((pattern) => new RegExp(`^${pattern}$`).test(pathname));
 }
 
-describe("matcher của proxy.ts", () => {
+describe("proxy.ts matcher", () => {
   it.each([
     "/",
     "/accounts",
@@ -29,11 +29,11 @@ describe("matcher của proxy.ts", () => {
     "/health",
     "/facebook",
     "/targets",
-  ])("gác %s", (pathname) => {
+  ])("guards %s", (pathname) => {
     expect(
       isGuarded(pathname),
-      `${pathname} phải được gác. Trang này đọc thẳng từ database rồi trả HTML — bỏ nó ra ` +
-        `khỏi matcher là ai mở được địa chỉ cũng đọc được kho danh tính.`,
+      `${pathname} must be guarded. This page reads directly from the database and returns HTML. ` +
+        `Removing it from the matcher would expose the identity vault to anyone with the URL.`,
     ).toBe(true);
   });
 
@@ -46,14 +46,14 @@ describe("matcher của proxy.ts", () => {
     // Tài nguyên build: chặn thì trang đăng nhập mất sạch CSS và JavaScript.
     "/_next/static/chunks/main.js",
     "/favicon.ico",
-  ])("cho %s đi qua", (pathname) => {
+  ])("allows %s through", (pathname) => {
     expect(
       isGuarded(pathname),
-      `${pathname} phải đi qua được — xem lý do từng nhóm trong chú thích của config.matcher.`,
+      `${pathname} must remain accessible. See config.matcher comments for each exemption.`,
     ).toBe(false);
   });
 
-  it("chỉ có bốn nhóm được miễn, không hơn", () => {
+  it("exempts exactly four route groups", () => {
     // Mỗi nhóm miễn trừ là một đường không cần đăng nhập, nên số lượng của chúng đáng được
     // đếm. Test đỏ ở đây nghĩa là vừa có người mở thêm một cửa — hãy đọc kỹ cửa đó là gì.
     expect(config.matcher).toEqual([
