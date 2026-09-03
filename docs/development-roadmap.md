@@ -25,6 +25,22 @@ nick detail, and browser actions use those terms. `TeamScopeNotice` and `rollout
 unchanged; setup readiness/stepper behavior, owner/device/concurrency rules, routes, schema, and
 parked platform scope are also unchanged. See [ui-glossary.md](ui-glossary.md).
 
+## Shared-use safety — 3 September 2026
+
+Phase 4 closes three shared-vault ambiguity and overwrite paths without changing rollout scope or
+the authorization model. Home and `/accounts` expose the responsible owner and assigned Relay PC;
+an unassigned device is shown as missing data rather than a fabricated “Local PC”, and launch
+conflicts keep the server's cleaned owner/device explanation.
+
+Owner/Relay PC, proxy, and compatibility updates now ask for confirmation only when the submitted
+value really changes. The confirmation shows before/after values and consequences; compatibility
+updates state before confirmation that Relay and MKT Browser restart and require the exact PC name.
+
+Account edit and cluster assignment now use `Account.updatedAt` as an optimistic revision. Their
+conditional update and audit rows share one transaction, and a stale loser returns before audit or
+queue-recheck writes. Real-PostgreSQL tests execute two sequential writes from one revision and prove
+that the second changes nothing. No schema migration or app-wide locking mechanism was added.
+
 ## Relay-first setup handoff — 3 September 2026
 
 `/setup` now leads operators through the existing Relay release channel in three steps: download

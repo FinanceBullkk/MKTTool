@@ -18,6 +18,22 @@ the archive location.
 
 ---
 
+## 3 September 2026 — shared-use safety rejects stale account writes
+
+- **Ownership is visible:** Home and `/accounts` now show each nick's owner and Relay PC. Missing
+  device assignment is labeled as missing instead of “Local PC”, and launch conflicts surface the
+  server's cleaned owner/device reason.
+- **Confirmations are consequential:** owner/Relay PC, proxy, and compatibility confirmations appear
+  only for real value changes. They show before/after values; compatibility updates require the exact
+  PC name and warn before confirmation that Relay and MKT Browser restart.
+- **Stale forms fail closed:** account edit and cluster assignment carry the rendered
+  `Account.updatedAt` revision and write with a conditional `updateMany`. The account update plus its
+  audit row is transactional; cluster updates plus all assignment audit rows are transactional. A
+  stale loser returns before audit or queue-recheck side effects.
+- **Real PostgreSQL regression coverage:** sequential winner/loser tests reuse one initial revision
+  and prove the loser changes no account fields, timestamp, audit rows, or queued-job verdict state.
+  No schema migration or app-wide lock was added.
+
 ## 3 September 2026 — setup becomes Relay-first
 
 - **Existing Relay release becomes the entry point:** `/setup` now starts with the authenticated

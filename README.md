@@ -305,6 +305,13 @@ thân bài — tất cả đều là đầu vào của luật. Sửa xong, mọi
 và thông báo nói rõ đã chấm mấy job, mấy job vừa chuyển sang **BỊ CHẶN**. Job đã đăng thì không đụng
 tới: trạng thái cuối là cuối.
 
+**Two tabs cannot silently overwrite the same nick.** The nick edit and owner/Relay PC assignment
+forms carry the `Account.updatedAt` revision that was rendered with the page. A save updates only
+that revision; if another tab or teammate saved first, the whole stale write is rejected and the
+operator must reload before trying again. The rejected write creates no audit row and does not
+recheck queued jobs. This is optimistic concurrency on the two account write paths, not an app-wide
+lock.
+
 **Xóa bị chặn khi còn thứ trỏ tới**, kèm câu nói rõ vướng gì ("còn 12 job, 30 tương tác đã ghi").
 Đó không phải phiền hà mà là chủ ý: job và tương tác cũ chính là thứ luật hạn mức, luật tỷ lệ promo
 và luật đụng độ thread đếm — xóa đi thì bộ luật cho qua những bài lẽ ra phải chặn, mà không có gì
