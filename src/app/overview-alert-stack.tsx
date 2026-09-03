@@ -76,7 +76,9 @@ export function OverviewAlertStack({
           còn job bị chặn hay token hết hạn thì chỉ là chưa đăng được. */}
       {brokenProxies.length > 0 ? (
         <AlertBanner tone="red">
-          <p className="font-medium">{brokenProxies.length} proxy không dùng được:</p>
+          <p className="font-medium">
+            {brokenProxies.length} unusable {brokenProxies.length === 1 ? "proxy" : "proxies"}:
+          </p>
           <ul className="mt-2 space-y-1">
             {brokenProxies.map((proxy) => (
               <li key={proxy.id}>
@@ -98,7 +100,8 @@ export function OverviewAlertStack({
       {clusterWarnings.broken.length > 0 ? (
         <AlertBanner tone="red">
           <p className="font-medium">
-            {clusterWarnings.broken.length} nick có cụm đã hỏng — đáng lẽ không xảy ra được:
+            {clusterWarnings.broken.length} {clusterWarnings.broken.length === 1 ? "nick has" : "nicks have"} a
+            broken assignment — this should not be possible:
           </p>
           <ul className="mt-2 space-y-1">
             {clusterWarnings.broken.map((row) => (
@@ -112,14 +115,16 @@ export function OverviewAlertStack({
               </li>
             ))}
           </ul>
-          <p className="mt-2">Quản trị viên gán lại cụm ở trang chi tiết từng nick.</p>
+          <p className="mt-2">An administrator reassigns the nick on its detail page.</p>
         </AlertBanner>
       ) : null}
 
       {clusterWarnings.incomplete.length > 0 ? (
         <AlertBanner tone="amber">
           <p className="font-medium">
-            {clusterWarnings.incomplete.length} nick chưa dùng được vì còn thiếu cấu hình:
+            {clusterWarnings.incomplete.length}{" "}
+            {clusterWarnings.incomplete.length === 1 ? "nick is" : "nicks are"} not ready because
+            configuration is missing:
           </p>
           <ul className="mt-2 space-y-1">
             {clusterWarnings.incomplete.map((row) => (
@@ -134,11 +139,11 @@ export function OverviewAlertStack({
             ))}
           </ul>
           <p className="mt-2">
-            Mở trang chi tiết nick để xem từng việc còn thiếu, hoặc xem{" "}
+            Open the nick detail page to see what each one is missing, or see the{" "}
             <Link href="/setup" className="underline">
-              trang Chuẩn bị
+              Setup page
             </Link>{" "}
-            nếu đang dựng kho lần đầu.
+            if you are building the vault for the first time.
           </p>
         </AlertBanner>
       ) : null}
@@ -148,7 +153,7 @@ export function OverviewAlertStack({
           xem. */}
       {backupWarning ? (
         <AlertBanner tone={backupWarning.tone}>
-          <p className="font-medium">Sao lưu ra ngoài Railway</p>
+          <p className="font-medium">Off-Railway backup</p>
           <p className="mt-1">{backupWarning.message}</p>
         </AlertBanner>
       ) : null}
@@ -156,7 +161,10 @@ export function OverviewAlertStack({
 
       {needsAttention.length > 0 ? (
         <AlertBanner tone="red">
-          <p className="font-medium">{needsAttention.length} nick cần xử lý tay:</p>
+          <p className="font-medium">
+            {needsAttention.length} {needsAttention.length === 1 ? "nick needs" : "nicks need"} manual
+            attention:
+          </p>
           <ul className="mt-2 space-y-1">
             {needsAttention.map((account) => (
               <li key={account.id}>

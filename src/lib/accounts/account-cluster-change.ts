@@ -63,7 +63,7 @@ export function describeClusterChange(input: ClusterChangeInput): ClusterChange 
     if (after.ownerId === null) {
       auditActions.push({
         action: AUDIT_ACTIONS.ACCOUNT_OWNER_CLEARED,
-        detail: "gỡ chủ của nick",
+        detail: "removed the nick owner",
       });
       parts.push(
         "owner removed — only administrators can read the password and OTP now; all operators " +
@@ -72,7 +72,7 @@ export function describeClusterChange(input: ClusterChangeInput): ClusterChange 
     } else {
       auditActions.push({
         action: AUDIT_ACTIONS.ACCOUNT_OWNER_ASSIGNED,
-        detail: `giao nick cho ${ownerEmail}`,
+        detail: `assigned the nick to ${ownerEmail}`,
       });
       parts.push(`assigned to ${ownerEmail}`);
     }
@@ -82,7 +82,7 @@ export function describeClusterChange(input: ClusterChangeInput): ClusterChange 
     if (after.deviceId === null) {
       auditActions.push({
         action: AUDIT_ACTIONS.ACCOUNT_DEVICE_UNPINNED,
-        detail: `gỡ ghim khỏi máy "${previousDeviceName}"`,
+        detail: `unpinned the nick from Relay PC "${previousDeviceName}"`,
       });
       parts.push(
         `unassigned from Relay PC "${previousDeviceName}" — without an assigned Relay PC, the ` +
@@ -91,13 +91,13 @@ export function describeClusterChange(input: ClusterChangeInput): ClusterChange 
     } else if (before.deviceId === null) {
       auditActions.push({
         action: AUDIT_ACTIONS.ACCOUNT_DEVICE_PINNED,
-        detail: `ghim nick vào máy "${deviceName}"`,
+        detail: `pinned the nick to Relay PC "${deviceName}"`,
       });
       parts.push(`assigned to Relay PC "${deviceName}"`);
     } else {
       auditActions.push({
         action: AUDIT_ACTIONS.ACCOUNT_DEVICE_MOVED,
-        detail: `chuyển nick từ máy "${previousDeviceName}" sang máy "${deviceName}"`,
+        detail: `moved the nick from Relay PC "${previousDeviceName}" to Relay PC "${deviceName}"`,
       });
       parts.push(
         `moved from Relay PC "${previousDeviceName}" to Relay PC "${deviceName}". ${DEVICE_MOVE_WARNING}`,

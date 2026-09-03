@@ -142,7 +142,7 @@ export const requestCredentialTicket = guardedAction(async function requestCrede
     data: {
       accountId,
       action: AUDIT_ACTIONS.CREDENTIAL_REVEALED,
-      detail: `${field} → máy "${recipient.recipient.deviceName}"`,
+      detail: `${field} → Relay PC "${recipient.recipient.deviceName}"`,
       actorId: actor.userId,
     },
   });
@@ -192,7 +192,7 @@ export const requestOtpTicket = guardedAction(async function requestOtpTicket(
     data: {
       accountId,
       action: AUDIT_ACTIONS.OTP_GENERATED,
-      detail: `máy "${recipient.recipient.deviceName}"`,
+      detail: `Relay PC "${recipient.recipient.deviceName}"`,
       actorId: actor.userId,
     },
   });
