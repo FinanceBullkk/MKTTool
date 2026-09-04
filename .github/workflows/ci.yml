@@ -215,6 +215,10 @@ jobs:
   # code that already merged. That is the job working, not breaking. Fix by upgrading the
   # dependency, not by lowering `--audit-level`.
   #
+  # npm exits 1 for both "vulnerabilities found" and "endpoint unreachable", and the 503 that took
+  # this job down on its first run proved the difference matters. `dependency-audit.cjs` retries the
+  # endpoint, then reports FAIL or BLOCKED so the log says which fact it is. Neither passes.
+  #
   # No `npm ci` step: `npm audit` reads `package-lock.json` and needs no installed tree.
   dependency-audit:
     runs-on: ubuntu-latest

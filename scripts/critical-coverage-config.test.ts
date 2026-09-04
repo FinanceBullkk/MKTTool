@@ -76,10 +76,10 @@ describe("hợp đồng sàn coverage đường trọng yếu", () => {
     expect(workflow).not.toMatch(/\bself-hosted\b/);
 
     const runsOn = [...workflow.matchAll(/^\s*runs-on:\s*(.+)$/gm)].map((match) => match[1]);
-    // `check`, `contracts`, `secret-scan`, and post-merge deployment verification are Linux
-    // lanes; the packaged Relay acceptance job is the single Windows lane.
-    expect(runsOn).toHaveLength(5);
-    expect(runsOn.filter((value) => value === "ubuntu-latest")).toHaveLength(4);
+    // `check`, `contracts`, `secret-scan`, `dependency-audit`, and post-merge deployment
+    // verification are Linux lanes; the packaged Relay acceptance job is the single Windows lane.
+    expect(runsOn).toHaveLength(6);
+    expect(runsOn.filter((value) => value === "ubuntu-latest")).toHaveLength(5);
     expect(runsOn.filter((value) => value === "windows-latest")).toHaveLength(1);
   });
 });

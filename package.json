@@ -41,7 +41,7 @@
     "auth:rate-limit:verify": "tsx --env-file=.env scripts/verify-better-auth-rate-limit.ts",
     "ci:postgres-contracts": "node scripts/ci/run-postgres-contracts.cjs",
     "ci:secret-scan": "node scripts/ci/secret-scan.cjs",
-    "audit:production": "npm audit --omit=dev --audit-level=high",
+    "audit:production": "node scripts/ci/dependency-audit.cjs",
     "vault:testotp": "tsx scripts/generate-test-totp-secret.ts",
     "relay:dev": "tsx relay/src/main.ts",
     "relay:build": "tsx --env-file-if-exists=.env scripts/build-relay-executable.ts",
