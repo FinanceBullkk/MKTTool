@@ -61,11 +61,11 @@ export function Kbd({ children }: { children: ReactNode }): JSX.Element {
 export function Cube({ size = 22 }: { size?: number }): JSX.Element {
   return (
     <div
-      className="rounded-lg flex items-center justify-center font-bold text-white shadow-md shadow-purple-500/30 flex-shrink-0 select-none"
+      className="flex flex-shrink-0 select-none items-center justify-center rounded-lg font-bold text-[#1c160d]"
       style={{
         width: size,
         height: size,
-        background: "linear-gradient(135deg, #ff6b35 0%, #ff3d8a 35%, #8b5cf6 70%, #3b82f6 100%)",
+        background: "var(--mkt-accent)",
         fontSize: size * 0.55,
       }}
     >
@@ -74,60 +74,37 @@ export function Cube({ size = 22 }: { size?: number }): JSX.Element {
   );
 }
 
-const EMOJI_TINTS = [
-  "#1e293b", // slate
-  "#1e1b4b", // indigo
-  "#2e1065", // purple
-  "#064e3b", // emerald
-  "#451a03", // amber
-  "#4c0519", // rose
-  "#0f172a", // dark
-];
-
 export function Avatar({
-  emoji,
+  label,
   size = 40,
   accent,
 }: {
-  emoji: string;
+  label: string;
   size?: number;
   accent?: boolean;
 }): JSX.Element {
-  let hash = 0;
-  for (let i = 0; i < emoji.length; i++) {
-    hash = (hash << 5) - hash + emoji.charCodeAt(i);
-  }
-  const bg = EMOJI_TINTS[Math.abs(hash) % EMOJI_TINTS.length];
-
   return (
     <div
-      className="rounded-xl flex items-center justify-center select-none flex-shrink-0 transition-transform"
+      className="flex flex-shrink-0 select-none items-center justify-center rounded-xl font-semibold uppercase"
       style={{
         width: size,
         height: size,
-        background: accent ? "rgba(168, 85, 247, 0.15)" : bg,
-        border: accent ? "1px solid rgba(168, 85, 247, 0.3)" : "1px solid rgba(255, 255, 255, 0.08)",
-        fontSize: size * 0.55,
+        background: accent ? "rgba(231, 173, 87, 0.14)" : "rgba(255, 255, 255, 0.05)",
+        border: accent ? "1px solid rgba(231, 173, 87, 0.28)" : "1px solid rgba(255, 255, 255, 0.08)",
+        color: accent ? "#f0bd70" : "#cbd0d8",
+        fontSize: size * 0.34,
       }}
     >
-      {emoji}
+      {label.slice(0, 2)}
     </div>
   );
 }
 
 export function Flag({ country }: { country: string }): JSX.Element {
   const code = (country || "").toUpperCase();
-  const flagMap: Record<string, string> = {
-    VN: "🇻🇳",
-    US: "🇺🇸",
-    SG: "🇸🇬",
-    GB: "🇬🇧",
-    JP: "🇯🇵",
-    ES: "🇪🇸",
-    PT: "🇵🇹",
-    DE: "🇩🇪",
-    FR: "🇫🇷",
-  };
-  const flag = flagMap[code] || "🌐";
-  return <span className="text-sm select-none">{flag}</span>;
+  return (
+    <span className="inline-flex h-6 min-w-7 select-none items-center justify-center rounded-md border border-white/[0.08] bg-white/[0.04] px-1.5 font-mono text-[10px] font-semibold text-neutral-300">
+      {code || "--"}
+    </span>
+  );
 }

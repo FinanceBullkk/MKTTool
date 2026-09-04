@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Space_Grotesk, JetBrains_Mono } from "next/font/google";
+import { Fira_Code, Fira_Sans } from "next/font/google";
 import { AppShell } from "@/components/mktbrowser-ui/AppShell";
 import { OpsAlertTray } from "@/components/layout/ops-alert-tray";
 import { SessionBadge } from "@/components/auth/session-badge";
@@ -12,8 +12,12 @@ import "./globals.css";
 // next/font, no <link>. Every screen has been rendering in the Segoe UI
 // fallback. Self-hosted through next/font rather than an @import from a CDN,
 // because an operator machine may have no route to the internet.
-const sans = Space_Grotesk({ subsets: ["latin", "vietnamese"], variable: "--font-sans-loaded" });
-const mono = JetBrains_Mono({ subsets: ["latin", "vietnamese"], variable: "--font-mono-loaded" });
+const sans = Fira_Sans({
+  subsets: ["latin", "vietnamese"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-sans-loaded",
+});
+const mono = Fira_Code({ subsets: ["latin"], variable: "--font-mono-loaded" });
 
 export const metadata: Metadata = {
   title: "MKTTool — Team Nick Vault",
@@ -38,10 +42,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const viewer = await readActor();
 
   return (
-    <html lang="vi" className={`dark ${sans.variable} ${mono.variable}`}>
+    <html lang="en" className={`dark ${sans.variable} ${mono.variable}`}>
       <body
         suppressHydrationWarning
-        className="bg-[#0a0b0f] text-[#f1f5f9] min-h-screen overflow-hidden"
+        className="min-h-[100dvh] overflow-hidden"
       >
         {viewer ? <SignedInShell>{children}</SignedInShell> : children}
       </body>

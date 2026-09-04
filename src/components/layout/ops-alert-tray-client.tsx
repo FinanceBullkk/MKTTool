@@ -46,7 +46,7 @@ const TONE: Record<OpsAlertTone, { box: string; text: string; dot: string; chip:
 };
 
 export function OpsAlertTrayClient({ alerts }: { alerts: AlertItem[] }) {
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(true);
 
   if (alerts.length === 0) return null;
 
@@ -56,7 +56,7 @@ export function OpsAlertTrayClient({ alerts }: { alerts: AlertItem[] }) {
     <section
       role="status"
       aria-label="Operational alerts"
-      className="max-w-6xl mx-auto w-full px-6 pt-3 pb-1 z-10 space-y-1.5"
+      className="z-10 mx-auto w-full max-w-[90rem] space-y-1.5 px-4 pb-1 pt-3 sm:px-6 lg:px-8"
     >
       {alerts.map((alert) => {
         const tone = TONE[alert.tone];
@@ -64,24 +64,20 @@ export function OpsAlertTrayClient({ alerts }: { alerts: AlertItem[] }) {
         return (
           <div
             key={alert.id}
-            className={`rounded-xl border backdrop-blur-md px-3.5 py-2 text-xs shadow-lg shadow-black/40 flex items-start justify-between gap-3 ${tone.box} ${tone.text}`}
+            className={`grid grid-cols-[auto_1fr_auto] items-start gap-x-2.5 gap-y-2 rounded-xl border px-3.5 py-2.5 text-xs shadow-lg shadow-black/40 sm:grid-cols-[auto_auto_minmax(0,1fr)_auto] sm:items-center ${tone.box} ${tone.text}`}
           >
-            <div className="flex items-start gap-2.5 min-w-0 flex-1">
-              <span className={`w-2 h-2 rounded-full mt-1 flex-shrink-0 ${tone.dot}`} />
-              <span
-                className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider flex-shrink-0 ${tone.chip}`}
-              >
-                {tone.label}
-              </span>
-              {/* Không `truncate`: một cảnh báo bị cắt mất vế sau là một cảnh báo đọc sai. */}
-              <div className="min-w-0">
-                <p className="font-medium">{alert.message}</p>
-                {/* Việc phải làm tách dòng riêng — gộp vào cuối câu thì nó bị đọc lướt qua cùng
-                    phần mô tả, và cảnh báo không ai làm gì tiếp là cảnh báo vô ích. */}
-                {!collapsed && alert.action ? (
-                  <p className="mt-1 font-normal opacity-80">{alert.action}</p>
-                ) : null}
-              </div>
+            <span className={`mt-1 h-2 w-2 shrink-0 rounded-full sm:mt-0 ${tone.dot}`} />
+            <span
+              className={`w-fit shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${tone.chip}`}
+            >
+              {tone.label}
+            </span>
+
+            <div className="col-span-3 row-start-2 min-w-0 sm:col-span-1 sm:col-start-3 sm:row-start-1">
+              <p className="font-medium leading-5">{alert.message}</p>
+              {!collapsed && alert.action ? (
+                <p className="mt-1 font-normal leading-5 opacity-80">{alert.action}</p>
+              ) : null}
             </div>
 
             {/* Chỉ dòng đầu mang nút gập, và nó gập cả khay — mỗi dòng một nút là một hàng nút
@@ -90,7 +86,7 @@ export function OpsAlertTrayClient({ alerts }: { alerts: AlertItem[] }) {
               <button
                 type="button"
                 onClick={() => setCollapsed(!collapsed)}
-                className="text-[11px] opacity-70 hover:opacity-100 underline font-medium cursor-pointer flex-shrink-0"
+                className="col-start-3 row-start-1 shrink-0 cursor-pointer text-[11px] font-medium underline opacity-70 hover:opacity-100 sm:col-start-4"
               >
                 {collapsed ? "Details" : "Collapse"}
               </button>

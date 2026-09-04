@@ -16,43 +16,42 @@ export function TopBar({
   sessionBadge,
 }: TopBarProps) {
   return (
-    <div
-      className="px-4 h-12 flex-shrink-0 z-20 flex items-center justify-center"
+    <header
+      className="z-20 flex h-14 flex-shrink-0 items-center justify-center px-4"
       style={{
-        background: "rgba(10, 11, 15, 0.8)",
-        backdropFilter: "blur(20px)",
-        borderBottom: "1px solid rgba(255, 255, 255, 0.05)",
+        background: "rgba(13, 15, 18, 0.9)",
+        backdropFilter: "blur(16px)",
+        borderBottom: "1px solid var(--mkt-border)",
       }}
     >
-      <div className="max-w-6xl w-full flex items-center gap-3.5">
-        {/* Brand */}
-        <Link href="/" className="flex items-center gap-2 hover:opacity-90 transition-opacity flex-shrink-0">
-          <Cube size={22} />
-          <span className="font-bold text-[13px] tracking-tight text-white flex items-center gap-1">
-            MKT <span className="text-purple-400">Tool</span>
+      <div className="flex w-full max-w-[90rem] items-center gap-3.5">
+        <Link href="/" className="flex flex-shrink-0 items-center gap-2 transition-opacity hover:opacity-90">
+          <Cube size={24} />
+          <span className="flex items-center gap-1 text-sm font-semibold tracking-tight text-white">
+            MKT <span className="text-amber-300">Tool</span>
           </span>
         </Link>
 
         <div className="flex-1" />
 
-        {/* Right cluster */}
-        <div className="flex items-center gap-3 flex-shrink-0">
+        <div className="flex min-w-0 flex-shrink-0 items-center gap-2 sm:gap-3">
           <Pill kind="running" dot>
             {relayStatusText}
           </Pill>
 
           <Link
             href="/setup"
-            className="w-7 h-7 rounded-lg flex items-center justify-center text-neutral-400 hover:bg-white/5 hover:text-white transition-colors"
+            className="flex h-9 w-9 items-center justify-center rounded-lg text-neutral-400 transition-colors hover:bg-white/[0.06] hover:text-white"
             title="Settings"
+            aria-label="Open Relay PC setup"
           >
-            <SettingsIcon size={14} />
+            <SettingsIcon size={16} />
           </Link>
 
           {sessionBadge}
         </div>
       </div>
-    </div>
+    </header>
   );
 }
 

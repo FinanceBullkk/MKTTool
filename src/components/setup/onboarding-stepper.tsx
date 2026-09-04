@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { ChevronRight, Info } from "lucide-react";
+import { ArrowLeft, ChevronRight, CircleCheck, CircleDashed, Info } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { RelayEnrollCard } from "@/components/relay/relay-enroll-card";
 import { WorkspaceSetupChecklist } from "@/components/setup/workspace-setup-checklist";
+import { PageHeading, PageShell } from "@/components/ui/page-section";
 import type { SetupChecklist } from "@/lib/setup/setup-checklist";
 
 export function OnboardingStepper({
@@ -27,94 +28,93 @@ export function OnboardingStepper({
   }
 
   return (
-    <div className="mx-auto flex min-h-0 min-w-0 max-w-5xl flex-1 flex-col space-y-6 overflow-y-auto p-6">
-      <div>
-        <h1 className="flex items-center gap-2 text-xl font-bold tracking-tight text-white">
-          <span>⚙️</span>
-          <span>Relay PC setup</span>
-        </h1>
-        <p className="mt-1 text-xs text-neutral-400">
-          Three steps connect this PC to the shared identity workspace: download Relay, register the
-          PC, then receive nick and proxy assignments.
-        </p>
-      </div>
+    <PageShell>
+      <PageHeading
+        title="Set up this Relay PC"
+        description="Install Relay, register this PC, then confirm that its nick and proxy assignments are ready."
+      />
 
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+      <nav aria-label="Relay PC setup progress" className="mb-6 grid gap-3 md:grid-cols-3">
         <StepButton
           number={1}
           active={activeStep === 1}
-          title="Step 1: Download Relay"
-          description="Install the current Relay package on this PC"
+          title="Install Relay"
+          description="Download and install the current package"
           onClick={() => selectStep(1)}
         />
         <StepButton
           number={2}
           active={activeStep === 2}
-          title="Step 2: Register this Relay PC"
-          description="Enroll the PC and request approval"
+          title="Register this PC"
+          description="Confirm Relay and enroll this machine"
           onClick={() => selectStep(2)}
         />
         <StepButton
           number={3}
           active={activeStep === 3}
-          title="Step 3: Receive nicks and proxies"
-          description="Complete the shared vault handoff"
+          title="Confirm handoff"
+          description="Review nick, proxy, owner, and PC readiness"
           onClick={() => selectStep(3)}
         />
-      </div>
+      </nav>
 
       {activeStep === 1 ? (
         <div className="space-y-4">
           {relayDownloadSection}
-          <div className="flex justify-end pt-2">
-            <NextButton label="Continue: Step 2" onClick={() => selectStep(2)} />
+          <div className="flex justify-end pt-1">
+            <NextButton
+              label="I installed Relay - register this PC"
+              onClick={() => selectStep(2)}
+            />
           </div>
         </div>
       ) : null}
 
       {activeStep === 2 ? (
-        <div id="register" className="space-y-4 scroll-mt-6">
+        <div id="register" className="scroll-mt-6 space-y-4">
           <RelayEnrollCard viewer={viewer} onDownloadRelay={() => selectStep(1)} />
-          <div className="flex items-center justify-between pt-2">
-            <BackButton label="Back to Step 1" onClick={() => selectStep(1)} />
-            <NextButton label="Continue: Step 3" onClick={() => selectStep(3)} />
+          <div className="flex flex-col-reverse gap-3 pt-1 sm:flex-row sm:items-center sm:justify-between">
+            <BackButton label="Install Relay" onClick={() => selectStep(1)} />
+            <NextButton label="Review workspace handoff" onClick={() => selectStep(3)} />
           </div>
         </div>
       ) : null}
 
       {activeStep === 3 ? (
-        <div id="handoff" className="space-y-4 scroll-mt-6">
+        <div id="handoff" className="scroll-mt-6 space-y-4">
           <WorkspaceSetupChecklist checklist={checklist} isAdmin={viewer.isAdmin} />
 
-          <div className="rounded-2xl border border-sky-500/20 bg-sky-500/[0.06] p-5">
-            <div className="flex items-start gap-3">
-              <Info className="mt-0.5 shrink-0 text-sky-300" size={18} />
-              <div className="space-y-1">
-                <h4 className="text-xs font-bold text-white">MKT Browser is outside this setup</h4>
-                <p className="text-[11px] leading-relaxed text-neutral-300">
-                  MKT Browser is not distributed from this page and is not required to download
-                  Relay, register a Relay PC, or receive nick and proxy assignments. It remains in
-                  the separate Browser rollout lane, with no identity-isolation approval implied.
-                </p>
-              </div>
-            </div>
-          </div>
+          <details className="rounded-xl border border-white/[0.08] bg-white/[0.025]">
+            <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 px-4 text-sm font-medium text-neutral-300 marker:content-none">
+              <Info size={16} className="text-sky-300" />
+              Why MKT Browser is not included here
+            </summary>
+            <p className="border-t border-white/[0.08] px-4 py-3 text-xs leading-5 text-neutral-400">
+              MKT Browser is not distributed from this page and is not required to install Relay,
+              register a Relay PC, or receive nick and proxy assignments. It remains in the
+              separate Browser rollout lane; this setup does not imply identity-isolation approval.
+            </p>
+          </details>
 
-          <div className="flex items-center justify-between rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-emerald-500/20 bg-emerald-500/10 text-lg text-emerald-400">
-                🚀
+          <div className="app-surface flex flex-col gap-4 rounded-2xl p-5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3">
+              <div
+                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border ${
+                  workspaceReady
+                    ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-300"
+                    : "border-amber-500/25 bg-amber-500/10 text-amber-300"
+                }`}
+              >
+                {workspaceReady ? <CircleCheck size={19} /> : <CircleDashed size={19} />}
               </div>
               <div>
-                <h4 className="text-xs font-bold text-white">
+                <h2 className="text-sm font-semibold text-white">
+                  {workspaceReady ? "Workspace handoff recorded" : "Workspace handoff pending"}
+                </h2>
+                <p className="mt-1 text-xs leading-5 text-neutral-400">
                   {workspaceReady
-                    ? "Workspace handoff checks recorded"
-                    : "Workspace handoff is still pending"}
-                </h4>
-                <p className="text-[11px] text-neutral-400">
-                  {workspaceReady
-                    ? "The shared identity workspace is ready for handoff."
-                    : "Finish the highlighted nick, proxy, owner, and Relay PC handoff steps."}
+                    ? "This PC has the shared identity workspace information needed for handoff."
+                    : "Finish the highlighted nick, proxy, owner, and Relay PC steps above."}
                 </p>
               </div>
             </div>
@@ -122,16 +122,18 @@ export function OnboardingStepper({
             {workspaceReady ? (
               <Link
                 href="/"
-                className="brand-btn inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold text-white"
+                className="brand-btn inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold"
               >
-                <span>Open Dashboard</span>
-                <ChevronRight size={14} />
+                Open workspace
+                <ChevronRight size={16} />
               </Link>
-            ) : null}
+            ) : (
+              <BackButton label="Check this Relay PC" onClick={() => selectStep(2)} />
+            )}
           </div>
         </div>
       ) : null}
-    </div>
+    </PageShell>
   );
 }
 
@@ -152,25 +154,24 @@ function StepButton({
     <button
       type="button"
       onClick={onClick}
-      className={`flex cursor-pointer items-center gap-3 rounded-2xl border p-3.5 text-left transition ${
+      aria-current={active ? "step" : undefined}
+      className={`flex min-h-20 items-center gap-3 rounded-xl border p-3.5 text-left ${
         active
-          ? "border-purple-500/40 bg-purple-950/30 shadow-lg shadow-purple-500/10"
-          : "border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.04]"
+          ? "border-amber-400/40 bg-amber-400/[0.08]"
+          : "border-white/[0.08] bg-white/[0.025] hover:border-white/[0.14]"
       }`}
     >
-      <div
-        className={`flex h-9 w-9 items-center justify-center rounded-xl text-xs font-bold ${
-          active
-            ? "bg-purple-500 text-white shadow-md shadow-purple-500/40"
-            : "bg-white/[0.06] text-neutral-400"
+      <span
+        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-sm font-semibold ${
+          active ? "bg-amber-400 text-neutral-950" : "bg-white/[0.06] text-neutral-400"
         }`}
       >
         {number}
-      </div>
-      <div>
-        <div className="text-xs font-bold text-white">{title}</div>
-        <div className="text-[11px] text-neutral-400">{description}</div>
-      </div>
+      </span>
+      <span>
+        <span className="block text-sm font-semibold text-white">{title}</span>
+        <span className="mt-0.5 block text-xs leading-4 text-neutral-500">{description}</span>
+      </span>
     </button>
   );
 }
@@ -180,9 +181,10 @@ function BackButton({ label, onClick }: { label: string; onClick: () => void }) 
     <button
       type="button"
       onClick={onClick}
-      className="cursor-pointer rounded-xl bg-white/[0.05] px-4 py-2 text-xs font-medium text-neutral-400 transition hover:bg-white/[0.1] hover:text-white"
+      className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-white/[0.09] px-4 text-sm font-medium text-neutral-300 hover:bg-white/[0.05]"
     >
-      ← {label}
+      <ArrowLeft size={15} />
+      {label}
     </button>
   );
 }
@@ -192,10 +194,10 @@ function NextButton({ label, onClick }: { label: string; onClick: () => void }) 
     <button
       type="button"
       onClick={onClick}
-      className="inline-flex cursor-pointer items-center gap-1.5 rounded-xl bg-white/[0.05] px-4 py-2 text-xs font-medium text-white transition hover:bg-white/[0.1]"
+      className="brand-btn inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold"
     >
-      <span>{label}</span>
-      <ChevronRight size={14} />
+      {label}
+      <ChevronRight size={16} />
     </button>
   );
 }

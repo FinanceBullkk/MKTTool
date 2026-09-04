@@ -4,6 +4,7 @@ import {
   DataTable,
   EmptyState,
   PageHeading,
+  PageShell,
   StatusBadge,
 } from "@/components/ui/page-section";
 import { AccountFormFields } from "@/components/vault/account-form-fields";
@@ -53,28 +54,35 @@ export default async function AccountsPage() {
   const adminContactEmail = readAdminContactEmail();
 
   return (
-    <>
+    <PageShell>
       <PageHeading
         title="Nick vault"
-        description="For browser-backed identities: one nick = one proxy = one browser profile. The database enforces the binding; it is not proof of identity isolation."
+        description="Assign ownership, a Relay PC, and one dedicated proxy to every browser-backed identity."
       />
 
-      <Card title={`Team nick vault - ${accounts.length} nicks`}>
+      <div className="mb-6 grid grid-cols-3 gap-2 sm:gap-3">
+        <SummaryMetric label="Total nicks" value={accounts.length} />
+        <SummaryMetric
+          label="Ready to operate"
+          value={accounts.filter((account) => describeAccountReadiness(account).ready).length}
+        />
+        <SummaryMetric label="Unassigned proxies" value={freeProxies.length} />
+      </div>
+
+      <Card title={`All nicks - ${accounts.length}`}>
         {sorted.length === 0 ? (
-          <EmptyState>No nicks in the team vault.</EmptyState>
+          <EmptyState>
+            No nicks yet. Add a proxy first, then create the first browser-backed identity below.
+          </EmptyState>
         ) : (
           <DataTable
             headers={[
               "Nick",
-              "Owner",
-              "Relay PC",
               "Readiness",
-              "Platform",
-              "Status",
-              "Writing voice",
+              "Owner & Relay PC",
               "Proxy",
-              "Karma",
-              "Nick age",
+              "Lifecycle",
+              "",
             ]}
           >
             {sorted.map((account) => {
@@ -84,63 +92,64 @@ export default async function AccountsPage() {
 
               return (
                 <tr key={account.id}>
-                  <td className="py-2 pr-4 font-medium">
-                    <Link href={`/accounts/${account.id}`} className="hover:underline">
+                  <td className="py-3 pr-4 align-top">
+                    <Link
+                      href={`/accounts/${account.id}`}
+                      className="font-semibold text-white hover:text-amber-300"
+                    >
                       {account.username}
                     </Link>
+                    <span className="mt-1 block text-xs uppercase tracking-wide text-neutral-500">
+                      {account.platform}
+                    </span>
                   </td>
-                  <td className="py-2 pr-4 text-sm text-neutral-600 dark:text-neutral-400">
-                    {account.owner ? (
-                      <>
-                        {account.owner.email}
-                        {account.ownerId === viewer?.userId ? (
-                          <span className="ml-1 text-xs font-medium text-emerald-700 dark:text-emerald-400">
-                            (you)
-                          </span>
-                        ) : null}
-                      </>
-                    ) : (
-                      "Owner not assigned"
-                    )}
-                  </td>
-                  <td className="py-2 pr-4 text-sm text-neutral-600 dark:text-neutral-400">
-                    {account.device ? (
-                      <>
-                        {account.device.name}
-                        {account.device.revokedAt ? (
-                          <span className="ml-1 text-xs font-medium text-red-700 dark:text-red-400">
-                            (revoked)
-                          </span>
-                        ) : null}
-                      </>
-                    ) : (
-                      "Relay PC not assigned"
-                    )}
-                  </td>
-                  {/* Readiness stays beside the ownership columns because it answers a different
-                      question: a healthy nick can still be unusable when no Relay PC is assigned. */}
-                  <td className="py-2 pr-4">
+                  <td className="py-3 pr-4 align-top">
                     <AccountReadinessCell readiness={describeAccountReadiness(account)} />
                   </td>
-                  <td className="py-2 pr-4 text-xs text-neutral-600 dark:text-neutral-400">
-                    {account.platform}
+                  <td className="py-3 pr-4 align-top text-sm text-neutral-300">
+                    <span className="block">
+                      {account.owner?.email ?? "Owner not assigned"}
+                      {account.ownerId === viewer?.userId ? (
+                        <span className="ml-1 text-xs font-medium text-emerald-400">(you)</span>
+                      ) : null}
+                    </span>
+                    <span
+                      className={`mt-1 block text-xs ${
+                        account.device?.revokedAt ? "text-red-400" : "text-neutral-500"
+                      }`}
+                    >
+                      {account.device
+                        ? `${account.device.name}${account.device.revokedAt ? " (revoked)" : ""}`
+                        : "Relay PC not assigned"}
+                    </span>
                   </td>
-                  <td className="py-2 pr-4">
+                  <td className="py-3 pr-4 align-top">
+                    <span className="block font-medium text-neutral-200">
+                      {account.proxy ? account.proxy.label : "Proxy not assigned"}
+                    </span>
+                    <span className="mt-1 block font-mono text-xs text-neutral-500">
+                      {account.proxy?.country ?? "Required before launch"}
+                    </span>
+                  </td>
+                  <td className="py-3 pr-4 align-top">
                     <StatusBadge label={presentation.label} className={presentation.className} />
                     {coldDays > 0 ? (
-                      <span className="ml-2 text-xs text-neutral-500">
-                        {coldDays} days remaining
+                      <span className="mt-1 block text-xs text-neutral-500">
+                        Cold start: {coldDays} days remaining
                       </span>
                     ) : null}
+                    <span className="mt-1 block text-xs text-neutral-500">
+                      {age === null ? "Age not recorded" : `${age} days old`} · {account.karma} karma
+                    </span>
                   </td>
-                  <td className="py-2 pr-4 text-neutral-600 dark:text-neutral-400">
-                    {account.voice ?? "—"}
+                  <td className="py-3 text-right align-top">
+                    <Link
+                      href={`/accounts/${account.id}`}
+                      className="inline-flex min-h-9 items-center rounded-lg border border-white/10 px-3 text-xs font-semibold text-neutral-200 hover:border-amber-400/40 hover:text-amber-200"
+                    >
+                      Open
+                    </Link>
                   </td>
-                  <td className="py-2 pr-4 font-mono text-xs text-neutral-600 dark:text-neutral-400">
-                    {account.proxy ? `${account.proxy.label} (${account.proxy.country})` : "—"}
-                  </td>
-                  <td className="py-2 pr-4">{account.karma}</td>
-                  <td className="py-2 pr-4">{age === null ? "—" : `${age}d`}</td>
                 </tr>
               );
             })}
@@ -148,7 +157,7 @@ export default async function AccountsPage() {
         )}
       </Card>
 
-      <Card title="Add nick">
+      <Card title="Add a nick">
         {!canCreate ? (
           <EmptyState>
             {viewer?.role === "ADMIN" ? (
@@ -170,23 +179,44 @@ export default async function AccountsPage() {
             )}
           </EmptyState>
         ) : (
-          <AccountVaultForm action={createAccount} submitLabel="Add nick">
-            <AccountFormFields
-              proxies={freeProxies.map((proxy) => ({
-                id: proxy.id,
-                label: `${proxy.label} — ${proxy.country}`,
-              }))}
-              defaultColdStartUntil={defaultColdStartUntil}
-              viewer={
-                viewer
-                  ? { userId: viewer.userId, email: viewer.email, isAdmin: viewer.role === "ADMIN" }
-                  : undefined
-              }
-              teamMembers={teamMembers}
-            />
-          </AccountVaultForm>
+          <details className="group rounded-xl border border-white/[0.08] bg-black/10">
+            <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between px-4 text-sm font-semibold text-neutral-200 marker:content-none">
+              Create a browser-backed nick
+              <span className="text-lg text-neutral-500 transition-transform group-open:rotate-45">+</span>
+            </summary>
+            <div className="border-t border-white/[0.08] p-4 sm:p-5">
+              <AccountVaultForm action={createAccount} submitLabel="Add nick">
+                <AccountFormFields
+                  proxies={freeProxies.map((proxy) => ({
+                    id: proxy.id,
+                    label: `${proxy.label} - ${proxy.country}`,
+                  }))}
+                  defaultColdStartUntil={defaultColdStartUntil}
+                  viewer={
+                    viewer
+                      ? {
+                          userId: viewer.userId,
+                          email: viewer.email,
+                          isAdmin: viewer.role === "ADMIN",
+                        }
+                      : undefined
+                  }
+                  teamMembers={teamMembers}
+                />
+              </AccountVaultForm>
+            </div>
+          </details>
         )}
       </Card>
-    </>
+    </PageShell>
+  );
+}
+
+function SummaryMetric({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="app-surface rounded-xl px-3 py-3 sm:px-4">
+      <span className="text-[11px] font-medium leading-4 text-neutral-500 sm:text-xs">{label}</span>
+      <strong className="mt-1 block text-xl font-semibold text-white sm:text-2xl">{value}</strong>
+    </div>
   );
 }

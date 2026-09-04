@@ -27,7 +27,13 @@ function ResultText({ result }: { result: ActionResult | null }) {
   );
 }
 
-export function CheckAllProxiesButton({ count }: { count: number }) {
+export function CheckAllProxiesButton({
+  count,
+  compact = false,
+}: {
+  count: number;
+  compact?: boolean;
+}) {
   const [pending, startTransition] = useTransition();
   const [result, setResult] = useState<ActionResult | null>(null);
 
@@ -42,10 +48,12 @@ export function CheckAllProxiesButton({ count }: { count: number }) {
         {pending ? `Checking ${count} proxies...` : `Check all ${count} proxies`}
       </button>
       <ResultText result={result} />
-      <p className="text-xs text-neutral-500">
-        Each check requests the public IP through that exact proxy. It detects both an unreachable
-        proxy and a proxy that responds without changing the IP.
-      </p>
+      {!compact ? (
+        <p className="text-xs text-neutral-500">
+          Each check requests the public IP through that exact proxy. It detects both an unreachable
+          proxy and a proxy that responds without changing the IP.
+        </p>
+      ) : null}
     </div>
   );
 }

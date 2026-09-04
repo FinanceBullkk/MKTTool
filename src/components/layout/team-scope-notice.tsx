@@ -31,30 +31,25 @@ export function TeamScopeNotice() {
   const parkedNames = parked.map(rolloutPlatformLabel).join(", ");
 
   return (
-    <section
-      role="note"
-      className="mb-5 rounded-xl border border-slate-500/25 bg-slate-500/[0.06] px-4 py-3 text-[13px] leading-relaxed text-slate-200/90"
-    >
-      <h2 className="mb-1.5 text-[13px] font-semibold text-slate-100">
-        What this tool is currently for
-      </h2>
-      <p className="mb-2">
-        <strong className="font-medium text-slate-100">Available:</strong> the shared nick vault,
-        proxy inventory and ownership assignment, and the Relay PC registry. Every nick has one
-        owner and one Relay PC.
-      </p>
-      <p className="mb-2">
-        <strong className="font-medium text-slate-100">Closed:</strong> every posting path (
-        {parkedNames}). This is neither a failure nor unfinished work; it is the scope decision from
-        2 September 2026. Those pages remain available for history, but posting actions are denied.
-      </p>
-      {isPostingFullyParked() ? (
-        <p className="text-slate-300/70">
-          MKT Browser has not been distributed. The tool has not proved that two nicks are
-          unlinkable, so do not use real nicks based on that assumption. Ask the project owner if a
-          platform needs to be reopened.
+    <details className="mb-6 rounded-xl border border-white/[0.08] bg-white/[0.025] px-4 py-3 text-sm text-neutral-300">
+      <summary className="cursor-pointer list-none font-medium text-neutral-100 marker:hidden">
+        <span className="mr-2 text-amber-300">Current rollout</span>
+        Nick vault, proxies, and Relay PCs are available. Posting is parked.
+        <span className="ml-2 text-xs font-normal text-neutral-500">View boundary</span>
+      </summary>
+      <div className="mt-3 max-w-4xl space-y-2 border-t border-white/[0.07] pt-3 text-[13px] leading-5 text-neutral-400">
+        <p>
+          Every nick has one owner and one Relay PC. Posting paths for {parkedNames} remain available
+          for history, but posting actions are denied by the 2 September 2026 scope decision.
         </p>
-      ) : null}
-    </section>
+        {isPostingFullyParked() ? (
+          <p>
+            MKT Browser has not been distributed, and the tool has not proved that two nicks are
+            unlinkable. Ask the project owner before reopening a platform or using real nicks based
+            on an identity-isolation assumption.
+          </p>
+        ) : null}
+      </div>
+    </details>
   );
 }

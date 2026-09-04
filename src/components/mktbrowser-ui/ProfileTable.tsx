@@ -27,7 +27,7 @@ export function ProfileTable({
   onOpened: (profileId: string | null) => void;
 }) {
   return (
-    <div className="rounded-2xl overflow-hidden border border-white/[0.06] bg-white/[0.02] backdrop-blur-xl">
+    <div className="overflow-hidden rounded-2xl border border-white/[0.06] bg-white/[0.02]">
       <div className="overflow-x-auto">
         <table className="w-full text-left border-collapse">
           <thead>
@@ -121,12 +121,12 @@ function ProfileTableRow({
       {/* 1. Profile & Name */}
       <td className="py-3 px-4">
         <div className="flex items-center gap-3">
-          <Avatar emoji="🎬" size={32} accent={isRunning} />
+          <Avatar label={profile.platform} size={32} accent={isRunning} />
           <div className="flex flex-col min-w-0">
             <div className="flex items-center gap-2">
               <Link
                 href={`/accounts/${profile.id}`}
-                className="font-bold text-white hover:text-purple-300 transition truncate text-[13px]"
+                className="truncate text-[13px] font-bold text-white transition hover:text-amber-300"
               >
                 {profile.platform} — {profile.username}
               </Link>
@@ -164,7 +164,7 @@ function ProfileTableRow({
             mkttool
           </span>
           {profile.voice ? (
-            <span className="px-1.5 py-0.5 rounded bg-purple-500/10 text-[10px] text-purple-300 border border-purple-500/20">
+            <span className="rounded border border-amber-500/20 bg-amber-500/10 px-1.5 py-0.5 text-[10px] text-amber-300">
               {profile.voice}
             </span>
           ) : null}
@@ -210,7 +210,7 @@ function ProfileTableRow({
               isRunning
                 ? "bg-neutral-800 border border-neutral-700 text-neutral-200"
                 : canLaunch
-                ? "bg-purple-950/40 border border-purple-500/40 text-purple-200 hover:bg-purple-900/60 shadow-[0_0_15px_rgba(168,85,247,0.15)]"
+                ? "border border-amber-500/40 bg-amber-950/40 text-amber-200 hover:bg-amber-900/60"
                 : "bg-neutral-900 border border-neutral-800 text-neutral-600 opacity-50 cursor-not-allowed"
             }`}
           >

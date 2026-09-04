@@ -1,13 +1,14 @@
 "use client";
 
-import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Plus, Search } from "lucide-react";
-import { Flag, Kbd } from "@/components/mktbrowser-ui/Atoms";
-import { NewProxySheet } from "./new-proxy-sheet";
+import { useMemo, useState } from "react";
+import { Flag } from "@/components/mktbrowser-ui/Atoms";
+import { Card, EmptyState, PageHeading, PageShell } from "@/components/ui/page-section";
 import { CheckAllProxiesButton, CheckOneProxyButton } from "./proxy-check-controls";
 import { MeasureProxySpeedButton } from "./proxy-speed-controls";
 import { ProxyLastCheckCell } from "./proxy-last-check-cell";
+import { NewProxySheet } from "./new-proxy-sheet";
 import { ProxySpeedCell } from "./proxy-speed-cell";
 
 export interface ProxyItemData {
@@ -25,11 +26,10 @@ export interface ProxyItemData {
   lastSpeedMbps: number | null;
   lastSpeedAt: Date | null;
   lastSpeedDetail: string | null;
-  account: {
-    username: string;
-    platform: string;
-  } | null;
+  account: { username: string; platform: string } | null;
 }
+
+type ProxyFilter = "all" | "active" | "unassigned" | "error";
 
 export function ProxyConsole({
   proxies,
@@ -40,264 +40,206 @@ export function ProxyConsole({
   isAdmin: boolean;
   adminContactEmail: string;
 }) {
-  const [filter, setFilter] = useState<"all" | "active" | "unassigned" | "error">("all");
+  const [filter, setFilter] = useState<ProxyFilter>("all");
   const [search, setSearch] = useState("");
   const [sheetOpen, setSheetOpen] = useState(false);
 
-  const counts = useMemo(() => {
-    return {
+  const counts = useMemo(
+    () => ({
       all: proxies.length,
-      active: proxies.filter((p) => p.account !== null).length,
-      unassigned: proxies.filter((p) => p.account === null).length,
-      error: proxies.filter((p) => p.lastCheckVerdict === "DEAD").length,
-    };
-  }, [proxies]);
+      active: proxies.filter((proxy) => proxy.account !== null).length,
+      unassigned: proxies.filter((proxy) => proxy.account === null).length,
+      error: proxies.filter((proxy) => proxy.lastCheckVerdict === "DEAD").length,
+    }),
+    [proxies],
+  );
 
   const filtered = useMemo(() => {
-    return proxies.filter((p) => {
+    return proxies.filter((proxy) => {
       if (search.trim()) {
-        const q = search.toLowerCase();
-        const matchLabel = p.label.toLowerCase().includes(q);
-        const matchHost = p.host.toLowerCase().includes(q);
-        const matchCountry = p.country.toLowerCase().includes(q);
-        const matchAccount = (p.account?.username || "").toLowerCase().includes(q);
-        if (!matchLabel && !matchHost && !matchCountry && !matchAccount) return false;
+        const query = search.toLowerCase();
+        const matches = [proxy.label, proxy.host, proxy.country, proxy.account?.username ?? ""].some(
+          (value) => value.toLowerCase().includes(query),
+        );
+        if (!matches) return false;
       }
 
-      if (filter === "active") return p.account !== null;
-      if (filter === "unassigned") return p.account === null;
-      if (filter === "error") return p.lastCheckVerdict === "DEAD";
-
+      if (filter === "active") return proxy.account !== null;
+      if (filter === "unassigned") return proxy.account === null;
+      if (filter === "error") return proxy.lastCheckVerdict === "DEAD";
       return true;
     });
-  }, [proxies, search, filter]);
+  }, [filter, proxies, search]);
+
+  const filterOptions: Array<{ id: ProxyFilter; label: string; count: number }> = [
+    { id: "all", label: "All", count: counts.all },
+    { id: "unassigned", label: "Unassigned", count: counts.unassigned },
+    { id: "active", label: "Assigned", count: counts.active },
+    { id: "error", label: "Unavailable", count: counts.error },
+  ];
 
   return (
-    <div className="flex-1 flex flex-col min-w-0 min-h-0 p-6 overflow-y-auto max-w-6xl mx-auto w-full">
-      {/* 1. Header Row */}
-      <div className="flex items-center justify-between gap-4 mb-4">
-        <div className="flex items-baseline gap-2.5">
-          <h1 className="text-xl font-bold text-white tracking-tight">Proxies & Network</h1>
-          <div className="flex items-center gap-1.5 text-xs text-neutral-400 font-mono">
-            <span>{proxies.length} total</span>
-            <span>·</span>
-            <span>{counts.unassigned} unassigned</span>
-            <span>·</span>
-            <span className="text-emerald-400">{counts.active} active</span>
-          </div>
-        </div>
+    <PageShell>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <PageHeading
+          title="Proxy vault"
+          description="Monitor the dedicated proxy assigned to each browser-backed nick."
+        />
+        {isAdmin ? (
+          <button
+            type="button"
+            onClick={() => setSheetOpen(true)}
+            className="brand-btn inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold"
+          >
+            <Plus size={17} strokeWidth={2.25} />
+            Add proxy
+          </button>
+        ) : null}
+      </div>
 
-        <div className="flex items-center gap-3">
+      <div className="mb-6 grid grid-cols-3 gap-2 sm:gap-3">
+        <SummaryMetric label="Total proxies" value={counts.all} />
+        <SummaryMetric label="Assigned" value={counts.active} />
+        <SummaryMetric
+          label="Needs attention"
+          value={counts.error}
+          tone={counts.error > 0 ? "danger" : "default"}
+        />
+      </div>
+
+      <Card>
+        <div className="mb-5 flex flex-col gap-3 border-b border-white/[0.08] pb-5">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              {filterOptions.map((option) => (
+                <FilterButton
+                  key={option.id}
+                  active={filter === option.id}
+                  count={option.count}
+                  label={option.label}
+                  onClick={() => setFilter(option.id)}
+                />
+              ))}
+            </div>
+
+            <label className="flex min-h-11 w-full items-center gap-2 rounded-xl border border-white/[0.09] bg-black/10 px-3 focus-within:border-amber-400/50 lg:w-80">
+              <Search size={16} className="shrink-0 text-neutral-500" />
+              <span className="sr-only">Search proxies</span>
+              <input
+                type="search"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Search label, IP, country, or nick"
+                className="min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-neutral-600"
+              />
+            </label>
+          </div>
+
           {isAdmin && proxies.length > 0 ? (
-            <CheckAllProxiesButton count={proxies.length} />
-          ) : null}
-
-          {isAdmin ? (
-            <button
-              type="button"
-              onClick={() => setSheetOpen(true)}
-              className="brand-btn px-4 py-2 rounded-xl text-xs font-semibold text-white inline-flex items-center gap-2 cursor-pointer shadow-lg shadow-purple-500/25"
-            >
-              <Plus size={15} strokeWidth={2.5} />
-              <span>Add proxy</span>
-              <Kbd>⌘ N</Kbd>
-            </button>
+            <div className="flex items-start justify-between gap-4 rounded-xl bg-white/[0.025] px-3 py-3">
+              <p className="max-w-2xl text-xs leading-5 text-neutral-500">
+                A health check confirms that each endpoint responds and changes the public IP.
+              </p>
+              <CheckAllProxiesButton count={proxies.length} compact />
+            </div>
           ) : null}
         </div>
-      </div>
 
-      {/* 2. Filter & Search Row */}
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
-        <div className="flex items-center gap-2 overflow-x-auto pb-1">
-          <button
-            type="button"
-            onClick={() => setFilter("all")}
-            className={`px-3 py-1 rounded-lg text-xs font-medium transition flex items-center gap-1.5 cursor-pointer ${
-              filter === "all"
-                ? "bg-white/[0.1] text-white shadow-sm border border-white/[0.12]"
-                : "bg-white/[0.02] border border-white/[0.04] text-neutral-400 hover:text-neutral-200"
-            }`}
-          >
-            <span>All</span>
-            <span className="font-mono text-[11px] text-neutral-500">{counts.all}</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setFilter("unassigned")}
-            className={`px-3 py-1 rounded-lg text-xs font-medium transition flex items-center gap-1.5 cursor-pointer ${
-              filter === "unassigned"
-                ? "bg-white/[0.1] text-white shadow-sm border border-white/[0.12]"
-                : "bg-white/[0.02] border border-white/[0.04] text-neutral-400 hover:text-neutral-200"
-            }`}
-          >
-            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
-            <span>Not assigned to a nick</span>
-            <span className="font-mono text-[11px] text-neutral-500">{counts.unassigned}</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setFilter("active")}
-            className={`px-3 py-1 rounded-lg text-xs font-medium transition flex items-center gap-1.5 cursor-pointer ${
-              filter === "active"
-                ? "bg-white/[0.1] text-white shadow-sm border border-white/[0.12]"
-                : "bg-white/[0.02] border border-white/[0.04] text-neutral-400 hover:text-neutral-200"
-            }`}
-          >
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-            <span>Assigned to a nick</span>
-            <span className="font-mono text-[11px] text-neutral-500">{counts.active}</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setFilter("error")}
-            className={`px-3 py-1 rounded-lg text-xs font-medium transition flex items-center gap-1.5 cursor-pointer ${
-              filter === "error"
-                ? "bg-white/[0.1] text-white shadow-sm border border-white/[0.12]"
-                : "bg-white/[0.02] border border-white/[0.04] text-neutral-400 hover:text-neutral-200"
-            }`}
-          >
-            <span className="w-1.5 h-1.5 rounded-full bg-rose-400" />
-            <span>Dead</span>
-            <span className="font-mono text-[11px] text-neutral-500">{counts.error}</span>
-          </button>
-        </div>
-
-        {/* Quick Search */}
-        <div className="w-full sm:w-64">
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/[0.03] border border-white/[0.06] focus-within:border-purple-500/40 transition">
-            <Search size={13} className="text-neutral-500 flex-shrink-0" />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by IP, label, or country..."
-              className="flex-1 bg-transparent text-xs text-white placeholder:text-neutral-500 focus:outline-none"
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* 3. Glass Table */}
-      {filtered.length === 0 ? (
-        <div className="flex-1 flex flex-col items-center justify-center p-12 text-center rounded-2xl bg-white/[0.01] border border-white/[0.04]">
-          <div className="w-12 h-12 rounded-2xl bg-white/[0.03] border border-white/[0.06] flex items-center justify-center text-2xl mb-3">
-            🌐
-          </div>
-          <h3 className="text-sm font-semibold text-white">No matching proxies</h3>
-          <p className="mt-1 text-xs text-neutral-400 max-w-sm">
+        {filtered.length === 0 ? (
+          <EmptyState>
             {proxies.length > 0 ? (
-              "No proxy matches the current filters. Change the filters or search terms to view the vault."
+              "No proxy matches the current search and filter."
             ) : isAdmin ? (
-              <>
-                Select <strong>&quot;Add proxy&quot;</strong> to add a mobile or static ISP endpoint for
-                browser-backed nicks.
-              </>
+              'Select "Add proxy" to prepare the first dedicated endpoint.'
             ) : (
               <>
-                An administrator adds and assigns proxies. Contact the administrator at{" "}
+                An administrator prepares and assigns proxies. Contact{" "}
                 <a href={`mailto:${adminContactEmail}`} className="underline">
                   {adminContactEmail}
-                </a>{" "}
-                and wait until the proxy is ready.
+                </a>
+                .
               </>
             )}
-          </p>
-        </div>
-      ) : (
-        <div className="rounded-2xl overflow-hidden border border-white/[0.06] bg-white/[0.02] backdrop-blur-xl">
+          </EmptyState>
+        ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b border-white/[0.06] bg-white/[0.03] text-[11px] font-semibold uppercase tracking-wider text-neutral-500 font-mono">
-                  <th className="py-3 px-4">Label & IP</th>
-                  <th className="py-3 px-4">Protocol & Type</th>
-                  <th className="py-3 px-4">Assigned nick</th>
-                  <th className="py-3 px-4">Latest check</th>
-                  <th className="py-3 px-4">Speed</th>
-                  <th className="py-3 px-4 text-right">Actions</th>
+            <table className="w-full min-w-[54rem] text-left text-sm">
+              <thead className="border-b border-white/[0.08] text-xs text-neutral-500">
+                <tr>
+                  <th className="pb-3 pr-4 font-medium">Proxy</th>
+                  <th className="pb-3 pr-4 font-medium">Assignment</th>
+                  <th className="pb-3 pr-4 font-medium">Health</th>
+                  <th className="pb-3 pr-4 font-medium">Speed</th>
+                  <th className="pb-3 font-medium">Action</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/[0.04] text-sm">
+              <tbody className="divide-y divide-white/[0.07]">
                 {filtered.map((proxy) => (
-                  <tr key={proxy.id} className="hover:bg-white/[0.03] transition-colors group">
-                    {/* 1. Label & IP */}
-                    <td className="py-3 px-4">
-                      <div className="flex items-center gap-3">
+                  <tr key={proxy.id}>
+                    <td className="py-4 pr-4 align-top">
+                      <div className="flex items-start gap-3">
                         <Flag country={proxy.country} />
-                        <div className="flex flex-col">
+                        <div>
                           <Link
                             href={`/proxies/${proxy.id}`}
-                            className="font-bold text-white hover:text-purple-300 transition text-[13px]"
+                            className="font-semibold text-white hover:text-amber-300"
                           >
                             {proxy.label}
                           </Link>
-                          <span className="font-mono text-xs text-neutral-400 mt-0.5">
+                          <span className="mt-1 block font-mono text-xs text-neutral-500">
                             {proxy.host}:{proxy.port}
                           </span>
-                        </div>
-                      </div>
-                    </td>
-
-                    {/* 2. Protocol & Type */}
-                    <td className="py-3 px-4">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="px-2 py-0.5 rounded-md bg-white/[0.04] border border-white/[0.06] text-[11px] font-mono text-neutral-300 uppercase">
-                          {proxy.protocol}
-                        </span>
-                        <span className="px-2 py-0.5 rounded-md bg-purple-500/10 border border-purple-500/20 text-[11px] font-medium text-purple-300">
-                          {proxy.type}
-                        </span>
-                      </div>
-                    </td>
-
-                    {/* 3. Assigned Profile */}
-                    <td className="py-3 px-4">
-                      {proxy.account ? (
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs">🎬</span>
-                          <span className="font-medium text-neutral-200 text-xs">
-                            {proxy.account.platform} / {proxy.account.username}
+                          <span className="mt-1 block text-xs uppercase tracking-wide text-neutral-600">
+                            {proxy.protocol} / {proxy.type}
                           </span>
                         </div>
+                      </div>
+                    </td>
+                    <td className="py-4 pr-4 align-top">
+                      {proxy.account ? (
+                        <>
+                          <span className="block font-medium text-neutral-200">
+                            {proxy.account.username}
+                          </span>
+                          <span className="mt-1 block text-xs uppercase tracking-wide text-neutral-500">
+                            {proxy.account.platform}
+                          </span>
+                        </>
                       ) : (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-neutral-800 text-neutral-400">
-                          not assigned
-                        </span>
+                        <span className="text-sm text-neutral-500">Not assigned</span>
                       )}
                     </td>
-
-                    {/* 4. Last Check */}
-                    <td className="py-3 px-4">
+                    <td className="py-4 pr-4 align-top">
                       <ProxyLastCheckCell
                         verdict={proxy.lastCheckVerdict}
                         checkedAt={proxy.lastCheckedAt}
                         exitIp={proxy.lastExitIp}
                       />
                     </td>
-
-                    {/* 5. Speed */}
-                    <td className="py-3 px-4">
+                    <td className="py-4 pr-4 align-top">
                       <ProxySpeedCell
                         measuredAt={proxy.lastSpeedAt}
                         mbps={proxy.lastSpeedMbps}
                         detail={proxy.lastSpeedDetail}
                       />
                     </td>
-
-                    {/* 6. Actions */}
-                    <td className="py-3 px-4 text-right">
-                      <div className="flex items-center justify-end gap-2">
+                    <td className="py-4 align-top">
+                      <div className="flex items-start gap-2">
                         <CheckOneProxyButton proxyId={proxy.id} />
-                        {isAdmin ? <MeasureProxySpeedButton proxyId={proxy.id} /> : null}
-                        <Link
-                          href={`/proxies/${proxy.id}`}
-                          className="px-2.5 py-1 rounded-lg text-xs font-medium text-neutral-400 hover:text-white hover:bg-white/[0.06] transition"
-                        >
-                          {isAdmin ? "Edit" : "View"}
-                        </Link>
+                        <details className="relative">
+                          <summary className="flex min-h-9 cursor-pointer list-none items-center rounded-md border border-neutral-700 px-2 text-xs text-neutral-300 hover:bg-neutral-800 marker:content-none">
+                            More
+                          </summary>
+                          <div className="absolute right-0 z-20 mt-2 w-56 space-y-3 rounded-xl border border-white/10 bg-neutral-950 p-3 shadow-2xl">
+                            {isAdmin ? <MeasureProxySpeedButton proxyId={proxy.id} /> : null}
+                            <Link
+                              href={`/proxies/${proxy.id}`}
+                              className="flex min-h-9 items-center justify-center rounded-md border border-neutral-700 px-2 text-xs text-neutral-300 hover:bg-neutral-800"
+                            >
+                              {isAdmin ? "Edit proxy" : "View proxy"}
+                            </Link>
+                          </div>
+                        </details>
                       </div>
                     </td>
                   </tr>
@@ -305,14 +247,61 @@ export function ProxyConsole({
               </tbody>
             </table>
           </div>
-        </div>
-      )}
+        )}
+      </Card>
 
-      {/* 4. New Proxy Sheet */}
-      <NewProxySheet
-        isOpen={sheetOpen}
-        onClose={() => setSheetOpen(false)}
-      />
+      <NewProxySheet isOpen={sheetOpen} onClose={() => setSheetOpen(false)} />
+    </PageShell>
+  );
+}
+
+function FilterButton({
+  active,
+  count,
+  label,
+  onClick,
+}: {
+  active: boolean;
+  count: number;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={`inline-flex min-h-10 shrink-0 items-center gap-2 rounded-lg border px-3 text-xs font-semibold ${
+        active
+          ? "border-amber-400/40 bg-amber-400/10 text-amber-200"
+          : "border-white/[0.08] bg-white/[0.02] text-neutral-400 hover:text-neutral-200"
+      }`}
+    >
+      {label}
+      <span className="font-mono text-[11px] text-neutral-500">{count}</span>
+    </button>
+  );
+}
+
+function SummaryMetric({
+  label,
+  value,
+  tone = "default",
+}: {
+  label: string;
+  value: number;
+  tone?: "default" | "danger";
+}) {
+  return (
+    <div className="app-surface rounded-xl px-3 py-3 sm:px-4">
+      <span className="text-[11px] font-medium leading-4 text-neutral-500 sm:text-xs">{label}</span>
+      <strong
+        className={`mt-1 block text-xl font-semibold sm:text-2xl ${
+          tone === "danger" ? "text-red-300" : "text-white"
+        }`}
+      >
+        {value}
+      </strong>
     </div>
   );
 }

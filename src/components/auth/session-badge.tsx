@@ -30,10 +30,10 @@ export async function SessionBadge() {
   }
 
   return (
-    <div className="flex items-center gap-2 text-xs">
-      <span className="text-neutral-600 dark:text-neutral-400">
-        {actor.email}
-        <span className="ml-1 rounded bg-neutral-200 px-1.5 py-0.5 text-[11px] dark:bg-neutral-800">
+    <div className="flex min-w-0 items-center gap-2 text-xs">
+      <span className="max-w-36 truncate text-neutral-400 sm:max-w-none" title={actor.email}>
+        <span className="hidden sm:inline">{actor.email}</span>
+        <span className="ml-0 rounded bg-white/[0.07] px-1.5 py-1 text-[10px] text-neutral-300 sm:ml-1">
           {ROLE_LABEL[actor.role]}
         </span>
       </span>

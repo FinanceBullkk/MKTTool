@@ -28,10 +28,11 @@ export function LeftRail() {
   return (
     <nav
       aria-label="Primary navigation"
-      className="z-20 flex w-14 flex-shrink-0 flex-col items-stretch gap-2 px-1 pt-3.5"
+      className="fixed inset-x-0 bottom-0 z-20 flex h-16 flex-row items-stretch gap-1 px-2 py-1.5 md:static md:h-auto md:w-[4.75rem] md:flex-shrink-0 md:flex-col md:gap-1.5 md:px-2 md:py-3 lg:w-52"
       style={{
-        background: "rgba(10, 11, 15, 0.95)",
-        borderRight: "1px solid rgba(255, 255, 255, 0.05)",
+        background: "rgba(13, 15, 18, 0.97)",
+        borderRight: "1px solid var(--mkt-border)",
+        borderTop: "1px solid var(--mkt-border)",
       }}
     >
       {ITEMS.map((item) => {
@@ -44,19 +45,21 @@ export function LeftRail() {
             href={item.href}
             title={item.label}
             aria-current={active ? "page" : undefined}
-            className={`flex min-h-12 w-full flex-col items-center justify-center gap-1 rounded-xl px-1 py-1.5 text-center transition-all ${
+            className={`flex min-h-12 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-2 py-1.5 text-center transition-colors md:flex-none lg:flex-row lg:justify-start lg:gap-3 lg:px-3 lg:text-left ${
               active
-                ? "text-purple-300 bg-purple-500/15 shadow-[inset_0_0_0_1px_rgba(168,85,247,0.3)]"
-                : "text-neutral-400 hover:text-white hover:bg-white/[0.05]"
+                ? "bg-amber-400/10 text-amber-200 shadow-[inset_0_0_0_1px_rgba(231,173,87,0.28)]"
+                : "text-neutral-400 hover:bg-white/[0.05] hover:text-white"
             }`}
           >
-            <Icon className="shrink-0" size={17} strokeWidth={active ? 2 : 1.5} />
-            <span className="text-[10px] font-medium leading-[11px]">{item.label}</span>
+            <Icon className="shrink-0" size={18} strokeWidth={active ? 2 : 1.6} />
+            <span className="text-[10px] font-medium leading-tight md:hidden lg:inline lg:text-[13px]">
+              {item.label}
+            </span>
           </Link>
         );
       })}
 
-      <div className="flex-1" />
+      <div className="hidden flex-1 md:block" />
     </nav>
   );
 }

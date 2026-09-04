@@ -20,19 +20,16 @@ export function AppShell({
   sessionBadge?: ReactNode;
 }) {
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-[#0a0b0f] text-[#f1f5f9] font-sans antialiased">
-      {/* 1. Left Rail */}
+    <div className="flex h-[100dvh] w-full overflow-hidden font-sans antialiased">
       <LeftRail />
 
-      {/* 2. Main Content Canvas */}
-      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
+      <div className="flex h-full min-w-0 flex-1 flex-col overflow-hidden">
         <TopBar
           relayStatusText={relayName}
           sessionBadge={sessionBadge}
         />
 
-        {/* Scrollable Work Area */}
-        <main className="flex-1 overflow-y-auto">
+        <main id="main-content" className="flex-1 overflow-y-auto pb-20 md:pb-0">
           {children}
         </main>
       </div>

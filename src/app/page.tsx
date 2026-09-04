@@ -50,10 +50,9 @@ export default async function OverviewPage() {
   }));
 
   return (
-    <>
-      <TeamScopeNotice />
-      <Constellation profiles={profiles} />
-    </>
+    <div className="app-page">
+      <Constellation profiles={profiles} scopeNotice={<TeamScopeNotice />} />
+    </div>
   );
 }
 
