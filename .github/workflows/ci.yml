@@ -257,6 +257,10 @@ jobs:
   # `src/lib/relay` — a change outside
   # `relay/` breaks it, which is exactly what F4 did. Narrowing the trigger to relay paths would
   # rebuild the blind spot this job was added to close.
+  #
+  # This job is the repository's only Windows lane, so it carries the Relay's Windows-guarded
+  # unit tests too. Keeping the name: it still gates the packaged executable, and the unit step
+  # runs first.
   relay-executable:
     runs-on: windows-latest
 
@@ -288,6 +292,18 @@ jobs:
           cache: npm
 
       - run: npm ci
+
+      # `check` runs the whole suite on Linux, where every `skipIf(process.platform !== "win32")`
+      # test skips — and a skipped test is a green test. That hid eleven of them: DPAPI
+      # round-tripping of the operator domain key without plaintext on disk, secret migration,
+      # Relay self-update, and atomic install of the signed engine archive. Those are the paths
+      # that hold an operator's nick secrets, and until now nothing but a developer's own Windows
+      # machine ever ran them.
+      #
+      # It runs before the executable build so a broken contract fails in seconds rather than
+      # after a SEA build. No Postgres: `relay/` has no database test.
+      - name: Run the Relay suite on Windows, where its guarded tests are not skipped
+        run: npm run test:relay
 
       # The baked origin is a placeholder on purpose. The Relay never *calls* its web origin —
       # there is no outbound `fetch` in `relay/src` — it only compares the value against the
