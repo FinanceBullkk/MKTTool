@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS, SMALL_BUTTON_CLASS } from "@/components/ui/page-section";
 import type { ActionResult } from "@/lib/actions/action-result";
 import {
   describeRelayFailure,
@@ -100,12 +101,12 @@ export function RelayCompatibilityRollbackButton({
             setResult(null);
             setArmed(true);
           }}
-          className="rounded-md border border-amber-300 px-3 py-1.5 text-xs text-amber-800 hover:bg-amber-50 disabled:opacity-50 dark:border-amber-900 dark:text-amber-400 dark:hover:bg-amber-950"
+          className={SMALL_BUTTON_CLASS}
         >
           Roll back compatibility set
         </button>
         {result ? (
-          <p className={result.ok ? "text-xs text-emerald-700" : "text-xs text-red-700"}>
+          <p className={result.ok ? "text-xs text-emerald-300" : "text-xs text-red-300"}>
             {result.message}
           </p>
         ) : null}
@@ -114,8 +115,8 @@ export function RelayCompatibilityRollbackButton({
   }
 
   return (
-    <div className="space-y-2 rounded-md border border-amber-300 p-3 text-left dark:border-amber-900">
-      <p className="text-xs text-amber-800 dark:text-amber-400">
+    <div className="space-y-3 rounded-xl border border-amber-400/20 bg-amber-400/[0.06] p-4 text-left">
+      <p className="text-xs leading-5 text-amber-200">
         This uses the one retained signed set, never crosses the protected rollback floor, and stops
         before changing anything if a profile is open. Type the exact PC name: <strong>{deviceName}</strong>
       </p>
@@ -123,7 +124,7 @@ export function RelayCompatibilityRollbackButton({
         value={confirmation}
         onChange={(event) => setConfirmation(event.target.value)}
         disabled={pending}
-        className="w-full rounded-md border border-neutral-300 bg-white px-2 py-1.5 text-xs dark:border-neutral-700 dark:bg-neutral-950"
+        className="min-h-11 w-full rounded-xl border border-white/[0.12] bg-black/25 px-3 text-base text-white outline-none focus:border-amber-400/50 disabled:opacity-40 sm:text-xs"
         aria-label={`Type ${deviceName} to confirm compatibility rollback`}
       />
       <div className="flex justify-end gap-2">
@@ -131,7 +132,7 @@ export function RelayCompatibilityRollbackButton({
           type="button"
           disabled={pending || confirmation !== deviceName}
           onClick={rollback}
-          className="rounded-md bg-amber-700 px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50"
+          className={PRIMARY_BUTTON_CLASS}
         >
           {pending ? "Starting rollback..." : "Confirm rollback"}
         </button>
@@ -142,7 +143,7 @@ export function RelayCompatibilityRollbackButton({
             setArmed(false);
             setConfirmation("");
           }}
-          className="rounded-md border border-neutral-300 px-3 py-1.5 text-xs dark:border-neutral-700"
+          className={SECONDARY_BUTTON_CLASS}
         >
           Cancel
         </button>

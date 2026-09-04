@@ -38,7 +38,7 @@ export function RevertToPendingControl({ jobId }: { jobId: string }) {
     <div className="space-y-1">
       {armed ? (
         <div className="space-y-1">
-          <p className="text-xs text-neutral-600 dark:text-neutral-400">
+          <p className="text-xs leading-5 text-neutral-400">
             Only revert if the post was not actually published. Its saved URL and thread-collision
             trace will be removed.
           </p>
@@ -74,8 +74,8 @@ export function RevertToPendingControl({ jobId }: { jobId: string }) {
         <p
           className={
             result.ok
-              ? "text-xs text-emerald-700 dark:text-emerald-400"
-              : "text-xs text-red-700 dark:text-red-400"
+              ? "text-xs text-emerald-300"
+              : "text-xs text-red-300"
           }
         >
           {result.message}

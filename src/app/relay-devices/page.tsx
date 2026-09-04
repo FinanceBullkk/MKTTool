@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Archive, KeyRound, MonitorCheck, MonitorSmartphone, MonitorX, Wrench } from "lucide-react";
 import { RelayCompatibilityRollbackButton } from "@/components/relay/relay-compatibility-rollback-button";
 import { RelayCompatibilityUpdateButton } from "@/components/relay/relay-compatibility-update-button";
 import { RelayDeviceIdCell } from "@/components/relay/relay-device-id-cell";
@@ -16,6 +17,7 @@ import {
   PageShell,
   StatusBadge,
 } from "@/components/ui/page-section";
+import { SummaryMetric } from "@/components/ui/summary-metric";
 import { isEmailAllowed, readEmailAccessList } from "@/lib/auth/allowed-emails";
 import { readActor } from "@/lib/auth/require-actor";
 import { prisma } from "@/lib/db/prisma-client";
@@ -74,27 +76,28 @@ export default async function RelayDevicesPage() {
     <PageShell>
       <PageHeading
         title="Relay PCs"
-        description="See which computers can receive tickets, open assigned browser profiles, and retrieve nick credentials."
+        description="Registered machines and access"
+        eyebrow="Operator devices"
+        icon={MonitorSmartphone}
       />
 
       <div className="mb-6 grid grid-cols-3 gap-2 sm:gap-3">
-        <SummaryMetric label="Active" value={activeDevices.length} />
+        <SummaryMetric icon={MonitorCheck} label="Active" value={activeDevices.length} />
         <SummaryMetric
+          icon={KeyRound}
           label="Waiting for key"
           value={awaitingKey.length}
-          tone={awaitingKey.length > 0 ? "warning" : "default"}
+          tone={awaitingKey.length > 0 ? "warning" : "success"}
         />
-        <SummaryMetric label="Revoked" value={revokedDevices.length} />
+        <SummaryMetric icon={MonitorX} label="Revoked" value={revokedDevices.length} />
       </div>
 
       {isAdmin && awaitingKey.length > 0 ? (
         <Card
           title={`${awaitingKey.length} ${awaitingKey.length === 1 ? "Relay PC needs" : "Relay PCs need"} an operator key`}
+          description="Registered PCs stay blocked from secrets and browser actions until the key is granted."
+          icon={KeyRound}
         >
-          <p className="mb-4 max-w-3xl text-sm leading-6 text-neutral-400">
-            These PCs are registered but cannot retrieve passwords or open profiles yet. Grant the
-            operator key; Relay seals it for the selected receiving PC.
-          </p>
           <DataTable headers={["Relay PC", "Owner", "Registered", "Next action"]}>
             {awaitingKey.map((device) => (
               <tr key={device.id}>
@@ -114,14 +117,14 @@ export default async function RelayDevicesPage() {
               </tr>
             ))}
           </DataTable>
-          <p className="mt-4 text-xs leading-5 text-neutral-500">
-            A PC configured through manual key entry remains here until it opens the web app and
-            reports its state. Granting the key again is safe.
-          </p>
         </Card>
       ) : null}
 
-      <Card title={`Active Relay PCs - ${activeDevices.length}`}>
+      <Card
+        title={`Active Relay PCs - ${activeDevices.length}`}
+        description="Owner, runtime, and key readiness are the daily operating signals."
+        icon={MonitorCheck}
+      >
         {activeDevices.length === 0 ? (
           <EmptyState>
             No active Relay PC is registered. Install Relay on the PC you will use, then continue
@@ -142,7 +145,7 @@ export default async function RelayDevicesPage() {
                         : `${device._count.accounts} ${device._count.accounts === 1 ? "nick" : "nicks"} assigned`}
                     </span>
                     <details className="mt-2 max-w-md rounded-lg border border-white/[0.07] bg-black/10">
-                      <summary className="flex min-h-9 cursor-pointer list-none items-center px-3 text-xs font-medium text-neutral-400 marker:content-none">
+                      <summary className="flex min-h-11 cursor-pointer list-none items-center px-3 text-xs font-medium text-neutral-400 marker:content-none">
                         Technical details
                       </summary>
                       <dl className="space-y-3 border-t border-white/[0.07] p-3 text-xs">
@@ -185,7 +188,7 @@ export default async function RelayDevicesPage() {
                   <td className="py-4 text-right align-top">
                     {isAdmin ? (
                       <details className="inline-block w-52 rounded-lg border border-white/[0.08] bg-black/10 text-left">
-                        <summary className="flex min-h-9 cursor-pointer list-none items-center justify-center px-3 text-xs font-semibold text-neutral-300 marker:content-none">
+                        <summary className="flex min-h-11 cursor-pointer list-none items-center justify-center px-3 text-xs font-semibold text-neutral-300 marker:content-none">
                           Manage PC
                         </summary>
                         <div className="space-y-3 border-t border-white/[0.08] p-3">
@@ -235,17 +238,19 @@ export default async function RelayDevicesPage() {
       </Card>
 
       {revokedDevices.length > 0 ? (
-        <Card title={`Revoked Relay PCs - ${revokedDevices.length}`}>
-          <p className="mb-4 text-sm leading-6 text-neutral-500">
-            Revoked PCs cannot receive new tickets. They remain here as an audit and cleanup record.
-          </p>
+        <Card
+          title={`Revoked Relay PCs - ${revokedDevices.length}`}
+          description="History is retained for audit and local cleanup confirmation."
+          icon={Archive}
+          tone="muted"
+        >
           <DataTable headers={["Relay PC", "Owner", "Revoked", "Local cleanup"]}>
             {revokedDevices.map((device) => (
               <tr key={device.id} className="text-neutral-500">
                 <td className="py-4 pr-4 align-top">
                   <span className="font-medium text-neutral-300">{device.name}</span>
                   <details className="mt-2 max-w-md rounded-lg border border-white/[0.07] bg-black/10">
-                    <summary className="flex min-h-9 cursor-pointer list-none items-center px-3 text-xs font-medium marker:content-none">
+                    <summary className="flex min-h-11 cursor-pointer list-none items-center px-3 text-xs font-medium marker:content-none">
                       Technical details
                     </summary>
                     <div className="space-y-3 border-t border-white/[0.07] p-3 text-xs">
@@ -294,7 +299,7 @@ export default async function RelayDevicesPage() {
         </Card>
       ) : null}
 
-      <Card title="Set up the PC you are using">
+      <Card title="Set up the PC you are using" icon={MonitorSmartphone}>
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <p className="max-w-2xl text-sm leading-6 text-neutral-400">
             The guided setup checks Relay locally, registers this PC, and records its handoff state.
@@ -309,7 +314,12 @@ export default async function RelayDevicesPage() {
       </Card>
 
       {isAdmin ? (
-        <Card title="Administrator tools">
+        <Card
+          title="Administrator tools"
+          description="Manual enrollment and emergency recovery stay outside the daily device list."
+          icon={Wrench}
+          tone="muted"
+        >
           <details className="rounded-xl border border-white/[0.08] bg-black/10">
             <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between px-4 text-sm font-semibold text-neutral-300 marker:content-none">
               Register another Relay PC manually
@@ -370,28 +380,5 @@ export default async function RelayDevicesPage() {
         </Card>
       ) : null}
     </PageShell>
-  );
-}
-
-function SummaryMetric({
-  label,
-  value,
-  tone = "default",
-}: {
-  label: string;
-  value: number;
-  tone?: "default" | "warning";
-}) {
-  return (
-    <div className="app-surface rounded-xl px-3 py-3 sm:px-4">
-      <span className="text-[11px] font-medium leading-4 text-neutral-500 sm:text-xs">{label}</span>
-      <strong
-        className={`mt-1 block text-xl font-semibold sm:text-2xl ${
-          tone === "warning" ? "text-amber-300" : "text-white"
-        }`}
-      >
-        {value}
-      </strong>
-    </div>
   );
 }

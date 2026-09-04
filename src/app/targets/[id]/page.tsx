@@ -1,8 +1,8 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Activity, Crosshair, Info, PencilLine, Trash2 } from "lucide-react";
 import { DeleteEntityButton } from "@/components/ui/delete-entity-button";
 import { ActionForm } from "@/components/ui/form-controls";
-import { Card, PageHeading, StatusBadge } from "@/components/ui/page-section";
+import { BackLink, Card, Disclosure, PageHeading, PageShell, StatusBadge } from "@/components/ui/page-section";
 import { TargetFormFields } from "@/components/vault/target-form-fields";
 import { deleteTarget } from "@/lib/accounts/vault-delete-actions";
 import { updateTarget } from "@/lib/accounts/vault-update-actions";
@@ -25,66 +25,73 @@ export default async function TargetDetailPage({ params }: { params: Promise<{ i
   if (!target) notFound();
 
   return (
-    <>
-      <Link href="/targets" className="mb-4 inline-block text-sm text-neutral-500 hover:underline">
-        ← Back to posting targets
-      </Link>
+    <PageShell>
+      <BackLink href="/targets">Posting targets</BackLink>
 
-      <PageHeading title={target.name} description={target.platform} />
+      <PageHeading
+        title={target.name}
+        description={target.url}
+        eyebrow={target.platform}
+        icon={Crosshair}
+        action={
+          <StatusBadge
+            label={target.active ? "Active" : "Inactive"}
+            className={target.active ? "bg-emerald-400/10 text-emerald-300" : "bg-white/[0.06] text-neutral-400"}
+          />
+        }
+      />
 
-      <div className="mb-6 flex flex-wrap items-center gap-3 text-sm">
-        {target.active ? (
-          <StatusBadge
-            label="Active"
-            className="bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
-          />
-        ) : (
-          <StatusBadge
-            label="Inactive"
-            className="bg-neutral-200 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-400"
-          />
-        )}
-        <span className="text-neutral-600 dark:text-neutral-400">
-          {target._count.jobs} jobs · {target._count.interactions} recorded interactions
-        </span>
-        {target.facebookPage ? (
-          <span className="text-neutral-600 dark:text-neutral-400">
-            connected to Facebook Page &quot;{target.facebookPage.name}&quot;
-          </span>
-        ) : null}
+      <div className="mb-5 grid gap-2 sm:grid-cols-3">
+        <TargetSignal label="Jobs" value={String(target._count.jobs)} />
+        <TargetSignal label="Interactions" value={String(target._count.interactions)} />
+        <TargetSignal label="Channel" value={target.facebookPage?.name ?? "Community"} />
       </div>
 
       {isCommunityPlatform(target.platform) ? null : (
-        <div className="mb-6 rounded-md border border-neutral-200 px-4 py-3 text-sm text-neutral-600 dark:border-neutral-800 dark:text-neutral-400">
+        <Disclosure summary="Rule coverage for an owned Facebook Page" icon={Info} className="mb-5">
           A Facebook Page is an owned channel, so four pacing rules do not apply: daily cap,
           spacing between posts, promotional ratio, and thread collision. The thresholds below
           remain stored, but the posting rules skip them.
-        </div>
+        </Disclosure>
       )}
 
-      <Card title="Edit posting target">
-        <p className="mb-4 text-sm text-neutral-600 dark:text-neutral-400">
-          Changing these thresholds immediately rechecks every pending job for this target. Jobs
-          that are no longer safe move to BLOCKED, and the result reports how many changed.
-        </p>
+      <Card
+        title="Edit posting target"
+        description="Threshold changes immediately recheck every pending job for this target."
+        icon={PencilLine}
+      >
         <ActionForm action={updateTarget} submitLabel="Save">
           <input type="hidden" name="id" value={target.id} />
           <TargetFormFields defaults={target} />
         </ActionForm>
       </Card>
 
-      <Card title="Delete">
-        <p className="mb-3 text-sm text-neutral-600 dark:text-neutral-400">
-          You can delete only a target with no linked jobs or interactions. If it is no longer
-          used, clear &quot;Active&quot; above. It disappears from the scheduling selector while
-          its history remains available to the posting rules.
-        </p>
+      <Card
+        title="Delete target"
+        description="Use Inactive for retirement. Delete only targets with no linked history."
+        icon={Trash2}
+        tone="danger"
+      >
         <DeleteEntityButton
           action={deleteTarget.bind(null, target.id)}
           label={`target "${target.name}"`}
           redirectTo="/targets"
         />
       </Card>
-    </>
+    </PageShell>
+  );
+}
+
+function TargetSignal({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="app-surface flex items-center gap-3 rounded-xl p-3.5">
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/[0.045] text-neutral-400">
+        <Activity size={16} aria-hidden="true" />
+      </span>
+      <div className="min-w-0">
+        <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-neutral-600">{label}</p>
+        <p className="truncate text-sm font-semibold text-neutral-200" title={value}>{value}</p>
+      </div>
+    </div>
   );
 }

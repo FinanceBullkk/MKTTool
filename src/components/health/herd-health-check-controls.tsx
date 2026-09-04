@@ -8,7 +8,8 @@
  * lại trang — đó mới là thứ người dùng thật sự muốn nhìn.
  */
 import { useState, useTransition } from "react";
-import { SMALL_BUTTON_CLASS as BUTTON_CLASS } from "@/components/ui/page-section";
+import { LoaderCircle, Play, Timer } from "lucide-react";
+import { Disclosure, PRIMARY_BUTTON_CLASS } from "@/components/ui/page-section";
 import type { ActionResult } from "@/lib/actions/action-result";
 import { startHerdHealthCheck } from "@/lib/health/health-check-run-actions";
 
@@ -38,23 +39,24 @@ export function HerdHealthCheckControls({
       <div className="flex flex-wrap items-center gap-2">
         <button
           type="button"
-          className={BUTTON_CLASS}
+          className={PRIMARY_BUTTON_CLASS}
           disabled={pending || running || accountCount === 0}
           onClick={() => startTransition(async () => setResult(await startHerdHealthCheck()))}
         >
+          {pending ? <LoaderCircle size={15} className="animate-spin" /> : <Play size={15} />}
           {pending ? "Starting..." : `Check all nicks (${accountCount} nick)`}
         </button>
 
         {running ? (
-          <span className="text-xs text-amber-700 dark:text-amber-400">
-            Running on host {host}; started {minutesElapsed} minutes ago. Reload the page to watch
-            the table fill in.
+          <span className="inline-flex items-center gap-2 text-xs text-amber-300">
+            <LoaderCircle size={14} className="animate-spin" /> Running on {host} · {minutesElapsed} min
           </span>
         ) : null}
       </div>
 
       {result ? (
         <p
+          role="status"
           className={
             result.ok
               ? "text-xs text-emerald-700 dark:text-emerald-400"
@@ -65,11 +67,12 @@ export function HerdHealthCheckControls({
         </p>
       ) : null}
 
-      <p className="text-xs text-neutral-500">
-        A full run waits a random 30-90 seconds between nicks, so it takes almost ten minutes. This
-        prevents a burst of profile views from one IP from looking automated and getting the
-        observer proxy blocked. The run continues in a separate process if this tab closes.
-      </p>
+      <Disclosure summary="Run timing" icon={Timer}>
+        <p className="text-xs leading-5">
+          A full run waits 30-90 seconds between nicks and continues if this tab closes. Reload to
+          see new rows as they arrive.
+        </p>
+      </Disclosure>
     </div>
   );
 }

@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { Plus, Search } from "lucide-react";
+import { Gauge, Link2, Plus, Search, Server, TriangleAlert } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Flag } from "@/components/mktbrowser-ui/Atoms";
-import { Card, EmptyState, PageHeading, PageShell } from "@/components/ui/page-section";
+import { Card, DataTable, EmptyState, PageHeading, PageShell } from "@/components/ui/page-section";
+import { SummaryMetric } from "@/components/ui/summary-metric";
 import { CheckAllProxiesButton, CheckOneProxyButton } from "./proxy-check-controls";
 import { MeasureProxySpeedButton } from "./proxy-speed-controls";
 import { ProxyLastCheckCell } from "./proxy-last-check-cell";
@@ -80,12 +81,13 @@ export function ProxyConsole({
 
   return (
     <PageShell>
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <PageHeading
-          title="Proxy vault"
-          description="Monitor the dedicated proxy assigned to each browser-backed nick."
-        />
-        {isAdmin ? (
+      <PageHeading
+        title="Proxy vault"
+        description="Assignment, availability, and measured network health"
+        eyebrow="Network inventory"
+        icon={Server}
+        action={
+          isAdmin ? (
           <button
             type="button"
             onClick={() => setSheetOpen(true)}
@@ -94,20 +96,26 @@ export function ProxyConsole({
             <Plus size={17} strokeWidth={2.25} />
             Add proxy
           </button>
-        ) : null}
-      </div>
+          ) : null
+        }
+      />
 
       <div className="mb-6 grid grid-cols-3 gap-2 sm:gap-3">
-        <SummaryMetric label="Total proxies" value={counts.all} />
-        <SummaryMetric label="Assigned" value={counts.active} />
+        <SummaryMetric icon={Server} label="Total proxies" value={counts.all} />
+        <SummaryMetric icon={Link2} label="Assigned" value={counts.active} />
         <SummaryMetric
+          icon={TriangleAlert}
           label="Needs attention"
           value={counts.error}
-          tone={counts.error > 0 ? "danger" : "default"}
+          tone={counts.error > 0 ? "danger" : "success"}
         />
       </div>
 
-      <Card>
+      <Card
+        title={`Proxy inventory - ${filtered.length}`}
+        description="Search or filter first; checks and paid speed tests stay with each endpoint."
+        icon={Gauge}
+      >
         <div className="mb-5 flex flex-col gap-3 border-b border-white/[0.08] pb-5">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex gap-2 overflow-x-auto pb-1">
@@ -146,7 +154,10 @@ export function ProxyConsole({
         </div>
 
         {filtered.length === 0 ? (
-          <EmptyState>
+          <EmptyState
+            title={proxies.length > 0 ? "No matching proxies" : "No proxies in the vault"}
+            icon={Search}
+          >
             {proxies.length > 0 ? (
               "No proxy matches the current search and filter."
             ) : isAdmin ? (
@@ -162,20 +173,9 @@ export function ProxyConsole({
             )}
           </EmptyState>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[54rem] text-left text-sm">
-              <thead className="border-b border-white/[0.08] text-xs text-neutral-500">
-                <tr>
-                  <th className="pb-3 pr-4 font-medium">Proxy</th>
-                  <th className="pb-3 pr-4 font-medium">Assignment</th>
-                  <th className="pb-3 pr-4 font-medium">Health</th>
-                  <th className="pb-3 pr-4 font-medium">Speed</th>
-                  <th className="pb-3 font-medium">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/[0.07]">
-                {filtered.map((proxy) => (
-                  <tr key={proxy.id}>
+          <DataTable headers={["Proxy", "Assignment", "Health", "Speed", "Action"]}>
+            {filtered.map((proxy) => (
+              <tr key={proxy.id}>
                     <td className="py-4 pr-4 align-top">
                       <div className="flex items-start gap-3">
                         <Flag country={proxy.country} />
@@ -227,14 +227,14 @@ export function ProxyConsole({
                       <div className="flex items-start gap-2">
                         <CheckOneProxyButton proxyId={proxy.id} />
                         <details className="relative">
-                          <summary className="flex min-h-9 cursor-pointer list-none items-center rounded-md border border-neutral-700 px-2 text-xs text-neutral-300 hover:bg-neutral-800 marker:content-none">
+                          <summary className="flex min-h-11 cursor-pointer list-none items-center rounded-xl border border-white/[0.1] px-3 text-xs text-neutral-300 hover:bg-white/[0.06] marker:content-none">
                             More
                           </summary>
                           <div className="absolute right-0 z-20 mt-2 w-56 space-y-3 rounded-xl border border-white/10 bg-neutral-950 p-3 shadow-2xl">
                             {isAdmin ? <MeasureProxySpeedButton proxyId={proxy.id} /> : null}
                             <Link
                               href={`/proxies/${proxy.id}`}
-                              className="flex min-h-9 items-center justify-center rounded-md border border-neutral-700 px-2 text-xs text-neutral-300 hover:bg-neutral-800"
+                              className="flex min-h-11 items-center justify-center rounded-xl border border-white/[0.1] px-3 text-xs text-neutral-300 hover:bg-white/[0.06]"
                             >
                               {isAdmin ? "Edit proxy" : "View proxy"}
                             </Link>
@@ -242,11 +242,9 @@ export function ProxyConsole({
                         </details>
                       </div>
                     </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+              </tr>
+            ))}
+          </DataTable>
         )}
       </Card>
 
@@ -271,7 +269,7 @@ function FilterButton({
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className={`inline-flex min-h-10 shrink-0 items-center gap-2 rounded-lg border px-3 text-xs font-semibold ${
+      className={`inline-flex min-h-11 shrink-0 items-center gap-2 rounded-lg border px-3 text-xs font-semibold ${
         active
           ? "border-amber-400/40 bg-amber-400/10 text-amber-200"
           : "border-white/[0.08] bg-white/[0.02] text-neutral-400 hover:text-neutral-200"
@@ -280,28 +278,5 @@ function FilterButton({
       {label}
       <span className="font-mono text-[11px] text-neutral-500">{count}</span>
     </button>
-  );
-}
-
-function SummaryMetric({
-  label,
-  value,
-  tone = "default",
-}: {
-  label: string;
-  value: number;
-  tone?: "default" | "danger";
-}) {
-  return (
-    <div className="app-surface rounded-xl px-3 py-3 sm:px-4">
-      <span className="text-[11px] font-medium leading-4 text-neutral-500 sm:text-xs">{label}</span>
-      <strong
-        className={`mt-1 block text-xl font-semibold sm:text-2xl ${
-          tone === "danger" ? "text-red-300" : "text-white"
-        }`}
-      >
-        {value}
-      </strong>
-    </div>
   );
 }

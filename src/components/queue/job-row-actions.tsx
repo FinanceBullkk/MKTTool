@@ -94,8 +94,8 @@ export function JobRowActions({
         <p
           className={
             result.ok
-              ? "text-xs text-emerald-700 dark:text-emerald-400"
-              : "text-xs text-red-700 dark:text-red-400"
+              ? "text-xs text-emerald-300"
+              : "text-xs text-red-300"
           }
         >
           {result.message}

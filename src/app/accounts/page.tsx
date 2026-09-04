@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { CircleCheck, Network, UserPlus, UsersRound } from "lucide-react";
 import {
   Card,
   DataTable,
@@ -7,6 +8,7 @@ import {
   PageShell,
   StatusBadge,
 } from "@/components/ui/page-section";
+import { SummaryMetric } from "@/components/ui/summary-metric";
 import { AccountFormFields } from "@/components/vault/account-form-fields";
 import { AccountReadinessCell } from "@/components/vault/account-readiness-badge";
 import { AccountVaultForm } from "@/components/vault/account-vault-form";
@@ -52,26 +54,43 @@ export default async function AccountsPage() {
   const canCreate = freeProxies.length > 0;
   const defaultColdStartUntil = defaultColdStartDayKey();
   const adminContactEmail = readAdminContactEmail();
+  const readyAccountCount = accounts.filter(
+    (account) => describeAccountReadiness(account).ready,
+  ).length;
 
   return (
     <PageShell>
       <PageHeading
         title="Nick vault"
-        description="Assign ownership, a Relay PC, and one dedicated proxy to every browser-backed identity."
+        description="Owner · Relay PC · dedicated proxy"
+        eyebrow="Identity workspace"
+        icon={UsersRound}
       />
 
       <div className="mb-6 grid grid-cols-3 gap-2 sm:gap-3">
-        <SummaryMetric label="Total nicks" value={accounts.length} />
+        <SummaryMetric icon={UsersRound} label="Total nicks" value={accounts.length} />
         <SummaryMetric
+          icon={CircleCheck}
           label="Ready to operate"
-          value={accounts.filter((account) => describeAccountReadiness(account).ready).length}
+          value={readyAccountCount}
+          tone={
+            accounts.length === 0
+              ? "neutral"
+              : readyAccountCount === accounts.length
+                ? "success"
+                : "warning"
+          }
         />
-        <SummaryMetric label="Unassigned proxies" value={freeProxies.length} />
+        <SummaryMetric icon={Network} label="Unassigned proxies" value={freeProxies.length} />
       </div>
 
-      <Card title={`All nicks - ${accounts.length}`}>
+      <Card
+        title={`All nicks - ${accounts.length}`}
+        description="Readiness and assignment lead; lifecycle details stay secondary."
+        icon={UsersRound}
+      >
         {sorted.length === 0 ? (
-          <EmptyState>
+          <EmptyState title="No nicks in the team vault" icon={UsersRound}>
             No nicks yet. Add a proxy first, then create the first browser-backed identity below.
           </EmptyState>
         ) : (
@@ -145,7 +164,7 @@ export default async function AccountsPage() {
                   <td className="py-3 text-right align-top">
                     <Link
                       href={`/accounts/${account.id}`}
-                      className="inline-flex min-h-9 items-center rounded-lg border border-white/10 px-3 text-xs font-semibold text-neutral-200 hover:border-amber-400/40 hover:text-amber-200"
+                      className="inline-flex min-h-11 items-center rounded-xl border border-white/10 px-3 text-xs font-semibold text-neutral-200 hover:border-amber-400/40 hover:text-amber-200"
                     >
                       Open
                     </Link>
@@ -157,9 +176,9 @@ export default async function AccountsPage() {
         )}
       </Card>
 
-      <Card title="Add a nick">
+      <Card title="Add a nick" icon={UserPlus} tone="muted">
         {!canCreate ? (
-          <EmptyState>
+          <EmptyState title="A dedicated proxy is required" icon={Network}>
             {viewer?.role === "ADMIN" ? (
               <>
                 At least one unassigned proxy is required before adding a browser-backed nick.{" "}
@@ -209,14 +228,5 @@ export default async function AccountsPage() {
         )}
       </Card>
     </PageShell>
-  );
-}
-
-function SummaryMetric({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="app-surface rounded-xl px-3 py-3 sm:px-4">
-      <span className="text-[11px] font-medium leading-4 text-neutral-500 sm:text-xs">{label}</span>
-      <strong className="mt-1 block text-xl font-semibold text-white sm:text-2xl">{value}</strong>
-    </div>
   );
 }

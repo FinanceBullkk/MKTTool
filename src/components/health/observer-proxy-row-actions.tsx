@@ -7,16 +7,13 @@
  * theo dừng ngay từ đầu, và bảng sức khỏe đứng im ở số liệu cũ — trông y như mọi nick đều ổn.
  */
 import { useState, useTransition } from "react";
+import { SMALL_BUTTON_CLASS as BUTTON_CLASS } from "@/components/ui/page-section";
 import type { ActionResult } from "@/lib/actions/action-result";
 import {
   checkObserverProxy,
   deleteObserverProxy,
   setObserverProxyActive,
 } from "@/lib/health/observer-proxy-actions";
-
-const BUTTON_CLASS =
-  "rounded-md border border-neutral-300 px-2 py-1 text-xs transition hover:bg-neutral-100 " +
-  "disabled:opacity-50 dark:border-neutral-700 dark:hover:bg-neutral-800";
 
 export function ObserverProxyRowActions({ id, active }: { id: string; active: boolean }) {
   const [pending, startTransition] = useTransition();
@@ -56,7 +53,7 @@ export function ObserverProxyRowActions({ id, active }: { id: string; active: bo
         </button>
         <button
           type="button"
-          className={`${BUTTON_CLASS} text-red-700 dark:text-red-400`}
+          className={`${BUTTON_CLASS} border-red-400/20 text-red-300 hover:border-red-400/35 hover:bg-red-400/[0.08] hover:text-red-200`}
           disabled={pending}
           onClick={() => {
             if (confirm("Permanently delete this observer proxy?")) {
@@ -69,7 +66,7 @@ export function ObserverProxyRowActions({ id, active }: { id: string; active: bo
       </div>
       {result ? (
         <p
-          className={`text-xs ${result.ok ? "text-emerald-700 dark:text-emerald-400" : "text-red-700 dark:text-red-400"}`}
+          className={`text-xs ${result.ok ? "text-emerald-300" : "text-red-300"}`}
         >
           {result.message}
         </p>

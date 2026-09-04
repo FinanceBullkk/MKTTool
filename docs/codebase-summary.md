@@ -39,9 +39,13 @@ none claims stealth, unique fingerprint identity, or vendor-level identity isola
 | `/proxies`, `proxy-console.tsx`, and `/accounts` | use low-density decision tables, keep proxy creation ADMIN-only, and give OPERATOR an explicit waiting state and contact |
 | `src/lib/platforms/rollout-scope.ts` and `parked-scope-banner.tsx` | render friendly platform labels, state that parked routes are history-only, and point back to `/accounts` without changing the fail-closed scope gate |
 | `src/components/mktbrowser-ui/LeftRail.tsx` | expose the nick vault as a permanent `/accounts` destination and render every navigation label without requiring hover |
-| `src/components/mktbrowser-ui/Constellation.tsx` and `profile-list-state.ts` | present Home as a workspace overview, keep one primary state and next action per nick, and apply search to visible nick fields |
-| `src/components/mktbrowser-ui/TopBar.tsx`, `LeftRail.tsx`, and `AppShell.tsx` | provide one responsive shell with labeled desktop navigation, mobile bottom navigation, and no false global controls |
+| `src/components/mktbrowser-ui/Constellation.tsx`, `workspace-status-board.tsx`, `profile-operational-signals.tsx`, and `profile-list-state.ts` | present Home as a scan-first workspace overview, lead with Relay and count signals, keep one primary state and next action per nick, and apply search to visible nick fields |
+| `src/components/ui/summary-metric.tsx`, `team-scope-notice.tsx`, and `ops-alert-tray-client.tsx` | share icon-first operational metrics, render the rollout boundary as visible state, and keep every alert visible while collapsing long guidance |
+| `src/components/ui/page-section.tsx`, `form-controls.tsx`, `src/app/error.tsx`, and `src/app/not-found.tsx` | provide shared headings, cards, disclosure, responsive data records, 44px form/action controls, and branded recovery states across every route |
+| `src/components/mktbrowser-ui/TopBar.tsx`, `LeftRail.tsx`, `AppShell.tsx`, and `src/app/globals.css` | provide one responsive shell with labeled desktop navigation, mobile bottom navigation, no false global controls, a centered 1600px desktop canvas, and a shared 1152px content frame |
 | `src/app/relay-devices/page.tsx` | separate active and revoked PCs while placing IDs, public keys, compatibility controls, and destructive actions behind disclosure |
+| `src/app/content`, `queue`, `facebook`, `targets`, and `health` | retain parked/history behavior while using the shared page hierarchy, progressive disclosure, and mobile record-card tables |
+| `src/components/vault/antidetect-profile-card.tsx` and `first-login-card.tsx` | turn profile creation and the human first-sign-in handoff into scannable steps without claiming browser identity isolation |
 | `docs/ui-glossary.md` | define the display boundary between a nick record, a local browser profile, and a Relay PC without renaming models, columns, or routes |
 
 ## Shared-use safety — 3 September 2026

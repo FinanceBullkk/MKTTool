@@ -1,12 +1,13 @@
 import type { RelayHealth } from "@/lib/relay/relay-endpoints";
+import { Wrench } from "lucide-react";
+import { Disclosure } from "@/components/ui/page-section";
 
 export function SetupSupportDetails({ health }: { health: RelayHealth | null }) {
   return (
-    <details className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 text-sm dark:border-neutral-800 dark:bg-neutral-950/40">
-      <summary className="cursor-pointer font-medium">Support and administrator details</summary>
+    <Disclosure summary="Support and administrator details" icon={Wrench}>
       {health ? (
         <>
-          <dl className="mt-3 grid gap-2 text-xs sm:grid-cols-[auto_1fr]">
+          <dl className="grid gap-2 text-xs sm:grid-cols-[auto_1fr]">
             <dt className="text-neutral-500">Relay</dt>
             <dd>Version {health.relayVersion}</dd>
             <dt className="text-neutral-500">MKT Browser</dt>
@@ -33,6 +34,6 @@ export function SetupSupportDetails({ health }: { health: RelayHealth | null }) 
       <p className="mt-3 text-xs text-neutral-500">
         Advanced registration and revocation remain available on the relay device support page.
       </p>
-    </details>
+    </Disclosure>
   );
 }

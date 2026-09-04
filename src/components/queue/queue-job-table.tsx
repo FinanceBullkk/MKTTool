@@ -43,7 +43,7 @@ function VerdictCell({ job }: { job: QueueJob }) {
         </ul>
       ) : null}
       {job.overrideReason ? (
-        <p className="text-xs font-medium text-red-700 dark:text-red-400">
+        <p className="text-xs font-medium text-red-300">
           Override reason: {job.overrideReason}
         </p>
       ) : null}
@@ -80,7 +80,7 @@ export function QueueJobTable({ jobs }: { jobs: QueueJob[] }) {
 
               return (
                 <tr key={job.id}>
-                  <td className="whitespace-nowrap py-2 pr-4 text-xs text-neutral-600 dark:text-neutral-400">
+                  <td className="whitespace-nowrap py-2 pr-4 text-xs text-neutral-400">
                     {formatDayMonthTime(job.scheduledAt)}
                   </td>
                   <td className="max-w-xs py-2 pr-4">
@@ -90,7 +90,7 @@ export function QueueJobTable({ jobs }: { jobs: QueueJob[] }) {
                     </div>
                   </td>
                   <td className="py-2 pr-4">{job.account.username}</td>
-                  <td className="py-2 pr-4 text-neutral-600 dark:text-neutral-400">
+                  <td className="py-2 pr-4 text-neutral-400">
                     {job.target.name}
                   </td>
                   <td className="py-2 pr-4">
@@ -106,7 +106,7 @@ export function QueueJobTable({ jobs }: { jobs: QueueJob[] }) {
                       </a>
                     ) : null}
                     {job.errorMessage ? (
-                      <p className="mt-1 text-xs text-orange-700 dark:text-orange-400">
+                      <p className="mt-1 text-xs text-orange-300">
                         {job.errorMessage}
                       </p>
                     ) : null}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { PRIMARY_BUTTON_CLASS } from "@/components/ui/page-section";
 import { authorizeBootstrap, readBootstrapCompletion } from "@/lib/relay/relay-browser-client";
 import { completeBootstrap, mintBootstrapAuthorization } from "@/lib/enrollment/bootstrap-actions";
 
@@ -63,10 +64,10 @@ export function AdminBootstrapButton({ deviceId, onReady }: { deviceId: string; 
 
   return (
     <div className="mt-3">
-      <button type="button" onClick={start} className="rounded-md border px-3 py-2 text-sm font-medium">
+      <button type="button" onClick={start} className={PRIMARY_BUTTON_CLASS}>
         Start first-device bootstrap
       </button>
-      {message ? <p className="mt-2 text-sm text-neutral-600">{message}</p> : null}
+      {message ? <p className="mt-2 text-sm text-neutral-400">{message}</p> : null}
     </div>
   );
 }

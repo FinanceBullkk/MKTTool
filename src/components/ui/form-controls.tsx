@@ -2,10 +2,13 @@
 
 import { useActionState } from "react";
 import type { ActionResult } from "@/lib/actions/action-result";
+import { PRIMARY_BUTTON_CLASS } from "@/components/ui/page-section";
 
 const FIELD_CLASS =
-  "w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm " +
-  "focus:border-neutral-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-900";
+  "min-h-11 w-full rounded-xl border border-white/[0.1] bg-black/20 px-3 py-2 text-base text-white outline-none transition-colors " +
+  "placeholder:text-neutral-600 focus:border-amber-400/50 focus:bg-black/30 disabled:cursor-not-allowed disabled:opacity-45 sm:text-sm";
+
+const LABEL_CLASS = "mb-1.5 block text-xs font-medium text-neutral-400";
 
 export function Field({
   label,
@@ -29,7 +32,7 @@ export function Field({
 }) {
   return (
     <label className="block">
-      <span className="mb-1 block text-xs font-medium text-neutral-600 dark:text-neutral-400">
+      <span className={LABEL_CLASS}>
         {label}
         {required ? <span className="text-red-600"> *</span> : null}
       </span>
@@ -42,7 +45,7 @@ export function Field({
         placeholder={placeholder}
         disabled={disabled}
       />
-      {hint ? <span className="mt-1 block text-xs text-neutral-500">{hint}</span> : null}
+      {hint ? <span className="mt-1.5 block text-xs leading-5 text-neutral-500">{hint}</span> : null}
     </label>
   );
 }
@@ -74,7 +77,7 @@ export function SelectField({
 }) {
   return (
     <label className="block">
-      <span className="mb-1 block text-xs font-medium text-neutral-600 dark:text-neutral-400">
+      <span className={LABEL_CLASS}>
         {label}
         {required ? <span className="text-red-600"> *</span> : null}
       </span>
@@ -93,7 +96,7 @@ export function SelectField({
           </option>
         ))}
       </select>
-      {hint ? <span className="mt-1 block text-xs text-neutral-500">{hint}</span> : null}
+      {hint ? <span className="mt-1.5 block text-xs leading-5 text-neutral-500">{hint}</span> : null}
     </label>
   );
 }
@@ -118,7 +121,7 @@ export function TextareaField({
 }) {
   return (
     <label className="block sm:col-span-2">
-      <span className="mb-1 block text-xs font-medium text-neutral-600 dark:text-neutral-400">
+      <span className={LABEL_CLASS}>
         {label}
         {required ? <span className="text-red-600"> *</span> : null}
       </span>
@@ -130,7 +133,7 @@ export function TextareaField({
         defaultValue={defaultValue}
         placeholder={placeholder}
       />
-      {hint ? <span className="mt-1 block text-xs text-neutral-500">{hint}</span> : null}
+      {hint ? <span className="mt-1.5 block text-xs leading-5 text-neutral-500">{hint}</span> : null}
     </label>
   );
 }
@@ -145,9 +148,9 @@ export function CheckboxField({
   defaultChecked?: boolean;
 }) {
   return (
-    <label className="flex items-center gap-2 text-sm">
-      <input type="checkbox" name={name} defaultChecked={defaultChecked} className="size-4" />
-      <span>{label}</span>
+    <label className="flex min-h-11 items-center gap-3 rounded-xl border border-white/[0.08] bg-black/10 px-3 text-sm text-neutral-300">
+      <input type="checkbox" name={name} defaultChecked={defaultChecked} className="size-4 accent-amber-400" />
+      <span className="leading-5">{label}</span>
     </label>
   );
 }
@@ -168,11 +171,12 @@ export function ActionForm({
   const [state, formAction, pending] = useActionState(action, null);
 
   return (
-    <form action={formAction} className="space-y-4">
+    <form action={formAction} className="space-y-5">
       <div className="grid gap-4 sm:grid-cols-2">{children}</div>
 
       {state ? (
         <p
+          role="status"
           className={
             state.ok
               ? "text-sm text-emerald-700 dark:text-emerald-400"
@@ -186,7 +190,7 @@ export function ActionForm({
       <button
         type="submit"
         disabled={pending}
-        className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-neutral-700 disabled:opacity-50 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-300"
+        className={PRIMARY_BUTTON_CLASS}
       >
         {pending ? "Saving…" : submitLabel}
       </button>

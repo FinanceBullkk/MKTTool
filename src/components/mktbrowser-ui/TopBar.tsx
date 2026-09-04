@@ -24,7 +24,7 @@ export function TopBar({
         borderBottom: "1px solid var(--mkt-border)",
       }}
     >
-      <div className="flex w-full max-w-[90rem] items-center gap-3.5">
+      <div className="app-frame flex items-center gap-3.5">
         <Link href="/" className="flex flex-shrink-0 items-center gap-2 transition-opacity hover:opacity-90">
           <Cube size={24} />
           <span className="flex items-center gap-1 text-sm font-semibold tracking-tight text-white">
@@ -41,7 +41,7 @@ export function TopBar({
 
           <Link
             href="/setup"
-            className="flex h-9 w-9 items-center justify-center rounded-lg text-neutral-400 transition-colors hover:bg-white/[0.06] hover:text-white"
+            className="flex h-11 w-11 items-center justify-center rounded-xl text-neutral-400 transition-colors hover:bg-white/[0.06] hover:text-white"
             title="Settings"
             aria-label="Open Relay PC setup"
           >

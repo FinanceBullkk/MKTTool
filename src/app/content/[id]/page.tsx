@@ -1,8 +1,8 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
+import { FileClock, FilePenLine, FileText, Trash2 } from "lucide-react";
 import { ContentItemForm } from "@/components/content/content-item-form";
 import { DeleteEntityButton } from "@/components/ui/delete-entity-button";
-import { Card, DataTable, EmptyState, PageHeading, StatusBadge } from "@/components/ui/page-section";
+import { BackLink, Card, DataTable, EmptyState, PageHeading, PageShell, StatusBadge } from "@/components/ui/page-section";
 import { deleteContentItem, updateContentItem } from "@/lib/content/content-item-actions";
 import { getJobStatusPresentation, parseLinks } from "@/lib/content/content-types";
 import { prisma } from "@/lib/db/prisma-client";
@@ -29,19 +29,21 @@ export default async function ContentDetailPage({ params }: { params: Promise<{ 
   if (!item) notFound();
 
   return (
-    <>
-      <Link href="/content" className="mb-4 inline-block text-sm text-neutral-500 hover:underline">
-        ← Back to content library
-      </Link>
+    <PageShell>
+      <BackLink href="/content">Content library</BackLink>
 
-      <PageHeading title={item.title} description={`Written by ${item.authorName}`} />
+      <PageHeading
+        title={item.title}
+        description={`Written by ${item.authorName}`}
+        eyebrow={item.type === "PROMO" ? "Promotional post" : "Value post"}
+        icon={FileText}
+      />
 
-      <Card title="Edit content">
-        <p className="mb-4 text-sm text-neutral-600 dark:text-neutral-400">
-          Saving immediately rechecks every pending job that uses this item. Duplicate-content and
-          link-policy rules use the body, while the promotional ratio uses the content type. Jobs
-          that are no longer safe move to BLOCKED, and the result reports how many changed.
-        </p>
+      <Card
+        title="Edit content"
+        description="Saving rechecks every pending job that uses this item."
+        icon={FilePenLine}
+      >
         <ContentItemForm
           action={updateContentItem}
           submitLabel="Save"
@@ -56,9 +58,9 @@ export default async function ContentDetailPage({ params }: { params: Promise<{ 
         />
       </Card>
 
-      <Card title={`Jobs using this content - ${item.jobs.length}`}>
+      <Card title={`Jobs using this content - ${item.jobs.length}`} icon={FileClock}>
         {item.jobs.length === 0 ? (
-          <EmptyState>This content has not been scheduled and does not count toward any ratio.</EmptyState>
+          <EmptyState title="Not scheduled" icon={FileClock}>This item does not count toward any ratio yet.</EmptyState>
         ) : (
           <DataTable headers={["Scheduled time", "Nick", "Target", "Status"]}>
             {item.jobs.map((job) => {
@@ -82,18 +84,18 @@ export default async function ContentDetailPage({ params }: { params: Promise<{ 
         )}
       </Card>
 
-      <Card title="Delete">
-        <p className="mb-3 text-sm text-neutral-600 dark:text-neutral-400">
-          You can delete only content that has never been scheduled. Scheduled content is evidence
-          used by the posting rules to detect later duplicates. Skip its job in the posting queue
-          instead of deleting the original item.
-        </p>
+      <Card
+        title="Delete content"
+        description="Deletion is available only before this item has scheduling history."
+        icon={Trash2}
+        tone="danger"
+      >
         <DeleteEntityButton
           action={deleteContentItem.bind(null, item.id)}
           label={`content "${item.title}"`}
           redirectTo="/content"
         />
       </Card>
-    </>
+    </PageShell>
   );
 }

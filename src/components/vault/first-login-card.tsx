@@ -21,11 +21,9 @@
  * xuống, và đứng ngay trên để chỗ trỏ tới nằm trong tầm mắt.
  */
 import { useState, useTransition } from "react";
+import { Check, CheckCircle2, ExternalLink, Info, KeyRound } from "lucide-react";
+import { Disclosure, PRIMARY_BUTTON_CLASS } from "@/components/ui/page-section";
 import { markFirstLogin } from "@/lib/accounts/account-first-login-actions";
-
-const BUTTON_CLASS =
-  "rounded-md bg-neutral-900 px-3 py-2 text-sm font-medium text-white transition " +
-  "hover:bg-neutral-700 disabled:opacity-40 dark:bg-neutral-100 dark:text-neutral-900";
 
 export function FirstLoginCard({
   accountId,
@@ -50,51 +48,66 @@ export function FirstLoginCard({
   }
 
   return (
-    <div className="space-y-3">
-      <p className="text-sm text-neutral-600 dark:text-neutral-400">
-        This nick has a browser profile, but <strong>nobody has signed in to it yet</strong>. The
-        profile is a blank local browser workspace with the assigned proxy and no signed-in session.
-        This local state does not prove identity isolation. Finish the handoff with the controls in
-        the actions card below:
+    <div className="space-y-4">
+      <p className="flex items-center gap-2 text-sm font-medium text-amber-200">
+        <KeyRound size={17} aria-hidden="true" />
+        Browser profile ready. Platform sign-in still required.
       </p>
 
-      <ol className="ml-5 list-decimal space-y-1 text-sm text-neutral-600 dark:text-neutral-400">
-        <li>
-          Select <strong>Open browser profile</strong> to open the local browser window with this
-          nick&apos;s proxy.
+      <ol className="grid gap-2 sm:grid-cols-3">
+        <li className="rounded-xl border border-white/[0.07] bg-black/10 p-3 text-xs leading-5 text-neutral-300">
+          <span className="mb-2 flex items-center gap-2 font-semibold text-white">
+            <ExternalLink size={15} className="text-amber-300" aria-hidden="true" />
+            1. Open
+          </span>
+          Use <strong>Open browser profile</strong> in Quick actions.
         </li>
-        <li>
-          Go to the platform and sign in{" "}
+        <li className="rounded-xl border border-white/[0.07] bg-black/10 p-3 text-xs leading-5 text-neutral-300">
+          <span className="mb-2 flex items-center gap-2 font-semibold text-white">
+            <KeyRound size={15} className="text-amber-300" aria-hidden="true" />
+            2. Sign in
+          </span>
+          Sign in{" "}
           {usesGoogleLogin ? (
             <>
-              with <em>Continue with Google</em>, using <strong>Google password</strong> and{" "}
-              <strong>OTP code</strong> from the actions card
+              with <em>Continue with Google</em> using the password and OTP in Quick actions.
             </>
           ) : (
             <>
-              using <strong>Nick password</strong> and <strong>OTP code</strong> from the actions card
+              using the nick password and OTP in Quick actions.
             </>
           )}
         </li>
-        <li>Return here and confirm the first sign-in with the button below.</li>
+        <li className="rounded-xl border border-white/[0.07] bg-black/10 p-3 text-xs leading-5 text-neutral-300">
+          <span className="mb-2 flex items-center gap-2 font-semibold text-white">
+            <CheckCircle2 size={15} className="text-amber-300" aria-hidden="true" />
+            3. Confirm
+          </span>
+          Return here and mark the first sign-in complete.
+        </li>
       </ol>
 
-      <button type="button" className={BUTTON_CLASS} disabled={pending} onClick={danhDau}>
+      <button type="button" className={PRIMARY_BUTTON_CLASS} disabled={pending} onClick={danhDau}>
+        <Check size={16} aria-hidden="true" />
         {pending ? "Saving..." : "First sign-in completed"}
       </button>
 
-      <p className="text-xs text-neutral-500">
-        Do this at the start of cold-start, not on the planned posting day: a first sign-in from a
-        new IP is when verification is most likely. The operator must handle sign-in, OTP, and
-        CAPTCHA manually; the tool does not automate this step.
-      </p>
+      <Disclosure summary="Timing and safety" icon={Info}>
+        <p className="text-xs leading-5">
+          Do this at the start of cold-start, not on the planned posting day. A first sign-in from a
+          new IP is when verification is most likely. The operator must handle sign-in, OTP, and
+          CAPTCHA manually; this tool does not automate them. A configured local profile does not
+          prove identity isolation.
+        </p>
+      </Disclosure>
 
       {feedback ? (
         <p
+          role={feedback.kind === "ok" ? "status" : "alert"}
           className={
             feedback.kind === "ok"
-              ? "text-sm text-emerald-700 dark:text-emerald-400"
-              : "text-sm text-red-700 dark:text-red-400"
+              ? "text-sm text-emerald-300"
+              : "text-sm text-red-300"
           }
         >
           {feedback.text}

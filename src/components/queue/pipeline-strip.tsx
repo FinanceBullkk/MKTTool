@@ -14,6 +14,7 @@
  */
 import { Fragment } from "react";
 import Link from "next/link";
+import { ChevronRight } from "lucide-react";
 
 export type StepState = "idle" | "ok" | "warn" | "bad";
 
@@ -31,22 +32,21 @@ export interface PipelineStep {
 }
 
 const STATE_CLASS: Record<StepState, string> = {
-  idle: "border-dashed border-neutral-300 bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900",
-  ok: "border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-900",
-  warn: "border-amber-300 bg-amber-50 dark:border-amber-900 dark:bg-amber-950",
-  bad: "border-red-300 bg-red-50 dark:border-red-900 dark:bg-red-950",
+  idle: "border-dashed border-white/[0.1] bg-black/10",
+  ok: "border-white/[0.08] bg-white/[0.025]",
+  warn: "border-amber-400/20 bg-amber-400/[0.06]",
+  bad: "border-red-400/20 bg-red-400/[0.06]",
 };
 
 const VALUE_CLASS: Record<StepState, string> = {
   idle: "text-neutral-400",
-  ok: "text-neutral-900 dark:text-neutral-100",
-  warn: "text-amber-800 dark:text-amber-300",
-  bad: "text-red-800 dark:text-red-300",
+  ok: "text-neutral-100",
+  warn: "text-amber-300",
+  bad: "text-red-300",
 };
 
 const NODE_CLASS =
-  "flex min-w-[8rem] flex-1 flex-col gap-0.5 rounded-md border px-2.5 py-2 text-left transition " +
-  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-500";
+  "flex min-h-14 min-w-[8rem] flex-1 flex-col gap-0.5 rounded-xl border px-3 py-2.5 text-left transition-colors";
 
 /** Đưa con trỏ tới ô nhập của chặng vừa bấm. Ô không tồn tại thì im lặng bỏ qua. */
 function focusField(id: string) {
@@ -72,7 +72,7 @@ function StepBody({ step }: { step: PipelineStep }) {
 
 function StepNode({ step }: { step: PipelineStep }) {
   const className = `${NODE_CLASS} ${STATE_CLASS[step.state]}`;
-  const interactive = "hover:border-neutral-400 dark:hover:border-neutral-600";
+  const interactive = "hover:border-amber-400/30 hover:bg-amber-400/[0.04]";
 
   if (step.href) {
     return (
@@ -109,9 +109,7 @@ export function PipelineStrip({ steps }: { steps: PipelineStep[] }) {
       {steps.map((step, index) => (
         <Fragment key={step.key}>
           {index > 0 ? (
-            <span aria-hidden="true" className="self-center text-neutral-300 dark:text-neutral-700">
-              →
-            </span>
+            <ChevronRight size={14} aria-hidden="true" className="self-center shrink-0 text-neutral-700" />
           ) : null}
           <StepNode step={step} />
         </Fragment>

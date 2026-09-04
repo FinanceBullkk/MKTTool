@@ -15,12 +15,12 @@ import { HealthCheckNowButton } from "./health-check-now-button";
 function LastCheckCell({ row }: { row: AccountHealthRow }) {
   if (!row.latest) {
     return (
-      <span className="text-amber-700 dark:text-amber-400">Never checked</span>
+      <span className="text-amber-300">Never checked</span>
     );
   }
 
   return (
-    <span className={row.stale ? "text-amber-700 dark:text-amber-400" : "text-neutral-600 dark:text-neutral-400"}>
+    <span className={row.stale ? "text-amber-300" : "text-neutral-400"}>
       {formatDayMonthTime(row.latest.checkedAt)}
       {row.stale ? ` (${row.daysSinceCheck} days ago - stale)` : ""}
     </span>
@@ -55,12 +55,12 @@ export function AccountHealthTable({ rows }: { rows: AccountHealthRow[] }) {
               ) : (
                 <StatusBadge
                   label="Unknown"
-                  className="bg-neutral-200 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400"
+                  className="bg-white/[0.06] text-neutral-400"
                 />
               )}
             </td>
             <td className="py-2 pr-4 tabular-nums">{row.karma}</td>
-            <td className="py-2 pr-4 tabular-nums text-neutral-600 dark:text-neutral-400">
+            <td className="py-2 pr-4 tabular-nums text-neutral-400">
               {row.latest && row.latest.visiblePosts !== null && row.latest.expectedPosts !== null
                 ? `${row.latest.visiblePosts} / ${row.latest.expectedPosts}`
                 : "—"}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { SMALL_BUTTON_CLASS } from "@/components/ui/page-section";
 import type { ActionResult } from "@/lib/actions/action-result";
 import {
   describeRelayFailure,
@@ -79,12 +80,12 @@ export function RelayDeviceRetirementReceiptButton({
         type="button"
         disabled={pending}
         onClick={finishLocalReceipt}
-        className="rounded-md border border-neutral-300 px-3 py-1.5 text-xs text-neutral-700 hover:bg-neutral-50 disabled:opacity-50 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-900"
+        className={SMALL_BUTTON_CLASS}
       >
         {pending ? "Checking this PC..." : "Check local receipt"}
       </button>
       {result ? (
-        <p className={result.ok ? "text-xs text-emerald-700" : "text-xs text-red-700"}>
+        <p className={result.ok ? "text-xs text-emerald-300" : "text-xs text-red-300"}>
           {result.message}
         </p>
       ) : null}

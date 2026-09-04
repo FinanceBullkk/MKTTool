@@ -7,6 +7,8 @@
  * trường), nên người vận hành cần một chỗ tự trả lời được câu *"bộ dò có đang tự chạy không"*.
  */
 import { formatDayMonthTime } from "@/lib/format/vietnamese-date-format";
+import { CalendarClock, CircleOff, TriangleAlert } from "lucide-react";
+import { Disclosure, StatusBadge } from "@/components/ui/page-section";
 import type { DailyHealthCheckScheduleView } from "@/lib/health/daily-health-check-scheduler";
 import { DAILY_HEALTH_CHECK_ENV } from "@/lib/health/daily-health-check-config";
 import { formatTimeOfDay } from "@/lib/schedule/daily-run-schedule";
@@ -25,41 +27,52 @@ export function DailyScheduleSummary({ schedule }: { schedule: DailyHealthCheckS
 
   if (configError) {
     return (
-      <p className="text-sm text-red-700 dark:text-red-400">
-        Daily health checks are <strong>not running</strong>: {configError} Fix{" "}
-        <code>{DAILY_HEALTH_CHECK_ENV}</code> in the server environment, then restart the app.
-      </p>
+      <div className="flex items-start gap-3 rounded-xl border border-red-400/20 bg-red-400/[0.06] p-3 text-red-200">
+        <TriangleAlert size={17} className="mt-0.5 shrink-0" aria-hidden="true" />
+        <div>
+          <p className="text-sm font-semibold">Schedule broken</p>
+          <p className="mt-1 text-xs leading-5 text-red-100/75">{configError}</p>
+        </div>
+      </div>
     );
   }
 
   if (!at) {
     return (
-      <p className="text-sm text-amber-700 dark:text-amber-400">
-        Daily health checks are <strong>disabled</strong>; checks run only when someone clicks a
-        button. Set <code>{DAILY_HEALTH_CHECK_ENV}=&quot;09:00&quot;</code> in the server
-        environment to enable a daily run in team time, then restart the app.
-      </p>
+      <div className="space-y-3">
+        <div className="flex items-center gap-3 rounded-xl border border-amber-400/20 bg-amber-400/[0.06] p-3">
+          <CircleOff size={17} className="shrink-0 text-amber-300" aria-hidden="true" />
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-amber-100">Daily schedule disabled</p>
+            <p className="text-xs text-neutral-400">Health checks run only when started manually.</p>
+          </div>
+          <StatusBadge label="Manual" className="bg-amber-400/10 text-amber-300" />
+        </div>
+        <Disclosure summary="Administrator setup">
+          Set <code>{DAILY_HEALTH_CHECK_ENV}=&quot;09:00&quot;</code> in the server environment and restart the app.
+        </Disclosure>
+      </div>
     );
   }
 
   return (
-    <div className="space-y-2 text-sm">
-      <p>
-        Runs automatically at <strong>{formatTimeOfDay(at)}</strong> every day in team time.
-      </p>
+    <div className="flex items-start gap-3 rounded-xl border border-emerald-400/20 bg-emerald-400/[0.055] p-3">
+      <CalendarClock size={18} className="mt-0.5 shrink-0 text-emerald-300" aria-hidden="true" />
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-semibold text-white">Every day at {formatTimeOfDay(at)}</p>
 
       {lastRun ? (
-        <p className="text-xs text-neutral-500">
-          Last scheduled run: {formatDayMonthTime(lastRun.lastRunAt)} -{" "}
-          {describeOutcome(lastRun.outcome)} (host {lastRun.host}).
+        <p className="mt-1 text-xs leading-5 text-neutral-400">
+          Last: {formatDayMonthTime(lastRun.lastRunAt)} · {describeOutcome(lastRun.outcome)} · {lastRun.host}
           {lastRun.detail ? ` ${lastRun.detail}` : ""}
         </p>
       ) : (
-        <p className="text-xs text-neutral-500">
-          No scheduled run yet. The first scheduled time has not arrived, or the server has just
-          enabled the schedule.
+        <p className="mt-1 text-xs text-neutral-400">
+          Waiting for the first scheduled run.
         </p>
       )}
+      </div>
+      <StatusBadge label="Automatic" className="bg-emerald-400/10 text-emerald-300" />
     </div>
   );
 }

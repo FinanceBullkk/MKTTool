@@ -20,7 +20,7 @@ import Link from "next/link";
 
 export function RelayOutdatedNotice({ relayVersion }: { relayVersion: number }) {
   return (
-    <p className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-300">
+    <p className="rounded-xl border border-amber-400/20 bg-amber-400/[0.06] px-4 py-3 text-sm text-amber-200">
       Relay on this PC is <strong>version {relayVersion}</strong>, older than the version currently
       distributed by the server. Existing actions still work, but update before a ticket is rejected:{" "}
       <Link href="/setup#download" className="underline">

@@ -10,7 +10,9 @@
  * Bản thân việc chặn xóa nằm ở server (xem reference-guard.ts) — nút này chỉ lo phần hỏi lại.
  */
 import { useState, useTransition } from "react";
+import { ShieldAlert, Trash2, X } from "lucide-react";
 import type { ActionResult } from "@/lib/actions/action-result";
+import { DANGER_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/components/ui/page-section";
 
 export function DeleteEntityButton({
   action,
@@ -45,24 +47,31 @@ export function DeleteEntityButton({
   return (
     <div className="space-y-2">
       {armed ? (
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-sm text-red-700 dark:text-red-400">Delete {label}? This cannot be undone.</span>
+        <div className="rounded-xl border border-red-400/20 bg-red-400/[0.06] p-3">
+          <span className="flex items-center gap-2 text-sm font-medium text-red-200">
+            <ShieldAlert size={16} aria-hidden="true" />
+            Delete {label}? This cannot be undone.
+          </span>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
           <button
             type="button"
             disabled={pending}
             onClick={remove}
-            className="rounded-md bg-red-700 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-red-800 disabled:opacity-50"
+            className={DANGER_BUTTON_CLASS}
           >
+            <Trash2 size={15} aria-hidden="true" />
             {pending ? "Deleting…" : "Delete permanently"}
           </button>
           <button
             type="button"
             disabled={pending}
             onClick={() => setArmed(false)}
-            className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm transition hover:bg-neutral-100 disabled:opacity-50 dark:border-neutral-700 dark:hover:bg-neutral-800"
+            className={SECONDARY_BUTTON_CLASS}
           >
+            <X size={15} aria-hidden="true" />
             Cancel
           </button>
+          </div>
         </div>
       ) : (
         <button
@@ -72,8 +81,9 @@ export function DeleteEntityButton({
             setResult(null);
             setArmed(true);
           }}
-          className="rounded-md border border-red-300 px-3 py-1.5 text-sm text-red-700 transition hover:bg-red-50 disabled:opacity-50 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-950"
+          className={DANGER_BUTTON_CLASS}
         >
+          <Trash2 size={15} aria-hidden="true" />
           Delete
         </button>
       )}
@@ -82,8 +92,8 @@ export function DeleteEntityButton({
         <p
           className={
             result.ok
-              ? "text-sm text-emerald-700 dark:text-emerald-400"
-              : "text-sm text-red-700 dark:text-red-400"
+              ? "text-sm text-emerald-300"
+              : "text-sm text-red-300"
           }
         >
           {result.message}

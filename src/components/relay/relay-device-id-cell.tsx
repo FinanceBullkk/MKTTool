@@ -23,6 +23,8 @@
  * có khóa riêng thì không mở được gì. Không cần giấu với người trong team.
  */
 import { useState } from "react";
+import { Copy } from "lucide-react";
+import { SMALL_BUTTON_CLASS } from "@/components/ui/page-section";
 
 export function RelayDeviceIdCell({ deviceId }: { deviceId: string }) {
   const [copied, setCopied] = useState<"idle" | "done" | "failed">("idle");
@@ -42,19 +44,20 @@ export function RelayDeviceIdCell({ deviceId }: { deviceId: string }) {
     <div className="space-y-1">
       <div className="flex items-center gap-2">
         {/* `select-all`: một cú bấm chọn trọn chuỗi, để đường chép tay cũng không phải kéo chuột. */}
-        <code className="select-all rounded bg-neutral-100 px-1 py-0.5 font-mono text-xs dark:bg-neutral-800">
+        <code className="select-all break-all rounded-lg bg-white/[0.05] px-2 py-1 font-mono text-xs text-neutral-300">
           {deviceId}
         </code>
         <button
           type="button"
           onClick={copy}
-          className="rounded-md border border-neutral-300 px-2 py-0.5 text-xs transition hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-800"
+          className={SMALL_BUTTON_CLASS}
         >
+          <Copy size={14} aria-hidden="true" />
           {copied === "done" ? "Copied" : "Copy"}
         </button>
       </div>
       {copied === "failed" ? (
-        <p className="text-xs text-amber-700 dark:text-amber-500">
+        <p className="text-xs text-amber-300">
           The browser blocked automatic copying. Select the full ID, then press Ctrl+C.
         </p>
       ) : null}

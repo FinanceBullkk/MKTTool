@@ -50,7 +50,7 @@ export function MarkPostedControl({ jobId }: { jobId: string }) {
       {showUrlInput ? (
         <div className="flex flex-wrap items-center gap-1">
           <input
-            className="w-56 rounded-md border border-neutral-300 px-2 py-1 text-xs dark:border-neutral-700 dark:bg-neutral-900"
+            className="min-h-11 w-full max-w-sm rounded-xl border border-white/[0.1] bg-black/20 px-3 text-base text-white outline-none placeholder:text-neutral-600 focus:border-amber-400/50 sm:text-xs"
             placeholder="Paste the URL of the post you just published"
             value={postedUrl}
             onChange={(event) => setPostedUrl(event.target.value)}
@@ -70,8 +70,8 @@ export function MarkPostedControl({ jobId }: { jobId: string }) {
         <p
           className={
             result.ok
-              ? "text-xs text-emerald-700 dark:text-emerald-400"
-              : "text-xs text-red-700 dark:text-red-400"
+              ? "text-xs text-emerald-300"
+              : "text-xs text-red-300"
           }
         >
           {result.message}

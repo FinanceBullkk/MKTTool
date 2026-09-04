@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { SMALL_BUTTON_CLASS } from "@/components/ui/page-section";
 import type { ActionResult } from "@/lib/actions/action-result";
 import {
   describeRelayFailure,
@@ -180,12 +181,12 @@ export function RelayCompatibilityUpdateButton({
         type="button"
         disabled={pending}
         onClick={prepare}
-        className="rounded-md border border-sky-300 px-3 py-1.5 text-xs text-sky-800 hover:bg-sky-50 disabled:opacity-50 dark:border-sky-900 dark:text-sky-400 dark:hover:bg-sky-950"
+        className={SMALL_BUTTON_CLASS}
       >
         {pending ? "Checking compatibility set..." : "Update / repair compatibility set"}
       </button>
       {result ? (
-        <p className={result.ok ? "text-xs text-emerald-700" : "text-xs text-red-700"}>
+        <p className={result.ok ? "text-xs text-emerald-300" : "text-xs text-red-300"}>
           {result.message}
         </p>
       ) : null}

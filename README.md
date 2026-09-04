@@ -16,7 +16,13 @@ The current interface is organized as an operations console: **Workspace overvie
 state and immediate next actions; **Nick vault**, **Proxy vault**, **Relay PCs**, and **Setup** hold
 the corresponding management work. Technical identifiers, checksums, compatibility controls, and
 destructive actions stay available behind labeled details so daily operation is not mixed with
-support and emergency work.
+support and emergency work. Daily surfaces are scan-first: icons, status color, and tabular counts
+lead, while longer reasons and recovery guidance stay behind explicit details. On wide desktops, the
+complete signed-in console sits inside a centered 1600px canvas with black outer gutters, while page
+content stays within a 1152px reading frame; smaller screens continue to use the full available width.
+Parked Content, Queue, Facebook, Targets, and Health routes use the same hierarchy and mobile record
+cards, but their rollout state and server-side posting guards remain unchanged. Sign-in, empty,
+error, confirmation, and destructive-action states use the same visual language and touch targets.
 
 **Current status, 1 September 2026:** the nick vault, Reddit/Facebook posting-safety pipeline,
 health checks, and Facebook Pages publisher are implemented (now out of rollout scope, see above).

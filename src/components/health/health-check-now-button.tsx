@@ -12,6 +12,7 @@
  */
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { SMALL_BUTTON_CLASS } from "@/components/ui/page-section";
 
 export function HealthCheckNowButton({
   accountId,
@@ -51,9 +52,9 @@ export function HealthCheckNowButton({
   }
 
   const TONE_CLASS = {
-    ok: "text-neutral-600 dark:text-neutral-400",
-    cho: "text-amber-700 dark:text-amber-400",
-    loi: "text-red-700 dark:text-red-400",
+    ok: "text-neutral-400",
+    cho: "text-amber-300",
+    loi: "text-red-300",
   } as const;
 
   return (
@@ -62,7 +63,7 @@ export function HealthCheckNowButton({
         type="button"
         onClick={run}
         disabled={pending}
-        className="rounded-md border border-neutral-300 px-2 py-1 text-xs transition hover:bg-neutral-100 disabled:opacity-50 dark:border-neutral-700 dark:hover:bg-neutral-800"
+        className={SMALL_BUTTON_CLASS}
       >
         {pending ? "Checking..." : label}
       </button>

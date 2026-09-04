@@ -38,11 +38,17 @@
  * failure. See `RELAY_PROFILE_WORK_TIMEOUT_MS`.
  */
 import { useState } from "react";
+import { KeyRound, Monitor, MonitorUp, ShieldCheck, TriangleAlert } from "lucide-react";
 import {
   requestCredentialTicket,
   requestOtpTicket,
 } from "@/lib/accounts/vault-credential-actions";
 import { RelayOutdatedNotice } from "@/components/relay/relay-outdated-notice";
+import {
+  Disclosure,
+  PRIMARY_BUTTON_CLASS,
+  SMALL_BUTTON_CLASS,
+} from "@/components/ui/page-section";
 import {
   describeRelayFailure,
   describeSlowRelayFailure,
@@ -61,9 +67,7 @@ type Feedback = {
   diagnostic?: RelayOperationDiagnostic;
 } | null;
 
-const BUTTON_CLASS =
-  "rounded-md border border-neutral-300 px-3 py-1.5 text-sm transition " +
-  "hover:bg-neutral-100 disabled:opacity-50 dark:border-neutral-700 dark:hover:bg-neutral-800";
+const BUTTON_CLASS = `${SMALL_BUTTON_CLASS} min-h-11 justify-start gap-2 text-sm`;
 
 /**
  * Cửa sổ nhỏ vừa đủ cho một mật khẩu và một nút chép.
@@ -312,31 +316,36 @@ export function AccountVaultActionsPanel({
       {outdatedVersion !== null ? <RelayOutdatedNotice relayVersion={outdatedVersion} /> : null}
 
       {nickDeviceName !== null ? (
-        <p className="text-sm text-neutral-600 dark:text-neutral-400">
-          This nick is assigned to Relay PC <strong>{nickDeviceName}</strong>. Every ticket goes to
-          that PC, even when another teammate selects the action. A different Relay PC receives a
-          clear rejection instead of opening an empty window.
-        </p>
+        <div className="flex items-center gap-3 rounded-xl border border-white/[0.08] bg-black/10 px-3 py-3">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/[0.045] text-neutral-400">
+            <Monitor size={16} aria-hidden="true" />
+          </span>
+          <div className="min-w-0">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-neutral-600">
+              Ticket destination
+            </p>
+            <p className="truncate text-sm font-semibold text-neutral-200">{nickDeviceName}</p>
+          </div>
+        </div>
       ) : null}
 
       {nickDeviceName === null && relayDevices.length === 0 ? (
-        <p className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-300">
-          This PC is not registered as a Relay PC, so it cannot receive passwords, OTP codes, or
-          browser profile launch tickets. Install Relay and register this PC at{" "}
-          <a href="/setup" className="underline">
-            /setup
-          </a>{" "}
-          without administrator help.
-        </p>
+        <div className="flex items-start gap-3 rounded-xl border border-amber-400/20 bg-amber-400/[0.06] px-3 py-3 text-sm text-amber-100">
+          <TriangleAlert size={17} className="mt-0.5 shrink-0" aria-hidden="true" />
+          <p>
+            This PC is not registered. Complete <a href="/setup" className="font-semibold underline">Setup</a>{" "}
+            before requesting secrets or opening a browser profile.
+          </p>
+        </div>
       ) : null}
 
       {nickDeviceName === null && relayDevices.length > 1 ? (
         <label className="block text-sm">
-          <span className="mb-1 block text-xs font-medium text-neutral-600 dark:text-neutral-400">
+          <span className="mb-1.5 block text-xs font-medium text-neutral-400">
             Relay PC you are using
           </span>
           <select
-            className="rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+            className="min-h-11 w-full rounded-xl border border-white/[0.1] bg-black/20 px-3 text-base text-white outline-none focus:border-amber-400/50 sm:text-sm"
             value={deviceId}
             onChange={(event) => setDeviceId(event.target.value)}
           >
@@ -346,14 +355,10 @@ export function AccountVaultActionsPanel({
               </option>
             ))}
           </select>
-          <span className="mt-1 block text-xs text-neutral-500">
-            The ticket is encrypted for one Relay PC. Choosing the wrong PC cannot expose its
-            contents; Relay rejects a ticket addressed to another Relay PC.
-          </span>
         </label>
       ) : null}
 
-      <div className="flex flex-wrap gap-2">
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
         {/* Ẩn hẳn thay vì khóa lại: một nút xám thường trực gợi ra rằng nick này *đáng lẽ* có mật
             khẩu riêng và ai đó quên nhập. Nick đăng nhập bằng Google thì không có, và sẽ không
             bao giờ có. */}
@@ -369,6 +374,7 @@ export function AccountVaultActionsPanel({
               )
             }
           >
+            <KeyRound size={15} aria-hidden="true" />
             Nick password
           </button>
         ) : null}
@@ -383,6 +389,7 @@ export function AccountVaultActionsPanel({
             )
           }
         >
+          <KeyRound size={15} aria-hidden="true" />
           {usesGoogleLogin ? "Google password" : "Email password"}
         </button>
         <button
@@ -393,41 +400,49 @@ export function AccountVaultActionsPanel({
             openSecretTab(() => requestOtpTicket(accountId, deviceId || undefined), "OTP code")
           }
         >
+          <ShieldCheck size={15} aria-hidden="true" />
           {hasTotp ? "OTP code" : "2FA not configured"}
         </button>
         <button
           type="button"
-          className={BUTTON_CLASS}
+          className={`${PRIMARY_BUTTON_CLASS} justify-center`}
           disabled={busy || !canLaunch}
           onClick={launchProfile}
           title={canLaunch ? undefined : launchBlockedReason}
         >
+          <MonitorUp size={16} aria-hidden="true" />
           Open browser profile
         </button>
       </div>
 
-      <p className="text-xs text-neutral-500">
-        Passwords and OTP codes appear in a small window served by <strong>Relay on your PC</strong>,
-        not on this page. This page only carries an encrypted ticket and cannot read its contents.
-      </p>
-
-      <p className="text-xs text-amber-700 dark:text-amber-400">
-        Opening a browser profile is a local technical action. The operator must handle login,
-        OTP/CAPTCHA, and input manually; the tool does not promise identity isolation or automate
-        posting.
-      </p>
+      <Disclosure summary="How secure actions work" icon={ShieldCheck}>
+        <ul className="space-y-2 text-xs leading-5">
+          <li>Passwords and OTP codes open in Relay on the assigned PC, never inside this web page.</li>
+          <li>Opening a browser profile remains a local, human-controlled action and is not identity-isolation proof.</li>
+        </ul>
+      </Disclosure>
 
       {!canLaunch ? (
-        <p className="text-sm text-red-700 dark:text-red-400">{launchBlockedReason}</p>
+        <div className="flex items-start gap-2 rounded-xl border border-red-400/20 bg-red-400/[0.06] px-3 py-2.5 text-sm text-red-200">
+          <TriangleAlert size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
+          <p>{launchBlockedReason}</p>
+        </div>
       ) : null}
 
       {feedback ? (
-        <div className="space-y-2">
+        <div
+          role="status"
+          className={`space-y-2 rounded-xl border px-3 py-3 ${
+            feedback.kind === "ok"
+              ? "border-emerald-400/20 bg-emerald-400/[0.06]"
+              : "border-red-400/20 bg-red-400/[0.06]"
+          }`}
+        >
           <p
             className={
               feedback.kind === "ok"
-                ? "text-sm text-emerald-700 dark:text-emerald-400"
-                : "text-sm text-red-700 dark:text-red-400"
+                ? "text-sm text-emerald-200"
+                : "text-sm text-red-200"
             }
           >
             {feedback.text}

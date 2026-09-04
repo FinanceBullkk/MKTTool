@@ -20,7 +20,7 @@ export function AppShell({
   sessionBadge?: ReactNode;
 }) {
   return (
-    <div className="flex h-[100dvh] w-full overflow-hidden font-sans antialiased">
+    <div className="app-canvas flex h-[100dvh] overflow-hidden font-sans antialiased">
       <LeftRail />
 
       <div className="flex h-full min-w-0 flex-1 flex-col overflow-hidden">

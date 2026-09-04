@@ -1,45 +1,46 @@
 /** Đèn xanh/vàng/đỏ của bộ luật, cùng bảng màu với trạng thái nick. */
 import type { RuleEvaluation, RuleResult } from "@/lib/rules/rules-engine";
 import type { RuleLevel } from "@/lib/rules/rule-types";
+import { Check, CircleX, TriangleAlert, type LucideIcon } from "lucide-react";
+import { Disclosure, StatusBadge } from "@/components/ui/page-section";
 
 const LEVEL_PRESENTATION: Record<RuleLevel, { label: string; className: string }> = {
   ALLOW: {
     label: "Can post",
-    className: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300",
+    className: "bg-emerald-400/[0.1] text-emerald-300",
   },
   WARN: {
     label: "Consider",
-    className: "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300",
+    className: "bg-amber-400/[0.1] text-amber-300",
   },
   BLOCK: {
     label: "Blocked",
-    className: "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300",
+    className: "bg-red-400/[0.1] text-red-300",
   },
 };
 
 export function RuleVerdictBadge({ level }: { level: RuleLevel }) {
   const presentation = LEVEL_PRESENTATION[level] ?? LEVEL_PRESENTATION.BLOCK;
-  return (
-    <span
-      className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${presentation.className}`}
-    >
-      {presentation.label}
-    </span>
-  );
+  return <StatusBadge label={presentation.label} className={presentation.className} />;
 }
 
-const ROW_ICON: Record<RuleLevel, string> = { ALLOW: "✓", WARN: "!", BLOCK: "✕" };
+const ROW_ICON: Record<RuleLevel, LucideIcon> = {
+  ALLOW: Check,
+  WARN: TriangleAlert,
+  BLOCK: CircleX,
+};
 
 const ROW_CLASS: Record<RuleLevel, string> = {
   ALLOW: "text-neutral-500",
-  WARN: "text-amber-700 dark:text-amber-400",
-  BLOCK: "text-red-700 dark:text-red-400",
+  WARN: "text-amber-300",
+  BLOCK: "text-red-300",
 };
 
 function RuleResultRow({ result }: { result: RuleResult }) {
+  const Icon = ROW_ICON[result.level] ?? CircleX;
   return (
     <li className={`flex gap-2 text-sm ${ROW_CLASS[result.level] ?? ""}`}>
-      <span className="w-4 shrink-0 text-center font-bold">{ROW_ICON[result.level] ?? "?"}</span>
+      <Icon size={15} className="mt-0.5 shrink-0" aria-hidden="true" />
       <span>
         <span className="font-medium">{result.label}</span>
         {result.reason ? ` — ${result.reason}` : null}
@@ -80,16 +81,13 @@ export function RuleVerdictPanel({ evaluation }: { evaluation: RuleEvaluation })
       </ul>
 
       {passed.length > 0 ? (
-        <details>
-          <summary className="cursor-pointer text-xs text-neutral-500">
-            View {passed.length} passed rule{passed.length === 1 ? "" : "s"}
-          </summary>
+        <Disclosure summary={`View ${passed.length} passed rule${passed.length === 1 ? "" : "s"}`} icon={Check}>
           <ul className="mt-2 space-y-1.5">
             {passed.map((result) => (
               <RuleResultRow key={result.id} result={result} />
             ))}
           </ul>
-        </details>
+        </Disclosure>
       ) : null}
 
       {skipped.length > 0 ? (

@@ -7,6 +7,7 @@
  */
 import type { AccountReadiness } from "@/lib/accounts/account-readiness";
 import { StatusBadge } from "@/components/ui/page-section";
+import { CircleDashed, TriangleAlert } from "lucide-react";
 
 /**
  * Ba màu cho ba nghĩa khác nhau, và **chờ khác với thiếu**:
@@ -55,23 +56,39 @@ export function AccountReadinessPanel({ readiness }: { readiness: AccountReadine
   if (readiness.ready) return null;
 
   const boxClass = readiness.waiting
-    ? "border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200"
-    : "border-red-300 bg-red-50 text-red-900 dark:border-red-900 dark:bg-red-950 dark:text-red-200";
+    ? "border-amber-400/20 bg-amber-400/[0.055]"
+    : "border-red-400/20 bg-red-400/[0.055]";
+  const Icon = readiness.waiting ? CircleDashed : TriangleAlert;
 
   return (
-    <div className={`mb-6 rounded-md border px-4 py-3 text-sm ${boxClass}`}>
-      <p className="font-medium">
+    <section className={`mb-5 rounded-xl border p-4 ${boxClass}`}>
+      <div className="flex items-center gap-3">
+        <span
+          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
+            readiness.waiting ? "bg-amber-400/10 text-amber-300" : "bg-red-400/10 text-red-300"
+          }`}
+        >
+          <Icon size={17} aria-hidden="true" />
+        </span>
+        <div>
+          <h2 className="text-sm font-semibold text-white">
+            {readiness.waiting ? "Waiting on time" : "Action required"}
+          </h2>
+          <p className="mt-0.5 text-xs text-neutral-400">
         {readiness.waiting
-          ? "Setup is complete for now; wait for:"
-          : `Setup is incomplete. Resolve these ${readiness.blockers.length} items:`}
-      </p>
-      <ul className="mt-2 space-y-1">
+              ? "Setup is complete for now. No operator action is needed."
+              : `${readiness.blockers.length} ${readiness.blockers.length === 1 ? "blocker needs" : "blockers need"} resolution.`}
+          </p>
+        </div>
+      </div>
+      <ul className="mt-3 grid gap-2 sm:grid-cols-2">
         {readiness.blockers.map((blocker) => (
-          <li key={blocker.code}>
-            <strong>{blocker.label}</strong> — {blocker.fix}
+          <li key={blocker.code} className="rounded-lg border border-white/[0.07] bg-black/10 px-3 py-2.5">
+            <strong className="block text-xs font-semibold text-neutral-200">{blocker.label}</strong>
+            <span className="mt-1 block text-xs leading-5 text-neutral-500">{blocker.fix}</span>
           </li>
         ))}
       </ul>
-    </div>
+    </section>
   );
 }

@@ -1,7 +1,9 @@
 import { ParkedScopeBanner } from "@/components/layout/parked-scope-banner";
 import Link from "next/link";
+import { FilePlus2, FileText, Library, Megaphone, Rows3 } from "lucide-react";
 import { ContentItemForm } from "@/components/content/content-item-form";
-import { Card, DataTable, EmptyState, PageHeading, StatusBadge } from "@/components/ui/page-section";
+import { Card, DataTable, Disclosure, EmptyState, PageHeading, PageShell, StatusBadge } from "@/components/ui/page-section";
+import { SummaryMetric } from "@/components/ui/summary-metric";
 import {
   CONTENT_TYPE_LABELS,
   type ContentType,
@@ -22,18 +24,28 @@ export default async function ContentPage() {
     orderBy: { createdAt: "desc" },
     include: { _count: { select: { jobs: true } } },
   });
+  const promotionalCount = items.filter((item) => item.type === "PROMO").length;
+  const unusedCount = items.filter((item) => item._count.jobs === 0).length;
 
   return (
-    <>
+    <PageShell>
       <ParkedScopeBanner what="content library and posting pipeline" />
       <PageHeading
         title="Content library"
-        description="The team can write anywhere, but content must be stored here before the posting rules can detect duplicates. Unscheduled content does not count toward any ratio."
+        description="Draft inventory and scheduling history"
+        eyebrow="Parked posting data"
+        icon={Library}
       />
 
-      <Card title={`Content items - ${items.length}`}>
+      <div className="mb-5 grid grid-cols-3 gap-2 sm:gap-3">
+        <SummaryMetric icon={FileText} label="Items" value={items.length} />
+        <SummaryMetric icon={Rows3} label="Unscheduled" value={unusedCount} />
+        <SummaryMetric icon={Megaphone} label="Promotional" value={promotionalCount} />
+      </div>
+
+      <Card title={`Content items - ${items.length}`} icon={Library}>
         {items.length === 0 ? (
-          <EmptyState>
+          <EmptyState title="No content in the library" icon={FileText}>
             No content yet. Add the first item below, then open the{" "}
             <Link href="/queue/new" className="underline">
               posting queue
@@ -81,9 +93,11 @@ export default async function ContentPage() {
         )}
       </Card>
 
-      <Card title="Add content">
-        <ContentItemForm />
+      <Card title="Add content" icon={FilePlus2} tone="muted">
+        <Disclosure summary="Open content form" icon={FilePlus2}>
+          <ContentItemForm />
+        </Disclosure>
       </Card>
-    </>
+    </PageShell>
   );
 }

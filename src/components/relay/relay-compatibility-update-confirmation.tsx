@@ -1,4 +1,5 @@
 import type { CompatibilityUpdatePlan } from "@/lib/release/compatibility-update-plan";
+import { PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/components/ui/page-section";
 
 type ConfirmationPlan = Extract<CompatibilityUpdatePlan, { status: "confirm" }>;
 
@@ -20,22 +21,22 @@ export function RelayCompatibilityUpdateConfirmation({
   onCancel: () => void;
 }) {
   return (
-    <div className="space-y-3 rounded-md border border-amber-300 p-3 text-left dark:border-amber-900">
-      <p className="text-xs text-amber-800 dark:text-amber-400">
+    <div className="space-y-3 rounded-xl border border-amber-400/20 bg-amber-400/[0.06] p-4 text-left">
+      <p className="text-xs text-amber-200">
         <strong>Compatibility set:</strong> {plan.beforeLabel} -&gt; {plan.afterLabel}
       </p>
-      <p className="text-xs text-amber-800 dark:text-amber-400">
+      <p className="text-xs leading-5 text-amber-100/80">
         Relay and MKT Browser will stop and restart during activation. The protected smoke check
         runs before the new set becomes authoritative; an open browser profile blocks the update.
       </p>
-      <p className="text-xs text-amber-800 dark:text-amber-400">
+      <p className="text-xs text-amber-200">
         Type the exact PC name to continue: <strong>{deviceName}</strong>
       </p>
       <input
         value={typedName}
         onChange={(event) => onTypedNameChange(event.target.value)}
         disabled={pending}
-        className="w-full rounded-md border border-neutral-300 bg-white px-2 py-1.5 text-xs dark:border-neutral-700 dark:bg-neutral-950"
+        className="min-h-11 w-full rounded-xl border border-white/[0.12] bg-black/25 px-3 text-base text-white outline-none focus:border-amber-400/50 disabled:opacity-40 sm:text-xs"
         aria-label={`Type ${deviceName} to confirm compatibility update`}
       />
       <div className="flex justify-end gap-2">
@@ -43,7 +44,7 @@ export function RelayCompatibilityUpdateConfirmation({
           type="button"
           disabled={pending || typedName !== deviceName}
           onClick={onConfirm}
-          className="rounded-md bg-amber-700 px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50"
+          className={PRIMARY_BUTTON_CLASS}
         >
           {pending ? "Starting update..." : "Confirm compatibility update"}
         </button>
@@ -51,7 +52,7 @@ export function RelayCompatibilityUpdateConfirmation({
           type="button"
           disabled={pending}
           onClick={onCancel}
-          className="rounded-md border border-neutral-300 px-3 py-1.5 text-xs dark:border-neutral-700"
+          className={SECONDARY_BUTTON_CLASS}
         >
           Cancel
         </button>

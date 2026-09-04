@@ -1,6 +1,8 @@
 import Link from "next/link";
+import { CalendarPlus, ListChecks } from "lucide-react";
+import { ParkedScopeBanner } from "@/components/layout/parked-scope-banner";
 import { PostJobComposer } from "@/components/queue/post-job-composer";
-import { Card, EmptyState, PageHeading } from "@/components/ui/page-section";
+import { BackLink, Card, EmptyState, PageHeading, PageShell } from "@/components/ui/page-section";
 import { prisma } from "@/lib/db/prisma-client";
 
 export const dynamic = "force-dynamic";
@@ -32,15 +34,19 @@ export default async function NewPostJobPage() {
   ].filter((item) => item !== null);
 
   return (
-    <>
+    <PageShell>
+      <ParkedScopeBanner what="job queue" />
+      <BackLink href="/queue">Posting queue</BackLink>
       <PageHeading
         title="Schedule a post"
-        description="Write a new post here or choose one from the content library. Rules run once content, nick, target, and posting time are ready, so you see the verdict before saving."
+        description="Choose content, nick, target, and time; rules show the verdict before saving."
+        eyebrow="Posting composer"
+        icon={CalendarPlus}
       />
 
-      <Card>
+      <Card title="Post setup" icon={ListChecks}>
         {missing.length > 0 ? (
-          <EmptyState>
+          <EmptyState title="Setup data is missing" icon={ListChecks}>
             Missing {missing.map((item) => item.label).join(", ")}. Add it at{" "}
             {missing.map((item, index) => (
               <span key={item.href}>
@@ -62,12 +68,6 @@ export default async function NewPostJobPage() {
           />
         )}
       </Card>
-
-      <p className="text-sm text-neutral-500">
-        <Link href="/queue" className="underline">
-          ← Back to queue
-        </Link>
-      </p>
-    </>
+    </PageShell>
   );
 }

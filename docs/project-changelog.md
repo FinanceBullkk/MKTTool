@@ -18,17 +18,31 @@ the archive location.
 
 ---
 
-## 5 September 2026 — in-scope UI becomes a calm operations console
+## 5 September 2026 — the web UI becomes a calm operations console
 
+- **Desktop scale is bounded:** the full signed-in shell now centers inside a 1600px canvas with
+  black outer gutters on wider displays. Pages, alerts, and the top bar share a narrower 1152px
+  content frame, while tablet and mobile layouts still use the full viewport without root overflow.
 - **Clear route ownership:** Home is now **Workspace overview**, separate from **Nick vault**.
   **Proxy vault**, **Relay PCs**, and **Set up this Relay PC** each use the same page hierarchy,
   content width, typography, surfaces, and responsive navigation.
 - **Lower decision density:** Home cards and vault tables keep one primary status and one next action
   visible. Nick, proxy, ownership, Relay, and lifecycle data are grouped by operator decision instead
   of exposed as long flat tables.
+- **Scan-first status language:** Relay readiness is the dominant Home signal; shared icon-first
+  metrics summarize the Home, Nick vault, Proxy vault, and Relay PC indexes. Nick cards reduce owner,
+  Relay PC, and proxy state to three compact signals instead of stacked explanatory sections.
 - **Progressive disclosure:** proxy speed tests, Relay PC IDs and public keys, package checksums,
   compatibility controls, manual registration, and destructive Relay PC actions remain available but
-  no longer compete with daily work.
+  no longer compete with daily work. Rollout and launch-blocker details stay expandable, while each
+  operational alert always retains its concise first sentence.
+- **Whole-route consistency:** Content, Queue, Facebook, Targets, and Health history routes now use
+  the same page headings, icon-led summaries, status badges, cards, forms, and disclosures. Tables
+  become labeled record cards at 375px instead of forcing horizontal reading.
+- **Complete system states:** login, empty results, confirmations, destructive controls, route
+  errors, and not-found pages share the same dark industrial surface language and 44px targets.
+  Browser-profile creation and first sign-in now lead with scannable steps while keeping identity
+  isolation and human-handoff caveats available in details.
 - **Behavior preserved:** routes, schema, permissions, setup state machine, ticket encryption,
   ownership rules, and parked-platform scope are unchanged. Blocked profile launches now lead to the
   relevant recovery surface instead of presenting a dead disabled control.

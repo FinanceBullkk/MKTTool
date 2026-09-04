@@ -28,6 +28,8 @@
  */
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
+import { Save } from "lucide-react";
+import { PRIMARY_BUTTON_CLASS } from "@/components/ui/page-section";
 import type { ActionResult } from "@/lib/actions/action-result";
 import { RelayOutdatedNotice } from "@/components/relay/relay-outdated-notice";
 import { describeSelectionChange, type LabeledSelection, type SelectionChange } from "@/lib/forms/selection-change";
@@ -174,10 +176,11 @@ export function AccountVaultForm({
 
       {state ? (
         <p
+          role={state.ok ? "status" : "alert"}
           className={
             state.ok
-              ? "text-sm text-emerald-700 dark:text-emerald-400"
-              : "text-sm text-red-700 dark:text-red-400"
+              ? "text-sm text-emerald-300"
+              : "text-sm text-red-300"
           }
         >
           {state.message}
@@ -198,8 +201,9 @@ export function AccountVaultForm({
         <button
           type="submit"
           disabled={pending}
-          className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-neutral-700 disabled:opacity-50 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-300"
+          className={PRIMARY_BUTTON_CLASS}
         >
+          <Save size={16} aria-hidden="true" />
           {pending ? "Saving..." : submitLabel}
         </button>
       )}

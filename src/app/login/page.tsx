@@ -11,6 +11,7 @@
  */
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import { KeyRound, MonitorCog, ShieldCheck, UsersRound } from "lucide-react";
 import { GoogleSignInButton } from "@/components/auth/google-sign-in-button";
 import { AlertBanner } from "@/components/ui/alert-banner";
 import { readAdminContactEmail } from "@/lib/auth/allowed-emails";
@@ -37,28 +38,63 @@ export default async function LoginPage({
   if (error) console.error(`[auth] ${signInErrorDiagnostic(error)}`);
 
   return (
-    <div className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-6 py-10">
-      <h1 className="mb-2 text-2xl font-semibold">Sign in</h1>
-      <p className="mb-6 text-sm text-neutral-400">
-        This tool uses Google accounts. Choose the email address invited by an administrator.
-      </p>
+    <div className="auth-page min-h-[100dvh]">
+      <main className="app-frame grid min-h-[100dvh] items-center gap-10 px-5 py-10 lg:grid-cols-[minmax(0,1fr)_25rem] lg:px-10">
+        <section className="hidden max-w-xl lg:block">
+          <div className="mb-8 flex items-center gap-3">
+            <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-300 text-lg font-bold text-[#1c160d]">M</span>
+            <div>
+              <p className="text-lg font-semibold text-white">MKTTool</p>
+              <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-neutral-500">Team operations console</p>
+            </div>
+          </div>
+          <h1 className="max-w-lg text-balance text-4xl font-semibold leading-[1.08] tracking-[-0.04em] text-white">
+            The shared handoff point for every nick and Relay PC.
+          </h1>
+          <div className="mt-8 grid gap-3 sm:grid-cols-3">
+            <LoginSignal icon={UsersRound} label="Nick vault" />
+            <LoginSignal icon={MonitorCog} label="Relay PCs" />
+            <LoginSignal icon={ShieldCheck} label="Role-aware access" />
+          </div>
+        </section>
 
-      {error ? (
-        <AlertBanner tone="red">
-          <p className="mb-1 font-medium">The previous sign-in attempt failed</p>
-          <p>{signInErrorMessage(error, { adminContactEmail, description })}</p>
-        </AlertBanner>
-      ) : null}
+        <section className="app-surface w-full rounded-2xl p-5 sm:p-7">
+          <span className="mb-5 flex h-11 w-11 items-center justify-center rounded-xl border border-amber-300/20 bg-amber-300/[0.08] text-amber-200">
+            <KeyRound size={20} aria-hidden="true" />
+          </span>
+          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-300/75">Authorized team only</p>
+          <h2 className="mt-2 text-2xl font-semibold tracking-tight text-white">Sign in to the console</h2>
+          <p className="mb-6 mt-2 text-sm leading-6 text-neutral-400">
+            Choose the Google account invited by your administrator.
+          </p>
 
-      <GoogleSignInButton callbackURL={callbackURL === "/setup" ? "/setup" : "/"} />
+          {error ? (
+            <AlertBanner tone="red">
+              <p className="mb-1 font-medium">The previous sign-in attempt failed</p>
+              <p>{signInErrorMessage(error, { adminContactEmail, description })}</p>
+            </AlertBanner>
+          ) : null}
 
-      <p className="mt-6 text-xs text-neutral-400">
-        Need access or sign-in help? Contact an administrator at{" "}
-        <a href={`mailto:${adminContactEmail}`} className="underline">
-          {adminContactEmail}
-        </a>
-        .
-      </p>
+          <GoogleSignInButton callbackURL={callbackURL === "/setup" ? "/setup" : "/"} />
+
+          <p className="mt-6 border-t border-white/[0.07] pt-4 text-xs leading-5 text-neutral-500">
+            Need access?{" "}
+            <a href={`mailto:${adminContactEmail}`} className="inline-flex min-h-11 items-center font-medium text-neutral-300 underline underline-offset-2 hover:text-white">
+              Contact {adminContactEmail}
+            </a>
+          </p>
+        </section>
+      </main>
+    </div>
+  );
+}
+
+function LoginSignal({ icon: Icon, label }: { icon: typeof ShieldCheck; label: string }) {
+  return (
+    <div className="rounded-xl border border-white/[0.08] bg-black/10 p-4">
+      <Icon size={17} className="text-amber-300" aria-hidden="true" />
+      <p className="mt-3 text-sm font-medium text-neutral-200">{label}</p>
+      <span className="mt-2 block h-px w-8 bg-amber-300/40" aria-hidden="true" />
     </div>
   );
 }

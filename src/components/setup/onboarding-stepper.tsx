@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, ChevronRight, CircleCheck, CircleDashed, Info } from "lucide-react";
+import { ArrowLeft, ChevronRight, CircleCheck, CircleDashed, Info, MonitorCog } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { RelayEnrollCard } from "@/components/relay/relay-enroll-card";
 import { WorkspaceSetupChecklist } from "@/components/setup/workspace-setup-checklist";
@@ -31,7 +31,9 @@ export function OnboardingStepper({
     <PageShell>
       <PageHeading
         title="Set up this Relay PC"
-        description="Install Relay, register this PC, then confirm that its nick and proxy assignments are ready."
+        description="Install → register → handoff"
+        eyebrow="Three-step setup"
+        icon={MonitorCog}
       />
 
       <nav aria-label="Relay PC setup progress" className="mb-6 grid gap-3 md:grid-cols-3">
@@ -39,21 +41,21 @@ export function OnboardingStepper({
           number={1}
           active={activeStep === 1}
           title="Install Relay"
-          description="Download and install the current package"
+          description="Install package"
           onClick={() => selectStep(1)}
         />
         <StepButton
           number={2}
           active={activeStep === 2}
           title="Register this PC"
-          description="Confirm Relay and enroll this machine"
+          description="Confirm machine"
           onClick={() => selectStep(2)}
         />
         <StepButton
           number={3}
           active={activeStep === 3}
           title="Confirm handoff"
-          description="Review nick, proxy, owner, and PC readiness"
+          description="Review readiness"
           onClick={() => selectStep(3)}
         />
       </nav>

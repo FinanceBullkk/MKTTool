@@ -8,12 +8,9 @@
  * được, nên phải biết cặp nào đi với cặp nào trước lúc chuyện đó xảy ra.
  */
 import { useState, useTransition } from "react";
+import { SMALL_BUTTON_CLASS as BUTTON_CLASS } from "@/components/ui/page-section";
 import type { ActionResult } from "@/lib/actions/action-result";
 import { assignPageAdmin, disconnectPage } from "@/lib/facebook/facebook-page-actions";
-
-const BUTTON_CLASS =
-  "rounded-md border border-neutral-300 px-2 py-1 text-xs transition hover:bg-neutral-100 " +
-  "disabled:opacity-50 dark:border-neutral-700 dark:hover:bg-neutral-800";
 
 export interface AdminOption {
   id: string;
@@ -42,7 +39,7 @@ export function FacebookPageRowActions({
   return (
     <div className="space-y-1">
       <select
-        className="w-40 rounded-md border border-neutral-300 px-2 py-1 text-xs dark:border-neutral-700 dark:bg-neutral-900"
+        className="min-h-11 w-44 rounded-xl border border-white/[0.1] bg-black/20 px-3 text-base text-white outline-none focus:border-amber-400/50 disabled:opacity-40 sm:text-xs"
         defaultValue={adminAccountId ?? ""}
         disabled={pending || adminOptions.length === 0}
         onChange={(event) => run(() => assignPageAdmin(pageId, event.target.value))}
@@ -79,8 +76,8 @@ export function FacebookPageRowActions({
         <p
           className={
             result.ok
-              ? "text-xs text-emerald-700 dark:text-emerald-400"
-              : "text-xs text-red-700 dark:text-red-400"
+              ? "text-xs text-emerald-300"
+              : "text-xs text-red-300"
           }
         >
           {result.message}

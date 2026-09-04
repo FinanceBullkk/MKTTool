@@ -2,8 +2,19 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Copy, KeyRound, Loader2, MoreHorizontal, Play, Settings2, X } from "lucide-react";
-import { Avatar, Flag } from "./Atoms";
+import {
+  Clock3,
+  Copy,
+  KeyRound,
+  Loader2,
+  MoreHorizontal,
+  Play,
+  Settings2,
+  TriangleAlert,
+  X,
+} from "lucide-react";
+import { Avatar } from "./Atoms";
+import { ProfileOperationalSignals } from "./profile-operational-signals";
 import { pingRelay, sendTicketToRelay } from "@/lib/relay/relay-browser-client";
 import { RELAY_PROFILE_WORK_TIMEOUT_MS } from "@/lib/relay/relay-endpoints";
 import {
@@ -163,9 +174,6 @@ export function ProfileTile({
                 {profile.username}
               </Link>
             </div>
-            <p className="mt-0.5 truncate text-xs text-neutral-500">
-              {profile.voice || profile.contentAngle || "No writing voice recorded"}
-            </p>
           </div>
         </div>
 
@@ -174,43 +182,53 @@ export function ProfileTile({
         </span>
       </div>
 
-      <div className="mt-5 grid gap-4 border-y border-white/[0.07] py-4 text-sm sm:grid-cols-2">
-        <div>
-          <p className="text-xs text-neutral-500">Nick owner</p>
-          <p className="mt-1 truncate text-neutral-200" title={profile.owner?.email ?? undefined}>
-            {profile.owner?.email ?? "Not assigned"}
-          </p>
-        </div>
-        <div>
-          <p className="text-xs text-neutral-500">Relay PC</p>
-          <p className="mt-1 truncate text-neutral-200" title={profile.device?.name ?? undefined}>
-            {profile.device?.name ?? "Not assigned"}
-          </p>
-        </div>
-      </div>
-
-      <div className="mt-4 flex min-h-8 items-center justify-between gap-3 text-sm">
-        <span className="text-xs text-neutral-500">Assigned proxy</span>
-        {profile.proxy ? (
-          <div className="flex items-center gap-2 text-right">
-            <Flag country={profile.proxy.country} />
-            <span className="text-neutral-200">{proxyPresentation?.label}</span>
-            <span className="text-xs text-neutral-500">{proxyPresentation?.status}</span>
-          </div>
-        ) : (
-          <span className="text-amber-200">Not assigned</span>
-        )}
-      </div>
+      <ProfileOperationalSignals
+        ownerEmail={profile.owner?.email ?? null}
+        relayPcName={profile.device?.name ?? null}
+        proxy={
+          profile.proxy && proxyPresentation
+            ? {
+                country: profile.proxy.country,
+                label: proxyPresentation.label,
+                status: proxyPresentation.status,
+                healthy: proxyPresentation.healthy,
+              }
+            : null
+        }
+      />
 
       {!launchReadiness.ready && !isRunning ? (
-        <div className="mt-4 rounded-xl border border-amber-400/15 bg-amber-400/[0.06] px-3 py-2.5 text-[13px] leading-5 text-amber-100">
-          {launchReadiness.message}
-        </div>
+        <details className="group mt-4 rounded-xl border border-amber-400/15 bg-amber-400/[0.055]">
+          <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 px-3 text-xs font-medium text-amber-200 marker:content-none">
+            <TriangleAlert size={14} />
+            <span>Launch blocker</span>
+            <span className="ml-auto text-[11px] font-normal text-amber-200/60 group-open:hidden">
+              Details
+            </span>
+            <span className="ml-auto hidden text-[11px] font-normal text-amber-200/60 group-open:inline">
+              Hide
+            </span>
+          </summary>
+          <p className="border-t border-amber-400/10 px-3 py-2.5 text-[13px] leading-5 text-amber-100">
+            {launchReadiness.message}
+          </p>
+        </details>
       ) : isCold ? (
-        <p className="mt-4 text-xs text-neutral-500">
-          {profile.coldStartDaysRemaining} cold-start days remaining. Opening the browser profile is
-          still allowed; posting remains unavailable.
-        </p>
+        <details className="group mt-4 rounded-xl border border-white/[0.07] bg-white/[0.02]">
+          <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 px-3 text-xs font-medium text-neutral-300 marker:content-none">
+            <Clock3 size={14} className="text-amber-300" />
+            <span>{profile.coldStartDaysRemaining} cold-start days left</span>
+            <span className="ml-auto text-[11px] font-normal text-neutral-500 group-open:hidden">
+              Details
+            </span>
+            <span className="ml-auto hidden text-[11px] font-normal text-neutral-500 group-open:inline">
+              Hide
+            </span>
+          </summary>
+          <p className="border-t border-white/[0.07] px-3 py-2.5 text-xs leading-5 text-neutral-400">
+            Opening the browser profile is allowed; posting remains unavailable.
+          </p>
+        </details>
       ) : null}
 
       <div className="mt-auto flex items-center gap-2 pt-5">
@@ -257,14 +275,14 @@ export function ProfileTile({
             <div className="absolute bottom-full right-0 z-30 mb-2 flex w-60 flex-col gap-0.5 rounded-xl border border-white/[0.12] bg-[#171a20] p-1.5 text-sm text-neutral-300 shadow-2xl">
               <Link
                 href={`/accounts/${profile.id}`}
-                className="flex min-h-10 items-center gap-2 rounded-lg px-3 transition-colors hover:bg-white/[0.06] hover:text-white"
+                className="flex min-h-11 items-center gap-2 rounded-lg px-3 transition-colors hover:bg-white/[0.06] hover:text-white"
               >
                 <KeyRound size={15} />
                 <span>View password and TOTP</span>
               </Link>
               <Link
                 href={`/accounts/${profile.id}`}
-                className="flex min-h-10 items-center gap-2 rounded-lg px-3 transition-colors hover:bg-white/[0.06] hover:text-white"
+                className="flex min-h-11 items-center gap-2 rounded-lg px-3 transition-colors hover:bg-white/[0.06] hover:text-white"
               >
                 <Settings2 size={15} />
                 <span>Nick and proxy settings</span>
@@ -276,7 +294,7 @@ export function ProfileTile({
                   setMenuOpen(false);
                   setFeedback({ kind: "ok", text: "Nick ID copied to the clipboard." });
                 }}
-                className="flex min-h-10 items-center gap-2 rounded-lg px-3 text-left transition-colors hover:bg-white/[0.06] hover:text-white"
+                className="flex min-h-11 items-center gap-2 rounded-lg px-3 text-left transition-colors hover:bg-white/[0.06] hover:text-white"
               >
                 <Copy size={15} />
                 <span>Copy nick ID ({profile.id.slice(0, 8)})</span>
@@ -300,7 +318,7 @@ export function ProfileTile({
           <button
             type="button"
             onClick={() => setFeedback(null)}
-            className="ml-2 flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-neutral-400 hover:bg-white/[0.06] hover:text-white"
+            className="ml-2 flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-neutral-400 hover:bg-white/[0.06] hover:text-white"
             aria-label="Dismiss message"
           >
             <X size={14} />

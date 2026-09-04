@@ -7,12 +7,9 @@
  * antidetect (Phase 05), Group thì Meta đã gỡ quyền tự đăng từ 04/2024.
  */
 import { useState, useTransition } from "react";
+import { SMALL_BUTTON_CLASS as BUTTON_CLASS } from "@/components/ui/page-section";
 import type { ActionResult } from "@/lib/actions/action-result";
 import { publishJobToPage } from "@/lib/facebook/facebook-publish-action";
-
-const BUTTON_CLASS =
-  "rounded-md border border-neutral-300 px-2 py-1 text-xs transition hover:bg-neutral-100 " +
-  "disabled:opacity-50 dark:border-neutral-700 dark:hover:bg-neutral-800";
 
 export function FacebookPublishButton({ jobId }: { jobId: string }) {
   const [pending, startTransition] = useTransition();
@@ -42,7 +39,7 @@ export function FacebookPublishButton({ jobId }: { jobId: string }) {
 
       {expanded ? (
         <input
-          className="w-56 rounded-md border border-neutral-300 px-2 py-1 text-xs dark:border-neutral-700 dark:bg-neutral-900"
+          className="min-h-11 w-full max-w-sm rounded-xl border border-white/[0.1] bg-black/20 px-3 text-base text-white outline-none placeholder:text-neutral-600 focus:border-amber-400/50 sm:text-xs"
           placeholder="Image URL (leave blank = post text)"
           value={imageUrl}
           onChange={(event) => setImageUrl(event.target.value)}
@@ -53,8 +50,8 @@ export function FacebookPublishButton({ jobId }: { jobId: string }) {
         <p
           className={
             result.ok
-              ? "text-xs text-emerald-700 dark:text-emerald-400"
-              : "text-xs text-red-700 dark:text-red-400"
+              ? "text-xs text-emerald-300"
+              : "text-xs text-red-300"
           }
         >
           {result.message}

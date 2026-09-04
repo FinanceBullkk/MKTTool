@@ -1,7 +1,25 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
+import {
+  Activity,
+  CircleCheck,
+  CircleDashed,
+  Info,
+  ListTree,
+  PencilLine,
+  ShieldAlert,
+  Trash2,
+  UserRound,
+} from "lucide-react";
 import { DeleteEntityButton } from "@/components/ui/delete-entity-button";
-import { Card, PageHeading, StatusBadge } from "@/components/ui/page-section";
+import {
+  BackLink,
+  Card,
+  Disclosure,
+  PageHeading,
+  PageShell,
+  StatusBadge,
+} from "@/components/ui/page-section";
+import { ProfileOperationalSignals } from "@/components/mktbrowser-ui/profile-operational-signals";
 import { AccountClusterAssignmentForm } from "@/components/vault/account-cluster-assignment-form";
 import { AccountFormFields } from "@/components/vault/account-form-fields";
 import { AccountVaultForm } from "@/components/vault/account-vault-form";
@@ -141,30 +159,78 @@ export default async function AccountDetailPage({
   ];
 
   return (
-    <>
-      <Link href="/accounts" className="mb-4 inline-block text-sm text-neutral-500 hover:underline">
-        ← Back to nick vault
-      </Link>
+    <PageShell>
+      <BackLink href="/accounts">Nick vault</BackLink>
 
-      <PageHeading title={account.username} />
+      <PageHeading
+        title={account.username}
+        eyebrow={account.platform}
+        description={presentation.hint}
+        icon={UserRound}
+        action={<StatusBadge label={presentation.label} className={presentation.className} />}
+      />
 
-      <p className="mb-4 text-sm text-neutral-600 dark:text-neutral-400">
-        The states below reflect current configuration and permissions only. They do not prove
-        browser identity isolation; sign-in and typing remain operator-controlled.
-      </p>
-
-      <div className="mb-6 flex flex-wrap items-center gap-3">
-        <StatusBadge label={presentation.label} className={presentation.className} />
-        {coldDays > 0 ? (
-          <span className="text-sm text-neutral-500">{coldDays} cold-start days remaining</span>
-        ) : null}
-        <span className="text-sm text-neutral-600 dark:text-neutral-400">{presentation.hint}</span>
+      <div className="mb-5 grid gap-2 sm:grid-cols-3">
+        <div className="app-surface flex items-center gap-3 rounded-xl p-3.5">
+          <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${readiness.ready ? "bg-emerald-400/10 text-emerald-300" : readiness.waiting ? "bg-amber-400/10 text-amber-300" : "bg-red-400/10 text-red-300"}`}>
+            {readiness.ready ? <CircleCheck size={17} /> : <CircleDashed size={17} />}
+          </span>
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-neutral-600">Readiness</p>
+            <p className="mt-0.5 text-sm font-semibold text-neutral-200">
+              {readiness.ready ? "Configuration ready" : readiness.waiting ? "Waiting" : `${readiness.blockers.length} blockers`}
+            </p>
+          </div>
+        </div>
+        <div className="app-surface flex items-center gap-3 rounded-xl p-3.5">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/[0.045] text-neutral-400">
+            <Activity size={17} />
+          </span>
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-neutral-600">Lifecycle</p>
+            <p className="mt-0.5 text-sm font-semibold text-neutral-200">{presentation.label}</p>
+          </div>
+        </div>
+        <div className="app-surface flex items-center gap-3 rounded-xl p-3.5">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/[0.045] text-neutral-400">
+            <ListTree size={17} />
+          </span>
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-neutral-600">Cold-start</p>
+            <p className="mt-0.5 text-sm font-semibold text-neutral-200">
+              {coldDays > 0 ? `${coldDays} days remaining` : "Complete"}
+            </p>
+          </div>
+        </div>
       </div>
+
+      <ProfileOperationalSignals
+        ownerEmail={account.owner?.email ?? null}
+        relayPcName={account.device?.name ?? null}
+        proxy={
+          account.proxy
+            ? {
+                country: account.proxy.country,
+                label: account.proxy.label,
+                status: account.proxy.lastCheckVerdict ?? "Never checked",
+                healthy: account.proxy.lastCheckVerdict === "ALIVE",
+              }
+            : null
+        }
+      />
+
+      <Disclosure summary="Operational boundary" icon={Info} className="mb-5 mt-3">
+        <p className="leading-6">
+          These states describe configuration and permissions. Sign-in, OTP/CAPTCHA, and typing
+          remain human-controlled; they do not prove browser identity isolation.
+        </p>
+      </Disclosure>
 
       {/* Chỉ hiện khi nick THẬT SỰ đang bị cách ly. Bản ghi cũ có thể còn sót lý do từ lần
           trước, và hộp đỏ "dừng đăng ngay" nằm dưới nhãn "Khỏe" là màn hình tự cãi nhau. */}
       {account.quarantineReason && isQuarantinedStatus(account.status) ? (
-        <div className="mb-6 rounded-md border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-300">
+        <div className="mb-5 flex items-start gap-3 rounded-xl border border-red-400/20 bg-red-400/[0.06] px-4 py-3 text-sm text-red-200">
+          <ShieldAlert size={17} className="mt-0.5 shrink-0" />
           <strong>Quarantine reason:</strong> {account.quarantineReason}
         </div>
       ) : null}
@@ -197,7 +263,7 @@ export default async function AccountDetailPage({
         </Card>
       ) : null}
 
-      <Card title="Actions">
+      <Card title="Quick actions" icon={Activity}>
         <AccountVaultActionsPanel
           accountId={account.id}
           hasTotp={account.totpSecretEnc !== null}
@@ -210,22 +276,22 @@ export default async function AccountDetailPage({
         />
       </Card>
 
-      <Card title="Details">
-        <dl className="grid gap-x-8 gap-y-3 sm:grid-cols-2">
+      <Disclosure summary="Full nick record" icon={ListTree} className="mb-5">
+        <dl className="grid gap-x-8 gap-y-4 sm:grid-cols-2">
           {facts.map(([label, value]) => (
             <div key={label}>
-              <dt className="text-xs uppercase tracking-wide text-neutral-500">{label}</dt>
-              <dd className="mt-0.5 break-words text-sm">{value}</dd>
+              <dt className="font-mono text-[10px] uppercase tracking-[0.1em] text-neutral-600">{label}</dt>
+              <dd className="mt-1 break-words text-sm text-neutral-200">{value}</dd>
             </div>
           ))}
         </dl>
         {account.purchaseNote ? (
-          <p className="mt-4 text-sm text-neutral-600 dark:text-neutral-400">
-            <span className="text-xs uppercase tracking-wide text-neutral-500">Purchase notes: </span>
+          <p className="mt-4 border-t border-white/[0.07] pt-4 text-sm text-neutral-400">
+            <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-neutral-600">Purchase notes: </span>
             {account.purchaseNote}
           </p>
         ) : null}
-      </Card>
+      </Disclosure>
 
       {/* OPERATOR thấy thẻ ở dạng CHỈ ĐỌC, không phải thẻ biến mất.
 
@@ -234,7 +300,11 @@ export default async function AccountDetailPage({
           hay ai làm được. Chặn THẬT nằm ở `adminAction` bọc ngoài server action, nên hiện thông
           tin ra không nới lỏng gì cả. */}
       {viewer?.role !== "ADMIN" ? (
-        <Card title="Nick assignment">
+        <Card
+          title="Nick assignment"
+          description="An administrator owns changes to the owner and Relay PC pair."
+          icon={UserRound}
+        >
           <dl className="mb-4 grid gap-x-8 gap-y-3 sm:grid-cols-2">
             <div>
               <dt className="text-xs uppercase tracking-wide text-neutral-500">Nick owner</dt>
@@ -245,35 +315,17 @@ export default async function AccountDetailPage({
               <dd className="mt-0.5 text-sm">{account.device?.name ?? "— Relay PC not assigned"}</dd>
             </div>
           </dl>
-          <p className="text-sm text-neutral-600 dark:text-neutral-400">
-            An <strong>administrator</strong> assigns both fields. The nick owner is the only person
-            besides administrators who can request its password and OTP; the Relay PC determines
-            where each ticket is delivered. Ask an administrator to change either field, even for
-            your own nick.
+          <p className="text-sm text-neutral-400">
+            Ask an administrator to change either field. The owner controls secret access; the
+            Relay PC is the encrypted ticket destination.
           </p>
         </Card>
       ) : (
-        <Card title="Nick assignment">
-          <p className="mb-4 text-sm text-neutral-600 dark:text-neutral-400">
-            These fields stay together. The <strong>nick owner</strong> is the only person besides
-            administrators who can <em>request</em> its password and OTP; the <strong>Relay PC</strong>{" "}
-            determines <em>where</em> each ticket is delivered. Nothing else is separated: the team
-            can still see shared nicks, jobs, and history, and the rules still evaluate the entire
-            vault so thread-collision warnings can name a teammate&apos;s nick.
-          </p>
-          <p className="mb-4 text-sm text-neutral-600 dark:text-neutral-400">
-            The Relay PC must belong to the <strong>nick owner</strong> because each ticket is
-            encrypted for exactly one Relay PC. A mismatched assignment is rejected and not saved.
-            Leaving the owner blank <strong>removes ownership</strong> and also removes the Relay PC.
-          </p>
-          <p className="mb-4 text-sm text-amber-700 dark:text-amber-400">
-            <strong>Moving a browser profile to another Relay PC:</strong> browser profiles do not
-            move automatically. Export on the old Relay PC -&gt; import on the new Relay PC -&gt;{" "}
-            <strong>delete the copy on the old Relay PC</strong>. Skipping the last step leaves the
-            two local copies active and they can diverge. Keep one authoritative copy and remove the
-            old local copy after a verified transfer.
-          </p>
-
+        <Card
+          title="Nick assignment"
+          description="Assign the owner and their Relay PC as one security boundary."
+          icon={UserRound}
+        >
           {teamMembers.length === 0 ? (
             <p className="text-sm text-amber-700 dark:text-amber-400">
               No teammate has signed in yet, so there is nobody to assign. This list includes only
@@ -299,15 +351,21 @@ export default async function AccountDetailPage({
               }))}
             />
           )}
+          <Disclosure summary="Assignment and transfer rules" icon={Info} className="mt-4">
+            <ul className="space-y-2 text-xs leading-5">
+              <li>The Relay PC must belong to the selected nick owner; mismatched pairs are rejected.</li>
+              <li>Clearing the owner also clears the Relay PC assignment.</li>
+              <li>Browser profiles do not move automatically. Verify import on the new PC, then remove the old local copy.</li>
+            </ul>
+          </Disclosure>
         </Card>
       )}
 
-      <Card title="Edit nick">
-        <p className="mb-4 text-sm text-neutral-600 dark:text-neutral-400">
-          Karma, status, and cold-start feed rules 1, 2, and 3. Saving immediately rechecks every
-          pending job for this nick; jobs that are no longer safe become BLOCKED. The platform
-          cannot be changed after creation.
-        </p>
+      <Card
+        title="Edit nick"
+        description="Status and lifecycle changes immediately recheck pending jobs. Platform is fixed."
+        icon={PencilLine}
+      >
         <AccountVaultForm
           action={updateAccount}
           submitLabel="Save"
@@ -336,12 +394,12 @@ export default async function AccountDetailPage({
         </AccountVaultForm>
       </Card>
 
-      <Card title="Delete nick">
-        <p className="mb-3 text-sm text-neutral-600 dark:text-neutral-400">
-          Delete is allowed only when no jobs, recorded interactions, or Facebook connections
-          reference this nick. If the nick is no longer used, change its status to &quot;Dead&quot;
-          instead so its history remains available for limits and promotional-ratio rules.
-        </p>
+      <Card
+        title="Delete nick"
+        description="Use Dead for retirement. Permanent deletion is only for an unused record with no history."
+        icon={Trash2}
+        tone="danger"
+      >
         <DeleteEntityButton
           action={deleteAccount.bind(null, account.id)}
           label={`nick "${account.username}"`}
@@ -349,7 +407,7 @@ export default async function AccountDetailPage({
         />
       </Card>
 
-      <Card title="Recent activity">
+      <Disclosure summary={`Recent activity - ${auditLogs.length}`} icon={Activity} className="mb-5">
         {auditLogs.length === 0 ? (
           <p className="text-sm text-neutral-500">No activity has been recorded yet.</p>
         ) : (
@@ -369,7 +427,7 @@ export default async function AccountDetailPage({
             ))}
           </ul>
         )}
-      </Card>
-    </>
+      </Disclosure>
+    </PageShell>
   );
 }

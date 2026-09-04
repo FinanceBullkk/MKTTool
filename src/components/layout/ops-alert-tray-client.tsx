@@ -13,8 +13,8 @@
  * khung viền lồng nhau.
  *
  * **Không có nút đóng.** Đây là lỗi cấu hình hệ thống, không phải thông báo — thứ duy nhất làm
- * nó biến mất là sửa cái đang hỏng. Nút "Thu gọn" chỉ giấu phần *việc phải làm*, giữ nguyên
- * phần *đang hỏng cái gì*.
+ * nó biến mất là sửa cái đang hỏng. Nút chi tiết chỉ thu phần giải thích và việc phải làm;
+ * câu đầu mô tả từng lỗi vẫn luôn hiện, nên không alert nào biến mất khỏi tầm nhìn.
  */
 
 import { useState } from "react";
@@ -56,7 +56,7 @@ export function OpsAlertTrayClient({ alerts }: { alerts: AlertItem[] }) {
     <section
       role="status"
       aria-label="Operational alerts"
-      className="z-10 mx-auto w-full max-w-[90rem] space-y-1.5 px-4 pb-1 pt-3 sm:px-6 lg:px-8"
+      className="app-frame z-10 space-y-1.5 px-4 pb-1 pt-3 sm:px-6 lg:px-8"
     >
       {alerts.map((alert) => {
         const tone = TONE[alert.tone];
@@ -74,7 +74,9 @@ export function OpsAlertTrayClient({ alerts }: { alerts: AlertItem[] }) {
             </span>
 
             <div className="col-span-3 row-start-2 min-w-0 sm:col-span-1 sm:col-start-3 sm:row-start-1">
-              <p className="font-medium leading-5">{alert.message}</p>
+              <p className="font-medium leading-5">
+                {collapsed ? conciseAlertMessage(alert.message) : alert.message}
+              </p>
               {!collapsed && alert.action ? (
                 <p className="mt-1 font-normal leading-5 opacity-80">{alert.action}</p>
               ) : null}
@@ -87,8 +89,9 @@ export function OpsAlertTrayClient({ alerts }: { alerts: AlertItem[] }) {
                 type="button"
                 onClick={() => setCollapsed(!collapsed)}
                 className="col-start-3 row-start-1 shrink-0 cursor-pointer text-[11px] font-medium underline opacity-70 hover:opacity-100 sm:col-start-4"
+                aria-expanded={!collapsed}
               >
-                {collapsed ? "Details" : "Collapse"}
+                {collapsed ? "Show details" : "Hide details"}
               </button>
             ) : null}
           </div>
@@ -96,4 +99,9 @@ export function OpsAlertTrayClient({ alerts }: { alerts: AlertItem[] }) {
       })}
     </section>
   );
+}
+
+export function conciseAlertMessage(message: string): string {
+  const normalized = message.trim();
+  return normalized.match(/^.*?[.!?](?=\s|$)/)?.[0] ?? normalized;
 }

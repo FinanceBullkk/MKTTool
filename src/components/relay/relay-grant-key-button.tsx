@@ -20,6 +20,7 @@
  * vừa giữ được kích hoạt cho hộp xin quyền, vừa có sẵn kết quả để nói đúng câu hỏng.
  */
 import { useState, useTransition } from "react";
+import { SMALL_BUTTON_CLASS } from "@/components/ui/page-section";
 import type { ActionResult } from "@/lib/actions/action-result";
 import {
   describeRelayFailure,
@@ -92,7 +93,7 @@ export function RelayGrantKeyButton({
         type="button"
         disabled={pending}
         onClick={grant}
-        className="rounded-md border border-emerald-300 px-3 py-1.5 text-xs text-emerald-700 transition hover:bg-emerald-50 disabled:opacity-50 dark:border-emerald-900 dark:text-emerald-400 dark:hover:bg-emerald-950"
+        className={SMALL_BUTTON_CLASS}
         title={`Seal the operator key for Relay PC "${deviceName}"`}
       >
         {pending ? "Granting..." : alreadyReady ? "Grant operator key again" : "Grant operator key"}
@@ -102,8 +103,8 @@ export function RelayGrantKeyButton({
         <p
           className={
             result.ok
-              ? "text-xs text-emerald-700 dark:text-emerald-400"
-              : "text-xs text-red-700 dark:text-red-400"
+              ? "text-xs text-emerald-300"
+              : "text-xs text-red-300"
           }
         >
           {result.message}

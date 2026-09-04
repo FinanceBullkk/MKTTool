@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { Card, StatusBadge } from "@/components/ui/page-section";
+import { Check, ChevronRight, CircleDashed, Info } from "lucide-react";
+import { Card, Disclosure, StatusBadge } from "@/components/ui/page-section";
 import type {
   SetupChecklist,
   SetupChecklistSection,
@@ -40,15 +41,21 @@ function ChecklistSection({
 
   return (
     <section className="space-y-3" aria-labelledby={headingId}>
-      <Card title={`${title} - ${doneCount}/${steps.length} steps`}>
+      <Card
+        title={`${title} - ${doneCount}/${steps.length}`}
+        description={nextStepId === null ? undefined : pendingMessage}
+      >
         {nextStepId === null ? (
-          <p id={headingId} className="text-sm text-emerald-700 dark:text-emerald-400">
+          <p id={headingId} className="text-sm font-medium text-emerald-300">
             {completeMessage}
           </p>
         ) : (
-          <p id={headingId} className="text-sm text-neutral-600 dark:text-neutral-400">
-            {pendingMessage}
-          </p>
+          <div id={headingId} className="h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
+            <div
+              className="h-full rounded-full bg-amber-400"
+              style={{ width: `${Math.round((doneCount / steps.length) * 100)}%` }}
+            />
+          </div>
         )}
       </Card>
 
@@ -61,25 +68,37 @@ function ChecklistSection({
           return (
             <li
               key={step.id}
-              className={`rounded-lg border bg-white p-4 dark:bg-neutral-900 ${
-                isNext ? "border-neutral-900 dark:border-neutral-100" : "border-neutral-200 dark:border-neutral-800"
+              className={`rounded-xl border p-4 ${
+                isNext
+                  ? "border-amber-400/35 bg-amber-400/[0.055]"
+                  : "border-white/[0.08] bg-white/[0.02]"
               }`}
             >
-              <div className="flex flex-wrap items-center gap-3">
-                <span className="text-xs font-medium text-neutral-500">Step {index + 1}</span>
-                <span className="font-medium">{step.title}</span>
-                <StatusBadge label={badge.label} className={badge.className} />
-                {isNext ? <span className="text-xs font-medium">Next required step</span> : null}
+              <div className="flex items-start gap-3">
+                <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${step.state === "done" ? "bg-emerald-400/10 text-emerald-300" : isNext ? "bg-amber-400/10 text-amber-300" : "bg-white/[0.045] text-neutral-500"}`}>
+                  {step.state === "done" ? <Check size={16} /> : <CircleDashed size={16} />}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-neutral-600">Step {index + 1}</span>
+                    <StatusBadge label={badge.label} className={badge.className} />
+                  </div>
+                  <h3 className="mt-1 text-sm font-semibold text-white">{step.title}</h3>
+                  <p className="mt-1 text-sm text-neutral-400">{step.status}</p>
+                </div>
               </div>
-              <p className="mt-2 text-sm">{step.status}</p>
-              <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">{step.why}</p>
-              <div className="mt-3 text-sm">
+              <div className="mt-3 flex items-center justify-between gap-3 border-t border-white/[0.07] pt-3 text-sm">
                 {locked ? (
                   <span className="text-neutral-500">An administrator must complete this step.</span>
                 ) : (
-                  <Link href={step.href} className="underline">{step.linkLabel}</Link>
+                  <Link href={step.href} className="inline-flex min-h-11 items-center gap-1.5 font-semibold text-amber-200 hover:text-amber-100">
+                    {step.linkLabel}<ChevronRight size={14} />
+                  </Link>
                 )}
               </div>
+              <Disclosure summary="Why this step matters" icon={Info} className="mt-3">
+                <p className="text-xs leading-5">{step.why}</p>
+              </Disclosure>
             </li>
           );
         })}

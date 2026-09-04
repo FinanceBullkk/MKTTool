@@ -10,7 +10,9 @@
  * khóa khi đèn đỏ; muốn qua thì phải gõ lý do ghi đè — trừ luật đụng độ thread, không có đường vòng.
  */
 import { useActionState, useEffect, useState } from "react";
+import { CalendarPlus, CircleDashed } from "lucide-react";
 import { RuleVerdictPanel } from "@/components/queue/rule-verdict-badge";
+import { PRIMARY_BUTTON_CLASS } from "@/components/ui/page-section";
 import { parseLinksInput } from "@/lib/content/content-types";
 import { formatDayMonthTime } from "@/lib/format/vietnamese-date-format";
 import { isPlatformCompatible } from "@/lib/platforms/platform-family";
@@ -177,10 +179,10 @@ export function PostJobComposer({
         <ScheduledAtField value={scheduledAt} onChange={setScheduledAt} />
       </div>
 
-      <div className="rounded-md border border-neutral-200 p-4 dark:border-neutral-800">
+      <div className="rounded-xl border border-white/[0.08] bg-black/10 p-4">
         {preview.status === "idle" ? (
-          <p className="text-sm text-neutral-500">
-            Select content, a nick, a target, and a posting time to run the rules.
+          <p className="flex items-center gap-2 text-sm text-neutral-500">
+            <CircleDashed size={16} aria-hidden="true" /> Select all four inputs to run the rules.
           </p>
         ) : null}
         {preview.status === "loading" ? (
@@ -216,6 +218,7 @@ export function PostJobComposer({
 
       {state ? (
         <p
+          role="status"
           className={
             state.ok
               ? "text-sm text-emerald-700 dark:text-emerald-400"
@@ -229,8 +232,9 @@ export function PostJobComposer({
       <button
         type="submit"
         disabled={submitDisabled}
-        className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-neutral-700 disabled:opacity-50 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-300"
+        className={PRIMARY_BUTTON_CLASS}
       >
+        <CalendarPlus size={16} aria-hidden="true" />
         {pending ? "Saving..." : blocked ? "Override and schedule" : "Schedule"}
       </button>
     </form>

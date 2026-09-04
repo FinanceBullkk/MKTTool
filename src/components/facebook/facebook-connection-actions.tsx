@@ -2,12 +2,9 @@
 
 /** Nút kiểm tra toàn bộ token và nút ngắt kết nối một nick. */
 import { useState, useTransition } from "react";
+import { SMALL_BUTTON_CLASS as BUTTON_CLASS } from "@/components/ui/page-section";
 import type { ActionResult } from "@/lib/actions/action-result";
 import { checkAllPageTokens, disconnectConnection } from "@/lib/facebook/facebook-page-actions";
-
-const BUTTON_CLASS =
-  "rounded-md border border-neutral-300 px-3 py-1.5 text-xs transition hover:bg-neutral-100 " +
-  "disabled:opacity-50 dark:border-neutral-700 dark:hover:bg-neutral-800";
 
 function ResultText({ result }: { result: ActionResult | null }) {
   if (!result) return null;
@@ -15,8 +12,8 @@ function ResultText({ result }: { result: ActionResult | null }) {
     <p
       className={
         result.ok
-          ? "text-xs text-emerald-700 dark:text-emerald-400"
-          : "text-xs text-red-700 dark:text-red-400"
+          ? "text-xs text-emerald-300"
+          : "text-xs text-red-300"
       }
     >
       {result.message}

@@ -22,7 +22,7 @@ export async function SessionBadge() {
     return (
       <Link
         href="/login"
-        className="rounded-md px-2 py-1 text-sm font-medium text-neutral-600 underline-offset-2 transition hover:text-neutral-900 hover:underline dark:text-neutral-400 dark:hover:text-neutral-100"
+        className="inline-flex min-h-11 items-center rounded-lg px-3 text-sm font-medium text-neutral-400 transition-colors hover:bg-white/[0.04] hover:text-white"
       >
         Sign in
       </Link>

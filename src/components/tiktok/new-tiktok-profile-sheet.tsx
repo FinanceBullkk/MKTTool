@@ -1,7 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
+import { CircleAlert, Plus, ShieldCheck, X } from "lucide-react";
+import { Field, SelectField, TextareaField } from "@/components/ui/form-controls";
+import { Disclosure } from "@/components/ui/page-section";
 import { AccountVaultForm } from "@/components/vault/account-vault-form";
+import { VaultSecretField } from "@/components/vault/vault-secret-field";
 import { createAccount } from "@/lib/accounts/vault-create-actions";
 import { defaultColdStartDayKey } from "@/lib/accounts/account-status";
 
@@ -30,7 +34,6 @@ export function NewTikTokProfileSheet({
   freeProxies: FreeProxyOption[];
   devices: DeviceOption[];
 }) {
-  const [showAdvanced, setShowAdvanced] = useState(false);
   const defaultColdDate = defaultColdStartDayKey();
 
   useEffect(() => {
@@ -44,37 +47,40 @@ export function NewTikTokProfileSheet({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-end bg-black/60 backdrop-blur-sm transition-opacity">
-      {/* Backdrop click */}
-      <div className="absolute inset-0" onClick={onClose} />
+    <div className="fixed inset-0 z-50 flex items-center justify-end bg-black/70 backdrop-blur-sm transition-opacity">
+      <button
+        type="button"
+        className="absolute inset-0 cursor-default"
+        onClick={onClose}
+        aria-label="Close create TikTok nick dialog"
+      />
 
       {/* Slide-in Sheet */}
       <div
         role="dialog"
         aria-modal="true"
         aria-label="Create TikTok nick"
-        className="relative z-10 h-full w-full max-w-lg overflow-y-auto bg-[#0d0e12] border-l border-white/[0.08] p-6 shadow-2xl flex flex-col justify-between animate-in slide-in-from-right duration-200">
+        className="relative z-10 flex h-full w-full max-w-xl flex-col overflow-y-auto border-l border-white/[0.08] bg-[#0d0f12] p-5 shadow-2xl sm:p-6">
         <div>
-          {/* Header */}
-          <div className="flex items-center justify-between pb-4 border-b border-white/[0.06] mb-6">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-base text-purple-300">
-                ➕
+          <div className="mb-6 flex items-start justify-between gap-4 border-b border-white/[0.07] pb-4">
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-amber-300/20 bg-amber-300/[0.08] text-amber-200">
+                <Plus size={18} aria-hidden="true" />
               </div>
               <div>
-                <h2 className="text-base font-semibold text-white tracking-tight">Create TikTok nick</h2>
-                <p className="text-xs text-neutral-400">
-                  Save an identity-vault record. Its browser profile is separate local data on a
-                  Relay PC and is not proof of identity isolation or posting approval.
+                <h2 className="text-lg font-semibold tracking-tight text-white">Create TikTok nick</h2>
+                <p className="mt-1 max-w-md text-xs leading-5 text-neutral-400">
+                  Add the identity record first. Browser setup remains a separate local step.
                 </p>
               </div>
             </div>
             <button
               type="button"
               onClick={onClose}
-              className="p-1.5 rounded-lg text-neutral-400 hover:text-white hover:bg-white/[0.06] transition"
+              className="flex min-h-11 min-w-11 items-center justify-center rounded-xl border border-white/[0.08] text-neutral-400 transition-colors hover:bg-white/[0.06] hover:text-white"
+              aria-label="Close dialog"
             >
-              ✕
+              <X size={18} aria-hidden="true" />
             </button>
           </div>
 
@@ -82,180 +88,62 @@ export function NewTikTokProfileSheet({
             <input type="hidden" name="platform" value="TIKTOK" />
             <input type="hidden" name="status" value="COLD_START" />
 
-            <div className="space-y-4 text-xs">
-              {/* Nick username */}
-              <div>
-                <label className="block font-medium text-neutral-300 mb-1.5" htmlFor="username">
-                  Nick username <span className="text-purple-400">*</span>
-                </label>
-                <input
-                  type="text"
-                  name="username"
-                  id="username"
-                  required
-                  placeholder="Example: TikTok_Shop_01 or @review_channel"
-                  className="w-full rounded-xl bg-white/[0.03] border border-white/[0.08] px-3.5 py-2 text-sm text-white placeholder:text-neutral-600 focus:border-purple-500/50 focus:bg-white/[0.05] focus:outline-none transition"
-                />
-              </div>
-
-              {/* Gán Proxy */}
-              <div>
-                <label className="block font-medium text-neutral-300 mb-1.5" htmlFor="proxyId">
-                  Assign proxy / 4G IP <span className="text-purple-400">*</span>
-                </label>
+            <div className="space-y-5 sm:col-span-2">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field label="Nick username" name="username" required placeholder="@review_channel" />
                 {freeProxies.length > 0 ? (
-                  <select
+                  <SelectField
+                    label="Static proxy / 4G IP"
                     name="proxyId"
-                    id="proxyId"
                     required
-                    className="w-full rounded-xl bg-[#14151b] border border-white/[0.08] px-3.5 py-2 text-sm text-white focus:border-purple-500/50 focus:outline-none transition"
-                  >
-                    <option value="">-- Select an available proxy --</option>
-                    {freeProxies.map((proxy) => (
-                      <option key={proxy.id} value={proxy.id}>
-                        {proxy.label} ({proxy.host}:{proxy.port} - {proxy.country})
-                      </option>
-                    ))}
-                  </select>
+                    options={freeProxies.map((proxy) => ({
+                      value: proxy.id,
+                      label: `${proxy.label} - ${proxy.country}`,
+                    }))}
+                  />
                 ) : (
-                  <div className="p-3 rounded-xl bg-amber-950/30 border border-amber-500/20 text-amber-300 text-xs">
-                    ⚠️ No available proxies in the vault. Open <strong>Proxy</strong> and add one first.
+                  <div className="flex min-h-11 items-start gap-3 rounded-xl border border-amber-400/20 bg-amber-400/[0.06] p-3 text-xs leading-5 text-amber-200 sm:col-span-2">
+                    <CircleAlert size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
+                    No free proxy is available. Add one in Proxy vault before creating this nick.
                   </div>
                 )}
-              </div>
-
-              {/* Relay PC */}
-              {devices.length > 0 ? (
-                <div>
-                  <label className="block font-medium text-neutral-300 mb-1.5" htmlFor="deviceId">Relay PC</label>
-                  <select
+                {devices.length > 0 ? (
+                  <SelectField
+                    label="Relay PC"
                     name="deviceId"
-                    id="deviceId"
-                    className="w-full rounded-xl bg-[#14151b] border border-white/[0.08] px-3.5 py-2 text-sm text-white focus:border-purple-500/50 focus:outline-none transition"
-                  >
-                    <option value="">-- Leave unassigned or choose a Relay PC --</option>
-                    {devices.map((device) => (
-                      <option key={device.id} value={device.id}>
-                        💻 {device.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              ) : null}
-
-              {/* Ngách & Tag */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-medium text-neutral-300 mb-1.5" htmlFor="voice">Writing voice</label>
-                  <input
-                    type="text"
-                    name="voice"
-                    id="voice"
-                    placeholder="Example: Honest, practical reviewer"
-                    className="w-full rounded-xl bg-white/[0.03] border border-white/[0.08] px-3 py-2 text-sm text-white placeholder:text-neutral-600 focus:border-purple-500/50 focus:outline-none transition"
+                    hint="Optional until the local browser profile is created."
+                    options={devices.map((device) => ({ value: device.id, label: device.name }))}
                   />
-                </div>
-                <div>
-                  <label className="block font-medium text-neutral-300 mb-1.5" htmlFor="contentAngle">Content focus</label>
-                  <input
-                    type="text"
-                    name="contentAngle"
-                    id="contentAngle"
-                    placeholder="Example: Home goods"
-                    className="w-full rounded-xl bg-white/[0.03] border border-white/[0.08] px-3 py-2 text-sm text-white placeholder:text-neutral-600 focus:border-purple-500/50 focus:outline-none transition"
-                  />
-                </div>
-              </div>
-
-              {/* Giai đoạn Làm ấm */}
-              <div>
-                <label className="block font-medium text-neutral-300 mb-1.5" htmlFor="coldStartUntil">Cold-start until</label>
-                <input
-                  type="date"
+                ) : null}
+                <Field label="Writing voice" name="voice" placeholder="Honest, practical reviewer" />
+                <Field label="Content focus" name="contentAngle" placeholder="Home goods" />
+                <Field
+                  label="Cold-start until"
                   name="coldStartUntil"
-                  id="coldStartUntil"
+                  type="date"
                   defaultValue={defaultColdDate}
-                  className="w-full rounded-xl bg-[#14151b] border border-white/[0.08] px-3.5 py-2 text-sm text-white focus:border-purple-500/50 focus:outline-none transition font-mono"
+                  hint="Keep sign-in and early activity human-controlled."
                 />
-                <p className="mt-1 text-[11px] text-neutral-500">
-                  During the first seven days, observe and follow the human-controlled operating
-                  guidance. Do not automate posting; browser identity isolation remains unproven.
-                </p>
-              </div>
-
-              {/* Ghi chú */}
-              <div>
-                <label className="block font-medium text-neutral-300 mb-1.5" htmlFor="purchaseNote">Initial notes</label>
-                <textarea
+                <TextareaField
+                  label="Initial notes"
                   name="purchaseNote"
-                  id="purchaseNote"
                   rows={2}
-                  placeholder="Example: 15 minutes/day on an MSI PC using an iPhone 4G hotspot"
-                  className="w-full rounded-xl bg-white/[0.03] border border-white/[0.08] px-3.5 py-2 text-sm text-white placeholder:text-neutral-600 focus:border-purple-500/50 focus:outline-none transition"
+                  placeholder="Source, device, and operating context"
                 />
               </div>
 
-              {/* Nút mở rộng thông tin đăng nhập */}
-              <div className="pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowAdvanced(!showAdvanced)}
-                  className="text-xs text-neutral-400 hover:text-purple-300 flex items-center gap-1 transition"
-                >
-                  <span>{showAdvanced ? "▼ Hide secure sign-in details" : "▶ Add email / password / 2FA (optional)"}</span>
-                </button>
-              </div>
-
-              {showAdvanced ? (
-                <div className="space-y-3 p-3.5 rounded-xl bg-white/[0.02] border border-white/[0.06] animate-in fade-in duration-150">
-                  <p className="text-[11px] text-amber-300">
-                    Authorized operators only. Sign-in and OTP/CAPTCHA stay human-controlled inside
-                    the browser profile; these fields do not automate sign-in.
+              <Disclosure summary="Add secure sign-in details" icon={ShieldCheck}>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <p className="text-xs leading-5 text-amber-200 sm:col-span-2">
+                    Authorized operators only. Sign-in, OTP, and CAPTCHA remain manual inside the
+                    browser profile.
                   </p>
-                  <div>
-                    <label className="block font-medium text-neutral-400 mb-1" htmlFor="emailAddress">Original email</label>
-                    <input
-                      type="text"
-                      name="emailAddress"
-                      id="emailAddress"
-                      placeholder="user@gmail.com"
-                      className="w-full rounded-lg bg-white/[0.03] border border-white/[0.08] px-3 py-1.5 text-xs text-white focus:border-purple-500/50 focus:outline-none transition font-mono"
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="block font-medium text-neutral-400 mb-1" htmlFor="password">Nick password</label>
-                      <input
-                        type="password"
-                        name="password"
-                        id="password"
-                        placeholder="••••••••"
-                        className="w-full rounded-lg bg-white/[0.03] border border-white/[0.08] px-3 py-1.5 text-xs text-white focus:border-purple-500/50 focus:outline-none transition"
-                      />
-                    </div>
-                    <div>
-                      <label className="block font-medium text-neutral-400 mb-1" htmlFor="emailPassword">Email password</label>
-                      <input
-                        type="password"
-                        name="emailPassword"
-                        id="emailPassword"
-                        placeholder="••••••••"
-                        className="w-full rounded-lg bg-white/[0.03] border border-white/[0.08] px-3 py-1.5 text-xs text-white focus:border-purple-500/50 focus:outline-none transition"
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block font-medium text-neutral-400 mb-1" htmlFor="totpSecret">2FA secret</label>
-                    <input
-                      type="text"
-                      name="totpSecret"
-                      id="totpSecret"
-                      placeholder="JBSWY3DPEHPK3PXP"
-                      className="w-full rounded-lg bg-white/[0.03] border border-white/[0.08] px-3 py-1.5 text-xs text-white focus:border-purple-500/50 focus:outline-none transition font-mono"
-                    />
-                  </div>
+                  <Field label="Original email" name="emailAddress" type="email" />
+                  <VaultSecretField label="Nick password" name="password" type="password" />
+                  <VaultSecretField label="Email password" name="emailPassword" type="password" />
+                  <VaultSecretField label="2FA secret" name="totpSecret" />
                 </div>
-              ) : null}
+              </Disclosure>
             </div>
           </AccountVaultForm>
         </div>

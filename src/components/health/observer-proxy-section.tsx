@@ -8,7 +8,8 @@
  */
 import { ProxyLastCheckCell } from "@/components/proxies/proxy-last-check-cell";
 import { ActionForm, Field } from "@/components/ui/form-controls";
-import { Card, DataTable, EmptyState, StatusBadge } from "@/components/ui/page-section";
+import { Card, DataTable, Disclosure, EmptyState, StatusBadge } from "@/components/ui/page-section";
+import { Eye, Plus } from "lucide-react";
 import { prisma } from "@/lib/db/prisma-client";
 import { createObserverProxy } from "@/lib/health/observer-proxy-actions";
 import { ObserverProxyRowActions } from "./observer-proxy-row-actions";
@@ -18,13 +19,15 @@ export async function ObserverProxySection() {
   const activeCount = proxies.filter((proxy) => proxy.active).length;
 
   return (
-    <Card title={`Observer proxies - ${proxies.length} IPs, ${activeCount} enabled`}>
-      <p className="mb-4 text-sm text-neutral-600 dark:text-neutral-400">
-        Use these proxies to check shadowbans from a public viewer&apos;s perspective.{" "}
-        <strong>Never sign in to any nick through these IPs, even once.</strong> Checking through a
-        nick&apos;s own proxy would only confirm what the nick itself can see. Prefer a residential
-        proxy from a different provider than the nick proxies.
-      </p>
+    <Card
+      title={`Observer proxies - ${proxies.length} IPs, ${activeCount} enabled`}
+      description="Separate public-view IPs used only by Reddit visibility checks."
+      icon={Eye}
+    >
+      <div className="mb-4 rounded-xl border border-amber-400/20 bg-amber-400/[0.06] px-4 py-3 text-xs leading-5 text-amber-200">
+        Never sign in to a nick through an observer IP. Use a residential provider separate from
+        the nick proxies.
+      </div>
 
       {proxies.length === 0 ? (
         <EmptyState>
@@ -40,7 +43,7 @@ export async function ObserverProxySection() {
           {proxies.map((proxy) => (
             <tr key={proxy.id}>
               <td className="py-2 pr-4 font-medium">{proxy.label}</td>
-              <td className="py-2 pr-4 font-mono text-xs text-neutral-600 dark:text-neutral-400">
+              <td className="py-2 pr-4 font-mono text-xs text-neutral-400">
                 {proxy.host}:{proxy.port}
               </td>
               <td className="py-2 pr-4">{proxy.country}</td>
@@ -49,8 +52,8 @@ export async function ObserverProxySection() {
                   label={proxy.active ? "enabled" : "disabled"}
                   className={
                     proxy.active
-                      ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
-                      : "bg-neutral-200 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400"
+                      ? "bg-emerald-400/[0.1] text-emerald-300"
+                      : "bg-white/[0.06] text-neutral-400"
                   }
                 />
               </td>
@@ -61,7 +64,7 @@ export async function ObserverProxySection() {
                   exitIp={proxy.lastExitIp}
                 />
               </td>
-              <td className="py-2 pr-4 text-neutral-600 dark:text-neutral-400">
+              <td className="py-2 pr-4 text-neutral-400">
                 {proxy.notes ?? "—"}
               </td>
               <td className="py-2 pr-4">
@@ -72,9 +75,8 @@ export async function ObserverProxySection() {
         </DataTable>
       )}
 
-      <details className="mt-4">
-        <summary className="cursor-pointer text-sm font-medium">Add observer proxy</summary>
-        <div className="mt-3">
+      <Disclosure summary="Add observer proxy" icon={Plus} className="mt-4">
+        <div>
           <ActionForm action={createObserverProxy} submitLabel="Add observer proxy">
             <Field label="Label" name="label" required placeholder="observer-01-de" />
             <Field label="Host" name="host" required placeholder="1.2.3.4" />
@@ -100,7 +102,7 @@ export async function ObserverProxySection() {
             </p>
           </ActionForm>
         </div>
-      </details>
+      </Disclosure>
     </Card>
   );
 }

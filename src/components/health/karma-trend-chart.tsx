@@ -66,7 +66,7 @@ export function KarmaTrendChart({ points }: { points: KarmaPoint[] }) {
           fill="none"
           stroke="currentColor"
           strokeWidth="2"
-          className="text-emerald-600 dark:text-emerald-400"
+          className="text-emerald-400"
         />
         {coords.map((point) => (
           <circle
@@ -74,7 +74,7 @@ export function KarmaTrendChart({ points }: { points: KarmaPoint[] }) {
             cx={point.x}
             cy={point.y}
             r="2.5"
-            className="fill-emerald-600 dark:fill-emerald-400"
+            className="fill-emerald-400"
           />
         ))}
         <text x={PADDING.left} y={HEIGHT - 4} className="fill-neutral-500 text-[10px]">
@@ -90,7 +90,7 @@ export function KarmaTrendChart({ points }: { points: KarmaPoint[] }) {
         </text>
       </svg>
 
-      <p className="mt-1 text-xs text-neutral-600 dark:text-neutral-400">
+      <p className="mt-1 text-xs text-neutral-400">
         {first.karma} → {last.karma} karma ({change >= 0 ? "+" : ""}
         {change} across {sorted.length} checks).
         {change === 0

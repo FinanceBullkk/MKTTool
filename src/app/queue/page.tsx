@@ -1,9 +1,10 @@
 import { ParkedScopeBanner } from "@/components/layout/parked-scope-banner";
 import Link from "next/link";
+import { CalendarDays, ChartNoAxesColumn, ListChecks, MessageSquarePlus, Plus, Rows3 } from "lucide-react";
 import { InteractionForm } from "@/components/queue/interaction-form";
 import { PromoRatioTable } from "@/components/queue/promo-ratio-table";
 import { QueueJobTable } from "@/components/queue/queue-job-table";
-import { Card, DataTable, EmptyState, PageHeading } from "@/components/ui/page-section";
+import { Card, DataTable, Disclosure, EmptyState, PageHeading, PageShell } from "@/components/ui/page-section";
 import { JOB_STATUSES, getInteractionKindLabel, getJobStatusPresentation } from "@/lib/content/content-types";
 import { prisma } from "@/lib/db/prisma-client";
 import { formatDayMonthTime } from "@/lib/format/vietnamese-date-format";
@@ -52,11 +53,21 @@ export default async function QueuePage({
   }))];
 
   return (
-    <>
+    <PageShell>
       <ParkedScopeBanner what="job queue" />
       <PageHeading
         title="Posting queue"
-        description="Each line is a post evaluated by the posting rules. After publishing, click 'Posted' so that real activity feeds future rule checks."
+        description="Schedule, rule verdicts, and posting history"
+        eyebrow="Parked posting data"
+        icon={ListChecks}
+        action={
+          <Link
+            href="/queue/new"
+            className="brand-btn inline-flex min-h-11 items-center gap-2 rounded-xl px-4 text-sm font-semibold"
+          >
+            <Plus size={16} /> Schedule a post
+          </Link>
+        }
       />
 
       <div className="mb-6 flex flex-wrap items-center gap-2">
@@ -68,43 +79,36 @@ export default async function QueuePage({
               href={filter.value ? `/queue?status=${filter.value}` : "/queue"}
               className={`rounded-md px-3 py-1.5 text-sm transition ${
                 selected
-                  ? "bg-neutral-900 text-white dark:bg-neutral-100 dark:text-neutral-900"
-                  : "text-neutral-600 hover:bg-neutral-200 dark:text-neutral-400 dark:hover:bg-neutral-800"
+                  ? "border border-amber-400/35 bg-amber-400/10 text-amber-200"
+                  : "border border-white/[0.08] bg-white/[0.02] text-neutral-400 hover:text-neutral-200"
               }`}
             >
               {filter.label}
             </Link>
           );
         })}
-        <Link
-          href="/queue/new"
-          className="ml-auto rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-neutral-700 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-300"
-        >
-          Schedule a post
-        </Link>
       </div>
 
-      <Card title={`Posting schedule — ${jobs.length} job${jobs.length === 1 ? "" : "s"}`}>
+      <Card title={`Posting schedule - ${jobs.length} job${jobs.length === 1 ? "" : "s"}`} icon={CalendarDays}>
         <QueueJobTable jobs={jobs} />
       </Card>
 
-      <Card title="Promotional ratio by nick and target">
+      <Disclosure summary="Promotional ratio by nick and target" icon={ChartNoAxesColumn} className="mb-3">
         <PromoRatioTable rows={promoRows} />
-      </Card>
+      </Disclosure>
 
-      <Card title="Manual interaction logging">
+      <Disclosure summary="Record a manual interaction" icon={MessageSquarePlus} className="mb-3">
         {accounts.length === 0 || targets.length === 0 ? (
-          <EmptyState>Add at least one nick and one posting target before recording an interaction.</EmptyState>
+          <EmptyState title="Nick and target required" icon={MessageSquarePlus}>Add at least one nick and one posting target first.</EmptyState>
         ) : (
           <InteractionForm accounts={accounts} targets={targets} />
         )}
-      </Card>
+      </Disclosure>
 
-      <Card title="Recent interactions">
+      <Disclosure summary={`Recent interactions - ${interactions.length}`} icon={Rows3} className="mb-5">
         {interactions.length === 0 ? (
-          <EmptyState>
-            No interactions recorded yet. Without these records, the thread-collision rule has
-            nothing to compare.
+          <EmptyState title="No interactions recorded" icon={Rows3}>
+            Thread-collision checks have no manual activity to compare yet.
           </EmptyState>
         ) : (
           <DataTable headers={["Time", "Nick", "Type", "Target", "Thread"]}>
@@ -127,7 +131,7 @@ export default async function QueuePage({
             ))}
           </DataTable>
         )}
-      </Card>
-    </>
+      </Disclosure>
+    </PageShell>
   );
 }

@@ -39,11 +39,10 @@ export function isDraftUsable(draft: DraftContent): boolean {
   );
 }
 
-const LABEL_CLASS = "mb-1 block text-xs font-medium text-neutral-600 dark:text-neutral-400";
+const LABEL_CLASS = "mb-1.5 block text-xs font-medium text-neutral-400";
 
 const TAB_CLASS =
-  "rounded-md px-3 py-1.5 text-sm transition focus-visible:outline-none focus-visible:ring-2 " +
-  "focus-visible:ring-neutral-500 disabled:opacity-40";
+  "min-h-11 rounded-lg border px-3 text-sm font-medium transition-colors disabled:opacity-40";
 
 function Tab({
   active,
@@ -67,8 +66,8 @@ function Tab({
       onClick={onClick}
       className={`${TAB_CLASS} ${
         active
-          ? "bg-neutral-900 text-white dark:bg-neutral-100 dark:text-neutral-900"
-          : "text-neutral-600 hover:bg-neutral-200 dark:text-neutral-400 dark:hover:bg-neutral-800"
+          ? "border-amber-400/35 bg-amber-400/10 text-amber-200"
+          : "border-white/[0.08] bg-white/[0.02] text-neutral-400 hover:text-neutral-200"
       }`}
     >
       {children}
@@ -164,8 +163,8 @@ export function ContentSourcePicker({
                 </option>
               ))}
             </select>
-            <span className="mt-1 block text-xs text-neutral-500">
-              Treat it as promotional if it mentions your product or service, even indirectly.
+            <span className="mt-1.5 block text-xs leading-5 text-neutral-500">
+              Product or service mentions count as promotional.
             </span>
           </label>
 
@@ -192,8 +191,8 @@ export function ContentSourcePicker({
               onChange={(event) => update({ linksText: event.target.value })}
               placeholder="One link per line"
             />
-            <span className="mt-1 block text-xs text-neutral-500">
-              This post will be saved to the content library when you schedule it.
+            <span className="mt-1.5 block text-xs leading-5 text-neutral-500">
+              Scheduling also saves this post to the content library.
             </span>
           </label>
         </div>

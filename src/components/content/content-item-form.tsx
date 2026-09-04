@@ -7,15 +7,16 @@
  * bắt người ta chuyển tab để Ctrl+V từng ô là chỗ dễ nản nhất của cả quy trình.
  */
 import { useActionState, useRef, useState } from "react";
+import { ClipboardPaste, Save } from "lucide-react";
 import type { ActionResult } from "@/lib/actions/action-result";
+import { PRIMARY_BUTTON_CLASS, SMALL_BUTTON_CLASS } from "@/components/ui/page-section";
 import { CONTENT_TYPES, CONTENT_TYPE_LABELS } from "@/lib/content/content-types";
 import { createContentItem } from "@/lib/content/content-item-actions";
 
 const FIELD_CLASS =
-  "w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm " +
-  "focus:border-neutral-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-900";
+  "min-h-11 w-full rounded-xl border border-white/[0.1] bg-black/20 px-3 py-2 text-base text-white outline-none transition-colors placeholder:text-neutral-600 focus:border-amber-400/50 focus:bg-black/30 sm:text-sm";
 
-const LABEL_CLASS = "mb-1 block text-xs font-medium text-neutral-600 dark:text-neutral-400";
+const LABEL_CLASS = "mb-1.5 block text-xs font-medium text-neutral-400";
 
 export interface ContentItemDefaults {
   id: string;
@@ -86,8 +87,9 @@ export function ContentItemForm({
           <button
             type="button"
             onClick={pasteIntoBody}
-            className="mt-2 rounded-md border border-neutral-300 px-3 py-1.5 text-xs transition hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-800"
+            className={`${SMALL_BUTTON_CLASS} mt-2 gap-2`}
           >
+            <ClipboardPaste size={14} aria-hidden="true" />
             Paste from clipboard
           </button>
           {pasteError ? <span className="ml-2 text-xs text-red-600">{pasteError}</span> : null}
@@ -104,8 +106,8 @@ export function ContentItemForm({
               </option>
             ))}
           </select>
-          <span className="mt-1 block text-xs text-neutral-500">
-            Any mention of your product or service is promotional, including indirect mentions.
+          <span className="mt-1.5 block text-xs leading-5 text-neutral-500">
+            Direct and indirect product mentions are promotional.
           </span>
         </label>
 
@@ -130,15 +132,15 @@ export function ContentItemForm({
             defaultValue={defaults?.linksText}
             placeholder="One link per line"
           />
-          <span className="mt-1 block text-xs text-neutral-500">
-            Links written directly in the body are detected automatically. Use this field only for
-            additional links.
+          <span className="mt-1.5 block text-xs leading-5 text-neutral-500">
+            Body links are detected automatically; add only extra links here.
           </span>
         </label>
       </div>
 
       {state ? (
         <p
+          role="status"
           className={
             state.ok
               ? "text-sm text-emerald-700 dark:text-emerald-400"
@@ -152,8 +154,9 @@ export function ContentItemForm({
       <button
         type="submit"
         disabled={pending}
-        className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-neutral-700 disabled:opacity-50 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-300"
+        className={PRIMARY_BUTTON_CLASS}
       >
+        <Save size={15} aria-hidden="true" />
         {pending ? "Saving…" : (submitLabel ?? "Save content")}
       </button>
     </form>

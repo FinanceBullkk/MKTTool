@@ -9,6 +9,7 @@
  */
 import { useState } from "react";
 import { authClient } from "@/lib/auth/auth-client";
+import { PRIMARY_BUTTON_CLASS } from "@/components/ui/page-section";
 
 export function GoogleSignInButton({ callbackURL = "/" }: { callbackURL?: string }) {
   const [pending, setPending] = useState(false);
@@ -46,13 +47,13 @@ export function GoogleSignInButton({ callbackURL = "/" }: { callbackURL?: string
         type="button"
         onClick={signIn}
         disabled={pending}
-        className="flex w-full items-center justify-center gap-3 rounded-md bg-neutral-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-neutral-700 disabled:opacity-50 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-300"
+        className={`${PRIMARY_BUTTON_CLASS} w-full`}
       >
         <GoogleMark />
         {pending ? "Redirecting to Google..." : "Sign in with Google"}
       </button>
 
-      {error ? <p className="text-sm text-red-700 dark:text-red-400">{error}</p> : null}
+      {error ? <p role="alert" className="text-sm text-red-300">{error}</p> : null}
     </div>
   );
 }

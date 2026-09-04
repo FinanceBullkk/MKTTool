@@ -40,12 +40,11 @@ export function nextHourInputValue(): string {
 }
 
 export const FIELD_CLASS =
-  "w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm " +
-  "focus:border-neutral-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-900";
+  "min-h-11 w-full rounded-xl border border-white/[0.1] bg-black/20 px-3 py-2 text-base text-white outline-none transition-colors placeholder:text-neutral-600 focus:border-amber-400/50 focus:bg-black/30 sm:text-sm";
 
 function FieldLabel({ label }: { label: string }) {
   return (
-    <span className="mb-1 block text-xs font-medium text-neutral-600 dark:text-neutral-400">
+    <span className="mb-1.5 block text-xs font-medium text-neutral-400">
       {label} <span className="text-red-600">*</span>
     </span>
   );
@@ -144,7 +143,7 @@ export function TargetSelect({
         ))}
       </select>
       {filtered ? (
-        <span className="mt-1 block text-xs text-neutral-500">
+        <span className="mt-1.5 block text-xs leading-5 text-neutral-500">
           Only targets compatible with the selected nick are shown.
         </span>
       ) : null}
@@ -171,7 +170,7 @@ export function ScheduledAtField({
         onChange={(event) => onChange(event.target.value)}
         required
       />
-      <span className="mt-1 block text-xs text-neutral-500">
+      <span className="mt-1.5 block text-xs leading-5 text-neutral-500">
         Rules use this scheduled time, not the current time.
       </span>
     </label>

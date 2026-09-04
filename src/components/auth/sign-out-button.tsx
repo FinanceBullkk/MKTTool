@@ -24,7 +24,7 @@ export function SignOutButton() {
         await authClient.signOut();
         router.refresh();
       }}
-      className="rounded-md px-2 py-1 text-neutral-600 underline-offset-2 transition hover:text-neutral-900 hover:underline disabled:opacity-50 dark:text-neutral-400 dark:hover:text-neutral-100"
+      className="inline-flex min-h-11 items-center rounded-lg px-2 text-neutral-500 transition-colors hover:bg-white/[0.04] hover:text-neutral-100 disabled:opacity-40"
     >
       {pending ? "Signing out..." : "Sign out"}
     </button>

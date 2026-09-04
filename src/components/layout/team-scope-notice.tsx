@@ -18,6 +18,7 @@
  * và cái sai đó im lặng. Mở lại một nền tảng bằng biến môi trường thì câu chữ ở đây tự đổi
  * theo.
  */
+import { Archive, ChevronDown, PauseCircle } from "lucide-react";
 import {
   isPostingFullyParked,
   parkedPlatforms,
@@ -31,13 +32,26 @@ export function TeamScopeNotice() {
   const parkedNames = parked.map(rolloutPlatformLabel).join(", ");
 
   return (
-    <details className="mb-6 rounded-xl border border-white/[0.08] bg-white/[0.025] px-4 py-3 text-sm text-neutral-300">
-      <summary className="cursor-pointer list-none font-medium text-neutral-100 marker:hidden">
-        <span className="mr-2 text-amber-300">Current rollout</span>
-        Nick vault, proxies, and Relay PCs are available. Posting is parked.
-        <span className="ml-2 text-xs font-normal text-neutral-500">View boundary</span>
+    <details className="group mb-6 rounded-xl border border-white/[0.08] bg-white/[0.025] text-sm text-neutral-300">
+      <summary className="flex min-h-14 cursor-pointer list-none items-center gap-3 px-4 marker:hidden">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-emerald-400/15 bg-emerald-400/[0.07] text-emerald-300">
+          <Archive size={17} strokeWidth={1.8} />
+        </span>
+        <span className="min-w-0">
+          <span className="block font-semibold text-neutral-100">Vault mode</span>
+          <span className="block truncate text-xs text-neutral-500">Nicks · proxies · Relay PCs</span>
+        </span>
+        <span className="ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-md bg-amber-400/10 px-2 py-1 text-xs font-medium text-amber-200">
+          <PauseCircle size={13} />
+          Posting parked
+        </span>
+        <ChevronDown
+          size={15}
+          className="shrink-0 text-neutral-500 transition-transform group-open:rotate-180"
+          aria-hidden="true"
+        />
       </summary>
-      <div className="mt-3 max-w-4xl space-y-2 border-t border-white/[0.07] pt-3 text-[13px] leading-5 text-neutral-400">
+      <div className="max-w-4xl space-y-2 border-t border-white/[0.07] px-4 py-3 text-[13px] leading-5 text-neutral-400">
         <p>
           Every nick has one owner and one Relay PC. Posting paths for {parkedNames} remain available
           for history, but posting actions are denied by the 2 September 2026 scope decision.

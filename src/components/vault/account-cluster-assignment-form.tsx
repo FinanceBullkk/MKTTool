@@ -2,7 +2,13 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { ArrowRight, Info, Save, ShieldCheck, X } from "lucide-react";
 import { SelectField } from "@/components/ui/form-controls";
+import {
+  Disclosure,
+  PRIMARY_BUTTON_CLASS,
+  SECONDARY_BUTTON_CLASS,
+} from "@/components/ui/page-section";
 import type { ActionResult } from "@/lib/actions/action-result";
 import {
   describeSelectionChange,
@@ -120,36 +126,40 @@ export function AccountClusterAssignmentForm({
       </div>
 
       {confirmation ? (
-        <div className="space-y-3 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm dark:border-amber-900 dark:bg-amber-950/30">
-          <p className="font-medium text-amber-900 dark:text-amber-300">
-            Review the assignment change before saving.
+        <div className="space-y-4 rounded-xl border border-amber-400/20 bg-amber-400/[0.06] p-4 text-sm">
+          <p className="flex items-center gap-2 font-semibold text-amber-200">
+            <ShieldCheck size={17} aria-hidden="true" />
+            Review assignment change
           </p>
-          <dl className="space-y-1 text-neutral-700 dark:text-neutral-300">
+          <dl className="grid gap-2 text-neutral-200 sm:grid-cols-2">
             {confirmation.owner ? (
-              <div>
-                <dt className="inline font-medium">Owner: </dt>
-                <dd className="inline">
-                  {confirmation.owner.beforeLabel} -&gt; {confirmation.owner.afterLabel}
+              <div className="rounded-lg border border-white/[0.07] bg-black/10 p-3">
+                <dt className="mb-1 font-mono text-[10px] uppercase tracking-[0.12em] text-neutral-500">Owner</dt>
+                <dd className="flex items-center gap-2 text-xs">
+                  <span>{confirmation.owner.beforeLabel}</span>
+                  <ArrowRight size={13} className="text-amber-300" aria-hidden="true" />
+                  <strong>{confirmation.owner.afterLabel}</strong>
                 </dd>
               </div>
             ) : null}
             {confirmation.device ? (
-              <div>
-                <dt className="inline font-medium">Relay PC: </dt>
-                <dd className="inline">
-                  {confirmation.device.beforeLabel} -&gt; {confirmation.device.afterLabel}
+              <div className="rounded-lg border border-white/[0.07] bg-black/10 p-3">
+                <dt className="mb-1 font-mono text-[10px] uppercase tracking-[0.12em] text-neutral-500">Relay PC</dt>
+                <dd className="flex items-center gap-2 text-xs">
+                  <span>{confirmation.device.beforeLabel}</span>
+                  <ArrowRight size={13} className="text-amber-300" aria-hidden="true" />
+                  <strong>{confirmation.device.afterLabel}</strong>
                 </dd>
               </div>
             ) : null}
           </dl>
-          <ul className="list-disc space-y-1 pl-5 text-xs text-amber-900 dark:text-amber-300">
-            <li>The owner controls who may request the nick password and OTP.</li>
-            <li>The Relay PC controls which PC receives browser and credential tickets.</li>
-            <li>
-              This assignment does not move the local browser profile. After a PC transfer, verify
-              the imported copy and delete the old local copy.
-            </li>
-          </ul>
+          <Disclosure summary="What this assignment controls" icon={Info}>
+            <ul className="list-disc space-y-1.5 pl-5 text-xs leading-5">
+              <li>The owner controls who may request the nick password and OTP.</li>
+              <li>The Relay PC controls which PC receives browser and credential tickets.</li>
+              <li>This does not move the local browser profile. Verify the imported copy before deleting the old local copy.</li>
+            </ul>
+          </Disclosure>
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
@@ -158,16 +168,18 @@ export function AccountClusterAssignmentForm({
                 const form = formRef.current;
                 if (form) requestSubmit(new FormData(form));
               }}
-              className="rounded-md bg-amber-700 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50"
+              className={PRIMARY_BUTTON_CLASS}
             >
+              <Save size={16} aria-hidden="true" />
               {pending ? "Saving..." : "Confirm assignment change"}
             </button>
             <button
               type="button"
               disabled={pending}
               onClick={() => setConfirmation(null)}
-              className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm dark:border-neutral-700"
+              className={SECONDARY_BUTTON_CLASS}
             >
+              <X size={16} aria-hidden="true" />
               Cancel
             </button>
           </div>
@@ -176,14 +188,15 @@ export function AccountClusterAssignmentForm({
         <button
           type="submit"
           disabled={pending}
-          className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-neutral-700 disabled:opacity-50 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-300"
+          className={PRIMARY_BUTTON_CLASS}
         >
+          <Save size={16} aria-hidden="true" />
           {pending ? "Saving..." : "Save assignment"}
         </button>
       )}
 
       {result ? (
-        <p className={result.ok ? "text-sm text-emerald-700" : "text-sm text-red-700"}>
+        <p role={result.ok ? "status" : "alert"} className={result.ok ? "text-sm text-emerald-300" : "text-sm text-red-300"}>
           {result.message}
         </p>
       ) : null}

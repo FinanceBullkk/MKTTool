@@ -1,7 +1,9 @@
 import { ParkedScopeBanner } from "@/components/layout/parked-scope-banner";
 import Link from "next/link";
+import { CircleCheck, CircleOff, Crosshair, Plus, Rows3 } from "lucide-react";
 import { ActionForm } from "@/components/ui/form-controls";
-import { Card, DataTable, EmptyState, PageHeading, StatusBadge } from "@/components/ui/page-section";
+import { Card, DataTable, Disclosure, EmptyState, PageHeading, PageShell, StatusBadge } from "@/components/ui/page-section";
+import { SummaryMetric } from "@/components/ui/summary-metric";
 import { TargetFormFields } from "@/components/vault/target-form-fields";
 import { createTarget } from "@/lib/accounts/vault-create-actions";
 import { prisma } from "@/lib/db/prisma-client";
@@ -12,18 +14,28 @@ export default async function TargetsPage() {
   const targets = await prisma.platformTarget.findMany({
     orderBy: [{ platform: "asc" }, { name: "asc" }],
   });
+  const activeCount = targets.filter((target) => target.active).length;
+  const inactiveCount = targets.length - activeCount;
 
   return (
-    <>
+    <PageShell>
       <ParkedScopeBanner what="Reddit and Facebook posting targets" />
       <PageHeading
         title="Posting targets"
-        description="Subreddits and Facebook Pages or Groups. These thresholds feed the Phase 02 posting rules, so enter each community's actual rules."
+        description="Community thresholds and channel history"
+        eyebrow="Parked posting data"
+        icon={Crosshair}
       />
 
-      <Card title="Targets">
+      <div className="mb-5 grid grid-cols-3 gap-2 sm:gap-3">
+        <SummaryMetric icon={Rows3} label="Targets" value={targets.length} />
+        <SummaryMetric icon={CircleCheck} label="Active" value={activeCount} />
+        <SummaryMetric icon={CircleOff} label="Inactive" value={inactiveCount} />
+      </div>
+
+      <Card title="Targets" icon={Crosshair}>
         {targets.length === 0 ? (
-          <EmptyState>
+          <EmptyState title="No posting targets" icon={Crosshair}>
             No posting targets yet. Read each community&apos;s rules, then enter its minimum karma,
             minimum nick age, and allowed promotional ratio.
           </EmptyState>
@@ -78,11 +90,13 @@ export default async function TargetsPage() {
         )}
       </Card>
 
-      <Card title="Add posting target">
-        <ActionForm action={createTarget} submitLabel="Add posting target">
-          <TargetFormFields />
-        </ActionForm>
+      <Card title="Add posting target" icon={Plus} tone="muted">
+        <Disclosure summary="Open target form" icon={Plus}>
+          <ActionForm action={createTarget} submitLabel="Add posting target">
+            <TargetFormFields />
+          </ActionForm>
+        </Disclosure>
       </Card>
-    </>
+    </PageShell>
   );
 }

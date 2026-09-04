@@ -38,6 +38,17 @@
  */
 import { useCallback, useEffect, useState } from "react";
 import {
+  CheckCircle2,
+  CircleAlert,
+  Cpu,
+  Info,
+  ListFilter,
+  MapPinned,
+  Network,
+  Plus,
+} from "lucide-react";
+import { Disclosure, PRIMARY_BUTTON_CLASS } from "@/components/ui/page-section";
+import {
   recordCreatedProfile,
   requestCreateProfileTicket,
 } from "@/lib/accounts/account-profile-actions";
@@ -60,10 +71,6 @@ import {
   type RelayOperationDiagnostic,
 } from "@/lib/relay/relay-endpoints";
 import { RelayOperationDiagnosticDetails } from "@/components/relay/relay-operation-diagnostic-details";
-
-const BUTTON_CLASS =
-  "rounded-md bg-neutral-900 px-3 py-2 text-sm font-medium text-white transition " +
-  "hover:bg-neutral-700 disabled:opacity-40 dark:bg-neutral-100 dark:text-neutral-900";
 
 type Feedback = {
   kind: "ok" | "error";
@@ -243,54 +250,89 @@ export function AntidetectProfileCard({
 
   if (relayOld) {
     return (
-      <p className="text-sm text-neutral-600 dark:text-neutral-400">
-        Relay on this PC is outdated and cannot create a browser profile here. Download the current
-        version from{" "}
-        <a href="/setup#download" className="underline">
-          /setup
-        </a>{" "}
-        or paste the browser profile ID into the nick edit form.
-      </p>
+      <div className="flex items-start gap-3 rounded-xl border border-amber-400/20 bg-amber-400/[0.06] p-4 text-sm text-amber-100">
+        <CircleAlert size={18} className="mt-0.5 shrink-0 text-amber-300" aria-hidden="true" />
+        <div>
+          <p className="font-semibold">Relay update required</p>
+          <p className="mt-1 text-xs leading-5 text-amber-100/75">
+            This PC cannot create a browser profile with its current Relay. Download the latest
+            version from{" "}
+            <a href="/setup#download" className="font-medium underline underline-offset-2">
+              Set up this Relay PC
+            </a>{" "}
+            or paste an existing browser profile ID into the nick edit form.
+          </p>
+        </div>
+      </div>
     );
   }
 
   return (
     <div className="space-y-3">
       {proxyCountry === null ? (
-        <p className="text-sm text-amber-700 dark:text-amber-400">
-          This nick has no proxy, so its browser profile configuration cannot be created. Assign a
-          proxy in the nick edit form first; locale and timezone follow the proxy country.
-        </p>
+        <div className="flex items-start gap-3 rounded-xl border border-amber-400/20 bg-amber-400/[0.06] p-4 text-sm text-amber-100">
+          <Network size={18} className="mt-0.5 shrink-0 text-amber-300" aria-hidden="true" />
+          <div>
+            <p className="font-semibold">Proxy required</p>
+            <p className="mt-1 text-xs leading-5 text-amber-100/75">
+              Assign a static proxy in the nick edit form first. Locale and timezone are derived
+              from that proxy country.
+            </p>
+          </div>
+        </div>
       ) : plan?.ok ? (
         <>
-          <p className="text-sm text-neutral-600 dark:text-neutral-400">
-            This will create a browser profile with proxy <strong>{proxyLabel}</strong> and
-            locale/timezone settings <strong>{plan.plan.localeId}</strong> /{" "}
-            <strong>{plan.plan.timezone}</strong> / <strong>{plan.plan.device}</strong>, matched to
-            the proxy country. This is a browser profile configuration convenience, not proof of
-            identity isolation, so you do not need to use &quot;Match proxy&quot; in MKT Browser.
-          </p>
-          <button type="button" className={BUTTON_CLASS} disabled={busy} onClick={taoProfile}>
+          <div className="grid gap-2 sm:grid-cols-3">
+            <div className="rounded-xl border border-white/[0.07] bg-black/10 p-3">
+              <span className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.12em] text-neutral-500">
+                <Network size={14} aria-hidden="true" /> Proxy
+              </span>
+              <strong className="mt-1.5 block truncate text-sm text-white" title={proxyLabel ?? undefined}>{proxyLabel}</strong>
+            </div>
+            <div className="rounded-xl border border-white/[0.07] bg-black/10 p-3">
+              <span className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.12em] text-neutral-500">
+                <MapPinned size={14} aria-hidden="true" /> Locale
+              </span>
+              <strong className="mt-1.5 block text-sm text-white">{plan.plan.localeId}</strong>
+              <span className="mt-0.5 block truncate text-xs text-neutral-500" title={plan.plan.timezone}>{plan.plan.timezone}</span>
+            </div>
+            <div className="rounded-xl border border-white/[0.07] bg-black/10 p-3">
+              <span className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.12em] text-neutral-500">
+                <Cpu size={14} aria-hidden="true" /> Device
+              </span>
+              <strong className="mt-1.5 block text-sm text-white">{plan.plan.device}</strong>
+            </div>
+          </div>
+          <button type="button" className={PRIMARY_BUTTON_CLASS} disabled={busy} onClick={taoProfile}>
+            <Plus size={16} aria-hidden="true" />
             {busy ? "Creating..." : "Create browser profile on this Relay PC"}
           </button>
-          <p className="text-xs text-neutral-500">
-            After creation, the nick is assigned to this Relay PC. Browser profile data stays local,
-            and Relay allows only the assigned PC to open it. This does not prove identity isolation.
-          </p>
+          <Disclosure summary="Profile behavior and safety boundary" icon={Info}>
+            <p className="text-xs leading-5">
+              The profile receives the selected proxy plus locale, timezone, and device settings
+              matched to its country. After creation, the nick is assigned to this Relay PC and the
+              browser data stays local. Relay limits opening it to that assigned PC. These settings
+              are a configuration convenience, not proof of identity isolation; do not treat them
+              as an isolation measurement.
+            </p>
+          </Disclosure>
         </>
       ) : (
-        <p className="text-sm text-amber-700 dark:text-amber-400">{plan?.failure.message}</p>
+        <div className="flex items-start gap-3 rounded-xl border border-amber-400/20 bg-amber-400/[0.06] p-4 text-sm text-amber-100">
+          <CircleAlert size={18} className="mt-0.5 shrink-0 text-amber-300" aria-hidden="true" />
+          {plan?.failure.message}
+        </div>
       )}
 
       {relay && relay.profiles.length > 0 ? (
-        <details className="text-sm">
-          <summary className="cursor-pointer text-neutral-600 dark:text-neutral-400">
-            Or use a browser profile already on this Relay PC ({relay.profiles.length})
-          </summary>
+        <Disclosure
+          summary={`Use an existing browser profile (${relay.profiles.length})`}
+          icon={ListFilter}
+        >
           <ul className="mt-2 space-y-1">
             {relay.profiles.map((profile) => (
-              <li key={profile.id} className="font-mono text-xs">
-                <span className="font-sans">{profile.name}</span> — {profile.id}
+              <li key={profile.id} className="rounded-lg border border-white/[0.06] bg-black/10 p-2 font-mono text-xs text-neutral-300">
+                <span className="font-sans font-medium text-white">{profile.name}</span> — {profile.id}
                 {profile.proxyCountry && profile.timezone ? (
                   <span className="font-sans text-neutral-500">
                     {" "}
@@ -305,18 +347,16 @@ export function AntidetectProfileCard({
             against the timezone; a mismatch means the browser profile is not aligned with that
             proxy.
           </p>
-        </details>
+        </Disclosure>
       ) : null}
 
       {feedback ? (
-        <div className="space-y-2">
-          <p
-            className={
-              feedback.kind === "ok"
-                ? "text-sm text-emerald-700 dark:text-emerald-400"
-                : "text-sm text-red-700 dark:text-red-400"
-            }
-          >
+        <div
+          role={feedback.kind === "ok" ? "status" : "alert"}
+          className={`space-y-2 rounded-xl border p-4 ${feedback.kind === "ok" ? "border-emerald-400/20 bg-emerald-400/[0.06] text-emerald-200" : "border-red-400/20 bg-red-400/[0.06] text-red-200"}`}
+        >
+          <p className="flex items-start gap-2 text-sm">
+            {feedback.kind === "ok" ? <CheckCircle2 size={17} className="mt-0.5 shrink-0" aria-hidden="true" /> : <CircleAlert size={17} className="mt-0.5 shrink-0" aria-hidden="true" />}
             {feedback.text}
           </p>
           <RelayOperationDiagnosticDetails diagnostic={feedback.diagnostic} />

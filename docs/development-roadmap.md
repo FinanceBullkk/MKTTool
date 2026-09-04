@@ -25,6 +25,13 @@ explicit disclosure. Active and revoked Relay PCs are separated. This is present
 information architecture only: routes, schema, authorization, ticket trust boundaries, setup state
 machine, and parked-platform scope are unchanged.
 
+The same system now covers the parked Content, Queue, Facebook, Targets, and Health routes so an
+operator never changes visual grammar when opening historical data. Shared forms, confirmations,
+error/empty states, and secure profile handoff use icon-led summaries and reveal long recovery or
+safety guidance only when requested. Mobile data tables become labeled record cards; controls keep
+44px touch targets. The signed-out login screen and route-level not-found/error states also use the
+bounded canvas and the same amber industrial language.
+
 ## UX navigation and vocabulary — 3 September 2026
 
 The Phase 2 UX work makes the current product boundary legible without changing data or rollout
