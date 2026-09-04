@@ -199,6 +199,35 @@ jobs:
       - name: Scan source and evidence for high-confidence secrets
         run: node scripts/ci/secret-scan.cjs --root=plans --root=src --root=relay --root=scripts --root=.github
 
+  # Fail on published advisories against what this app actually ships.
+  #
+  # Why this job exists - 4 September 2026. Three high-severity advisories landed against
+  # `fast-uri`, which arrives here through `ajv` as a production dependency. Nothing in this
+  # repository noticed. They surfaced only because the sibling MKTBrowser repository runs the
+  # equivalent gate, its `main` went red on an unchanged tree, and checking whether the same
+  # dependency was pinned here showed the identical vulnerable version. A gate only one of two
+  # repositories has is a gate that reports on one of two repositories.
+  #
+  # Why `--omit=dev`: a dev-only advisory cannot reach an operator through the deployed app, and
+  # blocking merges on one trains people to bypass the gate. Production reach is the line.
+  #
+  # Expect this job to fail sometimes with no commit causing it: advisories are published against
+  # code that already merged. That is the job working, not breaking. Fix by upgrading the
+  # dependency, not by lowering `--audit-level`.
+  #
+  # No `npm ci` step: `npm audit` reads `package-lock.json` and needs no installed tree.
+  dependency-audit:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Fail on high-severity advisories in production dependencies
+        run: npm run audit:production
+
   # Acceptance-test the packaged Relay `.exe` itself, not its source.
   #
   # Why this job exists — C37, 17 August 2026. F4 made `/encrypt-for-vault` require the trusted

@@ -4,7 +4,8 @@
   "private": true,
   "description": "Multi-account posting console cho team marketing (Reddit + Facebook Pages)",
   "overrides": {
-    "deepmerge-ts": "8.0.2"
+    "deepmerge-ts": "8.0.2",
+    "mysql2": "^3.24.3"
   },
   "scripts": {
     "dev": "next dev",
@@ -40,6 +41,7 @@
     "auth:rate-limit:verify": "tsx --env-file=.env scripts/verify-better-auth-rate-limit.ts",
     "ci:postgres-contracts": "node scripts/ci/run-postgres-contracts.cjs",
     "ci:secret-scan": "node scripts/ci/secret-scan.cjs",
+    "audit:production": "npm audit --omit=dev --audit-level=high",
     "vault:testotp": "tsx scripts/generate-test-totp-secret.ts",
     "relay:dev": "tsx relay/src/main.ts",
     "relay:build": "tsx --env-file-if-exists=.env scripts/build-relay-executable.ts",
