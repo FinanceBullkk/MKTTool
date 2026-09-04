@@ -64,7 +64,7 @@ describe("profile launch UI", () => {
     expect(markup).not.toMatch(/cloakbrowser|chromium|\bMCP\b|47821|47822/i);
   });
 
-  it("disables launch and shows the measured recovery remedy", () => {
+  it("routes a blocked launch to the measured recovery remedy", () => {
     const recovering: LocalLaunchReadiness = {
       ready: false,
       state: "recovery-pending",
@@ -80,7 +80,8 @@ describe("profile launch UI", () => {
       }),
     );
 
-    expect(markup).toContain("disabled");
+    expect(markup).toContain('href="/setup"');
+    expect(markup).toContain("Open setup");
     expect(markup).toContain("recovering a prior session");
   });
 });

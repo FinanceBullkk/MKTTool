@@ -43,9 +43,10 @@ describe("setup page composition", () => {
       "utf8",
     );
 
-    expect(source).toContain("Step 1: Download Relay");
-    expect(source).toContain("Step 2: Register this Relay PC");
-    expect(source).toContain("Step 3: Receive nicks and proxies");
+    expect(source).toContain('title="Install Relay"');
+    expect(source).toContain('title="Register this PC"');
+    expect(source).toContain('title="Confirm handoff"');
+    expect(source).toContain("I installed Relay - register this PC");
     expect(source).toContain('onDownloadRelay={() => selectStep(1)}');
     expect(source).toContain('id="register"');
     expect(source).toContain('id="handoff"');

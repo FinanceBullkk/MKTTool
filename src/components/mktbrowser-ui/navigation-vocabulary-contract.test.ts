@@ -10,7 +10,7 @@ describe("Phase 2 navigation and vocabulary contract", () => {
     const source = read("src/components/mktbrowser-ui/LeftRail.tsx");
 
     expect(source).toContain('{ href: "/accounts", icon: Users, label: "Nick vault" }');
-    expect(source).toContain("{item.label}</span>");
+    expect(source).toContain("{item.label}");
     expect(source).toContain('aria-current={active ? "page" : undefined}');
     expect(source).not.toContain("Kênh / Profiles");
   });
@@ -23,7 +23,8 @@ describe("Phase 2 navigation and vocabulary contract", () => {
     expect(home).toContain('type="search"');
     expect(home).toContain("profileMatchesSearchQuery(p, searchQuery)");
     expect(home).toContain('href="/accounts"');
-    expect(home).toContain("Team nick vault");
+    expect(home).toContain("Workspace overview");
+    expect(home).toContain("Manage nick vault");
     expect(topBar).not.toContain("Ctrl K");
     expect(topBar).not.toContain("<input");
     expect(topBar).not.toContain("runningCount");
@@ -41,7 +42,7 @@ describe("Phase 2 navigation and vocabulary contract", () => {
     const tiktokSheet = read("src/components/tiktok/new-tiktok-profile-sheet.tsx");
 
     expect(accounts).toContain('title="Nick vault"');
-    expect(setup).toContain("Relay PC setup");
+    expect(setup).toContain("Set up this Relay PC");
     expect(detail).toContain('"Browser profile"');
     expect(detail).toContain('"Relay PC"');
     expect(actions).toContain("Open browser profile");
