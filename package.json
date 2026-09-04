@@ -14,6 +14,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:critical-coverage": "vitest run --coverage",
+    "test:relay": "vitest run --config vitest.relay.config.mts",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "db:migrate": "prisma migrate dev",
