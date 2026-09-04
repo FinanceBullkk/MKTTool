@@ -12,6 +12,12 @@ part of what the team is asked to use. What remains in scope for the team is the
 proxy ownership, and Relay PC registry. Re-entering either platform is an explicit
 owner decision, not a default.
 
+The current interface is organized as an operations console: **Workspace overview** shows the team
+state and immediate next actions; **Nick vault**, **Proxy vault**, **Relay PCs**, and **Setup** hold
+the corresponding management work. Technical identifiers, checksums, compatibility controls, and
+destructive actions stay available behind labeled details so daily operation is not mixed with
+support and emergency work.
+
 **Current status, 1 September 2026:** the nick vault, Reddit/Facebook posting-safety pipeline,
 health checks, and Facebook Pages publisher are implemented (now out of rollout scope, see above).
 TikTok nick/browser-profile setup and manual

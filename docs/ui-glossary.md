@@ -1,6 +1,6 @@
 # UI glossary
 
-**Updated:** 4 September 2026
+**Updated:** 5 September 2026
 
 This glossary fixes the user-facing vocabulary for the identity workspace. It changes display
 copy only: Prisma models, database columns, TypeScript domain names, and routes keep their current
@@ -40,7 +40,9 @@ those software terms as another name for the PC itself.
 
 ## Scope labels
 
-- Use **Team nick vault** when a view contains every visible nick in the shared vault.
+- Use **Workspace overview** only for Home, where nick counts, local Relay PC state, and next actions
+  are summarized together.
+- Use **Nick vault** for `/accounts`, where every visible shared nick is managed.
 - Use **My nicks** (*nick của tôi*) only when the data is actually filtered to the current owner. Do not imply
   this scope from a team-wide query.
 - Use **browser profile** in browser-runtime actions such as create, open, transfer, or local
@@ -53,9 +55,9 @@ those software terms as another name for the PC itself.
 |---|---|
 | `Kênh / Profiles` on `/` | `Home` |
 | No `/accounts` navigation item | `Nick vault` |
-| `All profiles` | `Team nick vault` |
-| `New profile` | `Open nick vault` |
-| `No profiles yet` / `Create first profile` | `No nicks in the team vault` / `Open nick vault` |
+| `All profiles` | `Workspace overview` |
+| `New profile` | `Manage nick vault` |
+| `No profiles yet` / `Create first profile` | `No nicks match this view` / `Manage nick vault` |
 | Header `Search profiles, tags, urls...` | Home `Search nicks by username, voice, proxy, or notes...` |
 | Header `Ctrl K` shortcut badge | Removed until a real shortcut exists |
 | Header `running / total` summary | Removed; accurate nick and local browser profile counts stay inside Home |
@@ -65,15 +67,15 @@ those software terms as another name for the PC itself.
 | `Device` | `Relay PC` |
 | Fabricated fallback `Local PC` | `Relay PC not assigned` |
 | `running` / `idle` | `Open on this Relay PC` / `Not open on this Relay PC` |
-| `Thiết lập Máy Vận Hành (MKT Setup)` | `Relay PC setup` |
-| `Bước 2: Kết nối Relay hiện tại` | `Step 2: Register this Relay PC` |
+| `Thiết lập Máy Vận Hành (MKT Setup)` | `Set up this Relay PC` |
+| `Bước 2: Kết nối Relay hiện tại` | `Register this PC` |
 | `Tạo hồ sơ TikTok mới` | `Create TikTok nick` |
 | `Tên Profile / Kênh` | `Nick username` |
 | `Tạo profile & lưu cấu hình` | `Create TikTok nick` |
 | `Profile antidetect` / `Id profile antidetect` | `Browser profile` / `Browser profile ID` |
 | `Máy giữ profile` | `Relay PC` |
 | `Mở profile` | `Open browser profile` |
-| `Danh sách — N nick` | `Team nick vault - N nicks` |
+| `Danh sách — N nick` | `All nicks - N` |
 | `Chưa có nick nào` | `No nicks in the team vault` |
 | `Kiểm tra thao tác` | `Readiness` |
 | `Nền tảng` | `Platform` |
@@ -115,12 +117,13 @@ those software terms as another name for the PC itself.
 | `Loại` | `Type` |
 | `Ghi chú` | `Notes` |
 | `Tên` | `Name` |
-| `Máy chạy cầu nối` | `Relay PC registry` |
+| `Máy chạy cầu nối` | `Relay PCs` |
 | `Cầu nối` when naming the software | `Relay` |
 | `Khóa operator` | `Operator key` |
 | `Cấp khóa` / `Cấp lại khóa` | `Grant operator key` / `Grant operator key again` |
 | `Thu hồi máy` | `Revoke Relay PC` |
 | `Thêm Proxy` / `Sửa proxy` / `Xóa` | `Add proxy` / `Edit proxy` / `Delete proxy` |
+| `Proxies & Network` | `Proxy vault` |
 | `Chưa gắn Profile` / `Đang gắn Profile` | `Not assigned to a nick` / `Assigned to a nick` |
 | `Profile Đang Gắn` | `Assigned nick` |
 | `Dân cư tĩnh (ISP)` | `Static ISP` |

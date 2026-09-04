@@ -1,6 +1,6 @@
 # Lộ trình phát triển
 
-**Updated:** 3 September 2026
+**Updated:** 5 September 2026
 
 ## Rollout scope decision — 2 September 2026
 
@@ -11,11 +11,25 @@ registry; the 1 September Lane A GO stays a technical record and stops being a r
 nothing in code enforces the boundary. Detail and re-entry condition:
 [internal-beta-release.md](internal-beta-release.md).
 
+## Operator-console redesign — 5 September 2026
+
+The five in-scope surfaces now share one calm operations-console hierarchy: Home is a distinct
+**Workspace overview**, while **Nick vault**, **Proxy vault**, **Relay PCs**, and **Set up this Relay
+PC** each answer one operator question. Desktop navigation uses readable labels, mobile uses a
+bottom navigation bar, and the content width, typography, focus treatment, surfaces, and status
+colors are consistent across routes.
+
+Home and the vault tables keep one primary state and one next action visible. Secondary metadata,
+checksums, public keys, compatibility controls, and destructive Relay PC actions move behind
+explicit disclosure. Active and revoked Relay PCs are separated. This is presentation and
+information architecture only: routes, schema, authorization, ticket trust boundaries, setup state
+machine, and parked-platform scope are unchanged.
+
 ## UX navigation and vocabulary — 3 September 2026
 
 The Phase 2 UX work makes the current product boundary legible without changing data or rollout
 scope. The left rail exposes `/accounts` as **Nick vault** with permanent labels. Home now reads as
-the **Team nick vault**, routes its primary action to `/accounts`, and uses a working local search
+the **Workspace overview**, routes its primary action to `/accounts`, and uses a working local search
 over visible nick fields. The global search, `Ctrl K` badge, and global running/total counters were
 removed because they did not reflect real state.
 

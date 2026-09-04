@@ -1,6 +1,6 @@
 # Bản đồ mã nguồn
 
-**Cập nhật:** 3 September 2026
+**Cập nhật:** 5 September 2026
 
 Tài liệu dành cho người mới và AI agent định vị nhanh trong codebase — **code nằm ở đâu**.
 Hệ thống chạy ở đâu và phụ thuộc gì thì xem [system-architecture.md](system-architecture.md);
@@ -29,18 +29,19 @@ The license-key pool remains in the MKTBrowser desktop tree (`apps/desktop/src/m
 and is deliberately not a server-side secret store. These modules enforce operational isolation;
 none claims stealth, unique fingerprint identity, or vendor-level identity isolation.
 
-## UX handoff boundaries — 3 September 2026
+## UX handoff boundaries — 5 September 2026
 
 | Path | Responsibility |
 |---|---|
 | `src/lib/setup/setup-checklist.ts` and `workspace-setup-checklist.tsx` | separate identity-workspace handoff readiness from the parked posting checklist |
-| `src/app/setup/page.tsx`, `onboarding-stepper.tsx`, and `relay-download-section.tsx` | present the Relay-first journey (download, register, nick/proxy handoff), keep `#download` real, and leave Browser as secondary blocked-lane information |
+| `src/app/setup/page.tsx`, `onboarding-stepper.tsx`, and `relay-download-section.tsx` | present the Relay-first journey as three concise steps, keep `#download` real, collapse checksum detail, and leave Browser as secondary blocked-lane information |
 | `src/lib/auth/allowed-emails.ts`, `sign-in-error-messages.ts`, and `/login` | derive one administrator contact from `ADMIN_EMAILS`, keep operator copy non-technical, and send configuration detail to server logs |
-| `/proxies`, `proxy-console.tsx`, and `/accounts` | keep proxy creation ADMIN-only while giving OPERATOR an explicit waiting state and contact |
+| `/proxies`, `proxy-console.tsx`, and `/accounts` | use low-density decision tables, keep proxy creation ADMIN-only, and give OPERATOR an explicit waiting state and contact |
 | `src/lib/platforms/rollout-scope.ts` and `parked-scope-banner.tsx` | render friendly platform labels, state that parked routes are history-only, and point back to `/accounts` without changing the fail-closed scope gate |
 | `src/components/mktbrowser-ui/LeftRail.tsx` | expose the nick vault as a permanent `/accounts` destination and render every navigation label without requiring hover |
-| `src/components/mktbrowser-ui/Constellation.tsx` and `profile-list-state.ts` | present Home as the team nick vault, keep local browser profile state secondary, and apply the Home search to visible nick fields |
-| `src/components/mktbrowser-ui/TopBar.tsx` and `AppShell.tsx` | omit the non-working global search, `Ctrl K` promise, and untrustworthy global running/total counters |
+| `src/components/mktbrowser-ui/Constellation.tsx` and `profile-list-state.ts` | present Home as a workspace overview, keep one primary state and next action per nick, and apply search to visible nick fields |
+| `src/components/mktbrowser-ui/TopBar.tsx`, `LeftRail.tsx`, and `AppShell.tsx` | provide one responsive shell with labeled desktop navigation, mobile bottom navigation, and no false global controls |
+| `src/app/relay-devices/page.tsx` | separate active and revoked PCs while placing IDs, public keys, compatibility controls, and destructive actions behind disclosure |
 | `docs/ui-glossary.md` | define the display boundary between a nick record, a local browser profile, and a Relay PC without renaming models, columns, or routes |
 
 ## Shared-use safety — 3 September 2026
@@ -59,7 +60,7 @@ none claims stealth, unique fingerprint identity, or vendor-level identity isola
 src/
 ├── app/                        Next.js 16 App Router — trang và API route
 │   ├── layout.tsx              Layout gốc, font, metadata
-│   ├── page.tsx                Home team nick vault; loads visible nick records for Constellation
+│   ├── page.tsx                Workspace overview; loads visible nick records for Constellation
 │   ├── overview-alert-stack.tsx  Dải cảnh báo đầu trang Hôm nay — thứ tự mười khối là quyết
 │   │                             định nghiệp vụ (xếp theo mức độ KHÔNG gỡ lại được), nên chúng
 │   │                             nằm cạnh nhau trong một file thay vì mỗi khối một file
@@ -82,7 +83,7 @@ src/
 │   │                           nhắc việc đăng tay (Reddit + Group)
 │   ├── facebook/               Bảng Page: gán nick quản trị, kiểm token, ngắt kết nối
 │   ├── health/                 Bảng sức khỏe, nút dò lại, biểu đồ karma, quản lý proxy quan sát viên
-│   ├── mktbrowser-ui/          Dark nick-vault shell, visible rail labels, Home search, grid/table views, local browser profile inventory
+│   ├── mktbrowser-ui/          Dark operations shell, responsive navigation, Home search, nick cards, local browser profile inventory
 │   ├── relay/                  Nút thu hồi máy cầu nối (hỏi lại trước khi gạch tên)
 │   ├── tiktok/                 TikTok nick-creation sheet; browser profile remains separate local data and there is no TikTok posting pipeline
 │   └── content/                Form nhập content

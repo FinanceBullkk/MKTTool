@@ -18,6 +18,21 @@ the archive location.
 
 ---
 
+## 5 September 2026 — in-scope UI becomes a calm operations console
+
+- **Clear route ownership:** Home is now **Workspace overview**, separate from **Nick vault**.
+  **Proxy vault**, **Relay PCs**, and **Set up this Relay PC** each use the same page hierarchy,
+  content width, typography, surfaces, and responsive navigation.
+- **Lower decision density:** Home cards and vault tables keep one primary status and one next action
+  visible. Nick, proxy, ownership, Relay, and lifecycle data are grouped by operator decision instead
+  of exposed as long flat tables.
+- **Progressive disclosure:** proxy speed tests, Relay PC IDs and public keys, package checksums,
+  compatibility controls, manual registration, and destructive Relay PC actions remain available but
+  no longer compete with daily work.
+- **Behavior preserved:** routes, schema, permissions, setup state machine, ticket encryption,
+  ownership rules, and parked-platform scope are unchanged. Blocked profile launches now lead to the
+  relevant recovery surface instead of presenting a dead disabled control.
+
 ## 3 September 2026 — proxy reassignment becomes ADMIN-only and auditable
 
 - **PR #55 authorization decision closed:** `updateAccount` now requires ADMIN when the normalized
