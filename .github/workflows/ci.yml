@@ -301,7 +301,12 @@ jobs:
       # machine ever ran them.
       #
       # It runs before the executable build so a broken contract fails in seconds rather than
-      # after a SEA build. No Postgres: `relay/` has no database test.
+      # after a SEA build.
+      #
+      # Its own vitest config exists because the default one installs a global setup that resets a
+      # real Postgres schema. That setup runs unconditionally — filtering to `relay/` does not
+      # skip it — and a Windows runner has no Postgres, which is the same constraint that keeps
+      # `check` on Linux. `relay/` opens no database, so the lane drops the setup instead.
       - name: Run the Relay suite on Windows, where its guarded tests are not skipped
         run: npm run test:relay
 
