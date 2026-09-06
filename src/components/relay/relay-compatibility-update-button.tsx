@@ -14,6 +14,8 @@ import {
   planCompatibilityUpdate,
   type CompatibilityUpdatePlan,
 } from "@/lib/release/compatibility-update-plan";
+import { useLocalRelayPing } from "@/components/relay/relay-local-identity-provider";
+import { relayDeviceLocality } from "@/lib/relay/relay-device-locality";
 import { RelayCompatibilityUpdateConfirmation } from "./relay-compatibility-update-confirmation";
 
 type ConfirmationPlan = Extract<CompatibilityUpdatePlan, { status: "confirm" }>;
@@ -32,6 +34,12 @@ export function RelayCompatibilityUpdateButton({
   const [confirmation, setConfirmation] = useState<ConfirmationPlan | null>(null);
   const [typedName, setTypedName] = useState("");
   const [pending, startTransition] = useTransition();
+  // This only controls rendering; `inspect()` performs the authoritative check.
+  const locality = relayDeviceLocality(useLocalRelayPing(), {
+    deviceId,
+    publicKey: devicePublicKey,
+    deviceName,
+  });
 
   async function inspect(ping: ReturnType<typeof pingRelay>): Promise<Inspection> {
     const health = await ping;
@@ -175,16 +183,25 @@ export function RelayCompatibilityUpdateButton({
     );
   }
 
+  if (locality.state === "elsewhere") {
+    return <p className="text-xs leading-5 text-neutral-500">{locality.note}</p>;
+  }
+
   return (
     <div className="space-y-2 text-right">
       <button
         type="button"
-        disabled={pending}
+        disabled={pending || locality.state === "checking"}
         onClick={prepare}
         className={SMALL_BUTTON_CLASS}
       >
-        {pending ? "Checking compatibility set..." : "Update / repair compatibility set"}
+        {pending || locality.state === "checking"
+          ? "Checking compatibility set..."
+          : "Update / repair compatibility set"}
       </button>
+      {locality.state === "unverified" ? (
+        <p className="text-xs leading-5 text-neutral-500">{locality.note}</p>
+      ) : null}
       {result ? (
         <p className={result.ok ? "text-xs text-emerald-300" : "text-xs text-red-300"}>
           {result.message}

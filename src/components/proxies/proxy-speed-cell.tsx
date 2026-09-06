@@ -24,7 +24,7 @@ export function ProxySpeedCell({
   detail: string | null;
 }) {
   if (!measuredAt) {
-    return <span className="text-xs text-neutral-500">never measured</span>;
+    return <span className="text-sm text-neutral-400">Never measured</span>;
   }
 
   const grade = mbps === null ? "UNKNOWN" : gradeBandwidth(mbps);
@@ -35,7 +35,7 @@ export function ProxySpeedCell({
         label={mbps === null ? BANDWIDTH_LABEL.UNKNOWN : formatMbps(mbps)}
         className={BANDWIDTH_CLASS[grade]}
       />
-      <div className="text-xs text-neutral-500">
+      <div className="text-sm text-neutral-400">
         {formatDayMonthTime(measuredAt)}
         {mbps === null ? "" : ` · ${BANDWIDTH_LABEL[grade]}`}
       </div>

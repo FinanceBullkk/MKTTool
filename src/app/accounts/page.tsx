@@ -1,8 +1,10 @@
 import Link from "next/link";
-import { CircleCheck, Network, UserPlus, UsersRound } from "lucide-react";
+import { CircleCheck, Monitor, Network, UserPlus, UserRound, UsersRound } from "lucide-react";
+import { InlineDisclosure } from "@/components/ui/inline-disclosure";
 import {
   Card,
   DataTable,
+  Disclosure,
   EmptyState,
   PageHeading,
   PageShell,
@@ -98,9 +100,7 @@ export default async function AccountsPage() {
             headers={[
               "Nick",
               "Readiness",
-              "Owner & Relay PC",
-              "Proxy",
-              "Lifecycle",
+              "Assignment",
               "",
             ]}
           >
@@ -118,55 +118,68 @@ export default async function AccountsPage() {
                     >
                       {account.username}
                     </Link>
-                    <span className="mt-1 block text-xs uppercase tracking-wide text-neutral-500">
+                    <span className="mt-1 block text-xs uppercase tracking-wide text-neutral-400">
                       {account.platform}
                     </span>
+                    <InlineDisclosure summary="Lifecycle details" className="mt-1">
+                      <div className="space-y-2">
+                        <StatusBadge label={presentation.label} className={presentation.className} />
+                        {coldDays > 0 ? (
+                          <p className="text-sm text-neutral-500">
+                            Cold start: {coldDays} days remaining
+                          </p>
+                        ) : null}
+                        <p className="text-sm text-neutral-500">
+                          {age === null ? "Age not recorded" : `${age} days old`} · {account.karma} karma
+                        </p>
+                      </div>
+                    </InlineDisclosure>
                   </td>
                   <td className="py-3 pr-4 align-top">
                     <AccountReadinessCell readiness={describeAccountReadiness(account)} />
                   </td>
-                  <td className="py-3 pr-4 align-top text-sm text-neutral-300">
-                    <span className="block">
-                      {account.owner?.email ?? "Owner not assigned"}
-                      {account.ownerId === viewer?.userId ? (
-                        <span className="ml-1 text-xs font-medium text-emerald-400">(you)</span>
-                      ) : null}
-                    </span>
-                    <span
-                      className={`mt-1 block text-xs ${
-                        account.device?.revokedAt ? "text-red-400" : "text-neutral-500"
-                      }`}
-                    >
-                      {account.device
-                        ? `${account.device.name}${account.device.revokedAt ? " (revoked)" : ""}`
-                        : "Relay PC not assigned"}
-                    </span>
-                  </td>
                   <td className="py-3 pr-4 align-top">
-                    <span className="block font-medium text-neutral-200">
-                      {account.proxy ? account.proxy.label : "Proxy not assigned"}
-                    </span>
-                    <span className="mt-1 block font-mono text-xs text-neutral-500">
-                      {account.proxy?.country ?? "Required before launch"}
-                    </span>
-                  </td>
-                  <td className="py-3 pr-4 align-top">
-                    <StatusBadge label={presentation.label} className={presentation.className} />
-                    {coldDays > 0 ? (
-                      <span className="mt-1 block text-xs text-neutral-500">
-                        Cold start: {coldDays} days remaining
-                      </span>
-                    ) : null}
-                    <span className="mt-1 block text-xs text-neutral-500">
-                      {age === null ? "Age not recorded" : `${age} days old`} · {account.karma} karma
-                    </span>
+                    <div className="space-y-2.5 text-sm">
+                      <div className="flex min-w-0 items-start gap-2 text-neutral-300">
+                        <UserRound size={15} className="mt-0.5 shrink-0 text-neutral-600" aria-hidden="true" />
+                        <span className="min-w-0 break-all">
+                          <span className="sr-only">Nick owner: </span>
+                          {account.owner?.email ?? "Owner not assigned"}
+                          {account.ownerId === viewer?.userId ? (
+                            <span className="ml-1 text-xs font-medium text-emerald-400">(you)</span>
+                          ) : null}
+                        </span>
+                      </div>
+                      <div
+                        className={`flex items-start gap-2 ${
+                          account.device?.revokedAt ? "text-red-400" : "text-neutral-400"
+                        }`}
+                      >
+                        <Monitor size={15} className="mt-0.5 shrink-0 text-neutral-600" aria-hidden="true" />
+                        <span>
+                          <span className="sr-only">Relay PC: </span>
+                          {account.device
+                            ? `${account.device.name}${account.device.revokedAt ? " (revoked)" : ""}`
+                            : "Relay PC not assigned"}
+                        </span>
+                      </div>
+                      <div className="flex items-start gap-2 text-neutral-400">
+                        <Network size={15} className="mt-0.5 shrink-0 text-neutral-600" aria-hidden="true" />
+                        <span>
+                          <span className="sr-only">Proxy: </span>
+                          {account.proxy
+                            ? `${account.proxy.label} · ${account.proxy.country}`
+                            : "Proxy not assigned"}
+                        </span>
+                      </div>
+                    </div>
                   </td>
                   <td className="py-3 text-right align-top">
                     <Link
                       href={`/accounts/${account.id}`}
-                      className="inline-flex min-h-11 items-center rounded-xl border border-white/10 px-3 text-xs font-semibold text-neutral-200 hover:border-amber-400/40 hover:text-amber-200"
+                      className="inline-flex min-h-11 items-center rounded-xl border border-white/10 px-3 text-sm font-semibold text-neutral-200 hover:border-amber-400/40 hover:text-amber-200"
                     >
-                      Open
+                      Open nick
                     </Link>
                   </td>
                 </tr>
@@ -198,33 +211,27 @@ export default async function AccountsPage() {
             )}
           </EmptyState>
         ) : (
-          <details className="group rounded-xl border border-white/[0.08] bg-black/10">
-            <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between px-4 text-sm font-semibold text-neutral-200 marker:content-none">
-              Create a browser-backed nick
-              <span className="text-lg text-neutral-500 transition-transform group-open:rotate-45">+</span>
-            </summary>
-            <div className="border-t border-white/[0.08] p-4 sm:p-5">
-              <AccountVaultForm action={createAccount} submitLabel="Add nick">
-                <AccountFormFields
-                  proxies={freeProxies.map((proxy) => ({
-                    id: proxy.id,
-                    label: `${proxy.label} - ${proxy.country}`,
-                  }))}
-                  defaultColdStartUntil={defaultColdStartUntil}
-                  viewer={
-                    viewer
-                      ? {
-                          userId: viewer.userId,
-                          email: viewer.email,
-                          isAdmin: viewer.role === "ADMIN",
-                        }
-                      : undefined
-                  }
-                  teamMembers={teamMembers}
-                />
-              </AccountVaultForm>
-            </div>
-          </details>
+          <Disclosure summary="Create a browser-backed nick">
+            <AccountVaultForm action={createAccount} submitLabel="Add nick">
+              <AccountFormFields
+                proxies={freeProxies.map((proxy) => ({
+                  id: proxy.id,
+                  label: `${proxy.label} - ${proxy.country}`,
+                }))}
+                defaultColdStartUntil={defaultColdStartUntil}
+                viewer={
+                  viewer
+                    ? {
+                        userId: viewer.userId,
+                        email: viewer.email,
+                        isAdmin: viewer.role === "ADMIN",
+                      }
+                    : undefined
+                }
+                teamMembers={teamMembers}
+              />
+            </AccountVaultForm>
+          </Disclosure>
         )}
       </Card>
     </PageShell>

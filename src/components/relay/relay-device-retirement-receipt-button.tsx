@@ -9,18 +9,28 @@ import {
   pingRelay,
 } from "@/lib/relay/relay-browser-client";
 import { issueRelayDeviceRetirementFinalization } from "@/lib/retirement/relay-device-retirement-actions";
+import { useLocalRelayPing } from "@/components/relay/relay-local-identity-provider";
+import { relayDeviceLocality } from "@/lib/relay/relay-device-locality";
 
 export function RelayDeviceRetirementReceiptButton({
   deviceId,
+  deviceName,
   devicePublicKey,
   retirementId,
 }: {
   deviceId: string;
+  deviceName: string;
   devicePublicKey: string;
   retirementId: string;
 }) {
   const [pending, startTransition] = useTransition();
   const [result, setResult] = useState<ActionResult | null>(null);
+  // The receipt lives on that PC, so this action is meaningful only from the same machine.
+  const locality = relayDeviceLocality(useLocalRelayPing(), {
+    deviceId,
+    publicKey: devicePublicKey,
+    deviceName,
+  });
 
   function finishLocalReceipt() {
     const ping = pingRelay();
@@ -74,16 +84,27 @@ export function RelayDeviceRetirementReceiptButton({
     });
   }
 
+  if (locality.state === "elsewhere") {
+    return (
+      <p className="text-xs leading-5 text-neutral-500">
+        The cleanup receipt is stored on {deviceName}. Check it from that PC.
+      </p>
+    );
+  }
+
   return (
     <div className="space-y-2 text-right">
       <button
         type="button"
-        disabled={pending}
+        disabled={pending || locality.state === "checking"}
         onClick={finishLocalReceipt}
         className={SMALL_BUTTON_CLASS}
       >
-        {pending ? "Checking this PC..." : "Check local receipt"}
+        {pending || locality.state === "checking" ? "Checking this PC..." : "Check local receipt"}
       </button>
+      {locality.state === "unverified" ? (
+        <p className="text-xs leading-5 text-neutral-500">{locality.note}</p>
+      ) : null}
       {result ? (
         <p className={result.ok ? "text-xs text-emerald-300" : "text-xs text-red-300"}>
           {result.message}

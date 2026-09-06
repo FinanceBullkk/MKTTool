@@ -72,14 +72,28 @@ describe("hợp đồng sàn coverage đường trọng yếu", () => {
     // fresh VM that is discarded afterwards, and the hosted Ubuntu image supplies what the
     // self-hosted box was relied on for: Docker for the Postgres service containers, `psql`, and
     // the GitHub CLI.
-    const workflow = read(".github/workflows/ci.yml");
-    expect(workflow).not.toMatch(/\bself-hosted\b/);
+    const workflows = [
+      read(".github/workflows/ci.yml"),
+      read(".github/workflows/secret-scan.yml"),
+    ];
+    const workflowSource = workflows.join("\n");
+    expect(workflowSource).not.toMatch(/\bself-hosted\b/);
 
-    const runsOn = [...workflow.matchAll(/^\s*runs-on:\s*(.+)$/gm)].map((match) => match[1]);
+    const runsOn = [...workflowSource.matchAll(/^\s*runs-on:\s*(.+)$/gm)].map((match) => match[1]);
     // `check`, `contracts`, `secret-scan`, `dependency-audit`, and post-merge deployment
     // verification are Linux lanes; the packaged Relay acceptance job is the single Windows lane.
     expect(runsOn).toHaveLength(6);
     expect(runsOn.filter((value) => value === "ubuntu-latest")).toHaveLength(5);
     expect(runsOn.filter((value) => value === "windows-latest")).toHaveLength(1);
+  });
+
+  // Deliberately reads only code and workflow files, never README. `ci.yml` skips a run when every
+  // changed file is documentation, and it justifies that filter by promising no test reads
+  // repository documentation. A README assertion here would quietly void that promise: a README-only
+  // edit would skip CI, merge, and then fail the next unrelated pull request with an error about a
+  // file that pull request never touched.
+  it("keeps the application and Relay build on the same Node major", () => {
+    expect(read(".github/workflows/ci.yml")).toContain("node-version: 24");
+    expect(read("scripts/build-relay-executable.ts")).toContain("Node 24");
   });
 });

@@ -22,7 +22,7 @@ export function ProxyLastCheckCell({
   exitIp: string | null;
 }) {
   if (!verdict || !checkedAt) {
-    return <span className="text-xs text-neutral-500">never checked</span>;
+    return <span className="text-sm text-neutral-400">Never checked</span>;
   }
 
   const known = (PROXY_CHECK_LABEL as Record<string, string>)[verdict] !== undefined;
@@ -34,7 +34,7 @@ export function ProxyLastCheckCell({
         label={known ? PROXY_CHECK_LABEL[key] : verdict}
         className={known ? PROXY_CHECK_CLASS[key] : PROXY_CHECK_CLASS.UNKNOWN}
       />
-      <div className="text-xs text-neutral-500">
+      <div className="text-sm text-neutral-400">
         {formatDayMonthTime(checkedAt)}
         {exitIp ? ` · ra ${exitIp}` : ""}
       </div>

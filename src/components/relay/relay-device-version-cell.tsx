@@ -46,7 +46,7 @@ export function RelayDeviceVersionCell({
   return (
     <>
       <StatusBadge label={status.label} className={TONE_CLASS[status.tone]} />
-      <span className="mt-1 block text-xs text-neutral-500">{status.detail}</span>
+      <span className="mt-1 block text-sm leading-5 text-neutral-400">{status.detail}</span>
     </>
   );
 }

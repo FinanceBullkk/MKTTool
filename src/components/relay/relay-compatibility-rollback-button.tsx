@@ -9,6 +9,8 @@ import {
   rollbackRelayCompatibility,
 } from "@/lib/relay/relay-browser-client";
 import { issueCompatibilityRollbackAuthorization } from "@/lib/release/compatibility-rollback-actions";
+import { useLocalRelayPing } from "@/components/relay/relay-local-identity-provider";
+import { relayDeviceLocality } from "@/lib/relay/relay-device-locality";
 
 export function RelayCompatibilityRollbackButton({
   deviceId,
@@ -23,6 +25,12 @@ export function RelayCompatibilityRollbackButton({
   const [confirmation, setConfirmation] = useState("");
   const [result, setResult] = useState<ActionResult | null>(null);
   const [pending, startTransition] = useTransition();
+  // This only controls rendering; `rollback()` performs the authoritative check.
+  const locality = relayDeviceLocality(useLocalRelayPing(), {
+    deviceId,
+    publicKey: devicePublicKey,
+    deviceName,
+  });
 
   function rollback() {
     const ping = pingRelay();
@@ -92,19 +100,26 @@ export function RelayCompatibilityRollbackButton({
   }
 
   if (!armed) {
+    if (locality.state === "elsewhere") {
+      return <p className="text-xs leading-5 text-neutral-500">{locality.note}</p>;
+    }
+
     return (
       <div className="space-y-2 text-right">
         <button
           type="button"
-          disabled={pending}
+          disabled={pending || locality.state === "checking"}
           onClick={() => {
             setResult(null);
             setArmed(true);
           }}
           className={SMALL_BUTTON_CLASS}
         >
-          Roll back compatibility set
+          {locality.state === "checking" ? "Checking this PC..." : "Roll back compatibility set"}
         </button>
+        {locality.state === "unverified" ? (
+          <p className="text-xs leading-5 text-neutral-500">{locality.note}</p>
+        ) : null}
         {result ? (
           <p className={result.ok ? "text-xs text-emerald-300" : "text-xs text-red-300"}>
             {result.message}

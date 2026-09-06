@@ -11,7 +11,7 @@ const { existsSync, lstatSync, readdirSync, readFileSync } = require("node:fs");
 const path = require("node:path");
 const { emitGate } = require("./gate-status.cjs");
 
-const DEFAULT_ROOTS = ["plans", "src", "relay", "scripts", ".github"];
+const DEFAULT_ROOTS = ["plans", "docs", "src", "relay", "scripts", ".github"];
 const IGNORED_DIRS = new Set([".git", "node_modules", ".next", "dist", "coverage", "data"]);
 const MAX_FILE_BYTES = 5 * 1024 * 1024;
 const RULES = [
@@ -31,21 +31,36 @@ const RULES = [
   { name: "bearer-token", pattern: /\bAuthorization\s*:\s*Bearer\s+[A-Za-z0-9._~-]{20,}/i },
 ];
 
-function safeFixture(line, ruleName) {
-  if (ruleName === "aws-access-key" && line.includes("AKIAIOSFODNN7EXAMPLE")) return true;
+function hasPlaceholderPassword(value) {
+  const match = value.match(/^[a-z][a-z0-9+.-]*:\/\/[^\s:@/]+:([^\s@/]+)@/i);
+  const password = match?.[1];
+  return Boolean(
+    password &&
+      (/^<[^<>]+>$/.test(password) || /^\$\{\{[^{}]+\}\}$/.test(password)),
+  );
+}
+
+function safeFixture(value, ruleName) {
+  if (ruleName === "aws-access-key" && value.includes("AKIAIOSFODNN7EXAMPLE")) return true;
   if (ruleName === "credentialed-database-url") {
     // Local examples and CI-only credentials are intentionally non-production and are safe to
     // retain. Remote/provider URLs with a concrete password remain findings.
-    if (/\.example(?:\.|$)|\.invalid(?:\.|$)/i.test(line)) return true;
-    if (/\$\{\{|<[^>]+>/.test(line)) return true;
+    if (/\.example(?:\.|$)|\.invalid(?:\.|$)/i.test(value)) return true;
+    if (hasPlaceholderPassword(value)) return true;
     if (
-      /localhost|127\.0\.0\.1|shortline\.proxy\.rlwy\.net/i.test(line) &&
-      /:(?:postgres|matkhau|mật_khẩu|p%40ss%2Fword|p)@/i.test(line)
+      /localhost|127\.0\.0\.1|shortline\.proxy\.rlwy\.net/i.test(value) &&
+      /:(?:postgres|matkhau|mật_khẩu|p%40ss%2Fword|p)@/i.test(value)
     ) return true;
   }
-  if (ruleName === "credentialed-proxy-url" && /\.example(?:\.|$)|\.invalid(?:\.|$)/i.test(line)) return true;
-  if (ruleName === "credentialed-proxy-url" && /user:pass@host|<[^>]+>/.test(line)) return true;
+  if (ruleName === "credentialed-proxy-url" && /\.example(?:\.|$)|\.invalid(?:\.|$)/i.test(value)) return true;
+  if (ruleName === "credentialed-proxy-url" && (/user:pass@host/.test(value) || hasPlaceholderPassword(value))) return true;
   return false;
+}
+
+function lineContainsFinding(line, rule) {
+  const flags = rule.pattern.flags.includes("g") ? rule.pattern.flags : `${rule.pattern.flags}g`;
+  const matcher = new RegExp(rule.pattern.source, flags);
+  return [...line.matchAll(matcher)].some((match) => !safeFixture(match[0], rule.name));
 }
 
 function parseRoots(argv) {
@@ -88,14 +103,13 @@ function scanFile(filePath, findings, errors) {
     const lines = text.split(/\r?\n/);
     lines.forEach((line, index) => {
       for (const rule of RULES) {
-        if (rule.pattern.test(line) && !safeFixture(line, rule.name)) {
+        if (lineContainsFinding(line, rule)) {
           findings.push({
             path: path.relative(process.cwd(), filePath).replaceAll(path.sep, "/"),
             line: index + 1,
             rule: rule.name,
           });
         }
-        rule.pattern.lastIndex = 0;
       }
     });
   } catch {

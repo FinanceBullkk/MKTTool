@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 
 export const SMALL_BUTTON_CLASS =
-  "inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-white/[0.1] px-3 text-xs font-semibold text-neutral-300 transition-colors hover:border-amber-400/35 hover:bg-amber-400/[0.06] hover:text-amber-200 active:bg-amber-400/[0.1] disabled:cursor-not-allowed disabled:opacity-40";
+  "inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-white/[0.1] px-3 text-sm font-semibold text-neutral-300 transition-colors hover:border-amber-400/35 hover:bg-amber-400/[0.06] hover:text-amber-200 active:bg-amber-400/[0.1] disabled:cursor-not-allowed disabled:opacity-40";
 
 export const PRIMARY_BUTTON_CLASS =
   "brand-btn inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-40";
@@ -60,7 +60,7 @@ export function PageHeading({
             {title}
           </h1>
           {description ? (
-            <p className="mt-1.5 max-w-[68ch] text-pretty text-sm leading-5 text-neutral-400">
+            <p className="mt-1.5 max-w-[68ch] text-pretty text-[0.9375rem] leading-6 text-neutral-400">
               {description}
             </p>
           ) : null}
@@ -108,16 +108,16 @@ export function Card({
   return (
     <section className={`app-surface mb-5 rounded-2xl p-4 sm:p-5 ${toneClass}`}>
       {title || description || action ? (
-        <div className="mb-4 flex items-start gap-3 border-b border-white/[0.07] pb-3.5">
+        <div className="mb-5 flex items-start gap-3 border-b border-white/[0.07] pb-4">
           {Icon ? (
             <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/[0.045] text-neutral-300">
               <Icon size={16} strokeWidth={1.8} aria-hidden="true" />
             </span>
           ) : null}
           <div className="min-w-0 flex-1">
-            {title ? <h2 className="text-sm font-semibold text-white">{title}</h2> : null}
+            {title ? <h2 className="text-base font-semibold text-white">{title}</h2> : null}
             {description ? (
-              <p className="mt-1 max-w-3xl text-xs leading-5 text-neutral-500">{description}</p>
+              <p className="mt-1 max-w-3xl text-sm leading-5 text-neutral-400">{description}</p>
             ) : null}
           </div>
           {action ? <div className="shrink-0">{action}</div> : null}
@@ -172,8 +172,8 @@ export function Disclosure({
   className?: string;
 }) {
   return (
-    <details className={`group rounded-xl border border-white/[0.08] bg-black/10 ${className}`}>
-      <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 px-4 text-sm font-medium text-neutral-300 marker:content-none">
+    <details className={`group border-t border-white/[0.08] ${className}`}>
+      <summary className="flex min-h-12 cursor-pointer list-none items-center gap-2 px-1 text-sm font-medium text-neutral-300 transition-colors hover:text-white marker:content-none">
         {Icon ? <Icon size={16} className="text-neutral-500" aria-hidden="true" /> : null}
         <span className="min-w-0 flex-1">{summary}</span>
         <ChevronDown
@@ -182,7 +182,9 @@ export function Disclosure({
           aria-hidden="true"
         />
       </summary>
-      <div className="border-t border-white/[0.07] p-4 text-sm text-neutral-400">{children}</div>
+      <div className="border-t border-white/[0.055] px-1 py-4 text-sm text-neutral-400">
+        {children}
+      </div>
     </details>
   );
 }
@@ -211,8 +213,8 @@ export function DataTable({
 }) {
   return (
     <div className="responsive-data-table overflow-x-auto">
-      <table className="w-full min-w-[42rem] text-left text-sm">
-        <thead className="border-b border-white/[0.08] text-xs text-neutral-500">
+      <table className="w-full min-w-[40rem] text-left text-[0.9375rem] leading-5">
+        <thead className="border-b border-white/[0.08] text-[0.6875rem] uppercase tracking-[0.08em] text-neutral-400">
           <tr>
             {headers.map((header) => (
               <th key={header} className="pb-3 pr-4 font-medium">

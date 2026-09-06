@@ -14,6 +14,8 @@ import {
   beginRelayDeviceRetirement,
   completeRelayDeviceRetirement,
 } from "@/lib/retirement/relay-device-retirement-actions";
+import { useLocalRelayPing } from "@/components/relay/relay-local-identity-provider";
+import { relayDeviceLocality } from "@/lib/relay/relay-device-locality";
 
 export function RelayDeviceRetirementButton({
   deviceId,
@@ -28,6 +30,15 @@ export function RelayDeviceRetirementButton({
   const [confirmation, setConfirmation] = useState("");
   const [result, setResult] = useState<ActionResult | null>(null);
   const [pending, startTransition] = useTransition();
+  /**
+   * This only controls rendering. `retire()` still performs the authoritative check because this
+   * browser-derived lookup has no user activation and must never authorize retirement.
+   */
+  const locality = relayDeviceLocality(useLocalRelayPing(), {
+    deviceId,
+    publicKey: devicePublicKey,
+    deviceName,
+  });
 
   function retire() {
     const ping = pingRelay();
@@ -187,19 +198,27 @@ export function RelayDeviceRetirementButton({
     );
   }
 
+  // Hide an action that is known to be on another PC instead of rejecting it after confirmation.
+  if (locality.state === "elsewhere") {
+    return <p className="text-xs leading-5 text-neutral-500 md:text-right">{locality.note}</p>;
+  }
+
   return (
     <div className="space-y-2 text-right">
       <button
         type="button"
-        disabled={pending}
+        disabled={pending || locality.state === "checking"}
         onClick={() => {
           setResult(null);
           setArmed(true);
         }}
         className={DANGER_BUTTON_CLASS}
       >
-        Retire this PC
+        {locality.state === "checking" ? "Checking this PC..." : "Retire this PC"}
       </button>
+      {locality.state === "unverified" ? (
+        <p className="text-xs leading-5 text-neutral-500">{locality.note}</p>
+      ) : null}
       {result ? (
         <p className={result.ok ? "text-xs text-emerald-300" : "text-xs text-red-300"}>
           {result.message}

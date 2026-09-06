@@ -185,20 +185,6 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
           exit 1
 
-  # Scan the source/evidence trees without printing matched values. `plans/` is workspace-level and
-  # may not be present in a repository-only checkout; the scanner records that scope explicitly.
-  secret-scan:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-      - name: Scan source and evidence for high-confidence secrets
-        run: node scripts/ci/secret-scan.cjs --root=plans --root=src --root=relay --root=scripts --root=.github
-
   # Fail on published advisories against what this app actually ships.
   #
   # Why this job exists - 4 September 2026. Three high-severity advisories landed against

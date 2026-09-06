@@ -25,6 +25,11 @@ explicit disclosure. Active and revoked Relay PCs are separated. This is present
 information architecture only: routes, schema, authorization, ticket trust boundaries, setup state
 machine, and parked-platform scope are unchanged.
 
+A second hierarchy pass removes the remaining table-inside-card treatment from the Relay PC
+registry: each active PC now has one summary row, key work is not duplicated in a separate warning
+table, and revoked PCs stay collapsed as history. Nick lifecycle fields and proxy endpoint details
+are also folded by default, reducing the daily index views to the decisions operators actually make.
+
 The same system now covers the parked Content, Queue, Facebook, Targets, and Health routes so an
 operator never changes visual grammar when opening historical data. Shared forms, confirmations,
 error/empty states, and secure profile handoff use icon-led summaries and reveal long recovery or

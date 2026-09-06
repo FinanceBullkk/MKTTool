@@ -39,16 +39,18 @@ export function SummaryMetric({
   const palette = TONES[tone];
 
   return (
-    <article className={`app-surface relative overflow-hidden rounded-xl p-3.5 sm:p-4 ${palette.wash}`}>
-      <div className="flex items-center justify-between gap-3">
-        <span className={`flex h-9 w-9 items-center justify-center rounded-lg border ${palette.icon}`}>
-          <Icon size={17} strokeWidth={1.8} />
+    <article className={`relative overflow-hidden rounded-xl px-3 py-3 sm:px-4 ${palette.wash}`}>
+      <div className="flex items-center gap-3">
+        <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border ${palette.icon}`}>
+          <Icon size={17} strokeWidth={1.8} aria-hidden="true" />
         </span>
-        <strong className={`font-mono text-2xl font-semibold tabular-nums ${palette.value}`}>
-          {value}
-        </strong>
+        <div className="min-w-0">
+          <strong className={`block font-mono text-xl font-semibold leading-none tabular-nums ${palette.value}`}>
+            {value}
+          </strong>
+          <p className="mt-1.5 truncate text-xs font-medium text-neutral-400">{label}</p>
+        </div>
       </div>
-      <p className="mt-3 text-xs font-medium text-neutral-400">{label}</p>
     </article>
   );
 }

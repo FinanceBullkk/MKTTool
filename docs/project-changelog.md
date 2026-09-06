@@ -18,8 +18,20 @@ the archive location.
 
 ---
 
+## 6 September 2026 — documentation joins the secret gate
+
+- The local and hosted secret scan now cover `docs/` as well as source, scripts, workflow files,
+  and plan evidence. The hosted scan has its own inexpensive workflow, so documentation-only
+  changes remain protected without starting the database, coverage, build, or Windows Relay jobs.
+- Credential-shaped documentation examples use explicit placeholders, and collected regression
+  tests prove both non-leaking findings and the Relay PC locality rendering contract.
+
 ## 5 September 2026 — the web UI becomes a calm operations console
 
+- **Hierarchy follow-up:** the Relay PC registry replaces its five-column table and nested technical
+  cards with one scan-first row per PC. Key actions appear once, technical and maintenance controls
+  stay collapsed, and revoked PCs become a closed historical section. Nick and proxy indexes reduce
+  visible columns, fold lifecycle and endpoint data, and use the same larger action and section type.
 - **Desktop scale is bounded:** the full signed-in shell now centers inside a 1600px canvas with
   black outer gutters on wider displays. Pages, alerts, and the top bar share a narrower 1152px
   content frame, while tablet and mobile layouts still use the full viewport without root overflow.

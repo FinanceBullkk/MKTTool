@@ -13,6 +13,13 @@
  * nổi; trang web cầm hộp và cũng mở không nổi. Đó là ranh giới của GĐ3, và nó được giữ bằng chỗ
  * đặt phép mã hóa chứ không bằng lời hứa của giao diện.
  *
+ * ## Why this button deliberately ignores row locality
+ *
+ * Other local-only actions use `relayDeviceLocality` because they operate on the selected PC's
+ * disk. This action instead asks the operator's current Relay to seal a grant for the selected
+ * recipient public key. Restricting it to the selected row's PC would hide the action where it is
+ * specifically intended to work.
+ *
  * ## `pingRelay()` ở dòng đầu, không await
  *
  * Ràng buộc 1 của spike GĐ0: lời gọi đầu tiên xuống `127.0.0.1` trên mỗi máy phải mang kích hoạt

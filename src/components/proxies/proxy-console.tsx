@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Gauge, Link2, Plus, Search, Server, TriangleAlert } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Flag } from "@/components/mktbrowser-ui/Atoms";
+import { InlineDisclosure } from "@/components/ui/inline-disclosure";
 import { Card, DataTable, EmptyState, PageHeading, PageShell } from "@/components/ui/page-section";
 import { SummaryMetric } from "@/components/ui/summary-metric";
 import { CheckAllProxiesButton, CheckOneProxyButton } from "./proxy-check-controls";
@@ -173,7 +174,7 @@ export function ProxyConsole({
             )}
           </EmptyState>
         ) : (
-          <DataTable headers={["Proxy", "Assignment", "Health", "Speed", "Action"]}>
+          <DataTable headers={["Proxy", "Assignment", "Network health", "Action"]}>
             {filtered.map((proxy) => (
               <tr key={proxy.id}>
                     <td className="py-4 pr-4 align-top">
@@ -186,12 +187,19 @@ export function ProxyConsole({
                           >
                             {proxy.label}
                           </Link>
-                          <span className="mt-1 block font-mono text-xs text-neutral-500">
-                            {proxy.host}:{proxy.port}
+                          <span className="mt-1 block text-sm text-neutral-400">
+                            {proxy.country}
                           </span>
-                          <span className="mt-1 block text-xs uppercase tracking-wide text-neutral-600">
-                            {proxy.protocol} / {proxy.type}
-                          </span>
+                          <InlineDisclosure summary="Connection details" className="mt-1">
+                            <div className="space-y-1.5">
+                              <code className="block break-all font-mono text-xs text-neutral-300">
+                                {proxy.host}:{proxy.port}
+                              </code>
+                              <p className="text-xs uppercase tracking-wide text-neutral-600">
+                                {proxy.protocol} / {proxy.type}
+                              </p>
+                            </div>
+                          </InlineDisclosure>
                         </div>
                       </div>
                     </td>
@@ -201,7 +209,7 @@ export function ProxyConsole({
                           <span className="block font-medium text-neutral-200">
                             {proxy.account.username}
                           </span>
-                          <span className="mt-1 block text-xs uppercase tracking-wide text-neutral-500">
+                          <span className="mt-1 block text-xs uppercase tracking-wide text-neutral-400">
                             {proxy.account.platform}
                           </span>
                         </>
@@ -210,37 +218,40 @@ export function ProxyConsole({
                       )}
                     </td>
                     <td className="py-4 pr-4 align-top">
-                      <ProxyLastCheckCell
-                        verdict={proxy.lastCheckVerdict}
-                        checkedAt={proxy.lastCheckedAt}
-                        exitIp={proxy.lastExitIp}
-                      />
-                    </td>
-                    <td className="py-4 pr-4 align-top">
-                      <ProxySpeedCell
-                        measuredAt={proxy.lastSpeedAt}
-                        mbps={proxy.lastSpeedMbps}
-                        detail={proxy.lastSpeedDetail}
-                      />
+                      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1 2xl:grid-cols-2">
+                        <div>
+                          <p className="mb-1.5 text-xs font-medium text-neutral-500">Availability</p>
+                          <ProxyLastCheckCell
+                            verdict={proxy.lastCheckVerdict}
+                            checkedAt={proxy.lastCheckedAt}
+                            exitIp={proxy.lastExitIp}
+                          />
+                        </div>
+                        <div>
+                          <p className="mb-1.5 text-xs font-medium text-neutral-500">Speed</p>
+                          <ProxySpeedCell
+                            measuredAt={proxy.lastSpeedAt}
+                            mbps={proxy.lastSpeedMbps}
+                            detail={proxy.lastSpeedDetail}
+                          />
+                        </div>
+                      </div>
                     </td>
                     <td className="py-4 align-top">
-                      <div className="flex items-start gap-2">
+                      <div className="flex flex-wrap items-start gap-2">
                         <CheckOneProxyButton proxyId={proxy.id} />
-                        <details className="relative">
-                          <summary className="flex min-h-11 cursor-pointer list-none items-center rounded-xl border border-white/[0.1] px-3 text-xs text-neutral-300 hover:bg-white/[0.06] marker:content-none">
-                            More
-                          </summary>
-                          <div className="absolute right-0 z-20 mt-2 w-56 space-y-3 rounded-xl border border-white/10 bg-neutral-950 p-3 shadow-2xl">
-                            {isAdmin ? <MeasureProxySpeedButton proxyId={proxy.id} /> : null}
-                            <Link
-                              href={`/proxies/${proxy.id}`}
-                              className="flex min-h-11 items-center justify-center rounded-xl border border-white/[0.1] px-3 text-xs text-neutral-300 hover:bg-white/[0.06]"
-                            >
-                              {isAdmin ? "Edit proxy" : "View proxy"}
-                            </Link>
-                          </div>
-                        </details>
+                        <Link
+                          href={`/proxies/${proxy.id}`}
+                          className="inline-flex min-h-11 items-center justify-center rounded-xl border border-white/[0.1] px-3 text-sm font-semibold text-neutral-300 hover:bg-white/[0.06]"
+                        >
+                          {isAdmin ? "Edit" : "View"}
+                        </Link>
                       </div>
+                      {isAdmin ? (
+                        <InlineDisclosure summary="Speed test" className="mt-1">
+                          <MeasureProxySpeedButton proxyId={proxy.id} />
+                        </InlineDisclosure>
+                      ) : null}
                     </td>
               </tr>
             ))}
@@ -269,14 +280,14 @@ function FilterButton({
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className={`inline-flex min-h-11 shrink-0 items-center gap-2 rounded-lg border px-3 text-xs font-semibold ${
+      className={`inline-flex min-h-11 shrink-0 items-center gap-2 rounded-lg border px-3 text-sm font-semibold ${
         active
           ? "border-amber-400/40 bg-amber-400/10 text-amber-200"
           : "border-white/[0.08] bg-white/[0.02] text-neutral-400 hover:text-neutral-200"
       }`}
     >
       {label}
-      <span className="font-mono text-[11px] text-neutral-500">{count}</span>
+      <span className="font-mono text-xs text-neutral-500">{count}</span>
     </button>
   );
 }

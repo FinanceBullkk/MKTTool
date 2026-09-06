@@ -80,7 +80,8 @@ boundaries; no UI path may bypass them.
 
 ## Yêu cầu
 
-- Node.js 22.x for release builds (local development may use a separately verified version)
+- Node.js 24.x for application and Relay builds; Node.js 22.x remains the supported floor and is
+  required by the dedicated PostgreSQL contracts and offline release-ceremony tools
 - **PostgreSQL 17** — bản cài native, không cần Docker
 - MKT Browser technical build for the controlled Windows candidate (preferred); AdsPower remains a
   secondary compatibility adapter, not a Browser/Relay rollout path

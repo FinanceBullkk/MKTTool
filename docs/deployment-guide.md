@@ -265,7 +265,7 @@ Xem dòng kết quả — nó in **số hàng dữ liệu**. Phải thấy proxy
 
 Rồi nạp lên Railway. Lấy chuỗi nối ở dịch vụ Postgres → nút **Connect** (góc trên phải) → mục
 **Public Network**. Panel đó in chuỗi **đã ghép giá trị thật**, dạng
-`postgresql://postgres:AbC123...@shortline.proxy.rlwy.net:41234/railway`.
+`postgresql://<user>:<password>@<host>:<port>/<database>`.
 
 > ⚠️ **Đừng copy `DATABASE_PUBLIC_URL` ở tab Variables.** Railway hiển thị nó ở **dạng bản mẫu** —
 > `postgresql://${{PGUSER}}:${{PGPASSWORD}}@${{RAILWAY_TCP_PROXY_DOMAIN}}:…` — vì `${{…}}` là cách
