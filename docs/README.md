@@ -1,6 +1,14 @@
 # Tài liệu MKTTool — bắt đầu từ đâu
 
-**Updated:** 3 September 2026
+**Updated:** 8 September 2026
+
+## Current product direction
+
+Start with the [8 September accepted product decision](project-overview-pdr.md#product-direction-decision---8-september-2026):
+MKT Browser is a browser profile manager with proxy binding. Priorities are Proxy vault, Relay
+handoff, and reliable manual profile operations; antidetect/identity-engine research is closed.
+The [release boundary](internal-beta-release.md) distinguishes this direction from Browser rollout
+approval, and the [roadmap](development-roadmap.md) records current delivery priorities.
 
 ## Current release entry point
 

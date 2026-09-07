@@ -13,16 +13,13 @@
  *   npm run mkt-browser:proxy-smoke -- --database=production
  *   npm run mkt-browser:proxy-smoke -- --proxy-file
  */
-import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient } from "@prisma/client";
-import { execFile, spawn, type ChildProcess } from "node:child_process";
+import { spawn, type ChildProcess } from "node:child_process";
 import { randomBytes, randomUUID } from "node:crypto";
-import { access, cp, lstat, mkdtemp, readFile, rm, unlink } from "node:fs/promises";
+import { access, cp, lstat, mkdir, mkdtemp, readFile, rm, unlink } from "node:fs/promises";
 import net from "node:net";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { loadEnvFile } from "node:process";
-import { promisify } from "node:util";
 import type {
   AntidetectAdapter,
   AntidetectProfileSummary,
@@ -48,26 +45,16 @@ import { TICKET_KINDS } from "../src/lib/tickets/ticket-types";
 import { handleTicketRequest } from "../relay/src/handle-ticket";
 import { RelayAntidetect } from "../relay/src/relay-antidetect";
 import { buildRelayIdentity } from "../relay/src/relay-identity";
+import {
+  buildBrowserEnvironment, exerciseSignedProfileLifecycle, parseCftSmokeOptions, stageCftRuntime, type CftSmokeOptions,
+} from "./mkt-browser-cft-smoke-runtime";
+import {
+  cleanupContainedSmoke, provisionDisposableCftFirewall, stopOwnedSmokeProcesses,
+} from "./mkt-browser-cft-smoke-firewall";
 
-const execFileAsync = promisify(execFile);
 const DEFAULT_LABEL = "MKB-00 TEST";
 const STARTUP_TIMEOUT_MS = 45_000;
 const RUNNING_TIMEOUT_MS = 30_000;
-const SENSITIVE_ENV_MARKERS = [
-  "ACCESS_KEY",
-  "API_KEY",
-  "CREDENTIAL",
-  "DATABASE_URL",
-  "PASSWORD",
-  "PRIVATE_KEY",
-  "PROXY_",
-  "_PROXY",
-  "SECRET",
-  "SIGNING_KEY",
-  "TOKEN",
-  "TOTP",
-  "VAULT_KEY",
-] as const;
 
 type DatabaseSource = "local" | "production";
 
@@ -78,6 +65,8 @@ interface Options {
   label: string;
   browserExe: string;
   engineCache?: string;
+  cft?: CftSmokeOptions;
+  disposableVmFirewall: boolean;
 }
 
 let sensitiveValues: string[] = [];
@@ -117,6 +106,8 @@ function parseOptions(): Options {
         "MKTBrowser.exe",
       ),
     engineCache: argumentValue("engine-cache")?.trim() || undefined,
+    cft: parseCftSmokeOptions(process.argv.slice(2)),
+    disposableVmFirewall: process.argv.includes("--disposable-vm-firewall"),
   };
 }
 
@@ -201,18 +192,6 @@ function redact(message: string): string {
     (safe, secret) => (secret ? safe.split(secret).join("***") : safe),
     message,
   );
-}
-
-function buildBrowserEnvironment(port: number): NodeJS.ProcessEnv {
-  const environment: NodeJS.ProcessEnv = { NODE_ENV: process.env.NODE_ENV };
-  for (const [key, value] of Object.entries(process.env)) {
-    const normalizedKey = key.toUpperCase();
-    if (SENSITIVE_ENV_MARKERS.some((marker) => normalizedKey.includes(marker))) continue;
-    environment[key] = value;
-  }
-  environment.MKT_BROWSER_MCP_PORT = String(port);
-  delete environment.ELECTRON_RUN_AS_NODE;
-  return environment;
 }
 
 async function exists(target: string): Promise<boolean> {
@@ -342,19 +321,6 @@ function createEphemeralTicketHarness(baseUrl: string, token: string) {
   };
 }
 
-async function stopProcessTree(child: ChildProcess): Promise<void> {
-  if (child.exitCode !== null || !child.pid) return;
-  child.kill();
-  const exited = await Promise.race([
-    new Promise<boolean>((resolve) => child.once("exit", () => resolve(true))),
-    delay(5_000).then(() => false),
-  ]);
-  if (exited || child.exitCode !== null) return;
-  await execFileAsync("taskkill", ["/PID", String(child.pid), "/T", "/F"], {
-    windowsHide: true,
-  }).catch(() => undefined);
-}
-
 async function removeDisposableRoot(root: string): Promise<void> {
   for (let attempt = 0; attempt < 4; attempt += 1) {
     try {
@@ -402,6 +368,10 @@ async function main(): Promise<void> {
       process.env.VAULT_KEY_SERVER,
     );
 
+    // Proxy-file mode can be bundled for a clean guest without Prisma or a database.
+    const [{ PrismaClient }, { PrismaPg }] = await Promise.all([
+      import("@prisma/client"), import("@prisma/adapter-pg"),
+    ]);
     const prisma = new PrismaClient({
       adapter: new PrismaPg({ connectionString: databaseUrl }),
       log: [],
@@ -455,34 +425,46 @@ async function main(): Promise<void> {
   addSensitive(independent.ip);
 
   const direct = await probeDirectExitIp();
-  if (direct.kind === "ok") {
-    addSensitive(direct.ip);
-    if (direct.ip.toLowerCase() === independent.ip.toLowerCase()) {
-      throw new Error("The proxy probe returned the same exit IP as the direct connection.");
-    }
+  if (direct.kind !== "ok") {
+    throw new Error(`The direct-IP baseline probe failed (${direct.kind}); distinct egress is unverified.`);
+  }
+  addSensitive(direct.ip);
+  if (direct.ip.toLowerCase() === independent.ip.toLowerCase()) {
+    throw new Error("The proxy probe returned the same exit IP as the direct connection.");
   }
   console.log("Independent proxy probe passed and produced a distinct expected exit IP.");
 
   await access(options.browserExe);
-  const engineCache = await resolveEngineCache(options.engineCache);
   const dataRoot = await mkdtemp(path.join(tmpdir(), "mktbrowser-mkb00-"));
-  const port = await allocateLoopbackPort();
-  await cp(engineCache, path.join(dataRoot, "chromium"), { recursive: true });
-
-  const browserEnvironment = buildBrowserEnvironment(port);
-
-  const child = spawn(options.browserExe, [`--user-data-dir=${dataRoot}`], {
-    env: browserEnvironment,
-    stdio: "ignore",
-    windowsHide: true,
-  });
-
+  let child: ChildProcess | null = null;
   let adapter: AntidetectAdapter | null = null;
   let profileId: string | null = null;
-  let cleanupError: Error | null = null;
   let restoreSigningEnvironment: (() => void) | null = null;
+  let removeFirewall: (() => Promise<void>) | null = null;
+  let originalFailure: unknown;
 
   try {
+    const port = await allocateLoopbackPort();
+    if (options.cft) {
+      const executable = await stageCftRuntime(dataRoot, options.cft);
+      removeFirewall = await provisionDisposableCftFirewall({
+        enabled: options.disposableVmFirewall, root: dataRoot, executable,
+      });
+      console.log(`Pinned CFT ${options.cft.version} verified before and after disposable staging.`);
+    } else {
+      const engineCache = await resolveEngineCache(options.engineCache);
+      await cp(engineCache, path.join(dataRoot, "chromium"), { recursive: true });
+    }
+    const browserEnvironment = buildBrowserEnvironment(port, dataRoot);
+    await mkdir(browserEnvironment.LOCALAPPDATA!, { recursive: true });
+    await mkdir(browserEnvironment.APPDATA!, { recursive: true });
+    child = spawn(options.browserExe, [`--user-data-dir=${dataRoot}`], {
+      env: browserEnvironment, stdio: "ignore", windowsHide: true,
+    });
+    await new Promise<void>((resolve, reject) => {
+      child!.once("spawn", resolve);
+      child!.once("error", () => reject(new Error("Could not spawn the disposable MKT Browser process.")));
+    });
     const token = await waitForToken(path.join(dataRoot, "mcp-token"), child);
     addSensitive(token);
     const baseUrl = `http://127.0.0.1:${port}`;
@@ -532,34 +514,30 @@ async function main(): Promise<void> {
     const createdProfileId = created.profileId;
     profileId = createdProfileId;
 
-    const launched = await handleTicketRequest(
-      JSON.stringify({
-        ticket: issueTicket(
-          {
-            kind: TICKET_KINDS.LAUNCH_PROFILE,
-            accountId,
-            antidetectProfileId: createdProfileId,
-            proxyLabel: options.label,
-            proxy,
-          },
-          harness.recipient,
-        ),
-      }),
-      relayDeps,
-    );
-    if (!launched.ok) {
-      throw new Error(`The signed launch-profile ticket was rejected. ${launched.message}`);
-    }
-    await waitForRunningState(adapter, createdProfileId, true);
-
-    console.log(
-      "Signed Relay launch passed after MKT Browser verified proxy egress and started its contained bridge.",
-    );
-
-    await adapter.closeProfile(createdProfileId);
-    await waitForRunningState(adapter, createdProfileId, false);
+    const profileAdapter = adapter;
+    await exerciseSignedProfileLifecycle({
+      launch: async (unavailableProxy) => {
+        const launchProxy: AntidetectProxyConfig = unavailableProxy
+          ? { protocol: "http", host: "127.0.0.1", port: await allocateLoopbackPort() }
+          : proxy;
+        // A new ticket/jti is issued for every launch, including rejection and recovery.
+        const ticket = issueTicket({
+          kind: TICKET_KINDS.LAUNCH_PROFILE, accountId,
+          antidetectProfileId: createdProfileId, proxyLabel: options.label, proxy: launchProxy,
+        }, harness.recipient);
+        const envelope = JSON.parse(Buffer.from(ticket.split(".")[0], "base64url").toString("utf8")) as { jti: string };
+        const result = await handleTicketRequest(JSON.stringify({ ticket }), relayDeps);
+        return { ...result, expectedOperationId: envelope.jti };
+      },
+      close: () => profileAdapter.closeProfile(createdProfileId),
+      waitForRunning: (running) => waitForRunningState(profileAdapter, createdProfileId, running),
+      report: (message) => console.log(message),
+    });
     profileId = null;
     console.log("Disposable profile closed; the entire isolated data root will now be removed.");
+  } catch (error) {
+    originalFailure = error;
+    throw error;
   } finally {
     if (profileId && adapter) {
       try {
@@ -569,16 +547,20 @@ async function main(): Promise<void> {
       }
     }
     restoreSigningEnvironment?.();
-    await stopProcessTree(child);
     try {
-      await removeDisposableRoot(dataRoot);
+      await cleanupContainedSmoke({
+        stopAndVerify: () => stopOwnedSmokeProcesses({ root: dataRoot, browserExe: options.browserExe }),
+        removeFirewall: async () => { await removeFirewall?.(); },
+        removeRoot: () => removeDisposableRoot(dataRoot),
+      });
     } catch (error) {
-      cleanupError = error instanceof Error ? error : new Error("Disposable root cleanup failed.");
+      const cleanupMessage = error instanceof Error ? error.message : "Contained cleanup failed.";
+      const originalMessage = originalFailure instanceof Error ? ` Original smoke failure: ${originalFailure.message}` : "";
+      throw new Error(`${cleanupMessage} Disposable root: ${dataRoot}.${originalMessage}`);
     }
   }
 
-  if (cleanupError) throw cleanupError;
-  console.log("MKB-00 correct-proxy positive path passed with no account data and no retained profile.");
+  console.log("MKB-00 real-proxy create/reopen/rejection/recovery passed with no account data or retained profile.");
 }
 
 main().catch((error: unknown) => {

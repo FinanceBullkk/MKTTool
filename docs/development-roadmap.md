@@ -1,6 +1,49 @@
 # Lộ trình phát triển
 
-**Updated:** 5 September 2026
+**Updated:** 8 September 2026
+
+## Accepted product direction - 8 September 2026
+
+The owner accepted **MKT Browser as a browser profile manager with proxy binding**. Active
+antidetect/identity-engine research, custom Chromium fingerprint work, and further Brave/Cloak
+identity experiments are closed. Lane C remains **CLOSED** and `G2-IDENTITY=FAIL` stays recorded.
+No vendor contact or new engine integration is scheduled. Security and compatibility maintenance
+remain in scope.
+
+Delivery priority is **Proxy vault -> Relay handoff -> reliable manual browser-profile operations**.
+The shared nick vault, proxy ownership, and Relay PC registry remain the team surface. Browser use
+stays within bounded demonstrations with disposable data and human input. The current Browser draft
+still needs release evidence before distribution; accepting this direction closes no technical gate
+and grants no real-account approval.
+
+Use the [product decision and acceptance criteria](project-overview-pdr.md#product-direction-decision---8-september-2026)
+for new work. Installer/CI, real network containment, recovery, second-PC/operator, and canary work
+support a controlled profile-manager release; they do not reopen identity research. Earlier posting
+targets and engine plans are historical context, not the next delivery milestones.
+
+## Finishing pass - 8 September 2026
+
+The current local verification candidate is Browser source `ad0c7182` with a README-only working
+diff, still version `0.3.13` with Relay v16. It is unsigned, unattested, and unpublished; it does not
+replace the historical P4b tuple. Exact hashes and boundaries are in the
+[release checkpoint](./internal-beta-release.md#finishing-pass---8-september-2026).
+
+| Evidence surface | Current result |
+|---|---|
+| Local Browser | PASS: lint/typecheck; installer suites 374 passed, 1 live-machine test skipped; critical coverage 90.87% lines / 83.06% branches |
+| Local packaged fixtures | PASS: pinned CFT `152.0.7977.64` verifier 1/1; exact bundled Relay executable 35 checks. Compatibility/contract evidence only |
+| Disposable clean VM | PASS: install 9/9 and initial uninstall 15/15, with Defender enabled and profile/token/unrelated Relay state preserved |
+| Fresh-snapshot repair | PASS: repair 13/13 and post-repair uninstall 15/15 from the same exact clean snapshot; Defender enabled, no repair threats recorded, data retained |
+| Managed proxy integration | FAIL: VM verification hit DevTools discovery failure; diagnostic retry failed CFT version inspection. Complete create/open/reopen/rejection/recovery acceptance remains OPEN |
+| Independent proxy probes | PASS: one dedicated test entry produced an exit distinct from direct traffic; this is not browser-page egress evidence |
+| GitHub Actions | BLOCKED: run `34002472571`, attempt 5, built the package but failed artifact upload on quota; packaged-contract skipped; PR #17 unmerged |
+| Real network and human acceptance | OPEN: browser-page IP/DNS/WebRTC containment, unfamiliar-operator acceptance, and seven-day canary |
+
+The one post-cleanup CI retry exhausted the bounded infrastructure retry. An organization
+administrator must resolve storage/billing access before another hosted attempt: billing returned
+404 requiring `admin:org`, and Packages returned 403 requiring `read:packages`. Do not replace the
+hosted gate with local/VM evidence. CFT remains an isolated test fixture, not a released engine
+manifest or an installer engine-pin change. Browser distribution and real accounts remain NO-GO.
 
 ## Rollout scope decision — 2 September 2026
 
@@ -8,7 +51,7 @@
 posting pipeline, Pages publisher, and health checks stay implemented and deployed but are handed to
 nobody. The team surface narrows to the nick vault, proxy ownership, and the Relay PC
 registry; the 1 September Lane A GO stays a technical record and stops being a rollout instruction;
-nothing in code enforces the boundary. Detail and re-entry condition:
+posting entry points enforce the boundary through `rollout-scope.ts`. Detail and re-entry condition:
 [internal-beta-release.md](internal-beta-release.md).
 
 ## Operator-console redesign — 5 September 2026
@@ -523,7 +566,10 @@ Danh sách này là ranh giới giữa "code có chạy" và "đã chạy thật
 **Chưa kiểm chứng:** đăng bằng nick Reddit thật, và lượt `npm run health` đầy đủ với nick thật +
 proxy quan sát viên.
 
-## Mốc tiếp theo
+## Historical posting milestones
+
+The targets below predate the September scope decisions. They are retained as historical context;
+current delivery priorities are recorded at the top of this roadmap.
 
 | Mốc | Điều kiện đạt |
 |---|---|

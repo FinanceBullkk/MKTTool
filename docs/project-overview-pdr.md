@@ -1,13 +1,62 @@
-# MKTTool — Tài liệu sản phẩm
+# MKTTool product requirements
 
-> **Current status overlay — 30 August 2026.** P4a MKTTool Web is deployed and verified separately
-> from the Browser five-artifact tuple (P4b OPEN). The Browser remains a controlled Lane A/B tool;
-> profile-local configuration is an operational boundary, not identity isolation. TikTok posting and
-> automation are parked, and Lane C is **CLOSED** because no CloakBrowser channel exists. Current
-> evidence and decisions are maintained in
-> `plans/260830-0830-consolidation-and-lane-a-release/` and `docs/development-roadmap.md`.
+**Updated:** 8 September 2026 | **Delivery status:** [development-roadmap.md](development-roadmap.md)
 
-**Cập nhật:** 30/08/2026 · **Trạng thái:** [development-roadmap.md](development-roadmap.md)
+## Product direction decision - 8 September 2026
+
+**Status: ACCEPTED by the workspace owner in the 8 September 2026 conversation.**
+MKTTool prioritizes the shared nick vault, Proxy vault, and Relay PC operations. MKT Browser is a
+**browser profile manager with proxy binding**: local browser data, assigned proxy, explicit
+owner/PC, and human-controlled create/open/close operations. These are operational controls;
+the product makes no antidetect, unique-fingerprint, identity-isolation, or account-safety promise.
+
+### Investment and scope
+
+- Close active antidetect/identity-engine research, custom Chromium fingerprint patches, and
+  further Brave/Cloak identity experiments. Lane C remains **CLOSED**, with no delivery date or
+  vendor-contact task. Preserve existing evidence and runtime code for maintenance and reference.
+- Prioritize Proxy vault reliability and assignment, Relay enrollment and authorized handoff, then
+  dependable manual browser-profile lifecycle. Security and compatibility maintenance remain valid
+  work; the research closure does not freeze dependency security updates.
+- Keep Reddit/Facebook posting workflows outside team rollout and TikTok posting automation parked.
+  Existing routes, data, adapters, and platform guards retain their contracts.
+- A future commercial engine/provider is an option only under a separate owner decision supported
+  by API compatibility, licensing, and measured acceptance evidence. Reuse the existing adapter
+  boundary if selected; this decision starts no procurement, contact, or integration work.
+
+### Current use and release boundary
+
+The shared vault, proxy ownership, and Relay PC registry remain the team surface. Relay-first
+onboarding is independent of Browser availability. MKT Browser use remains a bounded, admin-led
+technical demonstration with disposable data, one profile at a time, and human login/input.
+Low-risk manual workflows are a possible later release scope, not blanket permission for real
+accounts. The current Browser draft is not approved for team distribution or real-account use.
+
+`G2-IDENTITY=FAIL` remains the recorded result; accepting this direction does not relabel it as a
+pass. Browser installer/provenance, real proxy/DNS/WebRTC, recovery on the release artifact,
+second-PC/operator, and canary evidence remain separate release requirements. Any future scope
+change must define its own acceptance criteria without erasing historical failures. See
+[internal beta boundary](internal-beta-release.md).
+
+### Delivery priorities and acceptance
+
+| Order | Work | Evidence needed |
+|---|---|---|
+| 1 | Proxy vault and shared ownership | Verified inventory/import/check behavior, ADMIN-only proxy changes, and correct nick/PC ownership |
+| 2 | Relay handoff | Operator can install, register, receive approval, and use authorized actions on the assigned PC |
+| 3 | Manual browser-profile reliability | Correct local profile and proxy, observed egress/DNS/WebRTC, fail-closed launch, close/recovery, and understandable errors |
+| 4 | Controlled Browser release | An identified artifact, passing hosted CI and clean-machine/operator checks, documented allowed use and rollback, and explicit release decision |
+
+These are priorities and acceptance criteria, not new PASS claims. Progress is maintained in the
+roadmap. Success is reliable administration and correct profile/PC/proxy operations; posting volume,
+account survival, and fingerprint uniqueness are not current delivery targets.
+
+## Historical product rationale and targets
+
+The sections below retain earlier product assumptions and engineering decisions. The 8 September
+decision above and the 2 September platform withdrawal supersede their posting targets, combined
+Browser onboarding requirements, budgets, and future-work promises where they conflict. They are
+not instructions to reopen those workstreams.
 
 Tài liệu này trả lời "vì sao" và "phạm vi tới đâu". Chi tiết thi công nằm ở
 [plan công cụ gốc](../plans/260801-2030-multi-account-posting-console/plan.md),
@@ -127,7 +176,8 @@ Nếu sau này có ai đề xuất thêm một trong các mục trên, đây là
 ## 6. Nguyên tắc bất di bất dịch
 
 > **Every browser-backed Reddit or TikTok account has exactly 1 static proxy, 1 managed
-> fingerprint/profile, 1 Relay device, and 1 responsible operator.**
+> browser profile, 1 Relay device, and 1 responsible operator.** This is an ownership and data-binding
+> invariant; it does not certify a unique fingerprint.
 
 Database ép hai nick không thể dùng chung proxy/profile (`Account.proxyId` và
 `Account.antidetectProfileId` đều `@unique`). Quan hệ chủ nick/máy giữ được kiểm lại ở các action

@@ -1,7 +1,74 @@
 # Internal beta boundary
 
-**Updated:** 2 September 2026
-**Status:** Lane A Web/Facebook is **SIGNED CONDITIONAL GO**; the Browser/Relay rollout is **NO-GO**.
+**Updated:** 8 September 2026
+**Status:** shared vault, proxy ownership, and Relay PC operations are in scope; Browser rollout
+remains **NO-GO**, and Lane C is **CLOSED**. The earlier Web/Facebook CONDITIONAL GO is a technical
+record, subject to the platform withdrawal below.
+
+## Accepted direction - 8 September 2026
+
+The owner accepted MKT Browser as a **browser profile manager with proxy binding**, prioritizing
+Proxy vault, Relay handoff, and reliable manual profile operations. Antidetect/identity-engine
+research is closed. The product makes no unique-fingerprint, identity-isolation, or account-safety
+promise. See the [product decision](project-overview-pdr.md#product-direction-decision---8-september-2026).
+
+The current use boundary remains bounded, admin-led demonstration with disposable data, one profile
+at a time, and human login/input. A prospective low-risk manual workflow still needs an explicit
+release scope and its evidence; it does not authorize real accounts on the current draft. Installer,
+network, recovery, second-PC/operator, and canary requirements remain open where recorded below.
+`G2-IDENTITY=FAIL` is retained as evidence, and Lane C has no scheduled research or vendor task.
+
+Relay installation and shared-workspace handoff continue through `/setup` independently of Browser
+distribution. The historical combined-installer path below applies only to a future approved Browser
+release. A documentation decision neither publishes that installer nor changes engine pins or
+compatibility manifests.
+
+## Finishing pass - 8 September 2026
+
+This checkpoint is a separate **local verification candidate**, not a replacement for the
+historical P4b tuple below. No Browser artifact was signed, attested, published, or distributed.
+
+| Candidate field | Verified value |
+|---|---|
+| Browser | `0.3.13`; source `ad0c7182a4e7d53761b8ffee2ffd9292f24858da`; README-only working diff |
+| Installer | `145,148,544` bytes; SHA-256 `2a614301d5223a3bd77943d66c18f0fe6c0187381da1cf360be011f310e92f9e` |
+| app.asar | SHA-256 `7a5af62dceb32315e9401380f1fb67eeae9566da23700f3218124edd14d9d930` |
+| Relay and engine record | Exact historical Relay v16 archive/EXE tuple retained; installer still references the existing CloakBrowser Stable `.2` record |
+
+- **Local PASS:** Browser lint/typecheck; installer suites 374 passed and 1 live-machine test
+  skipped; critical coverage 90.87% lines / 83.06% branches. The packaged CFT
+  `152.0.7977.64` fixture passed 1/1, and the exact bundled Relay executable passed 35 checks.
+- **Clean VM PASS:** install 9/9 and initial uninstall 15/15. A fresh restoration of exact clean
+  snapshot `326357d7-35b1-4c91-92ca-856fb0f35e9b` also passed repair 13/13 and post-repair uninstall
+  15/15. Defender stayed enabled, with no threats recorded during repair; profile data, token, and
+  unrelated Relay state survived the applicable repair/uninstall checks unchanged.
+- **Hosted CI BLOCKED:** run `34002472571`, attempt 5, built the package but again failed artifact
+  upload on quota; packaged-contract was skipped. PR #17 remains unmerged. Organization billing
+  returned 404 (`admin:org` needed); Packages returned 403 (`read:packages` needed). An organization
+  administrator must resolve quota/access before another retry; no repeated retries are scheduled.
+- **Managed lifecycle verification FAIL:** the first VM attempt reached signed create and browser
+  launch, then recorded `LAUNCH-FAILED` / `DevToolsPortDiscoveryError` at 17.63 seconds. The diagnostic
+  retry failed closed earlier during CFT executable version inspection. Complete
+  create/open/reopen/rejection/recovery acceptance remains OPEN; neither failure proves a proxy leak
+  or vendor failure.
+- **Independent proxy probes PASS:** one dedicated test entry produced an exit distinct from direct
+  traffic. This is not browser-page egress evidence. After the diagnostic retry, guest verification
+  found no Browser/Chrome/Node processes, smoke roots, smoke firewall rules, or credential handoff.
+- **Network/operator OPEN:** browser-page IP/DNS/WebRTC containment, unfamiliar-operator acceptance,
+  and seven-day canary are not closed by these results.
+
+CFT is hash-pinned only inside the isolated compatibility harness. Its passing fixture is neither
+a released-CFT manifest nor a production engine change, identity-isolation proof, or real-account
+approval. The dated consolidation and candidate sections below retain their historical source and
+artifact values. Lane C stays CLOSED and `G2-IDENTITY=FAIL` remains recorded.
+
+Next handoff steps, only after the technical blockers and an explicit release scope are resolved:
+
+1. Bind the approved installer, engine, Relay, and hosted run to one unchanged candidate.
+2. Have an unfamiliar operator perform first use, manual input, close/reopen, and documented stop
+   conditions on a clean second PC with disposable data and a dedicated test proxy.
+3. Record seven actual days of the bounded manual canary, including failures and stop decisions;
+   do not count fixture runs as elapsed days or introduce real accounts under the current scope.
 
 ## Consolidation truth — 1 September 2026
 

@@ -5,6 +5,13 @@ TikTok nicks plus Facebook Page identities, while keeping nick, proxy, browser p
 ownership explicit. Browser profile and proxy controls are operational boundaries; they are not a
 promise of unique or isolated browser identity.
 
+**Product direction, 8 September 2026:** the owner accepted MKT Browser as a **browser profile
+manager with proxy binding**. Priorities are Proxy vault, Relay handoff, and reliable manual profile
+operations. Antidetect/identity-engine research and Lane C are closed. The Browser draft remains
+limited to bounded demonstrations with disposable data; real-account use and team distribution
+are not approved. See the [product decision](docs/project-overview-pdr.md#product-direction-decision---8-september-2026)
+and [release boundary](docs/internal-beta-release.md).
+
 **Rollout scope decision, 2 September 2026:** Reddit and Facebook are **withdrawn from the team
 rollout scope**. The code stays implemented, tested, and deployed — this is a scope decision, not a
 removal — but no Reddit or Facebook workflow is handed to operators, and the posting surface is not
