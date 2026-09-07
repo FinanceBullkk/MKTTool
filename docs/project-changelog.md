@@ -18,6 +18,38 @@ the archive location.
 
 ---
 
+## 8 September 2026 - finishing-pass evidence, release still blocked
+
+- **Verified locally:** Browser `ad0c7182` / `0.3.13` with README-only working diff; lint/typecheck,
+  installer suites (374 passed, 1 live-machine skip), critical coverage, pinned CFT packaged fixture
+  (1/1), and exact Relay v16 executable (35 checks) passed. No production engine pin changed.
+- **Verified on a disposable clean VM:** install 9/9, initial uninstall 15/15, fresh-snapshot repair
+  13/13, and post-repair uninstall 15/15 passed with Defender enabled and operator data preserved;
+  repair recorded no threats.
+- **Managed lifecycle verification failed:** the VM attempts stopped at DevTools discovery and,
+  on diagnostic retry, CFT version inspection. Full lifecycle acceptance remains OPEN; this is not
+  a proxy-leak or vendor-failure finding. Independent proxy probes passed distinct exit, but
+  browser-page IP/DNS/WebRTC containment, operator acceptance, and seven-day canary remain OPEN.
+- **Hosted blocker:** run `34002472571` attempt 5 again failed artifact upload on quota after package
+  build; packaged-contract skipped and PR #17 stays unmerged. Organization-admin quota/access action
+  is required before another retry. Local/VM passes do not replace GitHub Actions.
+- **Release boundary:** the [new local candidate](./internal-beta-release.md#finishing-pass---8-september-2026)
+  is unsigned, unattested, and unpublished. Historical tuples remain unchanged; Browser distribution
+  and real accounts remain NO-GO, Lane C stays CLOSED, and `G2-IDENTITY=FAIL` remains recorded.
+
+## 8 September 2026 - profile and proxy product direction accepted
+
+- **Changed product direction:** the owner accepted MKT Browser as a browser profile manager with
+  proxy binding. Priorities are Proxy vault, Relay handoff, and reliable manual profile operations.
+  Antidetect/identity-engine research is closed; security and compatibility maintenance continue.
+- **Clarified scope:** Lane C stays CLOSED and `G2-IDENTITY=FAIL` remains recorded. Browser use stays
+  within bounded demonstrations with disposable data and human input. The decision does not publish
+  a Browser installer or approve team distribution, real accounts, or engine integration.
+- **Documentation:** canonical terminology, product requirements, README entry points, roadmap, and
+  release guidance now reference the [accepted decision](project-overview-pdr.md#product-direction-decision---8-september-2026).
+  Older posting targets are marked historical. Runtime, schema, authorization, and engine pins are
+  unchanged; no release gate is newly marked PASS.
+
 ## 6 September 2026 — documentation joins the secret gate
 
 - The local and hosted secret scan now cover `docs/` as well as source, scripts, workflow files,

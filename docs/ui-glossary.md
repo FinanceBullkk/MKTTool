@@ -1,6 +1,6 @@
 # UI glossary
 
-**Updated:** 5 September 2026
+**Updated:** 8 September 2026
 
 This glossary fixes the user-facing vocabulary for the identity workspace. It changes display
 copy only: Prisma models, database columns, TypeScript domain names, and routes keep their current
@@ -12,6 +12,7 @@ names.
 |---|---|---|
 | **nick** | A Reddit, Facebook, or TikTok identity record stored in the shared vault. A nick lives on its social platform; it is not local browser data. | Prisma model `Account`; route `/accounts` |
 | **browser profile** (*profile trình duyệt*) | Browser data stored locally on one PC, including the browser workspace and its local state. It is not a vault record and is not proof of identity isolation. | `Account.antidetectProfileId`; MKT Browser local storage |
+| **MKT Browser** | The browser profile manager with proxy binding for MKTTool. It provides local profile storage and human-controlled lifecycle operations through Relay. It makes no antidetect, unique-fingerprint, or account-safety promise. | Existing MKT Browser product name, local MCP contract, and `src/lib/antidetect/` identifiers remain unchanged |
 | **Relay PC** (*máy Relay*) | The registered operator PC that receives and consumes encrypted tickets for a nick. | Prisma model `RelayDevice`; route `/relay-devices` |
 | **nick owner** (*người phụ trách*) | The teammate assigned to a nick. This person is the only non-administrator who can request the nick password or OTP. | `Account.ownerId` |
 | **Nick assignment** (*phân công cụm*) | The paired owner and Relay PC assignment for one nick. The Relay PC must belong to the nick owner. | `Account.ownerId` plus `Account.deviceId` |
@@ -47,6 +48,9 @@ those software terms as another name for the PC itself.
   this scope from a team-wide query.
 - Use **browser profile** in browser-runtime actions such as create, open, transfer, or local
   readiness. Do not shorten it to `profile` where that could be read as a nick record.
+- Describe **MKT Browser** as a **browser profile manager with proxy binding**, following the
+  [8 September product decision](project-overview-pdr.md#product-direction-decision---8-september-2026).
+  A `Ready` state describes the next technical operation; it never certifies identity isolation.
 - Use **Relay PC** for the registered PC. Use `Relay` only for the software or protocol.
 
 ## Display-label migration
