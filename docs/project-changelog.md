@@ -20,6 +20,10 @@ the archive location.
 
 ## 9 September 2026 - Reproduced single-entry installer; release held
 
+- Fresh release security scan found critical Next.js and high sharp production advisories. Raise
+  Next.js and matching ESLint config to 16.3.3; lock sharp 0.35.4. Production audit passes with
+  the patched lockfile. Full frozen checks and exact VM acceptance remain required; no deployment.
+
 - Exact 0.3.14 / Relay 17 VM activation reached smoke but failed because Browser required its own
   download index despite an already installed, pinned engine. The next 0.3.15 candidate recognizes
   the stable runtime against the signed version and retains unchanged Relay 17. Actual bootstrap

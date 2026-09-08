@@ -4,6 +4,12 @@
 
 ## Single-entry installer acceptance - 9 September 2026
 
+Fresh production audit found Next.js critical advisories GHSA-p293-qw3h-jr36 and
+GHSA-2xp9-vwfh-vxw4, plus sharp high advisory GHSA-rgj7-g3m4-5g8c. Raise Next.js and its
+ESLint config to 16.3.3, and lock sharp 0.35.4. The updated production audit passes; frozen
+quality and VM fixture validation must use the patched Web runtime. Browser build-sibling and
+unchanged Relay provenance remain separate. No deployment has been performed for this correction.
+
 Browser 0.3.15 / Relay 17 is the next candidate, with publication HOLD. Exact 0.3.14 installed cleanly
 (9/9), completed supported enrollment/bootstrap and passed the former shutdown failure during signed
 sequence 18 activation. Smoke then failed: Browser ignored the Relay-installed CFT runtime because
