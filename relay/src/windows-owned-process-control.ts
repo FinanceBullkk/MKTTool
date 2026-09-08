@@ -13,12 +13,21 @@ const STOP_EXACT_PROCESSES = [
   "$names = @('MKTBrowser', 'MKTTool-Relay')",
   "foreach ($name in $names) {",
   "  foreach ($process in @(Get-Process -Name $name -ErrorAction SilentlyContinue)) {",
-  "    $processPath = $process.Path",
-  "    if (-not $processPath) { throw \"Cannot verify the executable path for process $($process.Id).\" }",
-  "    $owned = $expected | Where-Object { [string]::Equals([IO.Path]::GetFullPath($_), [IO.Path]::GetFullPath($processPath), [StringComparison]::OrdinalIgnoreCase) }",
-  "    if ($owned) { Stop-Process -Id $process.Id -Force -ErrorAction Stop }",
+  "    try {",
+  "      if ($process.HasExited) { continue }",
+  "      $null = $process.Handle",
+  "      $processPath = $process.Path",
+  "      if (-not $processPath) { throw \"Cannot verify the executable path for process $($process.Id).\" }",
+  "      $owned = $expected | Where-Object { [string]::Equals([IO.Path]::GetFullPath($_), [IO.Path]::GetFullPath($processPath), [StringComparison]::OrdinalIgnoreCase) }",
+  "      if ($owned) {",
+  "        $process.Kill()",
+  "        if (-not $process.WaitForExit(10000)) { throw \"Owned process $($process.Id) did not exit.\" }",
+  "      }",
+  "    } catch { if (-not $process.HasExited) { throw } } finally { $process.Dispose() }",
   "  }",
   "}",
+  // An absent Get-Process result leaves $? false even with SilentlyContinue; absence is success here.
+  "exit 0",
 ].join("; ");
 
 export async function stopExactOwnedWindowsProcesses(paths: {

@@ -4,6 +4,17 @@
 
 ## Single-entry installer acceptance - 9 September 2026
 
+**Activation defect found; exact A is rejected for promotion.** Authenticated VM enrollment and
+operator-key bootstrap succeeded. Tray reopen/Quit passed with no active profile; Quit retained the
+same Relay process. Signed sequence 17 downloaded/staged all five artifacts after correcting a local
+fixture filename, but activation stopped at `stopping`. The packaged Relay v16 process-stop command
+returns exit 1 when the runtimes are already absent, because Windows PowerShell preserves the failed
+`Get-Process` status. The exact empty-process case was reproduced on VM and in new Windows regression
+tests. The fix explicitly completes successful shutdown with exit 0, holds process handles, waits
+for termination and tolerates verified concurrent exit. All 450 Relay tests, typecheck and lint pass.
+A new Relay payload and combined installer require a new frozen tuple and repeated acceptance;
+retained A/sequence 17 evidence must not be rewritten as passing. Physical MSI testing stays pending.
+
 **PUBLICATION HOLD.** Independent build B reproduced all 129 normalized payload files from A,
 digest `607e229dea5506b0ffa6bfffb2714b7826634d1f2fad4548a411abaf04f779b8`, with zero differences.
 Outer EXE hashes differ. Retain exact A for acceptance and eventual delivery:

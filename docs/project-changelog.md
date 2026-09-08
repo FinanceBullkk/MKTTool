@@ -20,6 +20,11 @@ the archive location.
 
 ## 9 September 2026 - Reproduced single-entry installer; release held
 
+- VM signed activation exposed a Relay v16 shutdown defect: already-absent runtimes caused a false
+  PowerShell exit 1 and left the transition at `stopping`. Corrected successful completion and
+  process-handle shutdown; new real Windows process tests cover absence, exact ownership, unrelated
+  same-name retention and repeatability. All 450 Relay tests, full typecheck and lint pass. This source
+  fix is not delivered in retained A; a new tuple and exact-installer acceptance are required.
 - Build B matches A's 129-file normalized delivered payload; raw outer installer bytes differ.
   Exact retained A remains Browser 0.3.13, SHA-256
   `25e8fc156c0769245623dfc7b082cd9f88886b3516fbca24ea9509114928e8a3`.
