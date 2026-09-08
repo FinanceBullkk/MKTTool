@@ -14,14 +14,12 @@
  *
  * Máy chủ chỉ **đọc** ngăn này. Chìa ghi ở `.env` của máy quản trị viên và không đi đâu khác.
  *
- * ## Con trỏ ổn định có chủ ý
- *
- * Khoá ổn định hiện vẫn giữ tương thích với client cũ nên publish là ghi đè. Đó là một rủi ro
- * phát hành được ghi rõ, không phải một đặc tính bất biến: Phase 4 phải thêm manifest/pointer có
- * xác thực trước khi cho phép phân phối rộng. Script này luôn kiểm provenance đầy đủ và đọc lại
- * toàn bộ bytes sau khi ghi; không được coi một HEAD thành công là bằng chứng phát hành.
+ * Publication uses a candidate-specific immutable key and conditional creation. The quarantined
+ * legacy key is untouched. Full provenance and byte read-back are required; deployment-owned
+ * approval and the signed compatibility set remain separate operator-release prerequisites.
  */
 import { createHash } from "node:crypto";
+import { assertWindowsInstallerCandidateArtifacts } from "../src/lib/setup/windows-installer-candidate";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { getObject, headObject, putObject } from "../src/lib/r2/r2-client";
@@ -140,15 +138,13 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  // The legacy fixed Browser key is not an immutable release channel. Refuse to overwrite an
-  // existing object until Phase 4 supplies a versioned object plus an authenticated pointer and
-  // revocation record. This keeps a seemingly successful local command from destroying rollback
-  // evidence or racing the setup reader.
+  // The reviewed candidate uses a new immutable key. Never overwrite it or the quarantined
+  // legacy key; deployment approval is a separate operation after exact-artifact acceptance.
   const existing = await headObject({ config, key: WINDOWS_INSTALLER_R2_KEY });
   if (existing) {
     throw new Error(
-      `The legacy mutable Browser installer key already exists (${formatFileSize(existing.sizeBytes)}); ` +
-        "immutable versioned publication and an authenticated pointer are required before replacement.",
+      `The immutable Browser candidate key already exists (${formatFileSize(existing.sizeBytes)}); ` +
+        "verify the existing release or freeze a new candidate instead of overwriting it.",
     );
   }
 
@@ -195,7 +191,7 @@ async function main(): Promise<void> {
 
   await verifyRemoteBytes(config, WINDOWS_INSTALLER_R2_KEY, sizeBytes, sha256);
 
-  console.log(`\n✅ Đã phát hành. Trang /setup sẽ hiện bản ${version} ngay lần tải lại.`);
+  console.log(`Immutable candidate ${version} uploaded and verified. Operator availability still requires deployment approval.`);
 }
 
 type FrozenReleaseTuple = {
@@ -393,9 +389,7 @@ function readFrozenReleaseTuple(filePath: string): FrozenReleaseTuple {
   if (installerSha256.length !== 64 || installerSizeBytes <= 0) {
     throw new Error("The release manifest installer tuple is invalid.");
   }
-  if (relay.targetVersion !== 16 || engine.version !== "151.0.7922.108.2") {
-    throw new Error("The release manifest does not target the coordinated v16/Stable .2 tuple.");
-  }
+  assertWindowsInstallerCandidateArtifacts(relay, engine);
   const signingStatus = requiredSigningStatus(installer.signingStatus);
   const signingExceptionExpiresAt =
     signingStatus === "unsigned-internal-exception"

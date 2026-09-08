@@ -34,7 +34,7 @@ const CONFIG = {
 const BYTES = Buffer.from("verified-installer");
 const SHA = createHash("sha256").update(BYTES).digest("hex");
 const COMPLETE_METADATA = {
-  "candidate-id": "20260830-browser-0.3.13-relay-16",
+  "candidate-id": "20260908-browser-0.3.13-relay-16-cft",
   "browser-version": "0.3.13",
   sha256: SHA,
   "bundled-relay-version": "16",
@@ -43,9 +43,9 @@ const COMPLETE_METADATA = {
   "payload-file-count": "130",
   "browser-source-sha": "d".repeat(40),
   "browser-source-tree": "e".repeat(40),
-  "engine-kind": "cloakbrowser",
-  "engine-channel": "licensed-channel",
-  "engine-version": "151.0.7922.108.2",
+  "engine-kind": "cft",
+  "engine-channel": "chrome-for-testing",
+  "engine-version": "152.0.7977.64",
   "engine-sha256": "f".repeat(64),
   "signing-status": "unsigned-internal-exception",
   "signing-exception-expires-at": "2099-01-01T00:00:00.000Z",

@@ -1,138 +1,81 @@
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { validateCompatibilityControlContract } from "../src/lib/release/compatibility-control-contract";
-import { validateCompatibilityManifest } from "../src/lib/release/compatibility-manifest";
-import { signedDelegationRevocationSchema } from "../src/lib/release/compatibility-manifest-schema";
-import { RELAY_VERSION } from "../src/lib/relay/relay-endpoints";
 import { getObject, headObject, putObject } from "../src/lib/r2/r2-client";
-import { readR2Config, RELAY_RELEASE_R2_ENV } from "../src/lib/r2/r2-config";
+import { readR2Config, RELAY_RELEASE_R2_ENV, type R2Config } from "../src/lib/r2/r2-config";
+import { RELAY_COMPATIBILITY_ARTIFACT_KINDS } from "../src/lib/relay/relay-release-r2";
 import {
-  relayCompatibilityArtifactR2Key,
-  relayCompatibilityManifestR2Key,
-  relayCompatibilityRevocationsR2Key,
-  RELAY_COMPATIBILITY_ARTIFACT_KINDS,
-  type RelayCompatibilityArtifactKind,
-} from "../src/lib/relay/relay-release-r2";
+  prepareCompatibilityPublication,
+  type CompatibilityPublicationObject,
+  type CompatibilityPublishArguments,
+} from "./prepare-compatibility-publication";
 
 export const COMPATIBILITY_PUBLISH_ARTIFACT_KINDS = RELAY_COMPATIBILITY_ARTIFACT_KINDS;
+type CompatibilityStorage = {
+  getObject: typeof getObject;
+  headObject: typeof headObject;
+  putObject: typeof putObject;
+};
 
 async function main(): Promise<void> {
   const args = parseCompatibilityPublishArgs(process.argv.slice(2));
   const config = readR2Config(process.env, RELAY_RELEASE_R2_ENV);
   if (!config) throw new Error("The Relay release R2 write configuration is missing.");
-  const signedInput = JSON.parse(readFileSync(args.manifest, "utf8"));
-  const revocationsBody = readFileSync(args.revocations);
-  const revocations = signedDelegationRevocationSchema.array().max(128).parse(
-    JSON.parse(revocationsBody.toString("utf8")),
-  );
-  const source = signedInput as {
-    manifest?: { sequence?: number; transition?: { retainedSequence?: number | null } };
-  };
-  const sequence = source.manifest?.sequence;
-  if (!Number.isSafeInteger(sequence) || Number(sequence) <= 0) {
-    throw new Error("The compatibility manifest sequence is invalid.");
-  }
-  const signed = validateCompatibilityManifest(signedInput, {
-    state: {
-      highestAcceptedSequence: Number(sequence) - 1,
-      currentSequence: source.manifest?.transition?.retainedSequence ?? null,
-      installerFloorSequence: 1,
-    },
-    revocations,
-  }).signed;
-  if (signed.manifest.artifacts.relay.version !== String(RELAY_VERSION)) {
-    throw new Error(`The manifest does not target Relay v${RELAY_VERSION}.`);
-  }
-
-  const artifactFiles: Record<RelayCompatibilityArtifactKind, string> = {
-    installer: args.installer,
-    relay: args.relay,
-    browser: args.browser,
-    "control-contract": args.controlContract,
-    engine: args.engine,
-  };
-  validateCompatibilityControlContract(
-    readFileSync(args.controlContract, "utf8"),
-    signed.manifest,
-  );
-  for (const kind of COMPATIBILITY_PUBLISH_ARTIFACT_KINDS) {
-    const manifestArtifact =
-      kind === "control-contract"
-        ? signed.manifest.artifacts.controlContract
-        : signed.manifest.artifacts[kind];
-    const expectedPath = `/api/relay/download/v${RELAY_VERSION}/artifact/${kind}`;
-    if (new URL(manifestArtifact.url).pathname !== expectedPath) {
-      throw new Error(`The signed ${kind} URL must use immutable path ${expectedPath}.`);
-    }
-    const body = readFileSync(artifactFiles[kind]);
-    const sha256 = digest(body);
-    if (body.length !== manifestArtifact.sizeBytes || sha256 !== manifestArtifact.sha256) {
-      throw new Error(`The local ${kind} artifact does not match the signed manifest.`);
-    }
-    await publishImmutable(
-      config,
-      relayCompatibilityArtifactR2Key(RELAY_VERSION, kind),
-      body,
-      "application/octet-stream",
-      { sha256, "relay-version": String(RELAY_VERSION), "artifact-kind": kind },
-    );
-  }
-
-  await publishImmutable(
-    config,
-    relayCompatibilityRevocationsR2Key(RELAY_VERSION),
-    revocationsBody,
-    "application/json",
-    { sha256: digest(revocationsBody) },
-  );
-  const manifestBody = readFileSync(args.manifest);
-  await publishImmutable(
-    config,
-    relayCompatibilityManifestR2Key(RELAY_VERSION),
-    manifestBody,
-    "application/json",
-    { sha256: digest(manifestBody) },
-  );
-  console.log(`Compatibility sequence ${signed.manifest.sequence} published and verified.`);
+  await publishCompatibilityManifest(args, { config });
 }
 
-async function publishImmutable(
-  config: NonNullable<ReturnType<typeof readR2Config>>,
-  key: string,
-  body: Buffer,
-  contentType: string,
-  metadata: Record<string, string>,
+export async function publishCompatibilityManifest(
+  args: CompatibilityPublishArguments,
+  options: { config: R2Config; storage?: CompatibilityStorage; report?: (message: string) => void },
 ): Promise<void> {
-  console.log(
-    `Preflight: bucket ${config.bucket}, object ${key}, ${body.length} bytes, SHA-256 ${metadata.sha256}`,
-  );
-  const existing = await headObject({ config, key });
-  if (existing) {
-    if (existing.sizeBytes !== body.length || existing.metadata.sha256 !== metadata.sha256) {
-      throw new Error(`Immutable compatibility object ${key} already exists with different bytes.`);
+  const { config, storage = { getObject, headObject, putObject }, report = console.log } = options;
+  const publication = prepareCompatibilityPublication(args);
+  const missing: CompatibilityPublicationObject[] = [];
+  // Check the complete namespace before the first write; a late conflict must not strand a tuple.
+  for (const object of publication.objects) {
+    report(
+      `Preflight: bucket ${config.bucket}, object ${object.key}, ${object.body.length} bytes, SHA-256 ${object.metadata.sha256}`,
+    );
+    if (await verifyExistingObject(config, storage, object)) {
+      report(`Verified existing immutable object ${object.key}.`);
+    } else {
+      missing.push(object);
     }
-    await verifyRemoteBytes(config, key, body.length, metadata.sha256);
-    console.log(`Verified existing immutable object ${key}.`);
-    return;
   }
-  await putObject({ config, key, body, contentType, metadata, ifNoneMatch: "*" });
-  const remote = await headObject({ config, key });
-  if (!remote || remote.sizeBytes !== body.length || remote.metadata.sha256 !== metadata.sha256) {
-    throw new Error(`Compatibility object ${key} did not verify after publication.`);
+  for (const object of missing) {
+    // A racing publisher is not permission to overwrite, even after a successful preflight.
+    await storage.putObject({ config, ...object, ifNoneMatch: "*" });
+    if (!(await verifyExistingObject(config, storage, object))) {
+      throw new Error(`Compatibility object ${object.key} did not verify after publication.`);
+    }
+    report(`Published and verified ${object.key}.`);
   }
-  await verifyRemoteBytes(config, key, body.length, metadata.sha256);
-  console.log(`Published and verified ${key}.`);
+  report(`Compatibility sequence ${publication.sequence} published and verified.`);
+}
+
+async function verifyExistingObject(
+  config: R2Config,
+  storage: CompatibilityStorage,
+  object: CompatibilityPublicationObject,
+): Promise<boolean> {
+  const existing = await storage.headObject({ config, key: object.key });
+  if (!existing) return false;
+  if (
+    existing.sizeBytes !== object.body.length ||
+    Object.entries(object.metadata).some(([name, value]) => existing.metadata[name] !== value)
+  ) {
+    throw new Error(`Immutable compatibility object ${object.key} already exists with different bytes or metadata.`);
+  }
+  await verifyRemoteBytes(config, storage, object);
+  return true;
 }
 
 async function verifyRemoteBytes(
-  config: NonNullable<ReturnType<typeof readR2Config>>,
-  key: string,
-  expectedSize: number,
-  expectedSha256: string,
+  config: R2Config,
+  storage: CompatibilityStorage,
+  object: CompatibilityPublicationObject,
 ): Promise<void> {
-  const { body } = await getObject({ config, key });
+  const { body } = await storage.getObject({ config, key: object.key });
   const reader = body.getReader();
   const hash = createHash("sha256");
   let size = 0;
@@ -142,24 +85,12 @@ async function verifyRemoteBytes(
     size += value.byteLength;
     hash.update(value);
   }
-  if (size !== expectedSize || hash.digest("hex") !== expectedSha256) {
-    throw new Error(`Compatibility object ${key} bytes do not match the local publication input.`);
+  if (size !== object.body.length || hash.digest("hex") !== object.metadata.sha256) {
+    throw new Error(`Compatibility object ${object.key} bytes do not match the local publication input.`);
   }
 }
 
-function digest(body: Buffer): string {
-  return createHash("sha256").update(body).digest("hex");
-}
-
-export function parseCompatibilityPublishArgs(values: string[]): {
-  manifest: string;
-  revocations: string;
-  installer: string;
-  relay: string;
-  browser: string;
-  controlContract: string;
-  engine: string;
-} {
+export function parseCompatibilityPublishArgs(values: string[]): CompatibilityPublishArguments {
   const parsed = new Map<string, string>();
   for (let index = 0; index < values.length; index += 2) {
     const name = values[index];
