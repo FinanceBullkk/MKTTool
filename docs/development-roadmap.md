@@ -4,15 +4,21 @@
 
 ## Single-entry installer acceptance - 9 September 2026
 
-Replacement Browser 0.3.14 / Relay 17 is under verification. Independent Relay builds exposed a
-second issue: Node SEA embedded the absolute checkout path in the executable. Relative SEA paths fix
-it: fresh A2/B2 builds from `78a8a84` produce byte-identical EXE, ZIP and metadata without normalization.
-Retained Relay ZIP SHA-256 is `d8bf25dcb446d779bd5461419ea7562044e280ac1d16592a71a52f156f6359cf`.
-Candidate `20260909-browser-0.3.14-relay-17-activation-repair-cft` pins those bytes. Installer metadata
-validation follows the reviewed candidate Relay version and rejects mismatched versions even with
-an approval tuple. Current-version health/provenance fixtures use 17; 84 focused tests pass after
-the first full quality run recorded 5 failed and 2,160 passed tests. No replacement installer is
-accepted or published; full frozen quality and exact VM/MSI acceptance remain required.
+Browser 0.3.15 / Relay 17 is the next candidate, with publication HOLD. Exact 0.3.14 installed cleanly
+(9/9), completed supported enrollment/bootstrap and passed the former shutdown failure during signed
+sequence 18 activation. Smoke then failed: Browser ignored the Relay-installed CFT runtime because
+`current.json` was absent, attempted an unauthenticated candidate download and received HTTP 401.
+The Browser correction recognizes the stable runtime only when its metadata matches the signed pin;
+the actual bootstrap regression fails before the correction and four focused tests pass afterward.
+No protected state or engine pin was edited to make the VM pass. Failure snapshot and diagnostics
+remain retained. A separately observed ipapi.co RateLimited response on the original test proxy also
+requires a verified observer input for the next trial.
+
+Candidate `20260909-browser-0.3.15-relay-17-activated-engine-cache-cft` retains the exact Relay 17 ZIP
+`d8bf25dcb446d779bd5461419ea7562044e280ac1d16592a71a52f156f6359cf`. Relay A2/B2 EXE, ZIP and sidecar
+remain byte-identical from `78a8a84`. Previous full Web quality passed 2,168/2,168 with zero skips;
+security and database contracts passed separately. New source/metadata checks, Browser A/B builds,
+signed tuple, VM acceptance and owner-run MSI checks remain required before publication.
 
 **Activation defect found; exact A is rejected for promotion.** Authenticated VM enrollment and
 operator-key bootstrap succeeded. Tray reopen/Quit passed with no active profile; Quit retained the

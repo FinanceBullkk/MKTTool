@@ -20,6 +20,12 @@ the archive location.
 
 ## 9 September 2026 - Reproduced single-entry installer; release held
 
+- Exact 0.3.14 / Relay 17 VM activation reached smoke but failed because Browser required its own
+  download index despite an already installed, pinned engine. The next 0.3.15 candidate recognizes
+  the stable runtime against the signed version and retains unchanged Relay 17. Actual bootstrap
+  regression fails before the correction; four focused tests pass afterward. No new acceptance or
+  publication claim; the failed exact installer and VM snapshot remain preserved.
+
 - Replacement Relay 17 build uses relative SEA paths to prevent checkout location from changing the
   delivered executable. Fresh A2/B2 EXE, ZIP and metadata are byte-identical. Candidate Browser 0.3.14
   pins the retained Relay archive. Installer validation uses the reviewed candidate Relay version and

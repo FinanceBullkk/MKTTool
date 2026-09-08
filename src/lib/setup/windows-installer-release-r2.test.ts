@@ -34,8 +34,8 @@ const CONFIG = {
 const BYTES = Buffer.from("verified-installer");
 const SHA = createHash("sha256").update(BYTES).digest("hex");
 const COMPLETE_METADATA = {
-  "candidate-id": "20260909-browser-0.3.14-relay-17-activation-repair-cft",
-  "browser-version": "0.3.14",
+  "candidate-id": "20260909-browser-0.3.15-relay-17-activated-engine-cache-cft",
+  "browser-version": "0.3.15",
   sha256: SHA,
   "bundled-relay-version": "17",
   "bundled-relay-sha256": "b".repeat(64),
