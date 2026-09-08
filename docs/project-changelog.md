@@ -18,6 +18,26 @@ the archive location.
 
 ---
 
+## 8 September 2026 - VM startup repaired; first-run release remains blocked
+
+- **Fixed Browser startup:** `c7e17429` reuses a short-lived shell for fresh serialized CIM queries;
+  exact ownership, signed tickets, proxy fail-closed behavior, and 15-second readiness stay intact.
+  Two real VM managed-lifecycle runs passed, including reboot and broken-proxy refusal/recovery.
+- **Changed fresh settings:** `36939cdd` defaults to CFT while preserving explicit saved selections.
+  Local checks passed: 391 tests / 1 intentional host skip, typecheck/lint, and critical coverage
+  91.48% lines / 84.23% branches / 91.39% functions. Independent reviews reported no findings.
+  Browser source is pushed with `0/0` remote parity; no new Browser PR, CI trigger, or merge occurred.
+- **Delivered Web harness:** PR #68 merged as `46a99f2b`; post-merge CI `34171586969`, deploy
+  verification, Railway production, and secret scan `34171586987` passed. Post-merge Relay executable
+  verification was policy-skipped; the earlier PR executable PASS is independent evidence.
+- **Release still blocked:** the new unsigned installer passed clean VM install 9/9, initial
+  uninstall 15/15, fresh-snapshot repair 13/13, and post-repair uninstall 15/15; Defender enabled,
+  data preserved, exact process/task/firewall cleanup passed. Normal installed CFT reports engine error without
+  overrides: no active compatibility pin or runtime. Browser CI artifact storage and first-run
+  activation remain blocked. Network/operator/canary evidence remains OPEN;
+  no Browser publication, host installation, identity claim, or historical-gate promotion occurred.
+  See the [current closeout checkpoint](development-roadmap.md#ready-to-use-closeout-checkpoint---8-september-2026).
+
 ## 8 September 2026 - finishing-pass evidence, release still blocked
 
 - **Verified locally:** Browser `ad0c7182` / `0.3.13` with README-only working diff; lint/typecheck,
