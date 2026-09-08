@@ -354,7 +354,7 @@ function staleReleaseFields(
   if (metadata.candidateId !== EXPECTED_WINDOWS_INSTALLER_CANDIDATE_ID) {
     stale.push("stale-candidate-id");
   }
-  if (metadata.bundledRelayVersion !== 16) {
+  if (metadata.bundledRelayVersion !== WINDOWS_INSTALLER_CANDIDATE.relayVersion) {
     stale.push("stale-bundled-relay-version");
   }
 

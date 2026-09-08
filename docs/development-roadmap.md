@@ -5,10 +5,14 @@
 ## Single-entry installer acceptance - 9 September 2026
 
 Replacement Browser 0.3.14 / Relay 17 is under verification. Independent Relay builds exposed a
-second issue: Node SEA embedded the absolute checkout path in the executable. The build now supplies
-relative SEA input/output paths; new independent artifacts must prove reproducibility. Current-version
-health/provenance fixtures are updated to 17. The first full quality run recorded 5 failed and 2,160
-passed tests before those fixture corrections. No replacement installer is accepted or published.
+second issue: Node SEA embedded the absolute checkout path in the executable. Relative SEA paths fix
+it: fresh A2/B2 builds from `78a8a84` produce byte-identical EXE, ZIP and metadata without normalization.
+Retained Relay ZIP SHA-256 is `d8bf25dcb446d779bd5461419ea7562044e280ac1d16592a71a52f156f6359cf`.
+Candidate `20260909-browser-0.3.14-relay-17-activation-repair-cft` pins those bytes. Installer metadata
+validation follows the reviewed candidate Relay version and rejects mismatched versions even with
+an approval tuple. Current-version health/provenance fixtures use 17; 84 focused tests pass after
+the first full quality run recorded 5 failed and 2,160 passed tests. No replacement installer is
+accepted or published; full frozen quality and exact VM/MSI acceptance remain required.
 
 **Activation defect found; exact A is rejected for promotion.** Authenticated VM enrollment and
 operator-key bootstrap succeeded. Tray reopen/Quit passed with no active profile; Quit retained the

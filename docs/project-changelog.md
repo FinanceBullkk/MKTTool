@@ -21,8 +21,10 @@ the archive location.
 ## 9 September 2026 - Reproduced single-entry installer; release held
 
 - Replacement Relay 17 build uses relative SEA paths to prevent checkout location from changing the
-  delivered executable. Independent rebuild and packaged verification remain required. Updated exact
-  health/provenance/version test fixtures for Relay 17; preserved historical release parser cases.
+  delivered executable. Fresh A2/B2 EXE, ZIP and metadata are byte-identical. Candidate Browser 0.3.14
+  pins the retained Relay archive. Installer validation uses the reviewed candidate Relay version and
+  rejects stale/future Relay metadata even with explicit tuple approval. Updated exact health,
+  provenance and version fixtures; 84 focused tests pass. Full frozen gates and VM/MSI remain open.
 
 - VM signed activation exposed a Relay v16 shutdown defect: already-absent runtimes caused a false
   PowerShell exit 1 and left the transition at `stopping`. Corrected successful completion and
