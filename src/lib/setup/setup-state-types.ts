@@ -13,6 +13,7 @@ export type SetupActionKind =
   | "SIGN_IN"
   | "CONFIRM"
   | "ADMIN"
+  | "RECOVER"
   | "RETRY"
   | "UPDATE"
   | "CONTINUE";

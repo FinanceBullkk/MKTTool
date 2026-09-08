@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useTransition } from "react";
 import { SMALL_BUTTON_CLASS } from "@/components/ui/page-section";
 import type { ActionResult } from "@/lib/actions/action-result";
@@ -25,6 +26,7 @@ export function RelayDeviceRetirementReceiptButton({
 }) {
   const [pending, startTransition] = useTransition();
   const [result, setResult] = useState<ActionResult | null>(null);
+  const [finalized, setFinalized] = useState(false);
   // The receipt lives on that PC, so this action is meaningful only from the same machine.
   const locality = relayDeviceLocality(useLocalRelayPing(), {
     deviceId,
@@ -36,6 +38,7 @@ export function RelayDeviceRetirementReceiptButton({
     const ping = pingRelay();
     startTransition(async () => {
       setResult(null);
+      setFinalized(false);
       try {
         const health = await ping;
         const local = health.status === "ok" || health.status === "rejected" ? health.data : undefined;
@@ -69,11 +72,12 @@ export function RelayDeviceRetirementReceiptButton({
           setResult(issued.ok ? { ok: false, message: "Server finalization state does not match this PC." } : issued);
           return;
         }
-        const finalized = await finalizeRelayDeviceRetirement(authorization);
+        const finalization = await finalizeRelayDeviceRetirement(authorization);
+        setFinalized(finalization.status === "ok");
         setResult(
-          finalized.status === "ok"
-            ? { ok: true, message: finalized.data.message }
-            : { ok: false, message: describeRelayFailure(finalized, health) },
+          finalization.status === "ok"
+            ? { ok: true, message: finalization.data.message }
+            : { ok: false, message: describeRelayFailure(finalization, health) },
         );
       } catch {
         setResult({
@@ -110,6 +114,18 @@ export function RelayDeviceRetirementReceiptButton({
           {result.message}
         </p>
       ) : null}
+      {finalized ? (
+        <p className="text-xs leading-5 text-neutral-400">
+          To use this PC again, open the MKTTool Relay desktop shortcut, then{" "}
+          <Link href="/setup" className="text-sky-300 underline">open Setup and register a new Relay PC</Link>.
+        </p>
+      ) : (
+        <p className="text-xs leading-5 text-neutral-400">
+          On {deviceName}, if Setup still reports unfinished retirement, check the local receipt here first.
+          After Relay confirms completion and closes, open the MKTTool Relay desktop shortcut,
+          then <Link href="/setup" className="text-sky-300 underline">open Setup and register a new Relay PC</Link>.
+        </p>
+      )}
     </div>
   );
 }

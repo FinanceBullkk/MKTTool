@@ -75,6 +75,47 @@ describe("inspectSetupDevice", () => {
     expect(deviceOf(result)?.conflict).toBe("shared-windows-account");
   });
 
+  it("identifies owner cleanup only for the exact revoked device ID and public key", async () => {
+    const publicKey = generateRelayDeviceKeyPair().publicKeyHex;
+    const device = await prisma.relayDevice.create({
+      data: { name: "Revoked PC", userId: OWNER.userId, publicKey, revokedAt: new Date() },
+    });
+
+    expect(deviceOf(await inspect({ publicKey, deviceId: device.id }))).toEqual({
+      status: "enrolled", revoked: true, conflict: "revoked-key", ownerUserId: OWNER.userId,
+    });
+    for (const fields of [
+      { publicKey },
+      { deviceId: device.id },
+      { publicKey, deviceId: "missing-device-id" },
+      { publicKey: generateRelayDeviceKeyPair().publicKeyHex, deviceId: device.id },
+    ]) {
+      const inspected = deviceOf(await inspect(fields));
+      expect(inspected?.revoked).toBe(true);
+      expect(inspected?.ownerUserId).toBeUndefined();
+    }
+
+    actor = OTHER;
+    expect(deviceOf(await inspect({ publicKey, deviceId: device.id }))?.ownerUserId).toBeUndefined();
+  });
+
+  it("does not identify owner cleanup when a revoked ID and key resolve to different owned rows", async () => {
+    const first = await prisma.relayDevice.create({
+      data: { name: "Revoked", userId: OWNER.userId, publicKey: generateRelayDeviceKeyPair().publicKeyHex, revokedAt: new Date() },
+    });
+    const second = await prisma.relayDevice.create({
+      data: { name: "Active", userId: OWNER.userId, publicKey: generateRelayDeviceKeyPair().publicKeyHex },
+    });
+    for (const fields of [
+      { publicKey: first.publicKey, deviceId: second.id },
+      { publicKey: second.publicKey, deviceId: first.id },
+    ]) {
+      const inspected = deviceOf(await inspect(fields));
+      expect(inspected?.revoked).toBe(true);
+      expect(inspected?.ownerUserId).toBeUndefined();
+    }
+  });
+
   it("fails closed when Relay reports an unknown device ID for a registered public key", async () => {
     const publicKey = generateRelayDeviceKeyPair().publicKeyHex;
     await prisma.relayDevice.create({

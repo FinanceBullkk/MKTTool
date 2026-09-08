@@ -69,6 +69,7 @@ export default async function RelayDevicesPage() {
         <RelayRevokedDeviceList
           devices={revokedDevices}
           isAdmin={isAdmin}
+          viewerUserId={viewer?.userId}
           minimumRelayVersion={MIN_RELAY_VERSION}
         />
       </RelayLocalIdentityProvider>

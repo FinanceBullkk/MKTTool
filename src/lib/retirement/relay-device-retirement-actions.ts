@@ -6,7 +6,8 @@ import { z } from "zod";
 import { firstError, formToObject } from "@/lib/accounts/vault-form-schemas";
 import type { ActionResult } from "@/lib/actions/action-result";
 import { AUDIT_ACTIONS } from "@/lib/audit/audit-log-actions";
-import { adminAction } from "@/lib/auth/guarded-action";
+import { guardedAction } from "@/lib/auth/guarded-action";
+import { AuthorizationError, type Actor } from "@/lib/auth/require-actor";
 import { prisma } from "@/lib/db/prisma-client";
 import {
   hashDeviceRetirementProof,
@@ -35,7 +36,7 @@ export interface RelayDeviceRetirementResult extends ActionResult {
   finalizationAuthorization?: string;
 }
 
-export const beginRelayDeviceRetirement = adminAction(async function beginRelayDeviceRetirement(
+export const beginRelayDeviceRetirement = guardedAction(async function beginRelayDeviceRetirement(
   actor,
   _previous: RelayDeviceRetirementResult | null,
   formData: FormData,
@@ -49,6 +50,7 @@ export const beginRelayDeviceRetirement = adminAction(async function beginRelayD
       where: { id: parsed.data.deviceId },
       include: { user: { select: { email: true } } },
     });
+    requireDeviceRetirementAccess(actor, device);
     if (!device) return { ok: false, message: "This PC is not registered." };
     if (device.retirementCompletedAt || device.retirementFinalizationAuthorization) {
       if (
@@ -135,10 +137,13 @@ export const beginRelayDeviceRetirement = adminAction(async function beginRelayD
         retirementFinalizationKeyEnc: finalizationKeyEnc,
       },
     });
-    const unpinned = await tx.account.updateMany({
-      where: { deviceId: device.id },
-      data: { deviceId: null },
-    });
+    // Owner recovery only cleans up an already revoked identity; nick assignment stays ADMIN-owned.
+    const unpinned = actor.role === "ADMIN"
+      ? await tx.account.updateMany({
+          where: { deviceId: device.id },
+          data: { deviceId: null },
+        })
+      : { count: 0 };
     if (firstStart) {
       await tx.auditLog.create({
         data: {
@@ -154,6 +159,7 @@ export const beginRelayDeviceRetirement = adminAction(async function beginRelayD
       where: { id: device.id },
       include: { user: { select: { email: true } } },
     });
+    requireDeviceRetirementAccess(actor, device);
     return {
       ok: true,
       message: "Server access is revoked. This PC can now remove its local Relay identity.",
@@ -170,7 +176,7 @@ export const beginRelayDeviceRetirement = adminAction(async function beginRelayD
   return result;
 });
 
-export const completeRelayDeviceRetirement = adminAction(
+export const completeRelayDeviceRetirement = guardedAction(
   async function completeRelayDeviceRetirement(
     actor,
     _previous: ActionResult | null,
@@ -182,6 +188,7 @@ export const completeRelayDeviceRetirement = adminAction(
     const result = await prisma.$transaction(async (tx): Promise<ActionResult> => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(40306)`;
       const device = await tx.relayDevice.findUnique({ where: { id: parsed.data.deviceId } });
+      requireDeviceRetirementAccess(actor, device);
       if (!device) return { ok: false, message: "This PC is not registered." };
       if (
         device.retirementCompletedAt &&
@@ -225,6 +232,7 @@ export const completeRelayDeviceRetirement = adminAction(
       });
       if (committed.count === 0) {
         const current = await tx.relayDevice.findUnique({ where: { id: device.id } });
+        requireDeviceRetirementAccess(actor, current);
         if (current?.retirementCompletedAt && current.retirementId === parsed.data.retirementId) {
           return { ok: true, message: "Local Relay cleanup is already confirmed." };
         }
@@ -245,32 +253,49 @@ export const completeRelayDeviceRetirement = adminAction(
   },
 );
 
-export const issueRelayDeviceRetirementFinalization = adminAction(
+export const issueRelayDeviceRetirementFinalization = guardedAction(
   async function issueRelayDeviceRetirementFinalization(
-    _actor,
+    actor,
     _previous: RelayDeviceRetirementResult | null,
     formData: FormData,
   ): Promise<RelayDeviceRetirementResult> {
     const parsed = deviceSchema.safeParse(formToObject(formData));
     if (!parsed.success) return { ok: false, message: firstError(parsed.error) };
-    const device = await prisma.relayDevice.findUnique({ where: { id: parsed.data.deviceId } });
-    if (
-      !device ||
-      !device.retirementCompletedAt ||
-      !device.retirementId ||
-      !device.retirementFinalizationAuthorization
-    ) {
-      return { ok: false, message: "Server retirement completion is not confirmed for this PC." };
-    }
-    return {
-      ok: true,
-      message: "Server retirement completion is confirmed.",
-      state: "completed",
-      retirementId: device.retirementId,
-      finalizationAuthorization: device.retirementFinalizationAuthorization,
-    };
+    return prisma.$transaction(async (tx): Promise<RelayDeviceRetirementResult> => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(40306)`;
+      const device = await tx.relayDevice.findUnique({ where: { id: parsed.data.deviceId } });
+      requireDeviceRetirementAccess(actor, device);
+      if (
+        !device ||
+        !device.retirementCompletedAt ||
+        !device.retirementId ||
+        !device.retirementFinalizationAuthorization
+      ) {
+        return { ok: false, message: "Server retirement completion is not confirmed for this PC." };
+      }
+      return {
+        ok: true,
+        message: "Server retirement completion is confirmed.",
+        state: "completed",
+        retirementId: device.retirementId,
+        finalizationAuthorization: device.retirementFinalizationAuthorization,
+      };
+    });
   },
 );
+
+function requireDeviceRetirementAccess(
+  actor: Actor,
+  device: { userId: string; revokedAt: Date | null } | null,
+): void {
+  if (actor.role === "ADMIN") return;
+  if (!device || device.userId !== actor.userId || !device.revokedAt) {
+    throw new AuthorizationError(
+      "You can only finish cleanup for a revoked Relay PC that you own.",
+      false,
+    );
+  }
+}
 
 function issueFinalizationAuthorization(
   device: {

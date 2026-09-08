@@ -69,10 +69,15 @@ export const inspectSetupDevice = guardedAction(async function inspectSetupDevic
   ]);
 
   if (byKey?.revokedAt || byId?.revokedAt) {
+    // Recovery guidance requires both local identifiers to resolve to the same owned record.
+    const exactOwnedDevice = byKey && byId && byKey.id === byId.id && byKey.userId === actor.userId;
     return {
       ok: true,
       message: "This PC uses a revoked device key.",
-      device: { status: "enrolled", revoked: true, conflict: "revoked-key" },
+      device: {
+        status: "enrolled", revoked: true, conflict: "revoked-key",
+        ...(exactOwnedDevice ? { ownerUserId: actor.userId } : {}),
+      },
     };
   }
   if (byKey && byId && byKey.id !== byId.id) {

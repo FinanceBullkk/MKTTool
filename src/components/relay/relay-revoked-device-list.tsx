@@ -1,4 +1,4 @@
-import { Archive, CheckCircle2, ChevronDown, Settings2 } from "lucide-react";
+import { Archive, ChevronDown, Settings2 } from "lucide-react";
 import { RelayDeviceIdCell } from "@/components/relay/relay-device-id-cell";
 import type { RelayDeviceListItem } from "@/components/relay/relay-device-list-types";
 import { RelayDeviceRetirementButton } from "@/components/relay/relay-device-retirement-button";
@@ -11,13 +11,18 @@ import { formatFullDateTime } from "@/lib/format/vietnamese-date-format";
 export function RelayRevokedDeviceList({
   devices,
   isAdmin,
+  viewerUserId,
   minimumRelayVersion,
 }: {
   devices: RelayDeviceListItem[];
   isAdmin: boolean;
+  viewerUserId?: string;
   minimumRelayVersion: number;
 }) {
   if (devices.length === 0) return null;
+
+  const canFinishCleanup = (device: RelayDeviceListItem) =>
+    Boolean(device.revokedAt) && (isAdmin || (Boolean(viewerUserId) && device.userId === viewerUserId));
 
   return (
     <details className="group app-surface mb-5 rounded-2xl bg-white/[0.012]">
@@ -54,19 +59,32 @@ export function RelayRevokedDeviceList({
 
               <div className="md:text-right">
                 {device.retirementCompletedAt ? (
-                  <StatusBadge
-                    label="Local cleanup confirmed"
-                    className="bg-emerald-950/60 text-emerald-500"
-                  />
+                  <>
+                    <StatusBadge
+                      label="Local cleanup confirmed"
+                      className="bg-emerald-950/60 text-emerald-500"
+                    />
+                    {canFinishCleanup(device) && device.retirementId ? (
+                      <div className="mt-2 md:flex md:justify-end">
+                        <RelayDeviceRetirementReceiptButton
+                          deviceId={device.id}
+                          deviceName={device.name}
+                          devicePublicKey={device.publicKey}
+                          retirementId={device.retirementId}
+                        />
+                      </div>
+                    ) : null}
+                  </>
                 ) : (
                   <>
                     <StatusBadge label="Local cleanup pending" className="bg-red-950/60 text-red-300" />
-                    {isAdmin ? (
+                    {canFinishCleanup(device) ? (
                       <div className="mt-2 md:flex md:justify-end">
                         <RelayDeviceRetirementButton
                           deviceId={device.id}
                           deviceName={device.name}
                           devicePublicKey={device.publicKey}
+                          mode="cleanup"
                         />
                       </div>
                     ) : null}
@@ -94,20 +112,6 @@ export function RelayRevokedDeviceList({
                     <p className="mb-2 text-xs font-medium text-neutral-600">Last reported runtime</p>
                     <RelayDeviceVersionCell device={device} floor={minimumRelayVersion} />
                   </div>
-                  {isAdmin && device.retirementCompletedAt && device.retirementId ? (
-                    <div className="border-t border-white/[0.06] pt-4">
-                      <p className="mb-2 flex items-center gap-2 text-xs font-medium text-neutral-600">
-                        <CheckCircle2 size={14} aria-hidden="true" />
-                        Cleanup receipt
-                      </p>
-                      <RelayDeviceRetirementReceiptButton
-                        deviceId={device.id}
-                        deviceName={device.name}
-                        devicePublicKey={device.publicKey}
-                        retirementId={device.retirementId}
-                      />
-                    </div>
-                  ) : null}
                 </div>
               </div>
             </InlineDisclosure>

@@ -38,17 +38,20 @@ const health: RelayHealth & RelayReply = {
   },
 };
 
-function renderButton(outcome: RelayOutcome<RelayHealth & RelayReply> | null): string {
+function renderButton(
+  outcome: RelayOutcome<RelayHealth & RelayReply> | null,
+  mode: "retire" | "cleanup" = "retire",
+): string {
   localPing.current = outcome;
-  return renderToStaticMarkup(createElement(RelayDeviceRetirementButton, props));
+  return renderToStaticMarkup(createElement(RelayDeviceRetirementButton, { ...props, mode }));
 }
 
 describe("RelayDeviceRetirementButton locality rendering", () => {
-  it("replaces the button with guidance when this is definitely another PC", () => {
+  it.each(["retire", "cleanup"] as const)("hides %s when this is definitely another PC", (mode) => {
     const markup = renderButton({
       status: "ok",
       data: { ...health, publicKey: "public-key-b" },
-    });
+    }, mode);
 
     expect(markup).not.toContain("<button");
     expect(markup).toContain("This page is open on a different PC.");
@@ -59,6 +62,21 @@ describe("RelayDeviceRetirementButton locality rendering", () => {
     const markup = renderButton({ status: "unreachable", message: "No Relay." });
 
     expect(markup).toContain("Retire this PC");
+    expect(markup).toContain("No Relay was found on the PC showing this page");
+  });
+
+  it("offers cleanup without presenting an already revoked PC as active", () => {
+    const markup = renderButton({ status: "ok", data: health }, "cleanup");
+
+    expect(markup).toContain("Finish local cleanup");
+    expect(markup).not.toContain("Retire this PC");
+    expect(markup).not.toContain("open Setup and register a new Relay PC");
+  });
+
+  it("keeps cleanup retryable when the local Relay lookup is unavailable", () => {
+    const markup = renderButton({ status: "unreachable", message: "No Relay." }, "cleanup");
+
+    expect(markup).toContain("Finish local cleanup");
     expect(markup).toContain("No Relay was found on the PC showing this page");
   });
 });

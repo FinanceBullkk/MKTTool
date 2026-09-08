@@ -1,5 +1,6 @@
 export interface RelayDeviceListItem {
   id: string;
+  userId: string;
   name: string;
   publicKey: string;
   createdAt: Date;

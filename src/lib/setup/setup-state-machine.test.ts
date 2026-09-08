@@ -79,6 +79,29 @@ describe("setupStateMachine", () => {
     expect(output.action.kind).toBe("ADMIN");
   });
 
+  it("routes an exactly matched owner of a revoked PC to self-service cleanup", () => {
+    const output = derive({
+      device: { ...BASE.device, revoked: true, conflict: "revoked-key" },
+    });
+
+    expect(output.state).toBe("Needs repair");
+    expect(output.action).toEqual({
+      kind: "RECOVER", label: "Finish local cleanup", href: "/relay-devices",
+    });
+    expect(output.message).toContain("register a new Relay identity");
+  });
+
+  it.each([
+    { status: "enrolled", revoked: true, conflict: "revoked-key" },
+    { ...BASE.device, ownerUserId: "another-owner", revoked: true, conflict: "revoked-key" },
+    { ...BASE.device, revoked: true, conflict: "device-id-mismatch" },
+    { ...BASE.device, revoked: true, conflict: "shared-windows-account" },
+  ] as const)("does not offer owner cleanup for an unverified or conflicting identity: %j", (device) => {
+    const output = derive({ device });
+    expect(output.state).toBe("Needs repair");
+    expect(output.action.kind).toBe("ADMIN");
+  });
+
   it("fails closed without inventing a conflict when registry inspection fails", () => {
     const output = derive({ device: { status: "inspection-failed" } });
 
@@ -203,7 +226,7 @@ describe("setupStateMachine", () => {
 
     expect(output.state).toBe("Needs repair");
     expect(output.action).toEqual({
-      kind: "ADMIN",
+      kind: "RECOVER",
       label: "Finish device retirement",
       href: "/relay-devices",
     });

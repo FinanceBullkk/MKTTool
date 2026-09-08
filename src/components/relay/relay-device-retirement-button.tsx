@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useTransition } from "react";
 import type { ActionResult } from "@/lib/actions/action-result";
 import { DANGER_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/components/ui/page-section";
@@ -21,15 +22,20 @@ export function RelayDeviceRetirementButton({
   deviceId,
   deviceName,
   devicePublicKey,
+  mode = "retire",
 }: {
   deviceId: string;
   deviceName: string;
   devicePublicKey: string;
+  mode?: "retire" | "cleanup";
 }) {
   const [armed, setArmed] = useState(false);
   const [confirmation, setConfirmation] = useState("");
   const [result, setResult] = useState<ActionResult | null>(null);
+  const [cleanupFinalized, setCleanupFinalized] = useState(false);
   const [pending, startTransition] = useTransition();
+  const cleanup = mode === "cleanup";
+  const actionLabel = cleanup ? "Finish local cleanup" : "Retire this PC";
   /**
    * This only controls rendering. `retire()` still performs the authoritative check because this
    * browser-derived lookup has no user activation and must never authorize retirement.
@@ -44,6 +50,7 @@ export function RelayDeviceRetirementButton({
     const ping = pingRelay();
     startTransition(async () => {
       setResult(null);
+      setCleanupFinalized(false);
       try {
         const health = await ping;
         const local = health.status === "ok" || health.status === "rejected" ? health.data : undefined;
@@ -85,6 +92,7 @@ export function RelayDeviceRetirementButton({
             return;
           }
           const finalized = await finalizeRelayDeviceRetirement(finalizationAuthorization);
+          setCleanupFinalized(finalized.status === "ok");
           setResult(
             finalized.status === "ok"
               ? { ok: true, message: finalized.data.message }
@@ -136,9 +144,10 @@ export function RelayDeviceRetirementButton({
           return;
         }
         const finalized = await finalizeRelayDeviceRetirement(finalizationAuthorization);
+        setCleanupFinalized(finalized.status === "ok");
         setResult(
           finalized.status === "ok"
-            ? { ok: true, message: completed.message }
+            ? { ok: true, message: finalized.data.message }
             : {
                 ok: false,
                 message:
@@ -162,8 +171,10 @@ export function RelayDeviceRetirementButton({
     return (
       <div className="space-y-3 rounded-xl border border-red-400/20 bg-red-400/[0.06] p-4 text-left">
         <p className="text-xs leading-5 text-red-200">
-          This revokes the server record first, unpins its accounts, and removes Relay credentials
-          from this PC. It does not delete MKT Browser profiles or MultiZen data. Type the exact PC
+          {cleanup
+            ? "This PC is already revoked. Finish removing its old Relay credentials and confirm local cleanup. "
+            : "This revokes the server record first, unpins its accounts, and removes Relay credentials from this PC. "}
+          It does not delete MKT Browser profiles or MultiZen data. Type the exact PC
           name to continue: <strong>{deviceName}</strong>
         </p>
         <input
@@ -171,7 +182,7 @@ export function RelayDeviceRetirementButton({
           onChange={(event) => setConfirmation(event.target.value)}
           disabled={pending}
           className="min-h-11 w-full rounded-xl border border-white/[0.12] bg-black/25 px-3 text-base text-white outline-none focus:border-red-400/50 disabled:opacity-40 sm:text-xs"
-          aria-label={`Type ${deviceName} to confirm Relay retirement`}
+          aria-label={`Type ${deviceName} to confirm ${cleanup ? "local cleanup" : "Relay retirement"}`}
         />
         <div className="flex justify-end gap-2">
           <button
@@ -180,7 +191,7 @@ export function RelayDeviceRetirementButton({
             onClick={retire}
             className={DANGER_BUTTON_CLASS}
           >
-            {pending ? "Retiring..." : "Retire this PC"}
+            {pending ? (cleanup ? "Finishing cleanup..." : "Retiring...") : actionLabel}
           </button>
           <button
             type="button"
@@ -214,7 +225,7 @@ export function RelayDeviceRetirementButton({
         }}
         className={DANGER_BUTTON_CLASS}
       >
-        {locality.state === "checking" ? "Checking this PC..." : "Retire this PC"}
+        {locality.state === "checking" ? "Checking this PC..." : actionLabel}
       </button>
       {locality.state === "unverified" ? (
         <p className="text-xs leading-5 text-neutral-500">{locality.note}</p>
@@ -222,6 +233,12 @@ export function RelayDeviceRetirementButton({
       {result ? (
         <p className={result.ok ? "text-xs text-emerald-300" : "text-xs text-red-300"}>
           {result.message}
+        </p>
+      ) : null}
+      {cleanupFinalized ? (
+        <p className="text-xs leading-5 text-neutral-400">
+          To use this PC again, open the MKTTool Relay desktop shortcut, then{" "}
+          <Link href="/setup" className="text-sky-300 underline">open Setup and register a new Relay PC</Link>.
         </p>
       ) : null}
     </div>

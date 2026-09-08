@@ -32,8 +32,22 @@ export function setupStateMachine(input: SetupStateMachineInput): SetupStateResu
   ) {
     return result(
       "Needs repair",
-      { kind: "ADMIN", label: "Finish device retirement", href: "/relay-devices" },
-      "This PC has removed its Relay identity. Finish the protected retirement receipt before installing or enrolling Relay again.",
+      { kind: "RECOVER", label: "Finish device retirement", href: "/relay-devices" },
+      "This PC has an unfinished protected retirement receipt. Its owner or an administrator can finish cleanup from Relay PCs on this PC. Then restart Relay and return to Setup to register a new Relay identity.",
+    );
+  }
+
+  if (
+    input.device.status === "enrolled" &&
+    input.device.revoked === true &&
+    input.device.ownerUserId &&
+    input.device.ownerUserId === input.session.userId &&
+    (!input.device.conflict || input.device.conflict === "revoked-key")
+  ) {
+    return result(
+      "Needs repair",
+      { kind: "RECOVER", label: "Finish local cleanup", href: "/relay-devices" },
+      "This PC's previous Relay registration was revoked. You can finish local cleanup for your own PC without an administrator. Then restart Relay and return to Setup to register a new Relay identity.",
     );
   }
 
