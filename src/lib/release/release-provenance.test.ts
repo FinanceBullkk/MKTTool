@@ -11,7 +11,7 @@ const RELAY = {
   source: "r2" as const,
   sizeBytes: 100,
   builtAt: new Date("2026-08-30T00:00:00.000Z"),
-  version: 16,
+  version: 17,
   checksum: "a".repeat(64),
 };
 
@@ -23,15 +23,15 @@ describe("release provenance", () => {
 
   it("returns a complete published tuple from sanitized deployment metadata", async () => {
     const result = await readReleaseProvenance({
-      MKT_RELEASE_CANDIDATE_ID: "20260830-browser-0.3.13-relay-16",
+      MKT_RELEASE_CANDIDATE_ID: "20260909-browser-0.3.14-relay-17-activation-repair-cft",
       MKT_RELEASE_SOURCE_SHA: "b".repeat(64),
       MKT_RELEASE_DEPLOYMENT_ID: "deploy-123",
-      MKT_RELEASE_BROWSER_VERSION: "0.3.13",
+      MKT_RELEASE_BROWSER_VERSION: "0.3.14",
       MKT_RELEASE_BROWSER_SIZE_BYTES: "200",
       MKT_RELEASE_BROWSER_SHA256: "c".repeat(64),
-      MKT_RELEASE_ENGINE_KIND: "cloakbrowser",
-      MKT_RELEASE_ENGINE_CHANNEL: "licensed-channel",
-      MKT_RELEASE_ENGINE_VERSION: "151.0.7922.108.2",
+      MKT_RELEASE_ENGINE_KIND: "cft",
+      MKT_RELEASE_ENGINE_CHANNEL: "chrome-for-testing",
+      MKT_RELEASE_ENGINE_VERSION: "152.0.7977.64",
       MKT_RELEASE_ENGINE_SHA256: "d".repeat(64),
       MKT_RELEASE_SIGNING_STATUS: "unsigned-internal-exception",
       MKT_RELEASE_SIGNING_EXCEPTION_EXPIRES_AT: "2099-01-01T00:00:00.000Z",
@@ -39,12 +39,12 @@ describe("release provenance", () => {
 
     expect(result).toMatchObject({
       status: "published",
-      candidateId: "20260830-browser-0.3.13-relay-16",
+      candidateId: "20260909-browser-0.3.14-relay-17-activation-repair-cft",
       sourceSha: "b".repeat(64),
       deploymentId: "deploy-123",
-      relay: { version: 16, sizeBytes: 100, sha256: "a".repeat(64), source: "r2" },
-      browser: { version: "0.3.13", sizeBytes: 200, sha256: "c".repeat(64) },
-      engine: { kind: "cloakbrowser", channel: "licensed-channel", version: "151.0.7922.108.2" },
+      relay: { version: 17, sizeBytes: 100, sha256: "a".repeat(64), source: "r2" },
+      browser: { version: "0.3.14", sizeBytes: 200, sha256: "c".repeat(64) },
+      engine: { kind: "cft", channel: "chrome-for-testing", version: "152.0.7977.64" },
       signing: "unsigned-internal-exception",
       signingExceptionExpiresAt: "2099-01-01T00:00:00.000Z",
       missing: [],

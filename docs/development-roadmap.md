@@ -4,6 +4,12 @@
 
 ## Single-entry installer acceptance - 9 September 2026
 
+Replacement Browser 0.3.14 / Relay 17 is under verification. Independent Relay builds exposed a
+second issue: Node SEA embedded the absolute checkout path in the executable. The build now supplies
+relative SEA input/output paths; new independent artifacts must prove reproducibility. Current-version
+health/provenance fixtures are updated to 17. The first full quality run recorded 5 failed and 2,160
+passed tests before those fixture corrections. No replacement installer is accepted or published.
+
 **Activation defect found; exact A is rejected for promotion.** Authenticated VM enrollment and
 operator-key bootstrap succeeded. Tray reopen/Quit passed with no active profile; Quit retained the
 same Relay process. Signed sequence 17 downloaded/staged all five artifacts after correcting a local

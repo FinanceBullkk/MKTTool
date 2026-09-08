@@ -83,7 +83,7 @@ describe("MKT Browser compatibility verdict", () => {
     expect({
       browserContract: MKT_BROWSER_SUPPORTED_CONTRACT_VERSIONS.at(-1),
       relayVersion: RELAY_VERSION,
-    }).toEqual({ browserContract: 4, relayVersion: 16 });
+    }).toEqual({ browserContract: 4, relayVersion: 17 });
   });
 
   it("accepts a device on a supported contract version", () => {

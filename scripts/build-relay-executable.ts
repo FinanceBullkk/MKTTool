@@ -208,8 +208,10 @@ writeFileSync(
   SEA_CONFIG_FILE,
   `${JSON.stringify(
     {
-      main: BUNDLE_FILE,
-      output: BLOB_FILE,
+      // Node embeds this name in the SEA blob; an absolute path leaks the checkout and
+      // changes the delivered executable between otherwise identical clean builds.
+      main: path.relative(process.cwd(), BUNDLE_FILE).split(path.sep).join("/"),
+      output: path.relative(process.cwd(), BLOB_FILE).split(path.sep).join("/"),
       // Không có nó thì mỗi lần chạy .exe in một dòng cảnh báo "SEA là tính năng thử nghiệm" ra
       // stderr. Cầu nối chạy nền, nên dòng đó không tới ai — nhưng nó tới log của người đang đi
       // tìm lỗi, và một cảnh báo không liên quan ở đầu log là thứ kéo họ đi sai hướng.
