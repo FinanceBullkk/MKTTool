@@ -1,6 +1,18 @@
 # Lộ trình phát triển
 
-**Updated:** 8 September 2026
+**Updated:** 9 September 2026
+
+## Production dependency advisories patched - 9 September 2026
+
+A production dependency audit failed on the deployed tree: Next.js carried critical advisories
+GHSA-p293-qw3h-jr36 and GHSA-2xp9-vwfh-vxw4, and sharp carried high advisory GHSA-rgj7-g3m4-5g8c.
+The deployed lockfile resolved Next.js 16.3.0 and sharp 0.35.3, both inside the affected ranges,
+while `_next/image` is intentionally excluded from middleware authentication. Next.js and its
+ESLint config move to 16.3.3 and sharp locks to 0.35.4; the production audit then passes.
+
+This patch is deliberately scoped to dependencies. It carries no release-candidate metadata and
+does not change Browser, Relay, engine pin, or acceptance state. Candidate freezes stay on their
+own branches, and the outstanding MSI acceptance hold is unaffected.
 
 ## Single-entry Browser startup - 8 September 2026
 
