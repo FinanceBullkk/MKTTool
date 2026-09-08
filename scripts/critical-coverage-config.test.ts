@@ -77,6 +77,12 @@ describe("hợp đồng sàn coverage đường trọng yếu", () => {
       read(".github/workflows/secret-scan.yml"),
     ];
     const workflowSource = workflows.join("\n");
+    for (const workflow of workflows) {
+      expect(workflow).toContain("  workflow_dispatch:");
+      expect(workflow).not.toMatch(/^  (?:push|pull_request|schedule):/m);
+    }
+    expect(read("scripts/ci/local-release-config.cjs")).toContain('"test:critical-coverage"');
+    expect(read("scripts/ci/local-release-runner.cjs")).toContain("releaseApproved: false");
     expect(workflowSource).not.toMatch(/\bself-hosted\b/);
 
     const runsOn = [...workflowSource.matchAll(/^\s*runs-on:\s*(.+)$/gm)].map((match) => match[1]);
