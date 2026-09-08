@@ -19,6 +19,7 @@
  */
 import { NextResponse } from "next/server";
 import { guardedRoute } from "@/lib/auth/guarded-route";
+import { appUrl } from "@/lib/http/request-base-url";
 import {
   readRelayRelease,
 } from "@/lib/relay/relay-release-file";
@@ -46,5 +47,5 @@ export const GET = guardedRoute(async function GET(_actor, request: Request) {
     );
   }
 
-  return NextResponse.redirect(new URL(`/api/relay/download/v${release.version}`, request.url));
+  return NextResponse.redirect(appUrl(request, `/api/relay/download/v${release.version}`));
 });

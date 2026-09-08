@@ -18,6 +18,20 @@ the archive location.
 
 ---
 
+## 8 September 2026 - Relay download public-origin hotfix
+
+- **Fixed in the Web candidate:** the authenticated `/api/relay/download` redirect now uses the
+  existing `appUrl` helper instead of `request.url`. This preserves the browser-visible Host and
+  forwarded protocol instead of sending the second PC to `localhost:3000/api/relay/download/v16`.
+- **Local regression evidence:** pre-fix run 4 FAIL / 12 PASS; corrected run 16/16 PASS, comprising
+  seven route regressions and nine existing URL-helper tests. Authentication 401/403 and missing
+  release 404 behavior remain unchanged.
+- **Expanded checks:** 99/99 targeted tests, full-project typecheck/lint and scoped secret scan pass;
+  independent code review found no scoped findings. Railway build remains pending.
+- **Scope:** Web-only fix; frozen Browser/Relay artifacts unchanged. Deployment and the corrected
+  download on the physical second PC are not yet verified; this is not product-readiness evidence.
+  See the [hotfix checkpoint](development-roadmap.md#relay-download-public-origin-hotfix---8-september-2026).
+
 ## 8 September 2026 - VM startup repaired; first-run release remains blocked
 
 - **Fixed Browser startup:** `c7e17429` reuses a short-lived shell for fresh serialized CIM queries;

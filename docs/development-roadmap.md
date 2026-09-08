@@ -2,6 +2,26 @@
 
 **Updated:** 8 September 2026
 
+## Relay download public-origin hotfix - 8 September 2026
+
+The owner observed Download on a physical second PC redirecting to
+`localhost:3000/api/relay/download/v16`. The Web candidate now builds the versioned redirect with
+the existing `appUrl` helper, using the browser-visible Host and forwarded protocol rather than
+Next's internal `request.url`. The authenticated download route and released package selection
+remain unchanged.
+
+Local regression validation: pre-fix 4 FAIL / 12 PASS; corrected run 16/16 PASS (seven route tests
+plus nine existing URL-helper tests). Cases cover public HTTPS, forwarded protocol lists, local
+development ports, production HTTPS fallback, authentication 401/403 and unavailable-release 404.
+The expanded targeted suite passes 99/99 across seven files; full-project typecheck and lint pass.
+The four changed source/test/doc files pass the secret scan; independent code review found no
+scoped findings. Local full build is deferred while the VM runs; Railway's Web build is still OPEN.
+
+Deployment is not yet verified. The corrected redirect and actual download on the physical second
+PC remain OPEN pending post-deployment observation. This is a Web-only hotfix: frozen Browser and
+Relay artifacts are unchanged; no Browser/Relay release, enrollment, activation or product-ready
+claim follows from these local tests. Earlier release and acceptance evidence remains separate.
+
 ## Accepted product direction - 8 September 2026
 
 The owner accepted **MKT Browser as a browser profile manager with proxy binding**. Active
