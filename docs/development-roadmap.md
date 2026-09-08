@@ -21,11 +21,49 @@ for new work. Installer/CI, real network containment, recovery, second-PC/operat
 support a controlled profile-manager release; they do not reopen identity research. Earlier posting
 targets and engine plans are historical context, not the next delivery milestones.
 
-## Finishing pass - 8 September 2026
+## Ready-to-use closeout checkpoint - 8 September 2026
 
-The current local verification candidate is Browser source `ad0c7182` with a README-only working
+**Web/Relay handoff is delivered; Browser remains a technical candidate, not ready for normal
+fresh installation or distribution.** MKTTool PR #68 merged as `46a99f2bc3c209fd3bc0b8943f60d217505b5295`.
+Post-merge CI `34171586969`, deploy verification, Railway production deployment, and secret scan
+`34171586987` passed. The post-merge Relay executable job was policy-skipped; its green PR check
+is separate evidence, not a post-merge executable run.
+
+Browser commits `c7e17429` and `36939cdd` (tree `35a1dc6d91b6680dad02eb20b6e5849b4991e38d`)
+repair repeated PowerShell/CIM startup overhead and default fresh settings to CFT. Process queries
+remain fresh and serialized, with no cached process-table acceptance. Exact process/listener
+ownership, the 15-second readiness budget, signed tickets, and proxy fail-closed behavior remain
+unchanged. Explicit saved engine selections are preserved. Browser source `36939cdd` is pushed
+with local/remote parity `0/0`; no new Browser PR, CI trigger, merge, or publication occurred.
+
+| Evidence surface | Current result |
+|---|---|
+| Local Browser | PASS: 391 installer-suite tests; 1 intentional live-host SKIP; typecheck/lint; critical coverage 121 tests, 91.48% lines / 84.23% branches / 91.39% functions; independent reviews reported no findings |
+| Prior repaired directory package on VM | PASS: two complete signed managed lifecycles, including a real guest reboot; create, open/close, reopen, broken-proxy refusal while stopped, and recovery. All six successful launches used normal 15-second readiness |
+| New installer package | Built locally from the recorded tree, unsigned and unpublished; exact identity is in the [owner handoff](../../plans/260908-0644-ready-to-use-closeout/owner-handoff.md#technical-candidate) |
+| New local packaged fixture | PASS: 1/1 CFT compatibility lifecycle in 6.395 seconds; explicit test fixture, not normal installed first-run evidence |
+| New installer VM lifecycle | PASS: clean install 9/9, repair 13/13, initial and post-repair uninstall 15/15 each; exact new artifact. Defender enabled, operator data/token/Relay state preserved; zero residual product processes, listeners, firewall rules or gate tasks |
+| Browser hosted CI | BLOCKED: latest technical run `34165090202` passed quality and package build but failed artifact upload on storage quota; packaged-contract SKIPPED |
+| Normal packaged first run | BLOCKED, observed on the clean installation without overrides: contract 4, CFT, engine version absent, engine status error, no active pin or CFT runtime. The installer does not provision the required compatibility-set pin |
+| Browser-page network/operator/canary | OPEN: current-candidate IP/DNS/WebRTC observations, unfamiliar-operator acceptance, and seven actual canary days |
+
+Only about 56 KB of unexpired Browser artifacts were observed; expired entries must not be counted
+as current storage. The logged-in organization member lacks billing access (`admin:org` absent).
+An organization owner must resolve the shared storage/access blocker before another justified
+hosted attempt. Do not bypass required checks or hand-edit activation state. The official CFT
+`152.0.7977.64` archive is measured, but no signed CFT compatibility set is activated or released.
+The [owner handoff](../../plans/260908-0644-ready-to-use-closeout/owner-handoff.md) lists safe current use and blocked
+next actions. Lane C remains CLOSED; `G2-IDENTITY=FAIL` is unchanged.
+
+Installed runtime receipt: `local-test-artifacts/profile-manager-closeout-20260908/closeout-installed-runtime.json`
+in the workspace, observed `2026-09-08T00:09:23.4261693Z`. Its ASAR matches the new candidate.
+
+## Earlier finishing-pass checkpoint - 8 September 2026
+
+The earlier local verification candidate was Browser source `ad0c7182` with a README-only working
 diff, still version `0.3.13` with Relay v16. It is unsigned, unattested, and unpublished; it does not
-replace the historical P4b tuple. Exact hashes and boundaries are in the
+replace the historical P4b tuple. These results remain historical; the closeout checkpoint above
+records subsequent repairs without relabeling the failed attempts. Exact hashes and boundaries are in the
 [release checkpoint](./internal-beta-release.md#finishing-pass---8-september-2026).
 
 | Evidence surface | Current result |
