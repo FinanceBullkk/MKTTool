@@ -178,7 +178,16 @@ một mẩu trí nhớ của luật ấy. Lưu **sau** khi chấm luật, để 
 | Repair/reinstall | No server state change | Preserve Relay identity, Browser profiles, tokens, and MultiZen |
 | Normal uninstall | Remove only owned binaries, processes, shortcuts, autostart, and firewall state | Preserve all identity-bearing data, including a pre-existing Relay |
 | Planned ADMIN retirement | Revoke and unpin on the server first; issue a short-lived signed authorization bound to `deviceId + publicKey + finalizationPublicKey`; validate recipient proof; persist a durable signed completion receipt | Remove Relay keys/config/grant state; retain non-secret rollback/tombstone guards; preserve Browser and MultiZen data |
+| Owner cleanup after revocation | Begin, complete, and finalize only the signed-in owner's exact already-revoked record; recheck access under the transaction advisory lock at every server entry point; never unpin accounts | Use the same signed recipient proof, durable receipt, and local cleanup/finalization protocol; preserve Browser and MultiZen data |
 | Lost/unreachable PC | Revoke immediately and rotate `VAULT_KEY_OPERATOR` when exposure is plausible | No remote-wipe claim; local Relay and Browser state may remain |
+
+ADMIN retains active retirement and account unpinning. Owner cleanup cannot revoke an active PC,
+change ownership, or restore a revoked identity. The local device ID/public-key match and Relay v11+
+floor remain mandatory. Setup offers `RECOVER` for an exact owned revoked binding; other conflicts
+remain `ADMIN`. A pending protected receipt routes to recovery without proving owner match; server
+authorization still applies. Successful finalization closes Relay; restart and Setup create a fresh
+identity through normal enrollment. Validation/deployment status lives in the
+[owner-cleanup checkpoint](development-roadmap.md#relay-owner-cleanup---8-september-2026).
 
 Relay writes a DPAPI-protected receipt before crossing the local deletion boundary. While that
 receipt exists, startup enters retirement recovery before key generation or enrollment and exposes

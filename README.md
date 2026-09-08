@@ -815,6 +815,24 @@ Vì hộp khóa bọc cho **đúng một máy**:
 Người có **hai máy** trong sổ phải chọn máy đang ngồi trước khi bấm — vé mã hóa cho đúng một máy,
 và đoán bừa là phát một tấm vé chắc chắn hỏng. Một máy thì không hỏi.
 
+### Finish local cleanup after revocation
+
+If Setup identifies this PC's exact old Relay registration as revoked and owned by the signed-in
+user, choose **Finish local cleanup**. On **Relay PCs**, confirm the selected PC and finish the
+signed cleanup on that same physical PC. Relay v11 or later is required; both the local device ID
+and public key must match. A pending protected receipt uses **Finish device retirement** to resume
+recovery; that message alone does not establish ownership.
+
+After cleanup and signed finalization finish, restart Relay and return to **Setup** to register a
+fresh Relay identity. The old record stays revoked. Resume normal operator-key approval for the
+new identity. Repair or reinstall preserves local identity and cannot complete this cleanup.
+
+Owners can clean up only their own already-revoked record. Active retirement and nick unpinning
+remain ADMIN actions; owner cleanup never changes nick assignments. Other binding or ownership
+conflicts still require an administrator. Browser profiles and MultiZen data are preserved.
+See the [current validation checkpoint](docs/development-roadmap.md#relay-owner-cleanup---8-september-2026)
+before treating this candidate recovery path as verified on an installed PC.
+
 ### Vì sao có hạn nhịp 10 vé một phút
 
 Nó không chặn người ngoài — hai lớp gác đã làm việc đó. Nó chặn **một phiên bị trộm**: không có

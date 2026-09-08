@@ -283,6 +283,7 @@ capability checks; Relay PC readiness grants no Browser rollout or identity-isol
 ```text
 ADMIN chooses planned retirement on the exact PC
   1. Server revokes RelayDevice and unpins accounts in one transaction
+     Owner alternative: exact own already-revoked record; no account unpinning
   2. Server creates a per-retirement finalization key and signs a short-lived cleanup authorization
      bound to device id, device public key, proof hash, and finalization public key
   3. Relay verifies signature and recipient, opens the recipient-only proof
@@ -294,7 +295,17 @@ ADMIN chooses planned retirement on the exact PC
      and closes; ticket-signing-key rotation does not affect recovery
 ```
 
-`/setup` treats the receipt state as retirement recovery and cannot enroll or deliver a grant.
+`src/lib/retirement/relay-device-retirement-actions.ts` applies owner-or-ADMIN access inside the
+transaction advisory lock separately for begin, completion proof, and finalization. Non-ADMIN
+access requires the exact record to remain owned and already revoked; ADMIN retains active
+retirement/unpinning. `src/components/relay/relay-device-retirement-button.tsx` presents **Finish
+local cleanup** for that owner path and still checks the local device ID/public key and v11+ floor.
+`relay-device-retirement-receipt-button.tsx` retains signed receipt recovery/finalization.
+
+`src/lib/setup/setup-state-machine.ts` maps an exact owned revoked binding to `RECOVER`; other
+binding/ownership conflicts stay `ADMIN`. A pending receipt also routes to recovery without
+asserting an owner match. `/setup` cannot enroll or deliver a grant while retirement is pending;
+after finalization, restart Relay and use Setup to enroll a fresh identity.
 After step 4 begins, retries use the already verified protected receipt rather than asking the
 current ticket key to authorize the same deletion again. Normal uninstall does not enter this flow.
 The web requires Relay v11 or later before step 1, so the pre-retirement v10 artifact cannot trigger

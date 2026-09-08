@@ -18,6 +18,26 @@ the archive location.
 
 ---
 
+## 8 September 2026 - Owner cleanup for an already-revoked Relay PC
+
+- **Web candidate:** the owner can begin, complete, and finalize signed cleanup only for their
+  exact already-revoked record; every server step rechecks access under the transaction advisory
+  lock. ADMIN retains active retirement/unpinning; owner cleanup never unpins accounts.
+- **Recovery copy:** Setup uses **Finish local cleanup** for the exact owned revoked binding;
+  other conflicts remain ADMIN. Pending receipts route to recovery without asserting owner match.
+  Completion leads to restart Relay, return to Setup, and register a fresh identity.
+- **Review correction:** a P2 RSC-remount issue could erase success-only next-step instructions.
+  The receipt control now keeps conditional restart/Setup guidance naming the PC; the fix was
+  reviewed as addressed with no new findings.
+- **Preserved:** signed recipient proof, durable finalization, local ID/public-key checks, v11+
+  floor, Relay v16, binaries, and migrations. Browser and frozen-installer gates remain separate.
+- **Evidence:** RED backend 9 FAIL / 5 PASS; Setup state 2 FAIL / 29 PASS. Corrected local run:
+  226/226 tests across 23 files on loopback `mkttool_test`; full-project typecheck/lint, 20-file
+  scoped secret scan, and diff check PASS. Backend specification/quality and adversarial reviews
+  found no findings. UI rerun 17/17 PASS; final full-project typecheck/lint rerun PASS.
+  Deployment and real MSI/physical-PC acceptance remain OPEN. See the
+  [owner-cleanup checkpoint](development-roadmap.md#relay-owner-cleanup---8-september-2026).
+
 ## 8 September 2026 - Relay download public-origin hotfix
 
 - **Fixed in the Web candidate:** the authenticated `/api/relay/download` redirect now uses the

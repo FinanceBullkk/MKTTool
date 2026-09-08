@@ -55,6 +55,22 @@ those software terms as another name for the PC itself.
 
 ## Display-label migration
 
+### Relay cleanup recovery - 8 September 2026
+
+| Label | Meaning and boundary |
+|---|---|
+| **Finish local cleanup** | Resume signed cleanup for the signed-in owner's exact already-revoked Relay PC. It does not revoke an active PC, unpin nicks, restore access, or delete Browser profiles. |
+| **Finish device retirement** | A protected retirement receipt needs recovery. This label does not establish ownership; server authorization and exact local recipient checks still apply. |
+| **Retire this PC** | ADMIN planned retirement: revoke server access, unpin nicks, then complete signed local Relay cleanup on the exact PC. |
+| **Contact an administrator** | The PC cannot be safely matched to its owner, has another binding conflict, or requires an ADMIN-only operation. |
+
+After successful cleanup/finalization, tell the operator to **restart Relay**, return to **Setup**,
+and register a **new Relay identity**. Never describe this as restoring the revoked registration.
+`RECOVER` is a recovery action; it does not grant authorization. The signed protocol and Relay
+v11+ floor are unchanged.
+
+### Existing display-label mappings
+
 | Before | After |
 |---|---|
 | `Kênh / Profiles` on `/` | `Home` |

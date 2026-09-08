@@ -2,6 +2,30 @@
 
 **Updated:** 8 September 2026
 
+## Relay owner cleanup - 8 September 2026
+
+The Web candidate lets an owner begin, complete, and finalize signed local cleanup only for their
+exact already-revoked Relay record. Every server entry point checks ownership/revocation under the
+transaction advisory lock. ADMIN retains active retirement and account unpinning; owner cleanup
+never unpins accounts. Signed recipient proof, durable finalization, local ID/public-key matching,
+and the Relay v11+ floor remain intact.
+
+Setup offers **Finish local cleanup** only for the exact owned revoked binding. Other binding or
+ownership conflicts remain ADMIN recovery. Pending receipt state routes to recovery without
+claiming owner match. After finalization, restart Relay and return to Setup for a fresh identity.
+
+Recorded RED evidence: backend 9 FAIL / 5 PASS; Setup state 2 FAIL / 29 PASS. The corrected local
+run passes **226/226 tests across 23 files**, using only loopback `mkttool_test`. Full-project
+typecheck/lint, the 20-file scoped secret scan, and diff check PASS. Backend specification/quality
+and adversarial reviews found no findings. UI review found a P2: an RSC remount could erase
+success-only restart/Setup instructions. The receipt control now keeps conditional guidance naming
+the PC; review confirmed the fix with no new findings. UI rerun **17/17 PASS**; final full-project
+typecheck/lint rerun PASS. Deployment and real MSI/physical-PC cleanup acceptance remain **OPEN**.
+
+Relay v16, Browser/Relay binaries, schemas, and migrations are unchanged. Frozen installer,
+clean-VM, and Browser release gates remain separate. Lead owns the remaining deployment
+evidence; the operator and lead must verify the real recovery journey before closing acceptance.
+
 ## Relay download public-origin hotfix - 8 September 2026
 
 The owner observed Download on a physical second PC redirecting to
