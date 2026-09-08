@@ -38,6 +38,12 @@ the archive location.
   Browser production audit passes with no suggestions; critical coverage passes 121/121, zero
   skipped, across 14 protected modules (91.48% lines, 84.23% branches, 91.39% functions).
   Source integration/deployment, new-installer delivery, and MSI acceptance remain OPEN.
+- **Initial hosted gate:** PR #70 CI `34237885978` failed the existing setup-link source-location
+  assertion after the link moved into the readiness helper (1 failed / 2,122 passed / 17 skipped).
+  Contracts, audit, secret scan, and Windows Relay executable passed. The test now follows the
+  extracted helper and real status rendering; Chromium also asserts the exact download href.
+  Local follow-up: 47/47 DB-free tests, full typecheck/lint and the browser fixture passed. Hosted
+  rerun remains pending; no merge or bypass.
   See the [startup checkpoint](development-roadmap.md#single-entry-browser-startup---8-september-2026).
 
 ## 8 September 2026 - Owner cleanup for an already-revoked Relay PC

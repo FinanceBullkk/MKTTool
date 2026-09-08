@@ -28,6 +28,13 @@ findings after three P2 corrections. Packaging, clean-VM, deployment, and physic
 **OPEN** until separately recorded.
 Browser production dependency audit passes with no suggestions; critical coverage passes 121/121,
 zero skipped, across 14 protected modules (91.48% lines, 84.23% branches, 91.39% functions).
+First hosted Web PR run `34237885978` failed one existing route-contract assertion: it expected
+`/setup#download` in the profile card after that link moved to the extracted readiness helper.
+Result: 1 failed / 2,122 passed / 17 skipped. Contracts, dependency audit, secret scan, and the
+Windows Relay executable job passed. The assertion now follows the helper and real status render;
+the Chromium fixture verifies the exact outdated-Relay download href. Local recheck: 47/47 across
+five DB-free files, full typecheck/lint, and the browser fixture passed. PR #70 remains unmerged
+pending a successful hosted rerun; no route assertion was replaced with a dummy literal.
 Lead owns integration and a new exact candidate; installer acceptance must cover login startup,
 close/reopen/Quit, conflicts, retained-Relay uninstall, and profile use. Source checks do not approve
 installed-user delivery. See the [active plan](../../plans/260908-2130-single-entry-browser-startup/plan.md).

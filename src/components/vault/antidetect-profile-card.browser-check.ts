@@ -4,6 +4,7 @@ import { execFileSync } from "node:child_process";
 import { build } from "esbuild";
 import { chromium } from "playwright";
 import type { RelayBrowserHealth } from "@/lib/relay/relay-endpoints";
+import { effectiveMinRelayVersion, TICKET_KINDS } from "@/lib/tickets/ticket-types";
 const readyBrowser = {
     ready: true,
     provider: "mkt-browser",
@@ -120,8 +121,21 @@ async function main() {
             .catch(async () => { throw new Error(JSON.stringify({ text: await page.locator("body").innerText(), errors })); });
         assert.match(await page.locator("body").innerText(), /MKT Browser is not connected/);
         assert.doesNotMatch(await page.locator("body").innerText(), /Relay update required|private runtime detail/);
+        await page.evaluate((outdatedVersion) => {
+            const fixture = (window as FixtureWindow).fixture;
+            fixture.health.relayVersion = outdatedVersion;
+            fixture.health.data.relayVersion = outdatedVersion;
+            fixture.profiles.relayVersion = outdatedVersion;
+            fixture.profiles.data.relayVersion = outdatedVersion;
+        }, effectiveMinRelayVersion(TICKET_KINDS.CREATE_PROFILE) - 1);
+        await page.getByRole("button", { name: "Check again", exact: true }).click();
+        await page.getByText("Relay update required", { exact: true }).waitFor();
+        assert.equal(await page.getByRole("link", { name: "Set up this Relay PC", exact: true }).getAttribute("href"), "/setup#download");
+        assert.doesNotMatch(await page.locator("body").innerText(), /private runtime detail/);
         await page.evaluate(({ readyBrowser, readyProfiles }) => {
             const fixture = (window as FixtureWindow).fixture;
+            fixture.health.relayVersion = 16;
+            fixture.health.data.relayVersion = 16;
             fixture.health.data.browser = readyBrowser;
             fixture.profiles = { ...readyProfiles, data: {
                 ...readyProfiles.data, fingerprintOptions: { devices: [], locales: [] },
@@ -162,7 +176,7 @@ async function main() {
         assert.equal(await page.locator("#root").innerText(), "");
         assert.equal(await page.evaluate(() => (window as FixtureWindow).fixture.mutations), 0);
         assert.deepEqual(errors, []);
-        console.log("PASS: disconnected Browser copy, click retry, pending disable/dedupe, empty-catalog inventory, catalog recovery, unmount safety, no mutation.");
+        console.log("PASS: disconnected Browser copy, exact outdated download href, click retry, pending disable/dedupe, empty-catalog inventory, catalog recovery, unmount safety, no mutation.");
     }
     finally {
         await browser.close();
