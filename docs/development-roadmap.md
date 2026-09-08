@@ -2,6 +2,43 @@
 
 **Updated:** 8 September 2026
 
+## Single-entry Browser startup - 8 September 2026
+
+**IN PROGRESS - source under verification; no new installer delivered and no MSI acceptance.**
+The approved path makes normal packaged Windows Browser the entry point: activate one manager,
+check/start only the verified installed current-user Relay, and keep profiles running behind a
+usable tray. Explicit Quit closes profiles and Browser control while Relay remains available for
+vault operations. Development, disposable roots, and compatibility smoke are excluded.
+
+Combined installation transfers only the owned Relay Startup entry to Browser `--background`;
+uninstall restores standalone Relay startup when that Relay is retained. Conflicts fail closed.
+No automatic enrollment, owner repair, retirement restart loop, schema change, or Relay v16 binary
+change is part of this work. The earlier frozen installer tuple is not rebuilt or overwritten.
+
+The Web candidate checks the effective create-profile version floor (currently 13) independently
+from Browser runtime health. Current Relay failures no longer imply an update; **Check again**
+rechecks health and profile inventory with safe state-specific copy and no raw errors.
+
+Local checkpoint: lifecycle tests **11/11 PASS**; fresh full Browser/Web lint and typecheck PASS.
+Browser `test:installer` exited 0 using authentic frozen MKTTool source `b4ef969b`; machine integration
+was skipped and remains OPEN. That named sibling input is not current-master coherence evidence.
+Web regression tests **44/44 PASS** across four DB-free files; the real Chromium fixture passes
+rendering/retry/recovery checks but is not MSI acceptance. Independent Browser re-review has no
+findings after three P2 corrections. Packaging, clean-VM, deployment, and physical-PC gates remain
+**OPEN** until separately recorded.
+Browser production dependency audit passes with no suggestions; critical coverage passes 121/121,
+zero skipped, across 14 protected modules (91.48% lines, 84.23% branches, 91.39% functions).
+First hosted Web PR run `34237885978` failed one existing route-contract assertion: it expected
+`/setup#download` in the profile card after that link moved to the extracted readiness helper.
+Result: 1 failed / 2,122 passed / 17 skipped. Contracts, dependency audit, secret scan, and the
+Windows Relay executable job passed. The assertion now follows the helper and real status render;
+the Chromium fixture verifies the exact outdated-Relay download href. Local recheck: 47/47 across
+five DB-free files, full typecheck/lint, and the browser fixture passed. PR #70 remains unmerged
+pending a successful hosted rerun; no route assertion was replaced with a dummy literal.
+Lead owns integration and a new exact candidate; installer acceptance must cover login startup,
+close/reopen/Quit, conflicts, retained-Relay uninstall, and profile use. Source checks do not approve
+installed-user delivery. See the [active plan](../../plans/260908-2130-single-entry-browser-startup/plan.md).
+
 ## Relay owner cleanup - 8 September 2026
 
 The Web candidate lets an owner begin, complete, and finalize signed local cleanup only for their

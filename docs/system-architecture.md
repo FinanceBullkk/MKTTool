@@ -202,6 +202,31 @@ from MCP, requires a typed full-profile-id confirmation, refuses active lifecycl
 only the owned profile directory plus its database row. Retryable pending state reports partial
 cleanup without touching Relay, device credentials, the Browser token, settings, or MultiZen.
 
+### Browser startup coordination candidate - 8 September 2026
+
+Normal packaged Windows Browser launch acquires the canonical-root instance lock before opening
+settings, tokens, SQLite, or lease state. Browser checks the fixed current-user Relay installation;
+only a verified owned executable may be started. Conflicts fail closed without killing processes,
+rewriting configuration, issuing tickets, or repairing ownership. Relay stays an independent
+process, not a supervised service or a background retirement-restart loop.
+
+A usable tray changes manager close into hide; explicit Quit starts once-only profile/control
+cleanup and cancels pending companion work, leaving Relay available for vault operations. Windows
+session-end enters the same cleanup path, without promising completion before forced OS termination.
+Tray failure preserves normal visible-window close behavior. Development, disposable roots, and
+compatibility smoke do not enter this lifecycle.
+
+The combined installer makes Browser the sole owned login entry and restores standalone Relay
+startup on uninstall if Relay is retained. Only exact-target owned shortcuts may change. Existing
+device identity, secrets, profile data, Relay v16, and signed authorization remain unchanged.
+
+Web profile setup reads Relay health and profile inventory, verifies the measured create-profile
+version floor (currently 13), and evaluates Browser runtime separately. Retry is read-only; unknown
+or malformed responses never become Ready or an unsupported update claim. Operator copy uses
+reviewed states, not raw runtime errors. Source is under verification; the frozen installer tuple
+is unchanged and a new candidate needs separate acceptance before delivery. See the
+[startup checkpoint](development-roadmap.md#single-entry-browser-startup---8-september-2026).
+
 ### Compatibility-set release authority
 
 The Windows installer pins the Ed25519 root public key copied from the verified physical ceremony

@@ -1,6 +1,6 @@
 # Bản đồ mã nguồn
 
-**Cập nhật:** 5 September 2026
+**Updated:** 8 September 2026
 
 Tài liệu dành cho người mới và AI agent định vị nhanh trong codebase — **code nằm ở đâu**.
 Hệ thống chạy ở đâu và phụ thuộc gì thì xem [system-architecture.md](system-architecture.md);
@@ -47,6 +47,22 @@ none claims stealth, unique fingerprint identity, or vendor-level identity isola
 | `src/app/content`, `queue`, `facebook`, `targets`, and `health` | retain parked/history behavior while using the shared page hierarchy, progressive disclosure, and mobile record-card tables |
 | `src/components/vault/antidetect-profile-card.tsx` and `first-login-card.tsx` | turn profile creation and the human first-sign-in handoff into scannable steps without claiming browser identity isolation |
 | `docs/ui-glossary.md` | define the display boundary between a nick record, a local browser profile, and a Relay PC without renaming models, columns, or routes |
+
+## Browser startup and profile readiness candidate - 8 September 2026
+
+| Path | Responsibility |
+|---|---|
+| `src/components/vault/antidetect-profile-card.tsx` | Recheck local health and profile inventory; ignore stale results and prevent duplicate retries. |
+| `src/lib/relay/profile-setup-readiness.ts` | Compare measured versions with `effectiveMinRelayVersion(CREATE_PROFILE)` (currently 13), validate inventory, and map Browser/transport/setup/unknown states without raw error text. |
+| `src/components/vault/profile-setup-status.tsx` | Render safe status and **Check again** without issuing profile-creation tickets. |
+| `../MKTBrowser/apps/desktop/src/main/windows-background-lifecycle.ts` | Normal packaged Windows tray, close-to-background, explicit Quit, and session-end callbacks. |
+| `../MKTBrowser/apps/desktop/src/main/windows-relay-companion.ts` | Bounded explicit installed-Relay startup check, cancellation, and safe health outcome. |
+| `../MKTBrowser/apps/desktop/build/windows-startup-coordination.ps1` | Transfer exact owned login shortcuts to Browser; restore retained standalone Relay startup on uninstall. |
+
+Desktop `index.ts` locks the normal data root before state initialization and owns activation and
+once-only shutdown. Development, disposable roots, and compatibility smoke remain isolated.
+Relay v16 and signed operations are unchanged; these candidate modules are not evidence of a
+delivered installer or MSI acceptance. See the [current checkpoint](development-roadmap.md#single-entry-browser-startup---8-september-2026).
 
 ## Shared-use safety — 3 September 2026
 

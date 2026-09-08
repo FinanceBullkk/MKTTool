@@ -15,6 +15,7 @@
     "test:watch": "vitest",
     "test:critical-coverage": "vitest run --coverage",
     "test:relay": "vitest run --config vitest.relay.config.mts",
+    "test:profile-setup-ui": "tsx src/components/vault/antidetect-profile-card.browser-check.ts",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "db:migrate": "prisma migrate dev",

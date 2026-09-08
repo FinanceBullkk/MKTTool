@@ -12,12 +12,17 @@
  * test thấy một component render ra. Thứ duy nhất phát hiện là một người thật đi hết đường đó, và
  * người thật đầu tiên đi hết nó là bốn tháng sau khi trang được viết.
  *
- * Đọc hình dạng mã nguồn thay vì render: cái sai không nằm trong một nhánh nào để dựng lại, nó nằm
- * ở **giá trị hằng** người ta gõ vào. Cùng lối với `relay-paths-are-wired.test.ts`.
+ * Check literal routes where they are owned. The profile card delegates its route to a readiness
+ * helper and shared status component, so also verify that real helper-to-render contract.
  */
 import { readFileSync } from "node:fs";
 import path from "node:path";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
+import { ProfileSetupStatus } from "@/components/vault/profile-setup-status";
+import { profileSetupReadiness } from "@/lib/relay/profile-setup-readiness";
+import { effectiveMinRelayVersion, TICKET_KINDS } from "@/lib/tickets/ticket-types";
 
 function doc(...segments: string[]): string {
   return readFileSync(path.join(process.cwd(), ...segments), "utf8");
@@ -27,7 +32,7 @@ function doc(...segments: string[]): string {
 const NOI_CHI_DUONG_TAI = [
   ["src", "lib", "setup", "setup-state-machine.ts"],
   ["src", "components", "relay", "relay-outdated-notice.tsx"],
-  ["src", "components", "vault", "antidetect-profile-card.tsx"],
+  ["src", "lib", "relay", "profile-setup-readiness.ts"],
 ];
 
 describe("setup flow links", () => {
@@ -40,6 +45,24 @@ describe("setup flow links", () => {
         "instead of going directly to the available action.",
     ).toBe(false);
     expect(source).toContain("/setup#download");
+  });
+
+  it("renders the real outdated profile-setup action directly at the download anchor", () => {
+    const version = effectiveMinRelayVersion(TICKET_KINDS.CREATE_PROFILE) - 1;
+    const state = profileSetupReadiness(
+      { status: "rejected", relayVersion: version, message: "Synthetic old Relay" },
+      { status: "rejected", relayVersion: version, message: "Synthetic old Relay" },
+    );
+    expect(state).toMatchObject({ kind: "blocked", state: "relay-outdated", setupHref: "/setup#download" });
+    if (state.kind !== "blocked") throw new Error("Expected measured outdated Relay state");
+    const markup = renderToStaticMarkup(createElement(ProfileSetupStatus, {
+      state, checking: false, onRetry: () => undefined,
+    }));
+    const hrefs = Array.from(markup.matchAll(/<a\b[^>]*\bhref="([^"]*)"/g), (match) => match[1]);
+    expect(hrefs).toEqual(["/setup#download"]);
+    expect(markup).toContain("Set up this Relay PC</a>");
+    expect(markup).not.toContain("/relay-download");
+    expect(doc("src", "components", "vault", "antidetect-profile-card.tsx")).not.toContain("/relay-download");
   });
 
   it("keeps the download anchor targeted by every setup link", () => {
