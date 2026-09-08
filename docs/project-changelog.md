@@ -18,6 +18,25 @@ the archive location.
 
 ---
 
+## 9 September 2026 - Reproduced single-entry installer; release held
+
+- Build B matches A's 129-file normalized delivered payload; raw outer installer bytes differ.
+  Exact retained A remains Browser 0.3.13, SHA-256
+  `25e8fc156c0769245623dfc7b082cd9f88886b3516fbca24ea9509114928e8a3`.
+- Prepared candidate `20260909-browser-0.3.13-relay-16-single-entry-5ff43b2`, immutable installer
+  storage key, and exact Relay v16/CFT 152.0.7977.64 publisher validation. The quarantined legacy
+  installer object remains untouched; deployment approval still gates operator availability.
+- Signed compatibility sequence 17 validates all five artifacts, authority and fresh-install
+  transition from 0. It does not authorize migration from sequence 16 or add Authenticode to the EXE.
+  Source checks pass: 57/57 DB-free tests, full typecheck and lint. No artifact upload or deployment.
+- Exact clean VM install passes 9/9; profile activation stops at the missing verified CFT pin.
+  Tray close passes with no active profile. Separate fresh 1-vCPU repair passes 13/13 and Browser-only
+  launch starts an absent owned Relay. Cold-login service startup and uninstall 15/15 also pass;
+  cleanup leaves no product processes/listeners/firewall or test tasks, preserves data and keeps
+  Defender enabled. Signed activation, active-profile lifecycle, tray reopen/Quit, independent
+  Relay retention and MSI gates stay open. The owner will run the checklist after VM acceptance.
+  See the [current acceptance checkpoint](development-roadmap.md#single-entry-installer-acceptance---9-september-2026).
+
 ## 8 September 2026 - Single-entry Browser startup candidate
 
 - **Desktop source:** normal packaged Windows launches activate one Browser manager and check/start

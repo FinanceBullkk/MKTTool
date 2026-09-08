@@ -11,15 +11,9 @@
  * Phát hiện trong lúc chạy pilot, bởi chính người vừa viết hướng dẫn "cài MKT Browser trước" —
  * bước đầu tiên của hướng dẫn đó không có nút nào để bấm.
  *
- * ## Vì sao khoá cố định, khác gói cầu nối
- *
- * Gói cầu nối khoá theo phiên bản và **bất biến**, vì `relay-release.json` bên MKTBrowser ghim
- * đúng một URL kèm mã băm: đổi ruột dưới một địa chỉ đã ghim là làm hỏng mọi lượt dựng trình cài.
- *
- * Khoá vẫn cố định để giữ tương thích với client cũ, nhưng bộ đọc không tự coi object hiện tại là
- * bản đang dùng: R2 chỉ được mở khi metadata và kích cỡ khớp tuple được cấu hình rõ ràng ở môi
- * trường triển khai. Đánh đổi còn lại phải nói thẳng: khoá publish vẫn mutable và không tự tạo
- * đường lùi về bản trước từ phía máy chủ.
+ * Each reviewed candidate has an immutable storage key. The old fixed installer object remains
+ * quarantined and is never overwritten or used as a fallback. Deployment approval still binds
+ * the exact size and metadata; a new object is not automatically an approved operator release.
  */
 import { createReadStream, createWriteStream, existsSync, statSync } from "node:fs";
 import { mkdtemp, rm } from "node:fs/promises";
@@ -42,17 +36,18 @@ import {
   parseWindowsInstallerReleaseMetadata,
   type WindowsInstallerReleaseMetadata,
 } from "./windows-installer-release-metadata";
+import { WINDOWS_INSTALLER_CANDIDATE } from "./windows-installer-candidate";
 
 /**
  * The currently approved Browser draft tuple. A syntactically complete but stale R2 object must
  * remain unavailable after a Browser contract or Relay-floor change. Update this tuple only during
  * a new release freeze, together with the plan manifest and evidence.
  */
-export const EXPECTED_WINDOWS_INSTALLER_VERSION = "0.3.13";
-export const EXPECTED_WINDOWS_INSTALLER_CANDIDATE_ID = "20260830-browser-0.3.13-relay-16";
+export const EXPECTED_WINDOWS_INSTALLER_VERSION = WINDOWS_INSTALLER_CANDIDATE.browserVersion;
+export const EXPECTED_WINDOWS_INSTALLER_CANDIDATE_ID = WINDOWS_INSTALLER_CANDIDATE.id;
 
 /**
- * Deployment-owned approval binding for the mutable installer key.
+ * Deployment-owned approval binding for the immutable candidate installer key.
  *
  * The value is a JSON object of the form `{ "sizeBytes": number, "metadata": { ... } }`, where
  * `metadata` contains the canonical hyphenated R2 metadata keys. It is deliberately not generated
@@ -67,8 +62,8 @@ export interface WindowsInstallerApprovedTuple {
   metadata: WindowsInstallerReleaseMetadata;
 }
 
-/** Một khoá cố định trong ngăn phát hành — xem lý lẽ ở đầu file. */
-export const WINDOWS_INSTALLER_R2_KEY = WINDOWS_INSTALLER_FILE_NAME;
+/** Candidate-specific key; the public download filename and authenticated route stay stable. */
+export const WINDOWS_INSTALLER_R2_KEY = `MKTBrowser-${EXPECTED_WINDOWS_INSTALLER_CANDIDATE_ID}.exe`;
 
 /** Phiên bản MKT Browser, dạng chuỗi tự do (semver). Máy chủ chỉ hiển thị, không so sánh. */
 export { WINDOWS_INSTALLER_METADATA_KEYS } from "./windows-installer-release-metadata";
@@ -412,7 +407,7 @@ export async function openWindowsInstallerStream(
 }
 
 /**
- * Spool the mutable-key GET before returning a response stream. HEAD metadata is only a snapshot;
+ * Spool the candidate GET before returning a response stream. HEAD metadata is only a snapshot;
  * comparing the complete GET bytes to that snapshot closes the overwrite/cache race without
  * buffering a ~145 MB installer in the web process heap.
  */

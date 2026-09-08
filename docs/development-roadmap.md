@@ -1,6 +1,41 @@
 # Lộ trình phát triển
 
-**Updated:** 8 September 2026
+**Updated:** 9 September 2026
+
+## Single-entry installer acceptance - 9 September 2026
+
+**PUBLICATION HOLD.** Independent build B reproduced all 129 normalized payload files from A,
+digest `607e229dea5506b0ffa6bfffb2714b7826634d1f2fad4548a411abaf04f779b8`, with zero differences.
+Outer EXE hashes differ. Retain exact A for acceptance and eventual delivery:
+`25e8fc156c0769245623dfc7b082cd9f88886b3516fbca24ea9509114928e8a3` (145073829 bytes).
+Embedded Browser version stays `0.3.13`; candidate identity is
+`20260909-browser-0.3.13-relay-16-single-entry-5ff43b2`, with Relay v16 and CFT 152.0.7977.64.
+
+Signed compatibility sequence 17 verifies the exact five-artifact tuple and authority. It permits
+fresh installation from sequence 0 only; migration from an already active sequence 16 remains
+unapproved. The EXE remains unsigned. Candidate-specific immutable installer metadata is prepared;
+57/57 DB-free tests across four files, full typecheck and lint pass. Read-only R2 preflight found
+all prospective keys absent. No upload, operator promotion or metadata deployment occurred.
+
+Clean restored VM installation passes 9/9. Installed welcome/profile creation reaches a missing
+verified engine-pin error; supported signed ADMIN repair is still required before profile use.
+Close-to-tray passed without an active profile. A fresh 1-vCPU VM repair passes 13/13 with bound
+raw/receipt hashes; Browser-only launch from proven absent processes/listeners starts exactly one
+owned Relay. Cold-login service startup and uninstall 15/15 also pass; the guest is shut down after
+verified cleanup. Login startup was slow on 1 vCPU (Browser-only at about 100 seconds, both services
+verified by about 211 seconds); physical-PC performance is unmeasured. Tray reopen/Quit, active
+profile/proxy use, independent Relay retention and physical MSI acceptance remain open. The earlier
+2-vCPU repair dispatch lost guest SSH and heartbeat responsiveness before a receipt; its saved
+snapshot preserves that failed environment attempt. The owner requested background work while
+using the host and will perform physical MSI testing manually after VM qualification.
+
+The actual publisher CLI also accepts exact A and the prepared frozen manifest/provenance in a
+bounded test with all R2 I/O simulated (zero real network calls). This is file-contract verification,
+not upload or remote byte read-back evidence.
+
+See the [current acceptance report](../../plans/260908-2130-single-entry-browser-startup/reports/release-acceptance-20260909.md)
+and [MSI checklist](../../plans/260908-2130-single-entry-browser-startup/reports/msi-acceptance-checklist.md).
+The following 8 September checkpoint is historical; its build-B resource blocker is superseded.
 
 ## Single-entry Browser startup - 8 September 2026
 
