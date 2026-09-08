@@ -4,7 +4,7 @@
 
 ## Single-entry Browser startup - 8 September 2026
 
-**IN PROGRESS - source under verification; no new installer delivered and no MSI acceptance.**
+**WEB DEPLOYED / BROWSER DELIVERY HOLD - no new installer delivered and no MSI acceptance.**
 The approved path makes normal packaged Windows Browser the entry point: activate one manager,
 check/start only the verified installed current-user Relay, and keep profiles running behind a
 usable tray. Explicit Quit closes profiles and Browser control while Relay remains available for
@@ -15,17 +15,17 @@ uninstall restores standalone Relay startup when that Relay is retained. Conflic
 No automatic enrollment, owner repair, retirement restart loop, schema change, or Relay v16 binary
 change is part of this work. The earlier frozen installer tuple is not rebuilt or overwritten.
 
-The Web candidate checks the effective create-profile version floor (currently 13) independently
+The deployed Web checks the effective create-profile version floor (currently 13) independently
 from Browser runtime health. Current Relay failures no longer imply an update; **Check again**
 rechecks health and profile inventory with safe state-specific copy and no raw errors.
 
 Local checkpoint: lifecycle tests **11/11 PASS**; fresh full Browser/Web lint and typecheck PASS.
 Browser `test:installer` exited 0 using authentic frozen MKTTool source `b4ef969b`; machine integration
 was skipped and remains OPEN. That named sibling input is not current-master coherence evidence.
-Web regression tests **44/44 PASS** across four DB-free files; the real Chromium fixture passes
+Initial Web regression tests **44/44 PASS** across four DB-free files; the real Chromium fixture passes
 rendering/retry/recovery checks but is not MSI acceptance. Independent Browser re-review has no
-findings after three P2 corrections. Packaging, clean-VM, deployment, and physical-PC gates remain
-**OPEN** until separately recorded.
+findings after three P2 corrections. Browser two-build comparison, clean-VM, and physical-PC
+acceptance remain **OPEN**.
 Browser production dependency audit passes with no suggestions; critical coverage passes 121/121,
 zero skipped, across 14 protected modules (91.48% lines, 84.23% branches, 91.39% functions).
 First hosted Web PR run `34237885978` failed one existing route-contract assertion: it expected
@@ -33,9 +33,29 @@ First hosted Web PR run `34237885978` failed one existing route-contract asserti
 Result: 1 failed / 2,122 passed / 17 skipped. Contracts, dependency audit, secret scan, and the
 Windows Relay executable job passed. The assertion now follows the helper and real status render;
 the Chromium fixture verifies the exact outdated-Relay download href. Local recheck: 47/47 across
-five DB-free files, full typecheck/lint, and the browser fixture passed. PR #70 remains unmerged
-pending a successful hosted rerun; no route assertion was replaced with a dummy literal.
-Lead owns integration and a new exact candidate; installer acceptance must cover login startup,
+five DB-free files, full typecheck/lint, and the browser fixture passed. No route assertion was
+replaced with a dummy literal. PR #70 merged as `8e80fcffe9f6488310c058743df70b1aa3bb95d5` only after
+rerun `34244893863` and secret scan `34244893848` passed at `9b63442b`. Both hosted full-test and
+coverage runs report **2,124 passed / 17 skipped**, with 228 passing / three skipped files. Coverage:
+81.01% statements, 76.59% branches, 82.34% functions, 83.59% lines; Next build passed.
+
+Railway deployment `e68597cb-4679-4115-85cf-605baff7d6d9` reached SUCCESS for exact behavioral merge
+`8e80fcff`; GitHub deployment `6331220213` agrees. Public health at 15:38:22 UTC returned HTTP 200,
+ready, database/releaseMetadata/R2 OK, Relay 16. Post-merge CI `34245676858` and secret scan
+`34245676970` passed; full tests/coverage retain the same counts and build passes. Post-merge Relay
+executable is policy-SKIPPED (its PR job passed), not another executable pass. These server checks
+do not verify the MSI UI journey.
+
+Browser source `5ff43b27` is pushed only to its feature branch; main is unchanged. Isolated build A
+passed seven frozen quality commands and packaging, retaining an unsigned 145,073,829-byte installer
+with SHA-256 `25e8fc156c0769245623dfc7b082cd9f88886b3516fbca24ea9509114928e8a3`.
+Build B dependencies are installed; its packaging/comparison and exact-installer VM acceptance are
+paused for host resources (approximately 0.5-1 GiB free RAM; C: 13.3 GiB, below the 15 GiB VM floor).
+This is a resource blocker, not an implementation failure. No installer was uploaded, signed,
+installed, or promoted; old frozen bytes remain unchanged. Resume from the
+[candidate checkpoint](../../plans/260908-2130-single-entry-browser-startup/reports/browser-candidate-checkpoint.md).
+
+Lead owns a new exact candidate; installer acceptance must cover login startup,
 close/reopen/Quit, conflicts, retained-Relay uninstall, and profile use. Source checks do not approve
 installed-user delivery. See the [active plan](../../plans/260908-2130-single-entry-browser-startup/plan.md).
 

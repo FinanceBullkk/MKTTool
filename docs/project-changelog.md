@@ -37,13 +37,26 @@ the archive location.
   the fixture is not MSI evidence. Browser re-review has no findings after three P2 fixes.
   Browser production audit passes with no suggestions; critical coverage passes 121/121, zero
   skipped, across 14 protected modules (91.48% lines, 84.23% branches, 91.39% functions).
-  Source integration/deployment, new-installer delivery, and MSI acceptance remain OPEN.
+  Browser two-build comparison, new-installer delivery, and MSI acceptance remain OPEN.
 - **Initial hosted gate:** PR #70 CI `34237885978` failed the existing setup-link source-location
   assertion after the link moved into the readiness helper (1 failed / 2,122 passed / 17 skipped).
   Contracts, audit, secret scan, and Windows Relay executable passed. The test now follows the
   extracted helper and real status rendering; Chromium also asserts the exact download href.
-  Local follow-up: 47/47 DB-free tests, full typecheck/lint and the browser fixture passed. Hosted
-  rerun remains pending; no merge or bypass.
+  Local follow-up: 47/47 DB-free tests, full typecheck/lint and the browser fixture passed.
+- **Web delivered:** PR #70 merged as `8e80fcff` after CI `34244893863` and secret scan
+  `34244893848` passed at `9b63442b`. Full tests and coverage each report 2,124 passed / 17 skipped,
+  228 passing / three skipped files. Coverage: 81.01% statements, 76.59% branches, 82.34% functions,
+  83.59% lines; build passed. Railway `e68597cb-4679-4115-85cf-605baff7d6d9` and GitHub deployment
+  `6331220213` verify SUCCESS for exact `8e80fcff`; public health returned HTTP 200/ready with all
+  checks OK and Relay 16. Post-merge CI `34245676858` and secret scan `34245676970` passed, with the
+  same full-test/coverage counts and successful build. Post-merge Relay executable is policy-SKIPPED;
+  its earlier PR result remains separate PASS evidence.
+- **Browser delivery hold:** source `5ff43b27` is pushed, not merged to main. Frozen build A quality
+  and unsigned installer packaging passed; no publication or installation occurred. Build B
+  dependencies are installed, but comparison and clean-VM/physical-PC acceptance wait for RAM/disk
+  reserves. This is a resource blocker; the prior frozen installer is unchanged. The retained A
+  artifact and exact hashes are in the
+  [candidate checkpoint](../../plans/260908-2130-single-entry-browser-startup/reports/browser-candidate-checkpoint.md).
   See the [startup checkpoint](development-roadmap.md#single-entry-browser-startup---8-september-2026).
 
 ## 8 September 2026 - Owner cleanup for an already-revoked Relay PC
