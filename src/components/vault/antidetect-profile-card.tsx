@@ -3,17 +3,9 @@
 /**
  * Gắn profile antidetect cho một nick — tạo mới, hoặc chọn từ profile có sẵn trên máy này.
  *
- * ## Ba trạng thái, và trạng thái thứ ba là trạng thái mặc định của hôm nay
- *
- * | Cầu nối trả lời | Thẻ hiện gì |
- * |---|---|
- * | Có danh sách (bản ≥6) | Nút **Tạo profile** kèm xem trước, và ô chọn nếu máy đã có profile |
- * | 404 (bản cũ) | Câu nhắc tải lại cầu nối, và **không** chặn gì — ô gõ tay ở thẻ "Sửa nick" vẫn dùng được |
- * | Không gọi được | Im lặng lùi về ô gõ tay: người này có thể đang nhập liệu hộ từ máy khác, và đó không phải lỗi |
- *
- * Nhánh cuối là lý do thẻ này **không bao giờ kêu đỏ**. Cầu nối không tự cập nhật (QĐ 11), nên
- * bản cũ còn chạy ngoài kia rất lâu — một dải đỏ ở đây sẽ là dải đỏ thường trực, và dải đỏ
- * thường trực thì không ai đọc nữa.
+ * Profile-list rejection is not version evidence: a current Relay also rejects when MKT Browser
+ * is unavailable. Read current health, show a safe cause and next action, and let the operator
+ * retry after starting the local applications. Manual entry stays available in the nick edit form.
  *
  * ## Lượt tạo có thể XONG mà trình duyệt không biết
  *
@@ -36,7 +28,7 @@
  * **before** they click, and sends the result to the server with the ticket request. See the opening comment in
  * `account-profile-actions.ts` for why the server does not validate it again.
  */
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   CheckCircle2,
   CircleAlert,
@@ -60,17 +52,18 @@ import {
   describeRelayFailure,
   describeSlowRelayFailure,
   fetchRelayProfiles,
+  pingRelay,
   sendTicketToRelay,
   type RelayOutcome,
 } from "@/lib/relay/relay-browser-client";
 import {
   RELAY_PROFILE_WORK_TIMEOUT_MS,
-  type RelayFingerprintOptions,
-  type RelayProfileSummary,
   type RelayReply,
   type RelayOperationDiagnostic,
 } from "@/lib/relay/relay-endpoints";
 import { RelayOperationDiagnosticDetails } from "@/components/relay/relay-operation-diagnostic-details";
+import { profileSetupReadiness, profileSetupUnknown, type ProfileSetupReadiness } from "@/lib/relay/profile-setup-readiness";
+import { ProfileSetupStatus } from "./profile-setup-status";
 
 type Feedback = {
   kind: "ok" | "error";
@@ -83,11 +76,6 @@ function moTaNguyenNhan(sent: RelayOutcome<RelayReply>): string {
   return sent.status === "ok"
     ? sent.data.message
     : describeSlowRelayFailure(sent, "create browser profile");
-}
-
-interface RelayState {
-  profiles: RelayProfileSummary[];
-  options: RelayFingerprintOptions;
 }
 
 export function AntidetectProfileCard({
@@ -110,33 +98,37 @@ export function AntidetectProfileCard({
   proxyCountry: string | null;
   proxyLabel: string | null;
 }) {
-  const [relay, setRelay] = useState<RelayState | null>(null);
-  const [relayOld, setRelayOld] = useState(false);
+  const [setup, setSetup] = useState<ProfileSetupReadiness | null>(null);
+  const [checking, setChecking] = useState(true);
+  const refreshSequence = useRef(0);
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState<Feedback>(null);
 
-  useEffect(() => {
-    let huy = false;
-
-    void fetchRelayProfiles().then((outcome) => {
-      if (huy) return;
-      if (outcome.status === "ok") {
-        setRelay({
-          profiles: outcome.data.profiles ?? [],
-          options: outcome.data.fingerprintOptions ?? { devices: [], locales: [] },
-        });
-        return;
-      }
-      // Bị từ chối = cầu nối trả lời nhưng không hiểu đường này, tức bản cũ. Không gọi được thì
-      // im lặng: rất có thể người dùng đang ngồi máy khác, và đó là chuyện bình thường.
-      if (outcome.status === "rejected") setRelayOld(true);
-    });
-
-    return () => {
-      huy = true;
-    };
+  const refreshLocalState = useCallback(async () => {
+    const sequence = ++refreshSequence.current;
+    setChecking(true);
+    // Start the health request during the click, before any await loses local-network activation.
+    const healthPromise = pingRelay();
+    const profilesPromise = fetchRelayProfiles();
+    try {
+      const [health, profiles] = await Promise.all([healthPromise, profilesPromise]);
+      if (sequence === refreshSequence.current) setSetup(profileSetupReadiness(profiles, health));
+    } catch {
+      if (sequence === refreshSequence.current) setSetup(profileSetupUnknown());
+    } finally {
+      if (sequence === refreshSequence.current) setChecking(false);
+    }
   }, []);
 
+  useEffect(() => {
+    const initial = window.setTimeout(() => void refreshLocalState(), 0);
+    return () => {
+      window.clearTimeout(initial);
+      refreshSequence.current += 1;
+    };
+  }, [refreshLocalState]);
+
+  const relay = setup?.kind === "ready" ? setup : null;
   const plan =
     relay && proxyCountry
       ? planProfileFingerprint({ proxyCountry, seedKey: username, options: relay.options })
@@ -245,25 +237,13 @@ export function AntidetectProfileCard({
     }
   }, [accountId, doProfileVuaTao, plan, platform, username]);
 
-  // Không gọi được cầu nối: không vẽ gì. Ô gõ tay ở thẻ "Sửa nick" vẫn là đường dùng được.
-  if (!relay && !relayOld) return null;
-
-  if (relayOld) {
+  if (!relay) {
     return (
-      <div className="flex items-start gap-3 rounded-xl border border-amber-400/20 bg-amber-400/[0.06] p-4 text-sm text-amber-100">
-        <CircleAlert size={18} className="mt-0.5 shrink-0 text-amber-300" aria-hidden="true" />
-        <div>
-          <p className="font-semibold">Relay update required</p>
-          <p className="mt-1 text-xs leading-5 text-amber-100/75">
-            This PC cannot create a browser profile with its current Relay. Download the latest
-            version from{" "}
-            <a href="/setup#download" className="font-medium underline underline-offset-2">
-              Set up this Relay PC
-            </a>{" "}
-            or paste an existing browser profile ID into the nick edit form.
-          </p>
-        </div>
-      </div>
+      <ProfileSetupStatus
+        state={setup?.kind === "blocked" ? setup : null}
+        checking={checking}
+        onRetry={() => void refreshLocalState()}
+      />
     );
   }
 
@@ -318,10 +298,16 @@ export function AntidetectProfileCard({
           </Disclosure>
         </>
       ) : (
-        <div className="flex items-start gap-3 rounded-xl border border-amber-400/20 bg-amber-400/[0.06] p-4 text-sm text-amber-100">
-          <CircleAlert size={18} className="mt-0.5 shrink-0 text-amber-300" aria-hidden="true" />
-          {plan?.failure.message}
-        </div>
+        <ProfileSetupStatus
+          state={{
+            kind: "blocked",
+            state: "profile-plan-unavailable",
+            title: "Browser profile setup needs attention",
+            message: plan?.failure.message ?? "Check the assigned proxy country, then check again.",
+          }}
+          checking={checking}
+          onRetry={() => void refreshLocalState()}
+        />
       )}
 
       {relay && relay.profiles.length > 0 ? (

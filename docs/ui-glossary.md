@@ -55,6 +55,24 @@ those software terms as another name for the PC itself.
 
 ## Display-label migration
 
+### Browser startup and profile setup candidate - 8 September 2026
+
+These labels describe source under verification, not an installed-user delivery claim.
+
+| Before or condition | Label and next action |
+|---|---|
+| Every rejected profile-list request said `Relay update required` | Use that label only for a measured Relay version below the effective create-profile floor, currently 13. |
+| Current Relay cannot reach Browser | **MKT Browser is not connected**; open MKT Browser on this PC, then **Check again**. |
+| Relay transport or local-network permission failure | **Relay is not reachable on this PC** or **Local PC access needs checking**; explain the local action without claiming an update is required. |
+| Browser contract, engine, capability, recovery, or capacity failure | Name the measured Browser condition and give its safe next action; unknown is neither Ready nor outdated. |
+| Retry the profile readiness check | **Check again** rechecks health and profile inventory; **Checking...** disables duplicate retries. It does not create a profile or issue a ticket. |
+| Close the normal Windows manager with a usable tray | Hide the manager; browser profiles stay open. **Open MKT Browser** returns to that manager. |
+| Explicit tray action | **Quit MKT Browser** closes browser profiles; Relay stays running for vault operations. **Check Relay** explicitly retries the installed companion check. |
+
+Profile-setup messages come from reviewed local states, never raw Relay/provider errors, tokens,
+paths, or configuration details. Relay v16 satisfies the version floor but is not proof that
+MKT Browser is ready. Desktop labels apply only to normal packaged Windows sessions.
+
 ### Relay cleanup recovery - 8 September 2026
 
 | Label | Meaning and boundary |
