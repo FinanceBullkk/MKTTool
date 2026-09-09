@@ -20,6 +20,11 @@ the archive location.
 
 ## 9 September 2026 - Reproduced single-entry installer; release held
 
+- Retained 0.3.15 is rejected: its synchronous Relay failure dialog blocked installed Browser MCP
+  until dismissed. Prepare Browser 0.3.16 / unchanged Relay 17 with asynchronous, deduplicated
+  notification and preserved ownership checks. Five notification regressions pass; independent
+  builds, signed metadata and exact VM/MSI acceptance remain required. No publication or deployment.
+
 - Fresh release security scan found critical Next.js and high sharp production advisories. Raise
   Next.js and matching ESLint config to 16.3.3; lock sharp 0.35.4. Production audit passes with
   the patched lockfile. Full frozen checks and exact VM acceptance remain required; no deployment.

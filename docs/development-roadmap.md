@@ -4,13 +4,22 @@
 
 ## Single-entry installer acceptance - 9 September 2026
 
+Browser 0.3.16 / Relay 17 supersedes the rejected 0.3.15 candidate. In the installed VM, native
+Check Relay opened a synchronous failure dialog: MCP initialize timed out at 12,287 ms while it
+remained open, then returned HTTP 200 in 351 ms after dismissal. The Browser correction uses a
+nonblocking, deduplicated notice and retains ownership checks. Candidate
+`20260909-browser-0.3.16-relay-17-nonblocking-relay-cft` requires new independent builds, signed
+metadata and exact VM/MSI acceptance. Empty-session Quit on rejected 0.3.15 retained Relay, but
+active-profile lifecycle remains OPEN. Its synthetic session was revoked; guest and fixture
+services were shut down before building. No new candidate is published or operator-available.
+
 Fresh production audit found Next.js critical advisories GHSA-p293-qw3h-jr36 and
 GHSA-2xp9-vwfh-vxw4, plus sharp high advisory GHSA-rgj7-g3m4-5g8c. Raise Next.js and its
 ESLint config to 16.3.3, and lock sharp 0.35.4. The updated production audit passes; frozen
 quality and VM fixture validation must use the patched Web runtime. Browser build-sibling and
 unchanged Relay provenance remain separate. No deployment has been performed for this correction.
 
-Browser 0.3.15 / Relay 17 is the next candidate, with publication HOLD. Exact 0.3.14 installed cleanly
+Historical 0.3.15 / Relay 17 checkpoint (now rejected): exact 0.3.14 installed cleanly
 (9/9), completed supported enrollment/bootstrap and passed the former shutdown failure during signed
 sequence 18 activation. Smoke then failed: Browser ignored the Relay-installed CFT runtime because
 `current.json` was absent, attempted an unauthenticated candidate download and received HTTP 401.

@@ -1,7 +1,7 @@
 /** Reviewed profile-manager candidate; changing this tuple requires a new release freeze. */
 export const WINDOWS_INSTALLER_CANDIDATE = Object.freeze({
-  id: "20260909-browser-0.3.15-relay-17-activated-engine-cache-cft",
-  browserVersion: "0.3.15",
+  id: "20260909-browser-0.3.16-relay-17-nonblocking-relay-cft",
+  browserVersion: "0.3.16",
   relayVersion: 17,
   relaySha256: "d8bf25dcb446d779bd5461419ea7562044e280ac1d16592a71a52f156f6359cf",
   relaySizeBytes: 34289393,
