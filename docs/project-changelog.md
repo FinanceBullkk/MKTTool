@@ -1,5 +1,17 @@
 # Project changelog
 
+## 2026-09-09 - Browser IP observer correction (candidate only)
+
+- Reject 0.3.16 activation evidence after its browser-page IP probe receives a Cloudflare HTML
+  challenge despite a valid TLS connection and successful Node proxy preflight.
+- Prepare Browser 0.3.17 / Relay 17 candidate metadata. The Browser uses an IP-only HTTPS observer,
+  requires exact egress equality and fails closed on redirects or malformed addresses with safe
+  operator errors. Nine regression cases fail before; 12/12 smoke tests pass after.
+- Preserve exact 0.3.16 installer, clean install/nonblocking notice/tray/cold-login passes and
+  separate activation failure. Disposable CFT observer diagnostics are not installer acceptance.
+- New frozen A/B build, signed metadata, VM lifecycle and physical MSI acceptance remain OPEN.
+  No replacement upload, publication or deployment has occurred.
+
 Records behavior-changing milestones by date and delivery phase. Internal cleanup is omitted.
 Current delivery status lives in [development-roadmap.md](development-roadmap.md).
 

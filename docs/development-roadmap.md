@@ -4,6 +4,18 @@
 
 ## Single-entry installer acceptance - 9 September 2026
 
+Browser 0.3.17 / Relay 17 is the replacement candidate
+`20260909-browser-0.3.17-relay-17-browser-ip-observer-cft`. Exact 0.3.16 clean install, unanswered
+Relay notice with responsive MCP, empty-session tray/Quit and cold login pass. Activation fails
+at browser-page smoke: ipapi returns a Cloudflare challenge (HTTP 403 with valid TLS). A separate
+disposable CFT diagnostic through the same proxy receives valid HTTPS JSON from ipify; its IP
+matches the independent Node proxy probe. The correction uses that IP-only observer, rejects
+redirects/invalid addresses and keeps mismatched egress fatal. Nine new regressions fail before
+the fix; all 12 smoke tests pass after. This does not accept the replacement installer. New A/B,
+signed sequence 21, exact VM and physical MSI checks remain OPEN; publication remains HOLD.
+
+Historical 0.3.16 checkpoint (activation now rejected):
+
 Browser 0.3.16 / Relay 17 supersedes the rejected 0.3.15 candidate. In the installed VM, native
 Check Relay opened a synchronous failure dialog: MCP initialize timed out at 12,287 ms while it
 remained open, then returned HTTP 200 in 351 ms after dismissal. The Browser correction uses a
