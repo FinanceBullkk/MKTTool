@@ -1,6 +1,6 @@
 # Hướng dẫn vận hành cho team
 
-**Cập nhật:** 30/08/2026 | Dành cho **người dùng công cụ**, không phải người cài nó
+**Cập nhật:** 10/09/2026 | Dành cho **người dùng công cụ**, không phải người cài nó
 
 > File này là thứ bạn đọc để *dùng*. Cài đặt, biến môi trường, cách dựng máy chủ nằm ở
 > [README.md](../README.md) — đó là việc của ADMIN, bạn không cần mở.
@@ -168,19 +168,30 @@ Mọi việc khác vẫn chạy bình thường khi cầu nối tắt — kể c
 
 > Your PC must be registered before it can receive a ticket. `/setup` shows the local readiness and
 > enrollment state. Browser/Relay rollout remains NO-GO for the separate Browser gates; the owner may
-> self-serve reinstall the approved 0.3.13 package on the two owner machines only when an approved
+> self-serve reinstall the approved package on the two owner machines only when an approved
 > installer receipt is available. Do not download an
 > old Relay ZIP, run a legacy `setup.bat`, or copy local keys/tokens by hand.
+
+**Bản 0.3.17 sẽ bỏ bước mở cầu nối bằng tay — nhưng chưa tới máy bạn.** Mục này mô tả thứ đang
+cài trên máy hiện giờ, và nó vẫn đúng cho tới khi có thông báo bàn giao. Khi 0.3.17 tới, mở MKT
+Browser là đủ: nó tự kiểm và khởi động cầu nối đã cài của chính bạn, giữ profile chạy dưới khay
+đồng hồ khi bạn đóng cửa sổ quản lý, và tự chạy khi bạn đăng nhập Windows. Đóng hẳn thì dùng
+**Quit MKT Browser** trong khay — cầu nối vẫn ở lại để mở mật khẩu nick. Đừng đi tìm cách tự bật
+cầu nối trước; nếu nó không lên, công cụ sẽ nói lý do chứ không im lặng.
 >
 > Nếu bạn có **hai máy** trong sổ, công cụ sẽ hỏi bạn đang ngồi máy nào trước khi bấm. Chọn đúng —
 > chọn sai là phát ra một tấm vé chắc chắn hỏng, phải làm lại.
 
 ### Current Browser installation gate (P4b; not the deployed P4a Web gate)
 
-The current MKT Browser `0.3.13` with bundled Relay v16 remains a **draft, not published**, until the
-exact installer/provenance and release-authority gates close. The
-immutable Relay v16 object has been read back and hash-verified; the old `0.3.12`/v15 installer is
-quarantined historical evidence and must not be patched or reused.
+The current candidate is MKT Browser `0.3.17` with bundled Relay v17. It remains a **draft, not
+published**, until the exact installer/provenance and release-authority gates close. It passed
+clean-VM install, signed activation, profile/proxy lifecycle, repair, uninstall and independent
+Relay retention on 9 September 2026; acceptance on a real physical PC is still **OPEN**, so
+publication stays on HOLD. A VM pass is not a delivery.
+
+Earlier candidates `0.3.13` through `0.3.16` were each rejected on an observed defect and must not
+be reused. The `0.3.12`/v15 installer is quarantined historical evidence and must not be patched.
 
 Open `/setup`, confirm the detected PC, and wait for ADMIN approval/key delivery. Download only a
 complete installer tuple shown there; if metadata is missing, the control must remain disabled and
@@ -382,10 +393,11 @@ báo càng nhiều thứ phải làm lại.
       trực tiếp của owner + security, và xóa/đổi khóa sau ca; không phải đường vận hành bình thường.
       **Không bao giờ qua chat**: khóa dán trong chat là khóa nằm trong lịch sử chat của một công ty
       khác, vĩnh viễn.
-3. **Owner-only self-install (Q15).** The two active v15 devices belong to the workspace owner. When
-   an owner-approved 0.3.13 installer receipt is available, the owner may reinstall it and complete
-   `/setup` on each detected PC. No notification/acknowledgement channel is needed. Ordinary team
-   operators must not self-install while the Browser rollout gates remain NO-GO.
+3. **Owner-only self-install (Q15).** The two active devices belong to the workspace owner. When an
+   owner-approved installer receipt is available, the owner may reinstall it and complete `/setup`
+   on each detected PC. No notification/acknowledgement channel is needed. Ordinary team operators
+   must not self-install while the Browser rollout gates remain NO-GO — today that means a new team
+   member does steps 1 and 2 only, and does not receive MKT Browser at all.
 
 > Việc 1 phải xong trước việc 3. Ghi máy vào sổ cho một email chưa được phép đăng nhập thì công cụ
 > từ chối thẳng, kèm câu giải thích đúng lý do — nhưng đó là một vòng đi lại không cần thiết.
@@ -431,7 +443,7 @@ hướng khác.
 Windows, nhưng đường kiểm license không có đường lui nên chết, và báo "không tới được máy chủ".
 Người đọc sẽ đi kiểm mạng và kiểm khóa — cả hai đều đang đúng, nên bế tắc.
 
-**Cách xử:** use the current reviewed desktop candidate (`0.3.13` when its metadata is complete).
+**Cách xử:** use the current reviewed desktop candidate (`0.3.17` once it is delivered).
 Builds before `0.3.4` had the firewall defect; the quarantined `0.3.12` package is not a rollout
 substitute.
 

@@ -89,6 +89,18 @@ the archive location.
   Defender enabled. Signed activation, active-profile lifecycle, tray reopen/Quit, independent
   Relay retention and MSI gates stay open. The owner will run the checklist after VM acceptance.
   See the [current acceptance checkpoint](development-roadmap.md#single-entry-installer-acceptance---9-september-2026).
+## 9 September 2026 - Production dependency advisories patched
+
+- **Dependencies:** Next.js and `eslint-config-next` move to 16.3.3, closing critical advisories
+  GHSA-p293-qw3h-jr36 and GHSA-2xp9-vwfh-vxw4. sharp locks to 0.35.4, closing high advisory
+  GHSA-rgj7-g3m4-5g8c. The deployed lockfile had resolved Next.js 16.3.0 and sharp 0.35.3, both
+  inside the affected ranges.
+- **Exposure:** `_next/image` is excluded from middleware authentication by design, so the image
+  optimization route answers unauthenticated requests. That is the surface the Next.js advisory
+  describes, which is why this ships separately rather than waiting for candidate acceptance.
+- **Scope:** dependencies and documentation only. No release-candidate metadata, Browser, Relay,
+  engine-pin, or acceptance-state change occurred in that patch. Physical MSI acceptance completed
+  separately on 10 September.
 
 ## 8 September 2026 - Single-entry Browser startup candidate
 

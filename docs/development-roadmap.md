@@ -35,12 +35,6 @@ metadata and exact VM/MSI acceptance. Empty-session Quit on rejected 0.3.15 reta
 active-profile lifecycle remains OPEN. Its synthetic session was revoked; guest and fixture
 services were shut down before building. No new candidate is published or operator-available.
 
-Fresh production audit found Next.js critical advisories GHSA-p293-qw3h-jr36 and
-GHSA-2xp9-vwfh-vxw4, plus sharp high advisory GHSA-rgj7-g3m4-5g8c. Raise Next.js and its
-ESLint config to 16.3.3, and lock sharp 0.35.4. The updated production audit passes; frozen
-quality and VM fixture validation must use the patched Web runtime. Browser build-sibling and
-unchanged Relay provenance remain separate. No deployment has been performed for this correction.
-
 Historical 0.3.15 / Relay 17 checkpoint (now rejected): exact 0.3.14 installed cleanly
 (9/9), completed supported enrollment/bootstrap and passed the former shutdown failure during signed
 sequence 18 activation. Smoke then failed: Browser ignored the Relay-installed CFT runtime because
@@ -100,6 +94,18 @@ not upload or remote byte read-back evidence.
 See the [current acceptance report](../../plans/260908-2130-single-entry-browser-startup/reports/release-acceptance-20260909.md)
 and [MSI checklist](../../plans/260908-2130-single-entry-browser-startup/reports/msi-acceptance-checklist.md).
 The following 8 September checkpoint is historical; its build-B resource blocker is superseded.
+## Production dependency advisories patched - 9 September 2026
+
+A production dependency audit failed on the deployed tree: Next.js carried critical advisories
+GHSA-p293-qw3h-jr36 and GHSA-2xp9-vwfh-vxw4, and sharp carried high advisory GHSA-rgj7-g3m4-5g8c.
+The deployed lockfile resolved Next.js 16.3.0 and sharp 0.35.3, both inside the affected ranges,
+while `_next/image` is intentionally excluded from middleware authentication. Next.js and its
+ESLint config move to 16.3.3 and sharp locks to 0.35.4; the production audit then passes.
+
+This patch is deliberately scoped to dependencies. It carries no release-candidate metadata and
+does not change Browser, Relay, engine pin, or acceptance state. Candidate freezes stay on their
+own branches. The dependency release preceded and remains separate from the completed physical MSI
+acceptance recorded above.
 
 ## Single-entry Browser startup - 8 September 2026
 
