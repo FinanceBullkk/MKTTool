@@ -19,7 +19,10 @@
  * approval and the signed compatibility set remain separate operator-release prerequisites.
  */
 import { createHash } from "node:crypto";
-import { assertWindowsInstallerCandidateArtifacts } from "../src/lib/setup/windows-installer-candidate";
+import {
+  assertWindowsInstallerCandidateArtifacts,
+  WINDOWS_INSTALLER_CANDIDATE,
+} from "../src/lib/setup/windows-installer-candidate";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { getObject, headObject, putObject } from "../src/lib/r2/r2-client";
@@ -71,8 +74,11 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  if (relayVersion !== 16) {
-    console.error(`\nOnly the coordinated Relay v16 candidate may be published (received v${relayVersion}).\n`);
+  if (relayVersion !== WINDOWS_INSTALLER_CANDIDATE.relayVersion) {
+    console.error(
+      `\nOnly the coordinated Relay v${WINDOWS_INSTALLER_CANDIDATE.relayVersion} candidate may be published ` +
+        `(received v${relayVersion}).\n`,
+    );
     process.exit(1);
   }
   if (version !== EXPECTED_WINDOWS_INSTALLER_VERSION) {
@@ -296,8 +302,10 @@ function readInstallerMetadata(
         `v${expected.relayVersion}/${expected.relaySizeBytes}-byte tuple.`,
     );
   }
-  if (expected.relayVersion !== 16) {
-    throw new Error("The publisher is locked to the coordinated Relay v16 candidate.");
+  if (expected.relayVersion !== WINDOWS_INSTALLER_CANDIDATE.relayVersion) {
+    throw new Error(
+      `The publisher is locked to the coordinated Relay v${WINDOWS_INSTALLER_CANDIDATE.relayVersion} candidate.`,
+    );
   }
   if (expected.version !== EXPECTED_WINDOWS_INSTALLER_VERSION) {
     throw new Error(`The publisher is locked to Browser ${EXPECTED_WINDOWS_INSTALLER_VERSION}.`);

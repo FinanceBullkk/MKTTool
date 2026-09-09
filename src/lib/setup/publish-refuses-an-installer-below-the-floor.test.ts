@@ -22,6 +22,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { MIN_RELAY_VERSION } from "@/lib/tickets/ticket-types";
+import { WINDOWS_INSTALLER_CANDIDATE } from "./windows-installer-candidate";
 
 const NGUON = readFileSync(
   path.join(process.cwd(), "scripts", "publish-windows-installer.ts"),
@@ -46,6 +47,13 @@ describe("publish-windows-installer", () => {
 
   it("writes the Relay version to metadata so the setup page can read it", () => {
     expect(NGUON).toContain("WINDOWS_INSTALLER_RELAY_VERSION_METADATA_KEY");
+  });
+
+  it("locks publication to the reviewed candidate instead of a stale Relay literal", () => {
+    expect(NGUON).toContain("WINDOWS_INSTALLER_CANDIDATE.relayVersion");
+    expect(WINDOWS_INSTALLER_CANDIDATE.relayVersion).toBe(17);
+    expect(NGUON).not.toContain("relayVersion !== 16");
+    expect(NGUON).not.toContain("expected.relayVersion !== 16");
   });
 
   it("keeps the current floor positive so the comparison is meaningful", () => {

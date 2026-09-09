@@ -1,5 +1,20 @@
 # Project changelog
 
+## 2026-09-10 - Browser 0.3.17 physical MSI acceptance
+
+- Accept exact installer SHA-256
+  `6d07fd4ef529b3505a8de385c7d0d3214258e8a020abbd00de51e8f9810a4ca8` on the physical MSI laptop.
+  Browser 0.3.17, Relay 17, CFT 152.0.7977.64 and compatibility sequence 21 remain bound with no
+  pending transition and Defender enabled.
+- Pass profile/proxy launch, active-profile tray close, tray reopen, desktop shortcut reuse, explicit
+  Quit, Windows restart, repair, uninstall and reinstall. Browser uninstall retains the independent
+  Relay identity, profile data and active compatibility state.
+- Record the repair prerequisite observed on the physical machine: stop the running independent
+  Relay before retrying the combined installer. No configuration or identity reset is required.
+- Replace stale Relay v16 literals in the installer publisher with the reviewed candidate's Relay
+  version and add regression coverage. Immutable artifact upload/read-back has passed; deployment
+  approval and production source integration remain pending.
+
 ## 2026-09-09 - Browser IP observer correction (candidate only)
 
 - Reject 0.3.16 activation evidence after its browser-page IP probe receives a Cloudflare HTML

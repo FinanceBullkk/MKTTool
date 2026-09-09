@@ -1,18 +1,28 @@
 # Lộ trình phát triển
 
-**Updated:** 9 September 2026
+**Updated:** 10 September 2026
 
 ## Single-entry installer acceptance - 9 September 2026
 
-Browser 0.3.17 / Relay 17 is the replacement candidate
-`20260909-browser-0.3.17-relay-17-browser-ip-observer-cft`. Exact 0.3.16 clean install, unanswered
-Relay notice with responsive MCP, empty-session tray/Quit and cold login pass. Activation fails
-at browser-page smoke: ipapi returns a Cloudflare challenge (HTTP 403 with valid TLS). A separate
-disposable CFT diagnostic through the same proxy receives valid HTTPS JSON from ipify; its IP
-matches the independent Node proxy probe. The correction uses that IP-only observer, rejects
-redirects/invalid addresses and keeps mismatched egress fatal. Nine new regressions fail before
-the fix; all 12 smoke tests pass after. This does not accept the replacement installer. New A/B,
-signed sequence 21, exact VM and physical MSI checks remain OPEN; publication remains HOLD.
+Browser 0.3.17 / Relay 17 candidate
+`20260909-browser-0.3.17-relay-17-browser-ip-observer-cft` has completed exact-file acceptance.
+Independent A/B builds reproduce all 129 normalized payload files. Signed compatibility sequence
+21 binds Browser 0.3.17, Relay 17 and CFT 152.0.7977.64. Clean VM installation, activation,
+active-profile tray/Open/shortcut/Quit, repair, uninstall and independent Relay retention pass.
+
+Physical MSI acceptance also passes for installer SHA-256
+`6d07fd4ef529b3505a8de385c7d0d3214258e8a020abbd00de51e8f9810a4ca8`. Windows restart and normal
+Browser launch restore Relay 17 without a separate Relay launch. The disposable proxy profile opens;
+tray and Quit behavior pass; repair preserves the profile and Relay identity; uninstall removes the
+Browser application, registry entry and shortcuts while retaining the independent Relay, profile
+data, device identity and sequence 21; reinstall returns the same ready tuple. Repair requires the
+running independent Relay process to be stopped before retrying the installer.
+
+The immutable installer and sequence-21 objects have passed full remote byte read-back. Operator
+availability remains held until the exact approved tuple is installed in the deployment environment
+and the candidate source is deployed. The unsigned internal exception expires 8 November 2026.
+Unfamiliar-operator and seven-day canary evidence remain OPEN and are separate from installer
+acceptance.
 
 Historical 0.3.16 checkpoint (activation now rejected):
 
