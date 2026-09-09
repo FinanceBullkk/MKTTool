@@ -51,9 +51,11 @@ describe("publish-windows-installer", () => {
 
   it("locks publication to the reviewed candidate instead of a stale Relay literal", () => {
     expect(NGUON).toContain("WINDOWS_INSTALLER_CANDIDATE.relayVersion");
+    expect(NGUON).toContain('requiredPositiveInteger(relay.targetVersion, "relay.targetVersion")');
     expect(WINDOWS_INSTALLER_CANDIDATE.relayVersion).toBe(17);
     expect(NGUON).not.toContain("relayVersion !== 16");
     expect(NGUON).not.toContain("expected.relayVersion !== 16");
+    expect(NGUON).not.toContain("relayVersion: 16");
   });
 
   it("keeps the current floor positive so the comparison is meaningful", () => {
