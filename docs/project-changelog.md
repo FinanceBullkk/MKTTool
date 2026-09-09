@@ -12,8 +12,12 @@
 - Record the repair prerequisite observed on the physical machine: stop the running independent
   Relay before retrying the combined installer. No configuration or identity reset is required.
 - Replace stale Relay v16 literals in the installer publisher with the reviewed candidate's Relay
-  version and add regression coverage. Immutable artifact upload/read-back has passed; deployment
-  approval and production source integration remain pending.
+  version and add regression coverage. PRs #73 and #74 merged as `71bdafb1` and `d161dd52`;
+  Railway deployment `54091ee1-f46e-4b8d-8bdb-d6d111ba5cd7` is successful for the latter commit.
+- Publish the exact accepted installer under its immutable candidate key. Conditional creation and
+  full GET/hash read-back pass. The production release probe reports complete metadata, and an
+  authenticated download returns HTTP 200 with 146,047,736 bytes and the accepted SHA-256. The
+  release is operator-available for controlled internal Windows x64 use.
 
 ## 2026-09-09 - Browser IP observer correction (candidate only)
 

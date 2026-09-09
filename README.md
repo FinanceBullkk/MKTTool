@@ -8,8 +8,9 @@ promise of unique or isolated browser identity.
 **Product direction, 8 September 2026:** the owner accepted MKT Browser as a **browser profile
 manager with proxy binding**. Priorities are Proxy vault, Relay handoff, and reliable manual profile
 operations. Antidetect/identity-engine research and Lane C are closed. The Browser draft remains
-limited to bounded demonstrations with disposable data; real-account use and team distribution
-are not approved. See the [product decision](docs/project-overview-pdr.md#product-direction-decision---8-september-2026)
+limited to the profile/proxy product boundary. Exact Browser `0.3.17` / Relay `17` is approved for
+controlled internal Windows x64 distribution after clean-VM and physical-MSI acceptance; this does
+not establish unique identity, identity isolation, or real-account safety. See the [product decision](docs/project-overview-pdr.md#product-direction-decision---8-september-2026)
 and [release boundary](docs/internal-beta-release.md).
 
 **Rollout scope decision, 2 September 2026:** Reddit and Facebook are **withdrawn from the team
@@ -31,7 +32,16 @@ Parked Content, Queue, Facebook, Targets, and Health routes use the same hierarc
 cards, but their rollout state and server-side posting guards remain unchanged. Sign-in, empty,
 error, confirmation, and destructive-action states use the same visual language and touch targets.
 
-**Current status, 1 September 2026:** the nick vault, Reddit/Facebook posting-safety pipeline,
+**Current Browser release, 10 September 2026:** candidate
+`20260909-browser-0.3.17-relay-17-browser-ip-observer-cft` is operator-available through the
+authenticated Windows installer route. The retained installer is 146,047,736 bytes, SHA-256
+`6d07fd4ef529b3505a8de385c7d0d3214258e8a020abbd00de51e8f9810a4ca8`, with signed compatibility
+sequence 21 and CFT `152.0.7977.64`. Immutable R2 creation, complete byte read-back, production
+metadata validation, authenticated HTTP 200 download, VM lifecycle, and physical MSI install,
+restart, tray, Quit, repair, uninstall, and reinstall checks passed. Unfamiliar-operator and
+seven-day canary evidence remain open; use remains human-controlled and carries no identity claim.
+
+**Historical platform status, 1 September 2026:** the nick vault, Reddit/Facebook posting-safety pipeline,
 health checks, and Facebook Pages publisher are implemented (now out of rollout scope, see above).
 TikTok nick/browser-profile setup and manual
 launch are available for a controlled technical pilot; TikTok content, scheduling, warmup, and
@@ -251,8 +261,8 @@ the shared identity workspace does not reopen a posting workflow.
 
 MKT Browser is not distributed from `/setup`. It appears only as a secondary boundary notice and as
 diagnostic data inside the collapsed support details for the separate Browser lane. Browser health
-does not block Relay download, Relay PC registration, or workspace readiness. No Browser rollout or
-identity-isolation approval is implied.
+does not block Relay download, Relay PC registration, or workspace readiness. The controlled
+installer release does not imply identity-isolation approval.
 
 **Posting preparation is a separate checklist:** publishing targets, content, and the first queued
 job remain implemented, but this branch is hidden while all posting platforms are outside the
