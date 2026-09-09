@@ -1,9 +1,10 @@
 # Internal beta boundary
 
-**Updated:** 8 September 2026
-**Status:** shared vault, proxy ownership, and Relay PC operations are in scope; Browser rollout
-remains **NO-GO**, and Lane C is **CLOSED**. The earlier Web/Facebook CONDITIONAL GO is a technical
-record, subject to the platform withdrawal below.
+**Updated:** 10 September 2026
+**Status:** shared vault, proxy ownership, Relay PC operations, and the exact Browser `0.3.17` /
+Relay `17` Windows x64 tuple are approved for controlled internal use. Lane C is **CLOSED**. The
+earlier Web/Facebook CONDITIONAL GO remains a technical record, subject to the platform withdrawal
+below.
 
 ## Accepted direction - 8 September 2026
 
@@ -12,16 +13,34 @@ Proxy vault, Relay handoff, and reliable manual profile operations. Antidetect/i
 research is closed. The product makes no unique-fingerprint, identity-isolation, or account-safety
 promise. See the [product decision](project-overview-pdr.md#product-direction-decision---8-september-2026).
 
-The current use boundary remains bounded, admin-led demonstration with disposable data, one profile
-at a time, and human login/input. A prospective low-risk manual workflow still needs an explicit
-release scope and its evidence; it does not authorize real accounts on the current draft. Installer,
-network, recovery, second-PC/operator, and canary requirements remain open where recorded below.
+The current use boundary is a controlled internal profile/proxy workflow, one profile at a time,
+with human login and input. The exact release below passed installer, activation, lifecycle,
+recovery, and owner-operated physical MSI acceptance. Unfamiliar-operator and seven-day canary
+requirements remain open where recorded below. No result authorizes an identity-isolation or
+real-account-safety claim.
 `G2-IDENTITY=FAIL` is retained as evidence, and Lane C has no scheduled research or vendor task.
 
-Relay installation and shared-workspace handoff continue through `/setup` independently of Browser
-distribution. The historical combined-installer path below applies only to a future approved Browser
-release. A documentation decision neither publishes that installer nor changes engine pins or
-compatibility manifests.
+Relay installation and shared-workspace handoff continue through `/setup`. Browser distribution uses
+the authenticated `/api/setup/windows-installer` route and exact approved tuple; operators must not
+substitute a locally rebuilt EXE or an upstream-latest engine.
+
+## Approved internal Browser release - 10 September 2026
+
+| Field | Released value |
+|---|---|
+| Candidate | `20260909-browser-0.3.17-relay-17-browser-ip-observer-cft` |
+| Installer | 146,047,736 bytes; SHA-256 `6d07fd4ef529b3505a8de385c7d0d3214258e8a020abbd00de51e8f9810a4ca8` |
+| Runtime tuple | Browser `0.3.17`; Relay `17`; CFT `152.0.7977.64`; compatibility sequence `21` |
+| Release source | PR #73 merge `71bdafb1`; PR #74 merge `d161dd52` |
+| Deployment | Railway `54091ee1-f46e-4b8d-8bdb-d6d111ba5cd7`, exact commit `d161dd523e9fe3b62b08eb09bb7731c155ae926c` |
+| Distribution | Immutable R2 object; conditional create and full GET/hash read-back PASS |
+| Production route | Authenticated HTTP 200; content length and complete response SHA-256 match the accepted installer |
+| Acceptance | Clean VM and physical MSI lifecycle PASS, including activation, active-profile tray/Quit, repair, uninstall, independent Relay retention, and reinstall |
+| Signing | Unsigned internal exception through `2026-11-08T02:31:40.576Z` |
+
+The accepted EXE was not rebuilt between MSI acceptance and publication. Repair can require stopping
+the running independent Relay process before retrying; this does not require deleting Relay identity,
+profile data, or the active compatibility set.
 
 ## Finishing pass - 8 September 2026
 
@@ -152,16 +171,15 @@ Consequences worth keeping straight:
   thing to hand over, but it is much less than what is built.
 - **Re-entry is an owner decision, not a default.** Whoever reopens a platform inherits the open
   items recorded against it — including the unowned cross-operator publish path on Facebook Pages.
-- **MKT Browser + Relay:** the current Windows x64 `0.3.13` tree is a controlled technical draft
-  from `5ef710dd`. Its payload is measured, but the full installer still has an unresolved NSIS
-  resource-order variance and the five-artifact tuple is not publishable. Use one profile at a time,
-  one static proxy per browser-backed account, and human login/input only. Profile-local storage and
-  proxy assignment are operational controls, not proof of unique or isolated browser identity.
+- **MKT Browser + Relay:** exact Windows x64 Browser `0.3.17` / Relay `17` is available through the
+  authenticated installer route. Use one profile at a time, one static proxy per browser-backed
+  account, and human login/input only. Profile-local storage and proxy assignment are operational
+  controls, not proof of unique or isolated browser identity.
 
 Reddit/TikTok real-account rollout, unattended automation, and posting automation remain paused.
 A disposable technical profile may be used only for a bounded, admin-led demonstration.
 
-## Candidate tuple (draft, not published; P4b only)
+## Historical 0.3.13 candidate tuple (not published)
 
 | Field | Value |
 |---|---|
@@ -181,12 +199,13 @@ The immutable Relay v16 R2 object was published and verified with a full GET/has
 the Phase 2 authorization. That does not publish this Browser installer. The old R2 Browser
 `0.3.12`/Relay-v15 object is quarantined historical evidence; never patch or reuse its tuple.
 
-## Operator path (when the draft is released)
+## Operator path for the approved release
 
 1. Sign in to MKTTool and open `/setup`.
 2. Ask ADMIN to approve the detected PC and assign the account, static proxy, and Relay device.
-3. Download only a complete metadata tuple shown by `/setup`; if metadata is missing, the page must
-   disable the download and show **unpublished**.
+3. Download only the approved combined EXE from authenticated
+   `/api/setup/windows-installer`. If the route reports unavailable or incomplete metadata, stop and
+   contact ADMIN.
 4. Install the per-user package. Do not download a raw Relay ZIP, run an old script, or copy a
    token, key, port, profile directory, or `.env` value.
 5. Start Browser/Relay and verify the local technical checks. Keep one profile active at a time.
@@ -216,18 +235,19 @@ retry by opening a second profile or changing the proxy locally.
 
 | Gate | State | Meaning |
 |---|---|---|
-| P3 installer/provenance | OPEN | Provenance is accepted, but the exact engine archive and deterministic outer installer tuple are missing |
+| P3 installer/provenance | PASS | Exact accepted installer, normalized A/B payload, provenance, engine pin, immutable object, and full-byte read-backs are bound |
 | G1 human input/login | OPEN | Requires human first-login/typing attestations on the promoted artifact |
 | G2 network | OPEN | Real proxy/DNS/WebRTC evidence is not closed |
 | G2 identity | FAIL | Stable `.2` is `BLOCKED` with `0/10` current readings; Brave failed A/B/C at pool five; no current engine proves identity isolation |
 | G2 concurrency | DEFERRED | One vendor seat; one profile at a time |
 | G3 licence/schema | OPEN | Live vendor sidecar/schema evidence is incomplete for the Browser tuple |
 | G3 recovery | PASS for the tested historical path | Does not substitute for exact promoted-installer and real power-cycle evidence |
-| G4 second PC/operator | OPEN | Unfamiliar-operator acceptance on a clean second PC is required |
+| G4 physical MSI | PASS / unfamiliar operator OPEN | Owner-operated physical MSI lifecycle passed; a new operator without coaching remains unobserved |
 | G5 canary | OPEN | Seven-day human canary and stop-condition evidence are required |
 
-Therefore this document authorizes no public distribution, no broad Reddit/TikTok real-account
-rollout, and no unattended automation. It is a boundary/runbook, not a release approval.
+This document authorizes controlled internal distribution of the exact Windows x64 tuple above. It
+does not authorize broad Reddit/TikTok real-account rollout, unattended automation, or an identity
+claim.
 
 ## Lane C closure
 
@@ -244,8 +264,8 @@ engine path requires a new, separately owned product decision outside this relea
 - macOS packaging and updater work;
 - multi-profile concurrency or additional licence-key promises;
 - Reddit/TikTok posting automation, warmup, CAPTCHA/checkpoint, or credential/OTP automation;
-- Browser tuple signing/publication (P4b) remains technically OPEN, while Lane C promotion is closed
-  for this product shape; no identity-isolation or vendor-delivery promise is made.
+- Browser tuple publication (P4b) is complete for the exact internal release above. Lane C remains
+  closed; no identity-isolation or vendor-delivery promise is made.
 
 Historical tuples and test results remain in the dated audit reports; they must not be presented as
 the current candidate.

@@ -18,9 +18,13 @@ Browser application, registry entry and shortcuts while retaining the independen
 data, device identity and sequence 21; reinstall returns the same ready tuple. Repair requires the
 running independent Relay process to be stopped before retrying the installer.
 
-The immutable installer and sequence-21 objects have passed full remote byte read-back. Operator
-availability remains held until the exact approved tuple is installed in the deployment environment
-and the candidate source is deployed. The unsigned internal exception expires 8 November 2026.
+The immutable installer and sequence-21 objects have passed full remote byte read-back. The exact
+approved tuple is configured in production and source commit
+`d161dd523e9fe3b62b08eb09bb7731c155ae926c` is live in Railway deployment
+`54091ee1-f46e-4b8d-8bdb-d6d111ba5cd7`. Production reports complete R2 metadata and the authenticated
+download returned HTTP 200 with all 146,047,736 bytes matching the accepted SHA-256. The controlled
+internal Windows x64 release is operator-available. The unsigned internal exception expires
+8 November 2026.
 Unfamiliar-operator and seven-day canary evidence remain OPEN and are separate from installer
 acceptance.
 
