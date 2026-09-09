@@ -421,7 +421,7 @@ function readFrozenReleaseTuple(filePath: string): FrozenReleaseTuple {
     signingExceptionExpiresAt,
     candidateId: manifest.candidateId as string,
     version: requiredSafeText(installer.version, "installer.version"),
-    relayVersion: 16,
+    relayVersion: requiredPositiveInteger(relay.targetVersion, "relay.targetVersion"),
     installerSha256,
     installerSizeBytes,
   };
