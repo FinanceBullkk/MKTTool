@@ -226,8 +226,9 @@ retry by opening a second profile or changing the proxy locally.
   machine-live integration skipped. Re-run on the exact S3 artifact before promotion.
 - Relay v16: exact archive/EXE binding, restart replay rejection, fresh-ticket acceptance,
   crash-recovery, and corruption fail-closed harness checks passed locally; R2 full read-back passed.
-- One owner machine completed the self-serve 0.3.13 reinstall and now reports Relay v16 and a
-  contract-compatible Browser. The second owner machine remains unobserved; the floor stays at 13.
+- The owner-operated physical MSI completed the exact 0.3.17 / Relay 17 lifecycle and reports
+  sequence 21 with CFT 152.0.7977.64 ready. A second independent physical PC and an unfamiliar
+  operator remain unobserved; the Relay floor stays at 13.
 - Exact-revision CFT was used only as the same-machine cohort control for the Brave measurement.
   Brave failed A/B/C, so the control does not close `G2-IDENTITY` or authorize an engine change.
 
