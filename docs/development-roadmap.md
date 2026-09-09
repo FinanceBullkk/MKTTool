@@ -1,7 +1,99 @@
 # Lộ trình phát triển
 
-**Updated:** 9 September 2026
+**Updated:** 10 September 2026
 
+## Single-entry installer acceptance - 9 September 2026
+
+Browser 0.3.17 / Relay 17 candidate
+`20260909-browser-0.3.17-relay-17-browser-ip-observer-cft` has completed exact-file acceptance.
+Independent A/B builds reproduce all 129 normalized payload files. Signed compatibility sequence
+21 binds Browser 0.3.17, Relay 17 and CFT 152.0.7977.64. Clean VM installation, activation,
+active-profile tray/Open/shortcut/Quit, repair, uninstall and independent Relay retention pass.
+
+Physical MSI acceptance also passes for installer SHA-256
+`6d07fd4ef529b3505a8de385c7d0d3214258e8a020abbd00de51e8f9810a4ca8`. Windows restart and normal
+Browser launch restore Relay 17 without a separate Relay launch. The disposable proxy profile opens;
+tray and Quit behavior pass; repair preserves the profile and Relay identity; uninstall removes the
+Browser application, registry entry and shortcuts while retaining the independent Relay, profile
+data, device identity and sequence 21; reinstall returns the same ready tuple. Repair requires the
+running independent Relay process to be stopped before retrying the installer.
+
+The immutable installer and sequence-21 objects have passed full remote byte read-back. Operator
+availability remains held until the exact approved tuple is installed in the deployment environment
+and the candidate source is deployed. The unsigned internal exception expires 8 November 2026.
+Unfamiliar-operator and seven-day canary evidence remain OPEN and are separate from installer
+acceptance.
+
+Historical 0.3.16 checkpoint (activation now rejected):
+
+Browser 0.3.16 / Relay 17 supersedes the rejected 0.3.15 candidate. In the installed VM, native
+Check Relay opened a synchronous failure dialog: MCP initialize timed out at 12,287 ms while it
+remained open, then returned HTTP 200 in 351 ms after dismissal. The Browser correction uses a
+nonblocking, deduplicated notice and retains ownership checks. Candidate
+`20260909-browser-0.3.16-relay-17-nonblocking-relay-cft` requires new independent builds, signed
+metadata and exact VM/MSI acceptance. Empty-session Quit on rejected 0.3.15 retained Relay, but
+active-profile lifecycle remains OPEN. Its synthetic session was revoked; guest and fixture
+services were shut down before building. No new candidate is published or operator-available.
+
+Historical 0.3.15 / Relay 17 checkpoint (now rejected): exact 0.3.14 installed cleanly
+(9/9), completed supported enrollment/bootstrap and passed the former shutdown failure during signed
+sequence 18 activation. Smoke then failed: Browser ignored the Relay-installed CFT runtime because
+`current.json` was absent, attempted an unauthenticated candidate download and received HTTP 401.
+The Browser correction recognizes the stable runtime only when its metadata matches the signed pin;
+the actual bootstrap regression fails before the correction and four focused tests pass afterward.
+No protected state or engine pin was edited to make the VM pass. Failure snapshot and diagnostics
+remain retained. A separately observed ipapi.co RateLimited response on the original test proxy also
+requires a verified observer input for the next trial.
+
+Candidate `20260909-browser-0.3.15-relay-17-activated-engine-cache-cft` retains the exact Relay 17 ZIP
+`d8bf25dcb446d779bd5461419ea7562044e280ac1d16592a71a52f156f6359cf`. Relay A2/B2 EXE, ZIP and sidecar
+remain byte-identical from `78a8a84`. Previous full Web quality passed 2,168/2,168 with zero skips;
+security and database contracts passed separately. New source/metadata checks, Browser A/B builds,
+signed tuple, VM acceptance and owner-run MSI checks remain required before publication.
+
+**Activation defect found; exact A is rejected for promotion.** Authenticated VM enrollment and
+operator-key bootstrap succeeded. Tray reopen/Quit passed with no active profile; Quit retained the
+same Relay process. Signed sequence 17 downloaded/staged all five artifacts after correcting a local
+fixture filename, but activation stopped at `stopping`. The packaged Relay v16 process-stop command
+returns exit 1 when the runtimes are already absent, because Windows PowerShell preserves the failed
+`Get-Process` status. The exact empty-process case was reproduced on VM and in new Windows regression
+tests. The fix explicitly completes successful shutdown with exit 0, holds process handles, waits
+for termination and tolerates verified concurrent exit. All 450 Relay tests, typecheck and lint pass.
+A new Relay payload and combined installer require a new frozen tuple and repeated acceptance;
+retained A/sequence 17 evidence must not be rewritten as passing. Physical MSI testing stays pending.
+
+**PUBLICATION HOLD.** Independent build B reproduced all 129 normalized payload files from A,
+digest `607e229dea5506b0ffa6bfffb2714b7826634d1f2fad4548a411abaf04f779b8`, with zero differences.
+Outer EXE hashes differ. Retain exact A for acceptance and eventual delivery:
+`25e8fc156c0769245623dfc7b082cd9f88886b3516fbca24ea9509114928e8a3` (145073829 bytes).
+Embedded Browser version stays `0.3.13`; candidate identity is
+`20260909-browser-0.3.13-relay-16-single-entry-5ff43b2`, with Relay v16 and CFT 152.0.7977.64.
+
+Signed compatibility sequence 17 verifies the exact five-artifact tuple and authority. It permits
+fresh installation from sequence 0 only; migration from an already active sequence 16 remains
+unapproved. The EXE remains unsigned. Candidate-specific immutable installer metadata is prepared;
+57/57 DB-free tests across four files, full typecheck and lint pass. Read-only R2 preflight found
+all prospective keys absent. No upload, operator promotion or metadata deployment occurred.
+
+Clean restored VM installation passes 9/9. Installed welcome/profile creation reaches a missing
+verified engine-pin error; supported signed ADMIN repair is still required before profile use.
+Close-to-tray passed without an active profile. A fresh 1-vCPU VM repair passes 13/13 with bound
+raw/receipt hashes; Browser-only launch from proven absent processes/listeners starts exactly one
+owned Relay. Cold-login service startup and uninstall 15/15 also pass; the guest is shut down after
+verified cleanup. Login startup was slow on 1 vCPU (Browser-only at about 100 seconds, both services
+verified by about 211 seconds); physical-PC performance is unmeasured. Tray reopen/Quit, active
+profile/proxy use, independent Relay retention and physical MSI acceptance remain open. The earlier
+2-vCPU repair dispatch lost guest SSH and heartbeat responsiveness before a receipt; its saved
+snapshot preserves that failed environment attempt. The owner requested background work while
+using the host and will perform physical MSI testing manually after VM qualification.
+
+The actual publisher CLI also accepts exact A and the prepared frozen manifest/provenance in a
+bounded test with all R2 I/O simulated (zero real network calls). This is file-contract verification,
+not upload or remote byte read-back evidence.
+
+See the [current acceptance report](../../plans/260908-2130-single-entry-browser-startup/reports/release-acceptance-20260909.md)
+and [MSI checklist](../../plans/260908-2130-single-entry-browser-startup/reports/msi-acceptance-checklist.md).
+The following 8 September checkpoint is historical; its build-B resource blocker is superseded.
 ## Production dependency advisories patched - 9 September 2026
 
 A production dependency audit failed on the deployed tree: Next.js carried critical advisories
@@ -12,7 +104,8 @@ ESLint config move to 16.3.3 and sharp locks to 0.35.4; the production audit the
 
 This patch is deliberately scoped to dependencies. It carries no release-candidate metadata and
 does not change Browser, Relay, engine pin, or acceptance state. Candidate freezes stay on their
-own branches, and the outstanding MSI acceptance hold is unaffected.
+own branches. The dependency release preceded and remains separate from the completed physical MSI
+acceptance recorded above.
 
 ## Single-entry Browser startup - 8 September 2026
 

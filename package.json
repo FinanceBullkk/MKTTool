@@ -43,6 +43,8 @@
     "auth:rate-limit:verify": "tsx --env-file=.env scripts/verify-better-auth-rate-limit.ts",
     "ci:postgres-contracts": "node scripts/ci/run-postgres-contracts.cjs",
     "ci:secret-scan": "node scripts/ci/secret-scan.cjs",
+    "ci:local-validation": "node scripts/ci/local-release-runner.cjs",
+    "test:local-validation": "node --test scripts/ci/local-release-*.test.cjs",
     "audit:production": "node scripts/ci/dependency-audit.cjs",
     "vault:testotp": "tsx scripts/generate-test-totp-secret.ts",
     "relay:dev": "tsx relay/src/main.ts",

@@ -1,32 +1,7 @@
 name: CI
 
 on:
-  push:
-    branches: [master, main]
-    paths-ignore: &docs-only
-      # Documentation cannot fail this suite, and paying for it to try is the single largest
-      # avoidable line in this repository's Actions bill: 24 of the last 60 commits on master
-      # changed nothing but Markdown, and each one cost a pull-request run plus a post-merge run,
-      # including the Windows job that bills at the 2x rate.
-      #
-      # This is narrower than the `paths:` filter deliberately refused on `relay-executable` below,
-      # and the distinction is the whole argument. That one would have run the job ONLY for changes
-      # under `relay/`, which rebuilds the blind spot F4 exposed, because the suite imports from
-      # `src/lib/crypto`, `src/lib/tickets` and `src/lib/relay`. This one skips a run only when
-      # EVERY changed file is documentation — a commit touching one `.md` and one `.ts` still runs
-      # everything. No test reads repository documentation; the only `.md` a test touches is a
-      # `summary.md` fixture it writes itself.
-      #
-      # One coupling, stated rather than discovered later: this is safe partly because no required
-      # status check is enforced (branch protection is off by owner decision, and both repositories
-      # return 403 for it). If protection is ever enabled, revisit — a workflow that never runs
-      # publishes no check, which is the failure mode `pr-release-gate.yml` in the Browser
-      # repository exists to avoid.
-      - "**.md"
-      - "docs/**"
-      - "plans/**"
-  pull_request:
-    paths-ignore: *docs-only
+  workflow_dispatch:
 
 jobs:
   check:
@@ -250,19 +225,9 @@ jobs:
   relay-executable:
     runs-on: windows-latest
 
-    # Pull requests only, unlike `check`, which also runs on pushes to master. The post-merge push
-    # run would be near-pure duplication: GitHub builds a `pull_request` event against the *merge
-    # commit* — the PR head
-    # already merged into the base — so the PR run has verified the exact tree master is about to
-    # become. Running twice for one tree is the wrong place to spend runner capacity.
-    #
-    # Two residuals, stated rather than discovered later. A commit pushed straight to master skips
-    # this job entirely; every change since #23 has arrived by pull request, so that path is
-    # unusual, but it is not blocked. And if master advances between the PR run and the merge, the
-    # merge commit tested was stale — a semantic conflict would reach master unverified by this
-    # job. Both are cheap to close by deleting this condition if the trade ever stops being worth
-    # it. F10 governs `check`'s triggers and is unaffected.
-    if: github.event_name == 'pull_request'
+    # Manual diagnostics must still run the executable gate; retaining the old PR-only condition
+    # would silently skip it after dispatch-only conversion. Local release receipts are authoritative.
+    if: github.event_name == 'workflow_dispatch'
 
     env:
       # `postinstall` runs `prisma generate`, which wants this variable to exist. The acceptance
@@ -351,7 +316,7 @@ jobs:
   # default token can read it. If this job starts failing with "no deployment was ever created",
   # suspect that integration rather than the build.
   deploy-verification:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
 
     permissions:

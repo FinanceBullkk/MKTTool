@@ -17,7 +17,7 @@ const GOOD_RELEASE = {
   source: "r2" as const,
   sizeBytes: 1,
   builtAt: new Date("2026-08-30T00:00:00.000Z"),
-  version: 16,
+  version: 17,
   checksum: "a".repeat(64),
 };
 
@@ -37,7 +37,7 @@ describe("GET /api/healthz", () => {
     expect(body).toMatchObject({
       ok: true,
       status: "ready",
-      relayVersion: 16,
+      relayVersion: 17,
       releaseSource: "r2",
       checks: { database: "ok", releaseMetadata: "ok", r2: "not_configured" },
     });

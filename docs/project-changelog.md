@@ -1,5 +1,32 @@
 # Project changelog
 
+## 2026-09-10 - Browser 0.3.17 physical MSI acceptance
+
+- Accept exact installer SHA-256
+  `6d07fd4ef529b3505a8de385c7d0d3214258e8a020abbd00de51e8f9810a4ca8` on the physical MSI laptop.
+  Browser 0.3.17, Relay 17, CFT 152.0.7977.64 and compatibility sequence 21 remain bound with no
+  pending transition and Defender enabled.
+- Pass profile/proxy launch, active-profile tray close, tray reopen, desktop shortcut reuse, explicit
+  Quit, Windows restart, repair, uninstall and reinstall. Browser uninstall retains the independent
+  Relay identity, profile data and active compatibility state.
+- Record the repair prerequisite observed on the physical machine: stop the running independent
+  Relay before retrying the combined installer. No configuration or identity reset is required.
+- Replace stale Relay v16 literals in the installer publisher with the reviewed candidate's Relay
+  version and add regression coverage. Immutable artifact upload/read-back has passed; deployment
+  approval and production source integration remain pending.
+
+## 2026-09-09 - Browser IP observer correction (candidate only)
+
+- Reject 0.3.16 activation evidence after its browser-page IP probe receives a Cloudflare HTML
+  challenge despite a valid TLS connection and successful Node proxy preflight.
+- Prepare Browser 0.3.17 / Relay 17 candidate metadata. The Browser uses an IP-only HTTPS observer,
+  requires exact egress equality and fails closed on redirects or malformed addresses with safe
+  operator errors. Nine regression cases fail before; 12/12 smoke tests pass after.
+- Preserve exact 0.3.16 installer, clean install/nonblocking notice/tray/cold-login passes and
+  separate activation failure. Disposable CFT observer diagnostics are not installer acceptance.
+- New frozen A/B build, signed metadata, VM lifecycle and physical MSI acceptance remain OPEN.
+  No replacement upload, publication or deployment has occurred.
+
 Records behavior-changing milestones by date and delivery phase. Internal cleanup is omitted.
 Current delivery status lives in [development-roadmap.md](development-roadmap.md).
 
@@ -18,6 +45,50 @@ the archive location.
 
 ---
 
+## 9 September 2026 - Reproduced single-entry installer; release held
+
+- Retained 0.3.15 is rejected: its synchronous Relay failure dialog blocked installed Browser MCP
+  until dismissed. Prepare Browser 0.3.16 / unchanged Relay 17 with asynchronous, deduplicated
+  notification and preserved ownership checks. Five notification regressions pass; independent
+  builds, signed metadata and exact VM/MSI acceptance remain required. No publication or deployment.
+
+- Fresh release security scan found critical Next.js and high sharp production advisories. Raise
+  Next.js and matching ESLint config to 16.3.3; lock sharp 0.35.4. Production audit passes with
+  the patched lockfile. Full frozen checks and exact VM acceptance remain required; no deployment.
+
+- Exact 0.3.14 / Relay 17 VM activation reached smoke but failed because Browser required its own
+  download index despite an already installed, pinned engine. The next 0.3.15 candidate recognizes
+  the stable runtime against the signed version and retains unchanged Relay 17. Actual bootstrap
+  regression fails before the correction; four focused tests pass afterward. No new acceptance or
+  publication claim; the failed exact installer and VM snapshot remain preserved.
+
+- Replacement Relay 17 build uses relative SEA paths to prevent checkout location from changing the
+  delivered executable. Fresh A2/B2 EXE, ZIP and metadata are byte-identical. Candidate Browser 0.3.14
+  pins the retained Relay archive. Installer validation uses the reviewed candidate Relay version and
+  rejects stale/future Relay metadata even with explicit tuple approval. Updated exact health,
+  provenance and version fixtures; 84 focused tests pass. Full frozen gates and VM/MSI remain open.
+
+- VM signed activation exposed a Relay v16 shutdown defect: already-absent runtimes caused a false
+  PowerShell exit 1 and left the transition at `stopping`. Corrected successful completion and
+  process-handle shutdown; new real Windows process tests cover absence, exact ownership, unrelated
+  same-name retention and repeatability. All 450 Relay tests, full typecheck and lint pass. This source
+  fix is not delivered in retained A; a new tuple and exact-installer acceptance are required.
+- Build B matches A's 129-file normalized delivered payload; raw outer installer bytes differ.
+  Exact retained A remains Browser 0.3.13, SHA-256
+  `25e8fc156c0769245623dfc7b082cd9f88886b3516fbca24ea9509114928e8a3`.
+- Prepared candidate `20260909-browser-0.3.13-relay-16-single-entry-5ff43b2`, immutable installer
+  storage key, and exact Relay v16/CFT 152.0.7977.64 publisher validation. The quarantined legacy
+  installer object remains untouched; deployment approval still gates operator availability.
+- Signed compatibility sequence 17 validates all five artifacts, authority and fresh-install
+  transition from 0. It does not authorize migration from sequence 16 or add Authenticode to the EXE.
+  Source checks pass: 57/57 DB-free tests, full typecheck and lint. No artifact upload or deployment.
+- Exact clean VM install passes 9/9; profile activation stops at the missing verified CFT pin.
+  Tray close passes with no active profile. Separate fresh 1-vCPU repair passes 13/13 and Browser-only
+  launch starts an absent owned Relay. Cold-login service startup and uninstall 15/15 also pass;
+  cleanup leaves no product processes/listeners/firewall or test tasks, preserves data and keeps
+  Defender enabled. Signed activation, active-profile lifecycle, tray reopen/Quit, independent
+  Relay retention and MSI gates stay open. The owner will run the checklist after VM acceptance.
+  See the [current acceptance checkpoint](development-roadmap.md#single-entry-installer-acceptance---9-september-2026).
 ## 9 September 2026 - Production dependency advisories patched
 
 - **Dependencies:** Next.js and `eslint-config-next` move to 16.3.3, closing critical advisories
@@ -27,8 +98,9 @@ the archive location.
 - **Exposure:** `_next/image` is excluded from middleware authentication by design, so the image
   optimization route answers unauthenticated requests. That is the surface the Next.js advisory
   describes, which is why this ships separately rather than waiting for candidate acceptance.
-- **Scope:** dependencies and documentation only. No release-candidate metadata, no Browser,
-  Relay, engine-pin, or acceptance-state change. The MSI acceptance hold is unaffected.
+- **Scope:** dependencies and documentation only. No release-candidate metadata, Browser, Relay,
+  engine-pin, or acceptance-state change occurred in that patch. Physical MSI acceptance completed
+  separately on 10 September.
 
 ## 8 September 2026 - Single-entry Browser startup candidate
 
