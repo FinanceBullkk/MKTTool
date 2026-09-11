@@ -139,13 +139,34 @@ describe("Ed25519 public key point validation", () => {
 
   /**
    * The measurement that made this guard worth writing, kept as a test so it cannot quietly stop
-   * being true. Windows is the platform the product ships on, and it is the permissive one.
+   * being true. Windows is the platform the product ships on, and it is the permissive one — but
+   * only up to a point, and that point moved.
+   *
+   * Measured on Windows, 64 trials against the identity point:
+   *
+   *   Node 20.20.2 (OpenSSL 3.0.19)  64 hits   admits the forgery
+   *   Node 22.23.2 (OpenSSL 3.5.7)   64 hits   admits the forgery
+   *   Node 24.21.0 (OpenSSL 3.5.8)    0 hits   refuses the identity point
+   *
+   * The guard is still load-bearing: MKT Browser and the Relay executable are built on Node 22, so
+   * a runtime that entertains the forgery is one this product ships against. What changed is that
+   * a strict backend is now a supported runtime too, so the old unconditional assertion reported a
+   * false failure on Node 24 instead of a finding worth revisiting.
+   *
+   * The assertion therefore follows the runtime instead of pinning one. A flip in either direction
+   * — a newer Node that admits it again, or Node 22 quietly turning strict — means the finding
+   * needs revisiting, which is exactly what this test exists to catch.
    */
-  it("records that at least one supported runtime admits the forgery", () => {
+  it("records which supported runtimes admit the forgery", () => {
+    // Only Windows was measured; other platforms are outside the finding this test records.
+    if (process.platform !== "win32") return;
+    const nodeMajor = Number.parseInt(process.versions.node.split(".")[0], 10);
+    // The boundary was measured between 22 and 24; 23 was never a runtime this product shipped on.
     expect(
-      BACKEND_ADMITS_FORGERY || process.platform !== "win32",
-      "Windows admitted the forgery when C3 was found; if this fails the finding needs revisiting",
-    ).toBe(true);
+      BACKEND_ADMITS_FORGERY,
+      `Node ${process.versions.node} (OpenSSL ${process.versions.openssl}) changed sides on the ` +
+        "identity point; the finding needs revisiting",
+    ).toBe(nodeMajor < 24);
   });
 
   it("never fires on a freshly generated keypair", () => {
