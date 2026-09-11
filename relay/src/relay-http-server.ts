@@ -143,7 +143,14 @@ function sendJson(
  */
 export function createRelayServer(options: RelayServerOptions): Server {
   return createServer((request, response) => {
-    void handleRequest(request, response, options);
+    void handleRequest(request, response, options).catch(() => {
+      if (response.destroyed || response.writableEnded) return;
+      if (response.headersSent) {
+        response.destroy();
+        return;
+      }
+      sendJson(response, 500, { ok: false, message: "Relay could not complete this request." }, {});
+    });
   });
 }
 
@@ -154,7 +161,17 @@ async function handleRequest(
 ): Promise<void> {
   const origin = request.headers.origin;
   const headers = corsHeaders(origin, options.allowedOrigin());
-  const path = new URL(request.url ?? "/", `http://${LOOPBACK_HOST}`).pathname;
+  let path: string;
+  try {
+    const target = request.url ?? "/";
+    if (!target.startsWith("/") || target.startsWith("//") || target.includes("\\")) {
+      throw new Error("Invalid request target");
+    }
+    path = new URL(target, `http://${LOOPBACK_HOST}`).pathname;
+  } catch {
+    sendJson(response, 400, { ok: false, message: "Invalid request target." }, headers);
+    return;
+  }
 
   if (request.method === "OPTIONS") {
     response.writeHead(204, headers);
@@ -165,6 +182,7 @@ async function handleRequest(
   // Trang trạng thái và trang bí mật là HTML người xem bằng mắt, không phải API.
   const page = options.htmlPages[path];
   if (request.method === "GET" && page) {
+    const html = await page();
     response.writeHead(200, {
       "content-type": "text/html; charset=utf-8",
       // `no-store` ở đây không phải nghi thức: trang `/secret` mà nằm lại trong bộ nhớ đệm
@@ -178,7 +196,7 @@ async function handleRequest(
     });
     // Page rendering may `await`: the status page probes MKT Browser while rendering so it shows
     // current state instead of a previously cached result.
-    response.end(await page());
+    response.end(html);
     return;
   }
 
