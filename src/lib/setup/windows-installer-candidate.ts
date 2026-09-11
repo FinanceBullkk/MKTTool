@@ -1,7 +1,7 @@
 /** Reviewed profile-manager candidate; changing this tuple requires a new release freeze. */
 export const WINDOWS_INSTALLER_CANDIDATE = Object.freeze({
-  id: "20260911-browser-0.3.19-relay-17-uninstall-host-bitness-cft",
-  browserVersion: "0.3.19",
+  id: "20260911-browser-0.3.20-relay-17-repair-host-bitness-cft",
+  browserVersion: "0.3.20",
   relayVersion: 17,
   relaySha256: "d8bf25dcb446d779bd5461419ea7562044e280ac1d16592a71a52f156f6359cf",
   relaySizeBytes: 34289393,
