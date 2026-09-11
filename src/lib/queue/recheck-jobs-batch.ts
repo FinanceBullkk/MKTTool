@@ -58,10 +58,16 @@ export async function recheckOneJob(job: RecheckableJob): Promise<RecheckOutcome
   // Lý do ghi đè cũ vẫn có giá trị, TRỪ khi lần chấm này lòi ra luật cấm ghi đè.
   const blocked = shouldBlockOnRecheck(evaluation, job.overrideReason);
 
-  await prisma.postJob.update({
-    where: { id: job.id },
+  const updated = await prisma.postJob.updateMany({
+    where: { id: job.id, status: { in: OPEN_JOB_STATUSES } },
     data: { status: blocked ? "BLOCKED" : "PENDING", ruleVerdicts: serializeEvaluation(evaluation) },
   });
+  if (updated.count === 0) {
+    return {
+      ok: false,
+      message: "The job changed while its rules were being checked. Refresh the queue and check its status.",
+    };
+  }
 
   return { ok: true, evaluation, blocked };
 }
@@ -120,7 +126,7 @@ export function describeRecheck(result: BatchRecheckResult): string {
     parts.push(`${result.blocked} moved to Blocked; review the reasons in the queue`);
   }
   if (result.failed > 0) {
-    parts.push(`${result.failed} could not be checked because its nick, target, or content is missing`);
+    parts.push(`${result.failed} could not be checked because it changed or its nick, target, or content is missing`);
   }
 
   return ` ${parts.join(", ")}.`;
