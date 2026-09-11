@@ -1,7 +1,7 @@
 /** Reviewed profile-manager candidate; changing this tuple requires a new release freeze. */
 export const WINDOWS_INSTALLER_CANDIDATE = Object.freeze({
-  id: "20260909-browser-0.3.17-relay-17-browser-ip-observer-cft",
-  browserVersion: "0.3.17",
+  id: "20260911-browser-0.3.18-relay-17-quality-review-repairs-cft",
+  browserVersion: "0.3.18",
   relayVersion: 17,
   relaySha256: "d8bf25dcb446d779bd5461419ea7562044e280ac1d16592a71a52f156f6359cf",
   relaySizeBytes: 34289393,

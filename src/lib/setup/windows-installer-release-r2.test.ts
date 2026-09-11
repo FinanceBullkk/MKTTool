@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createHash } from "node:crypto";
+import { WINDOWS_INSTALLER_CANDIDATE } from "./windows-installer-candidate";
 
 const mocks = vi.hoisted(() => ({
   headObject: vi.fn(),
@@ -34,8 +35,12 @@ const CONFIG = {
 const BYTES = Buffer.from("verified-installer");
 const SHA = createHash("sha256").update(BYTES).digest("hex");
 const COMPLETE_METADATA = {
-  "candidate-id": "20260909-browser-0.3.17-relay-17-browser-ip-observer-cft",
-  "browser-version": "0.3.17",
+  // Valid metadata must carry the approved tuple, so read it rather than restating it:
+  // a literal here turns every release bump into an unrelated-looking test failure.
+  // Widened to string because the tuple is frozen: its literal type would reject the
+  // deliberately stale values the downgrade cases below substitute.
+  "candidate-id": WINDOWS_INSTALLER_CANDIDATE.id as string,
+  "browser-version": WINDOWS_INSTALLER_CANDIDATE.browserVersion as string,
   sha256: SHA,
   "bundled-relay-version": "17",
   "bundled-relay-sha256": "b".repeat(64),
