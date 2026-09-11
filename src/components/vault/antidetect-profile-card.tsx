@@ -129,6 +129,7 @@ export function AntidetectProfileCard({
   }, [refreshLocalState]);
 
   const relay = setup?.kind === "ready" ? setup : null;
+  const localDeviceId = relay?.deviceId;
   const plan =
     relay && proxyCountry
       ? planProfileFingerprint({ proxyCountry, seedKey: username, options: relay.options })
@@ -183,12 +184,12 @@ export function AntidetectProfileCard({
   );
 
   const taoProfile = useCallback(async () => {
-    if (!plan?.ok) return;
+    if (!plan?.ok || !localDeviceId) return;
 
     setBusy(true);
     setFeedback(null);
     try {
-      const issued = await requestCreateProfileTicket(accountId, plan.plan);
+      const issued = await requestCreateProfileTicket(accountId, plan.plan, localDeviceId);
       if ("ok" in issued) {
         setFeedback({ kind: "error", text: issued.message });
         return;
@@ -235,7 +236,7 @@ export function AntidetectProfileCard({
     } finally {
       setBusy(false);
     }
-  }, [accountId, doProfileVuaTao, plan, platform, username]);
+  }, [accountId, doProfileVuaTao, localDeviceId, plan, platform, username]);
 
   if (!relay) {
     return (

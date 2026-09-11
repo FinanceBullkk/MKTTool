@@ -8,7 +8,7 @@
  * Phiên là ADMIN vì `adminAction` đòi vậy; ranh giới đang kiểm ở đây là ranh giới **dữ liệu**,
  * không phải ranh giới vai trò.
  */
-import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("next/cache", () => ({ revalidatePath: () => {} }));
 
@@ -122,6 +122,8 @@ beforeEach(async () => {
 afterAll(async () => {
   await prisma.$disconnect();
 });
+
+afterEach(() => vi.restoreAllMocks());
 
 describe("Relay PC belongs to the nick owner invariant", () => {
   it("rejects another person's Relay PC without writing anything", async () => {
@@ -244,6 +246,67 @@ describe("teammate removed from ALLOWED_EMAILS", () => {
 });
 
 describe("optimistic concurrency during nick assignment", () => {
+  it.each(["revoked", "reassigned", "retiring"] as const)(
+    "rejects a PC that became %s after the initial check",
+    async (change) => {
+      const staleDevice = await prisma.relayDevice.findUniqueOrThrow({
+        where: { id: mayCuaHa }, include: { user: true },
+      });
+      await prisma.relayDevice.update({
+        where: { id: mayCuaHa },
+        data: change === "revoked" ? { revokedAt: new Date() }
+          : change === "reassigned" ? { userId: NAM_ID }
+          : { retirementId: "assignment-retirement" },
+      });
+      // Only the precheck receives a stale snapshot. The transaction uses real database state.
+      vi.spyOn(prisma.relayDevice, "findUnique").mockResolvedValueOnce(staleDevice);
+
+      const result = await assignAccountCluster(null, await clusterForm(HA_ID, mayCuaHa));
+
+      expect(result.ok).toBe(false);
+      expect(result.message).toContain("became unavailable");
+      const account = await prisma.account.findUniqueOrThrow({ where: { id: accountId } });
+      expect(account.ownerId).toBeNull();
+      expect(account.deviceId).toBeNull();
+      expect(await auditActions()).toEqual([]);
+    },
+  );
+
+  it("waits for an in-flight revocation and cannot pin the PC after it is revoked", async () => {
+    const locked = Promise.withResolvers<void>();
+    const release = Promise.withResolvers<void>();
+    const revoking = prisma.$transaction(async (tx) => {
+      await tx.relayDevice.update({ where: { id: mayCuaHa }, data: { revokedAt: new Date() } });
+      locked.resolve();
+      await release.promise;
+      await tx.account.updateMany({ where: { deviceId: mayCuaHa }, data: { deviceId: null } });
+    });
+    await locked.promise;
+    const assigning = assignAccountCluster(null, await clusterForm(HA_ID, mayCuaHa));
+    try {
+      await vi.waitFor(async () => {
+        const waiting = await prisma.$queryRaw<{ waiting: boolean }[]>`
+          SELECT EXISTS (
+            SELECT 1 FROM pg_stat_activity
+            WHERE datname = current_database() AND pid <> pg_backend_pid()
+              AND wait_event_type = 'Lock'
+              AND query LIKE '%FROM "RelayDevice"%FOR NO KEY UPDATE%'
+          ) AS waiting`;
+        expect(waiting[0].waiting).toBe(true);
+      }, { timeout: 2000, interval: 20 });
+    } finally {
+      release.resolve();
+      await revoking;
+      await assigning;
+    }
+
+    expect((await assigning).ok).toBe(false);
+    const account = await prisma.account.findUniqueOrThrow({ where: { id: accountId } });
+    expect(account.ownerId).toBeNull();
+    expect(account.deviceId).toBeNull();
+    expect(await auditActions()).toEqual([]);
+  });
+
   it("rejects a stale revision without writing the account or audit log", async () => {
     const staleRevision = (
       await prisma.account.findUniqueOrThrow({
