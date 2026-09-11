@@ -40,18 +40,7 @@ import {
 } from "@/lib/relay/relay-browser-client";
 import type { EncryptForVaultReply } from "@/lib/relay/relay-endpoints";
 import { AccountProxyChangeConfirmation } from "./account-proxy-change-confirmation";
-
-/**
- * Ô nhập → cột trong `Account`.
- *
- * Tên cột đi thẳng từ cầu nối về form rồi lên máy chủ mà không qua bước ánh xạ nào khác — mỗi
- * chỗ đổi tên giữa hai chương trình viết rời là một chỗ lệch được.
- */
-const SECRET_FIELDS = [
-  ["password", "passwordEnc"],
-  ["emailPassword", "emailPasswordEnc"],
-  ["totpSecret", "totpSecretEnc"],
-] as const;
+import { SECRET_FIELDS, takeVaultSecrets } from "./vault-form-secrets";
 
 export function AccountVaultForm({
   action,
@@ -108,12 +97,7 @@ export function AccountVaultForm({
 
     // Lấy bí mật RA KHỎI FormData ngay, kể cả khi lát nữa có lỗi: từ dòng này trở đi không có
     // đường nào gửi chúng lên máy chủ nữa, dù nhánh nào chạy.
-    const secrets: Record<string, string> = {};
-    for (const [field] of SECRET_FIELDS) {
-      const value = String(formData.get(field) ?? "").trim();
-      formData.delete(field);
-      if (value) secrets[field] = value;
-    }
+    const secrets = takeVaultSecrets(formData);
 
     if (Object.keys(secrets).length === 0) {
       await submit(formData);
