@@ -1,5 +1,18 @@
 # Project changelog
 
+## 2026-09-10 - Quality review source repairs
+
+- Contain malformed Relay request targets and asynchronous page failures without terminating or
+  hanging the local server. Keep unexpected rendering errors generic.
+- Select the measured local Relay PC when requesting profile creation, including owners with
+  multiple active devices; recheck ownership/revocation under a device lock before storing a profile.
+- Protect account assignment against concurrent device revocation and reject stale account writes.
+- Preserve exact vault secret input and remove plaintext fields before server submission; remove
+  account-specific details from login redirect URLs.
+- Refuse queue recheck updates after a job leaves its open states, retaining publication results.
+- Add HTTP, PostgreSQL concurrency, browser UI, secret preservation and redirect regressions.
+  These are source repairs; the accepted Browser/Relay installer bytes remain unchanged.
+
 ## 2026-09-10 - Browser 0.3.17 physical MSI acceptance
 
 - Accept exact installer SHA-256

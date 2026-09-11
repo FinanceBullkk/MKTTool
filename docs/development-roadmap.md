@@ -2,6 +2,18 @@
 
 **Updated:** 10 September 2026
 
+## Quality review repairs - 10 September 2026
+
+The source repair pass hardens Relay request failures, profile completion and PC assignment during
+revocation, current-PC selection when an operator owns multiple Relay devices, password preservation,
+privacy of login redirects, and queue rechecks racing publication. Regression tests cover the actual
+PostgreSQL interleavings and an isolated browser UI fixture. Browser source separately hardens
+shutdown, archive restore, settings writes and Startup cleanup.
+
+These source changes do not replace the accepted 0.3.17 / Relay 17 installer below. Relay HTTP and
+Browser changes require a new immutable build and exact-tuple acceptance before operator delivery.
+The review targets risky paths; it is not proof that every module or live workflow is defect-free.
+
 ## Single-entry installer acceptance - 9 September 2026
 
 Browser 0.3.17 / Relay 17 candidate
