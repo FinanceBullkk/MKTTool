@@ -32,6 +32,16 @@ const rejected: RelayOutcome<RelayProfilesReply> = {
 };
 
 describe("profileSetupReadiness", () => {
+  it("carries the measured local PC identity into a ready setup", () => {
+    expect(profileSetupReadiness(profiles(), health({ deviceId: "device-b" })))
+      .toMatchObject({ kind: "ready", deviceId: "device-b" });
+  });
+
+  it.each([undefined, "", "   "])("blocks creation without a local PC identity: %s", (deviceId) => {
+    expect(profileSetupReadiness(profiles(), health({ deviceId })))
+      .toMatchObject({ kind: "blocked", state: "relay-unknown" });
+  });
+
   it("distinguishes current Relay with offline Browser from an old Relay", () => {
     const state = profileSetupReadiness(rejected, health({ browser: { ...BROWSER, ready: false, provider: null } }));
     expect(state).toMatchObject({ kind: "blocked", state: "browser-offline", title: "MKT Browser is not connected" });

@@ -49,7 +49,6 @@ export async function proxy(request: NextRequest) {
   // không có chữ nào giải thích. Nói thẳng ra là hết quyền.
   if (!check.needsLogin) {
     url.searchParams.set("error", "EMAIL_NOT_ALLOWED");
-    url.searchParams.set("error_description", check.message);
   }
 
   return NextResponse.redirect(url);

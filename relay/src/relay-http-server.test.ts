@@ -1,4 +1,5 @@
 import type { AddressInfo } from "node:net";
+import { request } from "node:http";
 import { afterEach, describe, expect, it } from "vitest";
 import { createRelayServer } from "./relay-http-server";
 import { RELAY_VERSION } from "../../src/lib/relay/relay-endpoints";
@@ -14,7 +15,10 @@ async function startServer(allowedOrigin: string | null = WEB_ORIGIN): Promise<s
   const server = createRelayServer({
     // Hàm chứ không phải giá trị: cấu hình đổi được lúc chạy, nên khung phải hỏi lại mỗi lượt.
     allowedOrigin: () => allowedOrigin,
-    htmlPages: { "/": () => "<!doctype html><title>trang trạng thái</title>" },
+    htmlPages: {
+      "/": () => "<!doctype html><title>trang trạng thái</title>",
+      "/broken-page": async () => { throw new Error("private rendering detail"); },
+    },
     routes: {
       "/health": {
         method: "GET",
@@ -55,6 +59,33 @@ afterEach(() => {
 });
 
 describe("máy chủ HTTP của cầu nối", () => {
+  it.each(["//[", "//other-host/health", "http://other-host/health", "/\\other-host/health"])(
+    "rejects invalid target %s without losing the server",
+    async (path) => {
+      const base = await startServer();
+      const status = await new Promise<number | undefined>((resolve, reject) => {
+        const req = request(base, { path }, (response) => {
+          response.resume();
+          response.on("end", () => resolve(response.statusCode));
+        });
+        req.on("error", reject);
+        req.end();
+      });
+      expect(status).toBe(400);
+      expect((await fetch(`${base}/health`)).status).toBe(200);
+    },
+  );
+
+  it("returns a complete generic 500 when asynchronous page rendering fails", async () => {
+    const base = await startServer();
+    const response = await fetch(`${base}/broken-page`);
+    expect(response.status).toBe(500);
+    const body = await response.json();
+    expect(body).toMatchObject({ ok: false, relayVersion: RELAY_VERSION });
+    expect(JSON.stringify(body)).not.toContain("private rendering detail");
+    expect((await fetch(`${base}/health`)).status).toBe(200);
+  });
+
   it("mọi phản hồi JSON đều mang relayVersion — QĐ 11", async () => {
     const base = await startServer();
 

@@ -175,11 +175,22 @@ export const assignAccountCluster = adminAction(async function assignAccountClus
   }
 
   const didUpdate = await prisma.$transaction(async (tx) => {
+    if (deviceId !== "") {
+      // Match revocation's device-before-account order and recheck after the lock.
+      await tx.$queryRaw`SELECT "id" FROM "RelayDevice" WHERE "id" = ${deviceId} FOR NO KEY UPDATE`;
+      const device = await tx.relayDevice.findUnique({
+        where: { id: deviceId },
+        select: { userId: true, revokedAt: true, retirementId: true },
+      });
+      if (!device || device.revokedAt || device.retirementId || device.userId !== ownerId) {
+        return "device-unavailable";
+      }
+    }
     const updated = await tx.account.updateMany({
       where: { id: accountId, updatedAt: revision },
       data: { ownerId: ownerId || null, deviceId: deviceId || null },
     });
-    if (updated.count === 0) return false;
+    if (updated.count === 0) return "stale";
 
     for (const { action, detail } of change.auditActions) {
       await tx.auditLog.create({
@@ -187,10 +198,16 @@ export const assignAccountCluster = adminAction(async function assignAccountClus
       });
     }
 
-    return true;
+    return "updated";
   });
 
-  if (!didUpdate) return { ok: false, message: STALE_ACCOUNT_WRITE_MESSAGE };
+  if (didUpdate === "device-unavailable") {
+    return {
+      ok: false,
+      message: "The selected Relay PC changed or became unavailable while assigning the nick. Reload the page and choose an active PC belonging to its owner.",
+    };
+  }
+  if (didUpdate === "stale") return { ok: false, message: STALE_ACCOUNT_WRITE_MESSAGE };
 
   revalidatePath("/accounts");
   revalidatePath(`/accounts/${accountId}`);

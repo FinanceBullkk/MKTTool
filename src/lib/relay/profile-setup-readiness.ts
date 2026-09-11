@@ -17,6 +17,7 @@ export type ProfileSetupReadiness = ProfileSetupBlocked | {
   kind: "ready";
   profiles: RelayProfileSummary[];
   options: RelayFingerprintOptions;
+  deviceId: string;
 };
 
 const BROWSER_TITLES: Record<Exclude<CurrentDeviceBrowserState, "ready">, string> = {
@@ -85,12 +86,14 @@ export function profileSetupReadiness(
   if (health.status === "rejected" || !local.browser || typeof local.browser.ready !== "boolean") {
     return profileSetupUnknown();
   }
+  if (!nonEmptyString(local.deviceId)) return profileSetupUnknown();
   const browser = currentDeviceBrowserReadiness(local.browser);
   if (browser.state !== "ready") return {
     kind: "blocked", state: browser.state, title: BROWSER_TITLES[browser.state], message: browser.message,
   };
   if (profiles.status === "ok" && profileVersion && validInventory(profiles.data)) return {
     kind: "ready", profiles: profiles.data.profiles!, options: profiles.data.fingerprintOptions!,
+    deviceId: local.deviceId,
   };
   return {
     kind: "blocked", state: "profiles-unavailable", title: "Browser profiles could not be read",

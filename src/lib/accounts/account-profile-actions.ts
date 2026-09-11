@@ -32,6 +32,7 @@ import { AUDIT_ACTIONS } from "@/lib/audit/audit-log-actions";
 import { guardedAction } from "@/lib/auth/guarded-action";
 import { requireNickOwner } from "@/lib/auth/require-actor";
 import { prisma } from "@/lib/db/prisma-client";
+import { isUniqueConstraintError } from "@/lib/db/prisma-error-helpers";
 import { issueTicket } from "@/lib/tickets/ticket-issuer";
 import { resolveTicketRecipient } from "@/lib/tickets/ticket-recipient-lookup";
 import { TICKET_KINDS, type SignedTicket } from "@/lib/tickets/ticket-types";
@@ -199,6 +200,7 @@ export const recordCreatedProfile = guardedAction(async function recordCreatedPr
         username: true,
         ownerId: true,
         deviceId: true,
+        updatedAt: true,
         device: { select: { name: true } },
       },
     }),
@@ -267,28 +269,57 @@ export const recordCreatedProfile = guardedAction(async function recordCreatedPr
     };
   }
 
-  await prisma.$transaction([
-    prisma.account.update({
-      where: { id: accountId },
-      data: { antidetectProfileId: profileId, deviceId },
-    }),
-    prisma.auditLog.create({
-      data: {
-        accountId,
-        action: AUDIT_ACTIONS.ACCOUNT_PROFILE_CREATED,
-        detail: `${actor.email} created browser profile ${profileId} on Relay PC "${device.name}"`,
-        actorId: actor.userId,
-      },
-    }),
-    prisma.auditLog.create({
-      data: {
-        accountId,
-        action: AUDIT_ACTIONS.ACCOUNT_DEVICE_PINNED,
-        detail: `${actor.email} pinned the nick to Relay PC "${device.name}" while creating the browser profile`,
-        actorId: actor.userId,
-      },
-    }),
-  ]);
+  let written: boolean;
+  try {
+    written = await prisma.$transaction(async (tx) => {
+      // Revocation locks the device before clearing its account assignments. Use the same order
+      // and re-read after the lock so a completed revocation cannot be followed by a stale pin.
+      await tx.$queryRaw`SELECT "id" FROM "RelayDevice" WHERE "id" = ${deviceId} FOR NO KEY UPDATE`;
+      const currentDevice = await tx.relayDevice.findUnique({
+        where: { id: deviceId },
+        select: { userId: true, revokedAt: true, retirementId: true },
+      });
+      if (
+        !currentDevice || currentDevice.revokedAt || currentDevice.retirementId ||
+        currentDevice.userId !== actor.userId
+      ) return false;
+
+      const updated = await tx.account.updateMany({
+        where: {
+          id: accountId,
+          updatedAt: account.updatedAt,
+          ownerId: account.ownerId,
+          deviceId: account.deviceId,
+          OR: [{ antidetectProfileId: null }, { antidetectProfileId: profileId }],
+        },
+        data: { antidetectProfileId: profileId, deviceId },
+      });
+      if (updated.count !== 1) return false;
+      await Promise.all([
+        tx.auditLog.create({
+          data: {
+            accountId,
+            action: AUDIT_ACTIONS.ACCOUNT_PROFILE_CREATED,
+            detail: `${actor.email} created browser profile ${profileId} on Relay PC "${device.name}"`,
+            actorId: actor.userId,
+          },
+        }),
+        tx.auditLog.create({
+          data: {
+            accountId,
+            action: AUDIT_ACTIONS.ACCOUNT_DEVICE_PINNED,
+            detail: `${actor.email} pinned the nick to Relay PC "${device.name}" while creating the browser profile`,
+            actorId: actor.userId,
+          },
+        }),
+      ]);
+      return true;
+    });
+  } catch (error) {
+    if (!isUniqueConstraintError(error)) throw error;
+    return { ok: false, message: "This browser profile was just assigned to another nick. Reload the page and use a different browser profile." };
+  }
+  if (!written) return { ok: false, message: "The nick or Relay PC changed while the profile was being created. Reload the page and verify its owner and Relay PC." };
 
   revalidatePath("/accounts");
   revalidatePath(`/accounts/${accountId}`);

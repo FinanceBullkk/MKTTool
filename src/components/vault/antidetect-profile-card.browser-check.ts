@@ -48,6 +48,7 @@ interface Fixture {
     hold: boolean;
     pending: (() => void)[];
     mutations: number;
+    createArgs: unknown[];
     unmount: () => void;
 }
 type FixtureWindow = Window & typeof globalThis & {
@@ -64,7 +65,7 @@ async function main() {
       import { AntidetectProfileCard } from "./src/components/vault/antidetect-profile-card";
       window.fixture = {
         health: ${JSON.stringify(health)}, profiles: ${JSON.stringify(profiles)},
-        calls: [], hold: false, pending: [], mutations: 0,
+        calls: [], hold: false, pending: [], mutations: 0, createArgs: [],
         request(kind) {
           this.calls.push(kind);
           const outcome = structuredClone(this[kind]);
@@ -102,7 +103,11 @@ async function main() {
           export const describeRelayFailure = () => "Safe fixture failure";
           export const describeSlowRelayFailure = () => "Safe fixture failure";
         ` : `
-          export const requestCreateProfileTicket = () => { window.fixture.mutations++; throw Error("Unexpected create"); };
+          export const requestCreateProfileTicket = (...args) => {
+            window.fixture.mutations++;
+            window.fixture.createArgs = args;
+            return Promise.resolve({ ok: false, message: "Fixture stopped before ticket delivery" });
+          };
           export const recordCreatedProfile = () => { window.fixture.mutations++; throw Error("Unexpected record"); };
         `,
                         loader: "js",
@@ -162,6 +167,12 @@ async function main() {
         assert.doesNotMatch(await page.locator("body").innerText(), /Relay update required|MKT Browser is not connected/);
         assert.equal(await page.evaluate(() => (window as FixtureWindow).fixture.mutations), 0);
         assert.deepEqual(errors, []);
+        await page.getByRole("button", { name: "Create browser profile on this Relay PC", exact: true }).click();
+        await page.getByText("Fixture stopped before ticket delivery", { exact: true }).waitFor();
+        const createArgs = await page.evaluate(() => (window as FixtureWindow).fixture.createArgs);
+        assert.equal(createArgs[0], "fixture-account");
+        assert.equal(createArgs[2], "fixture-device");
+        assert.equal(await page.evaluate(() => (window as FixtureWindow).fixture.mutations), 1);
         await page.evaluate(() => (window as FixtureWindow).fixture.unmount());
         await page.addScriptTag({ content: bundle.outputFiles[0].text });
         await page.getByRole("button", { name: "Check again", exact: true }).waitFor();
@@ -176,7 +187,7 @@ async function main() {
         assert.equal(await page.locator("#root").innerText(), "");
         assert.equal(await page.evaluate(() => (window as FixtureWindow).fixture.mutations), 0);
         assert.deepEqual(errors, []);
-        console.log("PASS: disconnected Browser copy, exact outdated download href, click retry, pending disable/dedupe, empty-catalog inventory, catalog recovery, unmount safety, no mutation.");
+        console.log("PASS: readiness, retry, catalog recovery, explicit local device ticket recipient, unmount safety.");
     }
     finally {
         await browser.close();

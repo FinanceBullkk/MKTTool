@@ -11,7 +11,12 @@
  *
  * Vì thế phiên **đổi vai được**: mặc định là OPERATOR Hà, và bài nào cần thì đặt lại thành ADMIN.
  */
-import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { randomBytes } from "node:crypto";
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { TicketEnvelope } from "@/lib/tickets/ticket-types";
+import { generateRelayDeviceKeyPair, relayPrivateKeyToKeyObject } from "@/lib/tickets/relay-device-key";
+import { openSealedPayload } from "@/lib/tickets/ticket-sealed-box";
+import { resetServerSigningKeysCache } from "@/lib/tickets/server-signing-key";
 
 vi.mock("next/cache", () => ({ revalidatePath: () => {} }));
 
@@ -52,7 +57,7 @@ const { prisma } = await import("@/lib/db/prisma-client");
 const { encryptCredential } = await import("@/lib/crypto/credential-encryption");
 const { loadVaultKey } = await import("@/lib/crypto/encryption-key-loader");
 const { AUDIT_ACTIONS } = await import("@/lib/audit/audit-log-actions");
-const { recordCreatedProfile } = await import("./account-profile-actions");
+const { recordCreatedProfile, requestCreateProfileTicket } = await import("./account-profile-actions");
 
 let accountId: string;
 let mayCuaHa: string;
@@ -140,6 +145,12 @@ beforeEach(async () => {
 
 afterAll(async () => {
   await prisma.$disconnect();
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllEnvs();
+  resetServerSigningKeysCache();
 });
 
 describe("successful path", () => {
@@ -294,5 +305,132 @@ describe("invalid input", () => {
     expect(result.ok).toBe(false);
     const sau = await prisma.account.findUniqueOrThrow({ where: { id: accountId } });
     expect(sau.antidetectProfileId).toBeNull();
+  });
+});
+
+describe("explicit Relay PC selection for profile creation", () => {
+  const fingerprint = {
+    device: "desktop", localeId: "en-US", timezone: "America/New_York",
+    screen: { width: 1920, height: 1080 },
+  };
+
+  it("encrypts for the selected PC when the owner has two active PCs", async () => {
+    vi.stubEnv("TICKET_SIGNING_KEY", randomBytes(32).toString("hex"));
+    const keys = generateRelayDeviceKeyPair();
+    const otherKeys = generateRelayDeviceKeyPair();
+    await prisma.relayDevice.update({ where: { id: mayCuaHa }, data: { publicKey: otherKeys.publicKeyHex } });
+    const selected = await prisma.relayDevice.create({
+      data: { name: "Selected local PC", userId: HA_ID, publicKey: keys.publicKeyHex },
+    });
+
+    const result = await requestCreateProfileTicket(accountId, fingerprint, selected.id);
+
+    expect(result).toHaveProperty("deviceId", selected.id);
+    if (!("ticket" in result)) throw new Error(result.message);
+    const envelope = JSON.parse(Buffer.from(result.ticket.split(".")[0], "base64url").toString()) as TicketEnvelope;
+    expect(envelope.deviceId).toBe(selected.id);
+    const payload = { ephemeralPublicKey: envelope.epk, sealed: envelope.sealed };
+    expect(openSealedPayload(payload, relayPrivateKeyToKeyObject(keys.privateKeyHex)))
+      .toMatchObject({ kind: "CREATE_PROFILE", accountId });
+    expect(() => openSealedPayload(payload, relayPrivateKeyToKeyObject(otherKeys.privateKeyHex))).toThrow();
+    await expect(requestCreateProfileTicket(accountId, fingerprint)).resolves.toMatchObject({ ok: false });
+  });
+
+  it.each(["unowned", "revoked", "unknown"] as const)("rejects an %s selected PC", async (kind) => {
+    const selectedId = kind === "unowned" ? mayCuaNam : kind === "revoked" ? mayDaThuHoi : "missing-device";
+    await expect(requestCreateProfileTicket(accountId, fingerprint, selectedId))
+      .resolves.toMatchObject({ ok: false, message: expect.stringContaining("selected Relay PC") });
+  });
+});
+
+describe("concurrent changes during profile completion", () => {
+  it("waits for an in-flight revocation and refuses to pin the revoked PC", async () => {
+    const locked = Promise.withResolvers<void>();
+    const release = Promise.withResolvers<void>();
+    const revoking = prisma.$transaction(async (tx) => {
+      await tx.relayDevice.update({ where: { id: mayCuaHa }, data: { revokedAt: new Date() } });
+      locked.resolve();
+      await release.promise;
+      await tx.account.updateMany({ where: { deviceId: mayCuaHa }, data: { deviceId: null } });
+    });
+    await locked.promise;
+    const recording = recordCreatedProfile({ accountId, profileId: "racing-revocation", deviceId: mayCuaHa });
+    try {
+      await vi.waitFor(async () => {
+        const waiting = await prisma.$queryRaw<{ waiting: boolean }[]>`
+          SELECT EXISTS (
+            SELECT 1 FROM pg_stat_activity
+            WHERE datname = current_database() AND pid <> pg_backend_pid()
+              AND wait_event_type = 'Lock'
+              AND query LIKE '%FROM "RelayDevice"%FOR NO KEY UPDATE%'
+          ) AS waiting`;
+        expect(waiting[0].waiting).toBe(true);
+      }, { timeout: 2000, interval: 20 });
+    } finally {
+      release.resolve();
+      await revoking;
+      await recording;
+    }
+
+    expect((await recording).ok).toBe(false);
+    const account = await prisma.account.findUniqueOrThrow({ where: { id: accountId } });
+    expect(account.deviceId).toBeNull();
+    expect(account.antidetectProfileId).toBeNull();
+    expect(await prisma.auditLog.count({ where: { accountId } })).toBe(0);
+  });
+
+  it.each(["revoked", "reassigned", "retiring"] as const)(
+    "rejects a Relay PC that became %s after its initial read",
+    async (change) => {
+      const staleDevice = await prisma.relayDevice.findUniqueOrThrow({ where: { id: mayCuaHa } });
+      await prisma.relayDevice.update({
+        where: { id: mayCuaHa },
+        data: change === "revoked" ? { revokedAt: new Date() }
+          : change === "reassigned" ? { userId: NAM_ID }
+          : { retirementId: "retirement-in-progress" },
+      });
+      // Only the precheck sees the old snapshot; the transaction uses the real database.
+      vi.spyOn(prisma.relayDevice, "findUnique").mockResolvedValueOnce(staleDevice);
+
+      const result = await recordCreatedProfile({ accountId, profileId: "stale-profile", deviceId: mayCuaHa });
+
+      expect(result.ok).toBe(false);
+      expect(result.message).toContain("changed");
+      const account = await prisma.account.findUniqueOrThrow({ where: { id: accountId } });
+      expect(account.antidetectProfileId).toBeNull();
+      expect(account.deviceId).toBeNull();
+      expect(await prisma.auditLog.count({ where: { accountId } })).toBe(0);
+    },
+  );
+
+  it("rejects a changed account revision even when owner and device return to their old values", async () => {
+    const staleAccount = await prisma.account.findUniqueOrThrow({
+      where: { id: accountId }, include: { device: true },
+    });
+    await prisma.account.update({
+      where: { id: accountId },
+      data: { updatedAt: new Date(staleAccount.updatedAt.getTime() + 1000) },
+    });
+    // requireNickOwner reads first, followed by recordCreatedProfile's account snapshot.
+    vi.spyOn(prisma.account, "findUnique")
+      .mockResolvedValueOnce(staleAccount)
+      .mockResolvedValueOnce(staleAccount);
+
+    const result = await recordCreatedProfile({ accountId, profileId: "stale-profile", deviceId: mayCuaHa });
+
+    expect(result.ok).toBe(false);
+    expect(result.message).toContain("changed");
+    expect((await prisma.account.findUniqueOrThrow({ where: { id: accountId } })).antidetectProfileId).toBeNull();
+    expect(await prisma.auditLog.count({ where: { accountId } })).toBe(0);
+  });
+
+  it("allows only one of two different profiles completing for the same nick", async () => {
+    const results = await Promise.all([
+      recordCreatedProfile({ accountId, profileId: "first-profile", deviceId: mayCuaHa }),
+      recordCreatedProfile({ accountId, profileId: "second-profile", deviceId: mayCuaHa }),
+    ]);
+
+    expect(results.filter((result) => result.ok)).toHaveLength(1);
+    expect(await prisma.auditLog.count({ where: { accountId } })).toBe(2);
   });
 });
