@@ -52,8 +52,9 @@ export async function readRelayCompatibilityRelease(
 ): Promise<RelayCompatibilityRelease> {
   const config = readRelayReleaseR2Config();
   if (!config) return readRelayCompatibilityReleaseFromDisk(version);
+  const sequence = activeCompatibilitySequence();
   const [manifestBody, release] = await Promise.all([
-    openRelayCompatibilityManifest(config, version),
+    openRelayCompatibilityManifest(config, version, undefined, sequence),
     readRelayRelease(version),
   ]);
   const revocations = readRelayCompatibilityRevocations();
@@ -61,6 +62,16 @@ export async function readRelayCompatibilityRelease(
     manifest: verifyRelayManifest(await streamJson(manifestBody), version, release, revocations),
     revocations,
   };
+}
+
+function activeCompatibilitySequence(): number | undefined {
+  const raw = process.env.RELAY_COMPATIBILITY_SEQUENCE?.trim();
+  if (!raw) return undefined;
+  const sequence = Number(raw);
+  if (!Number.isSafeInteger(sequence) || sequence <= 0) {
+    throw new Error("The active compatibility sequence is invalid.");
+  }
+  return sequence;
 }
 
 export async function readRelayCompatibilityReleaseFromDisk(

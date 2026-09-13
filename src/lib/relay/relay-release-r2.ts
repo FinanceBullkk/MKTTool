@@ -43,18 +43,22 @@ export function relayReleaseR2Key(version: number): string {
   return `MKTTool-Relay-v${version}.zip`;
 }
 
-export function relayCompatibilityManifestR2Key(version: number): string {
+export function relayCompatibilityManifestR2Key(version: number, sequence?: number): string {
   if (!Number.isSafeInteger(version) || version <= 0) {
     throw new Error(`Relay release version must be a positive integer, received ${version}.`);
   }
-  return `MKTTool-Relay-v${version}.compatibility.json`;
+  return sequence === undefined
+    ? `MKTTool-Relay-v${version}.compatibility.json`
+    : `MKTTool-Relay-v${version}-s${positiveSequence(sequence)}.compatibility.json`;
 }
 
-export function relayCompatibilityRevocationsR2Key(version: number): string {
+export function relayCompatibilityRevocationsR2Key(version: number, sequence?: number): string {
   if (!Number.isSafeInteger(version) || version <= 0) {
     throw new Error(`Relay release version must be a positive integer, received ${version}.`);
   }
-  return `MKTTool-Relay-v${version}.compatibility-revocations.json`;
+  return sequence === undefined
+    ? `MKTTool-Relay-v${version}.compatibility-revocations.json`
+    : `MKTTool-Relay-v${version}-s${positiveSequence(sequence)}.compatibility-revocations.json`;
 }
 
 export const RELAY_COMPATIBILITY_ARTIFACT_KINDS = [
@@ -70,6 +74,7 @@ export type RelayCompatibilityArtifactKind =
 export function relayCompatibilityArtifactR2Key(
   version: number,
   kind: RelayCompatibilityArtifactKind,
+  sequence?: number,
 ): string {
   if (!Number.isSafeInteger(version) || version <= 0) {
     throw new Error(`Relay release version must be a positive integer, received ${version}.`);
@@ -77,7 +82,16 @@ export function relayCompatibilityArtifactR2Key(
   if (!RELAY_COMPATIBILITY_ARTIFACT_KINDS.includes(kind)) {
     throw new Error(`Unsupported compatibility artifact kind: ${kind}.`);
   }
-  return `MKTTool-Compatibility-v${version}-${kind}.artifact`;
+  return sequence === undefined
+    ? `MKTTool-Compatibility-v${version}-${kind}.artifact`
+    : `MKTTool-Compatibility-v${version}-s${positiveSequence(sequence)}-${kind}.artifact`;
+}
+
+function positiveSequence(value: number): number {
+  if (!Number.isSafeInteger(value) || value <= 0) {
+    throw new Error(`Compatibility sequence must be a positive integer, received ${value}.`);
+  }
+  return value;
 }
 
 /** Tên metadata chứa mã băm SHA-256 của gói. */
@@ -126,16 +140,18 @@ export function headRelayCompatibilityArtifact(
   version: number,
   kind: RelayCompatibilityArtifactKind,
   fetchImpl?: typeof fetch,
+  sequence?: number,
 ): Promise<R2ObjectInfo | null> {
-  return headObject({ config, key: relayCompatibilityArtifactR2Key(version, kind), fetchImpl });
+  return headObject({ config, key: relayCompatibilityArtifactR2Key(version, kind, sequence), fetchImpl });
 }
 
 export async function openRelayCompatibilityManifest(
   config: R2Config,
   version: number,
   fetchImpl?: typeof fetch,
+  sequence?: number,
 ): Promise<ReadableStream<Uint8Array>> {
-  return (await getObject({ config, key: relayCompatibilityManifestR2Key(version), fetchImpl })).body;
+  return (await getObject({ config, key: relayCompatibilityManifestR2Key(version, sequence), fetchImpl })).body;
 }
 
 export async function openRelayCompatibilityArtifact(
@@ -143,10 +159,11 @@ export async function openRelayCompatibilityArtifact(
   version: number,
   kind: RelayCompatibilityArtifactKind,
   fetchImpl?: typeof fetch,
+  sequence?: number,
 ): Promise<ReadableStream<Uint8Array>> {
   return (await getObject({
     config,
-    key: relayCompatibilityArtifactR2Key(version, kind),
+    key: relayCompatibilityArtifactR2Key(version, kind, sequence),
     fetchImpl,
   })).body;
 }

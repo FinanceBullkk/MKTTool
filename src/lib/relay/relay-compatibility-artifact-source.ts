@@ -62,17 +62,18 @@ export async function readRelayCompatibilityArtifactSource(
   version: number,
   kind: RelayCompatibilityArtifactKind,
   expected: { sizeBytes: number; sha256: string },
+  sequence?: number,
 ): Promise<RelayCompatibilityArtifactSource> {
   const config = readRelayReleaseR2Config();
   if (config) {
-    const info = await headRelayCompatibilityArtifact(config, version, kind);
+    const info = await headRelayCompatibilityArtifact(config, version, kind, undefined, sequence);
     if (!info) throw new Error(`Compatibility artifact ${kind} was not found.`);
     const checksum = info.metadata[CHECKSUM_METADATA_KEY]?.toLowerCase();
     assertExpectedArtifact(info.sizeBytes, checksum, expected, kind);
     return {
       sizeBytes: info.sizeBytes,
       sha256: checksum!,
-      open: () => openRelayCompatibilityArtifact(config, version, kind),
+      open: () => openRelayCompatibilityArtifact(config, version, kind, undefined, sequence),
     };
   }
 

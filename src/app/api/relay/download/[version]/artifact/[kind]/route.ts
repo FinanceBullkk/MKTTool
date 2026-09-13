@@ -34,7 +34,10 @@ export const GET = machineRoute(isAuthorizedArtifactRequest, async (request, con
         status: 404,
       });
     }
-    const source = await readRelayCompatibilityArtifactSource(version, kind, artifact);
+    const sequence = release.manifest.manifest.sequence;
+    const source = sequence === undefined
+      ? await readRelayCompatibilityArtifactSource(version, kind, artifact)
+      : await readRelayCompatibilityArtifactSource(version, kind, artifact, sequence);
     return new Response(await source.open(), {
       headers: {
         "cache-control": "private, immutable, max-age=31536000",

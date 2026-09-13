@@ -83,7 +83,7 @@ export function prepareCompatibilityPublication(args: CompatibilityPublishArgume
       validateCompatibilityControlContract(body.toString("utf8"), signed.manifest);
     }
     return {
-      key: relayCompatibilityArtifactR2Key(RELAY_VERSION, kind),
+      key: relayCompatibilityArtifactR2Key(RELAY_VERSION, kind, signed.manifest.sequence),
       body,
       contentType: "application/octet-stream",
       metadata: { sha256, "relay-version": String(RELAY_VERSION), "artifact-kind": kind },
@@ -94,8 +94,8 @@ export function prepareCompatibilityPublication(args: CompatibilityPublishArgume
     sequence: signed.manifest.sequence,
     objects: [
       ...objects,
-      jsonObject(relayCompatibilityRevocationsR2Key(RELAY_VERSION), revocationsBody),
-      jsonObject(relayCompatibilityManifestR2Key(RELAY_VERSION), manifestBody),
+      jsonObject(relayCompatibilityRevocationsR2Key(RELAY_VERSION, signed.manifest.sequence), revocationsBody),
+      jsonObject(relayCompatibilityManifestR2Key(RELAY_VERSION, signed.manifest.sequence), manifestBody),
     ],
   };
 }
