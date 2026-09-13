@@ -2,6 +2,25 @@
 
 **Updated:** 10 September 2026
 
+## Browser 0.3.22 closeout - 13 September 2026
+
+The Relay download token was rotated and synchronized between Railway production and the Windows
+build scope. An authenticated v17 request now returns HTTP 200, and the pinned Relay archive was
+fetched over HTTPS and verified by size and SHA-256. The real CFT archive is present and its
+executable reports `152.0.7977.64`; a direct headless smoke still has an OPEN Windows sandbox/session
+exit issue, so it is not first-run acceptance.
+
+A signed sequence-22 manifest for Browser 0.3.22 was prepared against the exact candidate bytes, but
+publication stopped before any write because the immutable Relay-v17 artifact namespace already holds
+different Browser 0.3.17 bytes. Browser 0.3.22 remains unpublished and unpromoted. Resolve this by
+either cutting Relay 18 or introducing reviewed candidate/sequence-scoped compatibility artifact keys
+and routes. Keep the cached Relay archive as emergency fallback only.
+
+The current product decisions are: an upgrade preserves engine cache while uninstall removes it and
+retains operator data; the machine-integration check belongs on a real exact-installer VM fixture,
+but moving the label alone does not close coverage. Same-host VM, unfamiliar-operator, second-PC and
+seven-day canary evidence remain separate OPEN gates.
+
 ## Quality review repairs - 10 September 2026
 
 The source repair pass hardens Relay request failures, profile completion and PC assignment during
