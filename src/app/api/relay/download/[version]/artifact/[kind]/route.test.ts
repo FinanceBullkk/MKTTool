@@ -47,9 +47,13 @@ describe("authenticated immutable compatibility artifact route", () => {
     expect(response.status).toBe(200);
     expect(await response.text()).toBe("relay");
     expect(response.headers.get("cache-control")).toContain("immutable");
-    expect(mocks.readSource).toHaveBeenCalledWith(12, "relay", expect.objectContaining({
-      url: `https://mkt.example${path}`,
-    }));
+    expect(mocks.readRelease).toHaveBeenCalledWith(12, 1);
+    expect(mocks.readSource).toHaveBeenCalledWith(
+      12,
+      "relay",
+      expect.objectContaining({ url: `https://mkt.example${path}` }),
+      1,
+    );
   });
 
   it("serves the licensed engine through the same authenticated route", async () => {
@@ -66,6 +70,7 @@ describe("authenticated immutable compatibility artifact route", () => {
       12,
       "engine",
       expect.objectContaining({ url: `https://mkt.example${path}` }),
+      1,
     );
   });
 
@@ -123,6 +128,7 @@ function release() {
     revocations: [],
     manifest: {
       manifest: {
+        sequence: 1,
         artifacts: {
           installer: artifact("installer"),
           relay: artifact("relay"),
