@@ -22,9 +22,11 @@ the Relay build token was synchronized and `/api/relay/download/v17` now returns
 pinned Relay bytes. Cached archive remains emergency fallback only.
 
 The product decision remains: upgrade preserves engine cache; uninstall removes engine cache and
-retains operator data. Exact CFT first-run, signed activation, packaged Relay lifecycle, proxy
-failure/recovery, and clean-VM acceptance are still **OPEN**. The current VM has a measured UTC clock
-drift and the host has insufficient free RAM for a safe 4 GiB guest run; no gate was weakened.
+retains operator data. Exact CFT first-run, signed activation, packaged Relay lifecycle, and proxy
+failure/recovery remain **OPEN**. Exact installer lifecycle evidence now passes on the restored
+Defender VM: clean `9/9`, repair `13/13`, and uninstall `15/15`; this does not exercise real CFT
+activation or page-network containment. The current VM has a measured UTC clock drift and no gate
+was weakened.
 Machine-integration, unfamiliar-operator, second physical PC, seven-day canary, and unsigned
 SmartScreen/UAC acceptance remain OPEN. Operator promotion is **NO-GO**.
 
