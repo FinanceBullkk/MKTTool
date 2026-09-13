@@ -14,8 +14,10 @@ the exact approved Relay v17 and CFT `152.0.7977.64` bytes while fixing the Rela
 Sequence 24 is the direct migration path for installations currently on sequence 21; sequence 23 is
 retained for devices already on sequence 22.
 
-This is not yet a universal fresh-install manifest: sequence-0 activation needs a separately selected
-transition path. Keep fresh-install distribution blocked until that path is exercised and accepted.
+Production now selects sequence 25 for fresh sequence-0 installs, sequence 24 for active sequence-21
+devices, and sequence 23 for active sequence-22 devices. Sequence 25 is published immutably and its
+live manifest route returns HTTP 200 with transition `0 -> 25`. Keep distribution blocked until the
+exact installer/CFT activation and clean-VM acceptance gates are exercised and accepted.
 
 Live manifest/artifact routes return HTTP 200 and all read-back hashes match. This does not close
 exact CFT first-run, signed activation, proxy failure/recovery, or exact clean-VM acceptance: the

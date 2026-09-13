@@ -15,7 +15,9 @@ this distinction is intentional.
 
 The signed compatibility set is published with immutable sequence-scoped keys. Sequence 23 is the
 newer set from sequence 22; sequence 24 contains the same exact bytes and provides a direct transition
-from the operator-approved sequence 21. R2 objects and live routes pass full size/SHA-256 read-back;
+from the operator-approved sequence 21; sequence 25 contains the same exact bytes and provides the
+fresh-install transition from sequence 0. Production selects targets explicitly with
+`0 -> 25`, `21 -> 24`, and `22 -> 23`. R2 objects and live routes pass full size/SHA-256 read-back;
 the Relay build token was synchronized and `/api/relay/download/v17` now returns HTTP 200 with the
 pinned Relay bytes. Cached archive remains emergency fallback only.
 
@@ -26,9 +28,9 @@ drift and the host has insufficient free RAM for a safe 4 GiB guest run; no gate
 Machine-integration, unfamiliar-operator, second physical PC, seven-day canary, and unsigned
 SmartScreen/UAC acceptance remain OPEN. Operator promotion is **NO-GO**.
 
-Sequence 24 is intentionally a migration manifest for active sequence 21. Fresh sequence-0 installs
-need a separately selected transition manifest (or reviewed multi-transition update design); do not
-use sequence 24 as universal fresh-install evidence.
+Sequence 24 remains intentionally scoped to active sequence 21, while sequence 25 is the signed
+fresh-install target for sequence 0. This closes manifest selection coverage only; it does not close
+exact CFT activation or clean-VM acceptance.
 
 ## Quality review repairs - 10 September 2026
 
