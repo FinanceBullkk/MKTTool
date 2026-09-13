@@ -2,6 +2,18 @@
 
 **Updated:** 13 September 2026
 
+## Team Web handoff - 13 September 2026
+
+The MKTTool Web shared-workspace surface is ready for controlled internal team use: production
+health is HTTP 200 with database, release metadata, and R2 checks `ok`, and the Relay v17 download
+path has been verified. The handoff covers the shared nick vault, proxy ownership, Relay PC registry,
+and Relay-first setup only. Reddit/Facebook posting and TikTok posting remain outside scope.
+
+MKT Browser is a separate release lane. The current `0.3.23` candidate remains **HOLD / NO-GO** for
+operator promotion; the accepted `0.3.17` tuple is historical evidence and must not be presented as
+the current installer. See the [team-ready rollout guide](team-ready-rollout.md) for the operator
+path and owner actions.
+
 ## Browser 0.3.23 release-readiness - 13 September 2026
 
 Candidate `20260913-browser-0.3.23-relay-17-relay-payload-hash-fix-cft` is built from Browser commit

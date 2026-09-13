@@ -1,10 +1,11 @@
 # Internal beta boundary
 
 **Updated:** 13 September 2026
-**Status:** shared vault, proxy ownership, Relay PC operations, and the exact Browser `0.3.17` /
-Relay `17` Windows x64 tuple are approved for controlled internal use. Lane C is **CLOSED**. The
-earlier Web/Facebook CONDITIONAL GO remains a technical record, subject to the platform withdrawal
-below.
+**Status:** MKTTool Web shared-vault, proxy-ownership, and Relay PC operations are approved for
+controlled internal team use. MKT Browser installer distribution is **HOLD** pending a new exact-tuple
+release decision. The accepted Browser `0.3.17` / Relay `17` Windows x64 tuple is historical evidence,
+not the current source/deployment tuple. Lane C is **CLOSED**. The earlier Web/Facebook CONDITIONAL GO
+remains a technical record, subject to the platform withdrawal below.
 
 ## Current Browser candidate - 13 September 2026
 
@@ -19,11 +20,11 @@ devices, and sequence 23 for active sequence-22 devices. Sequence 25 is publishe
 live manifest route returns HTTP 200 with transition `0 -> 25`. Keep distribution blocked until the
 exact installer/CFT activation and clean-VM acceptance gates are exercised and accepted.
 
-Live manifest/artifact routes return HTTP 200 and all read-back hashes match. This does not close
-exact CFT first-run, signed activation, proxy failure/recovery, or exact clean-VM acceptance: the
-latest VM evidence is blocked by measured clock drift and host resource limits. Do not distribute
-the 0.3.23 installer until those gates pass. Unfamiliar operator, second-PC, seven-day canary,
-machine-integration, and unsigned SmartScreen/UAC evidence remain OPEN.
+Live manifest/artifact routes return HTTP 200 and all read-back hashes match. Installer-only clean,
+repair, and uninstall checks pass, but they do not exercise exact CFT first-run, signed activation,
+managed proxy failure/recovery, or the full release acceptance. Do not distribute the 0.3.23 installer
+until those gates pass. Unfamiliar operator, second-PC, seven-day canary, machine-integration, and
+unsigned SmartScreen/UAC evidence remain OPEN.
 
 ## Accepted direction - 8 September 2026
 
@@ -32,18 +33,25 @@ Proxy vault, Relay handoff, and reliable manual profile operations. Antidetect/i
 research is closed. The product makes no unique-fingerprint, identity-isolation, or account-safety
 promise. See the [product decision](project-overview-pdr.md#product-direction-decision---8-september-2026).
 
-The current use boundary is a controlled internal profile/proxy workflow, one profile at a time,
-with human login and input. The exact release below passed installer, activation, lifecycle,
-recovery, and owner-operated physical MSI acceptance. Unfamiliar-operator and seven-day canary
-requirements remain open where recorded below. No result authorizes an identity-isolation or
-real-account-safety claim.
+The Browser lane, if explicitly reopened later, is limited to a controlled internal profile/proxy
+workflow, one profile at a time, with human login and input. The historical release below passed its
+recorded installer, activation, lifecycle, recovery, and owner-operated physical MSI acceptance;
+that evidence does not authorize current ordinary-operator distribution. Unfamiliar-operator and
+seven-day canary requirements remain open where recorded below. No result authorizes an identity-
+isolation or real-account-safety claim.
 `G2-IDENTITY=FAIL` is retained as evidence, and Lane C has no scheduled research or vendor task.
 
-Relay installation and shared-workspace handoff continue through `/setup`. Browser distribution uses
-the authenticated `/api/setup/windows-installer` route and exact approved tuple; operators must not
-substitute a locally rebuilt EXE or an upstream-latest engine.
+Relay installation and shared-workspace handoff continue through `/setup`. The authenticated
+`/api/setup/windows-installer` route is a separate Browser release path and remains unavailable for
+team rollout while the current candidate is on HOLD. Operators must not substitute a locally rebuilt
+EXE or an upstream-latest engine.
 
-## Approved internal Browser release - 10 September 2026
+## Historical approved Browser release - 10 September 2026
+
+The tuple below completed its recorded acceptance and was once operator-available. It is retained for
+auditability only. Current source now points at the 0.3.23 candidate above, while the deployment-owned
+approval binding still names the older tuple; therefore this historical installer must not be handed to
+new operators or treated as the current release.
 
 | Field | Released value |
 |---|---|
@@ -190,10 +198,11 @@ Consequences worth keeping straight:
   thing to hand over, but it is much less than what is built.
 - **Re-entry is an owner decision, not a default.** Whoever reopens a platform inherits the open
   items recorded against it — including the unowned cross-operator publish path on Facebook Pages.
-- **MKT Browser + Relay:** exact Windows x64 Browser `0.3.17` / Relay `17` is available through the
-  authenticated installer route. Use one profile at a time, one static proxy per browser-backed
-  account, and human login/input only. Profile-local storage and proxy assignment are operational
-  controls, not proof of unique or isolated browser identity.
+- **MKT Browser + Relay:** the exact Windows x64 Browser `0.3.17` / Relay `17` tuple is retained as
+  accepted historical evidence, but current Browser distribution is on **HOLD**. Use one profile at a
+  time, one static proxy per browser-backed account, and human login/input only if an owner later
+  reopens this lane. Profile-local storage and proxy assignment are operational controls, not proof of
+  unique or isolated browser identity.
 
 Reddit/TikTok real-account rollout, unattended automation, and posting automation remain paused.
 A disposable technical profile may be used only for a bounded, admin-led demonstration.
@@ -218,18 +227,18 @@ The immutable Relay v16 R2 object was published and verified with a full GET/has
 the Phase 2 authorization. That does not publish this Browser installer. The old R2 Browser
 `0.3.12`/Relay-v15 object is quarantined historical evidence; never patch or reuse its tuple.
 
-## Operator path for the approved release
+## Operator path for the current team surface
 
-1. Sign in to MKTTool and open `/setup`.
-2. Ask ADMIN to approve the detected PC and assign the account, static proxy, and Relay device.
-3. Download only the approved combined EXE from authenticated
-   `/api/setup/windows-installer`. If the route reports unavailable or incomplete metadata, stop and
-   contact ADMIN.
-4. Install the per-user package. Do not download a raw Relay ZIP, run an old script, or copy a
-   token, key, port, profile directory, or `.env` value.
-5. Start Browser/Relay and verify the local technical checks. Keep one profile active at a time.
-6. A human performs Google login, OTP, CAPTCHA, typing, and any posting action. Never infer identity
-   isolation from the local readiness banner or the CFT compatibility verifier.
+1. Confirm the exact team roster with the owner. ADMIN puts only those addresses in `ALLOWED_EMAILS`
+   and keeps `ADMIN_EMAILS` as a subset; never guess or share the values in chat.
+2. Sign in to MKTTool with the approved company Google account and open `/setup`.
+3. Download and install Relay only through the authenticated control, register the current PC, and
+   wait for ADMIN approval. Do not send a raw ZIP, token, private key, profile directory, or `.env`
+   value.
+4. ADMIN assigns each active nick to its responsible operator, static proxy, and Relay PC. Use
+   **Nick vault**, **Proxy vault**, and **Relay PCs** for the handoff.
+5. Do not download `/api/setup/windows-installer` or use a Browser package while the current candidate
+   is on HOLD. A future Browser release needs a separate explicit notice and exact acceptance receipt.
 
 Stop and contact ADMIN when setup reports a conflict, proxy egress is unverified, the Browser engine
 or contract is unavailable, metadata is incomplete, or the single licence seat is cooling. Do not
@@ -243,9 +252,9 @@ retry by opening a second profile or changing the proxy locally.
 - MKT Browser Node `22.23.2`: focused one-seat/UI/pool/journal/recorder/recovery suites `46/46`;
   runtime/managed/bootstrap suites `33/33`; the prior full installer suite passed with one explicit
   machine-live integration skipped. Re-run on the exact S3 artifact before promotion.
-- Relay v16: exact archive/EXE binding, restart replay rejection, fresh-ticket acceptance,
-  crash-recovery, and corruption fail-closed harness checks passed locally; R2 full read-back passed.
-- The owner-operated physical MSI completed the exact 0.3.17 / Relay 17 lifecycle and reports
+- Relay v17: exact archive/EXE binding and full R2 read-back are verified for the current candidate;
+  older Relay v16 harness results remain historical.
+- The owner-operated physical MSI completed the historical 0.3.17 / Relay 17 lifecycle and reports
   sequence 21 with CFT 152.0.7977.64 ready. A second independent physical PC and an unfamiliar
   operator remain unobserved; the Relay floor stays at 13.
 - Exact-revision CFT was used only as the same-machine cohort control for the Brave measurement.
@@ -255,7 +264,7 @@ retry by opening a second profile or changing the proxy locally.
 
 | Gate | State | Meaning |
 |---|---|---|
-| P3 installer/provenance | PASS | Exact accepted installer, normalized A/B payload, provenance, engine pin, immutable object, and full-byte read-backs are bound |
+| P3 installer/provenance | PASS (historical 0.3.17) / OPEN (0.3.23 promotion) | The accepted historical tuple is fully bound; the current candidate still needs its frozen-source and release decision gates |
 | G1 human input/login | OPEN | Requires human first-login/typing attestations on the promoted artifact |
 | G2 network | OPEN | Real proxy/DNS/WebRTC evidence is not closed |
 | G2 identity | FAIL | Stable `.2` is `BLOCKED` with `0/10` current readings; Brave failed A/B/C at pool five; no current engine proves identity isolation |
@@ -265,9 +274,10 @@ retry by opening a second profile or changing the proxy locally.
 | G4 physical MSI | PASS / unfamiliar operator OPEN | Owner-operated physical MSI lifecycle passed; a new operator without coaching remains unobserved |
 | G5 canary | OPEN | Seven-day human canary and stop-condition evidence are required |
 
-This document authorizes controlled internal distribution of the exact Windows x64 tuple above. It
-does not authorize broad Reddit/TikTok real-account rollout, unattended automation, or an identity
-claim.
+This document authorizes controlled internal use of the MKTTool Web shared-workspace surface. It does
+not authorize Browser distribution, broad Reddit/TikTok real-account rollout, unattended automation,
+or an identity claim. Browser promotion remains **NO-GO** until the current candidate gates close and
+the owner publishes a new exact-tuple decision.
 
 ## Lane C closure
 
@@ -284,8 +294,9 @@ engine path requires a new, separately owned product decision outside this relea
 - macOS packaging and updater work;
 - multi-profile concurrency or additional licence-key promises;
 - Reddit/TikTok posting automation, warmup, CAPTCHA/checkpoint, or credential/OTP automation;
-- Browser tuple publication (P4b) is complete for the exact internal release above. Lane C remains
-  closed; no identity-isolation or vendor-delivery promise is made.
+- Compatibility artifacts for the current Browser candidate are published, but Browser operator
+  promotion remains on HOLD. Lane C remains closed; no identity-isolation or vendor-delivery promise
+  is made.
 
 Historical tuples and test results remain in the dated audit reports; they must not be presented as
 the current candidate.

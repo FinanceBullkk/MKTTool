@@ -1,6 +1,6 @@
 # Tài liệu MKTTool — bắt đầu từ đâu
 
-**Updated:** 8 September 2026
+**Updated:** 13 September 2026
 
 ## Current product direction
 
@@ -12,20 +12,18 @@ approval, and the [roadmap](development-roadmap.md) records current delivery pri
 
 ## Current release entry point
 
-For the authoritative post-deploy state, start with the
-[30 August consolidation plan](../../plans/260830-0830-consolidation-and-lane-a-release/plan.md),
-[P4a deployment evidence](../../plans/260830-0830-consolidation-and-lane-a-release/reports/lane-a-deploy.md),
-and [P5 fleet evidence](../../plans/260830-0830-consolidation-and-lane-a-release/reports/fleet-migration.md).
-P4a MKTTool Web is deployed and verified; the Browser P4b tuple is OPEN, the Relay floor remains 13
-pending owner-machine observations, and Lane C is CLOSED because there is no CloakBrowser channel.
-The older plans linked below remain historical context.
+For the operator-facing boundary, start with the [team-ready rollout guide](team-ready-rollout.md).
+The MKTTool Web shared-workspace surface is deployed and verified; the Browser 0.3.23 candidate is
+on HOLD and the accepted 0.3.17 tuple is historical evidence only. Lane C is CLOSED because there is
+no CloakBrowser channel. The older plans linked below remain historical context.
 
 Repo này có 12+ file tài liệu. Đừng đọc hết. Tra theo câu hỏi bạn đang có:
 
 | Bạn muốn biết | Đọc file |
 |---|---|
-| **Dùng công cụ hằng ngày** (không cài gì, không sửa code) | [huong-dan-van-hanh-cho-team.md](huong-dan-van-hanh-cho-team.md) — cẩm nang cho người dùng cuối |
-| **Internal beta boundary and current installer** | [internal-beta-release.md](internal-beta-release.md) — supported scope, exact hash, operator path, and open gates |
+| **Team-ready scope and onboarding** | [team-ready-rollout.md](team-ready-rollout.md) — current Web/Relay handoff, Browser hold, and owner actions |
+| **Dùng công cụ hằng ngày** (legacy reference) | [huong-dan-van-hanh-cho-team.md](huong-dan-van-hanh-cho-team.md) — older screens retained for record lookup |
+| **Internal beta boundary and Browser release** | [internal-beta-release.md](internal-beta-release.md) — current hold, historical tuple, and open gates |
 | Cài và chạy công cụ, dùng từng màn hình | [../README.md](../README.md) — cẩm nang vận hành, đọc trước tiên |
 | Deferred macOS reference (not v1) | [macos-development-setup.md](macos-development-setup.md) — retained for MKB-07, not the current demo path |
 | Dự án giải quyết vấn đề gì, cho ai, không làm gì | [project-overview-pdr.md](project-overview-pdr.md) |
@@ -44,9 +42,9 @@ Repo này có 12+ file tài liệu. Đừng đọc hết. Tra theo câu hỏi b�
 
 ## Ba vai, ba đường đọc
 
-**Bạn MKT sắp dùng công cụ:** [huong-dan-van-hanh-cho-team.md](huong-dan-van-hanh-cho-team.md), đọc
-hết một lượt — nó viết cho đúng vai này và không có gì khác cần đọc. Muốn hiểu sâu hơn phần bộ luật
-thì mở thêm [../README.md](../README.md) mục *Bộ luật an toàn*.
+**Bạn MKT sắp dùng công cụ:** bắt đầu với [team-ready-rollout.md](team-ready-rollout.md). Mở
+[huong-dan-van-hanh-cho-team.md](huong-dan-van-hanh-cho-team.md) only for historical screen details;
+its posting and Browser sections are not current rollout instructions.
 
 **Dev mới nhận repo:** [project-overview-pdr.md](project-overview-pdr.md) →
 [system-architecture.md](system-architecture.md) → [codebase-summary.md](codebase-summary.md) →

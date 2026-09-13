@@ -8,9 +8,11 @@ promise of unique or isolated browser identity.
 **Product direction, 8 September 2026:** the owner accepted MKT Browser as a **browser profile
 manager with proxy binding**. Priorities are Proxy vault, Relay handoff, and reliable manual profile
 operations. Antidetect/identity-engine research and Lane C are closed. The Browser draft remains
-limited to the profile/proxy product boundary. Exact Browser `0.3.17` / Relay `17` is approved for
-controlled internal Windows x64 distribution after clean-VM and physical-MSI acceptance; this does
-not establish unique identity, identity isolation, or real-account safety. See the [product decision](docs/project-overview-pdr.md#product-direction-decision---8-september-2026)
+limited to the profile/proxy product boundary. The **MKTTool Web shared-workspace surface is ready
+for controlled internal team use**; Browser installer distribution is currently **HOLD**. The
+historical Browser `0.3.17` / Relay `17` tuple was accepted, but the current `0.3.23` candidate is
+not operator-promoted. Neither tuple establishes unique identity, identity isolation, or real-account
+safety. See the [team-ready rollout guide](docs/team-ready-rollout.md), [product decision](docs/project-overview-pdr.md#product-direction-decision---8-september-2026),
 and [release boundary](docs/internal-beta-release.md).
 
 **Rollout scope decision, 2 September 2026:** Reddit and Facebook are **withdrawn from the team
@@ -32,14 +34,14 @@ Parked Content, Queue, Facebook, Targets, and Health routes use the same hierarc
 cards, but their rollout state and server-side posting guards remain unchanged. Sign-in, empty,
 error, confirmation, and destructive-action states use the same visual language and touch targets.
 
-**Current Browser release, 10 September 2026:** candidate
-`20260909-browser-0.3.17-relay-17-browser-ip-observer-cft` is operator-available through the
-authenticated Windows installer route. The retained installer is 146,047,736 bytes, SHA-256
-`6d07fd4ef529b3505a8de385c7d0d3214258e8a020abbd00de51e8f9810a4ca8`, with signed compatibility
-sequence 21 and CFT `152.0.7977.64`. Immutable R2 creation, complete byte read-back, production
-metadata validation, authenticated HTTP 200 download, VM lifecycle, and physical MSI install,
-restart, tray, Quit, repair, uninstall, and reinstall checks passed. Unfamiliar-operator and
-seven-day canary evidence remain open; use remains human-controlled and carries no identity claim.
+**Current Browser release, 13 September 2026:** candidate
+`20260913-browser-0.3.23-relay-17-relay-payload-hash-fix-cft` has published compatibility artifacts,
+but remains **NO-GO for operator promotion**. Exact CFT activation, packaged Relay/proxy lifecycle,
+machine integration, unfamiliar-operator, second-PC, SmartScreen/UAC, seven-day canary, and
+credential-exposure gates remain open. Keep the installer route fail-closed and do not distribute it.
+The previously accepted `0.3.17` / Relay `17` tuple is retained as historical evidence only; it is
+not the current source/deployment tuple. See the [team-ready rollout guide](docs/team-ready-rollout.md)
+for the Web/Relay handoff that is in scope now.
 
 **Historical platform status, 1 September 2026:** the nick vault, Reddit/Facebook posting-safety pipeline,
 health checks, and Facebook Pages publisher are implemented (now out of rollout scope, see above).
@@ -57,15 +59,12 @@ Browser CI, real-environment, identity, and canary gates remain open for the sep
 Lane C is CLOSED because there is no CloakBrowser channel.
 See the [development roadmap](docs/development-roadmap.md).
 
-### Historical internal beta boundary — 29 August 2026
+### Historical internal beta boundary — 29 August 2026 (not current instructions)
 
-The Web/Facebook surface remains a conditional low-risk internal pilot for authorized operators. The
-next Windows x64 MKT Browser candidate is `0.3.13` with bundled Relay v16; it is a draft tuple until
-the installer/provenance and release-authority gates close. Use one profile at a time, keep login,
-OTP/CAPTCHA, and typing human-controlled, and never infer identity isolation from local checks. The
-old `0.3.12`/v15 installer is quarantined historical evidence, not a current release. Read the
-[internal beta release guide](docs/internal-beta-release.md) before onboarding; Browser/Relay rollout
-remains **NO-GO** while identity, network, vendor, second-PC, and canary gates are open.
+The older Web/Facebook pilot and `0.3.13`/Relay v16 Browser candidate are retained for history only.
+They are not current onboarding instructions. Read the [team-ready rollout guide](docs/team-ready-rollout.md)
+and [internal beta release guide](docs/internal-beta-release.md) for the present Web/Relay boundary;
+Browser distribution remains **HOLD** while the current candidate gates are open.
 
 This file is the operational handbook for installing, running, and using the product. Product intent,
 architecture, code maps, conventions, and history live under [docs/](docs/README.md). User-facing
@@ -611,9 +610,10 @@ công cụ tạo ra, ngược hẳn với việc mua 10 proxy riêng.
 Tạo ở máy nào thì dữ liệu profile được ghim vào máy đó; đây là ràng buộc vận hành, không phải
 bằng chứng cô lập danh tính. Muốn đổi máy sau đó thì vẫn phải nhờ quản trị viên gán lại cụm.
 
-**Managed profile creation and launch require the current Relay v16 candidate.** Older Relay builds cannot
-preserve the required operation correlation or prove the contract-v3 managed capabilities, so these
-actions stop with an update instruction instead of falling back to an uncorrelated path.
+**Managed profile creation and launch require the matching approved Browser/Relay tuple.** Older Relay
+builds cannot preserve the required operation correlation or prove the managed capabilities, so these
+actions stop with an update instruction instead of falling back to an uncorrelated path. Browser
+distribution is currently held; do not install or update this lane without an explicit release notice.
 
 > **Quy trình tay** (khi tạo trong MKT Browser): gắn proxy → tab Fingerprint → bấm **"Match proxy"**
 > → *rồi mới* đăng nhập lần đầu. Bấm nút của MKTTool thì **hai bước đầu** gộp làm một, và MKT Browser

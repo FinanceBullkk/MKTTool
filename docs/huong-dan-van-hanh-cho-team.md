@@ -1,6 +1,6 @@
 # Hướng dẫn vận hành cho team
 
-**Cập nhật:** 10/09/2026 | Dành cho **người dùng công cụ**, không phải người cài nó
+**Cập nhật:** 13/09/2026 | Dành cho **người dùng công cụ**, không phải người cài nó
 
 > File này là thứ bạn đọc để *dùng*. Cài đặt, biến môi trường, cách dựng máy chủ nằm ở
 > [README.md](../README.md) — đó là việc của ADMIN, bạn không cần mở.
@@ -10,6 +10,23 @@
 Mở bằng Chrome, đăng nhập bằng **tài khoản Google công ty** của bạn. Không có mật khẩu riêng cho
 công cụ này — nếu Google vào được mà công cụ vẫn từ chối, nghĩa là email của bạn chưa có trong
 danh sách cho phép: nhắn ADMIN, đừng thử lại nhiều lần.
+
+## Current team path — 13 September 2026
+
+The team-ready surface is **MKTTool Web**: shared nick vault, proxy ownership, Relay PC registry,
+and the Relay-first setup handoff. Production health is currently `PASS` (HTTP 200, database,
+release metadata, and R2 `ok`).
+
+1. Ask ADMIN to confirm your exact company email is in `ALLOWED_EMAILS` before you sign in.
+2. Sign in, open `/setup`, download Relay from the authenticated control, and register this PC.
+3. Wait for ADMIN approval and operator-key delivery through `/relay-devices`; never copy a key or
+   token through chat.
+4. Use **Nick vault**, **Proxy vault**, and **Relay PCs** for daily work. Keep each browser-backed nick
+   bound to one static proxy and one assigned Relay PC.
+
+MKT Browser installer distribution is **HOLD**. Do not install Browser, use the `/api/setup/windows-installer`
+route, or use a locally rebuilt/old package. Reddit/Facebook posting and TikTok posting remain outside
+the team handoff even when their parked screens are visible.
 
 > ## ⛔ Từ 02/09/2026: Reddit và Facebook không còn nằm trong phạm vi bàn giao
 >
@@ -31,17 +48,22 @@ danh sách cho phép: nhắn ADMIN, đừng thử lại nhiều lần.
 
 | Bạn làm | Phải cài gì trên máy | Đọc mục nào |
 |---|---|---|
-| **Fanpage + viết content** | **Không cài gì cả**, chỉ cần Chrome | 1 → 2 → 3 → 4 → 6 |
-| **Reddit / TikTok browser profiles** | MKT Browser + Relay, controlled owner/ADMIN-led technical pilot only | profile and manual-input sections |
+| **Web operator** | **Không cài gì cả**, chỉ cần Chrome | current team path, 8 → 11 |
+| **ADMIN** | Chrome; Relay is installed only through the authenticated `/setup` control | current team path, `/relay-devices`, 10 → 11 |
+| **Browser pilot** | Not distributed to ordinary operators while the Browser lane is on HOLD | do not self-install |
 
-Fanpage posts through the official Graph API. Reddit still uses a human posting flow. TikTok currently
-supports account/profile configuration, proxy/device checks, managed profile launch, manual login, and
-manual browsing only; its content, queue, warmup, and posting automation are parked. None of these
-local checks proves browser identity isolation.
+Posting and Browser details below are retained as historical reference. They are not part of the
+current team handoff, and none of the local checks proves browser identity isolation.
 
 ---
 
-## 1. Mỗi sáng mở trang chủ, đọc bốn thẻ
+## Parked posting reference — do not use for the current team handoff
+
+The following sections describe older posting screens and are retained so existing records remain
+readable. Reddit/Facebook posting is withdrawn and TikTok posting is parked; do not create or execute
+posting work from these sections unless the owner publishes a new scope decision.
+
+### 1. Mỗi sáng mở trang chủ, đọc bốn thẻ
 
 Trang chủ là thẻ **Hôm nay**. Bốn thẻ dưới đây trả lời bốn câu khác nhau — nhìn hết bốn cái mất
 khoảng một phút.
@@ -62,7 +84,7 @@ hoặc đỏ ở đó thì chụp màn hình gửi ADMIN**, đừng tự sửa v
 
 ---
 
-## 2. Xếp lịch một bài
+### 2. Xếp lịch một bài (historical)
 
 Thứ tự cố định, không tắt bước nào được:
 
@@ -84,7 +106,7 @@ thứ tự nhắc việc, không phải một lời hứa.
 
 ---
 
-## 3. Đọc đèn luật
+### 3. Đọc đèn luật (historical)
 
 Mỗi lần xếp lịch, mười phép kiểm chạy và trả về một trong ba mức, kèm lý do bằng tiếng Việt:
 
@@ -127,7 +149,7 @@ thread là tín hiệu phối hợp rõ nhất mà nền tảng bắt được, 
 
 ---
 
-## 4. Nhóm Fanpage — đăng bằng một nút
+### 4. Nhóm Fanpage — đăng bằng một nút (historical)
 
 Job có đích là Fanpage sẽ có nút **"Đăng lên Page"** ngay trong hàng đợi. Bấm là bài lên thật,
 link tự ghi lại, không phải copy gì cả.
@@ -145,65 +167,35 @@ thẻ "Đăng tay". Dòng job có nút **"Copy nội dung"** (group chỉ có m�
 
 ---
 
-## 5. Browser-backed accounts — Reddit manual posting and TikTok technical profile use
+## 5. Browser lane — HOLD (reference only)
 
-The Reddit posting steps remain below. For TikTok, create or select the profile from the main profile
-console, open it through Relay, complete login manually, and browse manually. Do not create TikTok
-jobs in `/queue`: TikTok is not a posting target and the current profile UI is not rollout approval.
-Treat the profile as a disposable technical workspace; identity isolation and real-account use are
-not approved.
+The current Browser candidate is `20260913-browser-0.3.23-relay-17-relay-payload-hash-fix-cft`. It is
+published as compatibility material but is **not operator-promoted**. The accepted `0.3.17` / Relay
+`17` tuple is historical evidence only, and the current deployment approval does not match the source
+candidate. Browser distribution, real-account use, and identity-isolation claims remain blocked.
 
-### Trước khi bắt đầu: cầu nối phải đang chạy
+Do not self-install, download an old package, copy a Relay/MCP token, or treat a local technical check
+as release approval. If the owner later reopens this lane, a new exact acceptance notice will replace
+this section.
 
-**Cầu nối** là chương trình nhỏ chạy nền trên máy bạn. Nó là chỗ **duy nhất trong cả hệ thống** mở
-được mật khẩu nick — máy chủ không mở được, kể cả ADMIN ngồi trên máy chủ cũng không.
+The detailed posting steps below are retained as historical reference and are **not** a current team
+workflow. Reddit/Facebook posting remains withdrawn, and TikTok posting remains parked.
 
-Ba việc bắt buộc phải có cầu nối đang chạy:
+### Browser installation gate (P4b; not the deployed P4a Web gate)
 
-1. Lấy mật khẩu / mã OTP của nick
-2. Mở profile antidetect
-3. Tạo hoặc sửa nick **có nhập bí mật mới**
+The current candidate is MKT Browser `0.3.23` with bundled Relay v17. It is technically published to
+the compatibility channel but remains **HOLD / NO-GO for operator promotion**. The accepted `0.3.17`
+/ Relay `17` tuple is historical evidence only; it is not a current team package. Exact CFT activation,
+managed Relay/proxy lifecycle, machine integration, unfamiliar-operator, second-PC, SmartScreen/UAC,
+seven-day canary, and credential follow-up gates remain open.
 
-Mọi việc khác vẫn chạy bình thường khi cầu nối tắt — kể cả sửa karma, trạng thái, proxy của nick.
+Ordinary team operators must not self-install Browser, open the Windows installer route, download an
+old Relay/Browser package, or copy local keys/tokens by hand. The `/setup` page is the current
+Relay-first Web handoff; Browser technical checks are separate and do not determine workspace
+readiness. See [team-ready-rollout.md](team-ready-rollout.md) and [internal-beta-release.md](internal-beta-release.md)
+for the authoritative boundary.
 
-> Your PC must be registered before it can receive a ticket. `/setup` shows the local readiness and
-> enrollment state. Browser/Relay rollout remains NO-GO for the separate Browser gates; the owner may
-> self-serve reinstall the approved package on the two owner machines only when an approved
-> installer receipt is available. Do not download an
-> old Relay ZIP, run a legacy `setup.bat`, or copy local keys/tokens by hand.
-
-**Bản 0.3.17 sẽ bỏ bước mở cầu nối bằng tay — nhưng chưa tới máy bạn.** Mục này mô tả thứ đang
-cài trên máy hiện giờ, và nó vẫn đúng cho tới khi có thông báo bàn giao. Khi 0.3.17 tới, mở MKT
-Browser là đủ: nó tự kiểm và khởi động cầu nối đã cài của chính bạn, giữ profile chạy dưới khay
-đồng hồ khi bạn đóng cửa sổ quản lý, và tự chạy khi bạn đăng nhập Windows. Đóng hẳn thì dùng
-**Quit MKT Browser** trong khay — cầu nối vẫn ở lại để mở mật khẩu nick. Đừng đi tìm cách tự bật
-cầu nối trước; nếu nó không lên, công cụ sẽ nói lý do chứ không im lặng.
->
-> Nếu bạn có **hai máy** trong sổ, công cụ sẽ hỏi bạn đang ngồi máy nào trước khi bấm. Chọn đúng —
-> chọn sai là phát ra một tấm vé chắc chắn hỏng, phải làm lại.
-
-### Current Browser installation gate (P4b; not the deployed P4a Web gate)
-
-The current candidate is MKT Browser `0.3.17` with bundled Relay v17. It remains a **draft, not
-published**, until the exact installer/provenance and release-authority gates close. It passed
-clean-VM install, signed activation, profile/proxy lifecycle, repair, uninstall and independent
-Relay retention on 9 September 2026; acceptance on a real physical PC is still **OPEN**, so
-publication stays on HOLD. A VM pass is not a delivery.
-
-Earlier candidates `0.3.13` through `0.3.16` were each rejected on an observed defect and must not
-be reused. The `0.3.12`/v15 installer is quarantined historical evidence and must not be patched.
-
-Open `/setup`, confirm the detected PC, and wait for ADMIN approval/key delivery. Download only a
-complete installer tuple shown there; if metadata is missing, the control must remain disabled and
-show **unpublished**. A technical-check result is not identity or production approval. Operators
-must never handle Relay/MCP tokens, ports, archives, checksums, raw operator keys, profile folders,
-or `.env` values.
-
-The beta does not authorize unattended automation or broad Reddit/TikTok real-account rollout. Keep
-one profile active at a time. If a proxy, engine, contract, metadata, or licence check is not
-available, stop and contact ADMIN instead of opening another profile or changing the proxy locally.
-
-### Bốn bước đăng một bài
+### Historical posting flow (not rollout instructions)
 
 **Bước 1 — Bấm "Mở profile"** ngay trên dòng job ở thẻ "Đăng tay". It sends the signed ticket
 through Relay, verifies the assigned proxy path, and opens MKT Browser. Không phải sang trang nick
@@ -443,9 +435,9 @@ hướng khác.
 Windows, nhưng đường kiểm license không có đường lui nên chết, và báo "không tới được máy chủ".
 Người đọc sẽ đi kiểm mạng và kiểm khóa — cả hai đều đang đúng, nên bế tắc.
 
-**Cách xử:** use the current reviewed desktop candidate (`0.3.17` once it is delivered).
-Builds before `0.3.4` had the firewall defect; the quarantined `0.3.12` package is not a rollout
-substitute.
+**Cách xử:** do not self-install a Browser package. The current `0.3.23` candidate is on HOLD and
+the accepted `0.3.17` package is historical evidence only. Builds before `0.3.4` had the firewall
+defect; the quarantined `0.3.12` package is not a rollout substitute.
 
 Đóng profile **bằng nút trong ứng dụng**, đừng tắt cứng — tắt cứng để lại phiên treo và mã 76.
 Gói free chỉ **1 phiên**, nên một lần tắt cứng là khoá cả người khác lẫn chính mình trong 10–15 phút.

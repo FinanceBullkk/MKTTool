@@ -1,5 +1,16 @@
 # Project changelog
 
+## 2026-09-13 - Team Web handoff boundary clarified
+
+- Mark the MKTTool Web shared-workspace surface (`nick` vault, proxy ownership, Relay PC registry,
+  and Relay-first setup) as the controlled internal team handoff.
+- Keep Reddit/Facebook posting, TikTok posting, and ordinary-operator Browser distribution outside
+  the handoff even though the parked routes and historical implementation remain in the repository.
+- Mark Browser `0.3.23` promotion `HOLD / NO-GO`; retain the accepted `0.3.17` / Relay `17` tuple as
+  historical evidence only because the current source and deployment approval are not the same tuple.
+- Add the current [team-ready rollout guide](team-ready-rollout.md) and require the owner to confirm
+  the actual `ALLOWED_EMAILS` roster before onboarding people.
+
 ## 2026-09-13 - Exact installer lifecycle and credential follow-up
 
 - Verify exact Browser 0.3.23 installer clean `9/9`, repair `13/13`, and uninstall `15/15` on the
