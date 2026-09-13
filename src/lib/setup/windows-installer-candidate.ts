@@ -1,7 +1,7 @@
 /** Reviewed profile-manager candidate; changing this tuple requires a new release freeze. */
 export const WINDOWS_INSTALLER_CANDIDATE = Object.freeze({
-  id: "20260913-browser-0.3.22-relay-17-upgrade-cache-guard-cft",
-  browserVersion: "0.3.22",
+  id: "20260913-browser-0.3.23-relay-17-relay-payload-hash-fix-cft",
+  browserVersion: "0.3.23",
   relayVersion: 17,
   relaySha256: "d8bf25dcb446d779bd5461419ea7562044e280ac1d16592a71a52f156f6359cf",
   relaySizeBytes: 34289393,
