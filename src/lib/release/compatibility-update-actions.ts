@@ -8,7 +8,10 @@ import { buildProxyConfig } from "@/lib/antidetect/proxy-config-builder";
 import { AUDIT_ACTIONS } from "@/lib/audit/audit-log-actions";
 import { adminAction } from "@/lib/auth/guarded-action";
 import { prisma } from "@/lib/db/prisma-client";
-import { readRelayCompatibilityRelease } from "@/lib/relay/relay-compatibility-manifest-file";
+import {
+  compatibilitySequenceForFrom,
+  readRelayCompatibilityRelease,
+} from "@/lib/relay/relay-compatibility-manifest-file";
 import { RELAY_VERSION } from "@/lib/relay/relay-endpoints";
 import { issueTicket } from "@/lib/tickets/ticket-issuer";
 import { loadServerSigningKeys } from "@/lib/tickets/server-signing-key";
@@ -24,6 +27,7 @@ import { signedManifestDigest } from "./compatibility-manifest-crypto";
 
 const requestSchema = z.object({
   deviceId: z.string().min(1, "Device is required."),
+  currentSequence: z.coerce.number().int().nonnegative().default(0),
   repairMissingState: z.enum(["true", "false"]).default("false").transform((value) => value === "true"),
   expectedTargetSequence: z.coerce.number().int().positive("Target sequence is required."),
 });
@@ -57,7 +61,10 @@ export const issueCompatibilityUpdateTicket = adminAction(
           select: { id: true, name: true, publicKey: true, revokedAt: true },
         }),
         prisma.observerProxy.findUnique({ where: { label } }),
-        readRelayCompatibilityRelease(RELAY_VERSION),
+        readRelayCompatibilityRelease(
+          RELAY_VERSION,
+          compatibilitySequenceForFrom(parsed.data.currentSequence),
+        ),
       ]);
       if (!device) return { ok: false, message: "This PC is not registered." };
       if (device.revokedAt) {

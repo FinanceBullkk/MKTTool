@@ -1,5 +1,8 @@
 import { machineRoute } from "@/lib/auth/guarded-route";
-import { compatibilityArtifactAuthorizationMatches } from "@/lib/release/compatibility-update-authorization";
+import {
+  compatibilityArtifactAuthorizationMatches,
+  compatibilityArtifactAuthorizationSequence,
+} from "@/lib/release/compatibility-update-authorization";
 import { readRelayCompatibilityArtifactSource } from "@/lib/relay/relay-compatibility-artifact-source";
 import { readRelayCompatibilityRelease } from "@/lib/relay/relay-compatibility-manifest-file";
 import {
@@ -27,17 +30,23 @@ export const GET = machineRoute(isAuthorizedArtifactRequest, async (request, con
 
   try {
     const kind = kindText as RelayCompatibilityArtifactKind;
-    const release = await readRelayCompatibilityRelease(version);
+    const authorizationSequence = compatibilityArtifactAuthorizationSequence(
+      request.headers.get("authorization"),
+      { serverPublicKeyHex: loadServerSigningKeys().publicKeyHex, requestPath },
+    );
+    if (authorizationSequence === null) return new Response("Unauthorized compatibility artifact.", { status: 401 });
+    const release = await readRelayCompatibilityRelease(version, authorizationSequence);
     const artifact = artifactForKind(release.manifest.manifest.artifacts, kind);
     if (new URL(artifact.url).pathname !== requestPath) {
       return new Response("The signed manifest does not authorize this artifact path.", {
         status: 404,
       });
     }
-    const sequence = release.manifest.manifest.sequence;
-    const source = sequence === undefined
-      ? await readRelayCompatibilityArtifactSource(version, kind, artifact)
-      : await readRelayCompatibilityArtifactSource(version, kind, artifact, sequence);
+    const manifestSequence = release.manifest.manifest.sequence;
+    const source =
+      typeof manifestSequence === "number"
+        ? await readRelayCompatibilityArtifactSource(version, kind, artifact, manifestSequence)
+        : await readRelayCompatibilityArtifactSource(version, kind, artifact);
     return new Response(await source.open(), {
       headers: {
         "cache-control": "private, immutable, max-age=31536000",

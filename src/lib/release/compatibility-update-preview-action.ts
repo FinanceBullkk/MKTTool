@@ -5,11 +5,15 @@ import { firstError, formToObject } from "@/lib/accounts/vault-form-schemas";
 import type { ActionResult } from "@/lib/actions/action-result";
 import { adminAction } from "@/lib/auth/guarded-action";
 import { prisma } from "@/lib/db/prisma-client";
-import { readRelayCompatibilityRelease } from "@/lib/relay/relay-compatibility-manifest-file";
+import {
+  compatibilitySequenceForFrom,
+  readRelayCompatibilityRelease,
+} from "@/lib/relay/relay-compatibility-manifest-file";
 import { RELAY_VERSION } from "@/lib/relay/relay-endpoints";
 
 const requestSchema = z.object({
   deviceId: z.string().min(1, "Device is required."),
+  currentSequence: z.coerce.number().int().nonnegative().default(0),
 });
 
 export interface CompatibilityUpdatePreviewResult extends ActionResult {
@@ -33,7 +37,10 @@ export const previewCompatibilityUpdate = adminAction(
           where: { id: parsed.data.deviceId },
           select: { revokedAt: true },
         }),
-        readRelayCompatibilityRelease(RELAY_VERSION),
+        readRelayCompatibilityRelease(
+          RELAY_VERSION,
+          compatibilitySequenceForFrom(parsed.data.currentSequence),
+        ),
       ]);
       if (!device) return { ok: false, message: "This PC is not registered." };
       if (device.revokedAt) {

@@ -102,6 +102,31 @@ export function compatibilityArtifactAuthorizationMatches(
   }
 }
 
+export function compatibilityArtifactAuthorizationSequence(
+  header: string | null,
+  options: { serverPublicKeyHex: string; requestPath: string; now?: Date },
+): number | null {
+  try {
+    const authorization = parseCompatibilityArtifactAuthorization(header, options);
+    return authorization?.sequence ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function parseCompatibilityArtifactAuthorization(
+  header: string | null,
+  options: { serverPublicKeyHex: string; requestPath: string; now?: Date },
+): CompatibilityUpdateAuthorization | null {
+  const prefix = `${COMPATIBILITY_ARTIFACT_AUTHORIZATION_SCHEME} `;
+  if (!header?.startsWith(prefix)) return null;
+  const input = JSON.parse(Buffer.from(header.slice(prefix.length), "base64url").toString("utf8"));
+  const authorization = parseAndVerify(input, options.serverPublicKeyHex);
+  validateTimes(authorization, options.now ?? new Date(), false);
+  if (!authorization.authenticatedArtifactPaths.includes(options.requestPath)) return null;
+  return authorization;
+}
+
 function parseAndVerify(
   input: unknown,
   serverPublicKeyHex: string,

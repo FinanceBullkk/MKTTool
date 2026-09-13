@@ -19,7 +19,9 @@ import { relayDeviceLocality } from "@/lib/relay/relay-device-locality";
 import { RelayCompatibilityUpdateConfirmation } from "./relay-compatibility-update-confirmation";
 
 type ConfirmationPlan = Extract<CompatibilityUpdatePlan, { status: "confirm" }>;
-type Inspection = { result: ActionResult } | { plan: ConfirmationPlan };
+type Inspection =
+  | { result: ActionResult }
+  | { plan: ConfirmationPlan; currentSequence: number };
 
 export function RelayCompatibilityUpdateButton({
   deviceId,
@@ -56,6 +58,7 @@ export function RelayCompatibilityUpdateButton({
 
     const previewForm = new FormData();
     previewForm.set("deviceId", deviceId);
+    previewForm.set("currentSequence", String(local.compatibilityUpdate?.currentSequence ?? 0));
     const preview = await previewCompatibilityUpdate(null, previewForm);
     if (
       !preview.ok ||
@@ -80,7 +83,7 @@ export function RelayCompatibilityUpdateButton({
       },
     });
     return plan.status === "confirm"
-      ? { plan }
+      ? { plan, currentSequence: local.compatibilityUpdate?.currentSequence ?? 0 }
       : { result: { ok: plan.status === "current", message: plan.message } as ActionResult };
   }
 
@@ -131,6 +134,7 @@ export function RelayCompatibilityUpdateButton({
 
         const form = new FormData();
         form.set("deviceId", deviceId);
+        form.set("currentSequence", String(inspected.currentSequence));
         form.set("repairMissingState", String(plan.repairMissingState));
         form.set("expectedTargetSequence", String(plan.targetSequence));
         const issued = await issueCompatibilityUpdateTicket(null, form);

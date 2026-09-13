@@ -23,6 +23,7 @@ import {
 import { readRelayRelease, readRelayReleaseFromDisk, relayReleaseDir } from "./relay-release-file";
 
 export const RELAY_COMPATIBILITY_MANIFEST_NAME = "MKTTool-Relay.compatibility.json";
+export const RELAY_COMPATIBILITY_SEQUENCE_BY_FROM_ENV = "RELAY_COMPATIBILITY_SEQUENCE_BY_FROM";
 const MAX_MANIFEST_BYTES = 1024 * 1024;
 
 export function relayCompatibilityManifestPath(): string {
@@ -49,10 +50,11 @@ export async function readRelayCompatibilityManifest(
 
 export async function readRelayCompatibilityRelease(
   version: number,
+  requestedSequence?: number,
 ): Promise<RelayCompatibilityRelease> {
   const config = readRelayReleaseR2Config();
   if (!config) return readRelayCompatibilityReleaseFromDisk(version);
-  const sequence = activeCompatibilitySequence();
+  const sequence = requestedSequence ?? activeCompatibilitySequence();
   const [manifestBody, release] = await Promise.all([
     openRelayCompatibilityManifest(config, version, undefined, sequence),
     readRelayRelease(version),
@@ -62,6 +64,37 @@ export async function readRelayCompatibilityRelease(
     manifest: verifyRelayManifest(await streamJson(manifestBody), version, release, revocations),
     revocations,
   };
+}
+
+/** Select the signed target that can legally transition from a device's current state. */
+export function compatibilitySequenceForFrom(fromSequence: number): number {
+  if (!Number.isSafeInteger(fromSequence) || fromSequence < 0) {
+    throw new Error("The current compatibility sequence is invalid.");
+  }
+  const raw = process.env[RELAY_COMPATIBILITY_SEQUENCE_BY_FROM_ENV]?.trim();
+  if (raw) {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      throw new Error(`${RELAY_COMPATIBILITY_SEQUENCE_BY_FROM_ENV} must be valid JSON.`);
+    }
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      throw new Error(`${RELAY_COMPATIBILITY_SEQUENCE_BY_FROM_ENV} must be a JSON object.`);
+    }
+    const value = (parsed as Record<string, unknown>)[String(fromSequence)];
+    if (value !== undefined) {
+      if (typeof value !== "number" || !Number.isSafeInteger(value) || value <= 0) {
+        throw new Error(`${RELAY_COMPATIBILITY_SEQUENCE_BY_FROM_ENV} contains an invalid target.`);
+      }
+      return value;
+    }
+  }
+  const fallback = activeCompatibilitySequence();
+  if (fallback === undefined) {
+    throw new Error("No compatibility target is configured for this current sequence.");
+  }
+  return fallback;
 }
 
 function activeCompatibilitySequence(): number | undefined {
