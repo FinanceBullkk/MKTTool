@@ -135,6 +135,18 @@ describe("complete compatibility publication preflight", () => {
     expect(remote.storage.putObject).toHaveBeenCalledTimes(5);
   });
 
+  it("accepts an R2 HEAD that reports zero content length after full byte verification", async () => {
+    const objects = prepareCompatibilityPublication(fixture.args).objects;
+    const manifest = objects.at(-1)!;
+    remote.objects.set(manifest.key, {
+      body: manifest.body,
+      info: { sizeBytes: 0, lastModified: PUBLICATION_TEST_NOW, metadata: manifest.metadata },
+    });
+    await publish();
+    expect(remote.storage.putObject).toHaveBeenCalledTimes(objects.length - 1);
+    expect(remote.storage.getObject).toHaveBeenCalled();
+  });
+
   it("publishes the verified bytes even if local files are replaced during remote preflight", async () => {
     const objects = prepareCompatibilityPublication(fixture.args).objects;
     remote.storage.headObject.mockImplementationOnce(async () => {

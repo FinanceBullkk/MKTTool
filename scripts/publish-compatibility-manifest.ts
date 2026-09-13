@@ -61,7 +61,9 @@ async function verifyExistingObject(
   const existing = await storage.headObject({ config, key: object.key });
   if (!existing) return false;
   if (
-    existing.sizeBytes !== object.body.length ||
+    // R2 can return content-length 0 for a HEAD response even when the object is non-empty.
+    // The mandatory full GET below remains authoritative for bytes and size in that case.
+    (existing.sizeBytes !== 0 && existing.sizeBytes !== object.body.length) ||
     Object.entries(object.metadata).some(([name, value]) => existing.metadata[name] !== value)
   ) {
     throw new Error(`Immutable compatibility object ${object.key} already exists with different bytes or metadata.`);
