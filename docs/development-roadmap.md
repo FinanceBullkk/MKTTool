@@ -30,6 +30,12 @@ was weakened.
 Machine-integration, unfamiliar-operator, second physical PC, seven-day canary, and unsigned
 SmartScreen/UAC acceptance remain OPEN. Operator promotion is **NO-GO**.
 
+Security follow-up: a diagnostic Railway variable listing exposed production secrets in tool output.
+The release-download token was rotated, synchronized to Windows User scope, and verified by a fresh
+full GET/hash; old inherited shell environments still fail HTTP 401 until refreshed. Other exposed
+credentials have not been fully inventoried or rotated. This remains OPEN; vault/signing keys require
+coordinated data/device-trust preservation, not arbitrary replacement.
+
 Sequence 24 remains intentionally scoped to active sequence 21, while sequence 25 is the signed
 fresh-install target for sequence 0. This closes manifest selection coverage only; it does not close
 exact CFT activation or clean-VM acceptance.

@@ -1,5 +1,17 @@
 # Project changelog
 
+## 2026-09-13 - Exact installer lifecycle and credential follow-up
+
+- Verify exact Browser 0.3.23 installer clean `9/9`, repair `13/13`, and uninstall `15/15` on the
+  restored Defender-enabled VM. Correct the local PowerShell 5.1 wrapper to retain the process
+  handle before waiting; all three later bound receipts have exit 0. Prior wrapper failures remain.
+- Keep real CFT activation, managed Relay/proxy lifecycle, frozen-source quality receipt, machine
+  integration, human/hardware/canary, and full release acceptance OPEN. Do not promote the candidate.
+- Rotate the Relay release-download token after a diagnostic output exposure. Verify old inherited
+  credentials return 401 and refreshed User-scope credentials download exact v17 bytes over HTTP 200.
+- Record remaining production-credential exposure as OPEN. Inventory and coordinated rotation are
+  still required, particularly for encryption and signing keys with data/device dependencies.
+
 ## 2026-09-13 - Browser 0.3.23 compatibility publication
 
 - Cut Browser `0.3.23` / Relay `17` candidate with byte-identical independent builds and the real
