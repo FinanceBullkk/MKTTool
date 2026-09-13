@@ -1,25 +1,30 @@
 # Lộ trình phát triển
 
-**Updated:** 10 September 2026
+**Updated:** 13 September 2026
 
-## Browser 0.3.22 closeout - 13 September 2026
+## Browser 0.3.23 release-readiness - 13 September 2026
 
-The Relay download token was rotated and synchronized between Railway production and the Windows
-build scope. An authenticated v17 request now returns HTTP 200, and the pinned Relay archive was
-fetched over HTTPS and verified by size and SHA-256. The real CFT archive is present and its
-executable reports `152.0.7977.64`; a direct headless smoke still has an OPEN Windows sandbox/session
-exit issue, so it is not first-run acceptance.
+Candidate `20260913-browser-0.3.23-relay-17-relay-payload-hash-fix-cft` is built from Browser commit
+`b0b5c8f` and MKTTool commit `cc29725`. Independent Build A/B normalized payloads are identical
+(129 files; `app.asar` 51,770,195 bytes). The retained installer is 146,056,721 bytes with SHA-256
+`a0adfcc0727bd2241d32cad426e06931f64836d1e1f44786f0eb9a46504ba549`.
 
-A signed sequence-22 manifest for Browser 0.3.22 was prepared against the exact candidate bytes, but
-publication stopped before any write because the immutable Relay-v17 artifact namespace already holds
-different Browser 0.3.17 bytes. Browser 0.3.22 remains unpublished and unpromoted. Resolve this by
-either cutting Relay 18 or introducing reviewed candidate/sequence-scoped compatibility artifact keys
-and routes. Keep the cached Relay archive as emergency fallback only.
+The retained evidence does not include a frozen-source 0.3.23 seven-command quality receipt, so the
+full local-quality gate stays **OPEN**. Targeted route, manifest, and candidate-contract tests pass;
+this distinction is intentional.
 
-The current product decisions are: an upgrade preserves engine cache while uninstall removes it and
-retains operator data; the machine-integration check belongs on a real exact-installer VM fixture,
-but moving the label alone does not close coverage. Same-host VM, unfamiliar-operator, second-PC and
-seven-day canary evidence remain separate OPEN gates.
+The signed compatibility set is published with immutable sequence-scoped keys. Sequence 23 is the
+newer set from sequence 22; sequence 24 contains the same exact bytes and provides a direct transition
+from the operator-approved sequence 21. R2 objects and live routes pass full size/SHA-256 read-back;
+the Relay build token was synchronized and `/api/relay/download/v17` now returns HTTP 200 with the
+pinned Relay bytes. Cached archive remains emergency fallback only.
+
+The product decision remains: upgrade preserves engine cache; uninstall removes engine cache and
+retains operator data. Exact CFT first-run, signed activation, packaged Relay lifecycle, proxy
+failure/recovery, and clean-VM acceptance are still **OPEN**. The current VM has a measured UTC clock
+drift and the host has insufficient free RAM for a safe 4 GiB guest run; no gate was weakened.
+Machine-integration, unfamiliar-operator, second physical PC, seven-day canary, and unsigned
+SmartScreen/UAC acceptance remain OPEN. Operator promotion is **NO-GO**.
 
 ## Quality review repairs - 10 September 2026
 

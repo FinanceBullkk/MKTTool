@@ -1,5 +1,18 @@
 # Project changelog
 
+## 2026-09-13 - Browser 0.3.23 compatibility publication
+
+- Cut Browser `0.3.23` / Relay `17` candidate with byte-identical independent builds and the real
+  CFT `152.0.7977.64` archive.
+- Publish signed immutable compatibility sequences 23 and 24. Sequence 24 provides the direct
+  migration path from the operator-approved sequence 21; no existing object was overwritten.
+- Synchronize the Relay build token and verify full live HTTP GET/hash read-back for Relay v17 and
+  all five sequence-23 compatibility artifacts. Keep operator promotion **NO-GO** pending exact
+  CFT activation and clean-VM acceptance.
+- Record product behavior: upgrade preserves engine cache; uninstall removes engine cache while
+  retaining operator/profile data. Machine-integration, unfamiliar-operator, second-PC, canary,
+  and unsigned SmartScreen/UAC evidence remain open.
+
 ## 2026-09-10 - Quality review source repairs
 
 - Contain malformed Relay request targets and asynchronous page failures without terminating or

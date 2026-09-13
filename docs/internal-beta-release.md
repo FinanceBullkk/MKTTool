@@ -1,10 +1,24 @@
 # Internal beta boundary
 
-**Updated:** 10 September 2026
+**Updated:** 13 September 2026
 **Status:** shared vault, proxy ownership, Relay PC operations, and the exact Browser `0.3.17` /
 Relay `17` Windows x64 tuple are approved for controlled internal use. Lane C is **CLOSED**. The
 earlier Web/Facebook CONDITIONAL GO remains a technical record, subject to the platform withdrawal
 below.
+
+## Current Browser candidate - 13 September 2026
+
+Candidate `20260913-browser-0.3.23-relay-17-relay-payload-hash-fix-cft` is technically packaged and
+published to the authenticated compatibility channel, but is **not operator-promoted**. It retains
+the exact approved Relay v17 and CFT `152.0.7977.64` bytes while fixing the Relay payload hash path.
+Sequence 24 is the direct migration path for installations currently on sequence 21; sequence 23 is
+retained for devices already on sequence 22.
+
+Live manifest/artifact routes return HTTP 200 and all read-back hashes match. This does not close
+exact CFT first-run, signed activation, proxy failure/recovery, or exact clean-VM acceptance: the
+latest VM evidence is blocked by measured clock drift and host resource limits. Do not distribute
+the 0.3.23 installer until those gates pass. Unfamiliar operator, second-PC, seven-day canary,
+machine-integration, and unsigned SmartScreen/UAC evidence remain OPEN.
 
 ## Accepted direction - 8 September 2026
 
