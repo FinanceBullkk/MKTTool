@@ -26,6 +26,10 @@ drift and the host has insufficient free RAM for a safe 4 GiB guest run; no gate
 Machine-integration, unfamiliar-operator, second physical PC, seven-day canary, and unsigned
 SmartScreen/UAC acceptance remain OPEN. Operator promotion is **NO-GO**.
 
+Sequence 24 is intentionally a migration manifest for active sequence 21. Fresh sequence-0 installs
+need a separately selected transition manifest (or reviewed multi-transition update design); do not
+use sequence 24 as universal fresh-install evidence.
+
 ## Quality review repairs - 10 September 2026
 
 The source repair pass hardens Relay request failures, profile completion and PC assignment during
