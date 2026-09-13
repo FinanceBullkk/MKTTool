@@ -34,7 +34,7 @@ assigned Relay PC**. This is an ownership/control rule, not identity evidence.
 |---|---|---|
 | Production health | `PASS` — HTTP 200, `status=ready` | `https://mkttool-web-production.up.railway.app/api/healthz` checked 13 September 2026 |
 | Dependencies | `PASS` — database, release metadata, and R2 all `ok` | Same health response |
-| Deployment | `PASS` — MKTTool `8a41e263f6f2439883d2f3052bb21c7f0df3509f` | `master` equals `origin/master` |
+| Deployment | `PASS` — MKTTool `4f8f78b69b42dfce422f493b9a5d796aec0b0e46` | `master` equals `origin/master`; Railway deployment verified 13 September 2026 |
 | Relay release | `PASS` — v17 route and byte read-back verified | Authenticated release evidence |
 | Team allowlist | `OPEN` until the final roster is confirmed | Do not infer or expand the roster from existing configuration |
 
