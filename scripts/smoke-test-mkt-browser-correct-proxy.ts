@@ -420,13 +420,17 @@ async function main(): Promise<void> {
     password: proxy.password ?? "",
   });
   if (independent.kind !== "ok") {
-    throw new Error(`The independent proxy probe failed (${independent.kind}).`);
+    // Carry the probe detail: "unreachable" alone cannot separate a dead proxy from a rejected
+    // credential, and the outer handler redacts host/user/password before printing.
+    throw new Error(`The independent proxy probe failed (${independent.kind}): ${independent.detail}`);
   }
   addSensitive(independent.ip);
 
   const direct = await probeDirectExitIp();
   if (direct.kind !== "ok") {
-    throw new Error(`The direct-IP baseline probe failed (${direct.kind}); distinct egress is unverified.`);
+    throw new Error(
+      `The direct-IP baseline probe failed (${direct.kind}): ${direct.detail}; distinct egress is unverified.`,
+    );
   }
   addSensitive(direct.ip);
   if (direct.ip.toLowerCase() === independent.ip.toLowerCase()) {
