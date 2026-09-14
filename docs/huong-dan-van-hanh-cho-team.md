@@ -426,7 +426,7 @@ hướng khác.
 | Mã | Nghĩa thật | Làm gì |
 |---|---|---|
 | **76** | The selected licence key has no free session | Close the running profile and wait for the single-seat hold to clear; do not open a second profile or rotate keys locally |
-| **77** | Khóa license thiếu, sai, hoặc hết hạn | Kiểm lại khóa ở Cài đặt |
+| **77** | Khóa license thiếu, sai, hoặc hết hạn | Kiểm lại khóa ở Cài đặt. Khóa là **của riêng bạn** — tự đăng ký ở cloakbrowser.dev/free, đừng mượn của người khác |
 | **78** | **Không tra được tên miền của máy chủ license** | Gần như luôn là tường lửa chặn UDP 53, không phải mạng hỏng và không phải khóa sai. Xem dưới |
 | **79** | Không ghi được trạng thái license dưới máy | Kiểm quyền thư mục |
 
@@ -440,7 +440,12 @@ the accepted `0.3.17` package is historical evidence only. Builds before `0.3.4`
 defect; the quarantined `0.3.12` package is not a rollout substitute.
 
 Đóng profile **bằng nút trong ứng dụng**, đừng tắt cứng — tắt cứng để lại phiên treo và mã 76.
-Gói free chỉ **1 phiên**, nên một lần tắt cứng là khoá cả người khác lẫn chính mình trong 10–15 phút.
+Gói free chỉ **1 phiên**, nên một lần tắt cứng là tự khoá mình 10–15 phút.
+
+> **Mỗi người một khóa riêng.** Bản cài không kèm khóa nào; mỗi người tự đăng ký ở
+> `cloakbrowser.dev/free` rồi dán vào Cài đặt, và khóa nằm trên máy người đó. Dùng chung một khóa
+> nghĩa là dùng chung đúng một phiên: người kia mở profile là bạn ăn mã 76, và mã 76 **trông y hệt
+> một lần crash**. Nửa buổi đi tìm lỗi phần mềm không tồn tại.
 
 ---
 
