@@ -123,6 +123,42 @@ export async function provisionDisposableWebRtcFirewall(options: {
   return cleanup;
 }
 
+/**
+ * The app starts a Relay companion of its own, and killing the browser leaves it running - which
+ * then fails the next gate's live-machine precondition. Ownership is decided by identity, never by
+ * name: only a companion that was not there before this run is stopped.
+ */
+export async function listRelayCompanionPids(options: { run?: RunPowerShell } = {}): Promise<number[]> {
+  const run = options.run ?? runPowerShell;
+  const output = await run(
+    "$ErrorActionPreference='Stop'; @(Get-CimInstance Win32_Process -Filter \"Name='MKTTool-Relay.exe'\" " +
+      "| Select-Object -ExpandProperty ProcessId) -join ','",
+    { NODE_ENV: process.env.NODE_ENV, SystemRoot: process.env.SystemRoot, WINDIR: process.env.WINDIR,
+      PATH: process.env.PATH, PSModulePath: process.env.PSModulePath },
+  );
+  return output.split(",").map((value) => Number(value.trim())).filter((value) => Number.isInteger(value) && value > 0);
+}
+
+export async function stopRelayCompanionsStartedSince(
+  before: readonly number[],
+  options: { run?: RunPowerShell } = {},
+): Promise<number[]> {
+  const now = await listRelayCompanionPids(options);
+  const started = now.filter((pid) => !before.includes(pid));
+  if (!started.length) return [];
+  const run = options.run ?? runPowerShell;
+  await run(
+    "$ErrorActionPreference='Stop'; foreach($id in $env:MKT_RELAY_PIDS.Split(',')){" +
+      "$p=Get-Process -Id ([int]$id) -ErrorAction SilentlyContinue; if($null -eq $p){continue}; " +
+      "if($p.Name -ne 'MKTTool-Relay'){throw 'relay-identity-changed'}; $p.Kill(); " +
+      "if(-not $p.WaitForExit(10000)){throw 'relay-still-running'}}",
+    { NODE_ENV: process.env.NODE_ENV, SystemRoot: process.env.SystemRoot, WINDIR: process.env.WINDIR,
+      PATH: process.env.PATH, PSModulePath: process.env.PSModulePath,
+      MKT_RELAY_PIDS: started.join(",") },
+  );
+  return started;
+}
+
 export async function stopOwnedSmokeProcesses(options: {
   root: string; browserExe: string; run?: RunPowerShell;
 }): Promise<void> {

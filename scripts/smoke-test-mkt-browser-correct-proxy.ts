@@ -50,8 +50,9 @@ import {
   parseCftSmokeOptions, stageCftRuntime, type CftSmokeOptions,
 } from "./mkt-browser-cft-smoke-runtime";
 import {
-  assertThrowawayVirtualBoxGuest, cleanupContainedSmoke, provisionDisposableWebRtcFirewall,
-  type SmokeEngine, stopOwnedSmokeProcesses,
+  assertThrowawayVirtualBoxGuest, cleanupContainedSmoke, listRelayCompanionPids,
+  provisionDisposableWebRtcFirewall, type SmokeEngine, stopOwnedSmokeProcesses,
+  stopRelayCompanionsStartedSince,
 } from "./mkt-browser-cft-smoke-firewall";
 
 const DEFAULT_LABEL = "MKB-00 TEST";
@@ -559,12 +560,16 @@ async function main(): Promise<void> {
   let removeFirewall: (() => Promise<void>) | null = null;
   let originalFailure: unknown;
   let relayHome: string | null = null;
+  let relayCompanionsBefore: number[] = [];
 
   try {
     const port = await allocateLoopbackPort();
     if (options.installedRoot) {
       // Nothing is staged: the installed engine, its settings and the installer's containment rule
       // are the subject of this run, not something the gate arranges around it.
+      // The app starts its own Relay companion. Note which ones predate this run so cleanup can
+      // stop exactly the one it caused and leave anything the operator was already running.
+      relayCompanionsBefore = await listRelayCompanionPids();
       console.log("Driving the installed MKT Browser root; nothing is staged around it.");
     } else if (options.cft) {
       const executable = await stageCftRuntime(dataRoot, options.cft);
@@ -724,7 +729,11 @@ async function main(): Promise<void> {
       // would delete the product's own data. Installed-root runs close the browser they started
       // and stop there; the guest snapshot is what gets discarded.
       await cleanupContainedSmoke(options.installedRoot ? {
-        stopAndVerify: async () => { await stopStartedBrowser(child); },
+        stopAndVerify: async () => {
+          await stopStartedBrowser(child);
+          const stopped = await stopRelayCompanionsStartedSince(relayCompanionsBefore);
+          if (stopped.length) console.log(`Stopped ${stopped.length} Relay companion(s) this run started.`);
+        },
         removeFirewall: async () => {},
         removeRoot: async () => { if (relayHome) await removeDisposableRoot(relayHome); },
       } : {
