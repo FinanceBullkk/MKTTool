@@ -9,7 +9,8 @@ import {
   assertCftEvidence, buildBrowserEnvironment, exerciseSignedProfileLifecycle, parseCftSmokeOptions, stageCftRuntime,
 } from "./mkt-browser-cft-smoke-runtime";
 import {
-  assertDisposableVmFirewallHost, CFT_RULE_DISPLAY_NAME, cleanupContainedSmoke, webRtcRuleDisplayName,
+  assertDisposableVmFirewallHost, assertThrowawayVirtualBoxGuest, CFT_RULE_DISPLAY_NAME,
+  cleanupContainedSmoke, webRtcRuleDisplayName,
   provisionDisposableWebRtcFirewall, stopOwnedSmokeProcesses,
 } from "./mkt-browser-cft-smoke-firewall";
 
@@ -44,9 +45,9 @@ describe("correct-proxy smoke authorization path", () => {
   it("covers staging and spawn failures with the same cleanup and issues fresh signed launch tickets", () => {
     expect(source).toMatch(/try \{\s+const port = await allocateLoopbackPort\(\)/);
     expect(source).toContain('child!.once("error"');
-    expect(source).toContain("await cleanupContainedSmoke({");
+    expect(source).toContain("await cleanupContainedSmoke(options.installedRoot ? {");
     expect(source).toContain("stopOwnedSmokeProcesses({ root: dataRoot, browserExe: options.browserExe })");
-    expect(source).toContain("removeRoot: () => removeDisposableRoot(dataRoot)");
+    expect(source).toContain("await removeDisposableRoot(dataRoot);");
     expect(source).toMatch(/launch: async \(unavailableProxy\) =>[\s\S]*const ticket = issueTicket\(/);
     expect(source).toContain("expectedOperationId: envelope.jti");
     expect(source).toContain("Original smoke failure: ${originalFailure.message}");
@@ -143,6 +144,55 @@ describe("CFT disposable physical staging", () => {
 const vmState = { model: "VirtualBox", manufacturer: "Oracle Corporation", existingRuleCount: 0, firewallEnabled: true };
 const firewallRoot = path.resolve("synthetic-owned-root");
 const firewallExe = path.join(firewallRoot, "chromium", "cft", "runtime", "chrome.exe");
+
+describe("installed-root gate safety", () => {
+  const guest = JSON.stringify({ manufacturer: "Oracle Corporation", model: "VirtualBox" });
+
+  it("accepts a positively identified VirtualBox guest and refuses anything else", async () => {
+    await expect(assertThrowawayVirtualBoxGuest({
+      platform: "win32", run: vi.fn(async () => guest),
+    })).resolves.toBeUndefined();
+
+    for (const state of [
+      { manufacturer: "Oracle Corporation", model: "PC" },
+      { manufacturer: "Dell Inc.", model: "VirtualBox" },
+      {},
+    ]) {
+      await expect(assertThrowawayVirtualBoxGuest({
+        platform: "win32", run: vi.fn(async () => JSON.stringify(state)),
+      })).rejects.toThrow(/throwaway VirtualBox guest/);
+    }
+  });
+
+  it("refuses off Windows without asking the machine anything", async () => {
+    const run = vi.fn();
+    await expect(assertThrowawayVirtualBoxGuest({ platform: "linux", run })).rejects.toThrow();
+    expect(run).not.toHaveBeenCalled();
+  });
+
+  it("never removes or sweeps the installed root", () => {
+    // The disposable branch owns both; reaching either with the product's own root would delete
+    // operator data or kill processes the gate does not own.
+    expect(source).toContain("await assertThrowawayVirtualBoxGuest();");
+    const installedBranch = source.slice(
+      source.indexOf("await cleanupContainedSmoke(options.installedRoot ? {"),
+      source.indexOf("} : {"),
+    );
+    expect(installedBranch).not.toContain("stopOwnedSmokeProcesses");
+    expect(installedBranch).not.toContain("removeDisposableRoot(dataRoot)");
+    expect(installedBranch).toContain("stopStartedBrowser(child)");
+  });
+
+  it("keeps the ephemeral Relay home out of the product root", () => {
+    expect(source).not.toContain('path.join(dataRoot, "relay-smoke")');
+    expect(source).toContain('mkdtemp(path.join(tmpdir(), "mktbrowser-mkb00-relay-"))');
+  });
+
+  it("refuses to combine the installed root with staged-engine options", () => {
+    expect(source).toContain("--installed-root uses the installed engine");
+    expect(source).toContain("if (options.cft || options.engineCache || options.disposableVmFirewall)");
+  });
+});
 
 describe("disposable VM firewall safety", () => {
   it("does not inspect or mutate firewall state without explicit opt-in", async () => {

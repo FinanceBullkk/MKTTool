@@ -49,8 +49,8 @@ import {
   buildBrowserEnvironment, exerciseSignedProfileLifecycle, parseCftSmokeOptions, stageCftRuntime, type CftSmokeOptions,
 } from "./mkt-browser-cft-smoke-runtime";
 import {
-  cleanupContainedSmoke, provisionDisposableWebRtcFirewall, type SmokeEngine,
-  stopOwnedSmokeProcesses,
+  assertThrowawayVirtualBoxGuest, cleanupContainedSmoke, provisionDisposableWebRtcFirewall,
+  type SmokeEngine, stopOwnedSmokeProcesses,
 } from "./mkt-browser-cft-smoke-firewall";
 
 const DEFAULT_LABEL = "MKB-00 TEST";
@@ -68,6 +68,7 @@ interface Options {
   engineCache?: string;
   cft?: CftSmokeOptions;
   disposableVmFirewall: boolean;
+  installedRoot: boolean;
 }
 
 let sensitiveValues: string[] = [];
@@ -109,7 +110,31 @@ function parseOptions(): Options {
     engineCache: argumentValue("engine-cache")?.trim() || undefined,
     cft: parseCftSmokeOptions(process.argv.slice(2)),
     disposableVmFirewall: process.argv.includes("--disposable-vm-firewall"),
+    installedRoot: process.argv.includes("--installed-root"),
   };
+}
+
+/**
+ * A disposable root can never satisfy WebRTC containment on a machine that has the product
+ * installed: the installer already owns the one rule the desktop will accept for that engine, and
+ * it names the installed binary rather than a staged copy. On a throwaway guest the isolation buys
+ * nothing anyway, so the gate drives the installed root instead - the path an operator runs.
+ */
+function assertInstalledRootOptions(options: Options): void {
+  if (!options.installedRoot) return;
+  if (options.cft || options.engineCache || options.disposableVmFirewall) {
+    throw new Error(
+      "--installed-root uses the installed engine and the installer's own containment rule; " +
+        "it takes no --cft-runtime, --engine-cache or --disposable-vm-firewall.",
+    );
+  }
+}
+
+/** The product's own data root, which is also where its `mcp-token` and engine cache live. */
+function installedUserDataRoot(): string {
+  const localAppData = process.env.LOCALAPPDATA?.trim();
+  if (!localAppData) throw new Error("LOCALAPPDATA is not configured.");
+  return path.join(localAppData, "MKTTool", "MKTBrowser");
 }
 
 function parseProxyHandoff(contents: string): AntidetectProxyConfig {
@@ -246,6 +271,16 @@ async function detectCachedEngine(cacheRoot: string): Promise<SmokeEngine> {
   return engine;
 }
 
+/** Close only the browser this run started; an installed root may hold other work. */
+async function stopStartedBrowser(child: ChildProcess | null): Promise<void> {
+  if (!child || child.exitCode !== null || child.killed) return;
+  child.kill();
+  await new Promise<void>((resolve) => {
+    const timer = setTimeout(resolve, 10_000);
+    child.once("exit", () => { clearTimeout(timer); resolve(); });
+  });
+}
+
 async function allocateLoopbackPort(): Promise<number> {
   const server = net.createServer();
   await new Promise<void>((resolve, reject) => {
@@ -364,6 +399,10 @@ async function main(): Promise<void> {
   }
 
   const options = parseOptions();
+  assertInstalledRootOptions(options);
+  // Before anything is consumed: the handoff file is single-use and the probes touch the network,
+  // so a machine that must not be driven this way has to be turned away first.
+  if (options.installedRoot) await assertThrowawayVirtualBoxGuest();
   const envPath = path.resolve(process.cwd(), ".env");
   if (!options.useProxyFile && (await exists(envPath))) loadEnvFile(envPath);
 
@@ -464,17 +503,24 @@ async function main(): Promise<void> {
   console.log("Independent proxy probe passed and produced a distinct expected exit IP.");
 
   await access(options.browserExe);
-  const dataRoot = await mkdtemp(path.join(tmpdir(), "mktbrowser-mkb00-"));
+  const dataRoot = options.installedRoot
+    ? installedUserDataRoot()
+    : await mkdtemp(path.join(tmpdir(), "mktbrowser-mkb00-"));
   let child: ChildProcess | null = null;
   let adapter: AntidetectAdapter | null = null;
   let profileId: string | null = null;
   let restoreSigningEnvironment: (() => void) | null = null;
   let removeFirewall: (() => Promise<void>) | null = null;
   let originalFailure: unknown;
+  let relayHome: string | null = null;
 
   try {
     const port = await allocateLoopbackPort();
-    if (options.cft) {
+    if (options.installedRoot) {
+      // Nothing is staged: the installed engine, its settings and the installer's containment rule
+      // are the subject of this run, not something the gate arranges around it.
+      console.log("Driving the installed MKT Browser root on a throwaway guest.");
+    } else if (options.cft) {
       const executable = await stageCftRuntime(dataRoot, options.cft);
       removeFirewall = await provisionDisposableWebRtcFirewall({
         enabled: options.disposableVmFirewall, root: dataRoot, executable, engine: "cft",
@@ -513,10 +559,20 @@ async function main(): Promise<void> {
       });
       console.log(`Disposable root staged from the local ${engine} engine cache.`);
     }
-    const browserEnvironment = buildBrowserEnvironment(port, dataRoot);
-    await mkdir(browserEnvironment.LOCALAPPDATA!, { recursive: true });
-    await mkdir(browserEnvironment.APPDATA!, { recursive: true });
-    child = spawn(options.browserExe, [`--user-data-dir=${dataRoot}`], {
+    let browserEnvironment: NodeJS.ProcessEnv;
+    let browserArgs: string[];
+    if (options.installedRoot) {
+      // Keep the real LOCALAPPDATA/APPDATA and pass no --user-data-dir: redirecting either would
+      // move the engine away from the path the installer's rule names, which is the whole point.
+      browserEnvironment = { ...process.env, MKT_BROWSER_MCP_PORT: String(port) };
+      browserArgs = [];
+    } else {
+      browserEnvironment = buildBrowserEnvironment(port, dataRoot);
+      await mkdir(browserEnvironment.LOCALAPPDATA!, { recursive: true });
+      await mkdir(browserEnvironment.APPDATA!, { recursive: true });
+      browserArgs = [`--user-data-dir=${dataRoot}`];
+    }
+    child = spawn(options.browserExe, browserArgs, {
       env: browserEnvironment, stdio: "ignore", windowsHide: true,
     });
     await new Promise<void>((resolve, reject) => {
@@ -531,17 +587,26 @@ async function main(): Promise<void> {
     adapter = harness.antidetect.getAdapter();
 
     const initialProfiles = await waitForProfileInventory(adapter, child);
-    if (initialProfiles.length !== 0) {
+    if (!options.installedRoot && initialProfiles.length !== 0) {
       throw new Error("The disposable MKT Browser root was not empty at startup.");
     }
+    if (options.installedRoot) {
+      // Say what was already there. The gate adds one profile and cannot take it back, so the run
+      // is only honest if the guest is discarded afterwards.
+      console.log(
+        `Installed root holds ${initialProfiles.length} profile(s) before this run; the gate adds ` +
+          "one it cannot delete. Discard this guest when the run finishes.",
+      );
+    }
 
+    relayHome = await mkdtemp(path.join(tmpdir(), "mktbrowser-mkb00-relay-"));
     const accountId = `p0-proxy-smoke-${randomUUID()}`;
     const requestId = `create-profile:${accountId}`;
     const profileName = `P0 proxy smoke ${Date.now()}`;
     const relayDeps = {
       identity: harness.identity,
       antidetect: harness.antidetect,
-      home: path.join(dataRoot, "relay-smoke"),
+      home: relayHome,
       notConfiguredMessage: "The disposable Relay identity is not configured.",
     };
     const created = await handleTicketRequest(
@@ -592,7 +657,9 @@ async function main(): Promise<void> {
       report: (message) => console.log(message),
     });
     profileId = null;
-    console.log("Disposable profile closed; the entire isolated data root will now be removed.");
+    console.log(options.installedRoot
+      ? "Profile closed. The installed root keeps it; discard this guest."
+      : "Disposable profile closed; the entire isolated data root will now be removed.");
   } catch (error) {
     originalFailure = error;
     throw error;
@@ -606,10 +673,20 @@ async function main(): Promise<void> {
     }
     restoreSigningEnvironment?.();
     try {
-      await cleanupContainedSmoke({
+      // Never sweep processes by an installed root, and never remove it: `removeDisposableRoot`
+      // would delete the product's own data. Installed-root runs close the browser they started
+      // and stop there; the guest snapshot is what gets discarded.
+      await cleanupContainedSmoke(options.installedRoot ? {
+        stopAndVerify: async () => { await stopStartedBrowser(child); },
+        removeFirewall: async () => {},
+        removeRoot: async () => { if (relayHome) await removeDisposableRoot(relayHome); },
+      } : {
         stopAndVerify: () => stopOwnedSmokeProcesses({ root: dataRoot, browserExe: options.browserExe }),
         removeFirewall: async () => { await removeFirewall?.(); },
-        removeRoot: () => removeDisposableRoot(dataRoot),
+        removeRoot: async () => {
+          await removeDisposableRoot(dataRoot);
+          if (relayHome) await removeDisposableRoot(relayHome);
+        },
       });
     } catch (error) {
       const cleanupMessage = error instanceof Error ? error.message : "Contained cleanup failed.";

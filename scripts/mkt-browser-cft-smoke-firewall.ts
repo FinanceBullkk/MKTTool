@@ -37,6 +37,38 @@ export function assertDisposableVmFirewallHost(platform: NodeJS.Platform, state:
   if (state.firewallEnabled !== true) throw new Error("All Windows firewall profiles must already be enabled.");
 }
 
+/**
+ * Refuse to continue unless this really is a throwaway VirtualBox guest.
+ *
+ * The installed-root gate drives the product at its own data root: it creates a profile there and
+ * cannot delete it again, because the adapter exposes no delete. That is harmless on a guest whose
+ * snapshot is about to be discarded and unacceptable anywhere else, so the identity check is the
+ * only thing standing between the two - and it fails closed on any reading it cannot make.
+ */
+export async function assertThrowawayVirtualBoxGuest(options: {
+  platform?: NodeJS.Platform; run?: RunPowerShell;
+} = {}): Promise<void> {
+  const platform = options.platform ?? process.platform;
+  if (platform !== "win32") throw new Error("The installed-root gate requires Windows.");
+  const run = options.run ?? runPowerShell;
+  const env = {
+    NODE_ENV: process.env.NODE_ENV, SystemRoot: process.env.SystemRoot, WINDIR: process.env.WINDIR,
+    PATH: process.env.PATH, PSModulePath: process.env.PSModulePath,
+  };
+  const state = JSON.parse(await run(
+    "$ErrorActionPreference='Stop'; $m=Get-CimInstance Win32_ComputerSystem; " +
+      "@{manufacturer=$m.Manufacturer;model=$m.Model} | ConvertTo-Json -Compress",
+    env,
+  )) as { manufacturer?: string; model?: string };
+  if (state.model !== "VirtualBox" ||
+    !["Oracle Corporation", "innotek GmbH"].includes(state.manufacturer ?? "")) {
+    throw new Error(
+      "The installed-root gate runs only on a positively identified throwaway VirtualBox guest; " +
+        "it creates a profile in the real product root and cannot remove it.",
+    );
+  }
+}
+
 export async function provisionDisposableWebRtcFirewall(options: {
   enabled: boolean; root: string; executable: string; engine?: SmokeEngine;
   platform?: NodeJS.Platform; run?: RunPowerShell;
