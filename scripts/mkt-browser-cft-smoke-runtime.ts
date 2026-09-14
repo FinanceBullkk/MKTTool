@@ -43,10 +43,16 @@ export function parseCftSmokeOptions(args: string[]): CftSmokeOptions | undefine
   return { runtime: path.resolve(runtime), version, sha256: sha256.toLowerCase() };
 }
 
-export function buildBrowserEnvironment(
+/**
+ * Strip what must never reach the browser, whatever root it will use.
+ *
+ * `ELECTRON_RUN_AS_NODE` is the one that bites: a shell that exports it turns the packaged app into
+ * a bare Node process that exits at once, and the gate reads that as "exited before MCP became
+ * ready" - a launch failure that is really an inherited variable.
+ */
+function scrubbedBrowserEnvironment(
   port: number,
-  root: string,
-  inherited: NodeJS.ProcessEnv = process.env,
+  inherited: NodeJS.ProcessEnv,
 ): NodeJS.ProcessEnv {
   const environment: NodeJS.ProcessEnv = { NODE_ENV: inherited.NODE_ENV };
   for (const [key, value] of Object.entries(inherited)) {
@@ -56,9 +62,33 @@ export function buildBrowserEnvironment(
     if (["NODE_OPTIONS", "NODE_TLS_REJECT_UNAUTHORIZED", "ELECTRON_RUN_AS_NODE", "LOCALAPPDATA", "APPDATA"].includes(normalized)) continue;
     environment[key] = value;
   }
+  environment.MKT_BROWSER_MCP_PORT = String(port);
+  return environment;
+}
+
+export function buildBrowserEnvironment(
+  port: number,
+  root: string,
+  inherited: NodeJS.ProcessEnv = process.env,
+): NodeJS.ProcessEnv {
+  const environment = scrubbedBrowserEnvironment(port, inherited);
   environment.LOCALAPPDATA = path.join(root, "local-app-data");
   environment.APPDATA = path.join(root, "roaming-app-data");
-  environment.MKT_BROWSER_MCP_PORT = String(port);
+  return environment;
+}
+
+/**
+ * Same scrubbing, but the machine's own Windows state is kept: the installed-root gate depends on
+ * the engine staying at the path the installer's containment rule names, and redirecting
+ * `LOCALAPPDATA` would move it.
+ */
+export function buildInstalledRootEnvironment(
+  port: number,
+  inherited: NodeJS.ProcessEnv = process.env,
+): NodeJS.ProcessEnv {
+  const environment = scrubbedBrowserEnvironment(port, inherited);
+  environment.LOCALAPPDATA = inherited.LOCALAPPDATA;
+  environment.APPDATA = inherited.APPDATA;
   return environment;
 }
 

@@ -46,7 +46,8 @@ import { handleTicketRequest } from "../relay/src/handle-ticket";
 import { RelayAntidetect } from "../relay/src/relay-antidetect";
 import { buildRelayIdentity } from "../relay/src/relay-identity";
 import {
-  buildBrowserEnvironment, exerciseSignedProfileLifecycle, parseCftSmokeOptions, stageCftRuntime, type CftSmokeOptions,
+  buildBrowserEnvironment, buildInstalledRootEnvironment, exerciseSignedProfileLifecycle,
+  parseCftSmokeOptions, stageCftRuntime, type CftSmokeOptions,
 } from "./mkt-browser-cft-smoke-runtime";
 import {
   assertThrowawayVirtualBoxGuest, cleanupContainedSmoke, provisionDisposableWebRtcFirewall,
@@ -69,6 +70,7 @@ interface Options {
   cft?: CftSmokeOptions;
   disposableVmFirewall: boolean;
   installedRoot: boolean;
+  acceptRealMachine: boolean;
 }
 
 let sensitiveValues: string[] = [];
@@ -111,6 +113,7 @@ function parseOptions(): Options {
     cft: parseCftSmokeOptions(process.argv.slice(2)),
     disposableVmFirewall: process.argv.includes("--disposable-vm-firewall"),
     installedRoot: process.argv.includes("--installed-root"),
+    acceptRealMachine: process.argv.includes("--accept-real-machine"),
   };
 }
 
@@ -121,6 +124,9 @@ function parseOptions(): Options {
  * nothing anyway, so the gate drives the installed root instead - the path an operator runs.
  */
 function assertInstalledRootOptions(options: Options): void {
+  if (options.acceptRealMachine && !options.installedRoot) {
+    throw new Error("--accept-real-machine means nothing without --installed-root.");
+  }
   if (!options.installedRoot) return;
   if (options.cft || options.engineCache || options.disposableVmFirewall) {
     throw new Error(
@@ -272,6 +278,29 @@ async function detectCachedEngine(cacheRoot: string): Promise<SmokeEngine> {
 }
 
 /** Close only the browser this run started; an installed root may hold other work. */
+/**
+ * A single-instance app hands a second launch over to the one already running, which would leave
+ * the gate talking to a process it did not configure - on a port it did not set.
+ */
+async function countRunningBrowsers(browserExe: string): Promise<number> {
+  const { execFile } = await import("node:child_process");
+  const { promisify } = await import("node:util");
+  const run = promisify(execFile);
+  const { stdout } = await run("powershell.exe", [
+    "-NoProfile", "-NonInteractive", "-Command",
+    "$ErrorActionPreference='Stop'; @(Get-Process -Name ([IO.Path]::GetFileNameWithoutExtension(" +
+      "$env:MKT_GATE_BROWSER_EXE)) -ErrorAction SilentlyContinue).Count",
+  ], {
+    encoding: "utf8", windowsHide: true, timeout: 20_000,
+    env: {
+      NODE_ENV: process.env.NODE_ENV,
+      SystemRoot: process.env.SystemRoot, WINDIR: process.env.WINDIR, PATH: process.env.PATH,
+      PSModulePath: process.env.PSModulePath, MKT_GATE_BROWSER_EXE: browserExe,
+    },
+  });
+  return Number(stdout.trim());
+}
+
 async function stopStartedBrowser(child: ChildProcess | null): Promise<void> {
   if (!child || child.exitCode !== null || child.killed) return;
   child.kill();
@@ -402,7 +431,24 @@ async function main(): Promise<void> {
   assertInstalledRootOptions(options);
   // Before anything is consumed: the handoff file is single-use and the probes touch the network,
   // so a machine that must not be driven this way has to be turned away first.
-  if (options.installedRoot) await assertThrowawayVirtualBoxGuest();
+  if (options.installedRoot && !options.acceptRealMachine) await assertThrowawayVirtualBoxGuest();
+  if (options.acceptRealMachine) {
+    // The guest guard exists to stop this happening by accident. An operator who names the
+    // consequence in the command line is not an accident - but they still get told what stays
+    // behind, because the adapter has no delete and only the app's own dialog can remove it.
+    console.log(
+      "Running against the real installed root on this machine, by explicit request. A profile " +
+        "named \"P0 proxy smoke ...\" will be created and will REMAIN; remove it in MKT Browser's " +
+        "own Delete Profile dialog when the run finishes.",
+    );
+    const running = await countRunningBrowsers(options.browserExe);
+    if (running !== 0) {
+      throw new Error(
+        `MKT Browser is already running (${running} process(es)). Close it first: a second instance ` +
+          "hands over to the running one, which is not the process this gate configured.",
+      );
+    }
+  }
   const envPath = path.resolve(process.cwd(), ".env");
   if (!options.useProxyFile && (await exists(envPath))) loadEnvFile(envPath);
 
@@ -519,7 +565,7 @@ async function main(): Promise<void> {
     if (options.installedRoot) {
       // Nothing is staged: the installed engine, its settings and the installer's containment rule
       // are the subject of this run, not something the gate arranges around it.
-      console.log("Driving the installed MKT Browser root on a throwaway guest.");
+      console.log("Driving the installed MKT Browser root; nothing is staged around it.");
     } else if (options.cft) {
       const executable = await stageCftRuntime(dataRoot, options.cft);
       removeFirewall = await provisionDisposableWebRtcFirewall({
@@ -564,7 +610,8 @@ async function main(): Promise<void> {
     if (options.installedRoot) {
       // Keep the real LOCALAPPDATA/APPDATA and pass no --user-data-dir: redirecting either would
       // move the engine away from the path the installer's rule names, which is the whole point.
-      browserEnvironment = { ...process.env, MKT_BROWSER_MCP_PORT: String(port) };
+      // Everything else is still scrubbed - an inherited ELECTRON_RUN_AS_NODE kills the app.
+      browserEnvironment = buildInstalledRootEnvironment(port);
       browserArgs = [];
     } else {
       browserEnvironment = buildBrowserEnvironment(port, dataRoot);
@@ -658,7 +705,7 @@ async function main(): Promise<void> {
     });
     profileId = null;
     console.log(options.installedRoot
-      ? "Profile closed. The installed root keeps it; discard this guest."
+      ? "Profile closed. The installed root keeps it; remove it in MKT Browser, or discard the guest."
       : "Disposable profile closed; the entire isolated data root will now be removed.");
   } catch (error) {
     originalFailure = error;
@@ -695,7 +742,12 @@ async function main(): Promise<void> {
     }
   }
 
-  console.log("MKB-00 real-proxy create/reopen/rejection/recovery passed with no account data or retained profile.");
+  console.log(options.installedRoot
+    // Say what actually happened: this mode retains the profile it made, and saying otherwise would
+    // turn a passing gate into a false claim about what it left behind.
+    ? "MKB-00 real-proxy create/reopen/rejection/recovery passed with no account data. The gate " +
+      "profile is retained in the installed root."
+    : "MKB-00 real-proxy create/reopen/rejection/recovery passed with no account data or retained profile.");
 }
 
 main().catch((error: unknown) => {
