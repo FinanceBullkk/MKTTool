@@ -1,5 +1,33 @@
 # Project changelog
 
+## 2026-09-14 - Gates closed, two gates defined, and a secret-scan blind spot
+
+- Close the proxied-launch gate on this host against the exact installed 0.3.23: real CloakBrowser
+  engine, the installer's own WebRTC containment, and a correlated `PROXY_REJECTED` for the
+  closed-port case followed by recovery. Host acceptance only; it does not close the second-machine
+  gate.
+- Close the packaged Relay gate against the archive the exact installer shipped, and separately
+  rebuild the Relay from source and verify the fresh executable through the full ticket, sealing,
+  restart, forced-termination and retirement cycle.
+- Make live machine integration a required release step rather than an opt-in that had been skipped
+  for four consecutive releases. `QUALITY_STEPS` goes from seven to eight; the hermetic
+  `test:packaging` suite keeps its guard.
+- Stop the Relay from asserting a wrong cause on `ENGINE_UNAVAILABLE` and `PROXY_REJECTED`. Both
+  codes have several causes, and the old wording sent an operator to wait for an engine that was
+  not loading, or to check a proxy that was alive.
+- Extend the secret scan to tracked repository-root files. `README.md`, `AGENTS.md`, `package.json`
+  and `.env.example` had never been in scope because the root list holds only directories. Teach the
+  placeholder detector the Vietnamese placeholders this repository actually writes, so the gate stops
+  crying wolf on its own examples.
+- Record that a push to `master` here deploys production, at the top of `AGENTS.md` where pushes
+  happen rather than in one clause of the workspace file. Eight deployments went out this way during
+  the session; none touched `src/` or `app/`, so none changed server behaviour.
+- Add the credential rotation runbook. Take a verified production backup with a passing restore
+  check as the rollback point the rotation order requires.
+- Keep Browser `0.3.23` promotion **NO-GO**. Remaining: second machine powered off,
+  unfamiliar-operator walkthrough, seven-day canary at day 1, unsigned installer, and the credential
+  rotation itself.
+
 ## 2026-09-13 - Team Web handoff boundary clarified
 
 - Mark the MKTTool Web shared-workspace surface (`nick` vault, proxy ownership, Relay PC registry,

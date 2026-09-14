@@ -1,6 +1,6 @@
 # Lộ trình phát triển
 
-**Updated:** 13 September 2026
+**Updated:** 14 September 2026
 
 ## Team Web handoff - 13 September 2026
 
@@ -13,6 +13,43 @@ MKT Browser is a separate release lane. The current `0.3.23` candidate remains *
 operator promotion; the accepted `0.3.17` tuple is historical evidence and must not be presented as
 the current installer. See the [team-ready rollout guide](team-ready-rollout.md) for the operator
 path and owner actions.
+
+## Browser 0.3.23 release-readiness - 14 September 2026
+
+Supersedes the specific gate states recorded on 13 September below; that section stays as the record
+of what was true that day.
+
+Now **PASS**, all on this build host:
+
+- Packaged Relay lifecycle, against the archive the exact installer shipped
+  (`d8bf25dc...`, the published v17 hash), and separately against a Relay rebuilt from source.
+- Proxy failure/recovery on the exact installed 0.3.23 - real CloakBrowser engine
+  `151.0.7922.108.6` under the installer's own WebRTC containment, with a correlated
+  `PROXY_REJECTED` for the closed-port case and a successful recovery launch afterwards.
+- Machine integration, which had been skipped for four consecutive releases because it was opt-in.
+  It is now a required release step; `QUALITY_STEPS` runs eight steps, not seven.
+- The full eight-step quality chain on a clean committed tree, nothing skipped, and MKTTool's own
+  four stages (quality, contracts, relay, security).
+- A production backup with a verified restore, which is the rollback point the credential rotation
+  order requires before anything is rotated.
+
+These are **host acceptance**. This machine already had the engine provisioned, the firewall rules
+created and the toolchain installed, so none of it distinguishes "the product works" from "this
+machine happened to be ready". The second machine is what answers that.
+
+Still **OPEN**, and none of it is engineering work:
+
+| Gate | What it needs |
+|---|---|
+| Second physical machine | `admin-laptop` is registered as runner `mkt-ci-windows` and is powered off. Procedure: `MKTBrowser/docs/second-machine-acceptance.md` |
+| Unfamiliar-operator | A person who has never used the product. Script: `MKTBrowser/docs/unfamiliar-operator-acceptance.md` |
+| Seven-day canary | Defined and instrumented for the first time; day 1 recorded clean, a scheduled task records the rest. Six days to go |
+| Installer signing | A certificate. The build signs itself once `WIN_CSC_LINK`/`CSC_LINK` is set; the config no longer pins signing off |
+| Credential rotation | Provider consoles. Runbook: `docs/credential-rotation-runbook.md` |
+
+Operator promotion remains **NO-GO**. The approved tuple is unchanged: Browser `0.3.17` /
+Relay `17` / sequence `21`. The credential exposure is not a `0.3.23` gate - it is open now, against
+the `0.3.17` the team is running, and it does not wait on any release decision.
 
 ## Browser 0.3.23 release-readiness - 13 September 2026
 
