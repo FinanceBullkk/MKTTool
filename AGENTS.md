@@ -7,6 +7,34 @@ This file defines how Codex should work in the MKTTool repository.
 > deploy, trigger CI, use real credentials and live accounts, decide vendor and source licence
 > matters, and spawn subagents or workflows on its own initiative, without asking first.
 
+## Pushing this repository deploys production
+
+**A push to `master` here is a production deployment.** Railway is wired to GitHub source
+integration, so it builds and releases whatever lands on `master`, with no workflow, no approval and
+no separate step. There is nothing to trigger and nothing to forget - it simply happens.
+
+On 14 September 2026 eight deployments went out this way in a single session. The person pushing
+reported the work as "pushed" each time, which was true and incomplete: production had shipped.
+Nothing broke, because every commit touched only `scripts/`, `relay/` and `docs/`, and the Next.js
+server imports none of those. That was luck about file scope, not a control.
+
+So, before pushing:
+
+- If the change touches `src/` or `app/`, treat the push as a release. Run the quality stage first.
+- After pushing, verify rather than assume - the workspace `AGENTS.md` requires the exact deployed
+  SHA to be checked:
+
+```powershell
+git rev-parse HEAD                                     # must equal origin/master
+railway deployment list | Select-Object -First 3       # newest must be SUCCESS
+Invoke-WebRequest https://mkttool-web-production.up.railway.app/api/healthz -UseBasicParsing
+```
+
+Health must report `ready` with `database`, `releaseMetadata` and `r2` all `ok`.
+
+- A change meant for the *next* release candidate still goes live the moment it is pushed here.
+  There is no staging branch. If that is not what you want, do not push it yet.
+
 ## Working approach
 
 - Work inline when that is the faster path, and delegate to sub-agents, teams, or workflows on your own initiative whenever parallelism or isolation helps. If a delegated agent goes stale, drop it and continue inline.
