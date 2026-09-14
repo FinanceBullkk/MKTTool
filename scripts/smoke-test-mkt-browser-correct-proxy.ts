@@ -49,7 +49,8 @@ import {
   buildBrowserEnvironment, exerciseSignedProfileLifecycle, parseCftSmokeOptions, stageCftRuntime, type CftSmokeOptions,
 } from "./mkt-browser-cft-smoke-runtime";
 import {
-  cleanupContainedSmoke, provisionDisposableCftFirewall, stopOwnedSmokeProcesses,
+  cleanupContainedSmoke, provisionDisposableWebRtcFirewall, type SmokeEngine,
+  stopOwnedSmokeProcesses,
 } from "./mkt-browser-cft-smoke-firewall";
 
 const DEFAULT_LABEL = "MKB-00 TEST";
@@ -226,7 +227,7 @@ async function resolveEngineCache(explicit?: string): Promise<string> {
  * only usable if it holds `<engine>/current.json`; anything else means the local install has not
  * provisioned a runtime yet, and the gate must say so rather than silently fall back to CFT.
  */
-async function detectCachedEngine(cacheRoot: string): Promise<string> {
+async function detectCachedEngine(cacheRoot: string): Promise<SmokeEngine> {
   const entries = await readdir(cacheRoot, { withFileTypes: true });
   const provisioned: string[] = [];
   for (const entry of entries) {
@@ -238,7 +239,11 @@ async function detectCachedEngine(cacheRoot: string): Promise<string> {
       `The engine cache must hold exactly one provisioned runtime; found ${provisioned.length}.`,
     );
   }
-  return provisioned[0];
+  const engine = provisioned[0];
+  if (engine !== "cft" && engine !== "cloakbrowser") {
+    throw new Error(`The engine cache holds an unknown runtime "${engine}".`);
+  }
+  return engine;
 }
 
 async function allocateLoopbackPort(): Promise<number> {
@@ -471,8 +476,8 @@ async function main(): Promise<void> {
     const port = await allocateLoopbackPort();
     if (options.cft) {
       const executable = await stageCftRuntime(dataRoot, options.cft);
-      removeFirewall = await provisionDisposableCftFirewall({
-        enabled: options.disposableVmFirewall, root: dataRoot, executable,
+      removeFirewall = await provisionDisposableWebRtcFirewall({
+        enabled: options.disposableVmFirewall, root: dataRoot, executable, engine: "cft",
       });
       console.log(`Pinned CFT ${options.cft.version} verified before and after disposable staging.`);
     } else {
@@ -498,6 +503,14 @@ async function main(): Promise<void> {
         settings.cloakBrowserLicenseKeys = [licenseKey];
       }
       await writeFile(path.join(dataRoot, "settings.json"), JSON.stringify(settings));
+      // Same containment the pinned-CFT branch provisions, for the engine this root actually holds.
+      // Without it a proxied launch is refused, correctly, because no rule names the staged binary.
+      removeFirewall = await provisionDisposableWebRtcFirewall({
+        enabled: options.disposableVmFirewall,
+        root: dataRoot,
+        executable: path.join(dataRoot, "chromium", engine, "runtime", "chrome.exe"),
+        engine,
+      });
       console.log(`Disposable root staged from the local ${engine} engine cache.`);
     }
     const browserEnvironment = buildBrowserEnvironment(port, dataRoot);

@@ -28,9 +28,9 @@ export function parseCftSmokeOptions(args: string[]): CftSmokeOptions | undefine
     return value;
   });
   if (values.every((value) => value === undefined)) {
-    if (args.includes("--disposable-vm-firewall")) {
-      throw new Error("--disposable-vm-firewall requires an explicitly pinned CFT runtime.");
-    }
+    // No pinned CFT runtime is fine: the engine-cache path stages whatever runtime the local
+    // install already provisioned, and provisions the containment rule for that engine instead.
+    // Requiring a CFT pin here is what confined the proxied-launch gate to the compatibility engine.
     return undefined;
   }
   const [runtime, version, sha256] = values;

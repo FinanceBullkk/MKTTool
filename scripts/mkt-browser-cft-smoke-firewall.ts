@@ -4,7 +4,20 @@ import path from "node:path";
 import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
-export const CFT_RULE_DISPLAY_NAME = "MKT Browser WebRTC UDP Block (Chrome for Testing)";
+/**
+ * Engines a disposable root can stage. The product refuses a proxied launch unless a WebRTC
+ * containment rule names the exact binary it is about to start, and the rule is per engine — so a
+ * gate that only ever provisioned the CFT rule could only ever test CFT, which is the compatibility
+ * engine rather than the one an operator runs.
+ */
+export type SmokeEngine = "cft" | "cloakbrowser";
+
+/** Must match `firewallRuleNameForEngine` in the desktop; the product matches on this exact text. */
+export function webRtcRuleDisplayName(engine: SmokeEngine): string {
+  return `MKT Browser WebRTC UDP Block (${engine === "cft" ? "Chrome for Testing" : "CloakBrowser"})`;
+}
+
+export const CFT_RULE_DISPLAY_NAME = webRtcRuleDisplayName("cft");
 type RunPowerShell = (script: string, env: NodeJS.ProcessEnv) => Promise<string>;
 const runPowerShell: RunPowerShell = async (script, env) => {
   const { stdout } = await execFileAsync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", script], {
@@ -20,19 +33,21 @@ export function assertDisposableVmFirewallHost(platform: NodeJS.Platform, state:
     !["Oracle Corporation", "innotek GmbH"].includes(state.manufacturer ?? "")) {
     throw new Error("Disposable firewall provisioning requires a positively identified Windows VirtualBox guest.");
   }
-  if (state.existingRuleCount !== 0) throw new Error("An existing CFT firewall display-name rule prevents disposable provisioning.");
+  if (state.existingRuleCount !== 0) throw new Error("An existing WebRTC firewall display-name rule prevents disposable provisioning.");
   if (state.firewallEnabled !== true) throw new Error("All Windows firewall profiles must already be enabled.");
 }
 
-export async function provisionDisposableCftFirewall(options: {
-  enabled: boolean; root: string; executable: string; platform?: NodeJS.Platform; run?: RunPowerShell;
+export async function provisionDisposableWebRtcFirewall(options: {
+  enabled: boolean; root: string; executable: string; engine?: SmokeEngine;
+  platform?: NodeJS.Platform; run?: RunPowerShell;
 }): Promise<() => Promise<void>> {
   if (!options.enabled) return async () => {};
   const platform = options.platform ?? process.platform;
   if (platform !== "win32") throw new Error("Disposable firewall provisioning requires Windows.");
-  const expected = path.resolve(options.root, "chromium", "cft", "runtime", "chrome.exe");
+  const engine = options.engine ?? "cft";
+  const expected = path.resolve(options.root, "chromium", engine, "runtime", "chrome.exe");
   if (path.resolve(options.executable).toLowerCase() !== expected.toLowerCase()) {
-    throw new Error("Disposable firewall executable must be the owned staged CFT runtime.");
+    throw new Error("Disposable firewall executable must be the owned staged engine runtime.");
   }
   const run = options.run ?? runPowerShell;
   const env = {
@@ -40,7 +55,7 @@ export async function provisionDisposableCftFirewall(options: {
     SystemRoot: process.env.SystemRoot, WINDIR: process.env.WINDIR, PATH: process.env.PATH,
     PSModulePath: process.env.PSModulePath, ProgramFiles: process.env.ProgramFiles,
     MKT_CFT_RULE_NAME: `mkt-cft-smoke-${randomUUID()}`,
-    MKT_CFT_RULE_DISPLAY: CFT_RULE_DISPLAY_NAME, MKT_CFT_RULE_EXE: expected,
+    MKT_CFT_RULE_DISPLAY: webRtcRuleDisplayName(engine), MKT_CFT_RULE_EXE: expected,
   };
   const guard = [
     "$ErrorActionPreference='Stop'",

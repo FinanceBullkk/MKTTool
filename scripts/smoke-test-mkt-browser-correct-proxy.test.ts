@@ -9,8 +9,8 @@ import {
   assertCftEvidence, buildBrowserEnvironment, exerciseSignedProfileLifecycle, parseCftSmokeOptions, stageCftRuntime,
 } from "./mkt-browser-cft-smoke-runtime";
 import {
-  assertDisposableVmFirewallHost, CFT_RULE_DISPLAY_NAME, cleanupContainedSmoke,
-  provisionDisposableCftFirewall, stopOwnedSmokeProcesses,
+  assertDisposableVmFirewallHost, CFT_RULE_DISPLAY_NAME, cleanupContainedSmoke, webRtcRuleDisplayName,
+  provisionDisposableWebRtcFirewall, stopOwnedSmokeProcesses,
 } from "./mkt-browser-cft-smoke-firewall";
 
 const source = readFileSync(
@@ -64,8 +64,11 @@ describe("explicit CFT smoke runtime", () => {
   it("preserves default mode and requires all three valid, non-conflicting pin options", () => {
     expect(parseCftSmokeOptions([])).toBeUndefined();
     expect(parseCftSmokeOptions(cftArgs)).toMatchObject({ version, sha256 });
+    // Containment no longer implies a CFT pin: the engine-cache path provisions the rule for the
+    // engine the local install already holds, which is the engine an operator actually runs.
+    expect(parseCftSmokeOptions(["--disposable-vm-firewall"])).toBeUndefined();
     for (const args of [
-      cftArgs.slice(0, 1), cftArgs.slice(1), ["--cft-runtime"], ["--disposable-vm-firewall"],
+      cftArgs.slice(0, 1), cftArgs.slice(1), ["--cft-runtime"],
       [...cftArgs, "--engine-cache=C:/cache"], [...cftArgs, "--expected-cft-version=1.2.3.4"],
       [cftArgs[0], "--expected-cft-version=latest", cftArgs[2]],
       [cftArgs[0], cftArgs[1], "--expected-cft-sha256=bad"],
@@ -144,7 +147,7 @@ const firewallExe = path.join(firewallRoot, "chromium", "cft", "runtime", "chrom
 describe("disposable VM firewall safety", () => {
   it("does not inspect or mutate firewall state without explicit opt-in", async () => {
     const run = vi.fn();
-    const cleanup = await provisionDisposableCftFirewall({ enabled: false, root: firewallRoot, executable: firewallExe, run });
+    const cleanup = await provisionDisposableWebRtcFirewall({ enabled: false, root: firewallRoot, executable: firewallExe, run });
     await cleanup();
     expect(run).not.toHaveBeenCalled();
   });
@@ -159,13 +162,13 @@ describe("disposable VM firewall safety", () => {
 
   it("refuses a runtime outside the owned root before executing commands", async () => {
     const run = vi.fn();
-    await expect(provisionDisposableCftFirewall({ enabled: true, root: firewallRoot, executable: "C:/operational/chrome.exe", platform: "win32", run })).rejects.toThrow(/owned staged/);
+    await expect(provisionDisposableWebRtcFirewall({ enabled: true, root: firewallRoot, executable: "C:/operational/chrome.exe", platform: "win32", run })).rejects.toThrow(/owned staged/);
     expect(run).not.toHaveBeenCalled();
   });
 
   it("creates one exact-program UDP block and removes only its unique identity", async () => {
     const run = vi.fn(async () => JSON.stringify(vmState));
-    const cleanup = await provisionDisposableCftFirewall({ enabled: true, root: firewallRoot, executable: firewallExe, platform: "win32", run });
+    const cleanup = await provisionDisposableWebRtcFirewall({ enabled: true, root: firewallRoot, executable: firewallExe, platform: "win32", run });
     await cleanup();
     const calls = run.mock.calls as unknown as [string, NodeJS.ProcessEnv][];
     expect(calls).toHaveLength(3);
@@ -179,15 +182,38 @@ describe("disposable VM firewall safety", () => {
     expect(calls[2][1]).toEqual(calls[1][1]);
   });
 
+  it("provisions the CloakBrowser rule for a cached engine, not the CFT one", async () => {
+    const run = vi.fn(async () => JSON.stringify(vmState));
+    const executable = path.join(firewallRoot, "chromium", "cloakbrowser", "runtime", "chrome.exe");
+    const cleanup = await provisionDisposableWebRtcFirewall({
+      enabled: true, root: firewallRoot, executable, engine: "cloakbrowser", platform: "win32", run,
+    });
+    await cleanup();
+    const calls = run.mock.calls as unknown as [string, NodeJS.ProcessEnv][];
+    expect(calls[1][1]).toMatchObject({
+      MKT_CFT_RULE_DISPLAY: webRtcRuleDisplayName("cloakbrowser"), MKT_CFT_RULE_EXE: executable,
+    });
+    expect(webRtcRuleDisplayName("cloakbrowser")).not.toBe(CFT_RULE_DISPLAY_NAME);
+  });
+
+  it("still refuses a runtime staged for a different engine than the rule", async () => {
+    const run = vi.fn();
+    await expect(provisionDisposableWebRtcFirewall({
+      enabled: true, root: firewallRoot, executable: firewallExe, engine: "cloakbrowser",
+      platform: "win32", run,
+    })).rejects.toThrow(/owned staged/);
+    expect(run).not.toHaveBeenCalled();
+  });
+
   it("refuses an existing rule without issuing creation or deletion", async () => {
     const run = vi.fn(async () => JSON.stringify({ ...vmState, existingRuleCount: 1 }));
-    await expect(provisionDisposableCftFirewall({ enabled: true, root: firewallRoot, executable: firewallExe, platform: "win32", run })).rejects.toThrow(/existing CFT/);
+    await expect(provisionDisposableWebRtcFirewall({ enabled: true, root: firewallRoot, executable: firewallExe, platform: "win32", run })).rejects.toThrow(/existing WebRTC/);
     expect(run).toHaveBeenCalledTimes(1);
   });
 
   it("cleans its unique rule if creation partially fails", async () => {
     const run = vi.fn(async () => JSON.stringify(vmState)).mockResolvedValueOnce(JSON.stringify(vmState)).mockRejectedValueOnce(new Error("partial create"));
-    await expect(provisionDisposableCftFirewall({ enabled: true, root: firewallRoot, executable: firewallExe, platform: "win32", run })).rejects.toThrow("partial create");
+    await expect(provisionDisposableWebRtcFirewall({ enabled: true, root: firewallRoot, executable: firewallExe, platform: "win32", run })).rejects.toThrow("partial create");
     expect(run).toHaveBeenCalledTimes(3);
   });
 });
