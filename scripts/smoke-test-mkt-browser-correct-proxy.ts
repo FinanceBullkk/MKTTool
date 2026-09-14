@@ -15,7 +15,7 @@
  */
 import { spawn, type ChildProcess } from "node:child_process";
 import { randomBytes, randomUUID } from "node:crypto";
-import { access, cp, lstat, mkdir, mkdtemp, readFile, rm, unlink } from "node:fs/promises";
+import { access, cp, lstat, mkdir, mkdtemp, readdir, readFile, rm, unlink, writeFile } from "node:fs/promises";
 import net from "node:net";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -219,6 +219,26 @@ async function resolveEngineCache(explicit?: string): Promise<string> {
   throw new Error(
     "No verified browser-engine cache was found. Pass --engine-cache=<chromium-directory>.",
   );
+}
+
+/**
+ * Read the engine name out of the copied cache instead of trusting a default. A cache directory is
+ * only usable if it holds `<engine>/current.json`; anything else means the local install has not
+ * provisioned a runtime yet, and the gate must say so rather than silently fall back to CFT.
+ */
+async function detectCachedEngine(cacheRoot: string): Promise<string> {
+  const entries = await readdir(cacheRoot, { withFileTypes: true });
+  const provisioned: string[] = [];
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue;
+    if (await exists(path.join(cacheRoot, entry.name, "current.json"))) provisioned.push(entry.name);
+  }
+  if (provisioned.length !== 1) {
+    throw new Error(
+      `The engine cache must hold exactly one provisioned runtime; found ${provisioned.length}.`,
+    );
+  }
+  return provisioned[0];
 }
 
 async function allocateLoopbackPort(): Promise<number> {
@@ -458,6 +478,27 @@ async function main(): Promise<void> {
     } else {
       const engineCache = await resolveEngineCache(options.engineCache);
       await cp(engineCache, path.join(dataRoot, "chromium"), { recursive: true });
+      // The copied cache decides which engine the disposable root can serve, but the app defaults
+      // to "cft" and would go looking for a runtime this root does not hold. Declare the engine the
+      // cache actually carries, exactly as the pinned-CFT branch declares its own.
+      const engine = await detectCachedEngine(path.join(dataRoot, "chromium"));
+      const settings: Record<string, unknown> = { browserEngine: engine, mcpHttpEnabled: true };
+      if (engine === "cloakbrowser") {
+        // A licensed engine reaches its seat pool through settings, never through the environment —
+        // the child environment strips CLOAKBROWSER_*. An unstocked pool refuses the launch with a
+        // seat-wait message, which reads as "the engine is still starting" and is not.
+        const licenseKey = process.env.CLOAKBROWSER_LICENSE_KEY?.trim();
+        if (!licenseKey) {
+          throw new Error(
+            "The cloakbrowser engine cache needs a licence key; set CLOAKBROWSER_LICENSE_KEY first.",
+          );
+        }
+        addSensitive(licenseKey);
+        settings.cloakBrowserLicenseKey = licenseKey;
+        settings.cloakBrowserLicenseKeys = [licenseKey];
+      }
+      await writeFile(path.join(dataRoot, "settings.json"), JSON.stringify(settings));
+      console.log(`Disposable root staged from the local ${engine} engine cache.`);
     }
     const browserEnvironment = buildBrowserEnvironment(port, dataRoot);
     await mkdir(browserEnvironment.LOCALAPPDATA!, { recursive: true });

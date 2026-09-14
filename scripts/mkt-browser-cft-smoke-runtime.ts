@@ -131,7 +131,14 @@ export async function exerciseSignedProfileLifecycle(options: {
 }): Promise<void> {
   const openAndClose = async (label: string) => {
     const result = await options.launch(false);
-    if (!result.ok) throw new Error(`The signed ${label} ticket was rejected. ${result.message ?? ""}`);
+    // Carry the diagnostic on an unexpected rejection. The Relay replaces desktop wording with a
+    // stable operator remedy, so the message alone cannot say which engine state actually refused.
+    if (!result.ok) {
+      throw new Error(
+        `The signed ${label} ticket was rejected. ${result.message ?? ""} ` +
+          `Diagnostic: ${JSON.stringify(result.diagnostic ?? null)}`,
+      );
+    }
     await options.waitForRunning(true);
     await options.close();
     await options.waitForRunning(false);
