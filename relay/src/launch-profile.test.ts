@@ -82,7 +82,7 @@ describe("launchProfileFromTicket error copy", () => {
     });
   });
 
-  it("turns a proxy refusal into the proxy remedy, not the desktop's sentence", async () => {
+  it("points at the refusal without claiming the proxy is dead", async () => {
     const error = new AntidetectError(INTERNAL_SENTENCE, "MKT Browser", {
       code: "PROXY_REJECTED",
     });
@@ -93,8 +93,11 @@ describe("launchProfileFromTicket error copy", () => {
     );
 
     expect(result.ok).toBe(false);
-    expect(result.message).toContain("account proxy");
     expect(result.message).not.toContain(INTERNAL_SENTENCE);
+    // PROXY_REJECTED cũng nổ khi chốt chặn WebRTC không xác minh được, lúc đó proxy vẫn sống.
+    // Câu trả về không được kết luận proxy chết — chỉ được chỉ chỗ xem.
+    expect(result.message).not.toMatch(/proxy is alive|account proxy/i);
+    expect(result.message).toContain("Open MKT Browser on this PC");
     // Luật gốc vẫn phải hiện ra: đẩy proxy hỏng thì KHÔNG mở profile.
     expect(result.message).toContain("NOT opened");
   });
@@ -112,6 +115,10 @@ describe("launchProfileFromTicket error copy", () => {
     expect(result.ok).toBe(false);
     expect(result.message).toContain("browser engine");
     expect(result.message).not.toContain(INTERNAL_SENTENCE);
+    // ENGINE_UNAVAILABLE cũng là mã trả về khi KHÔNG có licence key nào. Bảo người ta "chờ engine
+    // xong" lúc đó là cử họ đi chờ một thứ không chạy, nên câu này không được nhắc tới việc chờ.
+    expect(result.message).not.toMatch(/wait for the engine/i);
+    expect(result.message).toContain("Settings");
   });
 
   it("falls back to the readable message when a legacy build sends no code", async () => {

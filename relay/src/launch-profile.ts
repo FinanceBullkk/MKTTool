@@ -131,9 +131,17 @@ function launchSuccess(proxyLabel: string, diagnostic: RelayOperationDiagnostic)
  * the already-redacted adapter message.
  */
 const REMEDY_BY_CODE: Record<string, string> = {
+  // Một mã, nhiều nguyên nhân. Câu cũ đoán luôn nguyên nhân — và đoán sai thì nó cử người đi chờ
+  // một thứ không chạy. ENGINE_UNAVAILABLE cũng nổ khi KHÔNG có licence key nào: chờ engine "xong"
+  // là chờ mãi, vì chẳng có gì đang tải. PROXY_REJECTED cũng nổ khi chốt chặn WebRTC không xác minh
+  // được, lúc đó proxy vẫn sống nguyên. Gặp thật ngày 14/09/2026, cả hai trong cùng một lượt chạy.
+  // Nên: nói đúng thứ đã xảy ra và chỉ đúng chỗ để xem, KHÔNG khẳng định nguyên nhân.
   ENGINE_UNAVAILABLE:
-    "The browser engine is not ready. Open MKT Browser, wait for the engine to finish, then retry.",
-  PROXY_REJECTED: "The local proxy path could not start. Check whether the account proxy is alive.",
+    "MKT Browser could not give this launch a browser engine. Open MKT Browser on this PC and " +
+    "check the engine and licence state in Settings.",
+  PROXY_REJECTED:
+    "MKT Browser refused the proxied launch. Open MKT Browser on this PC to see which proxy or " +
+    "protection check refused it.",
   // Câu cũ là "Ask an ADMIN before creating or moving it." — sai đường ra. `requestCreateProfileTicket`
   // là `guardedAction`, nên chính người vừa bị từ chối bấm được nút "Tạo profile trên máy này" ngay
   // trên trang nick họ đang đứng. Gặp thật ngày 19/08/2026, ở đúng bước đầu tiên của lượt onboard
