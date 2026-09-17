@@ -57,6 +57,7 @@ import {
   sendTicketToRelay,
   type RelayOutcome,
 } from "@/lib/relay/relay-browser-client";
+import { describeProfileLaunchFailure } from "@/lib/relay/profile-launch-readiness";
 import { RELAY_PROFILE_WORK_TIMEOUT_MS, relaySecretUrl } from "@/lib/relay/relay-endpoints";
 import type { RelayOperationDiagnostic } from "@/lib/relay/relay-endpoints";
 import { RelayOperationDiagnosticDetails } from "@/components/relay/relay-operation-diagnostic-details";
@@ -301,7 +302,16 @@ export function AccountVaultActionsPanel({
           sent.status === "no-permission"
             ? `${describeSlowRelayFailure(sent, "open browser profile")} Check for a new browser ` +
               `window before trying again; a delayed response may mean it already opened.`
-            : describeRelayFailure(sent, health),
+            : // Cầu nối TỪ CHỐI: đọc mã, đừng chép lại câu của nó. Câu đó ghép từ `describe(error)`
+              // của adapter (`relay/src/launch-profile.ts`), nên nó mang theo chuỗi kết nối proxy và
+              // bất cứ thứ gì engine kèm vào lỗi — đúng thứ `describeProfileLaunchFailure()` được
+              // viết ra để KHÔNG chuyển tiếp. Bảng profile đã lọc từ đầu; hai nút mở cùng một
+              // profile không thể một nút lọc một nút không. Mã `NO_CAPACITY` cũng chỉ đến được
+              // người dùng qua lớp này: một key CloakBrowser mở được đúng một phiên, và lượt mở
+              // thứ hai bị từ chối trông y hệt một lần hỏng không rõ lý do.
+              sent.status === "rejected"
+              ? describeProfileLaunchFailure(sent)
+              : describeRelayFailure(sent, health),
         diagnostic: sent.status === "rejected" ? sent.data?.diagnostic : undefined,
       });
     } catch {
