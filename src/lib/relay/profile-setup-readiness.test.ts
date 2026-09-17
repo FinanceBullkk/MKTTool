@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { RelayOutcome } from "./relay-browser-client";
 import type { RelayBrowserHealth, RelayHealth, RelayProfilesReply, RelayReply } from "./relay-endpoints";
 import { effectiveMinRelayVersion, TICKET_KINDS } from "../tickets/ticket-types";
-import { profileSetupReadiness } from "./profile-setup-readiness";
+import { describeProfileCreateRejection, profileSetupReadiness } from "./profile-setup-readiness";
 
 const BROWSER: RelayBrowserHealth = {
   ready: true, provider: "mkt-browser", appVersion: "0.3.13", contractVersion: 4,
@@ -134,5 +134,68 @@ describe("profileSetupReadiness", () => {
     expect(profileSetupReadiness(rejected, health({ browser: { ...licensed,
       licenseCapacity: { ...licensed.licenseCapacity, pendingRecovery: 0 },
     } }))).toMatchObject({ kind: "blocked", state: "no-capacity" });
+  });
+});
+
+describe("describeProfileCreateRejection", () => {
+  /** Nguyên văn lỗi engine: chuỗi kết nối proxy kèm mật khẩu. Không câu nào được chứa nó. */
+  const INTERNAL = "Could not create the profile. connect 203.0.113.10:1080 using cb_live_secret_key";
+
+  const rejection = (message: string, diagnostic?: Record<string, unknown>, code?: string) =>
+    ({
+      status: "rejected" as const,
+      message,
+      data: { ok: false, relayVersion: 16, message, ...(code ? { code } : {}), ...(diagnostic ? { diagnostic } : {}) },
+      relayVersion: 16,
+    });
+
+  it("passes INVALID_INPUT through, because MKT Browser lists the valid values in it", () => {
+    const valid = "Could not create the profile. timezone must be one of: Europe/London, Europe/Paris.";
+    expect(
+      describeProfileCreateRejection(rejection(valid, { stage: "create-profile", code: "INVALID_INPUT" })),
+    ).toBe(valid);
+  });
+
+  it("maps a known engine failure by code instead of repeating the engine", () => {
+    const result = describeProfileCreateRejection(
+      rejection(INTERNAL, { stage: "create-profile", code: "PROXY_REJECTED" }),
+    );
+    expect(result).toMatch(/proxy/i);
+    expect(result).not.toContain("cb_live_secret_key");
+    expect(result).not.toContain("203.0.113.10");
+  });
+
+  it("stays generic when the failure carries no code the contract knows", () => {
+    const unknown = describeProfileCreateRejection(
+      rejection(INTERNAL, { stage: "create-profile", code: "FUTURE_INTERNAL_FAILURE" }),
+    );
+    const uncoded = describeProfileCreateRejection(rejection(INTERNAL, { stage: "create-profile" }));
+
+    for (const result of [unknown, uncoded]) {
+      expect(result).not.toContain("cb_live_secret_key");
+      expect(result).not.toContain("203.0.113.10");
+      expect(result).toMatch(/could not create the browser profile/i);
+    }
+  });
+
+  it("keeps the Relay's own readiness wording, which arrives without a code", () => {
+    const readiness = "All browser capacity is in use or cooling. Close a running profile, then retry.";
+    expect(describeProfileCreateRejection(rejection(readiness, { stage: "browser-health" }))).toBe(readiness);
+  });
+
+  it("reads the code from the body as well as from the diagnostic", () => {
+    expect(describeProfileCreateRejection(rejection(INTERNAL, undefined, "MANAGED_PROFILE_LOCKED")))
+      .toMatch(/another operation/i);
+  });
+
+  it("never names the engine, a port, or a path in a message it wrote itself", () => {
+    const written = [
+      describeProfileCreateRejection(rejection(INTERNAL, { stage: "create-profile", code: "PROXY_REJECTED" })),
+      describeProfileCreateRejection(rejection(INTERNAL, { stage: "create-profile", code: "ENGINE_UNAVAILABLE" })),
+      describeProfileCreateRejection(rejection(INTERNAL, { stage: "create-profile", code: "FORBIDDEN" })),
+      describeProfileCreateRejection(rejection(INTERNAL, { stage: "create-profile" })),
+    ].join(" ");
+
+    expect(written).not.toMatch(/cloakbrowser|chromium|\bMCP\b|47821|47822|[A-Z]:\\/i);
   });
 });

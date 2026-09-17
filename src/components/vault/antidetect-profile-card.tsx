@@ -62,7 +62,12 @@ import {
   type RelayOperationDiagnostic,
 } from "@/lib/relay/relay-endpoints";
 import { RelayOperationDiagnosticDetails } from "@/components/relay/relay-operation-diagnostic-details";
-import { profileSetupReadiness, profileSetupUnknown, type ProfileSetupReadiness } from "@/lib/relay/profile-setup-readiness";
+import {
+  describeProfileCreateRejection,
+  profileSetupReadiness,
+  profileSetupUnknown,
+  type ProfileSetupReadiness,
+} from "@/lib/relay/profile-setup-readiness";
 import { ProfileSetupStatus } from "./profile-setup-status";
 
 type Feedback = {
@@ -71,11 +76,19 @@ type Feedback = {
   diagnostic?: RelayOperationDiagnostic;
 } | null;
 
-/** Cầu nối trả lời được nhưng không kèm id thì chính câu của nó là câu đáng hiện. */
+/**
+ * Cầu nối trả lời được nhưng không kèm id — nói vì sao.
+ *
+ * Lượt `ok` thì câu của nó là câu đáng hiện. Lượt **từ chối** thì không: câu đó ghép bằng
+ * `${describe(error)}` (`relay/src/create-profile.ts`), tức nguyên văn lỗi engine. Đọc mã và chặng
+ * thay vì chép lại — xem `describeProfileCreateRejection()`. Hai nhánh vận chuyển còn lại giữ
+ * nguyên: câu của chúng do chính lớp gọi cầu nối viết, và nhánh chờ-quá-lâu phải nói đúng kiểu
+ * dành cho một lời gọi vốn chạy lâu.
+ */
 function moTaNguyenNhan(sent: RelayOutcome<RelayReply>): string {
-  return sent.status === "ok"
-    ? sent.data.message
-    : describeSlowRelayFailure(sent, "create browser profile");
+  if (sent.status === "ok") return sent.data.message;
+  if (sent.status === "rejected") return describeProfileCreateRejection(sent);
+  return describeSlowRelayFailure(sent, "create browser profile");
 }
 
 export function AntidetectProfileCard({

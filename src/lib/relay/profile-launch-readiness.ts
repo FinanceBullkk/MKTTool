@@ -2,6 +2,7 @@ import { getStatusPresentation } from "@/lib/accounts/account-status";
 import { PROBLEM_VERDICTS } from "@/lib/proxies/proxy-liveness-verdict";
 import { currentDeviceBrowserReadiness } from "./current-device-browser-health";
 import type { RelayOutcome } from "./relay-browser-client";
+import { relayFailureCode } from "./relay-failure-code";
 import {
   RELAY_VERSION,
   type RelayHealth,
@@ -188,18 +189,7 @@ export function describeProfileLaunchFailure(outcome: RelayOutcome<unknown>): st
     );
   }
 
-  const data = outcome.data;
-  const body = data && typeof data === "object" ? (data as Record<string, unknown>) : null;
-  const diagnostic =
-    body?.diagnostic && typeof body.diagnostic === "object"
-      ? (body.diagnostic as Record<string, unknown>)
-      : null;
-  const code =
-    typeof body?.code === "string"
-      ? body.code
-      : typeof diagnostic?.code === "string"
-        ? diagnostic.code
-        : null;
+  const code = relayFailureCode(outcome);
   return code && LAUNCH_FAILURE_MESSAGE_BY_CODE[code]
     ? LAUNCH_FAILURE_MESSAGE_BY_CODE[code]
     : "Relay rejected the browser profile launch. Open Setup and retry.";

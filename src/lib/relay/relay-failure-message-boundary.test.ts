@@ -1,14 +1,18 @@
 /**
- * Mọi nút mở profile phải lọc câu báo hỏng của cầu nối qua `describeProfileLaunchFailure()`.
+ * Mọi nút mở **và** tạo profile phải lọc câu báo hỏng của cầu nối trước khi hiện.
  *
  * ## Vì sao là phép kiểm hình dạng mã nguồn
  *
  * Kiểu hỏng này không làm test nào đỏ. Cầu nối từ chối mở profile thì câu nó trả về được ghép
  * bằng `${describe(error)}` (`relay/src/launch-profile.ts`), tức mang nguyên văn lỗi của engine —
  * chuỗi kết nối proxy, khóa licence, đường dẫn máy. Một trang hiện thẳng câu đó vẫn chạy đúng,
- * vẫn xanh, và chỉ sai vào đúng lúc có sự cố. `describeProfileLaunchFailure()` tra theo **mã**
- * và không bao giờ chuyển tiếp câu gốc — xem test "maps launch failures by stable code without
- * forwarding internal messages" ở `profile-launch-readiness.test.ts`.
+ * vẫn xanh, và chỉ sai vào đúng lúc có sự cố. `describeProfileLaunchFailure()` (mở) và
+ * `describeProfileCreateRejection()` (tạo) tra theo **mã** thay vì chép lại câu gốc — xem test
+ * "maps launch failures by stable code without forwarding internal messages" và nhóm
+ * `describeProfileCreateRejection` ở hai file test bên cạnh.
+ *
+ * Luồng tạo chừa một ngoại lệ có chủ ý: `INVALID_INPUT` đi thẳng ra người đọc, vì MKT Browser
+ * liệt kê đúng các giá trị hợp lệ trong chính câu đó. Ngoại lệ nằm trong hàm, không nằm ở chỗ gọi.
  *
  * Cùng họ với `relay-import-boundary.test.ts`: kiểu hỏng nào không làm test nào đỏ thì phải có
  * một phép kiểm nhắm thẳng vào nó.
@@ -48,6 +52,11 @@ function isLaunchSurface(source: string): boolean {
   return source.includes("sendTicketToRelay(") && source.includes("/launch");
 }
 
+/** Gọi cầu nối để TẠO profile: vừa gửi vé, vừa xin vé tạo. */
+function isCreateSurface(source: string): boolean {
+  return source.includes("sendTicketToRelay(") && source.includes("requestCreateProfileTicket");
+}
+
 describe("launch failure message boundary", () => {
   it("routes every launch rejection through the code-mapped description", () => {
     const root = process.cwd();
@@ -64,6 +73,21 @@ describe("launch failure message boundary", () => {
     ).toEqual([]);
   });
 
+  it("routes every create rejection through the code-mapped description", () => {
+    const root = process.cwd();
+    const offenders = collectSourceFiles(root, "src")
+      .map((file) => ({ file, source: readFileSync(path.join(root, file), "utf8") }))
+      .filter(({ source }) => isCreateSurface(source))
+      .filter(({ source }) => !source.includes("describeProfileCreateRejection"))
+      .map(({ file }) => file);
+
+    expect(
+      offenders,
+      "These files create a browser profile but show the Relay message as-is. Use " +
+        "describeProfileCreateRejection() so the engine's own error text never reaches the page.",
+    ).toEqual([]);
+  });
+
   it("finds the launch surfaces it is meant to guard", () => {
     const root = process.cwd();
     const surfaces = collectSourceFiles(root, "src")
@@ -72,5 +96,14 @@ describe("launch failure message boundary", () => {
 
     // Không có surface nào nghĩa là phép kiểm trên đang xanh vì không tìm thấy gì để kiểm.
     expect(surfaces.length).toBeGreaterThanOrEqual(3);
+  });
+
+  it("finds the create surface it is meant to guard", () => {
+    const root = process.cwd();
+    const surfaces = collectSourceFiles(root, "src")
+      .map((file) => readFileSync(path.join(root, file), "utf8"))
+      .filter(isCreateSurface);
+
+    expect(surfaces.length).toBeGreaterThanOrEqual(1);
   });
 });
