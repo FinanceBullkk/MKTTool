@@ -1,0 +1,31 @@
+{
+  "_source": "MKTBrowser/packages/types/src/index.ts",
+  "_why": "Bản chụp phần contract mà MKTTool chép lại. desktop-contract-mirror.test.ts so ba chiều: hằng số của MKTTool với bản chụp này (chạy ở mọi máy), và bản chụp này với file gốc bên MKTBrowser (chỉ khi có repo đó bên cạnh).",
+  "_refresh": "MKT_BROWSER_REPO=<đường dẫn MKTBrowser> UPDATE_DESKTOP_CONTRACT_SNAPSHOT=1 npx vitest run src/lib/antidetect/desktop-contract-mirror.test.ts",
+  "contractVersion": 4,
+  "mcpServerName": "mkt-browser",
+  "mcpPort": 47822,
+  "errorCodes": [
+    "INVALID_INPUT",
+    "FORBIDDEN",
+    "PROFILE_NOT_FOUND",
+    "PROFILE_NOT_RUNNING",
+    "PROFILE_ALREADY_RUNNING",
+    "PROXY_REJECTED",
+    "ENGINE_UNAVAILABLE",
+    "UNKNOWN_TOOL",
+    "MANAGED_PROFILE_LOCKED",
+    "PROFILE_DELETION_PENDING",
+    "INTERNAL_ERROR"
+  ],
+  "capabilities": [
+    "profile-contract-v1",
+    "runtime-info-v1",
+    "idempotent-create-v1",
+    "atomic-launch-v1",
+    "managed-profile-v1",
+    "operation-diagnostics-v1",
+    "local-install-ready-v1",
+    "license-capacity-v1"
+  ]
+}
