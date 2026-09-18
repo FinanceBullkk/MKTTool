@@ -111,7 +111,11 @@ src/
     ├── accounts/               Server actions + quy tắc trạng thái nick
     ├── actions/                Kiểu ActionResult dùng chung cho mọi server action
     ├── antidetect/             `MktBrowserAdapter`, owned MCP client/contract, and AdsPower adapter;
-    │                           production runs through Relay with no legacy provider fallback
+    │                           production runs through Relay with no legacy provider fallback.
+    │                           `desktop-contract-snapshot.json` + `desktop-contract-mirror.test.ts`
+    │                           canh bản chép contract khỏi trôi khỏi `MKTBrowser/packages/types`:
+    │                           chặng một so hằng số với bản chụp (chạy ở mọi máy), chặng hai so
+    │                           bản chụp với repo Browser (chỉ nơi có checkout đó)
     ├── audit/                  Tên các loại thao tác ghi vào `AuditLog.action` — gom một chỗ vì
     │                           gõ sai một chữ thì hàng vẫn ghi, chỉ câu truy vấn sau này là hụt
     ├── auth/                   Đăng nhập Google, danh sách email cho phép, gác lối vào, hai vai trò

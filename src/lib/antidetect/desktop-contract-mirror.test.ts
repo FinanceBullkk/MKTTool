@@ -171,10 +171,13 @@ describe("the snapshot still matches the MKTBrowser checkout", () => {
     const desktop = readDesktopContract(desktopContractFile as string);
 
     if (process.env.UPDATE_DESKTOP_CONTRACT_SNAPSHOT === "1") {
-      writeFileSync(
-        SNAPSHOT_FILE,
-        `${JSON.stringify({ ...snapshot, ...desktop }, null, 2)}\n`,
-        "utf8",
+      writeFileSync(SNAPSHOT_FILE, `${JSON.stringify({ ...snapshot, ...desktop }, null, 2)}\n`, "utf8");
+
+      // Dừng tại đây, và dừng bằng một lượt ĐỎ. Lượt vừa ghi đè bản chụp không còn tư cách phán
+      // xử chính nó, và một lượt xanh ở đây sẽ bị đọc thành "hai bên đã khớp" trong khi việc thật
+      // — chép mã mới sang danh sách của MKTTool — còn chưa ai làm.
+      throw new Error(
+        "Đã làm mới desktop-contract-snapshot.json. Chạy lại phép kiểm để xem MKTTool còn thiếu gì.",
       );
     }
 
