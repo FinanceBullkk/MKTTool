@@ -16,9 +16,10 @@ và đúng SHA-256). Phần còn lại vẫn mở.
 | Bản sao đó **khôi phục được** | `npm run db:restore:verify -- --dump <file> --psql-path <psql.exe>` → `mismatches: []` |
 | Có người chịu trách nhiệm rollback, và họ đang rảnh | không tự động được |
 
-Ngày 14/09/2026 hai điều kiện đầu đã có: `data/backups/mkttool-prod-20260914-103246.sql`, restore
-verify `mismatches: []`, `cleanup: PASS`. Backup cũ đi thì làm lại — một bản sao không khôi phục thử
-là một bản sao chưa biết dùng được.
+**Ngày 18/09/2026** hai điều kiện đầu đã làm lại và còn mới:
+`data/backups/mkttool-prod-20260918-090156.sql` (90 KB), restore verify `mismatches: []`,
+`cleanup: PASS`. Bản 14/09 giữ làm lịch sử. Backup cũ đi thì làm lại — một bản sao không khôi phục
+thử là một bản sao chưa biết dùng được.
 
 > Nếu `PRODUCTION_DATABASE_URL` đang để `sslmode=require`, thêm `uselibpqcompat=true`. Bản `pg` mới
 > coi `require` là `verify-full` nên Prisma gãy TLS với chứng chỉ tự ký của nhà cung cấp.
