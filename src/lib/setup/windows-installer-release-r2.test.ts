@@ -42,19 +42,23 @@ const COMPLETE_METADATA = {
   "candidate-id": WINDOWS_INSTALLER_CANDIDATE.id as string,
   "browser-version": WINDOWS_INSTALLER_CANDIDATE.browserVersion as string,
   sha256: SHA,
-  "bundled-relay-version": "17",
-  "bundled-relay-sha256": "b".repeat(64),
+  "bundled-relay-version": String(WINDOWS_INSTALLER_CANDIDATE.relayVersion),
+  "bundled-relay-sha256": WINDOWS_INSTALLER_CANDIDATE.relaySha256,
   "payload-manifest-sha256": "c".repeat(64),
   "payload-file-count": "130",
   "browser-source-sha": "d".repeat(40),
   "browser-source-tree": "e".repeat(40),
-  "engine-kind": "cft",
-  "engine-channel": "chrome-for-testing",
-  "engine-version": "152.0.7977.64",
-  "engine-sha256": "f".repeat(64),
+  "engine-kind": WINDOWS_INSTALLER_CANDIDATE.engineKind,
+  "engine-channel": WINDOWS_INSTALLER_CANDIDATE.engineChannel,
+  "engine-version": WINDOWS_INSTALLER_CANDIDATE.engineVersion,
+  "engine-sha256": WINDOWS_INSTALLER_CANDIDATE.engineSha256,
   "signing-status": "unsigned-internal-exception",
   "signing-exception-expires-at": "2099-01-01T00:00:00.000Z",
 };
+const STALE_RELAY_VERSIONS = [
+  WINDOWS_INSTALLER_CANDIDATE.relayVersion - 1,
+  WINDOWS_INSTALLER_CANDIDATE.relayVersion + 1,
+] as const;
 
 const APPROVED_TUPLE_ENV = "MKT_WINDOWS_INSTALLER_APPROVED_TUPLE_JSON";
 
@@ -89,20 +93,23 @@ describe("R2 Windows installer tuple", () => {
     const release = await readWindowsInstallerRelease();
 
     expect(release.metadataComplete).toBe(true);
-    expect(release.bundledRelayVersion).toBe(17);
+    expect(release.bundledRelayVersion).toBe(WINDOWS_INSTALLER_CANDIDATE.relayVersion);
     expect(release.metadataMissing).toEqual([]);
   });
 
-  it.each([16, 18])("rejects Relay %i even when its tuple is explicitly approved", async (version) => {
-    const metadata = { ...COMPLETE_METADATA, "bundled-relay-version": String(version) };
-    vi.stubEnv(APPROVED_TUPLE_ENV, JSON.stringify({ sizeBytes: BYTES.length, metadata }));
-    mocks.headObject.mockResolvedValue(info(metadata));
+  it.each(STALE_RELAY_VERSIONS)(
+    "rejects Relay %i even when its tuple is explicitly approved",
+    async (version) => {
+      const metadata = { ...COMPLETE_METADATA, "bundled-relay-version": String(version) };
+      vi.stubEnv(APPROVED_TUPLE_ENV, JSON.stringify({ sizeBytes: BYTES.length, metadata }));
+      mocks.headObject.mockResolvedValue(info(metadata));
 
-    const release = await readWindowsInstallerRelease();
+      const release = await readWindowsInstallerRelease();
 
-    expect(release.metadataComplete).toBe(false);
-    expect(release.metadataMissing).toContain("stale-bundled-relay-version");
-  });
+      expect(release.metadataComplete).toBe(false);
+      expect(release.metadataMissing).toContain("stale-bundled-relay-version");
+    },
+  );
 
   it("does not serve a syntactically complete but stale tuple", async () => {
     mocks.headObject.mockResolvedValue(info({ ...COMPLETE_METADATA, "browser-version": "0.3.12" }));
