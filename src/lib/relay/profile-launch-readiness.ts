@@ -166,12 +166,12 @@ export function safeProxyPresentation(proxy: {
 }
 
 const LAUNCH_FAILURE_MESSAGE_BY_CODE: Record<string, string> = {
-  RECOVERY_PENDING: "The local browser is recovering a prior session. Retry after recovery finishes.",
-  NO_CAPACITY: "All local browser capacity is in use or cooling. Close an open browser profile, then retry.",
-  CAPACITY_UNKNOWN: "The local browser could not verify available capacity. Keep it open and retry.",
+  RECOVERY_PENDING: "The local browser is recovering a prior session. Wait for recovery to finish, then check capacity before trying once manually.",
+  NO_CAPACITY: "No local browser capacity is available. Check the wait shown in MKT Browser before trying once manually; repeated attempts may extend it.",
+  CAPACITY_UNKNOWN: "The local browser could not verify available capacity. Open MKT Browser and check its licence and recovery state before continuing.",
   BROWSER_OFFLINE: "Open MKT Browser on this PC, then retry.",
   ENGINE_NOT_READY: "The local browser is not ready. Open it and retry.",
-  ENGINE_UNAVAILABLE: "The local browser is not ready. Open it and retry.",
+  ENGINE_UNAVAILABLE: "The local browser could not start. Check the engine, licence and wait state in MKT Browser before trying once manually; repeated attempts may extend a licence wait.",
   CONTRACT_MISMATCH: "Install the matching MKT Browser release on this PC, then retry.",
   CAPABILITY_MISSING: "Update MKT Browser on this PC, then retry.",
   UNKNOWN_TOOL: "Update MKT Browser on this PC, then retry.",
@@ -192,7 +192,7 @@ export function describeProfileLaunchFailure(outcome: RelayOutcome<unknown>): st
   const code = relayFailureCode(outcome);
   return code && LAUNCH_FAILURE_MESSAGE_BY_CODE[code]
     ? LAUNCH_FAILURE_MESSAGE_BY_CODE[code]
-    : "Relay rejected the browser profile launch. Open Setup and retry.";
+    : "Relay rejected the browser profile launch. Review Setup and the engine, licence and wait state in MKT Browser before another manual attempt.";
 }
 
 export function describeProfileTicketFailure(status: number, serverMessage?: string): string {

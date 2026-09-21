@@ -1,4 +1,5 @@
 import type { RollbackAuthorization } from "../release/rollback-authorization";
+import type { MktBrowserLicenseCapacity } from "../antidetect/mkt-browser-contract";
 
 /**
  * Hợp đồng HTTP giữa **trang web** và **cầu nối** chạy trên `127.0.0.1`.
@@ -305,13 +306,7 @@ export interface RelayBrowserHealth {
   contractProblem: string;
   engine: { kind: string; version: string | null; status: string } | null;
   capabilities: string[];
-  licenseCapacity?: {
-    total: number;
-    free: number;
-    active: number;
-    pendingRecovery: number;
-    cooling: number;
-  } | null;
+  licenseCapacity?: MktBrowserLicenseCapacity | null;
 }
 
 export interface RelayOperationDiagnostic {

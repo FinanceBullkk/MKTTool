@@ -553,6 +553,48 @@ describe("MktBrowserAdapter runtime reporting", () => {
     ).resolves.toMatchObject({ provider: "mkt-browser", licenseCapacity: null });
   });
 
+  it("retains the aggregate retry time without a capability flag and strips private fields", async () => {
+    const capacity = {
+      total: 1, free: 0, active: 0, pendingRecovery: 0, cooling: 1,
+      retryAt: "2026-09-21T04:45:00.000Z",
+    };
+    installFakeMcpServer({
+      tools: RUNTIME_TOOLS,
+      toolBodies: {
+        get_runtime_info: {
+          provider: "mkt-browser", appVersion: "0.3.1", contractVersion: 4, profileSchemaVersion: 1,
+          engine: { kind: "cloakbrowser", version: "151", status: "ready" },
+          capabilities: ["runtime-info-v1"],
+          licenseCapacity: { ...capacity, key: "private-key", leaseId: "private-lease" },
+        },
+      },
+    });
+
+    const runtime = await new MktBrowserAdapter(MKT_BROWSER_DEFAULT_MCP_URL, "t").runtimeInfo();
+    expect(runtime?.licenseCapacity).toEqual(capacity);
+    expect(JSON.stringify(runtime)).not.toMatch(/private-key|private-lease/);
+  });
+
+  it("drops an invalid retry timestamp without echoing untrusted data", async () => {
+    installFakeMcpServer({
+      tools: RUNTIME_TOOLS,
+      toolBodies: {
+        get_runtime_info: {
+          provider: "mkt-browser", appVersion: "0.3.1", contractVersion: 4, profileSchemaVersion: 1,
+          engine: { kind: "cloakbrowser", version: "151", status: "ready" },
+          capabilities: [],
+          licenseCapacity: {
+            total: 1, free: 0, active: 0, pendingRecovery: 0, cooling: 1, retryAt: "private-key",
+          },
+        },
+      },
+    });
+
+    const runtime = await new MktBrowserAdapter(MKT_BROWSER_DEFAULT_MCP_URL, "t").runtimeInfo();
+    expect(runtime).toMatchObject({ provider: "mkt-browser", licenseCapacity: null });
+    expect(JSON.stringify(runtime)).not.toContain("private-key");
+  });
+
   it("reports null for a build that predates the runtime tool", async () => {
     installFakeMcpServer({ tools: REQUIRED_TOOLS });
     await expect(

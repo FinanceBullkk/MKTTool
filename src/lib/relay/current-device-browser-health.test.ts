@@ -81,7 +81,7 @@ describe("currentDeviceBrowserReadiness", () => {
     const licensed = {
       ...READY,
       engine: { kind: "cloakbrowser", version: "145.0.0.0", status: "ready" },
-      capabilities: [...READY.capabilities, "license-capacity-v1"],
+      capabilities: READY.capabilities,
       licenseCapacity: { total: 2, free: 0, active: 1, pendingRecovery: 1, cooling: 0 },
     };
 
@@ -103,5 +103,63 @@ describe("currentDeviceBrowserReadiness", () => {
       }).ready,
     ).toBe(true);
     expect(currentDeviceBrowserReadiness({ ...READY, licenseCapacity: null }).ready).toBe(true);
+  });
+
+  it.each([false, true])("blocks a cooling seat and reports only the permitted manual retry when advertised=%s", (advertised) => {
+    const result = currentDeviceBrowserReadiness({
+      ...READY,
+      capabilities: [...READY.capabilities, ...(advertised ? ["license-capacity-v1"] : [])],
+      engine: { kind: "cloakbrowser", version: "151", status: "ready" },
+      licenseCapacity: {
+        total: 1, free: 0, active: 0, pendingRecovery: 0, cooling: 1,
+        retryAt: "2026-09-21T04:45:00.000Z",
+      },
+    });
+
+    expect(result).toMatchObject({ ready: false, state: "no-capacity" });
+    expect(result.message).toContain("Earliest permitted manual retry: 2026-09-21T04:45:00.000Z (UTC)");
+    expect(result.message).toContain("Do not retry before");
+    expect(result.message).toContain("does not guarantee");
+    expect(result.message).not.toMatch(/close|frees in|will be available/i);
+  });
+
+  it("allows a distinct free slot while another slot cools", () => {
+    expect(currentDeviceBrowserReadiness({
+      ...READY,
+      engine: { kind: "cloakbrowser", version: "151", status: "ready" },
+      licenseCapacity: { total: 2, free: 1, active: 0, pendingRecovery: 0, cooling: 1 },
+    })).toMatchObject({ ready: true, state: "ready" });
+  });
+
+  it.each([
+    undefined,
+    null,
+    { total: 1, free: 1, active: 0, pendingRecovery: 0, cooling: 1 },
+    { total: 1, free: "1", active: 0, pendingRecovery: 0, cooling: 0 },
+    { total: 1, free: 2, active: -1, pendingRecovery: 0, cooling: 0 },
+    { total: 1, free: 0, active: 0, pendingRecovery: 0, cooling: 1, retryAt: "cb_live_private" },
+  ])("fails closed on missing or invalid licensed capacity without the flag: %j", (licenseCapacity) => {
+    const result = currentDeviceBrowserReadiness({
+      ...READY,
+      engine: { kind: "cloakbrowser", version: "151", status: "ready" },
+      licenseCapacity: licenseCapacity as never,
+    });
+    expect(result).toMatchObject({ ready: false, state: "capacity-unknown" });
+    expect(result.message).not.toContain("cb_live_private");
+  });
+
+  it("does not invite closing a profile when no profile is active or infer capacity from an elapsed deadline", () => {
+    for (const retryAt of [undefined, "2020-01-01T00:00:00.000Z"]) {
+      const result = currentDeviceBrowserReadiness({
+        ...READY,
+        engine: { kind: "cloakbrowser", version: "151", status: "ready" },
+        licenseCapacity: {
+          total: 1, free: 0, active: 0, pendingRecovery: 0, cooling: 1,
+          ...(retryAt ? { retryAt } : {}),
+        },
+      });
+      expect(result).toMatchObject({ ready: false, state: "no-capacity" });
+      expect(result.message).not.toMatch(/close|frees in/i);
+    }
   });
 });

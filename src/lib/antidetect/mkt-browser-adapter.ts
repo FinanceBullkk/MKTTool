@@ -17,6 +17,7 @@ import {
   MKT_BROWSER_PROVIDER_NAME,
   MKT_BROWSER_RUNTIME_INFO_TOOL,
   type MktBrowserRuntimeInfo,
+  parseMktBrowserLicenseCapacity,
   resolveMktBrowserMcpUrl,
 } from "./mkt-browser-contract";
 import {
@@ -161,36 +162,7 @@ function parseRuntimeInfo(body: Record<string, unknown>): MktBrowserRuntimeInfo 
     capabilities: Array.isArray(body.capabilities)
       ? body.capabilities.filter((item): item is string => typeof item === "string")
       : [],
-    licenseCapacity: parseLicenseCapacity(body.licenseCapacity),
-  };
-}
-
-function parseLicenseCapacity(value: unknown): MktBrowserRuntimeInfo["licenseCapacity"] {
-  if (!value || typeof value !== "object") return null;
-  const capacity = value as Record<string, unknown>;
-  const counts = [
-    capacity.total,
-    capacity.free,
-    capacity.active,
-    capacity.pendingRecovery,
-    capacity.cooling,
-  ];
-  if (counts.some((count) => !Number.isSafeInteger(count) || Number(count) < 0)) return null;
-  if (
-    capacity.total !==
-    Number(capacity.free) +
-      Number(capacity.active) +
-      Number(capacity.pendingRecovery) +
-      Number(capacity.cooling)
-  ) {
-    return null;
-  }
-  return {
-    total: Number(capacity.total),
-    free: Number(capacity.free),
-    active: Number(capacity.active),
-    pendingRecovery: Number(capacity.pendingRecovery),
-    cooling: Number(capacity.cooling),
+    licenseCapacity: parseMktBrowserLicenseCapacity(body.licenseCapacity),
   };
 }
 

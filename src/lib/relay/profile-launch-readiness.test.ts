@@ -92,7 +92,7 @@ describe("currentRelayLaunchReadiness", () => {
       browser: {
         ...HEALTH.browser,
         engine: { kind: "cloakbrowser", version: "145.0.0.0", status: "ready" },
-        capabilities: [...HEALTH.browser.capabilities, "license-capacity-v1"],
+        capabilities: HEALTH.browser.capabilities,
         licenseCapacity: {
           total: 2,
           free: 0,
@@ -124,6 +124,23 @@ describe("currentRelayLaunchReadiness", () => {
         }),
       ),
     ).toMatchObject({ ready: false, state: "no-capacity" });
+  });
+
+  it("blocks a cooling seat before launch and carries the permitted manual retry time", () => {
+    const retryAt = "2026-09-21T04:45:00.000Z";
+    const readiness = currentRelayLaunchReadiness(outcome({
+      ...HEALTH,
+      browser: {
+        ...HEALTH.browser,
+        engine: { kind: "cloakbrowser", version: "151", status: "ready" },
+        licenseCapacity: { total: 1, free: 0, active: 0, pendingRecovery: 0, cooling: 1, retryAt },
+      },
+    }));
+    expect(profileLaunchReadiness(PROFILE, readiness)).toMatchObject({
+      ready: false, state: "no-capacity", deviceId: "device-a",
+    });
+    expect(readiness.message).toContain(retryAt);
+    expect(readiness.message).not.toMatch(/close|frees in/i);
   });
 
   it("blocks launch when Relay cannot provide a current profile inventory", () => {
@@ -252,9 +269,21 @@ describe("profileLaunchReadiness", () => {
 
     expect(recovery).toContain("recovering");
     expect(unknown).toContain("Relay rejected");
+    expect(unknown).toContain("before another manual attempt");
     expect(`${recovery}\n${unknown}`).not.toContain("203.0.113.10");
     expect(`${recovery}\n${unknown}`).not.toContain("1080");
     expect(`${recovery}\n${unknown}`).not.toContain("cb_live_secret_key");
+  });
+
+  it.each(["NO_CAPACITY", "ENGINE_UNAVAILABLE"])("does not invite an immediate launch repeat for %s", (code) => {
+    const message = describeProfileLaunchFailure({
+      status: "rejected", message: "private engine output",
+      data: { ok: false, message: "private engine output", code, relayVersion: RELAY_VERSION },
+      relayVersion: RELAY_VERSION,
+    });
+    expect(message).toContain("before trying once manually");
+    expect(message).toContain("repeated attempts may extend");
+    expect(message).not.toMatch(/close|open it and retry|then retry|private engine output/i);
   });
 
   it("preserves the server-cleaned ticket failure reason and keeps status fallbacks", () => {

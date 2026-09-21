@@ -10,6 +10,7 @@ import {
   MKT_BROWSER_SUPPORTED_CONTRACT_VERSIONS,
   type MktBrowserRuntimeInfo,
   describeMktBrowserCompatibility,
+  parseMktBrowserLicenseCapacity,
   resolveMktBrowserMcpUrl,
 } from "./mkt-browser-contract";
 import { RELAY_VERSION } from "../relay/relay-endpoints";
@@ -48,6 +49,45 @@ describe("MKT Browser consumer contract", () => {
     "not-a-url",
   ])("rejects a non-loopback or non-origin override: %s", (value) => {
     expect(() => resolveMktBrowserMcpUrl(value)).toThrow(/MKT_BROWSER_MCP_URL/);
+  });
+});
+
+describe("MKT Browser capacity validation", () => {
+  const cooling = { total: 1, free: 0, active: 0, pendingRecovery: 0, cooling: 1 };
+  const retryAt = "2026-09-21T04:45:00.000Z";
+
+  it("retains only aggregate counts and a canonical UTC retry time", () => {
+    expect(parseMktBrowserLicenseCapacity({
+      ...cooling, retryAt, licenseKey: "private-key", profileId: "private-profile", leaseId: "private-lease",
+    })).toEqual({ ...cooling, retryAt });
+    expect(parseMktBrowserLicenseCapacity(cooling)).toEqual(cooling);
+    expect(parseMktBrowserLicenseCapacity({
+      ...cooling, total: 2, pendingRecovery: 1, retryAt,
+    })).toEqual({ ...cooling, total: 2, pendingRecovery: 1, retryAt });
+  });
+
+  it.each([
+    "2026-02-30T04:45:00.000Z", "2026-09-21T25:45:00.000Z", "2026-09-21T04:45:00Z",
+    "2026-09-21T04:45:00.000+00:00", "2026-09-21T04:45:00.000Z private-key", "private-key",
+    "", null, 123, {},
+  ])("rejects malformed retry timestamps: %j", (invalid) => {
+    expect(parseMktBrowserLicenseCapacity({ ...cooling, retryAt: invalid })).toBeNull();
+  });
+
+  it.each([
+    { total: 2, free: 1, active: 0, pendingRecovery: 0, cooling: 1 },
+    { total: 1, free: 0, active: 1, pendingRecovery: 0, cooling: 0 },
+    { total: 1, free: 0, active: 0, pendingRecovery: 1, cooling: 0 },
+  ])("rejects retry times without an exhausted pool and cooling slot: %j", (capacity) => {
+    expect(parseMktBrowserLicenseCapacity({ ...capacity, retryAt })).toBeNull();
+  });
+
+  it.each([
+    undefined, null, [], { ...cooling, total: 2 }, { ...cooling, free: -1 },
+    { ...cooling, total: "1" }, { ...cooling, cooling: 0.5 },
+    { ...cooling, total: Number.MAX_SAFE_INTEGER + 1 },
+  ])("rejects malformed aggregate counts: %j", (capacity) => {
+    expect(parseMktBrowserLicenseCapacity(capacity)).toBeNull();
   });
 });
 

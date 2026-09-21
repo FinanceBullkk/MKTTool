@@ -28,7 +28,7 @@ const BROWSER_TITLES: Record<Exclude<CurrentDeviceBrowserState, "ready">, string
   "capability-missing": "MKT Browser needs attention",
   "capacity-unknown": "Browser capacity could not be checked",
   "recovery-pending": "MKT Browser is recovering a session",
-  "no-capacity": "Browser capacity is in use",
+  "no-capacity": "Browser capacity is unavailable",
 };
 
 /**
@@ -43,13 +43,15 @@ const BROWSER_TITLES: Record<Exclude<CurrentDeviceBrowserState, "ready">, string
  * Mọi câu còn lại của chặng `create-profile` thì KHÔNG chuyển tiếp: chúng ghép bằng
  * `${describe(error)}`, tức nguyên văn lỗi engine, kèm chuỗi kết nối proxy và đường dẫn máy.
  *
- * Chặng `browser-health` thì ngược lại — câu đó do `currentDeviceBrowserReadiness()` viết, đã là
- * câu dành cho người đọc ("đóng bớt một profile đang mở rồi thử lại") và không có mã đi kèm, nên
- * đọc mã thôi là mất nó.
+ * The `browser-health` stage carries operator-safe readiness guidance, including any earliest
+ * permitted retry time, so preserve that wording when no stable error code is present.
  */
 const CREATE_FAILURE_MESSAGE_BY_CODE: Record<string, string> = {
+  NO_CAPACITY: "No local browser capacity is available. Check the wait shown in MKT Browser before trying once manually; repeated attempts may extend it.",
+  CAPACITY_UNKNOWN: "The local browser could not verify available capacity. Open MKT Browser and check its licence and recovery state before continuing.",
+  RECOVERY_PENDING: "The local browser is recovering a prior session. Wait for recovery to finish, then check capacity before trying once manually.",
   PROXY_REJECTED: "The assigned proxy could not be applied, so the browser profile was not created. Check the proxy and retry.",
-  ENGINE_UNAVAILABLE: "The local browser is not ready. Open MKT Browser on this PC and retry.",
+  ENGINE_UNAVAILABLE: "The local browser could not start. Check the engine, licence and wait state in MKT Browser before trying once manually; repeated attempts may extend a licence wait.",
   UNKNOWN_TOOL: "Update MKT Browser on this PC, then retry.",
   MANAGED_PROFILE_LOCKED: "Another operation is using this browser profile. Wait for it to finish, then retry.",
   PROFILE_DELETION_PENDING: "A browser profile is still being removed on this PC. Wait for the cleanup to finish, then retry.",
@@ -68,7 +70,7 @@ export function describeProfileCreateRejection(outcome: RelayRejection): string 
   if (!code && relayFailureStage(outcome) === "browser-health" && message) return message;
   if (code && CREATE_FAILURE_MESSAGE_BY_CODE[code]) return CREATE_FAILURE_MESSAGE_BY_CODE[code];
 
-  return "MKT Browser could not create the browser profile. Keep it open on this PC and retry, or review Setup.";
+  return "MKT Browser could not create the browser profile. Review Setup and the engine, licence and wait state in MKT Browser before another manual attempt.";
 }
 
 export function profileSetupUnknown(): ProfileSetupBlocked {

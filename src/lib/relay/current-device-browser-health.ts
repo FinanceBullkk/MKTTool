@@ -1,4 +1,5 @@
 import type { RelayBrowserHealth } from "./relay-endpoints";
+import { parseMktBrowserLicenseCapacity, type MktBrowserLicenseCapacity } from "../antidetect/mkt-browser-contract";
 
 export const REQUIRED_MANAGED_BROWSER_CAPABILITIES = [
   "idempotent-create-v1",
@@ -103,30 +104,30 @@ export function currentDeviceBrowserReadiness(
     };
   }
 
-  if (
-    browser.engine.kind === "cloakbrowser" &&
-    capabilities.includes("license-capacity-v1")
-  ) {
-    const capacity = browser.licenseCapacity;
+  // Capacity is still a safety input while its rollout capability remains unadvertised.
+  if (browser.engine.kind === "cloakbrowser") {
+    const capacity = parseMktBrowserLicenseCapacity(browser.licenseCapacity);
     if (!capacity) {
       return {
         ready: false,
         state: "capacity-unknown",
-        message: "MKT Browser could not verify available browser capacity. Open it and retry recovery.",
+        message: "MKT Browser could not verify available browser capacity. Open it and check its licence and recovery state before continuing.",
       };
     }
     if (capacity.free === 0 && capacity.pendingRecovery > 0) {
       return {
         ready: false,
         state: "recovery-pending",
-        message: "MKT Browser is recovering a prior browser session. Retry after recovery finishes.",
+        message: capacity.retryAt
+          ? capacityWaitMessage(capacity)
+          : "MKT Browser is recovering a prior browser session. Wait for recovery to finish, then check capacity before trying once manually.",
       };
     }
     if (capacity.free === 0) {
       return {
         ready: false,
         state: "no-capacity",
-        message: "All browser capacity is in use or cooling. Close a running profile, then retry.",
+        message: capacityWaitMessage(capacity),
       };
     }
   }
@@ -136,4 +137,18 @@ export function currentDeviceBrowserReadiness(
     state: "ready",
     message: "MKT Browser technical checks passed on this PC; identity isolation is not proven.",
   };
+}
+
+function capacityWaitMessage(capacity: MktBrowserLicenseCapacity): string {
+  if (capacity.retryAt) {
+    return `Browser capacity is waiting. Earliest permitted manual retry: ${capacity.retryAt} (UTC). ` +
+      "Do not retry before this time; repeated attempts may extend the wait. This time does not guarantee that a seat is available.";
+  }
+  if (capacity.cooling > 0) {
+    return "Browser capacity is waiting after a session ended or was refused. Check the wait shown in MKT Browser before trying once manually; repeated attempts may extend it.";
+  }
+  if (capacity.active > 0) {
+    return "All browser capacity is in use. Closing a profile starts a waiting period; check MKT Browser for the next permitted retry.";
+  }
+  return "No browser capacity is available. Check the licence and wait state in MKT Browser before trying once manually.";
 }

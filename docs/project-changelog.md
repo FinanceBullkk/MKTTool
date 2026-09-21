@@ -1,5 +1,25 @@
 # Project changelog
 
+## 2026-09-21 - Licence capacity and engine integrity source checkpoint
+
+- Record the correction of false vendor-release assumptions on clean close, process exit, and
+  orphan cleanup. Use persistent local waits of 25 minutes after close and 30 minutes after
+  refusal; one operator request makes one engine attempt, without automatic retries.
+- Enforce CloakBrowser capacity in Web even without its capability flag, fail closed when capacity
+  is missing, and show a sanitized optional earliest retry time when the pool is exhausted.
+  Another cooling slot does not block a genuinely free slot; CFT capacity behavior is unchanged.
+- Require valid checksums for new CloakBrowser downloads and preserve pinned CFT verification.
+  Keep the existing unpinned development CFT path unchanged. Record harness pin-drift checks and
+  sanitized `.6` provenance as source work, separate from complete measurement evidence.
+- Add the [local retry policy](../../docs/licence-seat-retry-policy.md). Vendor timer reset remains
+  a hypothesis; 25/30 minutes are local policy, not a vendor release guarantee. The one-shot quiet
+  smoke still received exit `76` after 31.25 minutes. Browser correctly returned cooling with a
+  30-minute retry deadline; no second launch followed. Successful real clean-close acceptance stays
+  OPEN. Targeted Web validation passed 170 tests, typecheck and lint.
+- Keep Cloak identity **BLOCKED**, historical `.2` `0/10` unchanged, and require five profiles with
+  ten complete readings. No new release, installer, push, deployment, or operator promotion is
+  recorded by this checkpoint.
+
 ## 2026-09-14 - Gates closed, two gates defined, and a secret-scan blind spot
 
 - Close the proxied-launch gate on this host against the exact installed 0.3.23: real CloakBrowser

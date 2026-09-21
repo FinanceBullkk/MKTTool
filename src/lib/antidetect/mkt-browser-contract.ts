@@ -52,6 +52,42 @@ export interface MktBrowserLicenseCapacity {
   active: number;
   pendingRecovery: number;
   cooling: number;
+  /** Earliest local manual retry, never proof that the vendor released a seat. */
+  retryAt?: string;
+}
+
+/** Sanitize both the MCP reply and the Relay health reply before trusting capacity. */
+export function parseMktBrowserLicenseCapacity(value: unknown): MktBrowserLicenseCapacity | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const capacity = value as Record<string, unknown>;
+  const counts = [
+    capacity.total, capacity.free, capacity.active, capacity.pendingRecovery, capacity.cooling,
+  ];
+  if (counts.some((count) => !Number.isSafeInteger(count) || Number(count) < 0)) return null;
+  if (
+    capacity.total !== Number(capacity.free) + Number(capacity.active) +
+      Number(capacity.pendingRecovery) + Number(capacity.cooling)
+  ) return null;
+
+  const retryAt = capacity.retryAt;
+  if (retryAt !== undefined) {
+    if (
+      typeof retryAt !== "string" ||
+      !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(retryAt)
+    ) return null;
+    const instant = Date.parse(retryAt);
+    if (!Number.isFinite(instant) || new Date(instant).toISOString() !== retryAt) return null;
+    if (capacity.free !== 0 || Number(capacity.cooling) === 0) return null;
+  }
+
+  return {
+    total: Number(capacity.total),
+    free: Number(capacity.free),
+    active: Number(capacity.active),
+    pendingRecovery: Number(capacity.pendingRecovery),
+    cooling: Number(capacity.cooling),
+    ...(typeof retryAt === "string" ? { retryAt } : {}),
+  };
 }
 
 export interface MktBrowserRuntimeInfo {

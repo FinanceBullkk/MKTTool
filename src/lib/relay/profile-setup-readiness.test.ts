@@ -124,7 +124,7 @@ describe("profileSetupReadiness", () => {
   it("keeps measured recovery and capacity blockers", () => {
     const licensed = {
       ...BROWSER, engine: { kind: "cloakbrowser", version: "145", status: "ready" },
-      capabilities: [...BROWSER.capabilities, "license-capacity-v1"],
+      capabilities: BROWSER.capabilities,
       licenseCapacity: { total: 2, free: 0, active: 1, pendingRecovery: 1, cooling: 0 },
     };
     expect(profileSetupReadiness(rejected, health({ browser: licensed })))
@@ -132,8 +132,20 @@ describe("profileSetupReadiness", () => {
     expect(profileSetupReadiness(rejected, health({ browser: { ...licensed, licenseCapacity: null } })))
       .toMatchObject({ kind: "blocked", state: "capacity-unknown" });
     expect(profileSetupReadiness(rejected, health({ browser: { ...licensed,
-      licenseCapacity: { ...licensed.licenseCapacity, pendingRecovery: 0 },
+      licenseCapacity: { ...licensed.licenseCapacity, active: 2, pendingRecovery: 0 },
     } }))).toMatchObject({ kind: "blocked", state: "no-capacity" });
+  });
+
+  it("blocks setup on a cooling seat and shows the earliest permitted manual retry", () => {
+    const retryAt = "2026-09-21T04:45:00.000Z";
+    const result = profileSetupReadiness(profiles(), health({ browser: {
+      ...BROWSER, engine: { kind: "cloakbrowser", version: "151", status: "ready" },
+      licenseCapacity: { total: 1, free: 0, active: 0, pendingRecovery: 0, cooling: 1, retryAt },
+    } }));
+    expect(result).toMatchObject({ kind: "blocked", state: "no-capacity", title: "Browser capacity is unavailable" });
+    if (result.kind !== "blocked") throw new Error("Expected cooling capacity to block setup");
+    expect(result.message).toContain(retryAt);
+    expect(result.message).not.toMatch(/close|frees in/i);
   });
 });
 
@@ -175,12 +187,20 @@ describe("describeProfileCreateRejection", () => {
       expect(result).not.toContain("cb_live_secret_key");
       expect(result).not.toContain("203.0.113.10");
       expect(result).toMatch(/could not create the browser profile/i);
+      expect(result).toContain("before another manual attempt");
     }
   });
 
   it("keeps the Relay's own readiness wording, which arrives without a code", () => {
-    const readiness = "All browser capacity is in use or cooling. Close a running profile, then retry.";
+    const readiness = "Browser capacity is waiting. Earliest permitted manual retry: 2026-09-21T04:45:00.000Z (UTC).";
     expect(describeProfileCreateRejection(rejection(readiness, { stage: "browser-health" }))).toBe(readiness);
+  });
+
+  it.each(["NO_CAPACITY", "ENGINE_UNAVAILABLE"])("directs %s to its wait before another manual attempt", (code) => {
+    const message = describeProfileCreateRejection(rejection(INTERNAL, { stage: "create-profile", code }));
+    expect(message).toContain("before trying once manually");
+    expect(message).toContain("repeated attempts may extend");
+    expect(message).not.toMatch(/open.*and retry|cb_live_secret_key|203\.0\.113/);
   });
 
   it("reads the code from the body as well as from the diagnostic", () => {

@@ -1,6 +1,33 @@
 # Lộ trình phát triển
 
-**Updated:** 14 September 2026
+**Updated:** 21 September 2026
+
+## Licence capacity and engine integrity source checkpoint - 21 September 2026
+
+The [licence-seat worklist](../../plans/reports/worklist-260921-1105-licence-seat-fixes.md) is
+implemented as a source correction. `Browser.close`, exit code 0, and polite orphan cleanup are
+not vendor release proof. The agreed policy preserves a 25-minute local wait after unconfirmed
+close and a 30-minute local wait after refusal across restart. One operator request makes at most
+one engine attempt; no automatic retry follows a refusal.
+
+Web readiness enforces the Browser's aggregate capacity even when the capability flag is absent.
+Missing CloakBrowser capacity fails closed; an exhausted pool displays the earliest known local
+`retryAt` without promising vendor release. A genuinely free slot still allows launch when another
+slot is cooling. CFT capacity behavior is unchanged.
+
+New CloakBrowser downloads require a valid checksum; pinned CFT downloads retain their checksum
+requirement, and the existing unpinned development CFT path is unchanged. Harness pin-drift checks
+and sanitized `.6` provenance accompany the repair. See the
+[retry and integrity policy](../../docs/licence-seat-retry-policy.md).
+
+Targeted Web validation passed 170 tests, typecheck and lint. The
+[one-shot real-engine smoke](../../plans/260921-1109-licence-seat-fixes/live-seat-once.json) failed
+seat acquisition after 31.25 locally quiet minutes (exit `76`); the repaired Browser correctly
+reported cooling and a 30-minute retry deadline, with no second launch. Successful real clean-close
+acceptance remains OPEN. No new installer, publication, push, or deployment is recorded here. These source changes
+do not change historical release evidence or approve operator promotion. Cloak identity measurement
+remains **BLOCKED**: the partial `.6` observation does not satisfy five profiles and ten readings,
+and the historical `.2` `0/10` result and `G2-IDENTITY=FAIL` remain unchanged.
 
 ## Team Web handoff - 13 September 2026
 
