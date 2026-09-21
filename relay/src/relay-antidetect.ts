@@ -163,6 +163,10 @@ export class RelayAntidetect {
     return health;
   }
 
+  async refreshLicenseCapacity() {
+    return await this.getMktBrowserAdapter().refreshLicenseCapacity();
+  }
+
   private getMktBrowserAdapter(): MktBrowserAdapter {
     this.getAdapter();
     if (!this.adapter) throw new AntidetectNotConfiguredError();

@@ -131,6 +131,41 @@ describe("currentDeviceBrowserReadiness", () => {
     })).toMatchObject({ ready: true, state: "ready" });
   });
 
+  it("requires and honors the contract-5 availability verdict", () => {
+    const contract5 = {
+      ...READY,
+      contractVersion: 5,
+      engine: { kind: "cloakbrowser", version: "151", status: "ready" },
+      licenseCapacity: { total: 1, free: 1, active: 0, pendingRecovery: 0, cooling: 0 },
+    };
+
+    expect(currentDeviceBrowserReadiness(contract5).state).toBe("capacity-unknown");
+    expect(currentDeviceBrowserReadiness({
+      ...contract5,
+      licenseCapacity: {
+        ...contract5.licenseCapacity,
+        availability: "unable-to-verify",
+        reason: "REQUEST_TIMEOUT",
+      },
+    }).state).toBe("capacity-unknown");
+    expect(currentDeviceBrowserReadiness({
+      ...contract5,
+      licenseCapacity: {
+        ...contract5.licenseCapacity,
+        availability: "in-use",
+        reason: "CAPACITY_OCCUPIED",
+      },
+    }).state).toBe("no-capacity");
+    expect(currentDeviceBrowserReadiness({
+      ...contract5,
+      licenseCapacity: {
+        ...contract5.licenseCapacity,
+        availability: "ready",
+        reason: "CAPACITY_AVAILABLE",
+      },
+    })).toMatchObject({ ready: true, state: "ready" });
+  });
+
   it.each([
     undefined,
     null,

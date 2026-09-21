@@ -53,6 +53,7 @@ import {
   describeSlowRelayFailure,
   fetchRelayProfiles,
   pingRelay,
+  refreshRelayLicenseCapacity,
   sendTicketToRelay,
   type RelayOutcome,
 } from "@/lib/relay/relay-browser-client";
@@ -117,14 +118,13 @@ export function AntidetectProfileCard({
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState<Feedback>(null);
 
-  const refreshLocalState = useCallback(async () => {
+  const refreshLocalState = useCallback(async (refreshCapacity = false) => {
     const sequence = ++refreshSequence.current;
     setChecking(true);
-    // Start the health request during the click, before any await loses local-network activation.
-    const healthPromise = pingRelay();
-    const profilesPromise = fetchRelayProfiles();
     try {
-      const [health, profiles] = await Promise.all([healthPromise, profilesPromise]);
+      if (refreshCapacity) await refreshRelayLicenseCapacity();
+      if (sequence !== refreshSequence.current) return;
+      const [health, profiles] = await Promise.all([pingRelay(), fetchRelayProfiles()]);
       if (sequence === refreshSequence.current) setSetup(profileSetupReadiness(profiles, health));
     } catch {
       if (sequence === refreshSequence.current) setSetup(profileSetupUnknown());
@@ -256,7 +256,7 @@ export function AntidetectProfileCard({
       <ProfileSetupStatus
         state={setup?.kind === "blocked" ? setup : null}
         checking={checking}
-        onRetry={() => void refreshLocalState()}
+        onRetry={() => void refreshLocalState(true)}
       />
     );
   }
@@ -320,7 +320,7 @@ export function AntidetectProfileCard({
             message: plan?.failure.message ?? "Check the assigned proxy country, then check again.",
           }}
           checking={checking}
-          onRetry={() => void refreshLocalState()}
+          onRetry={() => void refreshLocalState(true)}
         />
       )}
 

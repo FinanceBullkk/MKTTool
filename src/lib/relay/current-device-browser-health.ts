@@ -114,6 +114,54 @@ export function currentDeviceBrowserReadiness(
         message: "MKT Browser could not verify available browser capacity. Open it and check its licence and recovery state before continuing.",
       };
     }
+
+    if (Number(browser.contractVersion) >= 5) {
+      if (!capacity.availability || !capacity.reason) {
+        return {
+          ready: false,
+          state: "capacity-unknown",
+          message: "MKT Browser did not provide a complete licence-capacity verdict. Check availability again before continuing.",
+        };
+      }
+
+      switch (capacity.availability) {
+        case "ready":
+          if (capacity.free > 0) break;
+          return {
+            ready: false,
+            state: "capacity-unknown",
+            message: "MKT Browser returned conflicting licence-capacity state. Check availability again before continuing.",
+          };
+        case "checking":
+          return {
+            ready: false,
+            state: "capacity-unknown",
+            message: "MKT Browser is checking licence capacity. Wait for the check to finish, then check again.",
+          };
+        case "recovering":
+          return {
+            ready: false,
+            state: "recovery-pending",
+            message: capacity.retryAt
+              ? capacityWaitMessage(capacity)
+              : "MKT Browser is recovering a prior browser session. Wait for recovery to finish, then check availability again.",
+          };
+        case "in-use":
+        case "cooling":
+          return {
+            ready: false,
+            state: "no-capacity",
+            message: capacityWaitMessage(capacity),
+          };
+        case "unable-to-verify":
+          return {
+            ready: false,
+            state: "capacity-unknown",
+            message: "MKT Browser could not verify licence capacity. Check the local licence and network, then check again.",
+          };
+      }
+    }
+
     if (capacity.free === 0 && capacity.pendingRecovery > 0) {
       return {
         ready: false,

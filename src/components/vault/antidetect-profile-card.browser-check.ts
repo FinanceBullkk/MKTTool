@@ -99,6 +99,10 @@ async function main() {
                         contents: path === "relay" ? `
           export const pingRelay = () => window.fixture.request("health");
           export const fetchRelayProfiles = () => window.fixture.request("profiles");
+          export const refreshRelayLicenseCapacity = () => {
+            window.fixture.calls.push("capacity");
+            return Promise.resolve({ status: "ok", data: { ok: true, message: "Refreshed" } });
+          };
           export const sendTicketToRelay = () => { window.fixture.mutations++; throw Error("Unexpected ticket"); };
           export const describeRelayFailure = () => "Safe fixture failure";
           export const describeSlowRelayFailure = () => "Safe fixture failure";
@@ -152,7 +156,7 @@ async function main() {
         const retry = page.getByRole("button", { name: "Checking...", exact: true });
         assert.equal(await retry.isDisabled(), true);
         await retry.dispatchEvent("click");
-        assert.deepEqual(await page.evaluate(() => (window as FixtureWindow).fixture.calls), ["health", "profiles"]);
+        assert.deepEqual(await page.evaluate(() => (window as FixtureWindow).fixture.calls), ["capacity", "health", "profiles"]);
         await page.evaluate(() => { for (const resolve of (window as FixtureWindow).fixture.pending.splice(0))
             resolve(); });
         await page.getByText("Browser profile setup needs attention", { exact: true }).waitFor();

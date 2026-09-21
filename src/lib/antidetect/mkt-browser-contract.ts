@@ -6,6 +6,7 @@ export const MKT_BROWSER_MCP_URL_ENV = "MKT_BROWSER_MCP_URL";
 export const MKT_BROWSER_MCP_TOKEN_ENV = "MKT_BROWSER_MCP_TOKEN";
 
 export const MKT_BROWSER_RUNTIME_INFO_TOOL = "get_runtime_info";
+export const MKT_BROWSER_REFRESH_LICENSE_CAPACITY_TOOL = "refresh_license_capacity";
 
 /**
  * Contract versions this MKTTool build knows how to drive. It is a list rather than a minimum
@@ -13,7 +14,7 @@ export const MKT_BROWSER_RUNTIME_INFO_TOOL = "get_runtime_info";
  * still calls, and silently trusting "newer is fine" is how a device fails at launch time instead
  * of at health-check time.
  */
-export const MKT_BROWSER_SUPPORTED_CONTRACT_VERSIONS = [1, 2, 3, 4] as const;
+export const MKT_BROWSER_SUPPORTED_CONTRACT_VERSIONS = [1, 2, 3, 4, 5] as const;
 
 /**
  * Mirrors the desktop contract's codes. MKTTool branches on these; it must never match a
@@ -46,6 +47,14 @@ export interface MktBrowserEngineInfo {
   status: string;
 }
 
+export type MktBrowserLicenseAvailability =
+  | "ready"
+  | "checking"
+  | "in-use"
+  | "cooling"
+  | "recovering"
+  | "unable-to-verify";
+
 export interface MktBrowserLicenseCapacity {
   total: number;
   free: number;
@@ -54,7 +63,22 @@ export interface MktBrowserLicenseCapacity {
   cooling: number;
   /** Earliest local manual retry, never proof that the vendor released a seat. */
   retryAt?: string;
+  availability?: MktBrowserLicenseAvailability;
+  reason?: string;
+  observedAt?: string;
+  freshUntil?: string;
+  vendorActive?: number;
+  vendorLimit?: number;
 }
+
+const LICENSE_AVAILABILITY = new Set<MktBrowserLicenseAvailability>([
+  "ready",
+  "checking",
+  "in-use",
+  "cooling",
+  "recovering",
+  "unable-to-verify",
+]);
 
 /** Sanitize both the MCP reply and the Relay health reply before trusting capacity. */
 export function parseMktBrowserLicenseCapacity(value: unknown): MktBrowserLicenseCapacity | null {
@@ -80,6 +104,42 @@ export function parseMktBrowserLicenseCapacity(value: unknown): MktBrowserLicens
     if (capacity.free !== 0 || Number(capacity.cooling) === 0) return null;
   }
 
+  const hasAvailability = capacity.availability !== undefined;
+  const hasReason = capacity.reason !== undefined;
+  if (hasAvailability !== hasReason) return null;
+  if (
+    hasAvailability &&
+    (typeof capacity.availability !== "string" ||
+      !LICENSE_AVAILABILITY.has(capacity.availability as MktBrowserLicenseAvailability) ||
+      typeof capacity.reason !== "string" ||
+      !/^[A-Z][A-Z0-9_]{0,63}$/.test(capacity.reason))
+  ) return null;
+
+  const hasObservedAt = capacity.observedAt !== undefined;
+  const hasFreshUntil = capacity.freshUntil !== undefined;
+  if (hasObservedAt !== hasFreshUntil) return null;
+  if (
+    hasObservedAt &&
+    (typeof capacity.observedAt !== "string" ||
+      typeof capacity.freshUntil !== "string" ||
+      !isCanonicalTimestamp(capacity.observedAt) ||
+      !isCanonicalTimestamp(capacity.freshUntil) ||
+      Date.parse(capacity.freshUntil) < Date.parse(capacity.observedAt))
+  ) return null;
+
+  const hasVendorActive = capacity.vendorActive !== undefined;
+  const hasVendorLimit = capacity.vendorLimit !== undefined;
+  if (hasVendorActive !== hasVendorLimit) return null;
+  if (
+    hasVendorActive &&
+    (!hasObservedAt ||
+      !Number.isSafeInteger(capacity.vendorActive) ||
+      Number(capacity.vendorActive) < 0 ||
+      !Number.isSafeInteger(capacity.vendorLimit) ||
+      Number(capacity.vendorLimit) < 1 ||
+      Number(capacity.vendorActive) > Number(capacity.vendorLimit))
+  ) return null;
+
   return {
     total: Number(capacity.total),
     free: Number(capacity.free),
@@ -87,7 +147,34 @@ export function parseMktBrowserLicenseCapacity(value: unknown): MktBrowserLicens
     pendingRecovery: Number(capacity.pendingRecovery),
     cooling: Number(capacity.cooling),
     ...(typeof retryAt === "string" ? { retryAt } : {}),
+    ...(hasAvailability
+      ? {
+          availability: capacity.availability as MktBrowserLicenseAvailability,
+          reason: capacity.reason as string,
+        }
+      : {}),
+    ...(hasObservedAt
+      ? {
+          observedAt: capacity.observedAt as string,
+          freshUntil: capacity.freshUntil as string,
+        }
+      : {}),
+    ...(hasVendorActive
+      ? {
+          vendorActive: Number(capacity.vendorActive),
+          vendorLimit: Number(capacity.vendorLimit),
+        }
+      : {}),
   };
+}
+
+function isCanonicalTimestamp(value: string): boolean {
+  const instant = Date.parse(value);
+  return (
+    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(value) &&
+    Number.isFinite(instant) &&
+    new Date(instant).toISOString() === value
+  );
 }
 
 export interface MktBrowserRuntimeInfo {

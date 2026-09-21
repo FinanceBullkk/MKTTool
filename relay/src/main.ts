@@ -37,6 +37,7 @@ import { handleRetireDevice } from "./handle-retire-device";
 import { handleFinalizeDeviceRetirement } from "./handle-finalize-device-retirement";
 import { handleCompatibilityRollback } from "./handle-compatibility-rollback";
 import { handleCompatibilityUpdate } from "./handle-compatibility-update";
+import { handleLicenseCapacityRefresh } from "./handle-license-capacity-refresh";
 import { BootstrapAuthorizationBroker } from "./bootstrap-authorization";
 import { readOperatorGrantState } from "./operator-grant-state";
 import { handleProfilesRequest } from "./handle-profiles";
@@ -295,6 +296,13 @@ async function main(): Promise<void> {
       // máy đang chạy — xem chú thích đầu `handle-profiles.ts`.
       [RELAY_PATHS.profiles]: () =>
         pendingRetirement ? retirementBlocked() : handleProfilesRequest(state.antidetect),
+      [RELAY_PATHS.licenseCapacityRefresh]: (request) =>
+        pendingRetirement
+          ? retirementBlocked()
+          : handleLicenseCapacityRefresh(request, {
+              allowedOrigin: state.webOrigin || null,
+              antidetect: state.antidetect,
+            }),
       [SECRET_REVEAL_PATH]: (_request, body) =>
         pendingRetirement
           ? retirementBlocked()

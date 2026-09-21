@@ -66,6 +66,7 @@ export async function runRetirementRecoveryServer(
           onFinalized: () => server.close(),
         }),
       [RELAY_PATHS.profiles]: retirementBlocked,
+      [RELAY_PATHS.licenseCapacityRefresh]: retirementBlocked,
       [RELAY_PATHS.ticket]: retirementBlocked,
       [RELAY_PATHS.configure]: () => ({
         ok: false,

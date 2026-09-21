@@ -11,13 +11,14 @@ vi.mock("@/lib/relay/relay-release-file", () => ({ readRelayRelease: mocks.readR
 vi.mock("@/lib/relay/relay-release-r2", () => ({ readRelayReleaseR2Config: mocks.readR2Config }));
 
 import { GET } from "./route";
+import { RELAY_VERSION } from "@/lib/relay/relay-endpoints";
 
 const GOOD_RELEASE = {
   available: true,
   source: "r2" as const,
   sizeBytes: 1,
   builtAt: new Date("2026-08-30T00:00:00.000Z"),
-  version: 17,
+  version: RELAY_VERSION,
   checksum: "a".repeat(64),
 };
 
@@ -37,7 +38,7 @@ describe("GET /api/healthz", () => {
     expect(body).toMatchObject({
       ok: true,
       status: "ready",
-      relayVersion: 17,
+      relayVersion: RELAY_VERSION,
       releaseSource: "r2",
       checks: { database: "ok", releaseMetadata: "ok", r2: "not_configured" },
     });

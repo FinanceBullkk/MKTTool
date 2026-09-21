@@ -5,6 +5,7 @@ import { SECRET_REVEAL_PATH } from "./secret-page";
 export const RELAY_ROUTE_CAPABILITIES = [
   "runtime-read",
   "profile-catalog-read",
+  "license-capacity-refresh",
   "signed-profile-operation",
   "device-configuration",
   "local-operator-key-write",
@@ -34,6 +35,10 @@ type RelayRoutePolicy = {
 export const RELAY_ROUTE_POLICIES = {
   [RELAY_PATHS.health]: { method: "GET", capability: "runtime-read" },
   [RELAY_PATHS.profiles]: { method: "GET", capability: "profile-catalog-read" },
+  [RELAY_PATHS.licenseCapacityRefresh]: {
+    method: "POST",
+    capability: "license-capacity-refresh",
+  },
   [RELAY_PATHS.ticket]: { method: "POST", capability: "signed-profile-operation" },
   [RELAY_PATHS.configure]: { method: "POST", capability: "device-configuration" },
   [RELAY_PATHS.setOperatorKey]: { method: "POST", capability: "local-operator-key-write" },

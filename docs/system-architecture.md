@@ -1,6 +1,6 @@
 # Kiến trúc hệ thống
 
-**Updated:** 30 August 2026
+**Updated:** 22 September 2026
 
 Tài liệu này trả lời: hệ thống **chạy ở đâu**, **tin ai**, **phụ thuộc gì**, và **hỏng thì hỏng
 thế nào**. Code nằm ở đâu thì tra [codebase-summary.md](codebase-summary.md); thuật ngữ tra
@@ -90,8 +90,12 @@ the queue, posting rules, warmup, and publishing paths do not silently activate 
 > `Web → Relay → authenticated MCP → MKT Browser`; operator keys stay in Relay and profiles/cookies
 > stay on the operator device. There is no MultiZen provider or configuration fallback.
 
-> **Current managed boundary:** contract version `4` advertises idempotent create, atomic launch,
-> managed-profile locking, operation diagnostics, and no MCP profile deletion. Relay v16 preserves
+> **Current managed boundary:** source contract version `5` retains idempotent create, atomic launch,
+> managed-profile locking, operation diagnostics, and no MCP profile deletion. It adds sanitized
+> licence availability/freshness plus an authenticated explicit refresh; the accepted installed
+> candidate may remain on contract 4 until a new exact tuple passes. Relay source v18 carries the
+> explicit capacity-refresh route; the reviewed installer still bundles Relay v17 until a new exact
+> tuple passes. Relay preserves
 > ticket `jti` as
 > `operationId`, calls `launch_managed_profile`, and accepts the result only when correlation matches.
 > The Browser persists and reads back the requested proxy before Chromium starts; a running session
@@ -112,11 +116,12 @@ the queue, posting rules, warmup, and publishing paths do not silently activate 
 > profile operations retain their managed-capability checks, so this UX separation does not grant
 > Browser readiness, rollout approval, or identity-isolation approval.
 
-> **P0 rollout boundary:** automated proxy-egress, lease-journal, and technical readiness checks are green, but
-> `license-capacity-v1` is not advertised because vendor start/heartbeat/end state is not connected
-> to the journal. Packaged Relay restart and real disposable-VM power-cycle recovery have sanitized,
-> hash-bound evidence; real proxy/DNS/WebRTC completion, the remaining human login/input sessions,
-> second-PC setup, vendor sidecar/schema integration, and the canary remain open.
+> **P0 rollout boundary:** current source can make a bounded count-only vendor observation before
+> admission and can refresh it explicitly through Web → Relay → authenticated MCP. The observation
+> is aggregate, expires after five seconds, and never confirms a specific lease release. Local
+> ownership/recovery remains authoritative; unknown or stale state fails closed. The capability
+> `license-capacity-v1` stays unadvertised until live integration acceptance. Packaged contention,
+> real proxy/DNS/WebRTC, native fingerprint A/B/C, human login/input, second-PC, and canary remain open.
 
 > **“Relay” does not mean an edge proxy here.** It exposes no public tunnel, target-forwarding API,
 > or proxy pool. It verifies recipient-bound tickets, opens operator-domain secrets locally, and calls

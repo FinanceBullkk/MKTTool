@@ -55,6 +55,8 @@ export const RELAY_PATHS = {
    * `webOrigin` như `/health` — chỉ web app của team gọi được.
    */
   profiles: "/profiles",
+  /** POST — explicitly refresh aggregate Browser licence capacity without launching a profile. */
+  licenseCapacityRefresh: "/license-capacity/refresh",
   /** Mở tab, vé nằm ở fragment — trang hiện mật khẩu / OTP. */
   secret: "/secret",
   /** POST — đổi bí mật dạng trần thành ciphertext vùng operator. */
@@ -200,6 +202,9 @@ export interface ConfigureRelayRequest {
  */
 export const RELAY_TIMEOUT_MS = 4_000;
 
+/** Capacity observation can legitimately consume Browser's full five-second provider deadline. */
+export const RELAY_LICENSE_CAPACITY_REFRESH_TIMEOUT_MS = 10_000;
+
 /** DPAPI receipt persistence plus idempotent local cleanup may exceed the normal loopback timeout. */
 export const RELAY_RETIREMENT_TIMEOUT_MS = 30_000;
 
@@ -262,7 +267,7 @@ export const RELAY_PROFILE_WORK_TIMEOUT_MS = 60_000;
  * tăng bằng tay: tự sinh theo git hash thì nó đổi ở mọi lượt build, và một số đổi liên tục thì
  * cảnh báo "bản cũ" kêu liên tục cho tới lúc không ai còn nhìn.
  */
-export const RELAY_VERSION = 17;
+export const RELAY_VERSION = 18;
 
 /**
  * Một profile antidetect như cầu nối khai ra ở `GET /profiles`.
@@ -295,6 +300,10 @@ export interface RelayFingerprintOptions {
 export interface RelayProfilesReply extends RelayReply {
   profiles?: RelayProfileSummary[];
   fingerprintOptions?: RelayFingerprintOptions;
+}
+
+export interface RelayLicenseCapacityRefreshReply extends RelayReply {
+  licenseCapacity?: MktBrowserLicenseCapacity | null;
 }
 
 export interface RelayBrowserHealth {

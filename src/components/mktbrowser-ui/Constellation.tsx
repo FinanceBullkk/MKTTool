@@ -5,7 +5,11 @@ import Link from "next/link";
 import { ArrowRight, Search } from "lucide-react";
 import { ProfileTile, type ProfileItemData } from "./ProfileTile";
 import { WorkspaceStatusBoard } from "./workspace-status-board";
-import { fetchRelayProfiles, pingRelay } from "@/lib/relay/relay-browser-client";
+import {
+  fetchRelayProfiles,
+  pingRelay,
+  refreshRelayLicenseCapacity,
+} from "@/lib/relay/relay-browser-client";
 import {
   currentRelayLaunchReadiness,
   localProfileInventorySnapshot,
@@ -47,22 +51,29 @@ export function Constellation({
   );
   const [runningProfileIds, setRunningProfileIds] = useState<Set<string>>(() => new Set());
   const refreshSequence = useRef(0);
+  const explicitRefreshInFlight = useRef(false);
 
-  const refreshLocalState = useCallback(async () => {
+  const refreshLocalState = useCallback(async (refreshCapacity = false) => {
+    if (!refreshCapacity && explicitRefreshInFlight.current) return;
     const sequence = ++refreshSequence.current;
+    if (refreshCapacity) explicitRefreshInFlight.current = true;
     setCheckingLocal(true);
-    const healthPromise = pingRelay();
-    const profilesPromise = fetchRelayProfiles();
-    const [health, localProfiles] = await Promise.all([healthPromise, profilesPromise]);
-    if (sequence !== refreshSequence.current) return;
+    try {
+      if (refreshCapacity) await refreshRelayLicenseCapacity();
+      if (sequence !== refreshSequence.current) return;
+      const [health, localProfiles] = await Promise.all([pingRelay(), fetchRelayProfiles()]);
+      if (sequence !== refreshSequence.current) return;
 
-    const inventory = localProfileInventorySnapshot(
-      currentRelayLaunchReadiness(health),
-      localProfiles,
-    );
-    setLocalReadiness(inventory.readiness);
-    if (inventory.runningProfileIds) setRunningProfileIds(inventory.runningProfileIds);
-    setCheckingLocal(false);
+      const inventory = localProfileInventorySnapshot(
+        currentRelayLaunchReadiness(health),
+        localProfiles,
+      );
+      setLocalReadiness(inventory.readiness);
+      if (inventory.runningProfileIds) setRunningProfileIds(inventory.runningProfileIds);
+    } finally {
+      if (refreshCapacity) explicitRefreshInFlight.current = false;
+      if (sequence === refreshSequence.current) setCheckingLocal(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -123,7 +134,7 @@ export function Constellation({
         checking={checkingLocal}
         counts={counts}
         localReadiness={localReadiness}
-        onRefresh={() => void refreshLocalState()}
+        onRefresh={() => void refreshLocalState(true)}
       />
 
       {scopeNotice}

@@ -28,6 +28,7 @@ import { handleCompatibilityUpdate } from "./handle-compatibility-update";
 import { handleConfigure } from "./handle-configure";
 import { handleEncryptForVault } from "./handle-encrypt-for-vault";
 import { handleFinalizeDeviceRetirement } from "./handle-finalize-device-retirement";
+import { handleLicenseCapacityRefresh } from "./handle-license-capacity-refresh";
 import { handleReadBootstrapCompletion } from "./handle-read-bootstrap-completion";
 import { handleReceiveOperatorKey } from "./handle-receive-operator-key";
 import { handleRetireDevice } from "./handle-retire-device";
@@ -50,6 +51,7 @@ type EnforcementKind = "caller-origin" | "signed-ticket" | "local-read-only";
 const CAPABILITY_ENFORCEMENT: Record<RelayRouteCapability, EnforcementKind> = {
   "runtime-read": "local-read-only",
   "profile-catalog-read": "local-read-only",
+  "license-capacity-refresh": "caller-origin",
   "signed-profile-operation": "signed-ticket",
   "local-secret-reveal": "signed-ticket",
   "device-configuration": "caller-origin",
@@ -88,6 +90,22 @@ const CALLER_ORIGIN_INVOKERS: Record<string, OriginInvoker> = {
     handleConfigure(request(origin), "{}", {
       allowedOrigin: WEB_ORIGIN,
       onConfigured: () => ({ ok: true, message: "" }),
+    }),
+
+  "license-capacity-refresh": (origin) =>
+    handleLicenseCapacityRefresh(request(origin), {
+      allowedOrigin: WEB_ORIGIN,
+      antidetect: {
+        refreshLicenseCapacity: async () => ({
+          total: 1,
+          free: 1,
+          active: 0,
+          pendingRecovery: 0,
+          cooling: 0,
+          availability: "ready",
+          reason: "CAPACITY_AVAILABLE",
+        }),
+      },
     }),
 
   // Pinned to the relay's own status page rather than the web origin: the operator key must never

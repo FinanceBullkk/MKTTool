@@ -461,7 +461,11 @@ describe("MktBrowserAdapter profile operations", () => {
 });
 
 describe("MktBrowserAdapter runtime reporting", () => {
-  const RUNTIME_TOOLS = [...REQUIRED_TOOLS, "get_runtime_info"];
+  const RUNTIME_TOOLS = [
+    ...REQUIRED_TOOLS,
+    "get_runtime_info",
+    "refresh_license_capacity",
+  ];
 
   it("reports what the device says about itself", async () => {
     installFakeMcpServer({
@@ -524,6 +528,48 @@ describe("MktBrowserAdapter runtime reporting", () => {
         cooling: 1,
       },
     });
+  });
+
+  it("refreshes capacity without launching and returns only the sanitized aggregate", async () => {
+    const calls = installFakeMcpServer({
+      tools: RUNTIME_TOOLS,
+      toolBodies: {
+        refresh_license_capacity: {
+          licenseCapacity: {
+            total: 1,
+            free: 1,
+            active: 0,
+            pendingRecovery: 0,
+            cooling: 0,
+            availability: "ready",
+            reason: "CAPACITY_AVAILABLE",
+            observedAt: "2026-09-21T05:00:00.000Z",
+            freshUntil: "2026-09-21T05:00:05.000Z",
+            vendorActive: 0,
+            vendorLimit: 1,
+            keyFingerprint: "private",
+          },
+        },
+      },
+    });
+
+    await expect(
+      new MktBrowserAdapter(MKT_BROWSER_DEFAULT_MCP_URL, "t").refreshLicenseCapacity(),
+    ).resolves.toEqual({
+      total: 1,
+      free: 1,
+      active: 0,
+      pendingRecovery: 0,
+      cooling: 0,
+      availability: "ready",
+      reason: "CAPACITY_AVAILABLE",
+      observedAt: "2026-09-21T05:00:00.000Z",
+      freshUntil: "2026-09-21T05:00:05.000Z",
+      vendorActive: 0,
+      vendorLimit: 1,
+    });
+    expect(calls.some((call) => call.params?.name === "launch_profile")).toBe(false);
+    expect(calls.some((call) => call.params?.name === "refresh_license_capacity")).toBe(true);
   });
 
   it("rejects malformed license-capacity counts without discarding runtime identity", async () => {

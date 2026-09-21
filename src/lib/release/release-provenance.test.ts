@@ -5,13 +5,14 @@ const mocks = vi.hoisted(() => ({ readRelease: vi.fn() }));
 vi.mock("@/lib/relay/relay-release-file", () => ({ readRelayRelease: mocks.readRelease }));
 
 import { readReleaseProvenance } from "./release-provenance";
+import { RELAY_VERSION } from "@/lib/relay/relay-endpoints";
 
 const RELAY = {
   available: true,
   source: "r2" as const,
   sizeBytes: 100,
   builtAt: new Date("2026-08-30T00:00:00.000Z"),
-  version: 17,
+  version: RELAY_VERSION,
   checksum: "a".repeat(64),
 };
 
@@ -23,7 +24,7 @@ describe("release provenance", () => {
 
   it("returns a complete published tuple from sanitized deployment metadata", async () => {
     const result = await readReleaseProvenance({
-      MKT_RELEASE_CANDIDATE_ID: "20260909-browser-0.3.17-relay-17-browser-ip-observer-cft",
+      MKT_RELEASE_CANDIDATE_ID: "current-source-candidate",
       MKT_RELEASE_SOURCE_SHA: "b".repeat(64),
       MKT_RELEASE_DEPLOYMENT_ID: "deploy-123",
       MKT_RELEASE_BROWSER_VERSION: "0.3.17",
@@ -39,10 +40,10 @@ describe("release provenance", () => {
 
     expect(result).toMatchObject({
       status: "published",
-      candidateId: "20260909-browser-0.3.17-relay-17-browser-ip-observer-cft",
+      candidateId: "current-source-candidate",
       sourceSha: "b".repeat(64),
       deploymentId: "deploy-123",
-      relay: { version: 17, sizeBytes: 100, sha256: "a".repeat(64), source: "r2" },
+      relay: { version: RELAY_VERSION, sizeBytes: 100, sha256: "a".repeat(64), source: "r2" },
       browser: { version: "0.3.17", sizeBytes: 200, sha256: "c".repeat(64) },
       engine: { kind: "cft", channel: "chrome-for-testing", version: "152.0.7977.64" },
       signing: "unsigned-internal-exception",

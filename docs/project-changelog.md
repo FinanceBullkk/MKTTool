@@ -1,5 +1,40 @@
 # Project changelog
 
+## 2026-09-22 - Packaged sequential reuse accepted; identity gate failed
+
+- Confirm the licensed binary `--version` probe consumed the only provider session, then resolve
+  CloakBrowser's Chromium version from verified pin/bootstrap metadata without executing the binary.
+- Pass packaged Stage A on R27: `P1 -> P2 -> P1 -> P2`, 4/4 usable launches in 3.647-3.929 seconds,
+  persistent separate storage, all native flags, graceful close, no surviving engine process and
+  provider capacity back at `0/1` after every close.
+- Complete R28 with five profiles twice and 10/10 clean launches. Fingerprint criteria A, B and C
+  all fail, so `G2-IDENTITY=FAIL` and the ban on antidetect, identity-isolation and account-safety
+  claims remain. Raw host-identifying evidence was deleted after redacted receipt verification.
+- Fix cancellation races so close/app shutdown cannot start an engine after a capacity observation
+  or cooling-hold persistence has been invalidated. Focused Browser and Web/Relay regressions pass.
+- Keep delivery OPEN: Relay 18 artifact, two-process contention, real proxy/DNS/WebRTC, two clean
+  builds, exact clean-VM installer lifecycle, second-PC, human acceptance and canary remain separate.
+
+## 2026-09-21 - Fast sequential Cloak profile switching source checkpoint
+
+- Add MKT Browser contract 5 with a generation-aware, bounded count-only capacity observer and one
+  desktop coordinator for refresh, local admission, durable reservation, refusal invalidation, and
+  one-attempt launch serialization. Enabled Windows CloakBrowser uses attached process ownership;
+  `MKT_BROWSER_FAST_LICENSE_REUSE=0` retains the conservative detached/cooldown behavior.
+- Add sanitized availability/reason/freshness/vendor-count fields and the authenticated
+  `refresh_license_capacity` profile-lifecycle tool. Relay exposes an origin-checked local POST;
+  Web uses a 10-second timeout and coalesced refresh flow that never launches or queues a profile.
+- Preserve native fingerprint arguments, profile directories, managed authorization, proxy
+  fail-closed behavior, and one local active profile even when vendor entitlement reports more.
+  Aggregate count can retire a reconciled hold only as `expired`, never `confirmed-released`.
+- Source verification passes: Browser focused 39/39, MCP/auth 37/37, MKB-02/MKB-03, typecheck,
+  lint, builds and packaging (one intentional machine skip); MKTTool 2285/2285, focused 19/19,
+  typecheck, lint and build. Root and both nested repository diffs pass whitespace checks.
+- Keep live/packaged acceptance separate. No Cloak launch, attempt budget, Relay 18 artifact,
+  commit, push, publication, deployment, or promotion occurred. Product switching, packaged
+  contention, fingerprint A/B/C, proxy/DNS/WebRTC, second-PC, human, and canary remain OPEN;
+  `G2-IDENTITY=FAIL` remains.
+
 ## 2026-09-21 - Licence capacity and engine integrity source checkpoint
 
 - Record the correction of false vendor-release assumptions on clean close, process exit, and

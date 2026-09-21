@@ -1,6 +1,33 @@
 # Lộ trình phát triển
 
-**Updated:** 21 September 2026
+**Updated:** 22 September 2026
+
+## Fast sequential Cloak profile switching live checkpoint - 22 September 2026
+
+Phases 1-3 of the [fast switching plan](../../plans/260921-1331-cloak-fast-profile-switch/plan.md)
+are complete and Phase 4 is in progress. MKT Browser contract 5 adds one desktop seat coordinator, a bounded
+count-only capacity observer, generation-aware invalidation, attached Windows CloakBrowser process
+ownership on the enabled fast path, and an explicit authenticated capacity refresh. Refresh never
+launches or queues a profile. A fresh aggregate count may retire a reconciled local hold as
+`expired`; it is not a vendor lease-release receipt. `MKT_BROWSER_FAST_LICENSE_REUSE=0` retains the
+25/30-minute conservative rollback path.
+
+**PASS:** R26 isolated the pre-launch licensed `--version` probe as the cause of the false occupied
+seat and removed it from CloakBrowser version discovery. R27 completed the packaged
+`P1 -> P2 -> P1 -> P2` sequence: 4/4 launches became usable in 3.647-3.929 seconds, retained all
+native flags and separate storage, closed through `Browser.close`, left no engine process and
+returned capacity to `0/1`. R28 completed 10/10 fingerprint-measurement launches with clean shutdown
+and redacted evidence hygiene. Review then closed cancellation races during cooling-hold persistence
+and app-wide shutdown; focused Browser regressions and focused Web/Relay checks pass.
+
+**FAIL:** R28 criteria A, B and C all failed. The failures cover cross-context consistency,
+stable-subset collisions and invariant differences from the same-session stock control.
+`G2-IDENTITY=FAIL` remains unchanged; no antidetect, identity-isolation or real-account-safety claim
+is permitted.
+
+**OPEN:** packaged two-process contention, coordinated Relay 18 artifact, real proxy/DNS/WebRTC,
+two clean candidate builds, exact clean-VM install/repair/uninstall, second-PC, human acceptance and
+canary. No new installer, publication, deployment or promotion is recorded.
 
 ## Licence capacity and engine integrity source checkpoint - 21 September 2026
 

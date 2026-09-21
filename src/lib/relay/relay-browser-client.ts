@@ -45,6 +45,7 @@ import {
   RELAY_PATHS,
   RELAY_COMPATIBILITY_UPDATE_TIMEOUT_MS,
   RELAY_DEVICE_RETIREMENT_MIN_VERSION,
+  RELAY_LICENSE_CAPACITY_REFRESH_TIMEOUT_MS,
   RELAY_RETIREMENT_TIMEOUT_MS,
   RELAY_TIMEOUT_MS,
   RELAY_VERSION,
@@ -61,6 +62,7 @@ import {
   type OperatorKeyDeliveryReply,
   type OperatorKeyDeliveryRequest,
   type RelayHealth,
+  type RelayLicenseCapacityRefreshReply,
   type RelayProfilesReply,
   type RelayReply,
   type SealOperatorKeyReply,
@@ -255,6 +257,17 @@ async function reportRelayVersion(
  */
 export function fetchRelayProfiles(): Promise<RelayOutcome<RelayProfilesReply>> {
   return callRelay<RelayProfilesReply>(RELAY_PATHS.profiles);
+}
+
+/** Explicit operator action: refresh Browser capacity without launching or queueing a profile. */
+export function refreshRelayLicenseCapacity(): Promise<
+  RelayOutcome<RelayLicenseCapacityRefreshReply>
+> {
+  return callRelay<RelayLicenseCapacityRefreshReply>(
+    RELAY_PATHS.licenseCapacityRefresh,
+    { method: "POST" },
+    RELAY_LICENSE_CAPACITY_REFRESH_TIMEOUT_MS,
+  );
 }
 
 /**

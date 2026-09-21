@@ -6,6 +6,7 @@ import {
   MKT_BROWSER_MCP_URL_ENV,
   MKT_BROWSER_PROVIDER_NAME,
   MKT_BROWSER_PROVIDER_SLUG,
+  MKT_BROWSER_REFRESH_LICENSE_CAPACITY_TOOL,
   MKT_BROWSER_RUNTIME_INFO_TOOL,
   MKT_BROWSER_SUPPORTED_CONTRACT_VERSIONS,
   type MktBrowserRuntimeInfo,
@@ -89,12 +90,41 @@ describe("MKT Browser capacity validation", () => {
   ])("rejects malformed aggregate counts: %j", (capacity) => {
     expect(parseMktBrowserLicenseCapacity(capacity)).toBeNull();
   });
+
+  it("retains only complete sanitized availability and observation fields", () => {
+    const observed = {
+      total: 1,
+      free: 1,
+      active: 0,
+      pendingRecovery: 0,
+      cooling: 0,
+      availability: "ready",
+      reason: "CAPACITY_AVAILABLE",
+      observedAt: "2026-09-21T05:00:00.000Z",
+      freshUntil: "2026-09-21T05:00:05.000Z",
+      vendorActive: 0,
+      vendorLimit: 1,
+    };
+    expect(parseMktBrowserLicenseCapacity({ ...observed, licenseKey: "private" })).toEqual(observed);
+    for (const invalid of [
+      { ...observed, reason: undefined },
+      { ...observed, availability: "free" },
+      { ...observed, freshUntil: undefined },
+      { ...observed, freshUntil: "2026-09-21T04:59:59.000Z" },
+      { ...observed, vendorLimit: undefined },
+      { ...observed, vendorActive: 2 },
+      { ...observed, observedAt: undefined, freshUntil: undefined },
+    ]) {
+      expect(parseMktBrowserLicenseCapacity(invalid)).toBeNull();
+    }
+  });
 });
 
 describe("MKT Browser compatibility verdict", () => {
   it("names the runtime tool and the versions this build drives", () => {
     expect(MKT_BROWSER_RUNTIME_INFO_TOOL).toBe("get_runtime_info");
-    expect([...MKT_BROWSER_SUPPORTED_CONTRACT_VERSIONS]).toEqual([1, 2, 3, 4]);
+    expect(MKT_BROWSER_REFRESH_LICENSE_CAPACITY_TOOL).toBe("refresh_license_capacity");
+    expect([...MKT_BROWSER_SUPPORTED_CONTRACT_VERSIONS]).toEqual([1, 2, 3, 4, 5]);
   });
 
   /**
@@ -118,12 +148,16 @@ describe("MKT Browser compatibility verdict", () => {
    * 0 khi bỏ qua, đúng vì `installer.nsh` huỷ cả lượt cài nếu script thất bại — báo lỗi ở đây sẽ
    * làm không cài nổi trình duyệt trên máy có cầu nối mới hơn. Hợp đồng *dữ liệu* giữa hai bên
    * không đổi, `browserContract` vẫn là 4.
+   *
+   * Relay 18 pairs with Browser contract 5. Contract 5 adds conservative aggregate capacity
+   * availability, freshness, and vendor-reason fields plus the explicit capacity-refresh route;
+   * older contracts remain supported but cannot claim Cloak readiness without that evidence.
    */
   it("pins the Relay release paired with the current Browser contract", () => {
     expect({
       browserContract: MKT_BROWSER_SUPPORTED_CONTRACT_VERSIONS.at(-1),
       relayVersion: RELAY_VERSION,
-    }).toEqual({ browserContract: 4, relayVersion: 17 });
+    }).toEqual({ browserContract: 5, relayVersion: 18 });
   });
 
   it("accepts a device on a supported contract version", () => {
@@ -142,9 +176,9 @@ describe("MKT Browser compatibility verdict", () => {
   });
 
   it("refuses a newer contract version instead of assuming newer is safe", () => {
-    const verdict = describeMktBrowserCompatibility({ ...RUNTIME_INFO, contractVersion: 5 });
+    const verdict = describeMktBrowserCompatibility({ ...RUNTIME_INFO, contractVersion: 6 });
     expect(verdict.compatible).toBe(false);
-    expect(verdict.reason).toContain("contract version 5");
+    expect(verdict.reason).toContain("contract version 6");
   });
 
   it("refuses an endpoint that answers as another product", () => {

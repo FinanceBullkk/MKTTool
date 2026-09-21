@@ -1,6 +1,6 @@
 # Bản đồ mã nguồn
 
-**Updated:** 8 September 2026
+**Updated:** 21 September 2026
 
 Tài liệu dành cho người mới và AI agent định vị nhanh trong codebase — **code nằm ở đâu**.
 Hệ thống chạy ở đâu và phụ thuộc gì thì xem [system-architecture.md](system-architecture.md);
@@ -63,6 +63,20 @@ Desktop `index.ts` locks the normal data root before state initialization and ow
 once-only shutdown. Development, disposable roots, and compatibility smoke remain isolated.
 Relay v16 and signed operations are unchanged; these candidate modules are not evidence of a
 delivered installer or MSI acceptance. See the [current checkpoint](development-roadmap.md#single-entry-browser-startup---8-september-2026).
+
+## Fast sequential profile switching source - 21 September 2026
+
+| Path | Responsibility |
+|---|---|
+| `../MKTBrowser/apps/desktop/src/main/license-capacity-observer.ts` | bounded count-only vendor observation, key-generation invalidation, sanitized fixed reasons, and monotonic freshness |
+| `../MKTBrowser/apps/desktop/src/main/license-seat-coordinator.ts` | one local admission/refresh owner; durable cooling retirement, no queued launch, and one engine attempt |
+| `../MKTBrowser/apps/desktop/src/main/license-lifecycle-policy.ts` | fast-path rollback switch and Windows CloakBrowser attached-process policy |
+| `src/lib/antidetect/mkt-browser-contract.ts` and `mkt-browser-adapter.ts` | contract 5 parsing and authenticated `refresh_license_capacity` MCP call |
+| `relay/src/handle-license-capacity-refresh.ts` and `relay-route-policy.ts` | exact-origin local POST and typed route capability; no ticket, profile launch, or secret response |
+| `src/lib/relay/current-device-browser-health.ts` and `relay-browser-client.ts` | fail-closed readiness plus a 10-second explicit Web refresh without automatic admission |
+
+`license-capacity-v1` remains unadvertised. These modules are source behavior, not a packaged
+Relay 18 or live CloakBrowser acceptance result.
 
 ## Shared-use safety — 3 September 2026
 
@@ -280,13 +294,13 @@ Click "Open browser profile" → POST /api/accounts/[id]/launch
   3. The Web browser sends the ticket to Relay at 127.0.0.1:47821
   4. Relay verifies signature, recipient, expiry, and replay state
   5. Relay v16 preserves ticket jti as operationId and requires the current Browser runtime to pass technical checks
-  6. MKT Browser contract v4 persists + reads back the proxy, then launches atomically
+  6. MKT Browser source contract v5 persists + reads back the proxy, performs fresh local seat admission, then launches atomically
   7. Relay accepts only a correlated metadata-only diagnostic and returns support detail to the Web
   8. The server records PROFILE_LAUNCH_TICKET_ISSUED; it does not claim the window opened
 ```
 
 Proxy persistence still must precede launch: changing it after Chromium starts does not change the
-running session. Contract v4 retains that ordering in `launch_managed_profile`; it rejects a running
+running session. Contract v5 retains that ordering in `launch_managed_profile`; it rejects a running
 profile whose active proxy differs and never falls back after an atomic rejection. Direct launch and
 ordinary proxy/profile-configuration mutation are denied for managed profiles; this is an ownership
 control, not proof of identity isolation.
@@ -330,12 +344,12 @@ After step 4 begins, retries use the already verified protected receipt rather t
 current ticket key to authorize the same deletion again. Normal uninstall does not enter this flow.
 The web requires Relay v11 or later before step 1, so the pre-retirement v10 artifact cannot trigger
 server revocation and then fail at a missing local endpoint. Browser profile deletion is intentionally
-separate: contract v4 removes it from MCP, while the in-app typed-confirmation path uses profile
+separate: contract v5 keeps it removed from MCP, while the in-app typed-confirmation path uses profile
 schema v3 pending state and same-root quarantine to retry partial cleanup safely.
 
 | Provider | Proxy application path |
 |---|---|
-| MKT Browser | authenticated MCP tool `launch_managed_profile` on default port `47822`; contract v4 persists and verifies `proxy: { type: http\|socks5, host, port, username?, password? }` before launch, removes profile deletion from MCP, and exposes no proxy endpoint or credentials in responses |
+| MKT Browser | authenticated MCP tools on default port `47822`; contract v5 persists and verifies `proxy: { type: http\|socks5, host, port, username?, password? }` before `launch_managed_profile`, keeps profile deletion out of MCP, and adds a sanitized explicit capacity refresh without exposing proxy or licence credentials |
 | AdsPower | `POST /api/v1/user/update` with `user_proxy_config.proxy_soft = "other"`; the adapter spaces calls by 1.1 seconds to stay below the 1 request/second limit |
 
 Mật khẩu proxy dạng trần đi đúng một đường có kiểm soát:

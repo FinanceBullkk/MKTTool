@@ -534,10 +534,12 @@ team-demo platform; macOS is deferred to MKB-07. Distribution remains a later ga
 the upstream UX/UI.
 
 That discovered token is **profile-management only**. It cannot navigate, click, type, read pages,
-access cookies, or send raw CDP, and the current build issues no page-control token. MKT Browser
-contract version `4` advertises managed-profile locking, correlated operation diagnostics,
-local-install readiness, and no MCP profile deletion in addition to idempotent create and atomic
-launch. Relay v16 preserves each ticket `jti` as the
+access cookies, or send raw CDP, and the current build issues no page-control token. Current source
+supports MKT Browser contract version `5`: contract 4's managed-profile locking, correlated
+operation diagnostics, local-install readiness, no MCP profile deletion, idempotent create, and
+atomic launch remain intact; contract 5 adds sanitized licence-capacity state and an explicit
+profile-lifecycle refresh that never launches or queues a profile. The reviewed installed candidate
+may still report contract 4 until a new exact tuple is accepted. Relay v16 preserves each ticket `jti` as the
 `operationId`; mismatched diagnostics fail closed and support detail contains only stage, code,
 duration, and runtime versions.
 

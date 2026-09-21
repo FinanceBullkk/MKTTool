@@ -15,7 +15,9 @@ import {
 import {
   isMktBrowserErrorCode,
   MKT_BROWSER_PROVIDER_NAME,
+  MKT_BROWSER_REFRESH_LICENSE_CAPACITY_TOOL,
   MKT_BROWSER_RUNTIME_INFO_TOOL,
+  type MktBrowserLicenseCapacity,
   type MktBrowserRuntimeInfo,
   parseMktBrowserLicenseCapacity,
   resolveMktBrowserMcpUrl,
@@ -36,6 +38,7 @@ const TOOLS = {
   update: "update_profile",
   create: "create_profile",
   fingerprintOptions: "list_fingerprint_options",
+  refreshCapacity: MKT_BROWSER_REFRESH_LICENSE_CAPACITY_TOOL,
 } as const;
 
 function proxyPayload(proxy: AntidetectProxyConfig): Record<string, unknown> {
@@ -291,6 +294,13 @@ export class MktBrowserAdapter implements AntidetectAdapter {
       // into a thrown error on every operational surface that calls it.
       return null;
     }
+  }
+
+  async refreshLicenseCapacity(): Promise<MktBrowserLicenseCapacity | null> {
+    await this.ensureInitialized();
+    const toolName = this.requireTool(TOOLS.refreshCapacity, "licence capacity refresh");
+    const body = parseToolBody(await this.callToolWithRehandshake(toolName, {}));
+    return parseMktBrowserLicenseCapacity(body.licenseCapacity);
   }
 
   async applyProxy(profileId: string, proxy: AntidetectProxyConfig): Promise<void> {
