@@ -10,8 +10,8 @@ manager with proxy binding**. Priorities are Proxy vault, Relay handoff, and rel
 operations. Antidetect/identity-engine research and Lane C are closed. The Browser draft remains
 limited to the profile/proxy product boundary. The **MKTTool Web shared-workspace surface is ready
 for controlled internal team use**; Browser installer distribution is currently **HOLD**. The
-historical Browser `0.3.17` / Relay `17` tuple was accepted, but the current `0.3.23` candidate is
-not operator-promoted. Neither tuple establishes unique identity, identity isolation, or real-account
+historical Browser `0.3.17` / Relay `17` tuple was accepted. The prepared `0.3.24` / Relay `18`
+candidate is not operator-promoted. Neither tuple establishes unique identity, identity isolation, or real-account
 safety. See the [team-ready rollout guide](docs/team-ready-rollout.md), [product decision](docs/project-overview-pdr.md#product-direction-decision---8-september-2026),
 and [release boundary](docs/internal-beta-release.md).
 
@@ -34,14 +34,13 @@ Parked Content, Queue, Facebook, Targets, and Health routes use the same hierarc
 cards, but their rollout state and server-side posting guards remain unchanged. Sign-in, empty,
 error, confirmation, and destructive-action states use the same visual language and touch targets.
 
-**Current Browser release, 13 September 2026:** candidate
-`20260913-browser-0.3.23-relay-17-relay-payload-hash-fix-cft` has published compatibility artifacts,
-but remains **NO-GO for operator promotion**. Exact CFT activation, packaged Relay/proxy lifecycle,
-machine integration, unfamiliar-operator, second-PC, SmartScreen/UAC, seven-day canary, and
-credential-exposure gates remain open. Keep the installer route fail-closed and do not distribute it.
-The previously accepted `0.3.17` / Relay `17` tuple is retained as historical evidence only; it is
-not the current source/deployment tuple. See the [team-ready rollout guide](docs/team-ready-rollout.md)
-for the Web/Relay handoff that is in scope now.
+**Current Browser candidate, 22 September 2026:** candidate
+`20260922-browser-0.3.24-relay-18-fast-profile-reuse-cft` pins a locally built and smoke-verified
+Relay v18 artifact. It remains **NO-GO for operator promotion**: two isolated Browser builds,
+candidate-only publication, exact clean-VM activation/install/repair/uninstall, packaged Relay and
+real proxy/DNS/WebRTC acceptance, unfamiliar-operator, second-PC, SmartScreen/UAC and canary gates
+remain open. Keep the installer route fail-closed and do not distribute it. The published 0.3.23
+artifacts and accepted 0.3.17 tuple remain historical evidence, not approval for this candidate.
 
 **Historical platform status, 1 September 2026:** the nick vault, Reddit/Facebook posting-safety pipeline,
 health checks, and Facebook Pages publisher are implemented (now out of rollout scope, see above).

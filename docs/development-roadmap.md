@@ -18,16 +18,20 @@ seat and removed it from CloakBrowser version discovery. R27 completed the packa
 native flags and separate storage, closed through `Browser.close`, left no engine process and
 returned capacity to `0/1`. R28 completed 10/10 fingerprint-measurement launches with clean shutdown
 and redacted evidence hygiene. Review then closed cancellation races during cooling-hold persistence
-and app-wide shutdown; focused Browser regressions and focused Web/Relay checks pass.
+and app-wide shutdown; focused Browser regressions and focused Web/Relay checks pass. Relay v18 was
+built from committed MKTTool `49b6292` with production Web origin and compatibility floor 21, then
+passed the packaged cryptography/ticket/restart/retirement smoke. Archive SHA-256 is
+`fabb6ebbe4ec166662689487cd60114be5baefd88d93f65b4e7faf802fac44f4`.
 
 **FAIL:** R28 criteria A, B and C all failed. The failures cover cross-context consistency,
 stable-subset collisions and invariant differences from the same-session stock control.
 `G2-IDENTITY=FAIL` remains unchanged; no antidetect, identity-isolation or real-account-safety claim
 is permitted.
 
-**OPEN:** packaged two-process contention, coordinated Relay 18 artifact, real proxy/DNS/WebRTC,
-two clean candidate builds, exact clean-VM install/repair/uninstall, second-PC, human acceptance and
-canary. No new installer, publication, deployment or promotion is recorded.
+**OPEN:** packaged two-process contention, Relay 18 immutable publication and Browser package
+binding, real proxy/DNS/WebRTC, two clean candidate builds, exact clean-VM install/repair/uninstall,
+second-PC, human acceptance and canary. No new installer, publication, deployment or promotion is
+recorded.
 
 ## Licence capacity and engine integrity source checkpoint - 21 September 2026
 

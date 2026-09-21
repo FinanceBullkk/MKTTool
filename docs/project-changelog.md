@@ -12,8 +12,13 @@
   claims remain. Raw host-identifying evidence was deleted after redacted receipt verification.
 - Fix cancellation races so close/app shutdown cannot start an engine after a capacity observation
   or cooling-hold persistence has been invalidated. Focused Browser and Web/Relay regressions pass.
-- Keep delivery OPEN: Relay 18 artifact, two-process contention, real proxy/DNS/WebRTC, two clean
-  builds, exact clean-VM installer lifecycle, second-PC, human acceptance and canary remain separate.
+- Build Relay 18 from committed MKTTool `49b6292` with the production Web origin and compatibility
+  floor 21. The packaged cryptography/ticket/restart/retirement smoke passes; archive SHA-256 is
+  `fabb6ebbe4ec166662689487cd60114be5baefd88d93f65b4e7faf802fac44f4`.
+- Prepare Browser `0.3.24` candidate
+  `20260922-browser-0.3.24-relay-18-fast-profile-reuse-cft`. Keep delivery OPEN: immutable Relay
+  publication/package binding, two-process contention, real proxy/DNS/WebRTC, two clean builds,
+  exact clean-VM installer lifecycle, second-PC, human acceptance and canary remain separate.
 
 ## 2026-09-21 - Fast sequential Cloak profile switching source checkpoint
 

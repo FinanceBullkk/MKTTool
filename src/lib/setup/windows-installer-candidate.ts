@@ -1,10 +1,10 @@
 /** Reviewed profile-manager candidate; changing this tuple requires a new release freeze. */
 export const WINDOWS_INSTALLER_CANDIDATE = Object.freeze({
-  id: "20260913-browser-0.3.23-relay-17-relay-payload-hash-fix-cft",
-  browserVersion: "0.3.23",
-  relayVersion: 17,
-  relaySha256: "d8bf25dcb446d779bd5461419ea7562044e280ac1d16592a71a52f156f6359cf",
-  relaySizeBytes: 34289393,
+  id: "20260922-browser-0.3.24-relay-18-fast-profile-reuse-cft",
+  browserVersion: "0.3.24",
+  relayVersion: 18,
+  relaySha256: "fabb6ebbe4ec166662689487cd60114be5baefd88d93f65b4e7faf802fac44f4",
+  relaySizeBytes: 35113380,
   engineKind: "cft",
   engineChannel: "chrome-for-testing",
   engineVersion: "152.0.7977.64",
@@ -27,6 +27,6 @@ export function assertWindowsInstallerCandidateArtifacts(
     engine.sha256 !== expected.engineSha256 ||
     engine.sizeBytes !== expected.engineSizeBytes
   ) {
-    throw new Error("The release manifest does not match the reviewed Relay v17/CFT candidate.");
+    throw new Error("The release manifest does not match the reviewed Relay v18/CFT candidate.");
   }
 }

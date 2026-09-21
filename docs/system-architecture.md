@@ -92,10 +92,10 @@ the queue, posting rules, warmup, and publishing paths do not silently activate 
 
 > **Current managed boundary:** source contract version `5` retains idempotent create, atomic launch,
 > managed-profile locking, operation diagnostics, and no MCP profile deletion. It adds sanitized
-> licence availability/freshness plus an authenticated explicit refresh; the accepted installed
-> candidate may remain on contract 4 until a new exact tuple passes. Relay source v18 carries the
-> explicit capacity-refresh route; the reviewed installer still bundles Relay v17 until a new exact
-> tuple passes. Relay preserves
+> licence availability/freshness plus an authenticated explicit refresh. The prepared 0.3.24 tuple
+> carries contract 5 and a locally built, smoke-verified Relay v18 artifact; it is not published or
+> accepted until the isolated-build and exact-VM gates pass. Installed 0.3.23 remains contract 4 / Relay
+> v17 historical evidence. Relay preserves
 > ticket `jti` as
 > `operationId`, calls `launch_managed_profile`, and accepts the result only when correlation matches.
 > The Browser persists and reads back the requested proxy before Chromium starts; a running session
