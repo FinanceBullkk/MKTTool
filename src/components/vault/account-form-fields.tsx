@@ -25,6 +25,7 @@
  */
 import { useState } from "react";
 import { Field, SelectField } from "@/components/ui/form-controls";
+import type { AccountFormDefaults } from "@/lib/accounts/account-form-defaults";
 import { ACCOUNT_STATUSES, getStatusPresentation } from "@/lib/accounts/account-status";
 import { localDayKey } from "@/lib/format/vietnamese-date-format";
 import { VaultSecretField } from "./vault-secret-field";
@@ -41,22 +42,6 @@ const TOTP_HINT_REDDIT =
   'In the Google Account, turn on "2-Step Verification", select "Authenticator app", then copy ' +
   "the letter-and-number key shown beside the QR code. Save it here to request OTPs on this Relay " +
   "PC without using the phone. Leave it blank if 2-Step Verification is not enabled.";
-
-export interface AccountDefaults {
-  username: string;
-  emailAddress: string;
-  antidetectProfileId: string | null;
-  voice: string | null;
-  contentAngle: string | null;
-  proxyId: string | null;
-  status: string;
-  karma: number;
-  quarantineReason: string | null;
-  coldStartUntil: Date | null;
-  platformCreatedAt: Date | null;
-  purchasedAt: Date | null;
-  purchaseNote: string | null;
-}
 
 export interface SelectOption {
   id: string;
@@ -91,7 +76,7 @@ export function AccountFormFields({
 }: {
   /** Lúc sửa phải gồm cả proxy đang gắn cho chính nick này, không chỉ proxy còn trống. */
   proxies: SelectOption[];
-  defaults?: AccountDefaults;
+  defaults?: AccountFormDefaults;
   /**
    * Ngày cold-start điền sẵn cho form **tạo mới**, dạng `YYYY-MM-DD`.
    *

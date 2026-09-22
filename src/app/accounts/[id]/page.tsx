@@ -27,6 +27,7 @@ import { AccountReadinessPanel } from "@/components/vault/account-readiness-badg
 import { AntidetectProfileCard } from "@/components/vault/antidetect-profile-card";
 import { FirstLoginCard } from "@/components/vault/first-login-card";
 import { assignAccountCluster } from "@/lib/accounts/account-owner-actions";
+import { selectAccountFormDefaults } from "@/lib/accounts/account-form-defaults";
 import { describeAccountReadiness } from "@/lib/accounts/account-readiness";
 import {
   accountAgeInDays,
@@ -76,6 +77,8 @@ export default async function AccountDetailPage({
   const coldDays = coldStartDaysRemaining(account.coldStartUntil);
   const age = accountAgeInDays(account.platformCreatedAt);
   const readiness = describeAccountReadiness(account);
+  // Client-component props enter the RSC payload, so never pass the full Prisma row here.
+  const accountFormDefaults = selectAccountFormDefaults(account);
 
   // Nick mở bằng trình duyệt thật (Reddit) thì mới có profile để đăng nhập vào, và mới đăng nhập
   // bằng tài khoản Google. Fanpage đăng qua Graph API — không profile, không đăng nhập lần đầu.
@@ -387,7 +390,7 @@ export default async function AccountDetailPage({
           <input type="hidden" name="id" value={account.id} />
           <AccountFormFields
             proxies={proxyOptions}
-            defaults={account}
+            defaults={accountFormDefaults}
             platform={account.platform}
             proxyEditAccess={{ isAdmin, adminContactEmail }}
           />

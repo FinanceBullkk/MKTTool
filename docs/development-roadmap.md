@@ -2,6 +2,20 @@
 
 **Updated:** 22 September 2026
 
+## Account detail RSC secret boundary - 22 September 2026
+
+An isolated authenticated pilot found that the account detail page passed the full Prisma account
+record into a Client Component as edit-form defaults. React Server Component serialization can
+include unused extra properties, so the payload could contain the assigned proxy username and
+encrypted vault fields even though the form never rendered them.
+
+The page now constructs edit defaults through an explicit allowlist before crossing the server to
+client boundary. A regression supplies account and proxy secret sentinels and proves the returned
+payload contains only the fields the form uses. Full validation passes: 2,286 tests, typecheck,
+lint, production build, and the repository secret scan. Deployment and a new isolated HTTPS
+response verification remain separate until the fix is committed, pushed, and observed on the
+exact deployed SHA.
+
 ## Fast sequential Cloak profile switching live checkpoint - 22 September 2026
 
 Phases 1-3 of the [fast switching plan](../../plans/260921-1331-cloak-fast-profile-switch/plan.md)

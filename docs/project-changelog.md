@@ -1,5 +1,16 @@
 # Project changelog
 
+## 2026-09-22 - Prevent account and proxy secrets entering the RSC payload
+
+- Stop passing the full Prisma account record to the account edit Client Component. Build an
+  explicit allowlisted defaults object so unused proxy usernames and encrypted vault fields cannot
+  enter the React Server Component payload.
+- Add a regression with account and proxy secret sentinels. The selector returns only form fields
+  and excludes every extra property.
+- Pass 2,286 tests, typecheck, lint, production build, and the repository secret scan. A new
+  deployed-SHA and isolated HTTPS response check remain required before this correction becomes
+  release evidence.
+
 ## 2026-09-22 - Packaged sequential reuse accepted; identity gate failed
 
 - Confirm the licensed binary `--version` probe consumed the only provider session, then resolve
