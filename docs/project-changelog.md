@@ -1,5 +1,24 @@
 # Project changelog
 
+## 2026-09-24 - Relay cold-start, TLS, and profile source checkpoint
+
+- Add Browser contract 6 `install-readiness-v1`: health can return while the bounded Windows
+  ownership inspection is checking, but inventory/create/launch remain fail-closed until a current
+  local-ready observation exists. Stale, missing, malformed, unavailable, and failed snapshots do
+  not become Ready.
+- Preserve safe `/profiles` codes and stages through Relay and Web instead of converting failed
+  inventory/options reads into an empty result. Generic browser fetch `TypeError` now maps to
+  `indeterminate`; a deadline maps to `timeout`; neither claims Relay is offline or local-network
+  permission was denied.
+- Add a disposable Windows Node SEA compatibility-downloader TLS fixture. It passes 12/12 trusted
+  and strict-negative cases while keeping the fixture CA scoped to that child and stripping
+  inherited Node/TLS overrides from normal Relay children. Add it to the local Relay runner.
+- Source checks pass: Relay tests 494/494, `relay:verify-tls` 12/12, local-runner tests 15/15,
+  lint, and typecheck. This is not replacement-candidate, public-TLS, VM, or rollout evidence.
+- Keep Browser 0.3.24 / Relay 18 immutable and **NO-GO** for promotion. Fresh tuple/pins,
+  two-build equivalence, retained exact installer, clean-VM lifecycle, human, second-PC, and
+  canary gates remain OPEN; `G2-IDENTITY=FAIL` remains unchanged.
+
 ## 2026-09-22 - Prevent account and proxy secrets entering the RSC payload
 
 - Stop passing the full Prisma account record to the account edit Client Component. Build an

@@ -126,6 +126,14 @@ export function setupStateMachine(input: SetupStateMachineInput): SetupStateResu
     );
   }
 
+  if (input.relay.status === "indeterminate") {
+    return result(
+      "Unable to verify",
+      { kind: "RETRY", label: "Check this PC again" },
+      "MKTTool could not verify whether this page can reach Relay. Keep it open, then check this PC again.",
+    );
+  }
+
   if (input.relay.status === "unreachable") {
     return result(
       "Needs repair",

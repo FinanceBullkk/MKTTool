@@ -42,6 +42,9 @@ const RELAY_BLOCKED_NOTE =
 const RELAY_TIMEOUT_NOTE =
   "Relay did not report this PC before the request deadline, so it cannot be matched to a record yet.";
 
+const RELAY_INDETERMINATE_NOTE =
+  "MKTTool could not verify whether this page can reach Relay, so this PC cannot be matched to a record yet.";
+
 const RELAY_SILENT_NOTE = "Relay answered without reporting which PC it belongs to.";
 
 const RELAY_UNCONFIGURED_NOTE =
@@ -63,7 +66,9 @@ export function relayDeviceLocality(
           ? RELAY_BLOCKED_NOTE
           : outcome.status === "timeout"
             ? RELAY_TIMEOUT_NOTE
-            : RELAY_OFFLINE_NOTE,
+            : outcome.status === "indeterminate"
+              ? RELAY_INDETERMINATE_NOTE
+              : RELAY_OFFLINE_NOTE,
     };
   }
   if (!local.publicKey) return { state: "unverified", note: RELAY_SILENT_NOTE };

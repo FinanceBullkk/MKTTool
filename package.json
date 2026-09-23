@@ -51,6 +51,7 @@
     "relay:build": "tsx --env-file-if-exists=.env scripts/build-relay-executable.ts",
     "relay:publish": "tsx --env-file=.env scripts/publish-relay-release.ts",
     "relay:verify": "tsx scripts/smoke-test-relay-executable.ts",
+    "relay:verify-tls": "tsx scripts/verify-relay-sea-compatibility-tls.ts",
     "browser:publish": "tsx --env-file=.env scripts/publish-windows-installer.ts",
     "release:delegation:prepare": "tsx scripts/release-authority/prepare-delegated-release-key.ts",
     "release:manifest:sign": "tsx scripts/sign-compatibility-manifest.ts",

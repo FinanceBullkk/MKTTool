@@ -40,6 +40,12 @@ export function currentRelayLaunchReadiness(
   if (outcome.status === "unreachable") {
     return blocked("relay-offline", "Start Relay on this PC, then check again.");
   }
+  if (outcome.status === "indeterminate") {
+    return blocked(
+      "relay-unknown",
+      "Local Relay status could not be verified. Keep Relay open, then check again.",
+    );
+  }
   if (outcome.status === "no-permission") {
     return blocked(
       "relay-permission",
@@ -195,6 +201,9 @@ const LAUNCH_FAILURE_MESSAGE_BY_CODE: Record<string, string> = {
 export function describeProfileLaunchFailure(outcome: RelayOutcome<unknown>): string {
   if (outcome.status === "ok") return "";
   if (outcome.status === "unreachable") return "Start Relay on this PC, then retry.";
+  if (outcome.status === "indeterminate") {
+    return "Relay did not return a usable response. Check whether the browser opened before trying again.";
+  }
   if (outcome.status === "timeout") {
     return "The launch response timed out. Check whether the browser opened before trying again.";
   }

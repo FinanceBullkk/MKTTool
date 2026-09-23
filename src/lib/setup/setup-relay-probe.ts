@@ -17,6 +17,7 @@ export async function probeSetupRelay(): Promise<SetupRelayProbeResult> {
   const outcome: RelayOutcome<RelayHealth & RelayReply> = await pingRelay();
   if (
     outcome.status === "unreachable" ||
+    outcome.status === "indeterminate" ||
     outcome.status === "no-permission" ||
     outcome.status === "timeout"
   ) {
@@ -25,6 +26,8 @@ export async function probeSetupRelay(): Promise<SetupRelayProbeResult> {
         status:
           outcome.status === "unreachable"
             ? "unreachable"
+            : outcome.status === "indeterminate"
+              ? "indeterminate"
             : outcome.status === "no-permission"
               ? "permission-denied"
               : "timeout",

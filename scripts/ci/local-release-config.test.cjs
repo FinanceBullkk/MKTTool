@@ -47,12 +47,19 @@ test("quality requires two explicit separate dedicated databases", () => {
 
 test("fixed plans retain quality, PostgreSQL, security and exact Relay checks", () => {
   const plan = (stage) => commandPlan({ ...options, stage }, "fixed-npm-cli");
+  const relay = plan("relay");
   assert.deepEqual(plan("quality").map((step) => step.id), ["dependencies", "database-preflight", "generate", "migrations", "lint", "typecheck", "local-validation-tests", "tests", "critical-coverage", "build"]);
   assert.deepEqual(plan("contracts").map((step) => step.id), ["dependencies", "database-preflight", "postgres-contracts"]);
+  assert.deepEqual(relay.map((step) => step.id), ["dependencies", "relay-tests", "relay-sea-tls-fixture", "relay-build", "relay-verify"]);
   assert.deepEqual(plan("security")[0].args.slice(1), ["plans", "docs", "src", "relay", "scripts", ".github"].map((root) => `--root=${root}`));
-  assert.ok(plan("relay")[2].args.includes("--web-origin=https://ci.invalid"));
-  assert.ok(plan("relay")[3].args.includes("--metadata=relay/dist/MKTTool-Relay.metadata.json"));
-  assert.ok(plan("relay")[3].args.includes("--archive=relay/dist/MKTTool-Relay.zip"));
+  const tlsFixture = relay.find((step) => step.id === "relay-sea-tls-fixture");
+  const build = relay.find((step) => step.id === "relay-build");
+  const verify = relay.find((step) => step.id === "relay-verify");
+  assert.deepEqual(tlsFixture?.args.slice(-2), ["run", "relay:verify-tls"]);
+  assert.equal(tlsFixture?.timeoutMs, 5 * 60_000);
+  assert.ok(build?.args.includes("--web-origin=https://ci.invalid"));
+  assert.ok(verify?.args.includes("--metadata=relay/dist/MKTTool-Relay.metadata.json"));
+  assert.ok(verify?.args.includes("--archive=relay/dist/MKTTool-Relay.zip"));
   for (const stage of ["quality", "contracts", "relay", "security"]) {
     assert.ok(plan(stage).every((step) => step.timeoutMs > 0 && step.timeoutMs <= 20 * 60_000));
   }

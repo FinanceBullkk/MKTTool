@@ -27,19 +27,14 @@
  * Bị chặn thì fetch **treo im, không ném lỗi**. `AbortSignal.timeout` là thứ biến cảnh đó thành
  * một trạng thái đọc được. Xem `RELAY_TIMEOUT_MS`.
  *
- * ## Ràng buộc 3 — "chưa cấp quyền" là trạng thái RIÊNG, không gộp vào "mất kết nối"
+ * ## Constraint 3 -- browser transport results must remain truthful
  *
- * Hai tình huống, hai việc phải làm khác hẳn nhau — một cái là bấm "Cho phép", cái kia là bật
- * lại cầu nối. Phân biệt được nhờ **cách hỏng khác nhau**, đo ở spike:
- *
- * | Cách hỏng | Nghĩa là |
- * |---|---|
- * | Hết hạn giờ (`AbortError`) | Luật mạng nội bộ nuốt request — **chưa cấp quyền** |
- * | `TypeError` ngay lập tức | Không có ai nghe ở cổng đó — **cầu nối chưa chạy** |
- *
- * Suy luận này là **phỏng đoán có cơ sở, không phải điều trình duyệt tự khai** — không có API
- * nào nói thẳng "bị policy chặn". Nên câu chữ ở `describeRelayFailure` nêu cả hai khả năng theo
- * thứ tự khả dĩ, chứ không khẳng định chắc nịch một cái.
+ * Browser fetch does not expose a portable reason that can distinguish a stopped Relay from CORS,
+ * Local Network Access, a proxy, or another browser/network failure. A deadline therefore produces
+ * `timeout`, and any other generic fetch failure (including `TypeError`) produces `indeterminate`.
+ * Neither result establishes that permission was denied or that Relay is offline. `no-permission`
+ * is reserved for a browser-specific signal that proves denial; the current transport path has no
+ * such signal. Callers must offer an explicit manual check instead of guessing the cause.
  */
 import {
   RELAY_PATHS,
@@ -93,17 +88,18 @@ export type RelayOutcome<T> =
    * `undefined` khi phản hồi không đọc nổi thành JSON — lúc đó không có thân nào để giữ.
    */
   | { status: "rejected"; message: string; data?: T; relayVersion?: number }
-  /** Không ai nghe ở `127.0.0.1` — gần như chắc chắn cầu nối chưa chạy. */
+  /** Specific local evidence established that no compatible Relay endpoint is available. */
   | { status: "unreachable"; message: string }
-  /** Request treo tới hết hạn giờ — gần như chắc chắn chưa cấp quyền mạng nội bộ. */
+  /** Browser fetch failed without a signal that can prove why the local Relay was unavailable. */
+  | { status: "indeterminate"; message: string }
   /** The local request exceeded its own deadline; it does not establish the cause. */
   | { status: "timeout"; message: string }
   /** A browser-specific signal explicitly confirmed that local-network permission was denied. */
   | { status: "no-permission"; message: string };
 
-const UNREACHABLE_MESSAGE =
-  "Relay could not be found on this PC. Start the Relay application and try again; it must be " +
-  "running before the browser can deliver a ticket.";
+const INDETERMINATE_MESSAGE =
+  "MKTTool could not reach Relay from this page. Relay may be stopped, still starting, or blocked " +
+  "by local browser access. Check Relay status, then try again.";
 
 const TIMEOUT_MESSAGE =
   "Relay did not respond before the request deadline. It may still be starting or busy; check its " +
@@ -135,7 +131,7 @@ async function callRelay<T extends RelayReply>(
   } catch (error) {
     return isRelayRequestTimeout(error)
       ? { status: "timeout", message: TIMEOUT_MESSAGE }
-      : { status: "unreachable", message: UNREACHABLE_MESSAGE };
+      : { status: "indeterminate", message: INDETERMINATE_MESSAGE };
   }
 
   let body: T;

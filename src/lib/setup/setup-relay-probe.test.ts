@@ -53,6 +53,17 @@ describe("probeSetupRelay", () => {
     expect(mocks.inspectSetupDevice).not.toHaveBeenCalled();
   });
 
+  it("keeps a generic browser fetch failure indeterminate instead of offering a Relay download", async () => {
+    mocks.pingRelay.mockResolvedValue({ status: "indeterminate", message: "private transport" });
+
+    await expect(probeSetupRelay()).resolves.toEqual({
+      relay: { status: "indeterminate" },
+      health: null,
+      detail: "private transport",
+    });
+    expect(mocks.inspectSetupDevice).not.toHaveBeenCalled();
+  });
+
   it("uses a neutral repair state when registry inspection rejects", async () => {
     mocks.pingRelay.mockResolvedValue({ status: "ok", data: HEALTH });
     mocks.inspectSetupDevice.mockResolvedValue({ ok: false, message: "Database detail" });

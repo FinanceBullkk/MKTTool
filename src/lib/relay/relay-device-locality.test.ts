@@ -69,6 +69,18 @@ describe("relayDeviceLocality", () => {
     expect(relayDeviceLocality(unreachable, TARGET).state).toBe("unverified");
   });
 
+  it("keeps the action without claiming Relay is offline after an indeterminate browser fetch", () => {
+    const indeterminate: RelayOutcome<RelayHealth & RelayReply> = {
+      status: "indeterminate",
+      message: "private transport detail",
+    };
+    const locality = relayDeviceLocality(indeterminate, TARGET);
+
+    expect(locality).toMatchObject({ state: "unverified" });
+    expect(locality.state === "unverified" && locality.note).toContain("could not verify");
+    expect(locality.state === "unverified" && locality.note).not.toContain("No Relay was found");
+  });
+
   it("keeps the action and explains missing local-network permission", () => {
     const blocked: RelayOutcome<RelayHealth & RelayReply> = {
       status: "no-permission",

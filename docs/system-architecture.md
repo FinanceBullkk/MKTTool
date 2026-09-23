@@ -90,12 +90,16 @@ the queue, posting rules, warmup, and publishing paths do not silently activate 
 > `Web → Relay → authenticated MCP → MKT Browser`; operator keys stay in Relay and profiles/cookies
 > stay on the operator device. There is no MultiZen provider or configuration fallback.
 
-> **Current managed boundary:** source contract version `5` retains idempotent create, atomic launch,
-> managed-profile locking, operation diagnostics, and no MCP profile deletion. It adds sanitized
-> licence availability/freshness plus an authenticated explicit refresh. The prepared 0.3.24 tuple
-> carries contract 5 and a locally built, smoke-verified Relay v18 artifact; it is not published or
-> accepted until the isolated-build and exact-VM gates pass. Installed 0.3.23 remains contract 4 / Relay
-> v17 historical evidence. Relay preserves
+> **Current managed boundary:** source contract version `6` retains idempotent create, atomic launch,
+> managed-profile locking, operation diagnostics, and no MCP profile deletion. It adds
+> `install-readiness-v1`: Browser returns a synchronous, fail-closed snapshot while one bounded
+> Windows ownership inspection runs in the background. Only a current `ready` snapshot advertises
+> `local-install-ready-v1`; `checking`, unavailable, failed, stale, and malformed observations block
+> inventory, create, and launch at the Relay boundary. It also retains sanitized licence
+> availability/freshness plus an authenticated explicit refresh. The prepared 0.3.24 tuple carries
+> contract 5 and a locally built, smoke-verified Relay v18 artifact; it is immutable historical
+> evidence, not a contract-6 candidate, and is not published or accepted. Installed 0.3.23 remains
+> contract 4 / Relay v17 historical evidence. Relay preserves
 > ticket `jti` as
 > `operationId`, calls `launch_managed_profile`, and accepts the result only when correlation matches.
 > The Browser persists and reads back the requested proxy before Chromium starts; a running session
@@ -105,8 +109,11 @@ the queue, posting rules, warmup, and publishing paths do not silently activate 
 > **Token and health boundary:** the token discovered from the current Windows user data root grants
 > profile management only. It cannot list or call page-read, page-control, cookie, or raw-CDP tools,
 > and the build issues no page-control token. Relay `/health` reports live Browser, app, engine,
-> contract, and capability state for this PC. Historical device enrollment is not readiness;
-> list/create/launch stop until the current runtime is operational.
+> contract, capability, and local-install snapshot state for this PC without waiting for a slow
+> ownership inspection. Historical device enrollment, a generic browser transport failure, and a
+> pending snapshot are not readiness; list/create/launch stop until the current runtime is
+> operational. `timeout` and `indeterminate` transport outcomes require a manual check rather than
+> claiming a denied permission or stopped Relay.
 
 > **Setup conflict boundary:** the combined installer persists its read-only conflict detector beside
 > MKT Browser. `get_runtime_info` adds `local-install-ready-v1` only when that detector verifies the
@@ -246,6 +253,14 @@ engine activate as one tuple. Interrupted activation must converge after restart
 new tuple or the entire retained tuple; mixed-version execution is forbidden. Release metadata cannot
 authorize a downgrade. The only monotonic exception is a one-use ADMIN rollback authorization naming
 the retained sequence at or above the secure-store floor.
+
+Compatibility artifact staging uses Node's normal TLS verification with redirects rejected, bounded
+header/body/whole-download work, and signed size/hash/control-contract checks. Download failures
+cross the Relay boundary as fixed TLS, timeout, network, HTTP, size, hash, or local-I/O codes; raw
+URLs, headers, provider errors, and filesystem paths do not leave the process. A disposable Node SEA
+fixture can add a disposable CA only to its explicit test child; production and helper children scrub
+inherited `NODE_OPTIONS`, `NODE_EXTRA_CA_CERTS`, `NODE_USE_SYSTEM_CA`, and
+`NODE_TLS_REJECT_UNAUTHORIZED`.
 
 ## 4. Nơi dữ liệu nằm
 

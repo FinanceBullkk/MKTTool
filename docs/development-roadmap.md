@@ -1,6 +1,32 @@
 # Lộ trình phát triển
 
-**Updated:** 22 September 2026
+**Updated:** 24 September 2026
+
+## Relay cold-start, TLS, and profile source checkpoint - 24 September 2026
+
+The current source makes the Relay health path return a fail-closed Browser install-readiness
+snapshot instead of waiting for the Windows ownership inspection. Browser contract 6 advertises
+`install-readiness-v1`; `checking`, unavailable, stale, malformed, and failed observations block
+profile inventory, create, and launch at the Relay boundary. A successful health response is not
+permission to operate a profile until that current local observation is ready.
+
+Browser transport errors are now truthful: a request deadline is `timeout`, while a generic browser
+fetch failure is `indeterminate`, not proof that Relay is stopped or that local-network permission
+was denied. Setup and profile actions keep an explicit manual check and fail closed. Profile
+inventory preserves fixed safe failure codes and stages instead of turning a failed list/options
+read into an empty success.
+
+Compatibility staging retains normal TLS, hostname, signed size/hash, redirect, and authorization
+checks. A disposable Windows Node SEA test runs the real staging/downloader path against 12
+controlled cases: trusted chain, invalid chains, redirect/refusal, truncated/oversize/hash-mismatch
+payloads, and connection refusal. It scopes any additional CA to the fixture child and verifies
+inherited Node/TLS overrides are absent from normal launched children. Current source checks pass:
+`relay:verify-tls` 12/12, Relay tests 494/494, local-runner tests 15/15, lint, and typecheck.
+
+**OPEN / NO-GO:** this is source and disposable-SEA evidence only. The historical Browser 0.3.24 /
+Relay 18 candidate remains unchanged and rejected for promotion. A fresh tuple, isolated two-build
+comparison, exact packaged and public TLS, clean-VM cold-page/profile lifecycle, human permission,
+second-PC, and canary evidence remain required. `G2-IDENTITY=FAIL` is unchanged.
 
 ## Account detail RSC secret boundary - 22 September 2026
 

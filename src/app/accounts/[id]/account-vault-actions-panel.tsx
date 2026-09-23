@@ -181,13 +181,12 @@ export function AccountVaultActionsPanel({
   /**
    * Ping chạy song song, dùng để **đổi câu báo** sau khi tab đã mở — không chặn đường mở tab.
    *
-   * ## Vì sao chỉ nghe nhánh `unreachable`
+   * ## Why only an explicit `unreachable` outcome can replace the success message
    *
-   * Tab bí mật cùng nguồn với cầu nối nên **không dính luật Local Network Access**, trong khi
-   * `pingRelay()` bắn từ chính trang này thì có. Nghĩa là `no-permission` (ping treo tới hết
-   * hạn giờ) hoàn toàn có thể đi kèm một tab chạy ngon lành — báo hỏng ở đó là dựng một câu sai
-   * ngay trên màn hình của người vừa lấy được mật khẩu. `unreachable` thì ngược lại: không ai
-   * nghe ở cổng đó, nên tab kia chắc chắn cũng không nạp được gì.
+   * The secret tab is same-origin with Relay and may succeed while this page's local request is
+   * blocked or delayed. `timeout`, `indeterminate`, and `no-permission` therefore cannot prove
+   * that the tab failed. Preserve a successful reveal unless a future transport path has specific
+   * evidence that the local Relay endpoint is unavailable.
    *
    * ## Vì sao so bằng `===`
    *
@@ -247,8 +246,8 @@ export function AccountVaultActionsPanel({
       // bộ**. Đúng thứ cần: đường lấy mật khẩu không cần quyền đó (tab kia cùng nguồn với cầu
       // nối), mà một hộp xin quyền hiện lên giữa lúc người ta bấm "Mật khẩu nick" thì lý do duy
       // nhất để họ hiểu là "không biết, chặn đi" — và cú chặn ấy nằm lại, làm hỏng nút "Mở
-      // profile" về sau. Không có quyền thì ping treo tới hết hạn giờ rồi ra `no-permission`,
-      // nhánh mà `replaceMessageIfRelayIsDown` đã bỏ qua sẵn.
+      // profile" về sau. An unknown or timed-out page ping must not replace a successful
+      // secret-tab response, so `replaceMessageIfRelayIsDown` ignores those outcomes.
       replaceMessageIfRelayIsDown(pingRelay(), opened);
     } catch {
       win.close();

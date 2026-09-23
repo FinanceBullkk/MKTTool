@@ -52,6 +52,7 @@ describe("setupStateMachine", () => {
     ["Ready", {}],
     ["Needs repair", { relay: { status: "permission-denied" } }],
     ["Unable to verify", { relay: { status: "timeout" } }],
+    ["Unable to verify", { relay: { status: "indeterminate" } }],
   ] as const)("derives %s with exactly one primary action", (state, overrides) => {
     const output = derive(overrides as Partial<SetupStateMachineInput>);
 
@@ -130,6 +131,7 @@ describe("setupStateMachine", () => {
     ["unchecked", "Confirm this PC", "CONFIRM"],
     ["permission-denied", "Needs repair", "RETRY"],
     ["timeout", "Unable to verify", "RETRY"],
+    ["indeterminate", "Unable to verify", "RETRY"],
     ["unreachable", "Needs repair", "UPDATE"],
   ] as const)("does not hide live Relay state %s behind pending approval", (status, state, action) => {
     const output = derive({

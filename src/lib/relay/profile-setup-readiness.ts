@@ -165,6 +165,11 @@ function transportFailure(outcome: RelayOutcome<unknown>): ProfileSetupBlocked |
     kind: "blocked", state: "relay-offline", title: "Relay is not reachable on this PC",
     message: "Open MKT Browser and Relay on this PC, then check again. The nick edit form remains available.",
   };
+  if (outcome.status === "indeterminate") return {
+    kind: "blocked", state: "relay-unknown", title: "Local Relay status could not be verified",
+    message: "Keep MKT Browser and Relay open on this PC, then check again. If this continues, review Setup.",
+    setupHref: "/setup",
+  };
   if (outcome.status === "no-permission") return {
     kind: "blocked", state: "relay-permission", title: "Local PC access needs checking",
     message: "Check again and allow local network access if prompted. If access is already allowed, keep MKT Browser and Relay open and retry.",

@@ -68,6 +68,9 @@ describe("currentRelayLaunchReadiness", () => {
       currentRelayLaunchReadiness({ status: "unreachable", message: "internal" }),
     ).toMatchObject({ ready: false, state: "relay-offline" });
     expect(
+      currentRelayLaunchReadiness({ status: "indeterminate", message: "internal" }),
+    ).toMatchObject({ ready: false, state: "relay-unknown" });
+    expect(
       currentRelayLaunchReadiness({ status: "no-permission", message: "internal" }),
     ).toMatchObject({ ready: false, state: "relay-permission" });
     expect(
@@ -234,6 +237,7 @@ describe("profileLaunchReadiness", () => {
       proxy.status,
       currentRelayLaunchReadiness(null).message,
       currentRelayLaunchReadiness({ status: "unreachable", message: "internal" }).message,
+      currentRelayLaunchReadiness({ status: "indeterminate", message: "internal" }).message,
       currentRelayLaunchReadiness({ status: "no-permission", message: "internal" }).message,
       currentRelayLaunchReadiness(
         outcome({
@@ -296,6 +300,16 @@ describe("profileLaunchReadiness", () => {
 
     expect(message).toContain("Check whether the browser opened");
     expect(message).not.toMatch(/permission|private timeout detail/i);
+  });
+
+  it("treats an indeterminate launch response as ambiguous completion", () => {
+    const message = describeProfileLaunchFailure({
+      status: "indeterminate",
+      message: "private transport detail",
+    });
+
+    expect(message).toContain("Check whether the browser opened");
+    expect(message).not.toMatch(/private transport detail|start relay/i);
   });
 
   it.each(["NO_CAPACITY", "ENGINE_UNAVAILABLE"])("does not invite an immediate launch repeat for %s", (code) => {

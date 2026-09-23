@@ -84,6 +84,7 @@ function commandPlan(options, npmCli) {
   if (options.stage === "contracts") return [npm("dependencies", ["ci"]), preflight(), script("postgres-contracts", "scripts/ci/run-postgres-contracts.cjs")];
   if (options.stage === "relay") return [
     npm("dependencies", ["ci"]), npm("relay-tests", ["run", "test:relay"]),
+    npm("relay-sea-tls-fixture", ["run", "relay:verify-tls"], 5),
     npm("relay-build", ["run", "relay:build", "--", "--web-origin=https://ci.invalid", "--compatibility-floor=1"]),
     npm("relay-verify", ["run", "relay:verify", "--", "--archive=relay/dist/MKTTool-Relay.zip", "--metadata=relay/dist/MKTTool-Relay.metadata.json"]),
   ];

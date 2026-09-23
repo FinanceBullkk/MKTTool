@@ -207,9 +207,12 @@ describe("profileSetupReadiness", () => {
     expect(JSON.stringify(fallback)).not.toContain("private-value");
   });
 
-  it.each(["unreachable", "no-permission"] as const)("keeps %s separate and retryable", (status) => {
+  it.each(["unreachable", "indeterminate", "no-permission"] as const)("keeps %s separate and retryable", (status) => {
     expect(profileSetupReadiness({ status, message: "raw failure" }, { status, message: "raw failure" }))
-      .toMatchObject({ kind: "blocked", state: status === "unreachable" ? "relay-offline" : "relay-permission" });
+      .toMatchObject({
+        kind: "blocked",
+        state: status === "unreachable" ? "relay-offline" : status === "indeterminate" ? "relay-unknown" : "relay-permission",
+      });
   });
 
   it.each([{ configured: false }, { retirementPending: true }])("directs an unfinished Relay to Setup", (patch) => {

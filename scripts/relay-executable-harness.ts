@@ -17,6 +17,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, statSync } from "node:fs
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { RELAY_ORIGIN } from "../src/lib/relay/relay-endpoints";
+import { relayChildEnvironment } from "../relay/src/relay-child-environment";
 
 /** Legacy path exported for scripts that only print a diagnostic. It is never used as a fallback. */
 export const EXECUTABLE_FILE = path.join(process.cwd(), "relay", "dist", "MKTTool-Relay.exe");
@@ -138,6 +139,27 @@ export interface RunningRelay {
   waitForExit(timeoutMs?: number): Promise<number | null>;
 }
 
+export interface RelayExecutableLaunchOptions {
+  /** A disposable CA is allowed only for an explicitly launched integration-fixture child. */
+  fixtureExtraCaCertPath?: string;
+  /** Lets fixtures prove that inherited Node trust overrides cannot leak into the child. */
+  inheritedEnvironment?: Record<string, string | undefined>;
+}
+
+export function relayExecutableEnvironment(
+  overrides: Record<string, string | undefined> = {},
+  options: RelayExecutableLaunchOptions = {},
+): NodeJS.ProcessEnv {
+  const environment = relayChildEnvironment(
+    overrides,
+    options.inheritedEnvironment ?? process.env,
+  );
+  if (options.fixtureExtraCaCertPath) {
+    environment.NODE_EXTRA_CA_CERTS = options.fixtureExtraCaCertPath;
+  }
+  return environment;
+}
+
 /**
  * Bật `.exe` với `RELAY_HOME` chỉ định và chờ tới lúc nó trả lời được.
  *
@@ -171,7 +193,11 @@ async function portAlreadyTaken(): Promise<boolean> {
   return true;
 }
 
-export async function startRelay(home: string, executablePath: string): Promise<RunningRelay> {
+export async function startRelay(
+  home: string,
+  executablePath: string,
+  options: RelayExecutableLaunchOptions = {},
+): Promise<RunningRelay> {
   const resolvedExecutablePath = path.resolve(executablePath);
   if (!existsSync(resolvedExecutablePath)) {
     throw new Error(`Relay executable does not exist: ${resolvedExecutablePath}`);
@@ -185,7 +211,7 @@ export async function startRelay(home: string, executablePath: string): Promise<
   }
 
   const child: ChildProcess = spawn(resolvedExecutablePath, [], {
-    env: { ...process.env, RELAY_HOME: home },
+    env: relayExecutableEnvironment({ RELAY_HOME: home }, options),
     stdio: ["ignore", "pipe", "pipe"],
   });
 

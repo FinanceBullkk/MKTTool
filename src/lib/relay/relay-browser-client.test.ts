@@ -13,10 +13,13 @@ describe("Relay browser client transport outcomes", () => {
     await expect(pingRelay()).resolves.toMatchObject({ status: "timeout" });
   });
 
-  it("keeps a generic fetch TypeError separate from both timeout and permission denial", async () => {
+  it("keeps a generic fetch TypeError indeterminate instead of claiming Relay is offline", async () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("network failed")));
 
-    await expect(pingRelay()).resolves.toMatchObject({ status: "unreachable" });
+    await expect(pingRelay()).resolves.toMatchObject({
+      status: "indeterminate",
+      message: expect.not.stringMatching(/could not be found|start the relay/i),
+    });
   });
 
   it.each([
