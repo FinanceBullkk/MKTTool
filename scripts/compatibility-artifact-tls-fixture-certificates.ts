@@ -23,7 +23,10 @@ interface CertificateGenerationResult {
   certificatePfxPaths: Record<TlsFixtureCertificate, string>;
 }
 
+const FIXTURE_FRIENDLY_NAME = "MKTTool Relay TLS Fixture";
+
 export function createTlsFixtureCertificates(): TlsFixtureCertificates {
+  removeStaleFixtureCertificates();
   const directory = mkdtempSync(path.join(os.tmpdir(), "mkttool-relay-tls-certs-"));
   const passphrase = randomBytes(24).toString("base64url");
   let generated: CertificateGenerationResult;
@@ -39,8 +42,31 @@ export function createTlsFixtureCertificates(): TlsFixtureCertificates {
     rootCertificatePath: generated.rootCertificatePath,
     passphrase,
     certificatePfxPaths: generated.certificatePfxPaths,
-    cleanup: () => rmSync(directory, { recursive: true, force: true }),
+    cleanup: () => {
+      try {
+        rmSync(directory, { recursive: true, force: true });
+      } finally {
+        removeStaleFixtureCertificates();
+      }
+    },
   };
+}
+
+/** A timed-out runner can skip a process finally block, so every run removes only its tagged leftovers first. */
+function removeStaleFixtureCertificates(): void {
+  runPowerShell(`
+$ErrorActionPreference = 'Stop'
+$friendlyName = ${powerShellLiteral(FIXTURE_FRIENDLY_NAME)}
+$fixtures = @(Get-ChildItem -Path 'Cert:\\CurrentUser\\My' | Where-Object { $_.FriendlyName -eq $friendlyName })
+foreach ($certificate in $fixtures) {
+  $certificatePath = "Cert:\\CurrentUser\\My\\$($certificate.Thumbprint)"
+  Remove-Item -LiteralPath $certificatePath -Force -ErrorAction Stop
+  if (Test-Path -LiteralPath $certificatePath) { throw 'A stale Relay TLS fixture certificate could not be removed.' }
+}
+if (@(Get-ChildItem -Path 'Cert:\\CurrentUser\\My' | Where-Object { $_.FriendlyName -eq $friendlyName }).Count -ne 0) {
+  throw 'A stale Relay TLS fixture certificate remains in the current-user store.'
+}
+`);
 }
 
 function generationScript(directory: string, passphrase: string): string {
@@ -51,22 +77,23 @@ $ErrorActionPreference = 'Stop'
 $directory = ${quotedDirectory}
 $password = ConvertTo-SecureString ${quotedPassphrase} -AsPlainText -Force
 $store = 'Cert:\\CurrentUser\\My'
+$friendlyName = ${powerShellLiteral(FIXTURE_FRIENDLY_NAME)}
 $serverUsage = '2.5.29.37={text}1.3.6.1.5.5.7.3.1'
 $created = @()
 try {
-$root = New-SelfSignedCertificate -Type Custom -Subject 'CN=MKTTool Relay TLS Fixture Root' -KeyAlgorithm RSA -KeyLength 2048 -HashAlgorithm SHA256 -KeyExportPolicy Exportable -KeyUsage CertSign,CRLSign,DigitalSignature -TextExtension @('2.5.29.19={text}CA=true&pathlength=1') -CertStoreLocation $store -NotAfter (Get-Date).AddDays(2)
+$root = New-SelfSignedCertificate -Type Custom -Subject 'CN=MKTTool Relay TLS Fixture Root' -FriendlyName $friendlyName -KeyAlgorithm RSA -KeyLength 2048 -HashAlgorithm SHA256 -KeyExportPolicy Exportable -KeyUsage CertSign,CRLSign,DigitalSignature -TextExtension @('2.5.29.19={text}CA=true&pathlength=1') -CertStoreLocation $store -NotAfter (Get-Date).AddDays(2)
 $created += $root
-$intermediate = New-SelfSignedCertificate -Type Custom -Subject 'CN=MKTTool Relay TLS Fixture Intermediate' -Signer $root -KeyAlgorithm RSA -KeyLength 2048 -HashAlgorithm SHA256 -KeyExportPolicy Exportable -KeyUsage CertSign,CRLSign,DigitalSignature -TextExtension @('2.5.29.19={text}CA=true&pathlength=0') -CertStoreLocation $store -NotAfter (Get-Date).AddDays(2)
+$intermediate = New-SelfSignedCertificate -Type Custom -Subject 'CN=MKTTool Relay TLS Fixture Intermediate' -FriendlyName $friendlyName -Signer $root -KeyAlgorithm RSA -KeyLength 2048 -HashAlgorithm SHA256 -KeyExportPolicy Exportable -KeyUsage CertSign,CRLSign,DigitalSignature -TextExtension @('2.5.29.19={text}CA=true&pathlength=0') -CertStoreLocation $store -NotAfter (Get-Date).AddDays(2)
 $created += $intermediate
-$trusted = New-SelfSignedCertificate -Type Custom -Subject 'CN=localhost' -DnsName 'localhost' -Signer $root -KeyAlgorithm RSA -KeyLength 2048 -HashAlgorithm SHA256 -KeyExportPolicy Exportable -KeyUsage DigitalSignature,KeyEncipherment -TextExtension @($serverUsage) -CertStoreLocation $store -NotAfter (Get-Date).AddDays(1)
+$trusted = New-SelfSignedCertificate -Type Custom -Subject 'CN=localhost' -DnsName 'localhost' -FriendlyName $friendlyName -Signer $root -KeyAlgorithm RSA -KeyLength 2048 -HashAlgorithm SHA256 -KeyExportPolicy Exportable -KeyUsage DigitalSignature,KeyEncipherment -TextExtension @($serverUsage) -CertStoreLocation $store -NotAfter (Get-Date).AddDays(1)
 $created += $trusted
-$selfSigned = New-SelfSignedCertificate -Type Custom -Subject 'CN=localhost' -DnsName 'localhost' -KeyAlgorithm RSA -KeyLength 2048 -HashAlgorithm SHA256 -KeyExportPolicy Exportable -KeyUsage DigitalSignature,KeyEncipherment -TextExtension @($serverUsage) -CertStoreLocation $store -NotAfter (Get-Date).AddDays(1)
+$selfSigned = New-SelfSignedCertificate -Type Custom -Subject 'CN=localhost' -DnsName 'localhost' -FriendlyName $friendlyName -KeyAlgorithm RSA -KeyLength 2048 -HashAlgorithm SHA256 -KeyExportPolicy Exportable -KeyUsage DigitalSignature,KeyEncipherment -TextExtension @($serverUsage) -CertStoreLocation $store -NotAfter (Get-Date).AddDays(1)
 $created += $selfSigned
-$missingIntermediate = New-SelfSignedCertificate -Type Custom -Subject 'CN=localhost' -DnsName 'localhost' -Signer $intermediate -KeyAlgorithm RSA -KeyLength 2048 -HashAlgorithm SHA256 -KeyExportPolicy Exportable -KeyUsage DigitalSignature,KeyEncipherment -TextExtension @($serverUsage) -CertStoreLocation $store -NotAfter (Get-Date).AddDays(1)
+$missingIntermediate = New-SelfSignedCertificate -Type Custom -Subject 'CN=localhost' -DnsName 'localhost' -FriendlyName $friendlyName -Signer $intermediate -KeyAlgorithm RSA -KeyLength 2048 -HashAlgorithm SHA256 -KeyExportPolicy Exportable -KeyUsage DigitalSignature,KeyEncipherment -TextExtension @($serverUsage) -CertStoreLocation $store -NotAfter (Get-Date).AddDays(1)
 $created += $missingIntermediate
-$expired = New-SelfSignedCertificate -Type Custom -Subject 'CN=localhost' -DnsName 'localhost' -Signer $root -KeyAlgorithm RSA -KeyLength 2048 -HashAlgorithm SHA256 -KeyExportPolicy Exportable -KeyUsage DigitalSignature,KeyEncipherment -TextExtension @($serverUsage) -CertStoreLocation $store -NotBefore (Get-Date).AddDays(-3) -NotAfter (Get-Date).AddDays(-1)
+$expired = New-SelfSignedCertificate -Type Custom -Subject 'CN=localhost' -DnsName 'localhost' -FriendlyName $friendlyName -Signer $root -KeyAlgorithm RSA -KeyLength 2048 -HashAlgorithm SHA256 -KeyExportPolicy Exportable -KeyUsage DigitalSignature,KeyEncipherment -TextExtension @($serverUsage) -CertStoreLocation $store -NotBefore (Get-Date).AddDays(-3) -NotAfter (Get-Date).AddDays(-1)
 $created += $expired
-$wrongHostname = New-SelfSignedCertificate -Type Custom -Subject 'CN=wrong-fixture.invalid' -DnsName 'wrong-fixture.invalid' -Signer $root -KeyAlgorithm RSA -KeyLength 2048 -HashAlgorithm SHA256 -KeyExportPolicy Exportable -KeyUsage DigitalSignature,KeyEncipherment -TextExtension @($serverUsage) -CertStoreLocation $store -NotAfter (Get-Date).AddDays(1)
+$wrongHostname = New-SelfSignedCertificate -Type Custom -Subject 'CN=wrong-fixture.invalid' -DnsName 'wrong-fixture.invalid' -FriendlyName $friendlyName -Signer $root -KeyAlgorithm RSA -KeyLength 2048 -HashAlgorithm SHA256 -KeyExportPolicy Exportable -KeyUsage DigitalSignature,KeyEncipherment -TextExtension @($serverUsage) -CertStoreLocation $store -NotAfter (Get-Date).AddDays(1)
 $created += $wrongHostname
 function Export-FixturePfx($certificate, $name) {
   Export-PfxCertificate -Cert $certificate -FilePath (Join-Path $directory ("$name.pfx")) -Password $password -ChainOption EndEntityCertOnly | Out-Null

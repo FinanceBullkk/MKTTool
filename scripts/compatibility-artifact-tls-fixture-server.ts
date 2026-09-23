@@ -68,19 +68,17 @@ export async function startCompatibilityFixtureServer(
   return server;
 }
 
-export function fixtureServerOrigin(server: HttpsServer): string {
+export function fixtureServerOrigin(server: HttpsServer | NetServer): string {
   const address = server.address();
   if (!address || typeof address === "string") throw new Error("The TLS fixture did not bind a loopback port.");
   return `https://localhost:${address.port}`;
 }
 
-export async function reserveUnusedFixtureLoopbackPort(): Promise<number> {
-  const server = createNetServer();
+/** Keeps a known loopback listener until the SEA connects, then reliably makes that connection fail. */
+export async function startConnectionResetFixtureServer(): Promise<NetServer> {
+  const server = createNetServer((socket) => socket.destroy());
   await listenOnDualStackLoopback(server);
-  const address = server.address();
-  if (!address || typeof address === "string") throw new Error("Could not reserve a loopback port.");
-  await closeFixtureServer(server);
-  return address.port;
+  return server;
 }
 
 export function closeFixtureServer(server: HttpsServer | NetServer): Promise<void> {

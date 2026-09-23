@@ -19,7 +19,7 @@ read into an empty success.
 Compatibility staging retains normal TLS, hostname, signed size/hash, redirect, and authorization
 checks. A disposable Windows Node SEA test runs the real staging/downloader path against 12
 controlled cases: trusted chain, invalid chains, redirect/refusal, truncated/oversize/hash-mismatch
-payloads, and connection refusal. It scopes any additional CA to the fixture child and verifies
+payloads, and a controlled connection reset. It scopes any additional CA to the fixture child and verifies
 inherited Node/TLS overrides are absent from normal launched children. Current source checks pass:
 `relay:verify-tls` 12/12, Relay tests 494/494, local-runner tests 15/15, lint, and typecheck.
 

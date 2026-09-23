@@ -11,7 +11,8 @@
   `indeterminate`; a deadline maps to `timeout`; neither claims Relay is offline or local-network
   permission was denied.
 - Add a disposable Windows Node SEA compatibility-downloader TLS fixture. It passes 12/12 trusted
-  and strict-negative cases while keeping the fixture CA scoped to that child and stripping
+  and strict-negative cases while keeping the fixture CA scoped to that child, cleaning only its
+  tagged certificate-store leftovers before each run and after normal fixture cleanup, and stripping
   inherited Node/TLS overrides from normal Relay children. Add it to the local Relay runner.
 - Source checks pass: Relay tests 494/494, `relay:verify-tls` 12/12, local-runner tests 15/15,
   lint, and typecheck. This is not replacement-candidate, public-TLS, VM, or rollout evidence.

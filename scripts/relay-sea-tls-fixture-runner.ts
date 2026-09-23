@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import type { Server as HttpsServer } from "node:https";
+import type { Server as NetServer } from "node:net";
 import os from "node:os";
 import path from "node:path";
 import type { CompatibilityManifest } from "../src/lib/release/compatibility-manifest-schema";
@@ -11,7 +12,7 @@ import {
   closeFixtureServer,
   createCompatibilityFixturePayloads,
   fixtureServerOrigin,
-  reserveUnusedFixtureLoopbackPort,
+  startConnectionResetFixtureServer,
   startCompatibilityFixtureServer,
   type CompatibilityFixturePayloads,
   type CompatibilityFixtureResponse,
@@ -50,7 +51,7 @@ export async function runRelaySeaTlsFixtureTestCase(
   testCase: RelaySeaTlsFixtureTestCase,
 ): Promise<void> {
   const payloads = createCompatibilityFixturePayloads();
-  let server: HttpsServer | undefined;
+  let server: HttpsServer | NetServer | undefined;
   let origin: string;
   if (testCase.certificate) {
     server = await startCompatibilityFixtureServer(
@@ -61,7 +62,8 @@ export async function runRelaySeaTlsFixtureTestCase(
     );
     origin = fixtureServerOrigin(server);
   } else {
-    origin = `https://localhost:${await reserveUnusedFixtureLoopbackPort()}`;
+    server = await startConnectionResetFixtureServer();
+    origin = fixtureServerOrigin(server);
   }
   try {
     const report = await runStageOnlyFixture(

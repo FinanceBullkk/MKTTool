@@ -20,7 +20,7 @@ const TEST_CASES: RelaySeaTlsFixtureTestCase[] = [
   { name: "truncated body", certificate: "trusted", trustFixtureCa: true, response: "truncated", expected: "COMPATIBILITY_ARTIFACT_SIZE" },
   { name: "oversize body", certificate: "trusted", trustFixtureCa: true, response: "oversize", expected: "COMPATIBILITY_ARTIFACT_SIZE" },
   { name: "hash mismatch", certificate: "trusted", trustFixtureCa: true, response: "hashMismatch", expected: "COMPATIBILITY_ARTIFACT_HASH" },
-  { name: "connection refusal", trustFixtureCa: false, response: "normal", expected: "COMPATIBILITY_ARTIFACT_NETWORK" },
+  { name: "controlled connection reset", trustFixtureCa: false, response: "normal", expected: "COMPATIBILITY_ARTIFACT_NETWORK" },
 ];
 
 async function main(): Promise<void> {
