@@ -5,17 +5,19 @@ import { build } from "esbuild";
 import { chromium } from "playwright";
 import type { RelayBrowserHealth } from "@/lib/relay/relay-endpoints";
 import { effectiveMinRelayVersion, TICKET_KINDS } from "@/lib/tickets/ticket-types";
-const readyBrowser = {
+const readyBrowser: RelayBrowserHealth = {
     ready: true,
     provider: "mkt-browser",
     appVersion: "0.3.13",
-    contractVersion: 4,
+    contractVersion: 6,
     contractCompatible: true,
     contractProblem: "",
     engine: { kind: "cft", version: "148", status: "ready" },
     capabilities: [
         "idempotent-create-v1", "atomic-launch-v1", "managed-profile-v1", "operation-diagnostics-v1",
+        "install-readiness-v1", "local-install-ready-v1",
     ],
+    localInstallReadiness: "ready",
 };
 const health = {
     status: "ok",

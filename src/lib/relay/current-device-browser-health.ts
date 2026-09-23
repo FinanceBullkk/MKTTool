@@ -10,6 +10,7 @@ export const REQUIRED_MANAGED_BROWSER_CAPABILITIES = [
 
 export const REQUIRED_SETUP_BROWSER_CAPABILITIES = [
   ...REQUIRED_MANAGED_BROWSER_CAPABILITIES,
+  "install-readiness-v1",
   "local-install-ready-v1",
 ] as const;
 
@@ -18,6 +19,10 @@ export type CurrentDeviceBrowserState =
   | "contract-mismatch"
   | "engine-not-ready"
   | "capability-missing"
+  | "install-readiness-unknown"
+  | "install-readiness-unavailable"
+  | "install-readiness-checking"
+  | "install-readiness-failed"
   | "capacity-unknown"
   | "recovery-pending"
   | "no-capacity"
@@ -28,6 +33,10 @@ export type CurrentDeviceBrowserFailureCode =
   | "CONTRACT_MISMATCH"
   | "ENGINE_NOT_READY"
   | "CAPABILITY_MISSING"
+  | "INSTALL_READINESS_UNKNOWN"
+  | "INSTALL_READINESS_UNAVAILABLE"
+  | "INSTALL_READINESS_CHECKING"
+  | "INSTALL_READINESS_FAILED"
   | "CAPACITY_UNKNOWN"
   | "RECOVERY_PENDING"
   | "NO_CAPACITY";
@@ -40,6 +49,10 @@ const FAILURE_CODE_BY_STATE: Record<
   "contract-mismatch": "CONTRACT_MISMATCH",
   "engine-not-ready": "ENGINE_NOT_READY",
   "capability-missing": "CAPABILITY_MISSING",
+  "install-readiness-unknown": "INSTALL_READINESS_UNKNOWN",
+  "install-readiness-unavailable": "INSTALL_READINESS_UNAVAILABLE",
+  "install-readiness-checking": "INSTALL_READINESS_CHECKING",
+  "install-readiness-failed": "INSTALL_READINESS_FAILED",
   "capacity-unknown": "CAPACITY_UNKNOWN",
   "recovery-pending": "RECOVERY_PENDING",
   "no-capacity": "NO_CAPACITY",
@@ -85,10 +98,51 @@ export function currentDeviceBrowserReadiness(
     };
   }
 
+  const requiresInstallReadiness = requiredCapabilities.includes("install-readiness-v1");
+  if (requiresInstallReadiness && browser.contractVersion !== 6) {
+    return {
+      ready: false,
+      state: "contract-mismatch",
+      message: "Install the matching MKT Browser release on this PC before managing browser profiles.",
+    };
+  }
+
   const capabilities = Array.isArray(browser.capabilities)
     ? browser.capabilities.filter((capability): capability is string => typeof capability === "string")
     : [];
   const missing = requiredCapabilities.filter((capability) => !capabilities.includes(capability));
+
+  if (requiresInstallReadiness) {
+    switch (browser.localInstallReadiness) {
+      case "ready":
+        break;
+      case "checking":
+        return {
+          ready: false,
+          state: "install-readiness-checking",
+          message: "MKT Browser is checking its local installation. Wait for the check to finish, then check again.",
+        };
+      case "unavailable":
+        return {
+          ready: false,
+          state: "install-readiness-unavailable",
+          message: "MKT Browser could not verify its local installation. Keep it open, then check again.",
+        };
+      case "failed":
+        return {
+          ready: false,
+          state: "install-readiness-failed",
+          message: "MKT Browser found a local installation problem. Repair the current installation, then check again.",
+        };
+      default:
+        return {
+          ready: false,
+          state: "install-readiness-unknown",
+          message: "MKT Browser has not reported local installation readiness. Keep it open, then check again.",
+        };
+    }
+  }
+
   if (missing.length > 0) {
     if (missing.includes("local-install-ready-v1")) {
       return {

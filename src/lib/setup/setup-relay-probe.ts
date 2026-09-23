@@ -15,11 +15,25 @@ export interface SetupRelayProbeResult {
 
 export async function probeSetupRelay(): Promise<SetupRelayProbeResult> {
   const outcome: RelayOutcome<RelayHealth & RelayReply> = await pingRelay();
-  if (outcome.status === "unreachable" || outcome.status === "no-permission") {
+  if (
+    outcome.status === "unreachable" ||
+    outcome.status === "no-permission" ||
+    outcome.status === "timeout"
+  ) {
     return {
-      relay: { status: outcome.status === "unreachable" ? "unreachable" : "permission-denied" },
+      relay: {
+        status:
+          outcome.status === "unreachable"
+            ? "unreachable"
+            : outcome.status === "no-permission"
+              ? "permission-denied"
+              : "timeout",
+      },
       health: null,
-      detail: outcome.message,
+      detail:
+        outcome.status === "timeout"
+          ? "Relay did not report local setup status in time. Keep it open, then check this PC again."
+          : outcome.message,
     };
   }
   if (!outcome.data?.publicKey) {

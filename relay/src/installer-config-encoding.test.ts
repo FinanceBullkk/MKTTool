@@ -55,13 +55,14 @@ describe("bộ cài ghi relay-config.json", () => {
     // `The operation was canceled by the user`. Ba bước thật đã xong từ trước, nên báo "cài đặt
     // thất bại" ở đó là cử người đi cài lại một thứ đã cài đúng. Đã vấp thật trên máy thứ hai
     // (06/08/2026).
-    expect(INSTALLER).toMatch(/try\s*\{[^}]*Start-Process[^}]*\$targetExe[\s\S]*?\}\s*catch/);
+    expect(INSTALLER).toMatch(/try\s*\{\s*Start-RelayProcess\s*\}\s*catch/);
   });
 
   it("gỡ Mark-of-the-Web khỏi bản đã chép", () => {
     // Không gỡ thì Windows hỏi lại ở MỖI lần chạy, kể cả lượt tự bật cùng máy — mà lượt đó chạy
     // ngầm nên người dùng chỉ thấy "không có cầu nối", không thấy hộp nào để bấm.
     expect(INSTALLER).toMatch(/Unblock-File[^\r\n]*\$targetExe/);
+    expect(INSTALLER).toMatch(/Unblock-File[^\r\n]*\$targetLauncher/);
   });
 
   it("vẫn không ghi đè file cấu hình đã có", () => {

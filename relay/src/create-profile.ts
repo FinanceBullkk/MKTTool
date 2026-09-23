@@ -22,7 +22,10 @@
  */
 import { AntidetectError } from "../../src/lib/antidetect/antidetect-browser-adapter";
 import { TICKET_KINDS, type TicketPayload } from "../../src/lib/tickets/ticket-types";
-import type { RelayAntidetect } from "./relay-antidetect";
+import {
+  AntidetectRuntimeNotReadyError,
+  type RelayAntidetect,
+} from "./relay-antidetect";
 import type { RelayResponseBody } from "./relay-http-server";
 import { relayOperationDiagnostic } from "./operation-diagnostics";
 
@@ -38,6 +41,7 @@ export async function createProfileFromTicket(
   try {
     await antidetect.requireOperationalRuntime();
   } catch (error) {
+    const code = error instanceof AntidetectRuntimeNotReadyError ? error.code : undefined;
     return {
       ok: false,
       message: error instanceof Error ? error.message : String(error),
@@ -46,6 +50,7 @@ export async function createProfileFromTicket(
         requestId: payload.requestId,
         startedAt,
         stage: "browser-health",
+        code,
       }),
     };
   }

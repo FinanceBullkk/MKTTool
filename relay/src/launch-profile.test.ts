@@ -4,7 +4,7 @@
  * Test này giữ đúng một luật: câu trả lời dựng từ **mã lỗi** của MKT Browser, không phải từ câu
  * chữ nội bộ của nó. Bản desktop được phép đổi câu chữ bất cứ lúc nào; đổi mã là đổi hợp đồng.
  */
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { AntidetectAdapter } from "../../src/lib/antidetect/antidetect-browser-adapter";
 import { AntidetectError } from "../../src/lib/antidetect/antidetect-browser-adapter";
 import { TICKET_KINDS } from "../../src/lib/tickets/ticket-types";
@@ -62,6 +62,30 @@ function antidetectThatFails(
 }
 
 describe("launchProfileFromTicket error copy", () => {
+  it.each([
+    ["checking", "INSTALL_READINESS_CHECKING"],
+    ["unavailable", "INSTALL_READINESS_UNAVAILABLE"],
+    ["failed", "INSTALL_READINESS_FAILED"],
+  ] as const)("blocks %s before calling the Browser launch tool", async (_state, code) => {
+    const getAdapter = vi.fn();
+    const antidetect = {
+      requireOperationalRuntime: async () => {
+        throw new AntidetectRuntimeNotReadyError("MKT Browser readiness is private", code);
+      },
+      getAdapter,
+      forgetProbe: vi.fn(),
+    } as unknown as RelayAntidetect;
+
+    const result = await launchProfileFromTicket(payload(), antidetect, "operation-install-readiness");
+
+    expect(result).toMatchObject({
+      ok: false,
+      code,
+      diagnostic: { stage: "browser-health", code },
+    });
+    expect(getAdapter).not.toHaveBeenCalled();
+  });
+
   it("returns a stable code when measured capacity is still recovering", async () => {
     const antidetect = {
       requireOperationalRuntime: async () => {

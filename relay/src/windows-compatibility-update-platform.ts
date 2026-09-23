@@ -12,6 +12,7 @@ import {
 import { activateWindowsEngineArtifact } from "./windows-engine-artifact-activation";
 import { stopExactOwnedWindowsProcesses } from "./windows-owned-process-control";
 import { ACTIVE_ENGINE_PIN_FILE } from "./active-engine-pin";
+import { relayChildEnvironment } from "./relay-child-environment";
 
 const execFileAsync = promisify(execFile);
 
@@ -86,11 +87,19 @@ export class WindowsCompatibilityUpdatePlatform implements CompatibilityUpdatePl
 }
 
 async function runSilentInstaller(installerPath: string, installDirectory: string): Promise<void> {
-  await execFileAsync(installerPath, ["/S", `/D=${installDirectory}`], { windowsHide: true });
+  await execFileAsync(installerPath, ["/S", `/D=${installDirectory}`], {
+    env: relayChildEnvironment(),
+    windowsHide: true,
+  });
 }
 
 async function startDetached(executable: string): Promise<void> {
-  const child = spawn(executable, [], { detached: true, stdio: "ignore", windowsHide: true });
+  const child = spawn(executable, [], {
+    detached: true,
+    env: relayChildEnvironment(),
+    stdio: "ignore",
+    windowsHide: true,
+  });
   child.unref();
 }
 

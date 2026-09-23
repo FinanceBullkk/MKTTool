@@ -149,7 +149,12 @@ export function createRelayServer(options: RelayServerOptions): Server {
         response.destroy();
         return;
       }
-      sendJson(response, 500, { ok: false, message: "Relay could not complete this request." }, {});
+      sendJson(
+        response,
+        500,
+        { ok: false, code: "RELAY_INTERNAL_ERROR", message: "Relay could not complete this request." },
+        {},
+      );
     });
   });
 }
@@ -231,8 +236,13 @@ async function handleRequest(
   if (route.method === "POST") {
     try {
       body = await readBody(request);
-    } catch (error) {
-      sendJson(response, 413, { ok: false, message: (error as Error).message }, headers);
+    } catch {
+      sendJson(
+        response,
+        413,
+        { ok: false, code: "RELAY_REQUEST_BODY_UNAVAILABLE", message: "The request body could not be read." },
+        headers,
+      );
       return;
     }
   }
@@ -240,12 +250,12 @@ async function handleRequest(
   try {
     const result = await route.handler(request, body);
     sendJson(response, result.ok ? 200 : 400, result, headers);
-  } catch (error) {
+  } catch {
     // Không bao giờ để lỗi lọt ra dạng stack trace: vé và bí mật đi qua đúng những hàm này.
     sendJson(
       response,
       500,
-      { ok: false, message: `Cầu nối gặp lỗi khi xử lý: ${(error as Error).message}` },
+      { ok: false, code: "RELAY_INTERNAL_ERROR", message: "Relay could not complete this request." },
       headers,
     );
   }

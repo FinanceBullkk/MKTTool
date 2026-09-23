@@ -28,6 +28,7 @@ import { MIN_RELAY_VERSION, TICKET_KINDS } from "../../src/lib/tickets/ticket-ty
 import { handleCompatibilityUpdate } from "./handle-compatibility-update";
 import { InMemorySecureStore } from "./in-memory-secure-store";
 import type { CompatibilityUpdatePlatform } from "./local-updater";
+import { CompatibilityArtifactDownloadError } from "./compatibility-artifact-staging";
 import { readCompatibilityUpdateState } from "./update-state";
 
 const roots: string[] = [];
@@ -81,6 +82,49 @@ describe("compatibility update Relay endpoint", () => {
     expect(readCompatibilityUpdateState(fixture.store)).toBeNull();
     expect(fixture.fetchMock).not.toHaveBeenCalled();
     expect(fixture.createProfile).not.toHaveBeenCalled();
+  });
+
+  it("returns typed downloader failures without exposing the underlying URL or cause", async () => {
+    const fixture = createFixture(true);
+    const secret = "https://artifact.example/?authorization=do-not-expose";
+    fixture.fetchMock.mockImplementationOnce(async () => {
+      throw new CompatibilityArtifactDownloadError("COMPATIBILITY_ARTIFACT_TLS", {
+        cause: new Error(secret),
+      });
+    });
+
+    const result = await handleCompatibilityUpdate(
+      request("https://mkt.example"),
+      JSON.stringify({ ticket: fixture.ticket }),
+      fixture.dependencies,
+    );
+
+    expect(result).toMatchObject({
+      ok: false,
+      code: "COMPATIBILITY_ARTIFACT_TLS",
+      message: "The Relay could not verify the compatibility artifact server certificate.",
+    });
+    expect(JSON.stringify(result)).not.toContain(secret);
+  });
+
+  it("returns one generic safe failure for unexpected provider errors", async () => {
+    const fixture = createFixture(true);
+    const secret = "provider stack at C:\\operator\\private-token";
+    fixture.adapter.fingerprintOptions.mockRejectedValueOnce(new Error(secret));
+
+    const result = await handleCompatibilityUpdate(
+      request("https://mkt.example"),
+      JSON.stringify({ ticket: fixture.ticket }),
+      fixture.dependencies,
+    );
+
+    expect(result).toMatchObject({
+      ok: false,
+      code: "COMPATIBILITY_UPDATE_FAILED",
+      message:
+        "Compatibility update could not be prepared. Check Relay status and request a new signed update authorization.",
+    });
+    expect(JSON.stringify(result)).not.toContain(secret);
   });
 });
 
@@ -152,6 +196,7 @@ function createFixture(repairMissingState: boolean) {
     ticket,
     fetchMock,
     createProfile,
+    adapter,
     dependencies: {
       allowedOrigin: "https://mkt.example",
       home,

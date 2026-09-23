@@ -96,16 +96,18 @@ export type RelayOutcome<T> =
   /** Không ai nghe ở `127.0.0.1` — gần như chắc chắn cầu nối chưa chạy. */
   | { status: "unreachable"; message: string }
   /** Request treo tới hết hạn giờ — gần như chắc chắn chưa cấp quyền mạng nội bộ. */
+  /** The local request exceeded its own deadline; it does not establish the cause. */
+  | { status: "timeout"; message: string }
+  /** A browser-specific signal explicitly confirmed that local-network permission was denied. */
   | { status: "no-permission"; message: string };
 
 const UNREACHABLE_MESSAGE =
   "Relay could not be found on this PC. Start the Relay application and try again; it must be " +
   "running before the browser can deliver a ticket.";
 
-const NO_PERMISSION_MESSAGE =
-  "The browser blocked this page from contacting your PC. Try again and select \"Allow\" in the " +
-  "permission prompt. If no prompt appears, open the lock icon in the address bar and enable " +
-  "local network access. Relay may also be unresponsive; restart it and try again.";
+const TIMEOUT_MESSAGE =
+  "Relay did not respond before the request deadline. It may still be starting or busy; check its " +
+  "status, then try again.";
 
 /**
  * Một lượt fetch xuống cầu nối, đã bọc đủ hạn giờ và phân loại cách hỏng.
@@ -131,16 +133,19 @@ async function callRelay<T extends RelayReply>(
       signal: AbortSignal.timeout(timeoutMs),
     });
   } catch (error) {
-    const aborted = error instanceof DOMException && error.name === "TimeoutError";
-    return aborted
-      ? { status: "no-permission", message: NO_PERMISSION_MESSAGE }
+    return isRelayRequestTimeout(error)
+      ? { status: "timeout", message: TIMEOUT_MESSAGE }
       : { status: "unreachable", message: UNREACHABLE_MESSAGE };
   }
 
   let body: T;
   try {
     body = (await response.json()) as T;
-  } catch {
+  } catch (error) {
+    if (isRelayRequestTimeout(error)) {
+      return { status: "timeout", message: TIMEOUT_MESSAGE };
+    }
+
     return {
       status: "rejected",
       message:
@@ -448,11 +453,17 @@ export function describeSlowRelayFailure(
   if (attempt.status === "ok") return "";
   if (attempt.status === "rejected") return attempt.message;
 
-  if (attempt.status === "no-permission") {
+  if (attempt.status === "timeout") {
     return (
-      `Relay did not respond within one minute. It may still be ${viec}, or the browser may be ` +
-      `blocking access to this PC. Check whether the operation completed before trying again.`
+      `Relay did not respond within the request deadline. It may still be ${viec}. Check whether ` +
+      `the operation completed before trying again.`
     );
   }
   return attempt.message;
+}
+
+function isRelayRequestTimeout(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const name = (error as { name?: unknown }).name;
+  return name === "TimeoutError" || name === "AbortError";
 }

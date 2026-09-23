@@ -10,6 +10,7 @@ import {
 } from "node:fs";
 import path from "node:path";
 import { updateRoot } from "./compatibility-update-marker";
+import { relayChildEnvironment } from "./relay-child-environment";
 
 const HELPER_SWITCH = "mkt-compatibility-helper";
 const HELPER_LOCK = "compatibility-helper.lock.json";
@@ -169,7 +170,7 @@ async function launchHelperProcess(
       detached: true,
       stdio: "ignore",
       windowsHide: true,
-      env: { ...process.env, RELAY_HOME: options.home },
+      env: relayChildEnvironment({ RELAY_HOME: options.home }),
     });
     child.once("error", reject);
     child.once("spawn", () => {

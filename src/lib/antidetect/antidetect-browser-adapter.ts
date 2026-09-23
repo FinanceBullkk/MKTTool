@@ -118,6 +118,57 @@ export interface FingerprintOptions {
   locales: { id: string; label: string; country: string; timezones: string[] }[];
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === "string" && value.length > 0;
+}
+
+/** A malformed provider payload must never be mistaken for a legitimate empty inventory. */
+export function isAntidetectProfileSummary(value: unknown): value is AntidetectProfileSummary {
+  if (!isRecord(value) || !isNonEmptyString(value.id) || !isNonEmptyString(value.name)) return false;
+  return (
+    (value.isRunning === undefined || typeof value.isRunning === "boolean") &&
+    (value.proxyCountry === undefined || typeof value.proxyCountry === "string") &&
+    (value.timezone === undefined || typeof value.timezone === "string")
+  );
+}
+
+export function isFingerprintOptions(value: unknown): value is FingerprintOptions {
+  if (!isRecord(value) || !Array.isArray(value.devices) || !Array.isArray(value.locales)) {
+    return false;
+  }
+
+  return (
+    value.devices.every(
+      (device) =>
+        isRecord(device) &&
+        isNonEmptyString(device.family) &&
+        isNonEmptyString(device.label) &&
+        Array.isArray(device.screens) &&
+        device.screens.every(
+          (screen) =>
+            isRecord(screen) &&
+            Number.isSafeInteger(screen.width) &&
+            Number.isSafeInteger(screen.height) &&
+            Number(screen.width) > 0 &&
+            Number(screen.height) > 0,
+        ),
+    ) &&
+    value.locales.every(
+      (locale) =>
+        isRecord(locale) &&
+        isNonEmptyString(locale.id) &&
+        isNonEmptyString(locale.label) &&
+        isNonEmptyString(locale.country) &&
+        Array.isArray(locale.timezones) &&
+        locale.timezones.every(isNonEmptyString),
+    )
+  );
+}
+
 export interface AntidetectAdapter {
   /** Tên hiển thị, dùng cho log và thông báo lỗi. */
   readonly providerName: string;

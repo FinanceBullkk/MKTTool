@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { execFile, spawn, type ChildProcess } from "node:child_process";
 import { mkdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
+import { relayChildEnvironment } from "./relay-child-environment";
 import {
   readCompatibilityUpdateMarker,
   updateRoot,
@@ -94,7 +95,11 @@ function writeSmokeAuthorization(options: {
 
 async function runBrowser(executable: string, args: string[]): Promise<void> {
   await new Promise<void>((resolve, reject) => {
-    const child = spawn(executable, args, { stdio: "ignore", windowsHide: true });
+    const child = spawn(executable, args, {
+      env: relayChildEnvironment(),
+      stdio: "ignore",
+      windowsHide: true,
+    });
     let settled = false;
     const finish = (operation: () => void): void => {
       if (settled) return;

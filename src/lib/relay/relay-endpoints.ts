@@ -1,5 +1,8 @@
 import type { RollbackAuthorization } from "../release/rollback-authorization";
-import type { MktBrowserLicenseCapacity } from "../antidetect/mkt-browser-contract";
+import type {
+  MktBrowserLicenseCapacity,
+  MktBrowserLocalInstallReadiness,
+} from "../antidetect/mkt-browser-contract";
 
 /**
  * Hợp đồng HTTP giữa **trang web** và **cầu nối** chạy trên `127.0.0.1`.
@@ -297,9 +300,25 @@ export interface RelayFingerprintOptions {
 }
 
 /** Những gì `GET /profiles` trả về — danh sách profile CỘNG danh mục để dựng cái mới. */
+/** Safe stages emitted by the read-only profile inventory route. */
+export const RELAY_PROFILE_FAILURE_STAGES = [
+  "not-configured",
+  "browser-health",
+  "profile-list",
+  "fingerprint-options",
+] as const;
+
+export type RelayProfileFailureStage = (typeof RELAY_PROFILE_FAILURE_STAGES)[number];
+
+export function isRelayProfileFailureStage(value: unknown): value is RelayProfileFailureStage {
+  return typeof value === "string" && (RELAY_PROFILE_FAILURE_STAGES as readonly string[]).includes(value);
+}
+
 export interface RelayProfilesReply extends RelayReply {
   profiles?: RelayProfileSummary[];
   fingerprintOptions?: RelayFingerprintOptions;
+  /** Safe, route-level failure location. It is not an operation diagnostic. */
+  stage?: RelayProfileFailureStage;
 }
 
 export interface RelayLicenseCapacityRefreshReply extends RelayReply {
@@ -315,6 +334,8 @@ export interface RelayBrowserHealth {
   contractProblem: string;
   engine: { kind: string; version: string | null; status: string } | null;
   capabilities: string[];
+  /** Contract v6 local install observation. Omitted or invalid values remain non-operational. */
+  localInstallReadiness?: MktBrowserLocalInstallReadiness;
   licenseCapacity?: MktBrowserLicenseCapacity | null;
 }
 

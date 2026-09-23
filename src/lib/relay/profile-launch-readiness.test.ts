@@ -22,7 +22,7 @@ const HEALTH: RelayHealth & RelayReply = {
     ready: true,
     provider: "mkt-browser",
     appVersion: "0.3.1",
-    contractVersion: 4,
+    contractVersion: 6,
     contractCompatible: true,
     contractProblem: "",
     engine: { kind: "cft", version: "148.0.0.0", status: "ready" },
@@ -31,7 +31,10 @@ const HEALTH: RelayHealth & RelayReply = {
       "atomic-launch-v1",
       "managed-profile-v1",
       "operation-diagnostics-v1",
+      "install-readiness-v1",
+      "local-install-ready-v1",
     ],
+    localInstallReadiness: "ready",
   },
 };
 
@@ -67,6 +70,9 @@ describe("currentRelayLaunchReadiness", () => {
     expect(
       currentRelayLaunchReadiness({ status: "no-permission", message: "internal" }),
     ).toMatchObject({ ready: false, state: "relay-permission" });
+    expect(
+      currentRelayLaunchReadiness({ status: "timeout", message: "internal" }),
+    ).toMatchObject({ ready: false, state: "relay-timeout" });
   });
 
   it("keeps rejected health data but blocks unconfigured and outdated Relay builds", () => {
@@ -87,7 +93,7 @@ describe("currentRelayLaunchReadiness", () => {
   });
 
   it("surfaces measured recovery and capacity blockers before launch", () => {
-    const licensed = {
+    const licensed: RelayHealth & RelayReply = {
       ...HEALTH,
       browser: {
         ...HEALTH.browser,
@@ -99,6 +105,8 @@ describe("currentRelayLaunchReadiness", () => {
           active: 1,
           pendingRecovery: 1,
           cooling: 0,
+          availability: "recovering",
+          reason: "RECOVERY_PENDING",
         },
       },
     };
@@ -119,6 +127,8 @@ describe("currentRelayLaunchReadiness", () => {
               active: 2,
               pendingRecovery: 0,
               cooling: 0,
+              availability: "in-use",
+              reason: "CAPACITY_OCCUPIED",
             },
           },
         }),
@@ -133,7 +143,10 @@ describe("currentRelayLaunchReadiness", () => {
       browser: {
         ...HEALTH.browser,
         engine: { kind: "cloakbrowser", version: "151", status: "ready" },
-        licenseCapacity: { total: 1, free: 0, active: 0, pendingRecovery: 0, cooling: 1, retryAt },
+        licenseCapacity: {
+          total: 1, free: 0, active: 0, pendingRecovery: 0, cooling: 1, retryAt,
+          availability: "cooling", reason: "CAPACITY_COOLING",
+        },
       },
     }));
     expect(profileLaunchReadiness(PROFILE, readiness)).toMatchObject({
@@ -273,6 +286,16 @@ describe("profileLaunchReadiness", () => {
     expect(`${recovery}\n${unknown}`).not.toContain("203.0.113.10");
     expect(`${recovery}\n${unknown}`).not.toContain("1080");
     expect(`${recovery}\n${unknown}`).not.toContain("cb_live_secret_key");
+  });
+
+  it("treats a timed-out launch as ambiguous completion instead of permission denial", () => {
+    const message = describeProfileLaunchFailure({
+      status: "timeout",
+      message: "private timeout detail",
+    });
+
+    expect(message).toContain("Check whether the browser opened");
+    expect(message).not.toMatch(/permission|private timeout detail/i);
   });
 
   it.each(["NO_CAPACITY", "ENGINE_UNAVAILABLE"])("does not invite an immediate launch repeat for %s", (code) => {

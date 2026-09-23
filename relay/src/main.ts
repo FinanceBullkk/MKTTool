@@ -235,10 +235,11 @@ async function main(): Promise<void> {
       [RELAY_PATHS.secret]: renderSecretPage,
     },
     routes: defineRelayRoutes({
-      [RELAY_PATHS.health]: async () => ({
-        ...(pendingRetirement
-          ? retirementHealth(pendingRetirement)
-          : {
+      [RELAY_PATHS.health]: async () => {
+        if (pendingRetirement) return retirementHealth(pendingRetirement);
+
+        const browser = await state.antidetect.describeRuntime();
+        return {
         ok: state.problems.length === 0,
         message: state.problems.length === 0 ? "Cầu nối sẵn sàng." : notConfiguredMessage(),
         publicKey: keypair.publicKeyHex,
@@ -249,15 +250,15 @@ async function main(): Promise<void> {
         configured: state.problems.length === 0,
         deviceId: state.deviceId,
         webOrigin: state.webOrigin,
-        antidetectReady: await state.antidetect.isReady(),
+        antidetectReady: browser.ready,
         // Bốn tầng của CHÍNH máy này. Web dùng nó để nói đúng chỗ hỏng thay vì "không kết nối
         // được", và để chặn sớm một máy chạy bản hợp đồng khác.
-        browser: await state.antidetect.describeRuntime(),
+        browser,
         compatibilityUpdate: describeCompatibilityUpdateHealth(
           readCompatibilityUpdateState(secureStore),
         ),
-          }),
-      }),
+        };
+      },
       [RELAY_PATHS.configure]: (request, body) =>
         pendingRetirement
           ? retirementBlocked()

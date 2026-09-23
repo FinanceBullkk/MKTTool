@@ -29,6 +29,17 @@ import {
   initializeCompatibilityUpdateState,
   readCompatibilityUpdateState,
 } from "./update-state";
+import { CompatibilityArtifactDownloadError } from "./compatibility-artifact-staging";
+
+const COMPATIBILITY_UPDATE_FAILURE_MESSAGE =
+  "Compatibility update could not be prepared. Check Relay status and request a new signed update authorization.";
+
+class CompatibilityUpdateRejected extends Error {
+  constructor(readonly code: string, message: string) {
+    super(message);
+    this.name = "CompatibilityUpdateRejected";
+  }
+}
 
 export async function handleCompatibilityUpdate(
   request: IncomingMessage,
@@ -108,9 +119,12 @@ export async function handleCompatibilityUpdate(
     );
 
     let repairInitialized = false;
-    if (!existingState) {
-      if (!authorization.repairMissingState || authorization.authorizedRole !== "ADMIN") {
-        throw new Error("Missing compatibility state requires an ADMIN repair authorization.");
+      if (!existingState) {
+        if (!authorization.repairMissingState || authorization.authorizedRole !== "ADMIN") {
+          throw new CompatibilityUpdateRejected(
+            "COMPATIBILITY_UPDATE_REPAIR_REQUIRED",
+            "Missing compatibility state requires an ADMIN repair authorization.",
+          );
       }
       const serialized = JSON.stringify(validationState);
       dependencies.store.writeIfAbsent(RELAY_SECRET_NAMES.compatibilityUpdateState, serialized);
@@ -165,7 +179,17 @@ export async function handleCompatibilityUpdate(
     if (error instanceof TicketRejected) {
       return { ok: false, message: error.message, rejectionCode: error.code };
     }
-    return { ok: false, message: (error as Error).message };
+    if (error instanceof CompatibilityArtifactDownloadError) {
+      return { ok: false, message: error.message, code: error.code };
+    }
+    if (error instanceof CompatibilityUpdateRejected) {
+      return { ok: false, message: error.message, code: error.code };
+    }
+    return {
+      ok: false,
+      message: COMPATIBILITY_UPDATE_FAILURE_MESSAGE,
+      code: "COMPATIBILITY_UPDATE_FAILED",
+    };
   }
 }
 

@@ -12,6 +12,7 @@ import {
   type MktBrowserRuntimeInfo,
   describeMktBrowserCompatibility,
   parseMktBrowserLicenseCapacity,
+  parseMktBrowserLocalInstallReadiness,
   resolveMktBrowserMcpUrl,
 } from "./mkt-browser-contract";
 import { RELAY_VERSION } from "../relay/relay-endpoints";
@@ -120,11 +121,27 @@ describe("MKT Browser capacity validation", () => {
   });
 });
 
+describe("MKT Browser local-install readiness validation", () => {
+  it.each(["checking", "ready", "failed", "unavailable"] as const)(
+    "keeps the known %s state without forwarding unrelated runtime data",
+    (state) => {
+      expect(parseMktBrowserLocalInstallReadiness(state)).toBe(state);
+    },
+  );
+
+  it.each([undefined, null, "pending", "READY", 1, { state: "ready" }])(
+    "rejects an unknown local-install state: %j",
+    (state) => {
+      expect(parseMktBrowserLocalInstallReadiness(state)).toBeUndefined();
+    },
+  );
+});
+
 describe("MKT Browser compatibility verdict", () => {
   it("names the runtime tool and the versions this build drives", () => {
     expect(MKT_BROWSER_RUNTIME_INFO_TOOL).toBe("get_runtime_info");
     expect(MKT_BROWSER_REFRESH_LICENSE_CAPACITY_TOOL).toBe("refresh_license_capacity");
-    expect([...MKT_BROWSER_SUPPORTED_CONTRACT_VERSIONS]).toEqual([1, 2, 3, 4, 5]);
+    expect([...MKT_BROWSER_SUPPORTED_CONTRACT_VERSIONS]).toEqual([1, 2, 3, 4, 5, 6]);
   });
 
   /**
@@ -149,15 +166,14 @@ describe("MKT Browser compatibility verdict", () => {
    * làm không cài nổi trình duyệt trên máy có cầu nối mới hơn. Hợp đồng *dữ liệu* giữa hai bên
    * không đổi, `browserContract` vẫn là 4.
    *
-   * Relay 18 pairs with Browser contract 5. Contract 5 adds conservative aggregate capacity
-   * availability, freshness, and vendor-reason fields plus the explicit capacity-refresh route;
-   * older contracts remain supported but cannot claim Cloak readiness without that evidence.
+   * Relay 18 pairs with Browser contract 6. Contract 6 adds the local-install readiness snapshot;
+   * older contracts remain supported but cannot claim profile-operation readiness without it.
    */
   it("pins the Relay release paired with the current Browser contract", () => {
     expect({
       browserContract: MKT_BROWSER_SUPPORTED_CONTRACT_VERSIONS.at(-1),
       relayVersion: RELAY_VERSION,
-    }).toEqual({ browserContract: 5, relayVersion: 18 });
+    }).toEqual({ browserContract: 6, relayVersion: 18 });
   });
 
   it("accepts a device on a supported contract version", () => {
@@ -176,9 +192,9 @@ describe("MKT Browser compatibility verdict", () => {
   });
 
   it("refuses a newer contract version instead of assuming newer is safe", () => {
-    const verdict = describeMktBrowserCompatibility({ ...RUNTIME_INFO, contractVersion: 6 });
+    const verdict = describeMktBrowserCompatibility({ ...RUNTIME_INFO, contractVersion: 7 });
     expect(verdict.compatible).toBe(false);
-    expect(verdict.reason).toContain("contract version 6");
+    expect(verdict.reason).toContain("contract version 7");
   });
 
   it("refuses an endpoint that answers as another product", () => {

@@ -92,6 +92,7 @@ export function ProfileTile({
     "checking",
     "relay-offline",
     "relay-permission",
+    "relay-timeout",
     "relay-outdated",
     "relay-unconfigured",
     "relay-rejected",
@@ -101,6 +102,10 @@ export function ProfileTile({
     "engine-unavailable",
     "contract-mismatch",
     "capability-missing",
+    "install-readiness-unknown",
+    "install-readiness-unavailable",
+    "install-readiness-checking",
+    "install-readiness-failed",
     "profile-state-unknown",
     "recovery-pending",
   ]);

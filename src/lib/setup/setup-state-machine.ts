@@ -118,6 +118,14 @@ export function setupStateMachine(input: SetupStateMachineInput): SetupStateResu
     );
   }
 
+  if (input.relay.status === "timeout") {
+    return result(
+      "Unable to verify",
+      { kind: "RETRY", label: "Check this PC again" },
+      "Relay did not report local setup status in time. Keep it open, then check this PC again.",
+    );
+  }
+
   if (input.relay.status === "unreachable") {
     return result(
       "Needs repair",

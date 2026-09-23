@@ -14,7 +14,7 @@ export const MKT_BROWSER_REFRESH_LICENSE_CAPACITY_TOOL = "refresh_license_capaci
  * still calls, and silently trusting "newer is fine" is how a device fails at launch time instead
  * of at health-check time.
  */
-export const MKT_BROWSER_SUPPORTED_CONTRACT_VERSIONS = [1, 2, 3, 4, 5] as const;
+export const MKT_BROWSER_SUPPORTED_CONTRACT_VERSIONS = [1, 2, 3, 4, 5, 6] as const;
 
 /**
  * Mirrors the desktop contract's codes. MKTTool branches on these; it must never match a
@@ -69,6 +69,25 @@ export interface MktBrowserLicenseCapacity {
   freshUntil?: string;
   vendorActive?: number;
   vendorLimit?: number;
+}
+
+/** The Browser's current observation of whether its local installation is safe to use. */
+export type MktBrowserLocalInstallReadiness = "checking" | "ready" | "failed" | "unavailable";
+
+const LOCAL_INSTALL_READINESS = new Set<MktBrowserLocalInstallReadiness>([
+  "checking",
+  "ready",
+  "failed",
+  "unavailable",
+]);
+
+/** Ignore absent or future values so callers fail closed instead of guessing their meaning. */
+export function parseMktBrowserLocalInstallReadiness(
+  value: unknown,
+): MktBrowserLocalInstallReadiness | undefined {
+  return typeof value === "string" && LOCAL_INSTALL_READINESS.has(value as MktBrowserLocalInstallReadiness)
+    ? value as MktBrowserLocalInstallReadiness
+    : undefined;
 }
 
 const LICENSE_AVAILABILITY = new Set<MktBrowserLicenseAvailability>([
@@ -184,6 +203,8 @@ export interface MktBrowserRuntimeInfo {
   profileSchemaVersion: number;
   engine: MktBrowserEngineInfo;
   capabilities: string[];
+  /** Contract v6. Omitted by older Browser builds and untrusted when malformed. */
+  localInstallReadiness?: MktBrowserLocalInstallReadiness;
   licenseCapacity: MktBrowserLicenseCapacity | null;
 }
 

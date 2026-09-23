@@ -394,6 +394,30 @@ describe("MktBrowserAdapter profile operations", () => {
     await expect(adapter.isRunning(PROFILE_ID)).resolves.toBe(true);
   });
 
+  it.each([
+    { body: {}, tool: "list_profiles", operation: "listProfiles" },
+    { body: { profiles: [{ id: PROFILE_ID }] }, tool: "list_profiles", operation: "listProfiles" },
+    {
+      body: {
+        devices: [],
+        locales: [{ id: "en-US", label: "English", country: "us", timezones: [42] }],
+      },
+      tool: "list_fingerprint_options",
+      operation: "fingerprintOptions",
+    },
+    {
+      body: { devices: "not-an-array", locales: [] },
+      tool: "list_fingerprint_options",
+      operation: "fingerprintOptions",
+    },
+  ] as const)("rejects malformed $tool MCP payloads", async ({ body, tool, operation }) => {
+    installFakeMcpServer({ toolBodies: { [tool]: body } });
+    const adapter = new MktBrowserAdapter(MKT_BROWSER_DEFAULT_MCP_URL, "t");
+
+    const read = operation === "listProfiles" ? adapter.listProfiles() : adapter.fingerprintOptions();
+    await expect(read).rejects.toBeInstanceOf(AntidetectError);
+  });
+
   it("passes managed correlation fields and accepts only the matching diagnostic", async () => {
     const diagnostic = {
       operationId: "operation-1",

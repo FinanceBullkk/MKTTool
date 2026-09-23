@@ -42,6 +42,17 @@ describe("probeSetupRelay", () => {
     expect(mocks.inspectSetupDevice).not.toHaveBeenCalled();
   });
 
+  it("keeps a Relay timeout distinct from local-network permission denial", async () => {
+    mocks.pingRelay.mockResolvedValue({ status: "timeout", message: "private timeout" });
+
+    await expect(probeSetupRelay()).resolves.toEqual({
+      relay: { status: "timeout" },
+      health: null,
+      detail: "Relay did not report local setup status in time. Keep it open, then check this PC again.",
+    });
+    expect(mocks.inspectSetupDevice).not.toHaveBeenCalled();
+  });
+
   it("uses a neutral repair state when registry inspection rejects", async () => {
     mocks.pingRelay.mockResolvedValue({ status: "ok", data: HEALTH });
     mocks.inspectSetupDevice.mockResolvedValue({ ok: false, message: "Database detail" });

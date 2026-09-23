@@ -1,6 +1,9 @@
 import { getStatusPresentation } from "@/lib/accounts/account-status";
 import { PROBLEM_VERDICTS } from "@/lib/proxies/proxy-liveness-verdict";
-import { currentDeviceBrowserReadiness } from "./current-device-browser-health";
+import {
+  currentDeviceBrowserReadiness,
+  REQUIRED_SETUP_BROWSER_CAPABILITIES,
+} from "./current-device-browser-health";
 import type { RelayOutcome } from "./relay-browser-client";
 import { relayFailureCode } from "./relay-failure-code";
 import {
@@ -43,6 +46,12 @@ export function currentRelayLaunchReadiness(
       "Allow local network access for this site, then check again.",
     );
   }
+  if (outcome.status === "timeout") {
+    return blocked(
+      "relay-timeout",
+      "Relay did not report local browser status in time. Keep it open, then check again.",
+    );
+  }
 
   const health = outcome.data;
   if (!health) {
@@ -58,7 +67,7 @@ export function currentRelayLaunchReadiness(
     return blocked("relay-rejected", "Relay is not ready to open a browser profile. Open Setup and retry.");
   }
 
-  const browser = currentDeviceBrowserReadiness(health.browser);
+  const browser = currentDeviceBrowserReadiness(health.browser, REQUIRED_SETUP_BROWSER_CAPABILITIES);
   if (!browser.ready) return blocked(browser.state, browser.message, health.deviceId ?? null);
   return {
     ready: true,
@@ -174,6 +183,10 @@ const LAUNCH_FAILURE_MESSAGE_BY_CODE: Record<string, string> = {
   ENGINE_UNAVAILABLE: "The local browser could not start. Check the engine, licence and wait state in MKT Browser before trying once manually; repeated attempts may extend a licence wait.",
   CONTRACT_MISMATCH: "Install the matching MKT Browser release on this PC, then retry.",
   CAPABILITY_MISSING: "Update MKT Browser on this PC, then retry.",
+  INSTALL_READINESS_UNKNOWN: "MKT Browser has not verified its local installation. Keep it open, then check again.",
+  INSTALL_READINESS_UNAVAILABLE: "MKT Browser could not verify its local installation. Keep it open, then check again.",
+  INSTALL_READINESS_CHECKING: "MKT Browser is checking its local installation. Wait for the check to finish, then check again.",
+  INSTALL_READINESS_FAILED: "MKT Browser found a local installation problem. Repair it, then check again.",
   UNKNOWN_TOOL: "Update MKT Browser on this PC, then retry.",
   PROXY_REJECTED: "The assigned proxy could not start. Check the proxy and retry.",
   PROFILE_ALREADY_RUNNING: "This browser profile is already open on this Relay PC.",
@@ -182,6 +195,9 @@ const LAUNCH_FAILURE_MESSAGE_BY_CODE: Record<string, string> = {
 export function describeProfileLaunchFailure(outcome: RelayOutcome<unknown>): string {
   if (outcome.status === "ok") return "";
   if (outcome.status === "unreachable") return "Start Relay on this PC, then retry.";
+  if (outcome.status === "timeout") {
+    return "The launch response timed out. Check whether the browser opened before trying again.";
+  }
   if (outcome.status === "no-permission") {
     return (
       "The launch did not return in time. Check whether the browser opened; if not, allow " +

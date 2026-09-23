@@ -237,7 +237,7 @@ runTool("postject/dist/cli.js", [
 
 // Bộ cài đi cùng `.exe` chứ không tải riêng: `setup.bat` tìm hai file kia **cạnh chính nó**, nên
 // để chúng rời nhau là một cách hỏng chờ sẵn ở máy người cài.
-for (const fileName of ["setup.bat", "install-relay.ps1"]) {
+for (const fileName of ["setup.bat", "install-relay.ps1", "start-mkttool-relay.cmd"]) {
   const target = path.join(DIST_DIR, fileName);
   copyFileSync(path.join(process.cwd(), "relay", fileName), target);
   console.log(`      kèm ${path.relative(process.cwd(), target)}`);
@@ -312,6 +312,7 @@ for (const file of [
   EXECUTABLE_FILE,
   path.join(DIST_DIR, "setup.bat"),
   path.join(DIST_DIR, "install-relay.ps1"),
+  path.join(DIST_DIR, "start-mkttool-relay.cmd"),
 ]) {
   utimesSync(file, REPRODUCIBLE_MTIME, REPRODUCIBLE_MTIME);
 }
@@ -324,7 +325,7 @@ run("powershell", [
   `Compress-Archive -Path '${EXECUTABLE_FILE}','${path.join(DIST_DIR, "setup.bat")}','${path.join(
     DIST_DIR,
     "install-relay.ps1",
-  )}' -DestinationPath '${ARCHIVE_FILE}' -Force`,
+  )}','${path.join(DIST_DIR, "start-mkttool-relay.cmd")}' -DestinationPath '${ARCHIVE_FILE}' -Force`,
 ]);
 
 /**

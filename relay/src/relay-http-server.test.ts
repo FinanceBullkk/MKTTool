@@ -157,8 +157,14 @@ describe("máy chủ HTTP của cầu nối", () => {
   it("rejects an oversized POST body before invoking a route handler", async () => {
     const base = await startServer();
     const response = await fetch(`${base}/echo`, { method: "POST", body: "x".repeat(1_000_001) });
+    const body = await response.json();
 
     expect(response.status).toBe(413);
+    expect(body).toMatchObject({
+      ok: false,
+      code: "RELAY_REQUEST_BODY_UNAVAILABLE",
+      message: "The request body could not be read.",
+    });
     expect(echoCalls).toBe(0);
   });
 
@@ -173,8 +179,12 @@ describe("máy chủ HTTP của cầu nối", () => {
     const body = await response.json();
 
     expect(response.status).toBe(500);
-    expect(body.ok).toBe(false);
-    expect(body.message).toContain("hỏng bên trong");
+    expect(body).toMatchObject({
+      ok: false,
+      code: "RELAY_INTERNAL_ERROR",
+      message: "Relay could not complete this request.",
+    });
+    expect(JSON.stringify(body)).not.toContain("hỏng bên trong");
     expect(JSON.stringify(body)).not.toContain("at ");
   });
 

@@ -5,9 +5,13 @@ import { effectiveMinRelayVersion, TICKET_KINDS } from "../tickets/ticket-types"
 import { describeProfileCreateRejection, profileSetupReadiness } from "./profile-setup-readiness";
 
 const BROWSER: RelayBrowserHealth = {
-  ready: true, provider: "mkt-browser", appVersion: "0.3.13", contractVersion: 4,
+  ready: true, provider: "mkt-browser", appVersion: "0.3.13", contractVersion: 6,
   contractCompatible: true, contractProblem: "", engine: { kind: "cft", version: "148", status: "ready" },
-  capabilities: ["idempotent-create-v1", "atomic-launch-v1", "managed-profile-v1", "operation-diagnostics-v1"],
+  capabilities: [
+    "idempotent-create-v1", "atomic-launch-v1", "managed-profile-v1", "operation-diagnostics-v1",
+    "install-readiness-v1", "local-install-ready-v1",
+  ],
+  localInstallReadiness: "ready",
 };
 const HEALTH: RelayHealth & RelayReply = {
   ok: true, relayVersion: 16, message: "Ready", publicKey: "public-key", configured: true,
@@ -111,6 +115,98 @@ describe("profileSetupReadiness", () => {
     expect(JSON.stringify(state)).not.toMatch(/cb_live|203\.0\.113|1080|Relay update required/);
   });
 
+  it.each([
+    ["checking", "install-readiness-checking"],
+    ["unavailable", "install-readiness-unavailable"],
+    ["failed", "install-readiness-failed"],
+  ] as const)("blocks setup while v6 local installation is %s", (localInstallReadiness, state) => {
+    const result = profileSetupReadiness(
+      profiles(),
+      health({ browser: { ...BROWSER, localInstallReadiness } }),
+    );
+
+    expect(result).toMatchObject({ kind: "blocked", state });
+  });
+
+  it("keeps a timed-out profile read distinct from permission denial", () => {
+    const result = profileSetupReadiness(
+      { status: "timeout", message: "private timeout" },
+      health(),
+    );
+
+    expect(result).toMatchObject({ kind: "blocked", state: "relay-timeout" });
+    expect(JSON.stringify(result)).not.toContain("private timeout");
+  });
+
+  it.each([{ configured: false }, { retirementPending: true }])(
+    "keeps a completed Relay setup block ahead of a parallel profile timeout",
+    (patch) => {
+      const result = profileSetupReadiness(
+        { status: "timeout", message: "private timeout" },
+        health(patch),
+      );
+
+      expect(result).toMatchObject({ kind: "blocked", state: "relay-setup", setupHref: "/setup" });
+      expect(JSON.stringify(result)).not.toContain("private timeout");
+    },
+  );
+
+  it("keeps a concrete profile rejection ahead of a concurrent health timeout", () => {
+    const profileFailure: RelayOutcome<RelayProfilesReply> = {
+      status: "rejected",
+      relayVersion: 16,
+      message: "token=private-value",
+      data: {
+        ok: false,
+        relayVersion: 16,
+        message: "token=private-value",
+        code: "INSTALL_READINESS_UNAVAILABLE",
+        stage: "browser-health",
+      },
+    };
+    const result = profileSetupReadiness(
+      profileFailure,
+      { status: "timeout", message: "private health timeout" },
+    );
+
+    expect(result).toMatchObject({ kind: "blocked", state: "install-readiness-unavailable" });
+    expect(JSON.stringify(result)).not.toMatch(/private-value|private health timeout/);
+  });
+
+  it("uses only allowlisted profile stages for safe operator guidance", () => {
+    const optionsFailure: RelayOutcome<RelayProfilesReply> = {
+      status: "rejected",
+      relayVersion: 16,
+      message: "private provider output",
+      data: {
+        ok: false,
+        relayVersion: 16,
+        message: "private provider output",
+        code: "FINGERPRINT_OPTIONS_UNAVAILABLE",
+        stage: "fingerprint-options",
+      },
+    };
+    const unknownStage: RelayOutcome<RelayProfilesReply> = {
+      status: "rejected",
+      relayVersion: 16,
+      message: "https://relay.example/?token=private-value",
+      data: {
+        ok: false,
+        relayVersion: 16,
+        message: "https://relay.example/?token=private-value",
+        stage: "future-stage" as never,
+      },
+    };
+
+    expect(profileSetupReadiness(optionsFailure, health())).toMatchObject({
+      kind: "blocked",
+      state: "fingerprint-options-unavailable",
+    });
+    const fallback = profileSetupReadiness(unknownStage, health());
+    expect(fallback).toMatchObject({ kind: "blocked", state: "profiles-unavailable" });
+    expect(JSON.stringify(fallback)).not.toContain("private-value");
+  });
+
   it.each(["unreachable", "no-permission"] as const)("keeps %s separate and retryable", (status) => {
     expect(profileSetupReadiness({ status, message: "raw failure" }, { status, message: "raw failure" }))
       .toMatchObject({ kind: "blocked", state: status === "unreachable" ? "relay-offline" : "relay-permission" });
@@ -122,17 +218,23 @@ describe("profileSetupReadiness", () => {
   });
 
   it("keeps measured recovery and capacity blockers", () => {
-    const licensed = {
+    const licensed: RelayBrowserHealth = {
       ...BROWSER, engine: { kind: "cloakbrowser", version: "145", status: "ready" },
       capabilities: BROWSER.capabilities,
-      licenseCapacity: { total: 2, free: 0, active: 1, pendingRecovery: 1, cooling: 0 },
+      licenseCapacity: {
+        total: 2, free: 0, active: 1, pendingRecovery: 1, cooling: 0,
+        availability: "recovering", reason: "RECOVERY_PENDING",
+      },
     };
     expect(profileSetupReadiness(rejected, health({ browser: licensed })))
       .toMatchObject({ kind: "blocked", state: "recovery-pending" });
     expect(profileSetupReadiness(rejected, health({ browser: { ...licensed, licenseCapacity: null } })))
       .toMatchObject({ kind: "blocked", state: "capacity-unknown" });
     expect(profileSetupReadiness(rejected, health({ browser: { ...licensed,
-      licenseCapacity: { ...licensed.licenseCapacity, active: 2, pendingRecovery: 0 },
+      licenseCapacity: {
+        total: 2, free: 0, active: 2, pendingRecovery: 0, cooling: 0,
+        availability: "in-use", reason: "CAPACITY_OCCUPIED",
+      },
     } }))).toMatchObject({ kind: "blocked", state: "no-capacity" });
   });
 
@@ -140,7 +242,10 @@ describe("profileSetupReadiness", () => {
     const retryAt = "2026-09-21T04:45:00.000Z";
     const result = profileSetupReadiness(profiles(), health({ browser: {
       ...BROWSER, engine: { kind: "cloakbrowser", version: "151", status: "ready" },
-      licenseCapacity: { total: 1, free: 0, active: 0, pendingRecovery: 0, cooling: 1, retryAt },
+      licenseCapacity: {
+        total: 1, free: 0, active: 0, pendingRecovery: 0, cooling: 1, retryAt,
+        availability: "cooling", reason: "CAPACITY_COOLING",
+      },
     } }));
     expect(result).toMatchObject({ kind: "blocked", state: "no-capacity", title: "Browser capacity is unavailable" });
     if (result.kind !== "blocked") throw new Error("Expected cooling capacity to block setup");

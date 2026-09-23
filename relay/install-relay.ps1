@@ -24,11 +24,14 @@ $exeName = "MKTTool-Relay.exe"
 $statusUrl = "http://127.0.0.1:47821"
 
 $sourceExe = Join-Path $PSScriptRoot $exeName
+$launcherName = "start-mkttool-relay.cmd"
+$sourceLauncher = Join-Path $PSScriptRoot $launcherName
 $relayDir = if ($env:RELAY_DIR) { $env:RELAY_DIR } else { Join-Path $env:LOCALAPPDATA "MKTTool-Relay" }
 $startupDir = if ($env:RELAY_STARTUP_DIR) { $env:RELAY_STARTUP_DIR } else { Join-Path $env:APPDATA "Microsoft\Windows\Start Menu\Programs\Startup" }
 $desktopDir = if ($env:RELAY_DESKTOP_DIR) { $env:RELAY_DESKTOP_DIR } else { Join-Path $env:USERPROFILE "Desktop" }
 
 $targetExe = Join-Path $relayDir $exeName
+$targetLauncher = Join-Path $relayDir $launcherName
 $configFile = Join-Path $relayDir "relay-config.json"
 $shortcutSaveMaxAttempts = 5
 
@@ -68,17 +71,19 @@ function Test-RetryableShortcutError($errorRecord) {
 }
 
 function Test-RelayShortcut($linkPath) {
-    if (-not (Test-Path -LiteralPath $linkPath)) { return $false }
+    if (-not (Test-RegularFile $linkPath) -or -not (Test-RegularFile $targetLauncher)) { return $false }
 
     $shell = $null
     $shortcut = $null
     try {
         $shell = New-Object -ComObject WScript.Shell
         $shortcut = $shell.CreateShortcut($linkPath)
-        return [string]::Equals(
-            $shortcut.TargetPath,
-            $targetExe,
-            [StringComparison]::OrdinalIgnoreCase
+        return (
+            [string]::Equals(
+                $shortcut.TargetPath,
+                $targetLauncher,
+                [StringComparison]::OrdinalIgnoreCase
+            ) -and [string]::IsNullOrWhiteSpace($shortcut.Arguments)
         )
     } catch {
         return $false
@@ -92,7 +97,23 @@ function Test-RelayShortcut($linkPath) {
     }
 }
 
+function Test-RegularFile($path) {
+    try {
+        $item = Get-Item -LiteralPath $path -Force -ErrorAction Stop
+        return -not $item.PSIsContainer -and
+            -not (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0)
+    } catch {
+        return $false
+    }
+}
+
 function New-RelayShortcut($linkPath) {
+    if ((Test-Path -LiteralPath $linkPath) -and -not (Test-RegularFile $linkPath)) {
+        throw "The Relay shortcut path must not be a reparse point."
+    }
+    if (-not (Test-RegularFile $targetLauncher)) {
+        throw "The Relay launcher must be a regular file."
+    }
     if (Test-RelayShortcut $linkPath) { return }
 
     for ($attempt = 1; $attempt -le $shortcutSaveMaxAttempts; $attempt++) {
@@ -102,7 +123,8 @@ function New-RelayShortcut($linkPath) {
         try {
             $shell = New-Object -ComObject WScript.Shell
             $shortcut = $shell.CreateShortcut($linkPath)
-            $shortcut.TargetPath = $targetExe
+            $shortcut.TargetPath = $targetLauncher
+            $shortcut.Arguments = ""
             $shortcut.WorkingDirectory = $relayDir
             $shortcut.WindowStyle = 7
             $shortcut.Save()
@@ -126,6 +148,10 @@ function New-RelayShortcut($linkPath) {
 
 function Remove-OwnedLegacyShortcut($linkPath) {
     if (-not (Test-Path -LiteralPath $linkPath)) { return }
+    if (-not (Test-RegularFile $linkPath)) {
+        Write-Warning "The legacy shortcut path is not a regular file. It was preserved."
+        return
+    }
 
     $shell = $null
     $shortcut = $null
@@ -133,6 +159,7 @@ function Remove-OwnedLegacyShortcut($linkPath) {
         $shell = New-Object -ComObject WScript.Shell
         $shortcut = $shell.CreateShortcut($linkPath)
         $legacyTarget = $shortcut.TargetPath
+        $legacyArguments = $shortcut.Arguments
     } catch {
         Write-Warning "Could not inspect the legacy shortcut. It was preserved."
         return
@@ -145,7 +172,12 @@ function Remove-OwnedLegacyShortcut($linkPath) {
         }
     }
 
-    if (-not [string]::Equals($legacyTarget, $targetExe, [StringComparison]::OrdinalIgnoreCase)) {
+    if (
+        (
+            -not [string]::Equals($legacyTarget, $targetExe, [StringComparison]::OrdinalIgnoreCase) -and
+            -not [string]::Equals($legacyTarget, $targetLauncher, [StringComparison]::OrdinalIgnoreCase)
+        ) -or -not [string]::IsNullOrWhiteSpace($legacyArguments)
+    ) {
         Write-Warning "The legacy shortcut does not belong to this Relay installation. It was preserved."
         return
     }
@@ -157,6 +189,41 @@ function Remove-OwnedLegacyShortcut($linkPath) {
     }
 }
 
+function Install-RelayLauncherAndShortcuts() {
+    if (-not (Test-Path $relayDir)) { New-Item -ItemType Directory -Path $relayDir -Force | Out-Null }
+    Copy-Item -Path $sourceLauncher -Destination $targetLauncher -Force
+    Unblock-File -Path $targetLauncher -ErrorAction SilentlyContinue
+    foreach ($dir in @($startupDir, $desktopDir)) {
+        if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
+    }
+    New-RelayShortcut (Join-Path $startupDir "MKTTool Relay.lnk")
+    New-RelayShortcut (Join-Path $desktopDir "MKTTool Relay.lnk")
+    Remove-OwnedLegacyShortcut (Join-Path $startupDir "Cầu nối MKTTool.lnk")
+    Remove-OwnedLegacyShortcut (Join-Path $desktopDir "Cầu nối MKTTool.lnk")
+}
+
+function Start-RelayProcess() {
+    $startInfo = New-Object System.Diagnostics.ProcessStartInfo
+    $startInfo.FileName = $targetExe
+    $startInfo.WorkingDirectory = $relayDir
+    $startInfo.UseShellExecute = $false
+    $startInfo.WindowStyle = [System.Diagnostics.ProcessWindowStyle]::Minimized
+
+    # The installer itself may inherit Node test or TLS overrides. The installed Relay must not.
+    foreach ($nodeTlsVariable in @(
+        "NODE_OPTIONS",
+        "NODE_EXTRA_CA_CERTS",
+        "NODE_USE_SYSTEM_CA",
+        "NODE_TLS_REJECT_UNAUTHORIZED"
+    )) {
+        [void]$startInfo.EnvironmentVariables.Remove($nodeTlsVariable)
+    }
+
+    if (-not [System.Diagnostics.Process]::Start($startInfo)) {
+        throw "The Relay process could not start."
+    }
+}
+
 Write-Host ""
 Write-Host "  Install MKTTool Relay"
 Write-Host "  ---------------------------------------------------------------"
@@ -164,6 +231,9 @@ Write-Host ""
 
 if (-not (Test-Path $sourceExe)) {
     Fail "$exeName was not found beside this script. Extract the package again, then retry."
+}
+if (-not (Test-Path $sourceLauncher)) {
+    Fail "$launcherName was not found beside this script. Extract the package again, then retry."
 }
 
 <#
@@ -186,6 +256,7 @@ if ($incomingVersion -gt 0 -and (Test-Path $versionFile)) {
     $installedRaw = (Get-Content -LiteralPath $versionFile -TotalCount 1 -ErrorAction SilentlyContinue)
     $installedVersion = 0
     if ([int]::TryParse(("" + $installedRaw).Trim(), [ref]$installedVersion) -and $installedVersion -gt $incomingVersion) {
+        Install-RelayLauncherAndShortcuts
         Write-Host "  Relay $installedVersion is already installed and is newer than the Relay $incomingVersion in this package."
         Write-Host "  Leaving it in place. Nothing was changed."
         Write-Host ""
@@ -206,8 +277,10 @@ if ($running) {
 }
 
 Write-Step 2 "Copying files to $relayDir"
-if (-not (Test-Path $relayDir)) { New-Item -ItemType Directory -Path $relayDir -Force | Out-Null }
 try {
+    # Redirect owned startup entries before replacing the SEA executable. A copy failure can then
+    # leave only the previous executable behind the safe launcher, never new bytes behind a direct link.
+    Install-RelayLauncherAndShortcuts
     Copy-Item -Path $sourceExe -Destination $targetExe -Force
 } catch {
     Fail "Could not copy the Relay: $($_.Exception.Message)`n  The previous Relay may still be running. Close $exeName in Task Manager, then retry."
@@ -259,18 +332,12 @@ if (Test-Path $configFile) {
 }
 
 Write-Step 4 "Creating Startup and desktop shortcuts"
-foreach ($dir in @($startupDir, $desktopDir)) {
-    if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
-}
-New-RelayShortcut (Join-Path $startupDir "MKTTool Relay.lnk")
-New-RelayShortcut (Join-Path $desktopDir "MKTTool Relay.lnk")
-Remove-OwnedLegacyShortcut (Join-Path $startupDir "Cầu nối MKTTool.lnk")
-Remove-OwnedLegacyShortcut (Join-Path $desktopDir "Cầu nối MKTTool.lnk")
+# The safe launcher and shortcuts were installed before the executable replacement above.
 
 <#
 Bật thử. **Bước này hỏng KHÔNG phải là cài hỏng.**
 
-Windows chặn chạy file lạ tải từ mạng, và người dùng bấm "Không chạy" là `Start-Process` ném lỗi
+Windows chặn chạy file lạ tải từ mạng, và người dùng bấm "Không chạy" là lệnh bật Relay ném lỗi
 `The operation was canceled by the user`. Bản đầu để lỗi đó rơi ra ngoài, nên `setup.bat` kết
 luận "Cài đặt thất bại" — trong khi ba bước thật (chép file, dựng cấu hình, tạo shortcut) đều đã
 xong từ trước. Câu đó cử người đi cài lại một thứ đã cài đúng. Đã vấp thật 06/08/2026.
@@ -280,7 +347,7 @@ Nên bắt lỗi tại chỗ và nói đúng hiện trạng: máy đã cài xong
 Write-Step 5 "Starting the Relay"
 $launched = $true
 try {
-    Start-Process -FilePath $targetExe -WorkingDirectory $relayDir -WindowStyle Minimized -ErrorAction Stop
+    Start-RelayProcess
 } catch {
     $launched = $false
     Write-Host ""

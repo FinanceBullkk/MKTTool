@@ -25,7 +25,10 @@ export function SetupPrimaryStateCard({
   const downloadAction = verdict.action.href === "/setup#download" && onDownloadRelay;
   const pendingLabel = health ? "Saving this PC..." : "Checking this PC...";
   const ready = verdict.state === "Ready";
-  const waiting = verdict.state === "Starting" || verdict.state === "Waiting for administrator approval";
+  const waiting =
+    verdict.state === "Starting" ||
+    verdict.state === "Unable to verify" ||
+    verdict.state === "Waiting for administrator approval";
   const needsRepair = verdict.state === "Needs repair";
   const StateIcon = ready ? CircleCheck : needsRepair ? TriangleAlert : waiting ? CircleDashed : MonitorCog;
   const tone = ready

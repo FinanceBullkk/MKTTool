@@ -10,6 +10,8 @@ import {
   type CreateProfileRequest,
   type CreatedProfile,
   type FingerprintOptions,
+  isAntidetectProfileSummary,
+  isFingerprintOptions,
   type LaunchedProfile,
 } from "./antidetect-browser-adapter";
 import {
@@ -20,10 +22,12 @@ import {
   type MktBrowserLicenseCapacity,
   type MktBrowserRuntimeInfo,
   parseMktBrowserLicenseCapacity,
+  parseMktBrowserLocalInstallReadiness,
   resolveMktBrowserMcpUrl,
 } from "./mkt-browser-contract";
 import {
   McpToolError,
+  type McpRequestDeadline,
   type McpToolResult,
   McpUnauthorizedError,
   MktBrowserMcpClient,
@@ -151,6 +155,7 @@ function parseRuntimeInfo(body: Record<string, unknown>): MktBrowserRuntimeInfo 
 
   const engineRecord = engine as Record<string, unknown>;
   if (typeof engineRecord.kind !== "string" || typeof engineRecord.status !== "string") return null;
+  const localInstallReadiness = parseMktBrowserLocalInstallReadiness(body.localInstallReadiness);
 
   return {
     provider: body.provider,
@@ -165,6 +170,7 @@ function parseRuntimeInfo(body: Record<string, unknown>): MktBrowserRuntimeInfo 
     capabilities: Array.isArray(body.capabilities)
       ? body.capabilities.filter((item): item is string => typeof item === "string")
       : [],
+    ...(localInstallReadiness ? { localInstallReadiness } : {}),
     licenseCapacity: parseMktBrowserLicenseCapacity(body.licenseCapacity),
   };
 }
@@ -225,11 +231,11 @@ export class MktBrowserAdapter implements AntidetectAdapter {
     this.client = new MktBrowserMcpClient(this.baseUrl, token);
   }
 
-  private async ensureInitialized(): Promise<void> {
+  private async ensureInitialized(deadline?: McpRequestDeadline): Promise<void> {
     if (this.initialized) return;
     try {
-      await this.client.initialize();
-      this.availableTools = await this.client.listTools();
+      await this.client.initialize(deadline);
+      this.availableTools = await this.client.listTools(deadline);
       this.initialized = true;
     } catch (cause) {
       if (cause instanceof McpUnauthorizedError) {
@@ -252,16 +258,17 @@ export class MktBrowserAdapter implements AntidetectAdapter {
   private async callToolWithRehandshake(
     name: string,
     args: Record<string, unknown>,
+    deadline?: McpRequestDeadline,
   ): Promise<McpToolResult> {
     try {
-      return await this.client.callTool(name, args);
+      return await this.client.callTool(name, args, deadline);
     } catch (cause) {
       if (cause instanceof McpUnauthorizedError || cause instanceof McpToolError) throw cause;
 
       this.initialized = false;
       this.client.resetSession();
-      await this.ensureInitialized();
-      return await this.client.callTool(name, args);
+      await this.ensureInitialized(deadline);
+      return await this.client.callTool(name, args, deadline);
     }
   }
 
@@ -280,19 +287,33 @@ export class MktBrowserAdapter implements AntidetectAdapter {
    * Returns `null` when this build predates the contract — the W01/W02 packaged artifacts do not
    * expose the tool — so callers can report a legacy device instead of inventing versions for it.
    */
-  async runtimeInfo(): Promise<MktBrowserRuntimeInfo | null> {
-    await this.ensureInitialized();
-    if (!this.availableTools.includes(MKT_BROWSER_RUNTIME_INFO_TOOL)) return null;
+  async runtimeInfo(timeoutMs?: number): Promise<MktBrowserRuntimeInfo | null> {
+    return (await this.observeRuntimeInfo(timeoutMs)).info;
+  }
 
+  /**
+   * Distinguish a legacy Browser that answered tool discovery from an observation that timed out.
+   * The Relay uses this for health only; profile mutations retain their existing request budgets.
+   */
+  async observeRuntimeInfo(timeoutMs?: number): Promise<{
+    reachable: boolean;
+    info: MktBrowserRuntimeInfo | null;
+  }> {
+    const deadline = timeoutMs === undefined ? undefined : Date.now() + timeoutMs;
     try {
+      await this.ensureInitialized(deadline);
+      if (!this.availableTools.includes(MKT_BROWSER_RUNTIME_INFO_TOOL)) {
+        return { reachable: true, info: null };
+      }
       const body = parseToolBody(
-        await this.callToolWithRehandshake(MKT_BROWSER_RUNTIME_INFO_TOOL, {}),
+        await this.callToolWithRehandshake(MKT_BROWSER_RUNTIME_INFO_TOOL, {}, deadline),
       );
-      return parseRuntimeInfo(body);
+      return { reachable: true, info: parseRuntimeInfo(body) };
     } catch {
-      // Runtime reporting is diagnostic. A device that cannot answer must not turn a health read
-      // into a thrown error on every operational surface that calls it.
-      return null;
+      // A timed-out body or a broken session must not leave a ready session behind for the next probe.
+      this.initialized = false;
+      this.client.resetSession();
+      return { reachable: false, info: null };
     }
   }
 
@@ -391,27 +412,44 @@ export class MktBrowserAdapter implements AntidetectAdapter {
     await this.ensureInitialized();
     const toolName = this.requireTool(TOOLS.list, "profile list");
     const body = parseToolBody(await this.callToolWithRehandshake(toolName, {}));
-    const rows = Array.isArray(body.profiles) ? body.profiles : [];
+    if (!Array.isArray(body.profiles) || !body.profiles.every(isAntidetectProfileSummary)) {
+      throw new AntidetectError(
+        `${this.providerName} returned an invalid profile list response.`,
+        this.providerName,
+      );
+    }
 
-    return rows
-      .filter((row): row is Record<string, unknown> => typeof row === "object" && row !== null)
-      .filter((row) => typeof row.id === "string" && typeof row.name === "string")
-      .map((row) => ({
-        id: row.id as string,
-        name: row.name as string,
-        isRunning: typeof row.isRunning === "boolean" ? row.isRunning : undefined,
-        proxyCountry: typeof row.proxyCountry === "string" ? row.proxyCountry : undefined,
-        timezone: typeof row.timezone === "string" ? row.timezone : undefined,
-      }));
+    return body.profiles.map((profile) => ({
+      id: profile.id,
+      name: profile.name,
+      ...(profile.isRunning !== undefined ? { isRunning: profile.isRunning } : {}),
+      ...(profile.proxyCountry !== undefined ? { proxyCountry: profile.proxyCountry } : {}),
+      ...(profile.timezone !== undefined ? { timezone: profile.timezone } : {}),
+    }));
   }
 
   async fingerprintOptions(): Promise<FingerprintOptions> {
     await this.ensureInitialized();
     const toolName = this.requireTool(TOOLS.fingerprintOptions, "fingerprint option list");
     const body = parseToolBody(await this.callToolWithRehandshake(toolName, {}));
+    if (!isFingerprintOptions(body)) {
+      throw new AntidetectError(
+        `${this.providerName} returned an invalid fingerprint option list response.`,
+        this.providerName,
+      );
+    }
     return {
-      devices: Array.isArray(body.devices) ? (body.devices as FingerprintOptions["devices"]) : [],
-      locales: Array.isArray(body.locales) ? (body.locales as FingerprintOptions["locales"]) : [],
+      devices: body.devices.map((device) => ({
+        family: device.family,
+        label: device.label,
+        screens: device.screens.map((screen) => ({ width: screen.width, height: screen.height })),
+      })),
+      locales: body.locales.map((locale) => ({
+        id: locale.id,
+        label: locale.label,
+        country: locale.country,
+        timezones: [...locale.timezones],
+      })),
     };
   }
 

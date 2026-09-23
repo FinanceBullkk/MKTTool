@@ -79,6 +79,18 @@ describe("relayDeviceLocality", () => {
     expect(locality.state === "unverified" && locality.note).toContain("allowed");
   });
 
+  it("keeps the action when Relay times out without claiming permission was denied", () => {
+    const timeout: RelayOutcome<RelayHealth & RelayReply> = {
+      status: "timeout",
+      message: "private timeout",
+    };
+    const locality = relayDeviceLocality(timeout, TARGET);
+
+    expect(locality).toMatchObject({ state: "unverified" });
+    expect(locality.state === "unverified" && locality.note).toContain("deadline");
+    expect(locality.state === "unverified" && locality.note).not.toContain("allowed");
+  });
+
   it("keeps the action when a rejected response has no readable body", () => {
     const rejected: RelayOutcome<RelayHealth & RelayReply> = {
       status: "rejected",

@@ -1,7 +1,16 @@
 import { effectiveMinRelayVersion, TICKET_KINDS } from "../tickets/ticket-types";
-import { currentDeviceBrowserReadiness, type CurrentDeviceBrowserState } from "./current-device-browser-health";
+import {
+  currentDeviceBrowserReadiness,
+  REQUIRED_SETUP_BROWSER_CAPABILITIES,
+  type CurrentDeviceBrowserState,
+} from "./current-device-browser-health";
 import type { RelayOutcome } from "./relay-browser-client";
-import { relayFailureCode, relayFailureStage, type RelayRejection } from "./relay-failure-code";
+import {
+  relayFailureCode,
+  relayFailureStage,
+  relayProfileFailureStage,
+  type RelayRejection,
+} from "./relay-failure-code";
 import type {
   RelayFingerprintOptions, RelayHealth, RelayProfilesReply, RelayProfileSummary, RelayReply,
 } from "./relay-endpoints";
@@ -26,9 +35,71 @@ const BROWSER_TITLES: Record<Exclude<CurrentDeviceBrowserState, "ready">, string
   "contract-mismatch": "MKT Browser needs a matching release",
   "engine-not-ready": "MKT Browser is not ready yet",
   "capability-missing": "MKT Browser needs attention",
+  "install-readiness-unknown": "MKT Browser local installation is not verified",
+  "install-readiness-unavailable": "MKT Browser local installation could not be verified",
+  "install-readiness-checking": "MKT Browser is checking its local installation",
+  "install-readiness-failed": "MKT Browser local installation needs repair",
   "capacity-unknown": "Browser capacity could not be checked",
   "recovery-pending": "MKT Browser is recovering a session",
   "no-capacity": "Browser capacity is unavailable",
+};
+
+const PROFILE_BROWSER_FAILURES: Record<string, Omit<ProfileSetupBlocked, "kind">> = {
+  BROWSER_OFFLINE: {
+    state: "browser-offline",
+    title: BROWSER_TITLES["browser-offline"],
+    message: "Open MKT Browser on this PC, then check again.",
+  },
+  CONTRACT_MISMATCH: {
+    state: "contract-mismatch",
+    title: BROWSER_TITLES["contract-mismatch"],
+    message: "Install the matching MKT Browser release on this PC before managing browser profiles.",
+  },
+  ENGINE_NOT_READY: {
+    state: "engine-not-ready",
+    title: BROWSER_TITLES["engine-not-ready"],
+    message: "Open MKT Browser and wait for its browser engine to become ready.",
+  },
+  CAPABILITY_MISSING: {
+    state: "capability-missing",
+    title: BROWSER_TITLES["capability-missing"],
+    message: "Update MKT Browser on this PC before continuing.",
+  },
+  INSTALL_READINESS_UNKNOWN: {
+    state: "install-readiness-unknown",
+    title: BROWSER_TITLES["install-readiness-unknown"],
+    message: "MKT Browser has not reported local installation readiness. Keep it open, then check again.",
+  },
+  INSTALL_READINESS_UNAVAILABLE: {
+    state: "install-readiness-unavailable",
+    title: BROWSER_TITLES["install-readiness-unavailable"],
+    message: "MKT Browser could not verify its local installation. Keep it open, then check again.",
+  },
+  INSTALL_READINESS_CHECKING: {
+    state: "install-readiness-checking",
+    title: BROWSER_TITLES["install-readiness-checking"],
+    message: "MKT Browser is checking its local installation. Wait for the check to finish, then check again.",
+  },
+  INSTALL_READINESS_FAILED: {
+    state: "install-readiness-failed",
+    title: BROWSER_TITLES["install-readiness-failed"],
+    message: "MKT Browser found a local installation problem. Repair the current installation, then check again.",
+  },
+  CAPACITY_UNKNOWN: {
+    state: "capacity-unknown",
+    title: BROWSER_TITLES["capacity-unknown"],
+    message: "MKT Browser could not verify available browser capacity. Open it and check its licence and recovery state before continuing.",
+  },
+  RECOVERY_PENDING: {
+    state: "recovery-pending",
+    title: BROWSER_TITLES["recovery-pending"],
+    message: "MKT Browser is recovering a prior browser session. Wait for recovery to finish, then check again.",
+  },
+  NO_CAPACITY: {
+    state: "no-capacity",
+    title: BROWSER_TITLES["no-capacity"],
+    message: "No browser capacity is available. Check the licence and wait state in MKT Browser before trying once manually.",
+  },
 };
 
 /**
@@ -98,6 +169,10 @@ function transportFailure(outcome: RelayOutcome<unknown>): ProfileSetupBlocked |
     kind: "blocked", state: "relay-permission", title: "Local PC access needs checking",
     message: "Check again and allow local network access if prompted. If access is already allowed, keep MKT Browser and Relay open and retry.",
   };
+  if (outcome.status === "timeout") return {
+    kind: "blocked", state: "relay-timeout", title: "Local Relay request timed out",
+    message: "Relay did not report local browser status in time. Keep Relay open, then check again.",
+  };
   return null;
 }
 
@@ -106,7 +181,13 @@ export function profileSetupReadiness(
   profiles: RelayOutcome<RelayProfilesReply>,
   health: RelayOutcome<RelayHealth & RelayReply>,
 ): ProfileSetupReadiness {
-  const transport = transportFailure(profiles) ?? transportFailure(health);
+  const profileTransport = transportFailure(profiles);
+  // A complete health reply can still prove that this Relay needs setup even if the parallel
+  // inventory read timed out. Do not replace an authoritative repair gate with an indeterminate read.
+  if (profileTransport && !healthReportsSetupBlock(health)) return profileTransport;
+  const transport = profiles.status === "rejected" && health.status === "timeout"
+    ? null
+    : transportFailure(health);
   if (transport) return transport;
   const profileVersion = measuredVersion(profiles);
   const healthVersion = measuredVersion(health);
@@ -118,6 +199,9 @@ export function profileSetupReadiness(
     message: "This Relay version cannot create browser profiles. Update Relay from Setup, then check again.",
     setupHref: "/setup#download",
   };
+  if (profiles.status === "rejected" && health.status === "timeout") {
+    return profileInventoryUnavailable(profiles);
+  }
   if (health.status !== "ok" && health.status !== "rejected") return profileSetupUnknown();
   const local = health.data;
   if (!local || !healthVersion) return profileSetupUnknown();
@@ -130,7 +214,7 @@ export function profileSetupReadiness(
     return profileSetupUnknown();
   }
   if (!nonEmptyString(local.deviceId)) return profileSetupUnknown();
-  const browser = currentDeviceBrowserReadiness(local.browser);
+  const browser = currentDeviceBrowserReadiness(local.browser, REQUIRED_SETUP_BROWSER_CAPABILITIES);
   if (browser.state !== "ready") return {
     kind: "blocked", state: browser.state, title: BROWSER_TITLES[browser.state], message: browser.message,
   };
@@ -138,6 +222,48 @@ export function profileSetupReadiness(
     kind: "ready", profiles: profiles.data.profiles!, options: profiles.data.fingerprintOptions!,
     deviceId: local.deviceId,
   };
+  return profileInventoryUnavailable(profiles);
+}
+
+function healthReportsSetupBlock(
+  outcome: RelayOutcome<RelayHealth & RelayReply>,
+): boolean {
+  if (outcome.status !== "ok" && outcome.status !== "rejected") return false;
+  return outcome.data?.configured === false || outcome.data?.retirementPending === true;
+}
+
+function profileInventoryUnavailable(
+  profiles?: RelayOutcome<RelayProfilesReply>,
+): ProfileSetupBlocked {
+  const rejection = profiles?.status === "rejected" ? profiles : null;
+  const code = rejection ? relayFailureCode(rejection) : null;
+  const stage = rejection ? relayProfileFailureStage(rejection) : null;
+
+  if (stage === "not-configured" || code === "BROWSER_NOT_CONFIGURED") {
+    return {
+      kind: "blocked", state: "browser-not-configured", title: "MKT Browser needs configuration",
+      message: "Open MKT Browser, enable MCP, then check again.", setupHref: "/setup",
+    };
+  }
+
+  if (stage === "browser-health") {
+    const browserFailure = code ? PROFILE_BROWSER_FAILURES[code] : undefined;
+    if (browserFailure) return { kind: "blocked", ...browserFailure };
+    return {
+      kind: "blocked", state: "browser-health-unavailable", title: "MKT Browser readiness could not be verified",
+      message: "Keep MKT Browser open on this PC, then check again. If this continues, review Setup.",
+      setupHref: "/setup",
+    };
+  }
+
+  if (stage === "fingerprint-options") {
+    return {
+      kind: "blocked", state: "fingerprint-options-unavailable", title: "Browser profile options could not be read",
+      message: "Keep MKT Browser open on this PC, then check again. If this continues, review Setup.",
+      setupHref: "/setup",
+    };
+  }
+
   return {
     kind: "blocked", state: "profiles-unavailable", title: "Browser profiles could not be read",
     message: "Keep MKT Browser open on this PC, then check again. If this continues, review Setup. You can still paste an existing browser profile ID into the nick edit form.",

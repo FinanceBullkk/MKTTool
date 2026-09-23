@@ -2,6 +2,7 @@ import type { RelayHealth } from "@/lib/relay/relay-endpoints";
 
 export type SetupState =
   | "Starting"
+  | "Unable to verify"
   | "Sign in"
   | "Confirm this PC"
   | "Waiting for administrator approval"
@@ -52,7 +53,7 @@ export interface SetupDeviceRegistry {
 }
 
 export type SetupRelayHealth =
-  | { status: "unchecked" | "checking" | "unreachable" | "permission-denied" }
+  | { status: "unchecked" | "checking" | "unreachable" | "permission-denied" | "timeout" }
   | { status: "responded"; health: RelayHealth };
 
 export interface SetupUpdateState {

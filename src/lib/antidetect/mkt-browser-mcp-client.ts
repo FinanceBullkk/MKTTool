@@ -9,6 +9,9 @@ const PROTOCOL_VERSION = "2025-06-18";
 const REQUEST_TIMEOUT_MS = 30_000;
 const MCP_PATH = "/mcp";
 
+/** An absolute deadline keeps a read-only MCP sequence inside one Relay health budget. */
+export type McpRequestDeadline = number | undefined;
+
 export interface McpToolResultContent {
   type: string;
   text?: string;
@@ -25,6 +28,14 @@ export class McpClientError extends Error {
   constructor(message: string, options?: { cause?: unknown }) {
     super(message, options);
     this.name = "McpClientError";
+  }
+}
+
+/** A bounded observation ran out of time; it is not an authorization or mutation result. */
+export class McpReadTimeoutError extends McpClientError {
+  constructor() {
+    super("The bounded MCP readiness observation timed out.");
+    this.name = "McpReadTimeoutError";
   }
 }
 
@@ -101,11 +112,15 @@ export class MktBrowserMcpClient {
     private readonly token?: string,
   ) {}
 
-  private async send(method: string, params?: unknown): Promise<unknown> {
+  private async send(
+    method: string,
+    params?: unknown,
+    deadline?: McpRequestDeadline,
+  ): Promise<unknown> {
     try {
-      return await this.sendTo(method, params);
+      return await this.sendTo(method, params, deadline);
     } catch (error) {
-      if (error instanceof McpUnauthorizedError) throw error;
+      if (error instanceof McpUnauthorizedError || error instanceof McpReadTimeoutError) throw error;
       throw new McpClientError(
         `MCP method "${method}" failed at ${this.baseUrl}${MCP_PATH}.`,
         { cause: error },
@@ -113,7 +128,11 @@ export class MktBrowserMcpClient {
     }
   }
 
-  private async sendTo(method: string, params?: unknown): Promise<unknown> {
+  private async sendTo(
+    method: string,
+    params?: unknown,
+    deadline?: McpRequestDeadline,
+  ): Promise<unknown> {
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
       Accept: "application/json, text/event-stream",
@@ -130,7 +149,7 @@ export class MktBrowserMcpClient {
         method,
         ...(params !== undefined ? { params } : {}),
       }),
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      signal: AbortSignal.timeout(requestTimeout(deadline)),
     });
 
     if (response.status === 401 || response.status === 403) {
@@ -155,21 +174,27 @@ export class MktBrowserMcpClient {
     this.sessionId = null;
   }
 
-  async initialize(): Promise<void> {
+  async initialize(deadline?: McpRequestDeadline): Promise<void> {
     await this.send("initialize", {
       protocolVersion: PROTOCOL_VERSION,
       capabilities: {},
       clientInfo: { name: "mkttool-relay", version: "1.0.0" },
-    });
+    }, deadline);
   }
 
-  async listTools(): Promise<string[]> {
-    const result = (await this.send("tools/list")) as { tools?: { name: string }[] } | undefined;
+  async listTools(deadline?: McpRequestDeadline): Promise<string[]> {
+    const result = (await this.send("tools/list", undefined, deadline)) as {
+      tools?: { name: string }[];
+    } | undefined;
     return (result?.tools ?? []).map((tool) => tool.name);
   }
 
-  async callTool(name: string, args: Record<string, unknown>): Promise<McpToolResult> {
-    const result = (await this.send("tools/call", { name, arguments: args })) as McpToolResult;
+  async callTool(
+    name: string,
+    args: Record<string, unknown>,
+    deadline?: McpRequestDeadline,
+  ): Promise<McpToolResult> {
+    const result = (await this.send("tools/call", { name, arguments: args }, deadline)) as McpToolResult;
     if (result?.isError) {
       throw new McpToolError(
         `Tool "${name}" failed: ${extractText(result)}`,
@@ -179,6 +204,13 @@ export class MktBrowserMcpClient {
     }
     return result;
   }
+}
+
+function requestTimeout(deadline: McpRequestDeadline): number {
+  if (deadline === undefined) return REQUEST_TIMEOUT_MS;
+  const remaining = deadline - Date.now();
+  if (remaining <= 0) throw new McpReadTimeoutError();
+  return Math.min(REQUEST_TIMEOUT_MS, Math.max(1, Math.ceil(remaining)));
 }
 
 /** Streamable HTTP may return a JSON body or a short SSE response. */

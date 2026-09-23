@@ -299,7 +299,7 @@ export function AccountVaultActionsPanel({
       setFeedback({
         kind: "error",
         text:
-          sent.status === "no-permission"
+          sent.status === "timeout"
             ? `${describeSlowRelayFailure(sent, "open browser profile")} Check for a new browser ` +
               `window before trying again; a delayed response may mean it already opened.`
             : // Cầu nối TỪ CHỐI: đọc mã, đừng chép lại câu của nó. Câu đó ghép từ `describe(error)`

@@ -1,4 +1,8 @@
 import type { RelayOutcome } from "./relay-browser-client";
+import {
+  isRelayProfileFailureStage,
+  type RelayProfileFailureStage,
+} from "./relay-endpoints";
 
 /** Lượt cầu nối TRẢ LỜI nhưng từ chối — nhánh duy nhất mang theo mã và chặng. */
 export type RelayRejection = Extract<RelayOutcome<unknown>, { status: "rejected" }>;
@@ -47,4 +51,16 @@ export function relayFailureStage(outcome: RelayRejection): string | null {
       ? (body.diagnostic as Record<string, unknown>)
       : null;
   return typeof diagnostic?.stage === "string" ? diagnostic.stage : null;
+}
+
+/**
+ * Read the allowlisted stage from `GET /profiles`. This is deliberately separate from operation
+ * diagnostics so a route-level stage can never make create or launch flows trust arbitrary text.
+ */
+export function relayProfileFailureStage(
+  outcome: RelayRejection,
+): RelayProfileFailureStage | null {
+  const data = outcome.data;
+  const body = data && typeof data === "object" ? (data as Record<string, unknown>) : null;
+  return isRelayProfileFailureStage(body?.stage) ? body.stage : null;
 }
