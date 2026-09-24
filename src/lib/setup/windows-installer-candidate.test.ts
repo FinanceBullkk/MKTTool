@@ -20,20 +20,20 @@ const engine = {
 };
 
 describe("reviewed Windows profile-manager candidate", () => {
-  it("retains the exact historical tuple without treating it as promotable", () => {
+  it("retains the exact v20 tuple as source-eligible", () => {
     expect(() => assertWindowsInstallerCandidateArtifacts(relay, engine)).not.toThrow();
     expect(WINDOWS_INSTALLER_R2_KEY).toBe(`MKTBrowser-${candidate.id}.exe`);
     expect(WINDOWS_INSTALLER_R2_KEY).not.toBe("MKTBrowser-win-x64.exe");
-    expect(candidate.relayVersion).toBe(19);
-    expect(candidate.promotionStatus).toBe("quarantined");
+    expect(candidate.relayVersion).toBe(20);
+    expect(candidate.promotionStatus).toBe("eligible");
     expect(WINDOWS_INSTALLER_PROFILE_ACTION_RELAY_FLOOR).toBe(
       Math.max(
         effectiveMinRelayVersion(TICKET_KINDS.LAUNCH_PROFILE),
         effectiveMinRelayVersion(TICKET_KINDS.CREATE_PROFILE),
       ),
     );
-    expect(candidate.relayVersion).toBeLessThan(WINDOWS_INSTALLER_PROFILE_ACTION_RELAY_FLOOR);
-    expect(() => assertWindowsInstallerCandidateCanBePublished()).toThrow(/profile-action.*v20/i);
+    expect(candidate.relayVersion).toBeGreaterThanOrEqual(WINDOWS_INSTALLER_PROFILE_ACTION_RELAY_FLOOR);
+    expect(() => assertWindowsInstallerCandidateCanBePublished()).not.toThrow();
   });
 
   it.each(Object.keys(engine))("rejects an absent or changed engine field: %s", (field) => {

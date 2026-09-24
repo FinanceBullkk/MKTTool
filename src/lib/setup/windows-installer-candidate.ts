@@ -10,29 +10,35 @@ export const WINDOWS_INSTALLER_PROFILE_ACTION_RELAY_FLOOR = Math.max(
 );
 
 type WindowsInstallerCandidatePromotionStatus = "eligible" | "quarantined";
+type WindowsInstallerCandidatePublicationState = Readonly<{
+  id: string;
+  promotionStatus: WindowsInstallerCandidatePromotionStatus;
+  relayVersion: number;
+}>;
 
-/** Recorded historical tuple; changing any payload field requires a new release freeze. */
+/** Candidate identity; changing any payload field requires a new release freeze. */
 export const WINDOWS_INSTALLER_CANDIDATE = Object.freeze({
-  id: "20260924-browser-0.3.25-relay-19-cold-start-tls-profiles-cft",
-  browserVersion: "0.3.25",
-  relayVersion: 19,
-  relaySha256: "896fc47238a4da00a636eed2a77f6c93fe53f0e55a6af1ecfa94f4cea3ef6968",
-  relaySizeBytes: 35118160,
+  id: "20260925-browser-0.3.26-relay-20-cold-start-tls-profiles-cft",
+  browserVersion: "0.3.26",
+  relayVersion: 20,
+  relaySha256: "9cc71eba405c8ea5ff9f288491ea0b827c7403b3c43541d1fa18c48a87126d69",
+  relaySizeBytes: 35122816,
   engineKind: "cft",
   engineChannel: "chrome-for-testing",
   engineVersion: "152.0.7977.64",
   engineSha256: "b0db25dea445822429d8ebd36d53344cadcd63127308759456964029bbe18004",
   engineSizeBytes: 202713690,
-  // v19 predates the bounded profile-read contract, so its measured bytes are retained but cannot ship.
-  promotionStatus: "quarantined" as WindowsInstallerCandidatePromotionStatus,
+  // Source eligibility only; VM, operator, public-TLS, and promotion gates remain separate.
+  promotionStatus: "eligible" as WindowsInstallerCandidatePromotionStatus,
 });
 
 /**
- * Publication is separate from retaining or inspecting a historical tuple. A future tuple must
- * supply v20-or-newer bytes and explicitly change this status after its own release freeze.
+ * Publication is separate from source eligibility. A tuple must meet the active Relay floor and
+ * still pass its own release-freeze and downstream promotion gates.
  */
-export function assertWindowsInstallerCandidateCanBePublished(): void {
-  const candidate = WINDOWS_INSTALLER_CANDIDATE;
+export function assertWindowsInstallerCandidateCanBePublished(
+  candidate: WindowsInstallerCandidatePublicationState = WINDOWS_INSTALLER_CANDIDATE,
+): void {
   if (
     candidate.promotionStatus !== "eligible" ||
     candidate.relayVersion < WINDOWS_INSTALLER_PROFILE_ACTION_RELAY_FLOOR
@@ -60,6 +66,6 @@ export function assertWindowsInstallerCandidateArtifacts(
     engine.sha256 !== expected.engineSha256 ||
     engine.sizeBytes !== expected.engineSizeBytes
   ) {
-    throw new Error("The release manifest does not match the reviewed Relay v19/CFT candidate.");
+    throw new Error("The release manifest does not match the reviewed Relay/CFT candidate.");
   }
 }

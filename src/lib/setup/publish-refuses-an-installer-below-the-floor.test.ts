@@ -33,11 +33,15 @@ const NGUON = readFileSync(
 );
 
 describe("publish-windows-installer", () => {
-  it("rejects the quarantined tuple at the active profile-action floor before R2 access", () => {
-    expect(WINDOWS_INSTALLER_CANDIDATE.relayVersion).toBeLessThan(
+  it("rejects a candidate below the active profile-action floor before R2 access", () => {
+    expect(WINDOWS_INSTALLER_CANDIDATE.relayVersion).toBeGreaterThanOrEqual(
       WINDOWS_INSTALLER_PROFILE_ACTION_RELAY_FLOOR,
     );
-    expect(() => assertWindowsInstallerCandidateCanBePublished()).toThrow(/profile-action.*v20/i);
+    expect(() => assertWindowsInstallerCandidateCanBePublished({
+      id: WINDOWS_INSTALLER_CANDIDATE.id,
+      promotionStatus: "eligible",
+      relayVersion: WINDOWS_INSTALLER_PROFILE_ACTION_RELAY_FLOOR - 1,
+    })).toThrow(/profile-action.*v20/i);
     expect(NGUON).toContain("assertWindowsInstallerCandidateCanBePublished()");
     // Chốt chặn phải DỪNG, không chỉ cảnh báo. Một dòng in đỏ rồi vẫn đẩy lên là đúng thứ đã xảy ra.
     const publicationGate = NGUON.indexOf(
@@ -59,11 +63,11 @@ describe("publish-windows-installer", () => {
     expect(NGUON).toContain("WINDOWS_INSTALLER_RELAY_VERSION_METADATA_KEY");
   });
 
-  it("locks publication to the quarantined historical tuple instead of a stale Relay literal", () => {
+  it("locks publication to the current candidate instead of a stale Relay literal", () => {
     expect(NGUON).toContain("WINDOWS_INSTALLER_CANDIDATE.relayVersion");
     expect(NGUON).toContain('requiredPositiveInteger(relay.targetVersion, "relay.targetVersion")');
-    expect(WINDOWS_INSTALLER_CANDIDATE.relayVersion).toBe(19);
-    expect(WINDOWS_INSTALLER_CANDIDATE.promotionStatus).toBe("quarantined");
+    expect(WINDOWS_INSTALLER_CANDIDATE.relayVersion).toBe(20);
+    expect(WINDOWS_INSTALLER_CANDIDATE.promotionStatus).toBe("eligible");
     expect(NGUON).not.toContain("relayVersion !== 16");
     expect(NGUON).not.toContain("expected.relayVersion !== 16");
     expect(NGUON).not.toContain("relayVersion: 16");
