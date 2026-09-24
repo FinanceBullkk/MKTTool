@@ -43,7 +43,7 @@ none claims stealth, unique fingerprint identity, or vendor-level identity isola
 | `src/components/ui/summary-metric.tsx`, `team-scope-notice.tsx`, and `ops-alert-tray-client.tsx` | share icon-first operational metrics, render the rollout boundary as visible state, and keep every alert visible while collapsing long guidance |
 | `src/components/ui/page-section.tsx`, `form-controls.tsx`, `src/app/error.tsx`, and `src/app/not-found.tsx` | provide shared headings, cards, disclosure, responsive data records, 44px form/action controls, and branded recovery states across every route |
 | `src/components/mktbrowser-ui/TopBar.tsx`, `LeftRail.tsx`, `AppShell.tsx`, and `src/app/globals.css` | provide one responsive shell with labeled desktop navigation, mobile bottom navigation, no false global controls, a centered 1600px desktop canvas, and a shared 1152px content frame |
-| `src/app/relay-devices/page.tsx` | separate active and revoked PCs while placing IDs, public keys, compatibility controls, and destructive actions behind disclosure |
+| `src/app/relay-devices/page.tsx` and `relay-active-device-list.tsx` | separate active and revoked PCs, show the Relay 13 security floor separately from the Relay 20 profile-operation floor, and keep IDs, public keys, compatibility controls, and destructive actions behind disclosure |
 | `src/app/content`, `queue`, `facebook`, `targets`, and `health` | retain parked/history behavior while using the shared page hierarchy, progressive disclosure, and mobile record-card tables |
 | `src/components/vault/antidetect-profile-card.tsx` and `first-login-card.tsx` | turn profile creation and the human first-sign-in handoff into scannable steps without claiming browser identity isolation |
 | `docs/ui-glossary.md` | define the display boundary between a nick record, a local browser profile, and a Relay PC without renaming models, columns, or routes |
@@ -53,7 +53,7 @@ none claims stealth, unique fingerprint identity, or vendor-level identity isola
 | Path | Responsibility |
 |---|---|
 | `src/components/vault/antidetect-profile-card.tsx` | Recheck local health and profile inventory; ignore stale results and prevent duplicate retries. |
-| `src/lib/relay/profile-setup-readiness.ts` | Compare measured versions with `effectiveMinRelayVersion(CREATE_PROFILE)` (currently 13), validate inventory, and map Browser/transport/setup/unknown states without raw error text. |
+| `src/lib/relay/profile-setup-readiness.ts` | Compare measured versions with `effectiveMinRelayVersion(CREATE_PROFILE)` (currently 20, above the general Relay 13 security floor), validate inventory, and map Browser/transport/setup/unknown states without raw error text. |
 | `src/components/vault/profile-setup-status.tsx` | Render safe status and **Check again** without issuing profile-creation tickets. |
 | `../MKTBrowser/apps/desktop/src/main/windows-background-lifecycle.ts` | Normal packaged Windows tray, close-to-background, explicit Quit, and session-end callbacks. |
 | `../MKTBrowser/apps/desktop/src/main/windows-relay-companion.ts` | Bounded explicit installed-Relay startup check, cancellation, and safe health outcome. |
@@ -74,6 +74,7 @@ delivered installer or MSI acceptance. See the [current checkpoint](development-
 | `src/lib/antidetect/mkt-browser-contract.ts` and `mkt-browser-adapter.ts` | contract 5 parsing and authenticated `refresh_license_capacity` MCP call |
 | `relay/src/handle-license-capacity-refresh.ts` and `relay-route-policy.ts` | exact-origin local POST and typed route capability; no ticket, profile launch, or secret response |
 | `src/lib/relay/current-device-browser-health.ts` and `relay-browser-client.ts` | fail-closed readiness plus a 10-second explicit Web refresh without automatic admission |
+| `relay/src/relay-health-route.ts` | snapshots DPAPI-backed compatibility state before the loopback listener starts, then serves `/health` from the in-memory snapshot while keeping bounded Browser runtime observation separate |
 
 `license-capacity-v1` remains unadvertised. These modules are source behavior, not a packaged
 Relay 18 or live CloakBrowser acceptance result.

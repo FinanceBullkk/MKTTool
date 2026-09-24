@@ -2,6 +2,7 @@
 
 import {
   type AntidetectAdapter,
+  type AntidetectReadOptions,
   AntidetectError,
   type AntidetectOperationDiagnostic,
   type AntidetectProfileSummary,
@@ -27,7 +28,9 @@ import {
 } from "./mkt-browser-contract";
 import {
   McpToolError,
-  type McpRequestDeadline,
+  McpReadCancelledError,
+  McpResponseTooLargeError,
+  McpReadTimeoutError,
   type McpToolResult,
   McpUnauthorizedError,
   MktBrowserMcpClient,
@@ -44,6 +47,17 @@ const TOOLS = {
   fingerprintOptions: "list_fingerprint_options",
   refreshCapacity: MKT_BROWSER_REFRESH_LICENSE_CAPACITY_TOOL,
 } as const;
+
+// A shared handshake must outlive one short readiness read, otherwise cancelling a page check
+// also cancels an unrelated create or launch that joined the same cold connection.
+const INITIALIZATION_TIMEOUT_MS = 5_000;
+
+interface Initialization {
+  promise: Promise<void>;
+  controller: AbortController;
+  settled: boolean;
+  waiters: number;
+}
 
 function proxyPayload(proxy: AntidetectProxyConfig): Record<string, unknown> {
   return {
@@ -218,6 +232,50 @@ function requireCorrelatedDiagnostic(
   return diagnostic;
 }
 
+function waitForReadBudget<T>(
+  operation: Promise<T>,
+  options?: AntidetectReadOptions,
+  onSettled?: () => void,
+): Promise<T> {
+  if (!options?.signal && options?.deadline === undefined) {
+    return operation.finally(onSettled);
+  }
+  if (options.signal?.aborted) {
+    onSettled?.();
+    return Promise.reject(new McpReadCancelledError());
+  }
+
+  const remaining = options?.deadline === undefined ? undefined : options.deadline - Date.now();
+  if (remaining !== undefined && (!Number.isFinite(remaining) || remaining <= 0)) {
+    onSettled?.();
+    return Promise.reject(new McpReadTimeoutError());
+  }
+
+  return new Promise<T>((resolve, reject) => {
+    let settled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const signal = options?.signal;
+    const finish = (callback: () => void) => {
+      if (settled) return;
+      settled = true;
+      if (timer) clearTimeout(timer);
+      signal?.removeEventListener("abort", onAbort);
+      onSettled?.();
+      callback();
+    };
+    const onAbort = () => finish(() => reject(new McpReadCancelledError()));
+
+    signal?.addEventListener("abort", onAbort, { once: true });
+    if (remaining !== undefined) {
+      timer = setTimeout(() => finish(() => reject(new McpReadTimeoutError())), Math.ceil(remaining));
+    }
+    operation.then(
+      (value) => finish(() => resolve(value)),
+      (error: unknown) => finish(() => reject(error)),
+    );
+  });
+}
+
 export class MktBrowserAdapter implements AntidetectAdapter {
   readonly providerName = MKT_BROWSER_PROVIDER_NAME;
 
@@ -225,24 +283,79 @@ export class MktBrowserAdapter implements AntidetectAdapter {
   private readonly client: MktBrowserMcpClient;
   private initialized = false;
   private availableTools: string[] = [];
+  private initialization: Initialization | null = null;
 
   constructor(baseUrl: string, token?: string) {
     this.baseUrl = resolveMktBrowserMcpUrl(baseUrl);
     this.client = new MktBrowserMcpClient(this.baseUrl, token);
   }
 
-  private async ensureInitialized(deadline?: McpRequestDeadline): Promise<void> {
-    if (this.initialized) return;
+  private resetInitialization(initialization?: Initialization): void {
+    if (initialization && this.initialization !== initialization) return;
+    this.initialized = false;
+    this.availableTools = [];
+    // A failed handshake must not leave an incomplete session available to a later mutation.
+    this.client.resetSession();
+  }
+
+  private async beginInitialization(initialization: Initialization): Promise<void> {
+    const deadline = Date.now() + INITIALIZATION_TIMEOUT_MS;
     try {
-      await this.client.initialize(deadline);
-      this.availableTools = await this.client.listTools(deadline);
+      await this.client.initialize(deadline, initialization.controller.signal);
+      const availableTools = await this.client.listTools(deadline, initialization.controller.signal);
+      if (this.initialization !== initialization || initialization.controller.signal.aborted) {
+        throw new McpReadCancelledError();
+      }
+      this.availableTools = availableTools;
       this.initialized = true;
     } catch (cause) {
+      this.resetInitialization(initialization);
+      if (cause instanceof McpReadCancelledError || cause instanceof McpReadTimeoutError) throw cause;
       if (cause instanceof McpUnauthorizedError) {
         throw new AntidetectError(cause.message, this.providerName, { cause });
       }
       throw new AntidetectUnavailableError(this.providerName, this.baseUrl, { cause });
     }
+  }
+
+  private ensureInitialized(options?: AntidetectReadOptions): Promise<void> {
+    if (this.initialized) return waitForReadBudget(Promise.resolve(), options);
+    let initialization = this.initialization;
+    if (initialization?.controller.signal.aborted) {
+      if (this.initialization === initialization) this.initialization = null;
+      initialization = null;
+    }
+    if (!initialization) {
+      const controller = new AbortController();
+      const created: Initialization = {
+        promise: Promise.resolve(),
+        controller,
+        settled: false,
+        waiters: 0,
+      };
+      this.initialization = created;
+      created.promise = this.beginInitialization(created);
+      initialization = created;
+      const markInitializationSettled = () => {
+        created.settled = true;
+        if (this.initialization === created) this.initialization = null;
+      };
+      void created.promise.then(markInitializationSettled, markInitializationSettled);
+    }
+    return this.waitForInitialization(initialization, options);
+  }
+
+  private waitForInitialization(
+    initialization: NonNullable<MktBrowserAdapter["initialization"]>,
+    options?: AntidetectReadOptions,
+  ): Promise<void> {
+    initialization.waiters += 1;
+    return waitForReadBudget(initialization.promise, options, () => {
+      initialization.waiters -= 1;
+      if (!initialization.settled && initialization.waiters === 0) {
+        initialization.controller.abort();
+      }
+    });
   }
 
   private requireTool(name: string, operation: string): string {
@@ -258,17 +371,30 @@ export class MktBrowserAdapter implements AntidetectAdapter {
   private async callToolWithRehandshake(
     name: string,
     args: Record<string, unknown>,
-    deadline?: McpRequestDeadline,
+    options?: AntidetectReadOptions,
   ): Promise<McpToolResult> {
     try {
-      return await this.client.callTool(name, args, deadline);
+      return await this.client.callTool(name, args, options?.deadline, options?.signal);
     } catch (cause) {
-      if (cause instanceof McpUnauthorizedError || cause instanceof McpToolError) throw cause;
+      if (
+        cause instanceof McpReadTimeoutError ||
+        cause instanceof McpReadCancelledError ||
+        cause instanceof McpResponseTooLargeError
+      ) {
+        // A bounded observation shares this client with profile mutations. Its local abort never
+        // proves the MCP session is stale, so preserve the session and do not disrupt a sibling.
+        // An oversized body is different: clear its untrusted transport state, but never replay a
+        // create or launch whose remote side effect is now indeterminate.
+        if (cause instanceof McpResponseTooLargeError) this.resetInitialization();
+        throw cause;
+      }
+      if (cause instanceof McpUnauthorizedError || cause instanceof McpToolError) {
+        throw cause;
+      }
 
-      this.initialized = false;
-      this.client.resetSession();
-      await this.ensureInitialized(deadline);
-      return await this.client.callTool(name, args, deadline);
+      this.resetInitialization();
+      await this.ensureInitialized(options);
+      return await this.client.callTool(name, args, options?.deadline, options?.signal);
     }
   }
 
@@ -298,22 +424,31 @@ export class MktBrowserAdapter implements AntidetectAdapter {
   async observeRuntimeInfo(timeoutMs?: number): Promise<{
     reachable: boolean;
     info: MktBrowserRuntimeInfo | null;
+    /** The bounded read expired; this is indeterminate rather than a confirmed offline Browser. */
+    timedOut?: true;
   }> {
     const deadline = timeoutMs === undefined ? undefined : Date.now() + timeoutMs;
     try {
-      await this.ensureInitialized(deadline);
+      const options = { deadline };
+      await this.ensureInitialized(options);
       if (!this.availableTools.includes(MKT_BROWSER_RUNTIME_INFO_TOOL)) {
         return { reachable: true, info: null };
       }
       const body = parseToolBody(
-        await this.callToolWithRehandshake(MKT_BROWSER_RUNTIME_INFO_TOOL, {}, deadline),
+        await this.callToolWithRehandshake(MKT_BROWSER_RUNTIME_INFO_TOOL, {}, options),
       );
       return { reachable: true, info: parseRuntimeInfo(body) };
-    } catch {
-      // A timed-out body or a broken session must not leave a ready session behind for the next probe.
-      this.initialized = false;
-      this.client.resetSession();
-      return { reachable: false, info: null };
+    } catch (cause) {
+      // A caller-local timeout/cancellation says nothing about a shared initialized session. Keep
+      // it intact for concurrent mutations; a real transport failure below still re-handshakes.
+      if (!(cause instanceof McpReadCancelledError || cause instanceof McpReadTimeoutError)) {
+        this.resetInitialization();
+      }
+      return {
+        reachable: false,
+        info: null,
+        ...(cause instanceof McpReadTimeoutError ? { timedOut: true as const } : {}),
+      };
     }
   }
 
@@ -408,10 +543,10 @@ export class MktBrowserAdapter implements AntidetectAdapter {
     await this.callToolWithRehandshake(toolName, { profile_id: profileId });
   }
 
-  async listProfiles(): Promise<AntidetectProfileSummary[]> {
-    await this.ensureInitialized();
+  async listProfiles(options?: AntidetectReadOptions): Promise<AntidetectProfileSummary[]> {
+    await this.ensureInitialized(options);
     const toolName = this.requireTool(TOOLS.list, "profile list");
-    const body = parseToolBody(await this.callToolWithRehandshake(toolName, {}));
+    const body = parseToolBody(await this.callToolWithRehandshake(toolName, {}, options));
     if (!Array.isArray(body.profiles) || !body.profiles.every(isAntidetectProfileSummary)) {
       throw new AntidetectError(
         `${this.providerName} returned an invalid profile list response.`,
@@ -428,10 +563,10 @@ export class MktBrowserAdapter implements AntidetectAdapter {
     }));
   }
 
-  async fingerprintOptions(): Promise<FingerprintOptions> {
-    await this.ensureInitialized();
+  async fingerprintOptions(options?: AntidetectReadOptions): Promise<FingerprintOptions> {
+    await this.ensureInitialized(options);
     const toolName = this.requireTool(TOOLS.fingerprintOptions, "fingerprint option list");
-    const body = parseToolBody(await this.callToolWithRehandshake(toolName, {}));
+    const body = parseToolBody(await this.callToolWithRehandshake(toolName, {}, options));
     if (!isFingerprintOptions(body)) {
       throw new AntidetectError(
         `${this.providerName} returned an invalid fingerprint option list response.`,

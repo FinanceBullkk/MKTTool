@@ -100,10 +100,10 @@ export type TicketKind = (typeof TICKET_KINDS)[keyof typeof TICKET_KINDS];
 export const MIN_RELAY_VERSION_BY_KIND: Record<TicketKind, number> = {
   [TICKET_KINDS.CREDENTIAL]: MIN_RELAY_VERSION,
   [TICKET_KINDS.OTP]: MIN_RELAY_VERSION,
-  /** Requires managed launch correlation and the v3 MKT Browser contract. */
-  [TICKET_KINDS.LAUNCH_PROFILE]: 7,
-  /** Requires managed create correlation and the v3 MKT Browser contract. */
-  [TICKET_KINDS.CREATE_PROFILE]: 7,
+  /** Requires the v20 bounded local-install readiness and profile-read contract. */
+  [TICKET_KINDS.LAUNCH_PROFILE]: 20,
+  /** Requires the v20 bounded local-install readiness and profile-read contract. */
+  [TICKET_KINDS.CREATE_PROFILE]: 20,
   /** Requires the protected Phase 05 updater and dedicated smoke-profile contract. */
   [TICKET_KINDS.COMPATIBILITY_UPDATE]: 12,
 };
@@ -114,8 +114,8 @@ export const MIN_RELAY_VERSION_BY_KIND: Record<TicketKind, number> = {
  * Two different things feed it and they must not be confused. `MIN_RELAY_VERSION` is a **security**
  * floor: the oldest Relay the fleet is willing to talk to at all. `MIN_RELAY_VERSION_BY_KIND` is a
  * **capability** floor: the version that first understood this kind of ticket. A capability entry
- * may sit below the security floor — `LAUNCH_PROFILE` still records 7, because 7 is when the
- * managed-browser contract arrived, and that stays true no matter how far the security floor moves.
+ * may sit below the security floor. Profile tickets record 20 because that is the first Relay
+ * release with the bounded local-install readiness and profile-read contract.
  *
  * The higher of the two wins. Reading the table alone was the C39 defect: it made the security
  * floor unreachable, so raising it did nothing for any kind listed in the table, which is all of

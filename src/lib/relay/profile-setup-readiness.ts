@@ -31,6 +31,7 @@ export type ProfileSetupReadiness = ProfileSetupBlocked | {
 };
 
 const BROWSER_TITLES: Record<Exclude<CurrentDeviceBrowserState, "ready">, string> = {
+  "runtime-timeout": "MKT Browser readiness timed out",
   "browser-offline": "MKT Browser is not connected",
   "contract-mismatch": "MKT Browser needs a matching release",
   "engine-not-ready": "MKT Browser is not ready yet",
@@ -45,6 +46,11 @@ const BROWSER_TITLES: Record<Exclude<CurrentDeviceBrowserState, "ready">, string
 };
 
 const PROFILE_BROWSER_FAILURES: Record<string, Omit<ProfileSetupBlocked, "kind">> = {
+  RUNTIME_TIMEOUT: {
+    state: "runtime-timeout",
+    title: BROWSER_TITLES["runtime-timeout"],
+    message: "MKT Browser did not finish its readiness check in time. Keep it open, then check again.",
+  },
   BROWSER_OFFLINE: {
     state: "browser-offline",
     title: BROWSER_TITLES["browser-offline"],
@@ -118,6 +124,7 @@ const PROFILE_BROWSER_FAILURES: Record<string, Omit<ProfileSetupBlocked, "kind">
  * permitted retry time, so preserve that wording when no stable error code is present.
  */
 const CREATE_FAILURE_MESSAGE_BY_CODE: Record<string, string> = {
+  RUNTIME_TIMEOUT: "MKT Browser did not finish its readiness check in time. Keep it open, then check again.",
   NO_CAPACITY: "No local browser capacity is available. Check the wait shown in MKT Browser before trying once manually; repeated attempts may extend it.",
   CAPACITY_UNKNOWN: "The local browser could not verify available capacity. Open MKT Browser and check its licence and recovery state before continuing.",
   RECOVERY_PENDING: "The local browser is recovering a prior session. Wait for recovery to finish, then check capacity before trying once manually.",
@@ -186,24 +193,22 @@ export function profileSetupReadiness(
   profiles: RelayOutcome<RelayProfilesReply>,
   health: RelayOutcome<RelayHealth & RelayReply>,
 ): ProfileSetupReadiness {
-  const profileTransport = transportFailure(profiles);
-  // A complete health reply can still prove that this Relay needs setup even if the parallel
-  // inventory read timed out. Do not replace an authoritative repair gate with an indeterminate read.
-  if (profileTransport && !healthReportsSetupBlock(health)) return profileTransport;
-  const transport = profiles.status === "rejected" && health.status === "timeout"
-    ? null
-    : transportFailure(health);
-  if (transport) return transport;
   const profileVersion = measuredVersion(profiles);
   const healthVersion = measuredVersion(health);
   if (profileVersion && healthVersion && profileVersion !== healthVersion) return profileSetupUnknown();
   const version = profileVersion ?? healthVersion;
-  if (!version) return profileSetupUnknown();
-  if (version < effectiveMinRelayVersion(TICKET_KINDS.CREATE_PROFILE)) return {
+  if (version && version < effectiveMinRelayVersion(TICKET_KINDS.CREATE_PROFILE)) return {
     kind: "blocked", state: "relay-outdated", title: "Relay update required",
     message: "This Relay version cannot create browser profiles. Update Relay from Setup, then check again.",
     setupHref: "/setup#download",
   };
+
+  const profileTransport = transportFailure(profiles);
+  const healthTransport = profiles.status === "rejected" && health.status === "timeout"
+    ? null
+    : transportFailure(health);
+  if (healthTransport) return healthTransport;
+  if (!version) return profileSetupUnknown();
   if (profiles.status === "rejected" && health.status === "timeout") {
     return profileInventoryUnavailable(profiles);
   }
@@ -215,6 +220,8 @@ export function profileSetupReadiness(
     message: "Complete Relay setup or local cleanup on this PC, then check again.",
     setupHref: "/setup",
   };
+  // A completed health reply is authoritative for this PC's Relay version and local Browser
+  // readiness. Do not hide an actionable update or repair behind a parallel inventory timeout.
   if (health.status === "rejected" || !local.browser || typeof local.browser.ready !== "boolean") {
     return profileSetupUnknown();
   }
@@ -223,18 +230,12 @@ export function profileSetupReadiness(
   if (browser.state !== "ready") return {
     kind: "blocked", state: browser.state, title: BROWSER_TITLES[browser.state], message: browser.message,
   };
+  if (profileTransport) return profileTransport;
   if (profiles.status === "ok" && profileVersion && validInventory(profiles.data)) return {
     kind: "ready", profiles: profiles.data.profiles!, options: profiles.data.fingerprintOptions!,
     deviceId: local.deviceId,
   };
   return profileInventoryUnavailable(profiles);
-}
-
-function healthReportsSetupBlock(
-  outcome: RelayOutcome<RelayHealth & RelayReply>,
-): boolean {
-  if (outcome.status !== "ok" && outcome.status !== "rejected") return false;
-  return outcome.data?.configured === false || outcome.data?.retirementPending === true;
 }
 
 function profileInventoryUnavailable(
@@ -248,6 +249,13 @@ function profileInventoryUnavailable(
     return {
       kind: "blocked", state: "browser-not-configured", title: "MKT Browser needs configuration",
       message: "Open MKT Browser, enable MCP, then check again.", setupHref: "/setup",
+    };
+  }
+
+  if (code === "PROFILE_READ_TIMEOUT") {
+    return {
+      kind: "blocked", state: "profiles-timeout", title: "MKT Browser profile read timed out",
+      message: "MKT Browser did not finish reading browser profiles in time. Keep it open, then check again.",
     };
   }
 

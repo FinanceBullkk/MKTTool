@@ -108,6 +108,10 @@ function fakeAntidetect(adapter: AntidetectAdapter | null): RelayAntidetect {
       return adapter;
     },
     isReady: async () => adapter !== null,
+    requireOperationalAdapter: async () => {
+      if (!adapter) throw new AntidetectNotConfiguredError();
+      return adapter;
+    },
     requireOperationalRuntime: async () => ({}) as never,
     forgetProbe: () => {},
   } as unknown as RelayAntidetect;

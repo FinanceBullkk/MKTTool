@@ -64,6 +64,16 @@ describe("readRelayVersionStatus", () => {
     expect(status.tone).toBe("current");
   });
 
+  it("separately marks a Relay that meets security but cannot run profile operations", () => {
+    const device = { relayVersion: 19, lastSeenAt: RECENTLY, revokedAt: null };
+
+    expect(readRelayVersionStatus(device, 13, NOW).tone).toBe("current");
+    const profileOperations = readRelayVersionStatus(device, 20, NOW);
+    expect(profileOperations.tone).toBe("below-floor");
+    expect(profileOperations.label).toContain("19");
+    expect(profileOperations.label).toContain("20");
+  });
+
   it("marks a recent version with an old response time as stale history", () => {
     const status = readRelayVersionStatus(
       { relayVersion: 15, lastSeenAt: LONG_AGO, revokedAt: null },

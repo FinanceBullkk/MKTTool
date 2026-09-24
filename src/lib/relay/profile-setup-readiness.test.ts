@@ -4,6 +4,8 @@ import type { RelayBrowserHealth, RelayHealth, RelayProfilesReply, RelayReply } 
 import { effectiveMinRelayVersion, TICKET_KINDS } from "../tickets/ticket-types";
 import { describeProfileCreateRejection, profileSetupReadiness } from "./profile-setup-readiness";
 
+const PROFILE_ACTION_RELAY_VERSION = effectiveMinRelayVersion(TICKET_KINDS.CREATE_PROFILE);
+
 const BROWSER: RelayBrowserHealth = {
   ready: true, provider: "mkt-browser", appVersion: "0.3.13", contractVersion: 6,
   contractCompatible: true, contractProblem: "", engine: { kind: "cft", version: "148", status: "ready" },
@@ -14,25 +16,26 @@ const BROWSER: RelayBrowserHealth = {
   localInstallReadiness: "ready",
 };
 const HEALTH: RelayHealth & RelayReply = {
-  ok: true, relayVersion: 16, message: "Ready", publicKey: "public-key", configured: true,
+  ok: true, relayVersion: PROFILE_ACTION_RELAY_VERSION, message: "Ready", publicKey: "public-key", configured: true,
   deviceId: "device-a", antidetectReady: true, browser: BROWSER,
 };
 const PROFILES: RelayProfilesReply = {
-  ok: true, relayVersion: 16, message: "Ready", profiles: [{ id: "p1", name: "Existing profile" }],
+  ok: true, relayVersion: PROFILE_ACTION_RELAY_VERSION, message: "Ready", profiles: [{ id: "p1", name: "Existing profile" }],
   fingerprintOptions: {
     devices: [{ family: "windows-laptop", label: "Laptop", screens: [{ width: 1280, height: 720 }] }],
     locales: [{ id: "en-US", label: "English", country: "us", timezones: ["America/Denver"] }],
   },
 };
 const health = (patch: Partial<RelayHealth & RelayReply> = {}): RelayOutcome<RelayHealth & RelayReply> => ({
-  status: "ok", data: { ...HEALTH, ...patch }, relayVersion: patch.relayVersion ?? 16,
+  status: "ok", data: { ...HEALTH, ...patch }, relayVersion: patch.relayVersion ?? PROFILE_ACTION_RELAY_VERSION,
 });
 const profiles = (patch: Partial<RelayProfilesReply> = {}): RelayOutcome<RelayProfilesReply> => ({
-  status: "ok", data: { ...PROFILES, ...patch }, relayVersion: patch.relayVersion ?? 16,
+  status: "ok", data: { ...PROFILES, ...patch }, relayVersion: patch.relayVersion ?? PROFILE_ACTION_RELAY_VERSION,
 });
 const rejected: RelayOutcome<RelayProfilesReply> = {
   status: "rejected", message: "connect using cb_live_fixture_secret at 203.0.113.10:1080",
-  relayVersion: 16, data: { ok: false, relayVersion: 16, message: "internal runtime failure" },
+  relayVersion: PROFILE_ACTION_RELAY_VERSION,
+  data: { ok: false, relayVersion: PROFILE_ACTION_RELAY_VERSION, message: "internal runtime failure" },
 };
 
 describe("profileSetupReadiness", () => {
@@ -66,7 +69,7 @@ describe("profileSetupReadiness", () => {
     const floor = effectiveMinRelayVersion(TICKET_KINDS.CREATE_PROFILE);
     expect(profileSetupReadiness(profiles({ relayVersion: floor - 1 }), health({ relayVersion: floor - 1 })))
       .toMatchObject({ kind: "blocked", state: "relay-outdated", title: "Relay update required" });
-    for (const version of [floor, 14, 15, 16, 17]) {
+    for (const version of [floor, floor + 1]) {
       expect(profileSetupReadiness(profiles({ relayVersion: version }), health({ relayVersion: version })))
         .toMatchObject({ kind: "ready", profiles: PROFILES.profiles, options: PROFILES.fingerprintOptions });
     }
@@ -115,6 +118,25 @@ describe("profileSetupReadiness", () => {
     expect(JSON.stringify(state)).not.toMatch(/cb_live|203\.0\.113|1080|Relay update required/);
   });
 
+  it("keeps an internal profile-read deadline distinct from an ordinary inventory failure", () => {
+    const profileTimeout: RelayOutcome<RelayProfilesReply> = {
+      status: "rejected",
+      message: "private timing detail",
+      relayVersion: PROFILE_ACTION_RELAY_VERSION,
+      data: {
+        ok: false,
+        relayVersion: PROFILE_ACTION_RELAY_VERSION,
+        message: "private timing detail",
+        code: "PROFILE_READ_TIMEOUT",
+        stage: "profile-read",
+      },
+    };
+
+    const state = profileSetupReadiness(profileTimeout, health());
+    expect(state).toMatchObject({ kind: "blocked", state: "profiles-timeout" });
+    expect(JSON.stringify(state)).not.toContain("private timing detail");
+  });
+
   it.each([
     ["checking", "install-readiness-checking"],
     ["unavailable", "install-readiness-unavailable"],
@@ -151,14 +173,46 @@ describe("profileSetupReadiness", () => {
     },
   );
 
+  it("keeps a measured outdated Relay ahead of a parallel profile timeout", () => {
+    const floor = effectiveMinRelayVersion(TICKET_KINDS.CREATE_PROFILE);
+    const result = profileSetupReadiness(
+      { status: "timeout", message: "private timeout" },
+      health({ relayVersion: floor - 1 }),
+    );
+
+    expect(result).toMatchObject({ kind: "blocked", state: "relay-outdated", setupHref: "/setup#download" });
+    expect(JSON.stringify(result)).not.toContain("private timeout");
+  });
+
+  it("keeps a completed outdated profile response ahead of a parallel health timeout", () => {
+    const floor = effectiveMinRelayVersion(TICKET_KINDS.CREATE_PROFILE);
+    const result = profileSetupReadiness(
+      profiles({ relayVersion: floor - 1 }),
+      { status: "timeout", message: "private health timeout" },
+    );
+
+    expect(result).toMatchObject({ kind: "blocked", state: "relay-outdated", setupHref: "/setup#download" });
+    expect(JSON.stringify(result)).not.toContain("private health timeout");
+  });
+
+  it("keeps a completed local installation failure ahead of a parallel profile timeout", () => {
+    const result = profileSetupReadiness(
+      { status: "timeout", message: "private timeout" },
+      health({ browser: { ...BROWSER, localInstallReadiness: "failed" } }),
+    );
+
+    expect(result).toMatchObject({ kind: "blocked", state: "install-readiness-failed" });
+    expect(JSON.stringify(result)).not.toContain("private timeout");
+  });
+
   it("keeps a concrete profile rejection ahead of a concurrent health timeout", () => {
     const profileFailure: RelayOutcome<RelayProfilesReply> = {
       status: "rejected",
-      relayVersion: 16,
+      relayVersion: PROFILE_ACTION_RELAY_VERSION,
       message: "token=private-value",
       data: {
         ok: false,
-        relayVersion: 16,
+        relayVersion: PROFILE_ACTION_RELAY_VERSION,
         message: "token=private-value",
         code: "INSTALL_READINESS_UNAVAILABLE",
         stage: "browser-health",
@@ -173,14 +227,36 @@ describe("profileSetupReadiness", () => {
     expect(JSON.stringify(result)).not.toMatch(/private-value|private health timeout/);
   });
 
+  it("keeps a bounded Browser runtime timeout distinct from offline guidance", () => {
+    const profileFailure: RelayOutcome<RelayProfilesReply> = {
+      status: "rejected",
+      relayVersion: PROFILE_ACTION_RELAY_VERSION,
+      message: "private runtime timing",
+      data: {
+        ok: false,
+        relayVersion: PROFILE_ACTION_RELAY_VERSION,
+        message: "private runtime timing",
+        code: "RUNTIME_TIMEOUT",
+        stage: "browser-health",
+      },
+    };
+
+    const result = profileSetupReadiness(profileFailure, health());
+
+    expect(result).toMatchObject({ kind: "blocked", state: "runtime-timeout" });
+    if (result.kind !== "blocked") throw new Error("Runtime timeout unexpectedly allowed profile setup.");
+    expect(result.message).toContain("did not finish");
+    expect(JSON.stringify(result)).not.toMatch(/not connected|private runtime timing/i);
+  });
+
   it("uses only allowlisted profile stages for safe operator guidance", () => {
     const optionsFailure: RelayOutcome<RelayProfilesReply> = {
       status: "rejected",
-      relayVersion: 16,
+      relayVersion: PROFILE_ACTION_RELAY_VERSION,
       message: "private provider output",
       data: {
         ok: false,
-        relayVersion: 16,
+        relayVersion: PROFILE_ACTION_RELAY_VERSION,
         message: "private provider output",
         code: "FINGERPRINT_OPTIONS_UNAVAILABLE",
         stage: "fingerprint-options",
@@ -188,11 +264,11 @@ describe("profileSetupReadiness", () => {
     };
     const unknownStage: RelayOutcome<RelayProfilesReply> = {
       status: "rejected",
-      relayVersion: 16,
+      relayVersion: PROFILE_ACTION_RELAY_VERSION,
       message: "https://relay.example/?token=private-value",
       data: {
         ok: false,
-        relayVersion: 16,
+        relayVersion: PROFILE_ACTION_RELAY_VERSION,
         message: "https://relay.example/?token=private-value",
         stage: "future-stage" as never,
       },
@@ -265,8 +341,8 @@ describe("describeProfileCreateRejection", () => {
     ({
       status: "rejected" as const,
       message,
-      data: { ok: false, relayVersion: 16, message, ...(code ? { code } : {}), ...(diagnostic ? { diagnostic } : {}) },
-      relayVersion: 16,
+      data: { ok: false, relayVersion: PROFILE_ACTION_RELAY_VERSION, message, ...(code ? { code } : {}), ...(diagnostic ? { diagnostic } : {}) },
+      relayVersion: PROFILE_ACTION_RELAY_VERSION,
     });
 
   it("passes INVALID_INPUT through, because MKT Browser lists the valid values in it", () => {
@@ -283,6 +359,15 @@ describe("describeProfileCreateRejection", () => {
     expect(result).toMatch(/proxy/i);
     expect(result).not.toContain("cb_live_secret_key");
     expect(result).not.toContain("203.0.113.10");
+  });
+
+  it("keeps a bounded Browser runtime timeout distinct from an engine or offline failure", () => {
+    const result = describeProfileCreateRejection(
+      rejection(INTERNAL, { stage: "browser-health", code: "RUNTIME_TIMEOUT" }),
+    );
+
+    expect(result).toContain("did not finish");
+    expect(result).not.toMatch(/offline|engine|cb_live_secret_key|203\.0\.113/i);
   });
 
   it("stays generic when the failure carries no code the contract knows", () => {

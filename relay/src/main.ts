@@ -23,7 +23,6 @@
  * Nên mọi thứ dẫn xuất từ cấu hình gom vào `RelayState` và dựng lại nguyên khối. Dựng lại nguyên
  * khối chứ không vá từng ô: một trạng thái nửa cũ nửa mới là thứ không ai suy luận nổi.
  */
-import os from "node:os";
 import { RELAY_ORIGIN, RELAY_PATHS, RELAY_VERSION } from "../../src/lib/relay/relay-endpoints";
 import { handleConfigure } from "./handle-configure";
 import { handleEncryptForVault } from "./handle-encrypt-for-vault";
@@ -72,10 +71,13 @@ import {
 import type { DeviceRetirementReceipt } from "./device-retirement-receipt";
 import { handleWindowsCompatibilityStartup } from "./windows-compatibility-startup";
 import { coordinateCompatibilityUpdateHelper } from "./compatibility-update-helper";
-import { describeCompatibilityUpdateHealth } from "./compatibility-update-health";
 import { readCompatibilityUpdateState } from "./update-state";
 import { resolveWindowsCompatibilityInstallation } from "./windows-compatibility-installation";
 import { WindowsCompatibilityUpdatePlatform } from "./windows-compatibility-update-platform";
+import {
+  createCompatibilityUpdateHealthSnapshot,
+  createRelayHealthRoute,
+} from "./relay-health-route";
 
 /** Mọi thứ dẫn xuất từ file cấu hình. Dựng lại nguyên khối mỗi lần cấu hình đổi. */
 interface RelayState {
@@ -171,6 +173,9 @@ async function main(): Promise<void> {
   migrateRelaySecrets(home, secureStore, RELAY_VERSION);
 
   let state = loadState(home, keypair, secureStore);
+  const compatibilityUpdateHealth = createCompatibilityUpdateHealthSnapshot(() =>
+    readCompatibilityUpdateState(secureStore),
+  );
   let pendingRetirement: DeviceRetirementReceipt | null = null;
   const bootstrap = new BootstrapAuthorizationBroker(
     () => state.deviceId,
@@ -235,30 +240,15 @@ async function main(): Promise<void> {
       [RELAY_PATHS.secret]: renderSecretPage,
     },
     routes: defineRelayRoutes({
-      [RELAY_PATHS.health]: async () => {
-        if (pendingRetirement) return retirementHealth(pendingRetirement);
-
-        const browser = await state.antidetect.describeRuntime();
-        return {
-        ok: state.problems.length === 0,
-        message: state.problems.length === 0 ? "Cầu nối sẵn sàng." : notConfiguredMessage(),
+      [RELAY_PATHS.health]: createRelayHealthRoute({
+        currentState: () => state,
+        describeRuntime: () => state.antidetect.describeRuntime(),
         publicKey: keypair.publicKeyHex,
-        machineName: os.hostname(),
-        // Web app cần biết máy này đã đăng ký chưa để vẽ đúng nút — "Đăng ký máy này" hay
-        // "Đã đăng ký". Hỏi sổ trên máy chủ cũng ra, nhưng phải hỏi bằng khóa công khai và
-        // vẫn không biết chiếc máy ĐANG NGỒI nghĩ mình là ai.
-        configured: state.problems.length === 0,
-        deviceId: state.deviceId,
-        webOrigin: state.webOrigin,
-        antidetectReady: browser.ready,
-        // Bốn tầng của CHÍNH máy này. Web dùng nó để nói đúng chỗ hỏng thay vì "không kết nối
-        // được", và để chặn sớm một máy chạy bản hợp đồng khác.
-        browser,
-        compatibilityUpdate: describeCompatibilityUpdateHealth(
-          readCompatibilityUpdateState(secureStore),
-        ),
-        };
-      },
+        notConfiguredMessage,
+        pendingRetirement: () => pendingRetirement,
+        retirementHealth,
+        compatibilityUpdate: compatibilityUpdateHealth,
+      }),
       [RELAY_PATHS.configure]: (request, body) =>
         pendingRetirement
           ? retirementBlocked()
@@ -400,6 +390,7 @@ async function main(): Promise<void> {
               serverPublicKeyHex: state.serverPublicKeyHex,
               deviceId: state.deviceId,
               onPrepared: () => {
+                compatibilityUpdateHealth.value = undefined;
                 setTimeout(() => {
                   server.close();
                   void coordinateCompatibilityUpdateHelper({
@@ -434,6 +425,7 @@ async function main(): Promise<void> {
               serverPublicKeyHex: state.serverPublicKeyHex,
               deviceId: state.deviceId,
               onPrepared: () => {
+                compatibilityUpdateHealth.value = undefined;
                 setTimeout(() => {
                   server.close();
                   void coordinateCompatibilityUpdateHelper({

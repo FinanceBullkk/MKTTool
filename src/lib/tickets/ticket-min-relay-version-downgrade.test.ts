@@ -105,6 +105,16 @@ describe("H06: the floor is enforced, on the correct side", () => {
     expect(accepts(ticketOfKind("COMPATIBILITY_UPDATE"), 9)).toBe(false);
   });
 
+  it.each(["LAUNCH_PROFILE", "CREATE_PROFILE"] as const)(
+    "%s refuses Relay 19 and accepts the v20 boundary",
+    (kind) => {
+      const ticket = ticketOfKind(kind);
+
+      expect(accepts(ticket, 19)).toBe(false);
+      expect(accepts(ticket, 20)).toBe(true);
+    },
+  );
+
   it("refuses every kind below the security floor", () => {
     /**
      * **This replaced a differential that the 18 August policy change made vacuous**, and the

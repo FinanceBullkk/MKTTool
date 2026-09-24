@@ -20,7 +20,10 @@
  * MKT Browser validates consistency and rejects contradictory combinations (`INVALID_INPUT`). Its
  * error lists the valid values, so pass that message through instead of rewriting it.
  */
-import { AntidetectError } from "../../src/lib/antidetect/antidetect-browser-adapter";
+import {
+  AntidetectError,
+  type AntidetectAdapter,
+} from "../../src/lib/antidetect/antidetect-browser-adapter";
 import { TICKET_KINDS, type TicketPayload } from "../../src/lib/tickets/ticket-types";
 import {
   AntidetectRuntimeNotReadyError,
@@ -38,8 +41,9 @@ export async function createProfileFromTicket(
   operationId: string,
 ): Promise<RelayResponseBody> {
   const startedAt = Date.now();
+  let adapter: AntidetectAdapter;
   try {
-    await antidetect.requireOperationalRuntime();
+    adapter = await antidetect.requireOperationalAdapter();
   } catch (error) {
     const code = error instanceof AntidetectRuntimeNotReadyError ? error.code : undefined;
     return {
@@ -54,8 +58,6 @@ export async function createProfileFromTicket(
       }),
     };
   }
-  const adapter = antidetect.getAdapter();
-
   let created;
   try {
     created = await adapter.createProfile({

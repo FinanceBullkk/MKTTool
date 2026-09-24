@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { AntidetectError } from "./antidetect-browser-adapter";
 import { MktBrowserAdapter } from "./mkt-browser-adapter";
 import { MKT_BROWSER_DEFAULT_MCP_URL } from "./mkt-browser-contract";
+import { MCP_MAX_RESPONSE_BYTES } from "./mkt-browser-mcp-client";
 
 const PROFILE_ID = "profile-abc";
 
@@ -212,6 +213,526 @@ describe("MktBrowserAdapter contract", () => {
     ).rejects.toThrow();
     expect(calls.filter((call) => call.method === "initialize")).toHaveLength(1);
     expect(calls.filter((call) => call.method === "tools/call")).toHaveLength(1);
+  });
+
+  it("does not re-handshake or retry a read cancelled by its caller", async () => {
+    const methods: string[] = [];
+    let markToolCallStarted!: () => void;
+    const toolCallStarted = new Promise<void>((resolve) => {
+      markToolCallStarted = resolve;
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_url: string, init: RequestInit) => {
+        const request = JSON.parse(init.body as string) as { id: number; method: string };
+        methods.push(request.method);
+        if (request.method === "tools/call") {
+          markToolCallStarted();
+          return new Promise<Response>((_resolve, reject) => {
+            const signal = init.signal;
+            if (signal?.aborted) {
+              reject(new DOMException("Read cancelled", "AbortError"));
+              return;
+            }
+            signal?.addEventListener(
+              "abort",
+              () => reject(new DOMException("Read cancelled", "AbortError")),
+              { once: true },
+            );
+          });
+        }
+        const result = request.method === "tools/list"
+          ? { tools: [{ name: "list_profiles" }] }
+          : {};
+        return new Response(JSON.stringify({ jsonrpc: "2.0", id: request.id, result }), {
+          status: 200,
+        });
+      }),
+    );
+    const controller = new AbortController();
+    const adapter = new MktBrowserAdapter(MKT_BROWSER_DEFAULT_MCP_URL, "t");
+
+    const read = adapter.listProfiles({ signal: controller.signal });
+    await toolCallStarted;
+    controller.abort();
+
+    await expect(read).rejects.toMatchObject({ name: "McpReadCancelledError" });
+    expect(methods).toEqual(["initialize", "tools/list", "tools/call"]);
+  });
+
+  it("does not adopt a session header from a cancelled profile read", async () => {
+    const calls: { method: string; tool?: string; sessionId: string | null }[] = [];
+    let resolveMutation!: () => void;
+    let markMutationStarted!: () => void;
+    let markReadBodyStarted!: () => void;
+    const mutationStarted = new Promise<void>((resolve) => {
+      markMutationStarted = resolve;
+    });
+    const readBodyStarted = new Promise<void>((resolve) => {
+      markReadBodyStarted = resolve;
+    });
+    let listCalls = 0;
+    let createCalls = 0;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_url: string, init: RequestInit) => {
+        const request = JSON.parse(init.body as string) as {
+          id: number;
+          method: string;
+          params?: { name?: string };
+        };
+        const tool = request.params?.name;
+        calls.push({
+          method: request.method,
+          ...(tool ? { tool } : {}),
+          sessionId: new Headers(init.headers).get("Mcp-Session-Id"),
+        });
+        const response = (result: unknown) => new Response(JSON.stringify({
+          jsonrpc: "2.0",
+          id: request.id,
+          result,
+        }), {
+          status: 200,
+          headers: { "Mcp-Session-Id": "session-stable" },
+        });
+
+        if (request.method === "initialize") return response({});
+        if (request.method === "tools/list") {
+          return response({ tools: [{ name: "list_profiles" }, { name: "create_profile" }] });
+        }
+        if (tool === "list_profiles" && ++listCalls === 2) {
+          return {
+            ok: true,
+            status: 200,
+            headers: new Headers({ "Mcp-Session-Id": "session-untrusted" }),
+            text: () => new Promise<string>((_resolve, reject) => {
+              markReadBodyStarted();
+              const signal = init.signal;
+              if (signal?.aborted) {
+                reject(new DOMException("Read cancelled", "AbortError"));
+                return;
+              }
+              signal?.addEventListener(
+                "abort",
+                () => reject(new DOMException("Read cancelled", "AbortError")),
+                { once: true },
+              );
+            }),
+          } as Response;
+        }
+        if (tool === "create_profile" && ++createCalls === 1) {
+          markMutationStarted();
+          return new Promise<Response>((resolve) => {
+            resolveMutation = () => resolve(new Response(JSON.stringify({
+              jsonrpc: "2.0",
+              id: request.id,
+              result: { content: [{ type: "text", text: JSON.stringify({ id: PROFILE_ID }) }] },
+            }), { status: 200 }));
+          });
+        }
+        if (tool === "create_profile") {
+          return response({ content: [{ type: "text", text: JSON.stringify({ id: PROFILE_ID }) }] });
+        }
+        return response({ content: [{ type: "text", text: JSON.stringify({ profiles: [] }) }] });
+      }),
+    );
+    const adapter = new MktBrowserAdapter(MKT_BROWSER_DEFAULT_MCP_URL, "t");
+    const controller = new AbortController();
+
+    await expect(adapter.listProfiles()).resolves.toEqual([]);
+    const mutation = adapter.createProfile({ name: "Profile during read" });
+    await mutationStarted;
+    const cancelledRead = adapter.listProfiles({ signal: controller.signal });
+    await readBodyStarted;
+    controller.abort();
+
+    await expect(cancelledRead).rejects.toMatchObject({ name: "McpReadCancelledError" });
+    resolveMutation();
+    await expect(mutation).resolves.toEqual({ profileId: PROFILE_ID });
+    await expect(adapter.createProfile({ name: "Profile after read" })).resolves.toEqual({
+      profileId: PROFILE_ID,
+    });
+
+    expect(calls.filter((call) => call.method === "initialize")).toHaveLength(1);
+    expect(calls.filter((call) => call.tool === "create_profile").every(
+      (call) => call.sessionId === "session-stable",
+    )).toBe(true);
+  });
+
+  it("coalesces concurrent cold profile reads into one initialization", async () => {
+    const calls = installFakeMcpServer({
+      toolBodies: {
+        list_profiles: { profiles: [] },
+        list_fingerprint_options: { devices: [], locales: [] },
+      },
+    });
+    const adapter = new MktBrowserAdapter(MKT_BROWSER_DEFAULT_MCP_URL, "t");
+
+    await expect(Promise.all([adapter.listProfiles(), adapter.fingerprintOptions()])).resolves.toEqual([
+      [],
+      { devices: [], locales: [] },
+    ]);
+    expect(calls.filter((call) => call.method === "initialize")).toHaveLength(1);
+    expect(calls.filter((call) => call.method === "tools/list")).toHaveLength(1);
+  });
+
+  it("keeps a shared cold handshake alive when one read is cancelled", async () => {
+    let releaseInitialize!: () => void;
+    let markInitializeStarted!: () => void;
+    const initializeStarted = new Promise<void>((resolve) => {
+      markInitializeStarted = resolve;
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_url: string, init: RequestInit) => {
+        const request = JSON.parse(init.body as string) as {
+          id: number;
+          method: string;
+          params?: { name?: string };
+        };
+        if (request.method === "initialize") {
+          markInitializeStarted();
+          return new Promise<Response>((resolve) => {
+            releaseInitialize = () => resolve(new Response(JSON.stringify({
+              jsonrpc: "2.0", id: request.id, result: {},
+            }), { status: 200 }));
+          });
+        }
+        if (request.method === "tools/list") {
+          return new Response(JSON.stringify({
+            jsonrpc: "2.0",
+            id: request.id,
+            result: {
+              tools: [
+                { name: "list_profiles" },
+                { name: "list_fingerprint_options" },
+                { name: "create_profile" },
+              ],
+            },
+          }), { status: 200 });
+        }
+        const body = request.params?.name === "list_fingerprint_options"
+          ? { devices: [], locales: [] }
+          : request.params?.name === "create_profile"
+            ? { id: PROFILE_ID }
+            : { profiles: [] };
+        return new Response(JSON.stringify({
+          jsonrpc: "2.0",
+          id: request.id,
+          result: { content: [{ type: "text", text: JSON.stringify(body) }] },
+        }), { status: 200 });
+      }),
+    );
+    const cancelled = new AbortController();
+    const stillWaiting = new AbortController();
+    const adapter = new MktBrowserAdapter(MKT_BROWSER_DEFAULT_MCP_URL, "t");
+
+    const cancelledRead = adapter.listProfiles({ signal: cancelled.signal });
+    const survivingRead = adapter.fingerprintOptions({ signal: stillWaiting.signal });
+    const mutation = adapter.createProfile({ name: "Manual profile" });
+    await initializeStarted;
+    cancelled.abort();
+
+    await expect(cancelledRead).rejects.toMatchObject({ name: "McpReadCancelledError" });
+    releaseInitialize();
+    await expect(survivingRead).resolves.toEqual({ devices: [], locales: [] });
+    await expect(mutation).resolves.toEqual({ profileId: PROFILE_ID });
+  });
+
+  it.each(["initialize", "tools/list"] as const)(
+    "forgets a partial session when %s response-body reading is cancelled",
+    async (cancelledMethod) => {
+      const calls: { method: string; headers: Headers }[] = [];
+      let markBodyStarted!: () => void;
+      const bodyStarted = new Promise<void>((resolve) => {
+        markBodyStarted = resolve;
+      });
+      let stall = true;
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async (_url: string, init: RequestInit) => {
+          const request = JSON.parse(init.body as string) as { id: number; method: string };
+          const headers = new Headers(init.headers);
+          calls.push({ method: request.method, headers });
+
+          if (stall && request.method === cancelledMethod) {
+            return {
+              ok: true,
+              status: 200,
+              headers: new Headers({ "Mcp-Session-Id": `partial-${cancelledMethod}` }),
+              text: () => new Promise<string>((_resolve, reject) => {
+                markBodyStarted();
+                const signal = init.signal;
+                if (signal?.aborted) {
+                  reject(new DOMException("Read cancelled", "AbortError"));
+                  return;
+                }
+                signal?.addEventListener(
+                  "abort",
+                  () => reject(new DOMException("Read cancelled", "AbortError")),
+                  { once: true },
+                );
+              }),
+            } as Response;
+          }
+
+          const result = request.method === "tools/list"
+            ? { tools: [{ name: "list_profiles" }] }
+            : request.method === "tools/call"
+              ? { content: [{ type: "text", text: JSON.stringify({ profiles: [] }) }] }
+              : {};
+          return new Response(JSON.stringify({ jsonrpc: "2.0", id: request.id, result }), {
+            status: 200,
+          });
+        }),
+      );
+      const controller = new AbortController();
+      const adapter = new MktBrowserAdapter(MKT_BROWSER_DEFAULT_MCP_URL, "t");
+
+      const cancelledRead = adapter.listProfiles({ signal: controller.signal });
+      await bodyStarted;
+      controller.abort();
+      await expect(cancelledRead).rejects.toMatchObject({ name: "McpReadCancelledError" });
+
+      stall = false;
+      await expect(adapter.listProfiles()).resolves.toEqual([]);
+      const retryInitialize = calls.filter((call) => call.method === "initialize").at(-1);
+      expect(retryInitialize?.headers.has("Mcp-Session-Id")).toBe(false);
+    },
+  );
+
+  it.each([
+    ["empty body", () => ""],
+    ["empty object", () => "{}"],
+    ["wrong response id", (id: number) => JSON.stringify({ jsonrpc: "2.0", id: id + 1, result: {} })],
+    ["malformed SSE", () => "data: {not-json"],
+  ] as Array<[string, (id: number) => string]>)(
+    "does not adopt a session header from a %s MCP response",
+    async (_label, malformedBody) => {
+      const calls: Headers[] = [];
+      let sendMalformedResponse = true;
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async (_url: string, init: RequestInit) => {
+          const request = JSON.parse(init.body as string) as {
+            id: number;
+            method: string;
+            params?: { name?: string };
+          };
+          calls.push(new Headers(init.headers));
+          if (sendMalformedResponse && request.method === "initialize") {
+            sendMalformedResponse = false;
+            return new Response(malformedBody(request.id), {
+              status: 200,
+              headers: { "Mcp-Session-Id": "session-poison" },
+            });
+          }
+
+          const result = request.method === "tools/list"
+            ? { tools: [{ name: "list_profiles" }, { name: "create_profile" }] }
+            : request.method === "tools/call"
+              ? { content: [{ type: "text", text: JSON.stringify({ id: PROFILE_ID }) }] }
+              : {};
+          return new Response(JSON.stringify({ jsonrpc: "2.0", id: request.id, result }), {
+            status: 200,
+            headers: { "Mcp-Session-Id": "session-stable" },
+          });
+        }),
+      );
+      const adapter = new MktBrowserAdapter(MKT_BROWSER_DEFAULT_MCP_URL, "t");
+
+      await expect(adapter.listProfiles()).rejects.toThrow();
+      await expect(adapter.createProfile({ name: "Fresh session" })).resolves.toEqual({ profileId: PROFILE_ID });
+      expect(calls.every((headers) => headers.get("Mcp-Session-Id") !== "session-poison")).toBe(true);
+    },
+  );
+
+  it("rejects an announced oversized MCP body before reading it", async () => {
+    let bodyRead = false;
+    let bodyCancelled = false;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: true,
+        status: 200,
+        headers: new Headers({
+          "content-length": String(MCP_MAX_RESPONSE_BYTES + 1),
+          "Mcp-Session-Id": "session-poison",
+        }),
+        body: {
+          getReader: () => {
+            bodyRead = true;
+            throw new Error("The announced oversized body must not be read.");
+          },
+          cancel: () => {
+            bodyCancelled = true;
+            return Promise.resolve();
+          },
+        } as unknown as ReadableStream<Uint8Array>,
+        text: async () => "",
+      }) as Response),
+    );
+
+    await expect(new MktBrowserAdapter(MKT_BROWSER_DEFAULT_MCP_URL, "t").listProfiles())
+      .rejects.toThrow();
+    expect(bodyRead).toBe(false);
+    expect(bodyCancelled).toBe(true);
+  });
+
+  it.each([
+    ["JSON", "{", undefined],
+    ["SSE", "data: ", "1"],
+  ] as const)(
+    "rejects an oversized %s stream without adopting its session header",
+    async (_kind, prefix, announcedSize) => {
+      const calls: Headers[] = [];
+      let bodyCancelled = false;
+      let sendOversizedResponse = true;
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async (_url: string, init: RequestInit) => {
+          const request = JSON.parse(init.body as string) as {
+            id: number;
+            method: string;
+            params?: { name?: string };
+          };
+          calls.push(new Headers(init.headers));
+          if (sendOversizedResponse && request.method === "initialize") {
+            sendOversizedResponse = false;
+            const body = new TextEncoder().encode(prefix + "x".repeat(MCP_MAX_RESPONSE_BYTES));
+            return {
+              ok: true,
+              status: 200,
+              headers: new Headers({
+                "Mcp-Session-Id": "session-poison",
+                ...(announcedSize ? { "content-length": announcedSize } : {}),
+              }),
+              body: new ReadableStream<Uint8Array>({
+                start: (controller) => controller.enqueue(body),
+                cancel: () => { bodyCancelled = true; },
+              }),
+              text: async () => new TextDecoder().decode(body),
+            } as Response;
+          }
+
+          const result = request.method === "tools/list"
+            ? { tools: [{ name: "list_profiles" }, { name: "create_profile" }] }
+            : { content: [{ type: "text", text: JSON.stringify({ id: PROFILE_ID }) }] };
+          return new Response(JSON.stringify({ jsonrpc: "2.0", id: request.id, result }), {
+            status: 200,
+            headers: { "Mcp-Session-Id": "session-stable" },
+          });
+        }),
+      );
+      const adapter = new MktBrowserAdapter(MKT_BROWSER_DEFAULT_MCP_URL, "t");
+
+      await expect(adapter.listProfiles()).rejects.toThrow();
+      await expect(adapter.createProfile({ name: "Fresh session" })).resolves.toEqual({
+        profileId: PROFILE_ID,
+      });
+      expect(bodyCancelled).toBe(true);
+      expect(calls.every((headers) => headers.get("Mcp-Session-Id") !== "session-poison")).toBe(true);
+    },
+  );
+
+  it("does not re-handshake or replay a mutation after an oversized MCP result", async () => {
+    const calls: { method: string; tool?: string; headers: Headers }[] = [];
+    let bodyCancelled = false;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_url: string, init: RequestInit) => {
+        const request = JSON.parse(init.body as string) as {
+          id: number;
+          method: string;
+          params?: { name?: string };
+        };
+        const tool = request.params?.name;
+        calls.push({ method: request.method, ...(tool ? { tool } : {}), headers: new Headers(init.headers) });
+        if (tool === "create_profile") {
+          const body = new TextEncoder().encode(`{"id":"${"x".repeat(MCP_MAX_RESPONSE_BYTES)}"}`);
+          return {
+            ok: true,
+            status: 200,
+            headers: new Headers({ "Mcp-Session-Id": "session-poison" }),
+            body: new ReadableStream<Uint8Array>({
+              start: (controller) => controller.enqueue(body),
+              cancel: () => { bodyCancelled = true; },
+            }),
+            text: async () => new TextDecoder().decode(body),
+          } as Response;
+        }
+
+        const result = request.method === "tools/list"
+          ? { tools: [{ name: "create_profile" }] }
+          : {};
+        return new Response(JSON.stringify({ jsonrpc: "2.0", id: request.id, result }), {
+          status: 200,
+        });
+      }),
+    );
+    const adapter = new MktBrowserAdapter(MKT_BROWSER_DEFAULT_MCP_URL, "t");
+
+    await expect(adapter.createProfile({ name: "One attempt only" })).rejects.toThrow();
+    expect(bodyCancelled).toBe(true);
+    expect(calls.filter((call) => call.method === "initialize")).toHaveLength(1);
+    expect(calls.filter((call) => call.tool === "create_profile")).toHaveLength(1);
+    expect(calls.every((call) => call.headers.get("Mcp-Session-Id") !== "session-poison")).toBe(true);
+  });
+
+  it("starts a fresh handshake when the last bounded read is cancelled before a mutation", async () => {
+    const calls: { method: string; headers: Headers }[] = [];
+    let markFirstBodyStarted!: () => void;
+    const firstBodyStarted = new Promise<void>((resolve) => {
+      markFirstBodyStarted = resolve;
+    });
+    let firstInitialize = true;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_url: string, init: RequestInit) => {
+        const request = JSON.parse(init.body as string) as {
+          id: number;
+          method: string;
+          params?: { name?: string };
+        };
+        calls.push({ method: request.method, headers: new Headers(init.headers) });
+        if (firstInitialize && request.method === "initialize") {
+          firstInitialize = false;
+          return {
+            ok: true,
+            status: 200,
+            headers: new Headers(),
+            text: () => new Promise<string>((_resolve, reject) => {
+              markFirstBodyStarted();
+              const signal = init.signal;
+              signal?.addEventListener(
+                "abort",
+                () => reject(new DOMException("Read cancelled", "AbortError")),
+                { once: true },
+              );
+            }),
+          } as Response;
+        }
+
+        const result = request.method === "tools/list"
+          ? { tools: [{ name: "list_profiles" }, { name: "create_profile" }] }
+          : request.method === "tools/call"
+            ? { content: [{ type: "text", text: JSON.stringify({ id: PROFILE_ID }) }] }
+            : {};
+        return new Response(JSON.stringify({ jsonrpc: "2.0", id: request.id, result }), { status: 200 });
+      }),
+    );
+    const adapter = new MktBrowserAdapter(MKT_BROWSER_DEFAULT_MCP_URL, "t");
+    const controller = new AbortController();
+
+    const cancelledRead = adapter.listProfiles({ signal: controller.signal });
+    await firstBodyStarted;
+    controller.abort();
+    const mutation = adapter.createProfile({ name: "Profile after cancelled read" });
+
+    await expect(cancelledRead).rejects.toMatchObject({ name: "McpReadCancelledError" });
+    await expect(mutation).resolves.toEqual({ profileId: PROFILE_ID });
+    expect(calls.filter((call) => call.method === "initialize")).toHaveLength(2);
+    expect(calls.at(-1)?.headers.get("Mcp-Session-Id")).not.toBe("session-poison");
   });
 });
 
@@ -689,6 +1210,43 @@ describe("MktBrowserAdapter runtime reporting", () => {
     await expect(
       new MktBrowserAdapter(MKT_BROWSER_DEFAULT_MCP_URL, "t").runtimeInfo(),
     ).resolves.toBeNull();
+  });
+
+  it("keeps a real runtime-info read deadline distinct from an offline Browser", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_url: string, init: RequestInit) => {
+        const request = JSON.parse(init.body as string) as {
+          id: number;
+          method: string;
+          params?: { name?: string };
+        };
+        if (request.method === "tools/call" && request.params?.name === "get_runtime_info") {
+          return new Promise<Response>((_resolve, reject) => {
+            const signal = init.signal;
+            if (signal?.aborted) {
+              reject(new DOMException("Timed out", "AbortError"));
+              return;
+            }
+            signal?.addEventListener(
+              "abort",
+              () => reject(new DOMException("Timed out", "AbortError")),
+              { once: true },
+            );
+          });
+        }
+        const result = request.method === "tools/list"
+          ? { tools: [{ name: "get_runtime_info" }] }
+          : {};
+        return new Response(JSON.stringify({ jsonrpc: "2.0", id: request.id, result }), {
+          status: 200,
+        });
+      }),
+    );
+
+    await expect(
+      new MktBrowserAdapter(MKT_BROWSER_DEFAULT_MCP_URL, "t").observeRuntimeInfo(20),
+    ).resolves.toEqual({ reachable: false, info: null, timedOut: true });
   });
 
   it("carries the machine-readable failure code out of a refused launch", async () => {

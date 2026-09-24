@@ -10,23 +10,41 @@ snapshot instead of waiting for the Windows ownership inspection. Browser contra
 profile inventory, create, and launch at the Relay boundary. A successful health response is not
 permission to operate a profile until that current local observation is ready.
 
+Relay 13 remains the general security floor for every ticket. Profile create and launch have a
+separate Relay 20 capability floor, so a Relay 19 is not eligible for profile operations even
+though it meets the security minimum; Relay-PC status renders those floors independently.
+
 Browser transport errors are now truthful: a request deadline is `timeout`, while a generic browser
 fetch failure is `indeterminate`, not proof that Relay is stopped or that local-network permission
 was denied. Setup and profile actions keep an explicit manual check and fail closed. Profile
 inventory preserves fixed safe failure codes and stages instead of turning a failed list/options
-read into an empty success.
+read into an empty success. A malformed completed payload is now rejected at its own stage before a
+stalled sibling read can be misreported as a timeout.
+
+Each profile inventory, create, and launch action now uses the exact MCP adapter that passed its
+readiness check. A local token rotation during the check fails closed; a later rotation cannot switch
+the action to an unchecked credential. A bounded/cancelled profile observation also preserves an
+already initialized MCP session so it cannot disrupt a concurrent mutation. MCP JSON/SSE response
+decoding is capped at 1 MiB before parsing or session adoption; an oversized mutation reply clears
+untrusted transport state without automatically rehandshaking or replaying the mutation.
 
 Compatibility staging retains normal TLS, hostname, signed size/hash, redirect, and authorization
 checks. A disposable Windows Node SEA test runs the real staging/downloader path against 12
 controlled cases: trusted chain, invalid chains, redirect/refusal, truncated/oversize/hash-mismatch
 payloads, and a controlled connection reset. It scopes any additional CA to the fixture child and verifies
 inherited Node/TLS overrides are absent from normal launched children. Current source checks pass:
-`relay:verify-tls` 12/12, Relay tests 494/494, local-runner tests 15/15, lint, and typecheck.
+the complete Relay runner 514/514, its new cancellation/payload subset 22/22, the independently
+scoped Relay-PC list/status checks 11/11, `relay:verify-tls` 12/12, and local-release runner tests
+15/15. Typecheck, lint, and the production build also pass. The full MKTTool suite is **BLOCKED**,
+not green: 2,048 tests passed while 342 database tests could not find their required test-schema
+tables. This does not authorize a candidate or substitute for final quality gates.
 
 **OPEN / NO-GO:** this is source and disposable-SEA evidence only. The historical Browser 0.3.24 /
 Relay 18 candidate remains unchanged and rejected for promotion. A fresh tuple, isolated two-build
 comparison, exact packaged and public TLS, clean-VM cold-page/profile lifecycle, human permission,
-second-PC, and canary evidence remain required. `G2-IDENTITY=FAIL` is unchanged.
+second-PC, and canary evidence remain required. Do not freeze the proposed Browser 0.3.25 / Relay 19
+metadata: current source declares Relay 20 and local artifact metadata is still Relay 18. Build and
+bind a real Relay 20 artifact to a new coordinated tuple first. `G2-IDENTITY=FAIL` is unchanged.
 
 ## Account detail RSC secret boundary - 22 September 2026
 

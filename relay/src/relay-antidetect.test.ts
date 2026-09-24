@@ -4,6 +4,7 @@ import type { MktBrowserRuntimeInfo } from "../../src/lib/antidetect/mkt-browser
 import type { RelayConfig } from "./relay-config";
 import {
   AntidetectNotConfiguredError,
+  AntidetectRuntimeNotReadyError,
   RELAY_READINESS_BUDGET_MS,
   RelayAntidetect,
 } from "./relay-antidetect";
@@ -40,7 +41,10 @@ function deferred<T>() {
   return { promise, resolve };
 }
 
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  vi.useRealTimers();
+  vi.restoreAllMocks();
+});
 
 describe("RelayAntidetect token discovery", () => {
   it("sees a token that appears after Relay startup without a restart", () => {
@@ -82,6 +86,63 @@ describe("RelayAntidetect bounded runtime observation", () => {
     ]);
   });
 
+  it("does not let a short caller truncate a concurrent full-budget health read", async () => {
+    vi.useFakeTimers();
+    const observed = deferred<{ reachable: boolean; info: MktBrowserRuntimeInfo }>();
+    const observeRuntimeInfo = vi.spyOn(MktBrowserAdapter.prototype, "observeRuntimeInfo")
+      .mockImplementation(async (budget) => {
+        expect(budget).toBe(RELAY_READINESS_BUDGET_MS);
+        return observed.promise;
+      });
+    const token: ResolvedMktBrowserToken = { value: "c".repeat(64), source: "mkt-browser-data" };
+    const antidetect = new RelayAntidetect(CONFIG, () => token);
+
+    const short = antidetect.describeRuntime(1);
+    const normal = antidetect.describeRuntime();
+    await vi.advanceTimersByTimeAsync(1);
+
+    await expect(short).resolves.toMatchObject({
+      ready: false,
+      provider: null,
+      runtimeObservation: "timeout",
+    });
+    observed.resolve({ reachable: true, info: RUNTIME });
+    await expect(normal).resolves.toMatchObject({ ready: true, contractVersion: 6 });
+    expect(observeRuntimeInfo).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects an expired runtime observation as indeterminate rather than offline", async () => {
+    vi.useFakeTimers();
+    vi.spyOn(MktBrowserAdapter.prototype, "observeRuntimeInfo")
+      .mockImplementation(async () => new Promise<never>(() => {}));
+    const token: ResolvedMktBrowserToken = { value: "c".repeat(64), source: "mkt-browser-data" };
+    const antidetect = new RelayAntidetect(CONFIG, () => token);
+
+    const result = antidetect.requireOperationalRuntime(1);
+    const assertion = expect(result).rejects.toMatchObject({
+      name: AntidetectRuntimeNotReadyError.name,
+      code: "RUNTIME_TIMEOUT",
+    });
+    await vi.advanceTimersByTimeAsync(1);
+
+    await assertion;
+  });
+
+  it("maps an adapter runtime deadline to RUNTIME_TIMEOUT rather than BROWSER_OFFLINE", async () => {
+    vi.spyOn(MktBrowserAdapter.prototype, "observeRuntimeInfo").mockResolvedValue({
+      reachable: false,
+      info: null,
+      timedOut: true,
+    });
+    const token: ResolvedMktBrowserToken = { value: "c".repeat(64), source: "mkt-browser-data" };
+    const antidetect = new RelayAntidetect(CONFIG, () => token);
+
+    await expect(antidetect.requireOperationalRuntime()).rejects.toMatchObject({
+      name: AntidetectRuntimeNotReadyError.name,
+      code: "RUNTIME_TIMEOUT",
+    });
+  });
+
   it("discards a completed observation from a superseded token generation", async () => {
     const firstResult = deferred<{ reachable: boolean; info: MktBrowserRuntimeInfo }>();
     let calls = 0;
@@ -100,6 +161,79 @@ describe("RelayAntidetect bounded runtime observation", () => {
     await expect(stale).resolves.toMatchObject({ ready: false, provider: null });
     expect(fresh).toMatchObject({ ready: true, provider: "mkt-browser" });
     expect(calls).toBe(2);
+  });
+
+  it("binds a profile action to the adapter that passed readiness", async () => {
+    const usedAdapters: MktBrowserAdapter[] = [];
+    vi.spyOn(MktBrowserAdapter.prototype, "observeRuntimeInfo").mockResolvedValue({
+      reachable: true,
+      info: RUNTIME,
+    });
+    vi.spyOn(MktBrowserAdapter.prototype, "listProfiles").mockImplementation(
+      async function(this: MktBrowserAdapter) {
+        usedAdapters.push(this);
+        return [];
+      },
+    );
+    const firstToken: ResolvedMktBrowserToken = {
+      value: "c".repeat(64),
+      source: "mkt-browser-data",
+    };
+    const secondToken: ResolvedMktBrowserToken = {
+      value: "d".repeat(64),
+      source: "mkt-browser-data",
+    };
+    let token = firstToken;
+    const antidetect = new RelayAntidetect(CONFIG, () => token);
+
+    const checkedAdapter = await antidetect.requireOperationalAdapter();
+    token = secondToken;
+    const laterAdapter = antidetect.getAdapter();
+    await checkedAdapter.listProfiles();
+
+    expect(laterAdapter).not.toBe(checkedAdapter);
+    expect(usedAdapters).toEqual([checkedAdapter]);
+  });
+
+  it("fails closed when the local MCP token rotates during readiness", async () => {
+    const observed = deferred<{ reachable: boolean; info: MktBrowserRuntimeInfo }>();
+    const observeRuntimeInfo = vi.spyOn(MktBrowserAdapter.prototype, "observeRuntimeInfo")
+      .mockImplementation(async () => observed.promise);
+    const firstToken: ResolvedMktBrowserToken = {
+      value: "c".repeat(64),
+      source: "mkt-browser-data",
+    };
+    const secondToken: ResolvedMktBrowserToken = {
+      value: "d".repeat(64),
+      source: "mkt-browser-data",
+    };
+    let token: ResolvedMktBrowserToken | null = firstToken;
+    const antidetect = new RelayAntidetect(CONFIG, () => token);
+
+    const checkedAdapter = antidetect.requireOperationalAdapter();
+    token = secondToken;
+    observed.resolve({ reachable: true, info: RUNTIME });
+
+    await expect(checkedAdapter).rejects.toMatchObject({ code: "BROWSER_OFFLINE" });
+    expect(observeRuntimeInfo).toHaveBeenCalledOnce();
+  });
+
+  it("reports a missing MCP token when it disappears during readiness", async () => {
+    const observed = deferred<{ reachable: boolean; info: MktBrowserRuntimeInfo }>();
+    vi.spyOn(MktBrowserAdapter.prototype, "observeRuntimeInfo")
+      .mockImplementation(async () => observed.promise);
+    const firstToken: ResolvedMktBrowserToken = {
+      value: "c".repeat(64),
+      source: "mkt-browser-data",
+    };
+    let token: ResolvedMktBrowserToken | null = firstToken;
+    const antidetect = new RelayAntidetect(CONFIG, () => token);
+
+    const checkedAdapter = antidetect.requireOperationalAdapter();
+    token = null;
+    observed.resolve({ reachable: true, info: RUNTIME });
+
+    await expect(checkedAdapter).rejects.toBeInstanceOf(AntidetectNotConfiguredError);
   });
 
   it("does not reuse a pre-retry runtime observation after an explicit capacity refresh", async () => {

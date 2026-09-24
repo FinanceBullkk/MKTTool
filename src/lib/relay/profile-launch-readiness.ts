@@ -181,6 +181,7 @@ export function safeProxyPresentation(proxy: {
 }
 
 const LAUNCH_FAILURE_MESSAGE_BY_CODE: Record<string, string> = {
+  RUNTIME_TIMEOUT: "MKT Browser did not finish its readiness check in time. Keep it open, then check again.",
   RECOVERY_PENDING: "The local browser is recovering a prior session. Wait for recovery to finish, then check capacity before trying once manually.",
   NO_CAPACITY: "No local browser capacity is available. Check the wait shown in MKT Browser before trying once manually; repeated attempts may extend it.",
   CAPACITY_UNKNOWN: "The local browser could not verify available capacity. Open MKT Browser and check its licence and recovery state before continuing.",

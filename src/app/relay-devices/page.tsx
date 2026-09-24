@@ -10,7 +10,11 @@ import { isEmailAllowed, readEmailAccessList } from "@/lib/auth/allowed-emails";
 import { readActor } from "@/lib/auth/require-actor";
 import { prisma } from "@/lib/db/prisma-client";
 import { registerRelayDevice } from "@/lib/tickets/relay-device-actions";
-import { MIN_RELAY_VERSION } from "@/lib/tickets/ticket-types";
+import {
+  effectiveMinRelayVersion,
+  MIN_RELAY_VERSION,
+  TICKET_KINDS,
+} from "@/lib/tickets/ticket-types";
 
 export const dynamic = "force-dynamic";
 
@@ -35,6 +39,9 @@ export default async function RelayDevicesPage() {
   const revokedDevices = devices.filter((device) => device.revokedAt);
   const awaitingKey = activeDevices.filter(
     (device) => !device.operatorKeyGrant && !device.operatorKeyReadyAt,
+  );
+  const profileOperationMinimumRelayVersion = effectiveMinRelayVersion(
+    TICKET_KINDS.CREATE_PROFILE,
   );
 
   return (
@@ -63,7 +70,8 @@ export default async function RelayDevicesPage() {
           devices={activeDevices}
           isAdmin={isAdmin}
           canStillSignIn={canStillSignIn}
-          minimumRelayVersion={MIN_RELAY_VERSION}
+          securityMinimumRelayVersion={MIN_RELAY_VERSION}
+          profileOperationMinimumRelayVersion={profileOperationMinimumRelayVersion}
         />
 
         <RelayRevokedDeviceList

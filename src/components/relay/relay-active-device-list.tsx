@@ -38,12 +38,14 @@ export function RelayActiveDeviceList({
   devices,
   isAdmin,
   canStillSignIn,
-  minimumRelayVersion,
+  securityMinimumRelayVersion,
+  profileOperationMinimumRelayVersion,
 }: {
   devices: RelayDeviceListItem[];
   isAdmin: boolean;
   canStillSignIn: (email: string) => boolean;
-  minimumRelayVersion: number;
+  securityMinimumRelayVersion: number;
+  profileOperationMinimumRelayVersion: number;
 }) {
   return (
     <Card
@@ -86,10 +88,14 @@ export function RelayActiveDeviceList({
                     ) : null}
                   </div>
 
-                  <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                     <div>
-                      <p className="mb-2 text-xs font-medium text-neutral-400">Relay runtime</p>
-                      <RelayDeviceVersionCell device={device} floor={minimumRelayVersion} />
+                      <p className="mb-2 text-xs font-medium text-neutral-400">Relay security floor</p>
+                      <RelayDeviceVersionCell device={device} floor={securityMinimumRelayVersion} />
+                    </div>
+                    <div>
+                      <p className="mb-2 text-xs font-medium text-neutral-400">Profile-operation floor</p>
+                      <RelayDeviceVersionCell device={device} floor={profileOperationMinimumRelayVersion} />
                     </div>
                     <div>
                       <p className="mb-2 text-xs font-medium text-neutral-400">Operator key</p>

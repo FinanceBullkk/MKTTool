@@ -9,7 +9,10 @@
  * The response names the assigned proxy label so the operator can confirm the intended identity
  * without opening technical MKT Browser settings.
  */
-import { AntidetectError } from "../../src/lib/antidetect/antidetect-browser-adapter";
+import {
+  AntidetectError,
+  type AntidetectAdapter,
+} from "../../src/lib/antidetect/antidetect-browser-adapter";
 import { TICKET_KINDS, type TicketPayload } from "../../src/lib/tickets/ticket-types";
 import {
   AntidetectRuntimeNotReadyError,
@@ -28,8 +31,9 @@ export async function launchProfileFromTicket(
   operationId: string,
 ): Promise<RelayResponseBody> {
   const startedAt = Date.now();
+  let adapter: AntidetectAdapter;
   try {
-    await antidetect.requireOperationalRuntime();
+    adapter = await antidetect.requireOperationalAdapter();
   } catch (error) {
     const code = error instanceof AntidetectRuntimeNotReadyError ? error.code : undefined;
     return {
@@ -44,8 +48,6 @@ export async function launchProfileFromTicket(
       }),
     };
   }
-  const adapter = antidetect.getAdapter();
-
   if (adapter.launchProfileWithProxy) {
     let launched;
     try {

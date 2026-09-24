@@ -25,6 +25,19 @@ const READY: RelayBrowserHealth = {
 };
 
 describe("currentDeviceBrowserReadiness", () => {
+  it("keeps an expired runtime observation distinct from a confirmed offline Browser", () => {
+    const result = currentDeviceBrowserReadiness({
+      ...READY,
+      ready: false,
+      provider: null,
+      runtimeObservation: "timeout",
+    });
+
+    expect(result).toMatchObject({ ready: false, state: "runtime-timeout" });
+    expect(result.message).toContain("did not finish");
+    expect(result.message).not.toMatch(/not connected|open mkt browser/i);
+  });
+
   it("requires live Browser, contract, engine, and managed capabilities on this PC", () => {
     expect(currentDeviceBrowserReadiness(READY).ready).toBe(true);
     expect(currentDeviceBrowserReadiness({ ...READY, ready: false }).state).toBe("browser-offline");

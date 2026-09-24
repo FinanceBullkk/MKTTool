@@ -15,6 +15,7 @@ export const REQUIRED_SETUP_BROWSER_CAPABILITIES = [
 ] as const;
 
 export type CurrentDeviceBrowserState =
+  | "runtime-timeout"
   | "browser-offline"
   | "contract-mismatch"
   | "engine-not-ready"
@@ -29,6 +30,7 @@ export type CurrentDeviceBrowserState =
   | "ready";
 
 export type CurrentDeviceBrowserFailureCode =
+  | "RUNTIME_TIMEOUT"
   | "BROWSER_OFFLINE"
   | "CONTRACT_MISMATCH"
   | "ENGINE_NOT_READY"
@@ -45,6 +47,7 @@ const FAILURE_CODE_BY_STATE: Record<
   Exclude<CurrentDeviceBrowserState, "ready">,
   CurrentDeviceBrowserFailureCode
 > = {
+  "runtime-timeout": "RUNTIME_TIMEOUT",
   "browser-offline": "BROWSER_OFFLINE",
   "contract-mismatch": "CONTRACT_MISMATCH",
   "engine-not-ready": "ENGINE_NOT_READY",
@@ -74,6 +77,14 @@ export function currentDeviceBrowserReadiness(
   browser: RelayBrowserHealth | null | undefined,
   requiredCapabilities: readonly string[] = REQUIRED_MANAGED_BROWSER_CAPABILITIES,
 ): CurrentDeviceBrowserReadiness {
+  if (browser?.runtimeObservation === "timeout") {
+    return {
+      ready: false,
+      state: "runtime-timeout",
+      message: "MKT Browser did not finish its readiness check in time. Keep it open, then check again.",
+    };
+  }
+
   if (!browser?.ready || !browser.provider) {
     return {
       ready: false,

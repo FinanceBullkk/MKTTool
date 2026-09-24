@@ -118,6 +118,14 @@ export interface FingerprintOptions {
   locales: { id: string; label: string; country: string; timezones: string[] }[];
 }
 
+/** Bounds a read-only Browser observation without changing mutation retry semantics. */
+export interface AntidetectReadOptions {
+  /** Absolute Unix-millisecond deadline shared by all reads in one observation. */
+  deadline?: number;
+  /** Cancels sibling reads after a definitive failure or the observation deadline. */
+  signal?: AbortSignal;
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -177,10 +185,10 @@ export interface AntidetectAdapter {
   isAvailable(): Promise<boolean>;
 
   /** Mọi profile trên máy này. Dùng cho ô chọn thay vì bắt người dùng chép id bằng tay. */
-  listProfiles(): Promise<AntidetectProfileSummary[]>;
+  listProfiles(options?: AntidetectReadOptions): Promise<AntidetectProfileSummary[]>;
 
   /** Danh mục họ thiết bị và nhóm locale hợp lệ. */
-  fingerprintOptions(): Promise<FingerprintOptions>;
+  fingerprintOptions(options?: AntidetectReadOptions): Promise<FingerprintOptions>;
 
   /**
    * Tạo profile mới, trả về id.

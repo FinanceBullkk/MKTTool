@@ -14,11 +14,27 @@
   and strict-negative cases while keeping the fixture CA scoped to that child, cleaning only its
   tagged certificate-store leftovers before each run and after normal fixture cleanup, and stripping
   inherited Node/TLS overrides from normal Relay children. Add it to the local Relay runner.
-- Source checks pass: Relay tests 494/494, `relay:verify-tls` 12/12, local-runner tests 15/15,
-  lint, and typecheck. This is not replacement-candidate, public-TLS, VM, or rollout evidence.
+- Bind profile inventory, create, and launch to the exact MCP adapter that passed readiness. A token
+  rotation during readiness fails closed; a later rotation cannot use an unvalidated credential.
+  Bounded/cancelled profile reads no longer clear a shared initialized MCP session while another
+  mutation is in flight.
+- Cap MCP JSON/SSE response decoding at 1 MiB before parsing or session adoption. Declared or
+  streamed overflow clears untrusted transport state and fails the current action without an
+  automatic MCP rehandshake or mutation replay.
+- Reject a malformed completed profile list/options payload before a stalled sibling read can become
+  a timeout. Relay-PC status now shows the Relay 13 security floor separately from the Relay 20
+  profile-operation floor, so Relay 19 is not shown as able to create profiles that require Relay 20.
+- Current checks pass: full Relay runner 514/514, its new cancellation/payload subset 22/22,
+  independently scoped Relay-PC list/status checks 11/11, `relay:verify-tls` 12/12, and
+  local-release runner tests 15/15; typecheck, lint, and the production build pass. The full
+  MKTTool suite is **BLOCKED**, not 2,388/2,388: 2,048 tests passed while 342 database tests could
+  not find their required test-schema tables. This is not replacement-candidate, public-TLS, VM,
+  or rollout evidence.
 - Keep Browser 0.3.24 / Relay 18 immutable and **NO-GO** for promotion. Fresh tuple/pins,
   two-build equivalence, retained exact installer, clean-VM lifecycle, human, second-PC, and
-  canary gates remain OPEN; `G2-IDENTITY=FAIL` remains unchanged.
+  canary gates remain OPEN. The proposed 0.3.25 / Relay 19 metadata is not frozen because source
+  now declares Relay 20 and local Relay metadata remains v18; build and bind an exact Relay 20
+  artifact to a new coordinated tuple first. `G2-IDENTITY=FAIL` remains unchanged.
 
 ## 2026-09-22 - Prevent account and proxy secrets entering the RSC payload
 

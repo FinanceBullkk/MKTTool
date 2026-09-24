@@ -37,7 +37,7 @@ describe("createProfileFromTicket install readiness", () => {
   ] as const)("blocks %s before calling the Browser create tool", async (_state, code) => {
     const getAdapter = vi.fn();
     const antidetect = {
-      requireOperationalRuntime: async () => {
+      requireOperationalAdapter: async () => {
         throw new AntidetectRuntimeNotReadyError("MKT Browser readiness is private", code);
       },
       getAdapter,
@@ -50,6 +50,28 @@ describe("createProfileFromTicket install readiness", () => {
       ok: false,
       diagnostic: { stage: "browser-health", code },
     });
+    expect(getAdapter).not.toHaveBeenCalled();
+  });
+
+  it("uses the adapter bound to readiness instead of resolving a later adapter", async () => {
+    const boundAdapter = {
+      createProfile: vi.fn(async () => ({ profileId: "bound-profile" })),
+    };
+    const laterAdapter = {
+      createProfile: vi.fn(async () => ({ profileId: "later-profile" })),
+    };
+    const getAdapter = vi.fn(() => laterAdapter);
+    const antidetect = {
+      requireOperationalAdapter: async () => boundAdapter,
+      getAdapter,
+      forgetProbe: vi.fn(),
+    } as unknown as RelayAntidetect;
+
+    const result = await createProfileFromTicket(payload(), antidetect, "operation-bound-adapter");
+
+    expect(result).toMatchObject({ ok: true, profileId: "bound-profile" });
+    expect(boundAdapter.createProfile).toHaveBeenCalledOnce();
+    expect(laterAdapter.createProfile).not.toHaveBeenCalled();
     expect(getAdapter).not.toHaveBeenCalled();
   });
 });

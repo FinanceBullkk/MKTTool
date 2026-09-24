@@ -56,6 +56,7 @@ function antidetectThatFails(
   return {
     getAdapter: () => adapter,
     isReady: async () => true,
+    requireOperationalAdapter: async () => adapter,
     requireOperationalRuntime: async () => ({}) as never,
     forgetProbe: () => {},
   } as unknown as RelayAntidetect;
@@ -69,7 +70,7 @@ describe("launchProfileFromTicket error copy", () => {
   ] as const)("blocks %s before calling the Browser launch tool", async (_state, code) => {
     const getAdapter = vi.fn();
     const antidetect = {
-      requireOperationalRuntime: async () => {
+      requireOperationalAdapter: async () => {
         throw new AntidetectRuntimeNotReadyError("MKT Browser readiness is private", code);
       },
       getAdapter,
@@ -88,7 +89,7 @@ describe("launchProfileFromTicket error copy", () => {
 
   it("returns a stable code when measured capacity is still recovering", async () => {
     const antidetect = {
-      requireOperationalRuntime: async () => {
+      requireOperationalAdapter: async () => {
         throw new AntidetectRuntimeNotReadyError(
           "MKT Browser is recovering a prior browser session. Retry after recovery finishes.",
           "RECOVERY_PENDING",
@@ -183,6 +184,7 @@ describe("launchProfileFromTicket error copy", () => {
     const result = await launchProfileFromTicket(payload(), {
       getAdapter: () => adapter,
       forgetProbe: () => {},
+      requireOperationalAdapter: async () => adapter,
       requireOperationalRuntime: async () => ({}) as never,
     } as unknown as RelayAntidetect, "operation-5");
 
@@ -190,5 +192,29 @@ describe("launchProfileFromTicket error copy", () => {
     expect(result.code).toBe("PROFILE_ALREADY_RUNNING");
     expect(result.message).toContain("already running with a different proxy");
     expect(result.message).not.toContain(INTERNAL_SENTENCE);
+  });
+
+  it("launches through the adapter bound to readiness rather than a later adapter", async () => {
+    const boundAdapter: Pick<AntidetectAdapter, "applyProxy" | "launchProfile"> = {
+      applyProxy: vi.fn(async () => {}),
+      launchProfile: vi.fn(async (profileId: string) => ({ profileId })),
+    };
+    const laterAdapter: Pick<AntidetectAdapter, "applyProxy" | "launchProfile"> = {
+      applyProxy: vi.fn(async () => {}),
+      launchProfile: vi.fn(async (profileId: string) => ({ profileId: `later-${profileId}` })),
+    };
+    const getAdapter = vi.fn(() => laterAdapter);
+    const antidetect = {
+      requireOperationalAdapter: async () => boundAdapter,
+      getAdapter,
+      forgetProbe: vi.fn(),
+    } as unknown as RelayAntidetect;
+
+    const result = await launchProfileFromTicket(payload(), antidetect, "operation-bound-adapter");
+
+    expect(result).toMatchObject({ ok: true });
+    expect(boundAdapter.launchProfile).toHaveBeenCalledOnce();
+    expect(laterAdapter.launchProfile).not.toHaveBeenCalled();
+    expect(getAdapter).not.toHaveBeenCalled();
   });
 });

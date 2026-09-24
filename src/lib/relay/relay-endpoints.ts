@@ -270,7 +270,7 @@ export const RELAY_PROFILE_WORK_TIMEOUT_MS = 60_000;
  * tăng bằng tay: tự sinh theo git hash thì nó đổi ở mọi lượt build, và một số đổi liên tục thì
  * cảnh báo "bản cũ" kêu liên tục cho tới lúc không ai còn nhìn.
  */
-export const RELAY_VERSION = 19;
+export const RELAY_VERSION = 20;
 
 /**
  * Một profile antidetect như cầu nối khai ra ở `GET /profiles`.
@@ -304,6 +304,7 @@ export interface RelayFingerprintOptions {
 export const RELAY_PROFILE_FAILURE_STAGES = [
   "not-configured",
   "browser-health",
+  "profile-read",
   "profile-list",
   "fingerprint-options",
 ] as const;
@@ -337,6 +338,8 @@ export interface RelayBrowserHealth {
   /** Contract v6 local install observation. Omitted or invalid values remain non-operational. */
   localInstallReadiness?: MktBrowserLocalInstallReadiness;
   licenseCapacity?: MktBrowserLicenseCapacity | null;
+  /** The bounded runtime observation expired before it could establish Browser state. */
+  runtimeObservation?: "timeout";
 }
 
 export interface RelayOperationDiagnostic {

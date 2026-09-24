@@ -33,6 +33,12 @@ export const RELAY_READINESS_BUDGET_MS = 2_500;
  */
 export type AntidetectRuntimeHealth = RelayBrowserHealth;
 
+interface RuntimeAdapterSnapshot {
+  token: string;
+  generation: number;
+  adapter: MktBrowserAdapter;
+}
+
 function offlineRuntime(): AntidetectRuntimeHealth {
   return {
     ready: false,
@@ -45,6 +51,32 @@ function offlineRuntime(): AntidetectRuntimeHealth {
     capabilities: [],
     licenseCapacity: null,
   };
+}
+
+function timedOutRuntime(): AntidetectRuntimeHealth {
+  return { ...offlineRuntime(), runtimeObservation: "timeout" };
+}
+
+function waitForRuntimeObservation(
+  observation: Promise<AntidetectRuntimeHealth>,
+  timeoutMs: number,
+): Promise<AntidetectRuntimeHealth> {
+  const budget = Math.min(RELAY_READINESS_BUDGET_MS, timeoutMs);
+  if (!Number.isFinite(budget) || budget <= 0) return Promise.resolve(timedOutRuntime());
+
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => resolve(timedOutRuntime()), Math.ceil(budget));
+    void observation.then(
+      (health) => {
+        clearTimeout(timer);
+        resolve(health);
+      },
+      () => {
+        clearTimeout(timer);
+        resolve(offlineRuntime());
+      },
+    );
+  });
 }
 
 export class AntidetectNotConfiguredError extends Error {
@@ -101,6 +133,20 @@ export class RelayAntidetect {
     return this.getMktBrowserAdapterForToken(token);
   }
 
+  private captureRuntimeAdapter(): RuntimeAdapterSnapshot {
+    const token = this.token;
+    if (!this.config || !token) throw new AntidetectNotConfiguredError();
+    const adapter = this.getMktBrowserAdapterForToken(token);
+    return { token, generation: this.adapterGeneration, adapter };
+  }
+
+  private isCurrentRuntimeAdapter(snapshot: RuntimeAdapterSnapshot): boolean {
+    return this.token === snapshot.token &&
+      this.adapterGeneration === snapshot.generation &&
+      this.adapter === snapshot.adapter &&
+      this.adapterToken === snapshot.token;
+  }
+
   private getMktBrowserAdapterForToken(token: string): MktBrowserAdapter {
     if (!this.config) throw new AntidetectNotConfiguredError();
     const baseUrl = resolveMktBrowserMcpUrl(
@@ -144,30 +190,45 @@ export class RelayAntidetect {
    * Bốn tầng của máy này trong một lượt hỏi: chạy chưa, là sản phẩm nào, hợp đồng bản mấy, nhân
    * trình duyệt tới đâu. Không cache — người đọc trang này đang muốn biết TÌNH TRẠNG BÂY GIỜ.
    */
-  async describeRuntime(): Promise<AntidetectRuntimeHealth> {
-    const token = this.token;
-    if (!token || !this.config) return offlineRuntime();
-
-    const adapter = this.getMktBrowserAdapterForToken(token);
-    const generation = this.adapterGeneration;
-    const active = this.runtimeObservation;
-    if (active && active.token === token && active.generation === generation) {
-      return await active.promise;
-    }
-
-    const promise = this.observeRuntime(token, generation, adapter);
-    this.runtimeObservation = { token, generation, promise };
+  async describeRuntime(timeoutMs: number = RELAY_READINESS_BUDGET_MS): Promise<AntidetectRuntimeHealth> {
     try {
-      return await promise;
-    } finally {
-      if (this.runtimeObservation?.promise === promise) this.runtimeObservation = null;
+      return await this.describeRuntimeFor(this.captureRuntimeAdapter(), timeoutMs);
+    } catch (error) {
+      if (error instanceof AntidetectNotConfiguredError) return offlineRuntime();
+      throw error;
     }
+  }
+
+  private async describeRuntimeFor(
+    snapshot: RuntimeAdapterSnapshot,
+    timeoutMs: number,
+  ): Promise<AntidetectRuntimeHealth> {
+    const active = this.runtimeObservation;
+    if (active && active.token === snapshot.token && active.generation === snapshot.generation) {
+      return await waitForRuntimeObservation(active.promise, timeoutMs);
+    }
+
+    // The shared operation keeps the full health budget. Individual callers can stop waiting
+    // sooner without turning their deadline into a false offline result for another caller.
+    const promise = this.observeRuntime(
+      snapshot.token,
+      snapshot.generation,
+      snapshot.adapter,
+      RELAY_READINESS_BUDGET_MS,
+    );
+    this.runtimeObservation = { token: snapshot.token, generation: snapshot.generation, promise };
+    const clearRuntimeObservation = () => {
+      if (this.runtimeObservation?.promise === promise) this.runtimeObservation = null;
+    };
+    void promise.then(clearRuntimeObservation, clearRuntimeObservation);
+    return await waitForRuntimeObservation(promise, timeoutMs);
   }
 
   private async observeRuntime(
     token: string,
     generation: number,
     adapter: MktBrowserAdapter,
+    timeoutMs: number,
   ): Promise<AntidetectRuntimeHealth> {
     const offline = offlineRuntime();
 
@@ -175,7 +236,7 @@ export class RelayAntidetect {
 
     let observation: Awaited<ReturnType<MktBrowserAdapter["observeRuntimeInfo"]>>;
     try {
-      observation = await adapter.observeRuntimeInfo(RELAY_READINESS_BUDGET_MS);
+      observation = await adapter.observeRuntimeInfo(timeoutMs);
     } catch {
       // Máy không trả lời cũng là một câu trả lời: giữ nguyên trạng thái ngoại tuyến.
       return offline;
@@ -206,17 +267,46 @@ export class RelayAntidetect {
         ? { localInstallReadiness: info.localInstallReadiness }
         : {}),
       licenseCapacity: info?.licenseCapacity ?? null,
+      ...(observation.timedOut ? { runtimeObservation: "timeout" as const } : {}),
     };
   }
 
-  async requireOperationalRuntime(): Promise<AntidetectRuntimeHealth> {
-    const health = await this.describeRuntime();
+  private async requireOperationalSnapshot(timeoutMs?: number): Promise<{
+    health: AntidetectRuntimeHealth;
+    adapter: MktBrowserAdapter;
+  }> {
+    const snapshot = this.captureRuntimeAdapter();
+    const health = await this.describeRuntimeFor(
+      snapshot,
+      timeoutMs ?? RELAY_READINESS_BUDGET_MS,
+    );
+
+    if (!this.isCurrentRuntimeAdapter(snapshot)) {
+      if (!this.token) throw new AntidetectNotConfiguredError();
+      throw new AntidetectRuntimeNotReadyError(
+        "MKT Browser changed its local MCP connection while readiness was being checked. Check again before managing profiles.",
+        "BROWSER_OFFLINE",
+      );
+    }
+
     const readiness = currentDeviceBrowserReadiness(health, REQUIRED_SETUP_BROWSER_CAPABILITIES);
     const code = currentDeviceBrowserFailureCode(readiness.state);
     if (!readiness.ready && code) {
       throw new AntidetectRuntimeNotReadyError(readiness.message, code);
     }
-    return health;
+    return { health, adapter: snapshot.adapter };
+  }
+
+  async requireOperationalRuntime(timeoutMs?: number): Promise<AntidetectRuntimeHealth> {
+    return (await this.requireOperationalSnapshot(timeoutMs)).health;
+  }
+
+  /**
+   * Bind a profile action to the exact local MCP credential that passed readiness. A token rotation
+   * may make that action fail safely, but must never switch it to an unvalidated new credential.
+   */
+  async requireOperationalAdapter(timeoutMs?: number): Promise<AntidetectAdapter> {
+    return (await this.requireOperationalSnapshot(timeoutMs)).adapter;
   }
 
   async refreshLicenseCapacity() {

@@ -48,7 +48,7 @@ describe("unrelated ticket kinds keep the base Relay floor", () => {
   });
 });
 
-describe("managed profile operations require Relay version 7", () => {
+describe("managed profile operations require Relay version 20", () => {
   it.each([
     [
       TICKET_KINDS.LAUNCH_PROFILE,
@@ -83,14 +83,12 @@ describe("managed profile operations require Relay version 7", () => {
       recipient,
     );
 
-    // The capability requirement is still 7 — that is when the managed-browser contract arrived,
-    // and it does not change. What the ticket *carries* is the higher of that and the security
-    // floor, so assert the table and the wire separately rather than assuming they are equal.
-    // They were equal until MIN_RELAY_VERSION was raised to 13 on 18 August 2026; conflating them
-    // is what C39 was.
-    expect(MIN_RELAY_VERSION_BY_KIND[_kind]).toBe(7);
+    // v20 is the first Relay with the bounded Browser-read contract required by profile actions.
+    // Assert the capability floor and the signed wire value independently so a later global floor
+    // cannot accidentally restore access for Relay 19.
+    expect(MIN_RELAY_VERSION_BY_KIND[_kind]).toBe(20);
     expect(minRelayVersionOf(ticket)).toBe(effectiveMinRelayVersion(_kind));
-    expect(minRelayVersionOf(ticket)).toBeGreaterThanOrEqual(MIN_RELAY_VERSION);
+    expect(minRelayVersionOf(ticket)).toBe(20);
   });
 
   /** Thêm loại vé mà quên khai bảng thì nó âm thầm lấy sàn chung — bài này bắt chuyện đó. */
