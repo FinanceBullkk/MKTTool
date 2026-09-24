@@ -46,8 +46,8 @@ import {
   makeTempHome,
   prepareRelayCandidate,
   relayCall,
-  removeTempHome,
   startRelay,
+  stopRelayAndRemoveTempHomes,
 } from "./relay-executable-harness";
 
 const DEVICE_ID = "smoke-device-0001";
@@ -103,8 +103,14 @@ async function run() {
 
   // Một lượt chạy duy nhất cho cả bài: từ bản 2, cấu hình nạp nóng nên không còn chỗ nào phải
   // tắt/bật lại giữa chừng — và chính điều đó là thứ bài này đang chứng minh.
-  let relay = await startRelay(home, candidate.executablePath);
+  let relay: Awaited<ReturnType<typeof startRelay>> | null = null;
+  const launchRelay = async () => startRelay(home, candidate.executablePath, {
+    onSpawn: (running) => {
+      relay = running;
+    },
+  });
   try {
+    relay = await launchRelay();
     console.log("Lượt 1 — chưa có file cấu hình");
     const bare = await relayCall(RELAY_PATHS.health);
     check("cầu nối chạy và trả lời", bare.publicKey !== undefined);
@@ -286,7 +292,7 @@ async function run() {
     console.log("\nLượt 4 — dừng, khởi động lại đúng EXE + đúng home");
     relay.stop();
     await relay.waitForExit();
-    relay = await startRelay(home, candidate.executablePath);
+    relay = await launchRelay();
     const afterRestart = await relayCall(RELAY_PATHS.health);
     check("Relay khởi động lại và giữ cấu hình", afterRestart.deviceId === DEVICE_ID);
 
@@ -335,7 +341,7 @@ async function run() {
     console.log("Lượt 5 — forced termination rồi restart");
     relay.forceStop();
     await relay.waitForExit();
-    relay = await startRelay(home, candidate.executablePath);
+    relay = await launchRelay();
     const replayAfterCrash = await relayCall(SECRET_REVEAL_PATH, { ticket: freshCredential });
     check(
       "vé đã tiêu vẫn bị chặn sau forced termination",
@@ -350,13 +356,13 @@ async function run() {
     relay.stop();
     await relay.waitForExit();
     writeFileSync(journalPath, "[{\"jti\":", "utf8");
-    relay = await startRelay(home, candidate.executablePath);
+    relay = await launchRelay();
     const corruptHealth = await relayCall(RELAY_PATHS.health);
     check("journal hỏng làm Relay không sẵn sàng", corruptHealth.ok === false, String(corruptHealth.message));
     relay.stop();
     await relay.waitForExit();
     writeFileSync(journalPath, journalBytes);
-    relay = await startRelay(home, candidate.executablePath);
+    relay = await launchRelay();
 
     const expired = issueTicket(
       {
@@ -478,12 +484,15 @@ async function run() {
     check("accepts only the matching finalization and closes", finalized.ok === true, String(finalized.message));
   } catch (error) {
     console.error(`\nĐỏ giữa chừng: ${(error as Error).message}`);
-    console.error(relay.output());
+    if (relay) console.error(relay.output());
     failures++;
   } finally {
-    relay.stop();
-    removeTempHome(home);
-    removeTempHome(candidate.stagingDir);
+    try {
+      await stopRelayAndRemoveTempHomes(relay, [home, candidate.stagingDir]);
+    } catch (error) {
+      console.error(`\nĐỏ khi dọn Relay: ${(error as Error).message}`);
+      failures++;
+    }
   }
 
   console.log(

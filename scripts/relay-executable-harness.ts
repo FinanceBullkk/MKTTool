@@ -139,6 +139,11 @@ export interface RunningRelay {
   waitForExit(timeoutMs?: number): Promise<number | null>;
 }
 
+const CLEANUP_GRACEFUL_EXIT_TIMEOUT_MS = 10_000;
+const CLEANUP_FORCED_EXIT_TIMEOUT_MS = 5_000;
+const TEMP_HOME_DELETE_RETRIES = 10;
+const TEMP_HOME_DELETE_RETRY_DELAY_MS = 100;
+
 export function isRelayInitializationComplete(value: unknown): boolean {
   if (!value || typeof value !== "object") return false;
   const health = value as Record<string, unknown>;
@@ -156,8 +161,9 @@ function isFailedRelayStartup(value: unknown): boolean {
     (value as Record<string, unknown>).startupState === "failed";
 }
 
-function stopRelayProcess(child: ChildProcess, signal: NodeJS.Signals): void {
-  if (child.exitCode !== null || child.killed) return;
+export function stopRelayProcess(child: ChildProcess, signal: NodeJS.Signals): void {
+  // `child.killed` only means Node sent a signal; it does not prove that the process exited.
+  if (child.exitCode !== null || child.signalCode !== null) return;
   if (process.platform === "win32" && child.pid) {
     try {
       // The bootstrap process supervises a protected-state child, so terminate this known test
@@ -179,6 +185,8 @@ export interface RelayExecutableLaunchOptions {
   fixtureExtraCaCertPath?: string;
   /** Lets fixtures prove that inherited Node trust overrides cannot leak into the child. */
   inheritedEnvironment?: Record<string, string | undefined>;
+  /** Records the child before polling so failed startup still has an owner for cleanup. */
+  onSpawn?: (relay: RunningRelay) => void;
 }
 
 export function relayExecutableEnvironment(
@@ -278,6 +286,7 @@ export async function startRelay(
         });
       }),
   };
+  options.onSpawn?.(running);
 
   const deadline = Date.now() + STARTUP_TIMEOUT_MS;
   while (Date.now() < deadline) {
@@ -295,13 +304,13 @@ export async function startRelay(
     }
     if (isRelayInitializationComplete(health)) return running;
     if (isFailedRelayStartup(health)) {
-      running.stop();
+      await stopRelayAndRemoveTempHomes(running, []);
       throw new Error("Relay reported a failed startup.");
     }
     await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
   }
 
-  running.stop();
+  await stopRelayAndRemoveTempHomes(running, []);
   throw new Error(`Cầu nối không mở cổng sau ${STARTUP_TIMEOUT_MS / 1000}s:\n${log}`);
 }
 
@@ -331,11 +340,30 @@ export async function relayCall(
   return (await response.json()) as Record<string, unknown>;
 }
 
-/** Dọn thư mục tạm. Nuốt lỗi: một file khóa còn bị Windows giữ không đáng làm đỏ cả bài kiểm. */
+/** Remove verifier-owned temp data only after the executable has released its file handles. */
 export function removeTempHome(home: string): void {
-  try {
-    rmSync(home, { recursive: true, force: true });
-  } catch {
-    console.warn(`(không xóa được thư mục tạm ${home} — xóa tay khi rảnh)`);
+  rmSync(home, {
+    recursive: true,
+    force: true,
+    maxRetries: TEMP_HOME_DELETE_RETRIES,
+    retryDelay: TEMP_HOME_DELETE_RETRY_DELAY_MS,
+  });
+  if (existsSync(home)) throw new Error(`Relay verifier cleanup left temporary directory: ${home}`);
+}
+
+/** Stop the known test process tree before deleting its executable and protected-state homes. */
+export async function stopRelayAndRemoveTempHomes(
+  relay: RunningRelay | null,
+  homes: readonly string[],
+): Promise<void> {
+  if (relay) {
+    relay.stop();
+    if (await relay.waitForExit(CLEANUP_GRACEFUL_EXIT_TIMEOUT_MS) === null) {
+      relay.forceStop();
+      if (await relay.waitForExit(CLEANUP_FORCED_EXIT_TIMEOUT_MS) === null) {
+        throw new Error("Relay verifier cleanup could not confirm process exit.");
+      }
+    }
   }
+  for (const home of homes) removeTempHome(home);
 }
