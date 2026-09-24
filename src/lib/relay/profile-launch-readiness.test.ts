@@ -95,6 +95,28 @@ describe("currentRelayLaunchReadiness", () => {
     ).toMatchObject({ ready: false, state: "relay-outdated" });
   });
 
+  it.each([
+    ["pending", "RELAY_STARTUP_PENDING", "relay-starting"],
+    ["failed", "RELAY_STARTUP_FAILED", "relay-startup-failed"],
+  ] as const)("keeps Relay startup %s fail-closed before launch", (startupState, code, state) => {
+    const readiness = currentRelayLaunchReadiness({
+      status: "rejected",
+      message: "private startup detail",
+      data: {
+        ...HEALTH,
+        ok: false,
+        startupState,
+        code,
+        configured: false,
+        antidetectReady: false,
+      },
+      relayVersion: RELAY_VERSION,
+    });
+
+    expect(readiness).toMatchObject({ ready: false, state });
+    expect(readiness.message).not.toContain("private startup detail");
+  });
+
   it("surfaces measured recovery and capacity blockers before launch", () => {
     const licensed: RelayHealth & RelayReply = {
       ...HEALTH,

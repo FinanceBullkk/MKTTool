@@ -21,7 +21,9 @@
 import { createHash } from "node:crypto";
 import {
   assertWindowsInstallerCandidateArtifacts,
+  assertWindowsInstallerCandidateCanBePublished,
   WINDOWS_INSTALLER_CANDIDATE,
+  WINDOWS_INSTALLER_PROFILE_ACTION_RELAY_FLOOR,
 } from "../src/lib/setup/windows-installer-candidate";
 import { readFileSync } from "node:fs";
 import path from "node:path";
@@ -39,13 +41,15 @@ import {
 } from "../src/lib/setup/windows-installer-release";
 import { parseWindowsInstallerReleaseMetadata } from "../src/lib/setup/windows-installer-release-metadata";
 import { WINDOWS_INSTALLER_FILE_NAME } from "../src/lib/setup/windows-installer-file";
-import { MIN_RELAY_VERSION } from "../src/lib/tickets/ticket-types";
 
 function flag(name: string): string | undefined {
   return process.argv.find((arg) => arg.startsWith(`--${name}=`))?.slice(name.length + 3);
 }
 
 async function main(): Promise<void> {
+  // Retaining a measured historical tuple must never make it publishable again.
+  assertWindowsInstallerCandidateCanBePublished();
+
   const filePath = flag("file")?.trim();
   const version = flag("version")?.trim();
   const candidateId = flag("candidate-id")?.trim();
@@ -97,9 +101,9 @@ async function main(): Promise<void> {
   // Chốt chặn dựng lên từ lỗi tệ nhất của đợt pilot 18/08/2026: MKT Browser 0.3.1 mang cầu nối bản
   // 12 trong khi sàn đã lên 13, nên mọi máy cài xong đều bị từ chối — và đường phát hành đi ngang
   // qua đây mà không hề biết. Nay nó biết, và nó dừng lại.
-  if (relayVersion < MIN_RELAY_VERSION) {
+  if (relayVersion < WINDOWS_INSTALLER_PROFILE_ACTION_RELAY_FLOOR) {
     console.error(
-      `\n⛔ Gói này mang cầu nối bản ${relayVersion}, dưới sàn ${MIN_RELAY_VERSION} máy chủ đang đòi.\n\n` +
+      `\n⛔ Gói này mang cầu nối bản ${relayVersion}, dưới sàn ${WINDOWS_INSTALLER_PROFILE_ACTION_RELAY_FLOOR} máy chủ đang đòi.\n\n` +
         "Máy nào cài xong cũng bị từ chối mọi tấm vé, và cài một cầu nối mới TRƯỚC cũng không cứu\n" +
         "được — lần cài trình duyệt kế tiếp lại kéo nó xuống. Ghim lại payload rồi dựng lại gói.\n\n" +
         "KHÔNG phát hành.\n",
@@ -164,7 +168,7 @@ async function main(): Promise<void> {
 
   console.log(`Đang đẩy ${path.basename(resolved)} — ${formatFileSize(sizeBytes)}`);
   console.log(`  bản        ${version}`);
-  console.log(`  cầu nối    ${relayVersion} (sàn hiện tại ${MIN_RELAY_VERSION})`);
+  console.log(`  cầu nối    ${relayVersion} (sàn hiện tại ${WINDOWS_INSTALLER_PROFILE_ACTION_RELAY_FLOOR})`);
   console.log(`  SHA-256    ${sha256}`);
 
   const publishedMetadata = {

@@ -2,7 +2,7 @@ import { RELAY_VERSION } from "@/lib/relay/relay-endpoints";
 import type { SetupRelayHealth, SetupUpdateState } from "./setup-state-types";
 
 export function currentSetupUpdateState(relay: SetupRelayHealth): SetupUpdateState {
-  if (relay.status === "checking") return { status: "starting" };
+  if (relay.status === "checking" || relay.status === "starting") return { status: "starting" };
   if (relay.status !== "responded") return { status: "current" };
 
   const { health } = relay;

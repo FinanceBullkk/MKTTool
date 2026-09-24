@@ -17,6 +17,40 @@ afterEach(() => {
 });
 
 describe("Relay health route", () => {
+  it("answers pending startup without probing MKT Browser or exposing an identity", async () => {
+    const describeRuntime = vi.fn(async () => ({
+      ready: true,
+      provider: "mkt-browser",
+      appVersion: "1.0.0",
+      contractVersion: 6,
+      contractCompatible: true,
+      contractProblem: "",
+      engine: null,
+      capabilities: [],
+    }));
+    const health = createRelayHealthRoute({
+      currentState: () => ({ problems: [], webOrigin: CONFIG.webOrigin, deviceId: CONFIG.deviceId }),
+      describeRuntime,
+      publicKey: "public-key",
+      notConfiguredMessage: () => "Relay needs setup.",
+      pendingRetirement: () => null,
+      retirementHealth: () => ({ ok: false, message: "Retirement is pending." }),
+      compatibilityUpdate: { value: undefined },
+      startupState: () => "pending",
+    });
+
+    await expect(health({} as never, "")).resolves.toMatchObject({
+      ok: false,
+      code: "RELAY_STARTUP_PENDING",
+      startupState: "pending",
+      configured: false,
+      antidetectReady: false,
+      browser: { ready: false },
+    });
+    await expect(health({} as never, "")).resolves.not.toHaveProperty("publicKey");
+    expect(describeRuntime).not.toHaveBeenCalled();
+  });
+
   it("keeps protected compatibility state out of a bounded slow-MCP health request", async () => {
     vi.useFakeTimers();
     const readProtectedState = vi.fn(() => null);

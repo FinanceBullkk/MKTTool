@@ -21,8 +21,11 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { MIN_RELAY_VERSION } from "@/lib/tickets/ticket-types";
-import { WINDOWS_INSTALLER_CANDIDATE } from "./windows-installer-candidate";
+import {
+  assertWindowsInstallerCandidateCanBePublished,
+  WINDOWS_INSTALLER_CANDIDATE,
+  WINDOWS_INSTALLER_PROFILE_ACTION_RELAY_FLOOR,
+} from "./windows-installer-candidate";
 
 const NGUON = readFileSync(
   path.join(process.cwd(), "scripts", "publish-windows-installer.ts"),
@@ -30,12 +33,19 @@ const NGUON = readFileSync(
 );
 
 describe("publish-windows-installer", () => {
-  it("compares the bundled Relay version with the floor and exits non-zero when it is lower", () => {
-    expect(NGUON).toContain("MIN_RELAY_VERSION");
-    expect(NGUON).toMatch(/if \(relayVersion < MIN_RELAY_VERSION\)/);
+  it("rejects the quarantined tuple at the active profile-action floor before R2 access", () => {
+    expect(WINDOWS_INSTALLER_CANDIDATE.relayVersion).toBeLessThan(
+      WINDOWS_INSTALLER_PROFILE_ACTION_RELAY_FLOOR,
+    );
+    expect(() => assertWindowsInstallerCandidateCanBePublished()).toThrow(/profile-action.*v20/i);
+    expect(NGUON).toContain("assertWindowsInstallerCandidateCanBePublished()");
     // Chốt chặn phải DỪNG, không chỉ cảnh báo. Một dòng in đỏ rồi vẫn đẩy lên là đúng thứ đã xảy ra.
-    const chot = NGUON.slice(NGUON.indexOf("if (relayVersion < MIN_RELAY_VERSION)"));
-    expect(chot.slice(0, chot.indexOf("\n  }"))).toContain("process.exit(1)");
+    const publicationGate = NGUON.indexOf(
+      "assertWindowsInstallerCandidateCanBePublished()",
+      NGUON.indexOf("async function main"),
+    );
+    expect(publicationGate).toBeGreaterThanOrEqual(0);
+    expect(publicationGate).toBeLessThan(NGUON.indexOf("readR2Config(process.env"));
   });
 
   it("requires --relay-version and does not invent a value when it is missing", () => {
@@ -49,17 +59,14 @@ describe("publish-windows-installer", () => {
     expect(NGUON).toContain("WINDOWS_INSTALLER_RELAY_VERSION_METADATA_KEY");
   });
 
-  it("locks publication to the reviewed candidate instead of a stale Relay literal", () => {
+  it("locks publication to the quarantined historical tuple instead of a stale Relay literal", () => {
     expect(NGUON).toContain("WINDOWS_INSTALLER_CANDIDATE.relayVersion");
     expect(NGUON).toContain('requiredPositiveInteger(relay.targetVersion, "relay.targetVersion")');
     expect(WINDOWS_INSTALLER_CANDIDATE.relayVersion).toBe(19);
+    expect(WINDOWS_INSTALLER_CANDIDATE.promotionStatus).toBe("quarantined");
     expect(NGUON).not.toContain("relayVersion !== 16");
     expect(NGUON).not.toContain("expected.relayVersion !== 16");
     expect(NGUON).not.toContain("relayVersion: 16");
   });
 
-  it("keeps the current floor positive so the comparison is meaningful", () => {
-    expect(Number.isSafeInteger(MIN_RELAY_VERSION)).toBe(true);
-    expect(MIN_RELAY_VERSION).toBeGreaterThan(0);
-  });
 });

@@ -61,6 +61,17 @@ describe("relayDeviceLocality", () => {
     expect(relayDeviceLocality(rejected, TARGET).state).toBe("unverified");
   });
 
+  it("does not match a Relay while its protected startup state is pending or failed", () => {
+    for (const startupState of ["pending", "failed"] as const) {
+      const locality = relayDeviceLocality(ok({ ...HEALTH, startupState }), TARGET);
+
+      expect(locality).toMatchObject({ state: "unverified" });
+      expect(locality.state === "unverified" && locality.note).toContain(
+        startupState === "pending" ? "still starting" : "could not finish starting",
+      );
+    }
+  });
+
   it("keeps the action when Relay is offline so a user click can retry", () => {
     const unreachable: RelayOutcome<RelayHealth & RelayReply> = {
       status: "unreachable",

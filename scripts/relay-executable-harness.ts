@@ -139,6 +139,41 @@ export interface RunningRelay {
   waitForExit(timeoutMs?: number): Promise<number | null>;
 }
 
+export function isRelayInitializationComplete(value: unknown): boolean {
+  if (!value || typeof value !== "object") return false;
+  const health = value as Record<string, unknown>;
+  return (
+    health.startupState === undefined &&
+    typeof health.publicKey === "string" &&
+    /^[0-9a-f]{64}$/i.test(health.publicKey) &&
+    Number.isSafeInteger(health.relayVersion) &&
+    Number(health.relayVersion) > 0
+  );
+}
+
+function isFailedRelayStartup(value: unknown): boolean {
+  return !!value && typeof value === "object" &&
+    (value as Record<string, unknown>).startupState === "failed";
+}
+
+function stopRelayProcess(child: ChildProcess, signal: NodeJS.Signals): void {
+  if (child.exitCode !== null || child.killed) return;
+  if (process.platform === "win32" && child.pid) {
+    try {
+      // The bootstrap process supervises a protected-state child, so terminate this known test
+      // process tree rather than leaving the operational child on the fixed Relay port.
+      execFileSync("taskkill.exe", ["/pid", String(child.pid), "/t", "/f"], {
+        stdio: "ignore",
+        windowsHide: true,
+      });
+      return;
+    } catch {
+      // Fall through to Node's best-effort signal when taskkill cannot find an already-exited PID.
+    }
+  }
+  child.kill(signal);
+}
+
 export interface RelayExecutableLaunchOptions {
   /** A disposable CA is allowed only for an explicitly launched integration-fixture child. */
   fixtureExtraCaCertPath?: string;
@@ -225,10 +260,10 @@ export async function startRelay(
   const running: RunningRelay = {
     output: () => log,
     stop: () => {
-      child.kill("SIGTERM");
+      stopRelayProcess(child, "SIGTERM");
     },
     forceStop: () => {
-      child.kill();
+      stopRelayProcess(child, "SIGKILL");
     },
     waitForExit: (timeoutMs = 10_000) =>
       new Promise((resolve) => {
@@ -250,12 +285,20 @@ export async function startRelay(
       throw new Error(`Cầu nối tắt ngay khi vừa bật (mã ${exited}):\n${log}`);
     }
 
+    let health: unknown;
     try {
-      await fetch(`${RELAY_ORIGIN}/health`);
-      return running;
+      const response = await fetch(`${RELAY_ORIGIN}/health`);
+      health = await response.json() as unknown;
     } catch {
       await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+      continue;
     }
+    if (isRelayInitializationComplete(health)) return running;
+    if (isFailedRelayStartup(health)) {
+      running.stop();
+      throw new Error("Relay reported a failed startup.");
+    }
+    await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
   }
 
   running.stop();

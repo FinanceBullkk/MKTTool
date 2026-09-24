@@ -1,6 +1,30 @@
 # Lộ trình phát triển
 
-**Updated:** 24 September 2026
+**Updated:** 25 September 2026
+
+## Relay cold-start source repair - 25 September 2026
+
+Relay now has a small bootstrap parent that binds its loopback port before any DPAPI-backed
+compatibility or identity read. Until the protected same-user child has initialized and taken over,
+health returns only the fail-closed `RELAY_STARTUP_PENDING` or `RELAY_STARTUP_FAILED` state; it
+contains no Relay public key and every action route is blocked. The parent keeps supervising the
+runtime child, has a 30-second startup window, terminates the child on timeout or supervisor exit,
+and refuses to invent a healthy result if another local process takes the port during handoff.
+
+Setup, locality, and profile readiness now map those two states to distinct recovery guidance rather
+than calling a responding bootstrap listener a usable Relay. The executable harness waits for an
+initialized health body (public key, positive Relay version, no startup state), and Windows harness
+cleanup terminates the known bootstrap process tree so a test cannot leave a child on the fixed port.
+The historical Browser `0.3.25` / Relay `19` tuple is explicitly quarantined: publication checks the
+current profile-action Relay floor and stops before R2 access because profile actions require Relay
+20 or newer.
+
+**PASS (local source scope):** `npm run test:relay` 527/527; `npm run test:no-db` 2,089/2,089 across
+215 non-destructive test files; `npm run typecheck`; `npm run lint`; and `git diff --check`. The full
+database suite remains **BLOCKED** by the missing test-schema tables and was not reclassified as a
+pass. This is not packaged-SEA, immutable-candidate, VM, public-TLS, human, second-PC, canary, or
+identity evidence. No push, Railway deployment, publication, or promotion is recorded; `G2-IDENTITY=FAIL`
+remains unchanged.
 
 ## Relay cold-start, TLS, and profile source checkpoint - 24 September 2026
 

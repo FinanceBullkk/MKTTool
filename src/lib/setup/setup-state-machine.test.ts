@@ -43,6 +43,7 @@ const derive = (overrides: Partial<SetupStateMachineInput> = {}) =>
 describe("setupStateMachine", () => {
   it.each([
     ["Starting", { relay: { status: "checking" } }],
+    ["Starting", { relay: { status: "starting" } }],
     ["Sign in", { session: { status: "signed-out" } }],
     ["Confirm this PC", { relay: { status: "unchecked" } }],
     [
@@ -51,6 +52,7 @@ describe("setupStateMachine", () => {
     ],
     ["Ready", {}],
     ["Needs repair", { relay: { status: "permission-denied" } }],
+    ["Needs repair", { relay: { status: "startup-failed" } }],
     ["Unable to verify", { relay: { status: "timeout" } }],
     ["Unable to verify", { relay: { status: "indeterminate" } }],
   ] as const)("derives %s with exactly one primary action", (state, overrides) => {
@@ -129,6 +131,8 @@ describe("setupStateMachine", () => {
 
   it.each([
     ["unchecked", "Confirm this PC", "CONFIRM"],
+    ["starting", "Starting", "WAIT"],
+    ["startup-failed", "Needs repair", "RETRY"],
     ["permission-denied", "Needs repair", "RETRY"],
     ["timeout", "Unable to verify", "RETRY"],
     ["indeterminate", "Unable to verify", "RETRY"],

@@ -1,5 +1,23 @@
 # Project changelog
 
+## 2026-09-25 - Relay bootstrap cold-start source repair
+
+- Start Relay through a loopback bootstrap parent before protected DPAPI initialization. Pending and
+  failed startup responses expose no public identity and block every local action; the runtime child
+  takes the port only after initialization, remains supervised, and is terminated on timeout or
+  parent shutdown. Process regressions cover delayed initialization, supervisor shutdown, late
+  child results, compatibility handoff, port seizure, and bounded timeout cleanup.
+- Map pending/failed startup through setup, Relay-PC locality, and profile readiness with explicit
+  recovery guidance. The executable harness rejects an HTTP-responsive bootstrap as uninitialized
+  and Windows test cleanup removes the known process tree.
+- Quarantine the historical Browser `0.3.25` / Relay `19` candidate. The publisher now rejects it
+  before R2 access because Relay 20 is the active profile-action floor; retained v19 bytes are not
+  promotion evidence.
+- Source checks pass: Relay 527/527, non-destructive suite 2,089/2,089, typecheck, lint, and
+  whitespace validation. The destructive full database suite, exact SEA/package, fresh tuple,
+  clean VM, public TLS, human, second-PC, and canary gates remain OPEN/BLOCKED. No push, deployment,
+  publication, or promotion occurred; `G2-IDENTITY=FAIL` remains unchanged.
+
 ## 2026-09-24 - Relay cold-start, TLS, and profile source checkpoint
 
 - Add Browser contract 6 `install-readiness-v1`: health can return while the bounded Windows

@@ -118,6 +118,27 @@ describe("profileSetupReadiness", () => {
     expect(JSON.stringify(state)).not.toMatch(/cb_live|203\.0\.113|1080|Relay update required/);
   });
 
+  it.each([
+    ["RELAY_STARTUP_PENDING", "relay-starting"],
+    ["RELAY_STARTUP_FAILED", "relay-startup-failed"],
+  ] as const)("keeps %s fail-closed before profile readiness", (code, state) => {
+    const startup: RelayOutcome<RelayProfilesReply> = {
+      status: "rejected",
+      message: "private startup detail",
+      relayVersion: PROFILE_ACTION_RELAY_VERSION,
+      data: {
+        ok: false,
+        relayVersion: PROFILE_ACTION_RELAY_VERSION,
+        message: "private startup detail",
+        code,
+      },
+    };
+
+    const result = profileSetupReadiness(startup, health());
+    expect(result).toMatchObject({ kind: "blocked", state });
+    expect(JSON.stringify(result)).not.toContain("private startup detail");
+  });
+
   it("keeps an internal profile-read deadline distinct from an ordinary inventory failure", () => {
     const profileTimeout: RelayOutcome<RelayProfilesReply> = {
       status: "rejected",

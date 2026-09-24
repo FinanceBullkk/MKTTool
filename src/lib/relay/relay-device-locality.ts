@@ -47,6 +47,12 @@ const RELAY_INDETERMINATE_NOTE =
 
 const RELAY_SILENT_NOTE = "Relay answered without reporting which PC it belongs to.";
 
+const RELAY_STARTING_NOTE =
+  "Relay is still starting on this PC, so it cannot be matched to a record yet.";
+
+const RELAY_STARTUP_FAILED_NOTE =
+  "Relay could not finish starting on this PC, so it cannot be matched to a record yet.";
+
 const RELAY_UNCONFIGURED_NOTE =
   "This is the right PC, but its Relay has not finished setup. Open Setup here first.";
 
@@ -71,6 +77,8 @@ export function relayDeviceLocality(
               : RELAY_OFFLINE_NOTE,
     };
   }
+  if (local.startupState === "pending") return { state: "unverified", note: RELAY_STARTING_NOTE };
+  if (local.startupState === "failed") return { state: "unverified", note: RELAY_STARTUP_FAILED_NOTE };
   if (!local.publicKey) return { state: "unverified", note: RELAY_SILENT_NOTE };
 
   if (local.publicKey !== target.publicKey) {

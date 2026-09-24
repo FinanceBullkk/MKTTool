@@ -53,7 +53,17 @@ export interface SetupDeviceRegistry {
 }
 
 export type SetupRelayHealth =
-  | { status: "unchecked" | "checking" | "unreachable" | "indeterminate" | "permission-denied" | "timeout" }
+  | {
+      status:
+        | "unchecked"
+        | "checking"
+        | "starting"
+        | "startup-failed"
+        | "unreachable"
+        | "indeterminate"
+        | "permission-denied"
+        | "timeout";
+    }
   | { status: "responded"; health: RelayHealth };
 
 export interface SetupUpdateState {

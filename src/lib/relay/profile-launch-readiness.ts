@@ -63,6 +63,16 @@ export function currentRelayLaunchReadiness(
   if (!health) {
     return blocked("relay-rejected", "Relay could not report local readiness. Open Setup and retry.");
   }
+  const failureCode = outcome.status === "rejected" ? relayFailureCode(outcome) : null;
+  if (health.startupState === "pending" || failureCode === "RELAY_STARTUP_PENDING") {
+    return blocked("relay-starting", "Relay is still starting on this PC. Keep it open, then check again.");
+  }
+  if (health.startupState === "failed" || failureCode === "RELAY_STARTUP_FAILED") {
+    return blocked(
+      "relay-startup-failed",
+      "Relay could not finish starting. Open its status page, repair the local installation, then check again.",
+    );
+  }
   if (!Number.isSafeInteger(health.relayVersion) || health.relayVersion < RELAY_VERSION) {
     return blocked("relay-outdated", "Update Relay on this PC before opening a browser profile.");
   }

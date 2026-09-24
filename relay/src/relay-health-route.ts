@@ -2,6 +2,7 @@ import os from "node:os";
 import type {
   RelayBrowserHealth,
   RelayCompatibilityUpdateHealth,
+  RelayStartupState,
 } from "../../src/lib/relay/relay-endpoints";
 import type { ConfigProblem } from "./relay-config";
 import type { DeviceRetirementReceipt } from "./device-retirement-receipt";
@@ -21,7 +22,7 @@ export interface CompatibilityUpdateHealthSnapshot {
 
 /**
  * Compatibility state is protected by DPAPI and can require a PowerShell child process. Read it
- * once before the listener starts; the fast health route must only consult this in-memory value.
+ * during isolated startup initialization; the operational health route only consults this snapshot.
  */
 export function createCompatibilityUpdateHealthSnapshot(
   readState: () => CompatibilityUpdateState | null,
@@ -34,6 +35,30 @@ export function createCompatibilityUpdateHealthSnapshot(
   }
 }
 
+export function createRelayStartupHealth(startupState: RelayStartupState): RelayResponseBody {
+  const pending = startupState === "pending";
+  return {
+    ok: false,
+    code: pending ? "RELAY_STARTUP_PENDING" : "RELAY_STARTUP_FAILED",
+    startupState,
+    message: pending
+      ? "Relay is starting. Keep it open, then check again."
+      : "Relay could not finish starting. Open its status page and repair the local installation.",
+    configured: false,
+    antidetectReady: false,
+    browser: {
+      ready: false,
+      provider: null,
+      appVersion: null,
+      contractVersion: null,
+      contractCompatible: false,
+      contractProblem: "Relay startup is not complete.",
+      engine: null,
+      capabilities: [],
+    },
+  };
+}
+
 export function createRelayHealthRoute(options: {
   currentState(): CurrentRelayState;
   describeRuntime(): Promise<RelayBrowserHealth>;
@@ -42,9 +67,13 @@ export function createRelayHealthRoute(options: {
   pendingRetirement(): DeviceRetirementReceipt | null;
   retirementHealth(receipt: DeviceRetirementReceipt): RelayResponseBody;
   compatibilityUpdate: CompatibilityUpdateHealthSnapshot;
+  startupState?: () => RelayStartupState | null;
   machineName?: () => string;
 }): RelayRoute {
   return async () => {
+    const startupState = options.startupState?.();
+    if (startupState) return createRelayStartupHealth(startupState);
+
     const pendingRetirement = options.pendingRetirement();
     if (pendingRetirement) return options.retirementHealth(pendingRetirement);
 

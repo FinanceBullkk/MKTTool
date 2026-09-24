@@ -1,27 +1,9 @@
 /**
- * Điểm vào của cầu nối.
+ * Relay entrypoint.
  *
- * Thứ tự khởi động, và lý do nó là thứ tự này:
- *
- *   1. Xác định thư mục dữ liệu
- *   2. **Đọc hoặc sinh cặp khóa của máy** — trước cấu hình, vì máy chưa có khóa thì chưa đăng
- *      ký được, mà chưa đăng ký thì chưa có `deviceId` để ghi vào cấu hình.
- *   3. Đọc cấu hình — thiếu thì ghi nhận, KHÔNG dừng (xem chú thích `relay-config.ts`)
- *   4. Nghe `127.0.0.1`
- *
- * Chỉ một thứ làm cầu nối không khởi động nổi: **không sinh nổi khóa** (thư mục không ghi được)
- * hoặc **cổng bị chiếm**. Cả hai đều là thứ không có trạng thái nào để hiện ra, vì chưa có chỗ
- * nào để hiện.
- *
- * ## Cấu hình nạp lại được, không phải chụp một lần lúc khởi động
- *
- * Hai đường ghi vào cấu hình chạy **lúc cầu nối đang chạy**: web app đẩy `deviceId` +
- * `serverPublicKey` xuống, và người dùng dán khóa vùng operator ở trang trạng thái. Bắt tắt bật
- * lại sau mỗi lần là dựng lại đúng bước mà cả hai đường sinh ra để dẹp — và tệ hơn: màn hình vừa
- * báo "đã lưu" nên chẳng ai nghĩ là còn phải làm gì nữa.
- *
- * Nên mọi thứ dẫn xuất từ cấu hình gom vào `RelayState` và dựng lại nguyên khối. Dựng lại nguyên
- * khối chứ không vá từng ô: một trạng thái nửa cũ nửa mới là thứ không ai suy luận nổi.
+ * The bootstrap parent binds loopback before protected-state work and exposes only a fail-closed
+ * health response. A same-user child then performs DPAPI-backed initialization and takes over the
+ * port only after it is ready. Runtime configuration remains reloadable while the child serves.
  */
 import { RELAY_ORIGIN, RELAY_PATHS, RELAY_VERSION } from "../../src/lib/relay/relay-endpoints";
 import { handleConfigure } from "./handle-configure";
@@ -78,6 +60,14 @@ import {
   createCompatibilityUpdateHealthSnapshot,
   createRelayHealthRoute,
 } from "./relay-health-route";
+import {
+  awaitRelayStartupActivation,
+  notifyRelayStartupFailure,
+  notifyRelayStartupHandoff,
+  notifyRelayStartupListening,
+  readRelayStartupChildId,
+  startRelayStartupBootstrap,
+} from "./relay-startup-bootstrap";
 
 /** Mọi thứ dẫn xuất từ file cấu hình. Dựng lại nguyên khối mỗi lần cấu hình đổi. */
 interface RelayState {
@@ -159,15 +149,29 @@ function loadState(
   };
 }
 
+let startupChildId: string | null = null;
+
 async function main(): Promise<void> {
+  startupChildId = readRelayStartupChildId();
   const home = resolveRelayHome();
+  if (!startupChildId) {
+    await startRelayStartupBootstrap({ home });
+    return;
+  }
+
   const secureStore = new WindowsSecureStore(home);
   const retirementReceipt = loadPendingRetirementReceipt(secureStore);
   if (retirementReceipt) {
+    await awaitRelayStartupActivation(startupChildId, "retirement");
+    process.once("disconnect", () => process.exit(0));
     await runRetirementRecoveryServer(home, secureStore, retirementReceipt);
+    await notifyRelayStartupListening(startupChildId);
     return;
   }
-  if (await handleWindowsCompatibilityStartup(home, secureStore)) return;
+  if (await handleWindowsCompatibilityStartup(home, secureStore)) {
+    await notifyRelayStartupHandoff(startupChildId);
+    return;
+  }
   migrateRelaySecrets(home, secureStore, RELAY_VERSION);
   const keypair = loadOrCreateDeviceKeypair(home, secureStore);
   migrateRelaySecrets(home, secureStore, RELAY_VERSION);
@@ -444,18 +448,23 @@ async function main(): Promise<void> {
     }),
   });
 
-  await listenOnLoopback(server);
-
-  // The packaged smoke harness sends SIGTERM between restart legs. Close the listener before
-  // exiting so the process does not leave a half-open port while its journal is already durable.
   let shuttingDown = false;
   const shutdown = (): void => {
     if (shuttingDown) return;
     shuttingDown = true;
+    if (!server.listening) {
+      process.exit(0);
+      return;
+    }
     server.close(() => process.exit(0));
   };
   process.once("SIGTERM", shutdown);
   process.once("SIGINT", shutdown);
+  process.once("disconnect", shutdown);
+
+  await awaitRelayStartupActivation(startupChildId, "runtime");
+  await listenOnLoopback(server);
+  await notifyRelayStartupListening(startupChildId);
 
   // Những dòng này chỉ có người chạy tay từ cửa sổ lệnh mới đọc — người dùng thật đọc trang
   // trạng thái. Nên in đúng thứ giúp được lúc cài: địa chỉ để mở, và khóa để chép.
@@ -471,7 +480,14 @@ async function main(): Promise<void> {
   }
 }
 
-main().catch((error: unknown) => {
+main().catch(async (error: unknown) => {
+  if (startupChildId) {
+    try {
+      await notifyRelayStartupFailure(startupChildId);
+    } catch {
+      // The bootstrap process may already have stopped after an intentional handoff.
+    }
+  }
   console.error(`Cầu nối không khởi động được: ${(error as Error).message}`);
   process.exitCode = 1;
 });

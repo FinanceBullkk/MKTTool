@@ -12,6 +12,7 @@
     "build": "next build",
     "start": "next start",
     "test": "vitest run",
+    "test:no-db": "vitest run --config vitest.no-db.config.mts",
     "test:watch": "vitest",
     "test:critical-coverage": "vitest run --coverage",
     "test:relay": "vitest run --config vitest.relay.config.mts",

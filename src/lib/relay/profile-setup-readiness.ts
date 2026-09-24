@@ -193,6 +193,9 @@ export function profileSetupReadiness(
   profiles: RelayOutcome<RelayProfilesReply>,
   health: RelayOutcome<RelayHealth & RelayReply>,
 ): ProfileSetupReadiness {
+  const startup = relayStartupBlocked(profiles) ?? relayStartupBlocked(health);
+  if (startup) return startup;
+
   const profileVersion = measuredVersion(profiles);
   const healthVersion = measuredVersion(health);
   if (profileVersion && healthVersion && profileVersion !== healthVersion) return profileSetupUnknown();
@@ -236,6 +239,29 @@ export function profileSetupReadiness(
     deviceId: local.deviceId,
   };
   return profileInventoryUnavailable(profiles);
+}
+
+function relayStartupBlocked(outcome: RelayOutcome<unknown>): ProfileSetupBlocked | null {
+  if (outcome.status !== "rejected") return null;
+  const code = relayFailureCode(outcome);
+  if (code === "RELAY_STARTUP_PENDING") {
+    return {
+      kind: "blocked",
+      state: "relay-starting",
+      title: "Relay is starting",
+      message: "Keep Relay open on this PC. MKTTool will check again when local startup finishes.",
+    };
+  }
+  if (code === "RELAY_STARTUP_FAILED") {
+    return {
+      kind: "blocked",
+      state: "relay-startup-failed",
+      title: "Relay could not finish starting",
+      message: "Open Relay's status page on this PC, repair the local installation, then check again.",
+      setupHref: "/setup",
+    };
+  }
+  return null;
 }
 
 function profileInventoryUnavailable(

@@ -273,6 +273,18 @@ export const RELAY_PROFILE_WORK_TIMEOUT_MS = 60_000;
 export const RELAY_VERSION = 20;
 
 /**
+ * A bootstrap listener can answer before protected Relay state is available. It must never be
+ * treated as a configured or action-capable Relay.
+ */
+export const RELAY_STARTUP_STATES = ["pending", "failed"] as const;
+
+export type RelayStartupState = (typeof RELAY_STARTUP_STATES)[number];
+
+export function isRelayStartupState(value: unknown): value is RelayStartupState {
+  return typeof value === "string" && (RELAY_STARTUP_STATES as readonly string[]).includes(value);
+}
+
+/**
  * Một profile antidetect như cầu nối khai ra ở `GET /profiles`.
  *
  * Khai lại ở file hợp đồng này thay vì import từ `antidetect/` với cùng lý do như
@@ -362,7 +374,7 @@ export interface RelayHealth {
   /** Friendly OS-reported PC name. It is not an authorization signal. */
   machineName?: string;
   /** Khóa công khai X25519 của máy này, hex — để đối chiếu với sổ đăng ký khi nghi dán nhầm. */
-  publicKey: string;
+  publicKey?: string;
   /** Whether the Relay can connect to MKT Browser on the same machine. */
   antidetectReady: boolean;
   /** Live metadata-only state reported by MKT Browser on this exact PC. */
@@ -371,6 +383,8 @@ export interface RelayHealth {
   configured?: boolean;
   /** Local Relay identity was removed and only the completion receipt remains. */
   retirementPending?: boolean;
+  /** Protected startup has not completed, so this response has no usable Relay identity. */
+  startupState?: RelayStartupState;
   compatibilityUpdate?: RelayCompatibilityUpdateHealth;
   /**
    * Nguồn web mà cầu nối này tin — nung vào bản build, ghi đè được bằng file cấu hình.

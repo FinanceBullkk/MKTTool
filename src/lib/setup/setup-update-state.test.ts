@@ -34,6 +34,7 @@ describe("currentSetupUpdateState", () => {
 
   it("reports starting while the live update check is in progress", () => {
     expect(currentSetupUpdateState({ status: "checking" }).status).toBe("starting");
+    expect(currentSetupUpdateState({ status: "starting" }).status).toBe("starting");
   });
 
   it("requires the current Relay package for an old Relay", () => {

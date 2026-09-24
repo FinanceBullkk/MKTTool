@@ -131,6 +131,10 @@ export function RelayEnrollCard({
   }, [deliverGrant, viewer.userId]);
 
   async function saveEnrollmentToRelay(currentHealth: RelayHealth) {
+    if (!currentHealth.publicKey) {
+      setDetail("Relay is still starting on this PC. Keep it open, then check this PC again.");
+      return;
+    }
     const enrollmentForm = new FormData();
     enrollmentForm.set("name", currentHealth.machineName || "This Windows PC");
     enrollmentForm.set("publicKey", currentHealth.publicKey);
@@ -224,7 +228,10 @@ export function RelayEnrollCard({
   }, [deliverGrant, health?.deviceId, verdict.state]);
 
   useEffect(() => {
-    if (verdict.state !== "Starting" || relay.status !== "responded") return;
+    if (
+      verdict.state !== "Starting" ||
+      (relay.status !== "responded" && relay.status !== "starting")
+    ) return;
     const timer = setTimeout(() => {
       void probeSetupRelay().then((probed) => {
         setRelay(probed.relay);

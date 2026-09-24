@@ -94,7 +94,11 @@ export function setupStateMachine(input: SetupStateMachineInput): SetupStateResu
     );
   }
 
-  if (input.update.status === "starting" || input.relay.status === "checking") {
+  if (
+    input.update.status === "starting" ||
+    input.relay.status === "checking" ||
+    input.relay.status === "starting"
+  ) {
     return result(
       "Starting",
       { kind: "WAIT", label: "Checking again automatically" },
@@ -107,6 +111,14 @@ export function setupStateMachine(input: SetupStateMachineInput): SetupStateResu
       "Confirm this PC",
       { kind: "CONFIRM", label: "Confirm this PC" },
       "Confirm the detected PC and signed-in email before this page checks the local apps.",
+    );
+  }
+
+  if (input.relay.status === "startup-failed") {
+    return result(
+      "Needs repair",
+      { kind: "RETRY", label: "Check this PC again" },
+      "Relay could not finish starting on this PC. Open its status page, then check this PC again.",
     );
   }
 

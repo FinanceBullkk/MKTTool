@@ -36,10 +36,25 @@ export async function probeSetupRelay(): Promise<SetupRelayProbeResult> {
       detail:
         outcome.status === "timeout"
           ? "Relay did not report local setup status in time. Keep it open, then check this PC again."
-          : outcome.message,
+      : outcome.message,
     };
   }
-  if (!outcome.data?.publicKey) {
+  if (outcome.data?.startupState === "pending") {
+    return {
+      relay: { status: "starting" },
+      health: null,
+      detail: "Relay is still starting on this PC. Keep it open, then check again automatically.",
+    };
+  }
+  if (outcome.data?.startupState === "failed") {
+    return {
+      relay: { status: "startup-failed" },
+      health: null,
+      detail: "Relay could not finish starting on this PC. Open its status page, then check this PC again.",
+    };
+  }
+  const health = outcome.data;
+  if (!health?.publicKey) {
     return {
       relay: { status: "unreachable" },
       health: null,
@@ -47,7 +62,6 @@ export async function probeSetupRelay(): Promise<SetupRelayProbeResult> {
     };
   }
 
-  const health = outcome.data;
   if (health.retirementPending) {
     return {
       relay: { status: "responded", health },

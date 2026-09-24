@@ -53,6 +53,50 @@ describe("probeSetupRelay", () => {
     expect(mocks.inspectSetupDevice).not.toHaveBeenCalled();
   });
 
+  it("keeps a responsive Relay startup pending state distinct from an incompatible listener", async () => {
+    mocks.pingRelay.mockResolvedValue({
+      status: "rejected",
+      message: "Relay is starting.",
+      data: {
+        ok: false,
+        relayVersion: RELAY_VERSION,
+        startupState: "pending",
+        configured: false,
+        antidetectReady: false,
+        browser: HEALTH.browser,
+      },
+    });
+
+    await expect(probeSetupRelay()).resolves.toEqual({
+      relay: { status: "starting" },
+      health: null,
+      detail: "Relay is still starting on this PC. Keep it open, then check again automatically.",
+    });
+    expect(mocks.inspectSetupDevice).not.toHaveBeenCalled();
+  });
+
+  it("keeps an explicit Relay startup failure distinct from a stopped Relay", async () => {
+    mocks.pingRelay.mockResolvedValue({
+      status: "rejected",
+      message: "Relay could not finish starting.",
+      data: {
+        ok: false,
+        relayVersion: RELAY_VERSION,
+        startupState: "failed",
+        configured: false,
+        antidetectReady: false,
+        browser: HEALTH.browser,
+      },
+    });
+
+    await expect(probeSetupRelay()).resolves.toEqual({
+      relay: { status: "startup-failed" },
+      health: null,
+      detail: "Relay could not finish starting on this PC. Open its status page, then check this PC again.",
+    });
+    expect(mocks.inspectSetupDevice).not.toHaveBeenCalled();
+  });
+
   it("keeps a generic browser fetch failure indeterminate instead of offering a Relay download", async () => {
     mocks.pingRelay.mockResolvedValue({ status: "indeterminate", message: "private transport" });
 
