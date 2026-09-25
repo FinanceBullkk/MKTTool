@@ -1,5 +1,12 @@
 # Project changelog
 
+## 2026-09-25 - Development dependency advisory cleanup
+
+- Refresh only the transitive development dependency `js-yaml` from 4.3.1 to 4.3.2 for
+  GHSA-2883-xcg3-v3hh. Production dependencies and runtime source are unchanged.
+- Repeat the final committed-source quality and security gates after the lockfile change;
+  earlier receipts remain tied to their original source and lockfile.
+
 ## 2026-09-25 - Replacement candidate source binding
 
 - Select a fresh Browser `0.3.27` / Relay `20` candidate and pin the production-origin Relay
