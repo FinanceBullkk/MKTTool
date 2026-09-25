@@ -1,7 +1,10 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { createTlsFixtureCertificates } from "./compatibility-artifact-tls-fixture-certificates";
+import {
+  createTlsFixtureCertificates,
+  type TlsFixtureCertificates,
+} from "./compatibility-artifact-tls-fixture-certificates";
 import { buildRelayStageOnlyTlsFixture } from "./relay-sea-tls-fixture-builder";
 import {
   runRelaySeaTlsFixtureTestCase,
@@ -26,17 +29,17 @@ const TEST_CASES: RelaySeaTlsFixtureTestCase[] = [
 async function main(): Promise<void> {
   if (process.platform !== "win32") throw new Error("The Relay SEA TLS fixture must run on Windows.");
   const workspace = mkdtempSync(path.join(os.tmpdir(), "mkttool-relay-sea-tls-"));
-  let certificates: ReturnType<typeof createTlsFixtureCertificates> | undefined;
+  let certificates: TlsFixtureCertificates | undefined;
   try {
     const executable = buildRelayStageOnlyTlsFixture(workspace);
-    certificates = createTlsFixtureCertificates();
+    certificates = await createTlsFixtureCertificates();
     for (const testCase of TEST_CASES) {
       await runRelaySeaTlsFixtureTestCase(executable, certificates, testCase);
       console.log(`PASS  ${testCase.name}`);
     }
     console.log(`PASS  Relay SEA compatibility TLS fixture (${TEST_CASES.length}/${TEST_CASES.length})`);
   } finally {
-    certificates?.cleanup();
+    await certificates?.cleanup();
     rmSync(workspace, { recursive: true, force: true });
   }
 }

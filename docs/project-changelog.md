@@ -13,7 +13,18 @@
 - Quarantine the historical Browser `0.3.25` / Relay `19` candidate. The publisher now rejects it
   before R2 access because Relay 20 is the active profile-action floor; retained v19 bytes are not
   promotion evidence.
-- Source checks pass: Relay 527/527, non-destructive suite 2,089/2,089, typecheck, lint, and
+- Complete the terminal compatibility handoff after a bounded listener drain. The runtime closes
+  held loopback connections before coordinating the helper, acknowledges the bootstrap parent, and
+  exits fail-closed on coordination failure without logging raw helper errors. Test-only direct
+  children alone receive scoped fixture CA trust; normal launched children still scrub it.
+- Serialize disposable CurrentUser TLS fixture cleanup through a Global Windows kernel mutex scoped
+  to the current user SID, so an RDP or scheduled-task session cannot reclaim another live fixture.
+  Fixture setup releases the mutex on every failure path, while retained TLS cleanup attempts every
+  process, server, filesystem, and signing-key cleanup leg before reporting a failure.
+- The worktree-built SEA handoff matrix passes trusted, missing-intermediate, and wrong-hostname
+  cases (3/3). The retained v20 bytes stage only in that direct test child, then remain **FAIL** at
+  the old helper-lock terminal exit (`null !== 0`); this is neither public-TLS nor candidate evidence.
+- Source checks pass: Relay 532/532, non-destructive suite 2,100/2,100, typecheck, lint, and
   whitespace validation. The destructive full database suite, exact SEA/package, fresh tuple,
   clean VM, public TLS, human, second-PC, and canary gates remain OPEN/BLOCKED. No push, deployment,
   publication, or promotion occurred; `G2-IDENTITY=FAIL` remains unchanged.

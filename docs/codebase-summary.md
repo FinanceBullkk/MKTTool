@@ -1,6 +1,6 @@
 # Bản đồ mã nguồn
 
-**Updated:** 21 September 2026
+**Updated:** 25 September 2026
 
 Tài liệu dành cho người mới và AI agent định vị nhanh trong codebase — **code nằm ở đâu**.
 Hệ thống chạy ở đâu và phụ thuộc gì thì xem [system-architecture.md](system-architecture.md);
@@ -63,6 +63,17 @@ Desktop `index.ts` locks the normal data root before state initialization and ow
 once-only shutdown. Development, disposable roots, and compatibility smoke remain isolated.
 Relay v16 and signed operations are unchanged; these candidate modules are not evidence of a
 delivered installer or MSI acceptance. See the [current checkpoint](development-roadmap.md#single-entry-browser-startup---8-september-2026).
+
+## Relay compatibility staging source - 25 September 2026
+
+| Path | Responsibility |
+|---|---|
+| `relay/src/compatibility-update-handoff.ts` | closes a staged-update listener, coordinates the helper, acknowledges the bootstrap parent, and exits; failed coordination reports startup failure and exits fail-closed. |
+| `scripts/compatibility-artifact-tls-fixture-certificates.ts` and `windows-named-mutex.ts` | serialize disposable CurrentUser certificate-store cleanup through a Global per-user-SID Windows mutex held by a helper process, then release it on every setup and cleanup path. |
+| `scripts/retained-relay-tls-harness.ts`, `verify-retained-relay-tls.ts`, and `verify-relay-tls-handoff.ts` | exercise hash-bound retained and local SEA builds through trusted and invalid TLS fixture cases, including terminal helper-lock handoff, without publishing or activating a candidate. |
+
+This source-only diagnostic does not validate normal parent launch with scoped fixture trust, public TLS,
+a replacement candidate, or VM acceptance.
 
 ## Fast sequential profile switching source - 21 September 2026
 

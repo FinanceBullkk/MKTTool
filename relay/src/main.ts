@@ -52,7 +52,7 @@ import {
 } from "./device-retirement-recovery-server";
 import type { DeviceRetirementReceipt } from "./device-retirement-receipt";
 import { handleWindowsCompatibilityStartup } from "./windows-compatibility-startup";
-import { coordinateCompatibilityUpdateHelper } from "./compatibility-update-helper";
+import { handoffPreparedCompatibilityUpdate } from "./compatibility-update-handoff";
 import { readCompatibilityUpdateState } from "./update-state";
 import { resolveWindowsCompatibilityInstallation } from "./windows-compatibility-installation";
 import { WindowsCompatibilityUpdatePlatform } from "./windows-compatibility-update-platform";
@@ -393,21 +393,7 @@ async function main(): Promise<void> {
               },
               serverPublicKeyHex: state.serverPublicKeyHex,
               deviceId: state.deviceId,
-              onPrepared: () => {
-                compatibilityUpdateHealth.value = undefined;
-                setTimeout(() => {
-                  server.close();
-                  void coordinateCompatibilityUpdateHelper({
-                    home,
-                    argv: [],
-                    executablePath: process.execPath,
-                    converge: async () => {},
-                  }).catch((error: unknown) => {
-                    console.error(`Compatibility helper could not start: ${(error as Error).message}`);
-                    process.exitCode = 1;
-                  });
-                }, 100);
-              },
+              onPrepared: scheduleCompatibilityUpdateHandoff,
             }),
       [RELAY_PATHS.compatibilityRollback]: (request, body) => {
         return pendingRetirement
@@ -428,25 +414,23 @@ async function main(): Promise<void> {
               },
               serverPublicKeyHex: state.serverPublicKeyHex,
               deviceId: state.deviceId,
-              onPrepared: () => {
-                compatibilityUpdateHealth.value = undefined;
-                setTimeout(() => {
-                  server.close();
-                  void coordinateCompatibilityUpdateHelper({
-                    home,
-                    argv: [],
-                    executablePath: process.execPath,
-                    converge: async () => {},
-                  }).catch((error: unknown) => {
-                    console.error(`Compatibility helper could not start: ${(error as Error).message}`);
-                    process.exitCode = 1;
-                  });
-                }, 100);
-              },
+              onPrepared: scheduleCompatibilityUpdateHandoff,
             });
       },
     }),
   });
+
+  function scheduleCompatibilityUpdateHandoff(): void {
+    compatibilityUpdateHealth.value = undefined;
+    setTimeout(() => {
+      void handoffPreparedCompatibilityUpdate({
+        server,
+        home,
+        executablePath: process.execPath,
+        startupChildId,
+      });
+    }, 100);
+  }
 
   let shuttingDown = false;
   const shutdown = (): void => {

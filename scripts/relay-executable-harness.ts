@@ -12,12 +12,13 @@
  * cây làm việc là đặt cược vào một dòng `.gitignore`; để ở thư mục tạm thì không có cược nào.
  */
 import { execFileSync, type ChildProcess, spawn } from "node:child_process";
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { existsSync, mkdtempSync, readFileSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { RELAY_ORIGIN } from "../src/lib/relay/relay-endpoints";
 import { relayChildEnvironment } from "../relay/src/relay-child-environment";
+import { RELAY_STARTUP_CHILD_SWITCH } from "../relay/src/relay-startup-bootstrap";
 
 /** Legacy path exported for scripts that only print a diagnostic. It is never used as a fallback. */
 export const EXECUTABLE_FILE = path.join(process.cwd(), "relay", "dist", "MKTTool-Relay.exe");
@@ -185,6 +186,10 @@ export interface RelayExecutableLaunchOptions {
   fixtureExtraCaCertPath?: string;
   /** Lets fixtures prove that inherited Node trust overrides cannot leak into the child. */
   inheritedEnvironment?: Record<string, string | undefined>;
+  /** Per-child sandbox paths such as LOCALAPPDATA and MKT_BROWSER_INSTALL_DIR. */
+  environmentOverrides?: Record<string, string | undefined>;
+  /** Starts the protected runtime child directly through test-owned IPC. */
+  startupChild?: boolean;
   /** Records the child before polling so failed startup still has an owner for cleanup. */
   onSpawn?: (relay: RunningRelay) => void;
 }
@@ -194,7 +199,7 @@ export function relayExecutableEnvironment(
   options: RelayExecutableLaunchOptions = {},
 ): NodeJS.ProcessEnv {
   const environment = relayChildEnvironment(
-    overrides,
+    { ...options.environmentOverrides, ...overrides },
     options.inheritedEnvironment ?? process.env,
   );
   if (options.fixtureExtraCaCertPath) {
@@ -253,10 +258,15 @@ export async function startRelay(
     );
   }
 
-  const child: ChildProcess = spawn(resolvedExecutablePath, [], {
+  const startupChildId = options.startupChild ? randomUUID() : null;
+  const child: ChildProcess = spawn(
+    resolvedExecutablePath,
+    startupChildId ? [`--${RELAY_STARTUP_CHILD_SWITCH}=${startupChildId}`] : [],
+    {
     env: relayExecutableEnvironment({ RELAY_HOME: home }, options),
-    stdio: ["ignore", "pipe", "pipe"],
-  });
+    stdio: startupChildId ? ["ignore", "pipe", "pipe", "ipc"] : ["ignore", "pipe", "pipe"],
+    },
+  );
 
   let log = "";
   child.stdout?.on("data", (chunk: Buffer) => (log += chunk.toString()));
@@ -287,6 +297,14 @@ export async function startRelay(
       }),
   };
   options.onSpawn?.(running);
+  if (startupChildId) {
+    try {
+      await activateRelayStartupChild(child, startupChildId);
+    } catch (error) {
+      await stopRelayAndRemoveTempHomes(running, []);
+      throw error;
+    }
+  }
 
   const deadline = Date.now() + STARTUP_TIMEOUT_MS;
   while (Date.now() < deadline) {
@@ -312,6 +330,43 @@ export async function startRelay(
 
   await stopRelayAndRemoveTempHomes(running, []);
   throw new Error(`Cầu nối không mở cổng sau ${STARTUP_TIMEOUT_MS / 1000}s:\n${log}`);
+}
+
+/** The bootstrap parent scrubs inherited trust overrides; this is a fixture-only direct child launch. */
+async function activateRelayStartupChild(child: ChildProcess, startupId: string): Promise<void> {
+  await new Promise<void>((resolve, reject) => {
+    let settled = false;
+    const timeout = setTimeout(() => finish(new Error("Relay startup child did not request activation.")), STARTUP_TIMEOUT_MS);
+    const finish = (error?: Error): void => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      child.off("message", onMessage);
+      child.off("error", onError);
+      child.off("exit", onExit);
+      if (error) reject(error);
+      else resolve();
+    };
+    const onError = (): void => finish(new Error("Relay startup child could not start."));
+    const onExit = (): void => finish(new Error("Relay startup child exited before activation."));
+    const onMessage = (message: unknown): void => {
+      if (!message || typeof message !== "object") return;
+      const value = message as { type?: unknown; startupId?: unknown; mode?: unknown };
+      if (value.startupId !== startupId) return;
+      if (value.type === "failed") {
+        finish(new Error("Relay startup child reported initialization failure."));
+        return;
+      }
+      if (value.type !== "ready" || value.mode !== "runtime" || !child.connected) return;
+      child.send({ type: "activate", startupId }, (error) => {
+        if (error) finish(new Error("Relay startup child could not receive activation."));
+        else finish();
+      });
+    };
+    child.on("message", onMessage);
+    child.once("error", onError);
+    child.once("exit", onExit);
+  });
 }
 
 /**
@@ -356,14 +411,30 @@ export async function stopRelayAndRemoveTempHomes(
   relay: RunningRelay | null,
   homes: readonly string[],
 ): Promise<void> {
+  let processExitUnconfirmed = false;
   if (relay) {
-    relay.stop();
-    if (await relay.waitForExit(CLEANUP_GRACEFUL_EXIT_TIMEOUT_MS) === null) {
-      relay.forceStop();
-      if (await relay.waitForExit(CLEANUP_FORCED_EXIT_TIMEOUT_MS) === null) {
-        throw new Error("Relay verifier cleanup could not confirm process exit.");
+    try {
+      relay.stop();
+      if (await relay.waitForExit(CLEANUP_GRACEFUL_EXIT_TIMEOUT_MS) === null) {
+        relay.forceStop();
+        if (await relay.waitForExit(CLEANUP_FORCED_EXIT_TIMEOUT_MS) === null) {
+          processExitUnconfirmed = true;
+        }
       }
+    } catch {
+      processExitUnconfirmed = true;
     }
   }
-  for (const home of homes) removeTempHome(home);
+
+  let tempHomeRemovalFailed = false;
+  for (const home of homes) {
+    try {
+      removeTempHome(home);
+    } catch {
+      tempHomeRemovalFailed = true;
+    }
+  }
+
+  if (processExitUnconfirmed) throw new Error("Relay verifier cleanup could not confirm process exit.");
+  if (tempHomeRemovalFailed) throw new Error("Relay verifier cleanup left temporary data.");
 }

@@ -89,7 +89,7 @@ describe("Relay executable harness health gate", () => {
     await expect(stopRelayAndRemoveTempHomes(relay, [home])).rejects.toThrow(
       "could not confirm process exit",
     );
-    expect(existsSync(home)).toBe(true);
+    expect(existsSync(home)).toBe(false);
   });
 
   it("escalates to a forced stop before deleting owned directories", async () => {

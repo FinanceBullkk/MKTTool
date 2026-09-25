@@ -19,8 +19,8 @@ The historical Browser `0.3.25` / Relay `19` tuple is explicitly quarantined: pu
 current profile-action Relay floor and stops before R2 access because profile actions require Relay
 20 or newer.
 
-**PASS (local source scope):** `npm run test:relay` 527/527; `npm run test:no-db` 2,089/2,089 across
-215 non-destructive test files; `npm run typecheck`; `npm run lint`; and `git diff --check`. The full
+**PASS (local source scope):** `npm run test:relay` 532/532; `npm run test:no-db` 2,100/2,100 across
+217 non-destructive test files; `npm run typecheck`; `npm run lint`; and `git diff --check`. The full
 database suite remains **BLOCKED** by the missing test-schema tables and was not reclassified as a
 pass. This is not packaged-SEA, immutable-candidate, VM, public-TLS, human, second-PC, canary, or
 identity evidence. No push, Railway deployment, publication, or promotion is recorded; `G2-IDENTITY=FAIL`
@@ -63,12 +63,29 @@ scoped Relay-PC list/status checks 11/11, `relay:verify-tls` 12/12, and local-re
 not green: 2,048 tests passed while 342 database tests could not find their required test-schema
 tables. This does not authorize a candidate or substitute for final quality gates.
 
-**OPEN / NO-GO:** this is source and disposable-SEA evidence only. The historical Browser 0.3.24 /
-Relay 18 candidate remains unchanged and rejected for promotion. A fresh tuple, isolated two-build
-comparison, exact packaged and public TLS, clean-VM cold-page/profile lifecycle, human permission,
-second-PC, and canary evidence remain required. Do not freeze the proposed Browser 0.3.25 / Relay 19
-metadata: current source declares Relay 20 and local artifact metadata is still Relay 18. Build and
-bind a real Relay 20 artifact to a new coordinated tuple first. `G2-IDENTITY=FAIL` is unchanged.
+The disposable certificate fixture holds a `Global` Windows kernel mutex namespaced to the current
+user SID, so terminal-service sessions for the same user cannot delete each other's CurrentUser fixture
+certificates. Setup and cleanup await that mutex, and retained-case cleanup attempts Relay, MCP,
+fixture, workspace, candidate-staging, and signing-key cleanup independently. A fixture/helper cleanup
+audit after the expected retained failure found zero legacy lock files, fixture directories, retained case
+directories, tagged certificates, and Relay processes.
+
+**FAIL (retained v20 diagnostic):** the hash-verified retained Relay v20 executable reaches the
+compatibility-update path. Its normal bootstrap parent correctly removes the disposable
+`NODE_EXTRA_CA_CERTS` value, while the test-owned direct child accepts scoped fixture trust and
+stages the trusted set. That retained byte set then fails the terminal helper-lock handoff because it
+does not exit (`null !== 0`). The same strict fixture passes the disposable source-built SEA matrix.
+This establishes a retained-runtime lifecycle divergence only; it does not prove public TLS is
+broken or make any replacement-candidate claim. The system-store alternative is BLOCKED in
+noninteractive execution and must not be replaced with a global trust change.
+
+**OPEN / NO-GO:** this is source and disposable-SEA evidence plus the retained diagnostic only. The
+historical Browser 0.3.24 / Relay 18 candidate remains unchanged and rejected for promotion. A fresh
+tuple, isolated two-build comparison, exact replacement packaged and public TLS, clean-VM
+cold-page/profile lifecycle, human permission, second-PC, and canary evidence remain required. Do
+not freeze the proposed Browser 0.3.25 / Relay 19 metadata: current source declares Relay 20 and
+local artifact metadata is still Relay 18. Build and bind a real Relay 20 artifact to a new
+coordinated tuple first. `G2-IDENTITY=FAIL` is unchanged.
 
 ## Account detail RSC secret boundary - 22 September 2026
 

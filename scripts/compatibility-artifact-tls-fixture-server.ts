@@ -1,4 +1,5 @@
 import { createServer as createHttpsServer, type Server as HttpsServer } from "node:https";
+import type { IncomingMessage } from "node:http";
 import { createServer as createNetServer, type Server as NetServer } from "node:net";
 import { readFileSync } from "node:fs";
 
@@ -16,6 +17,13 @@ export type CompatibilityFixtureResponse =
   | "oversize"
   | "hashMismatch";
 export type CompatibilityFixturePayloads = Record<CompatibilityFixtureArtifactKind, Buffer>;
+
+export interface CompatibilityFixtureServerOptions {
+  /** Routes signed compatibility downloads through the same production-shaped path set. */
+  artifactPathPrefix?: string;
+  /** The retained-Relay harness uses this to prove every artifact request is authorized. */
+  authorizeRequest?: (request: IncomingMessage) => boolean;
+}
 
 export function createCompatibilityFixturePayloads(): CompatibilityFixturePayloads {
   const controlContract = Buffer.from(
@@ -41,8 +49,14 @@ export async function startCompatibilityFixtureServer(
   passphrase: string,
   payloads: CompatibilityFixturePayloads,
   response: CompatibilityFixtureResponse,
+  options: CompatibilityFixtureServerOptions = {},
 ): Promise<HttpsServer> {
   const server = createHttpsServer({ pfx: readFileSync(pfxPath), passphrase }, (request, reply) => {
+    if (options.authorizeRequest && !options.authorizeRequest(request)) {
+      reply.writeHead(401);
+      reply.end("unauthorized");
+      return;
+    }
     if (response === "redirect") {
       reply.writeHead(302, { location: "/redirected" });
       reply.end();
@@ -53,7 +67,12 @@ export async function startCompatibilityFixtureServer(
       reply.end("refused");
       return;
     }
-    const kind = request.url?.slice(1) as CompatibilityFixtureArtifactKind;
+    const kind = artifactKindForRequest(request.url, options.artifactPathPrefix);
+    if (!kind) {
+      reply.writeHead(404);
+      reply.end("missing");
+      return;
+    }
     const payload = payloads[kind];
     if (!payload) {
       reply.writeHead(404);
@@ -66,6 +85,28 @@ export async function startCompatibilityFixtureServer(
   });
   await listenOnDualStackLoopback(server);
   return server;
+}
+
+function artifactKindForRequest(
+  requestUrl: string | undefined,
+  artifactPathPrefix: string | undefined,
+): CompatibilityFixtureArtifactKind | null {
+  const path = requestUrl?.split("?")[0];
+  if (!path) return null;
+  if (!artifactPathPrefix) return path.slice(1) as CompatibilityFixtureArtifactKind;
+  const prefix = artifactPathPrefix.endsWith("/")
+    ? artifactPathPrefix
+    : `${artifactPathPrefix}/`;
+  if (!path.startsWith(prefix)) return null;
+  const name = path.slice(prefix.length);
+  const names: Record<string, CompatibilityFixtureArtifactKind> = {
+    installer: "installer",
+    relay: "relay",
+    browser: "browser",
+    "control-contract": "controlContract",
+    engine: "engine",
+  };
+  return names[name] ?? null;
 }
 
 export function fixtureServerOrigin(server: HttpsServer | NetServer): string {
