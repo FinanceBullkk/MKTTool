@@ -1,5 +1,15 @@
 # Project changelog
 
+## 2026-09-25 - Replacement candidate source binding
+
+- Select a fresh Browser `0.3.27` / Relay `20` candidate and pin the production-origin Relay
+  archive `e749be84...7439ff` after the terminal handoff repair.
+- Preserve the failed retained v20 archive and the abandoned `0.3.26` artifacts as historical
+  evidence. Browser packaging rejects the retained failing archive hash.
+- Candidate pin regressions pass: MKTTool 9/9 and Browser 23/23. Final source validation and
+  artifact provenance are tracked separately from Browser packaging, VM acceptance and rollout.
+- No publication, source push, production deployment or operator promotion is implied.
+
 ## 2026-09-25 - Relay bootstrap cold-start source repair
 
 - Start Relay through a loopback bootstrap parent before protected DPAPI initialization. Pending and

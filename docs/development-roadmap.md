@@ -2,6 +2,21 @@
 
 **Updated:** 25 September 2026
 
+## Replacement candidate checkpoint - 25 September 2026
+
+The current source tuple is Browser `0.3.27` / Relay `20`, candidate
+`20260925-browser-0.3.27-relay-20-cold-start-tls-profiles-cft`. It pins the production-origin
+Relay archive `e749be841cac37916d0d9a3de37a652ed4e4c83db3bfbcb9e98d6cf8827439ff` and
+compatibility floor 26. The abandoned `0.3.26` tuple pins retained v20 bytes that fail terminal
+update handoff; its quality and two-build receipts do not validate this replacement.
+
+Candidate pin regressions pass (MKTTool 9/9; Browser 23/23). Final committed-source quality,
+Relay rebuild/provenance, exact TLS/smoke refresh and Browser source binding are being closed in
+the [checkpoint plan](../../plans/260924-0114-relay-cold-start-tls-profiles/plan.md).
+Two replacement Browser builds, clean-VM acceptance, public TLS and rollout observations remain
+separate gates. No source push, deployment, upload or promotion is included in this checkpoint.
+The dated sections below retain earlier evidence and do not describe the current candidate pins.
+
 ## Relay cold-start source repair - 25 September 2026
 
 Relay now has a small bootstrap parent that binds its loopback port before any DPAPI-backed

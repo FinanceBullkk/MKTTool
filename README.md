@@ -34,7 +34,15 @@ Parked Content, Queue, Facebook, Targets, and Health routes use the same hierarc
 cards, but their rollout state and server-side posting guards remain unchanged. Sign-in, empty,
 error, confirmation, and destructive-action states use the same visual language and touch targets.
 
-**Current Browser candidate, 22 September 2026:** candidate
+**Current source candidate, 25 September 2026:** Browser `0.3.27` / Relay `20`, candidate
+`20260925-browser-0.3.27-relay-20-cold-start-tls-profiles-cft`, replaces the abandoned
+`0.3.26` tuple. Its Relay archive is pinned to `e749be84...7439ff`; the prior v20 archive
+`9cc71eba...26d69` failed terminal update handoff and must not be packaged. Final committed-source
+validation, exact artifact provenance, two Browser builds and clean-VM acceptance remain required.
+Distribution and operator promotion remain **HOLD**. See the workspace
+[checkpoint plan](../plans/260924-0114-relay-cold-start-tls-profiles/plan.md).
+
+**Historical Browser candidate, 22 September 2026:** candidate
 `20260922-browser-0.3.24-relay-18-fast-profile-reuse-cft` pins a locally built and smoke-verified
 Relay v18 artifact. It remains **NO-GO for operator promotion**: two isolated Browser builds,
 candidate-only publication, exact clean-VM activation/install/repair/uninstall, packaged Relay and
