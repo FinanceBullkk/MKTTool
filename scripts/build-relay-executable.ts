@@ -46,6 +46,7 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import { RELAY_VERSION } from "../src/lib/relay/relay-endpoints";
 import { writeRelayArtifactMetadata } from "../src/lib/relay/relay-release-metadata";
+import { normalizeRelayPackageScript } from "./normalize-relay-package-script";
 
 /**
  * Gọi esbuild và postject qua **file JS của chúng**, chạy bằng chính `node` đang chạy script này.
@@ -239,7 +240,7 @@ runTool("postject/dist/cli.js", [
 // để chúng rời nhau là một cách hỏng chờ sẵn ở máy người cài.
 for (const fileName of ["setup.bat", "install-relay.ps1", "start-mkttool-relay.cmd"]) {
   const target = path.join(DIST_DIR, fileName);
-  copyFileSync(path.join(process.cwd(), "relay", fileName), target);
+  writeFileSync(target, normalizeRelayPackageScript(readFileSync(path.join(process.cwd(), "relay", fileName))));
   console.log(`      kèm ${path.relative(process.cwd(), target)}`);
 }
 

@@ -1,5 +1,13 @@
 # Project changelog
 
+## 2026-09-25 - Deterministic Relay package scripts
+
+- Normalize the three delivered Windows scripts to CRLF before packaging, preserving all other
+  bytes and the PowerShell UTF-8 BOM. Cover LF, CRLF, mixed endings and actual delivered scripts.
+- Pin unpublished Browser `0.3.27` / Relay `20` to the clean-checkout archive `c66a3935...5526b`
+  (35,123,164 bytes); the Relay executable hash and size are unchanged. Keep prior artifacts.
+- Final committed-source quality, archive rebuild/provenance and acceptance remain pending.
+
 ## 2026-09-25 - Development dependency advisory cleanup
 
 - Refresh only the transitive development dependency `js-yaml` from 4.3.1 to 4.3.2 for

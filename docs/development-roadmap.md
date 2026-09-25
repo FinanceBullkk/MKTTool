@@ -2,11 +2,21 @@
 
 **Updated:** 25 September 2026
 
+## Relay archive normalization - 25 September 2026
+
+Clean-source packaging exposed checkout-dependent script line endings: the Relay executable was
+identical, but the archive differed. Packaging now normalizes `setup.bat`, `install-relay.ps1` and
+`start-mkttool-relay.cmd` to CRLF without changing other bytes or stripping the PowerShell BOM.
+The unpublished `0.3.27` candidate pins clean-checkout archive `c66a3935...5526b` (35,123,164 bytes);
+its executable remains `630c134f...666b88` (94,620,160 bytes). The earlier `e749be84...7439ff`
+archive is retained as historical evidence. Final committed-source quality, rebuild/provenance,
+two Browser builds and clean-VM acceptance remain required; publication and promotion stay HOLD.
+
 ## Replacement candidate checkpoint - 25 September 2026
 
 The current source tuple is Browser `0.3.27` / Relay `20`, candidate
 `20260925-browser-0.3.27-relay-20-cold-start-tls-profiles-cft`. It pins the production-origin
-Relay archive `e749be841cac37916d0d9a3de37a652ed4e4c83db3bfbcb9e98d6cf8827439ff` and
+Relay archive `c66a39353252ffa7b6ad9b936f5aad02634c729560f3b49793f4cbfe5b55526b` and
 compatibility floor 26. The abandoned `0.3.26` tuple pins retained v20 bytes that fail terminal
 update handoff; its quality and two-build receipts do not validate this replacement.
 

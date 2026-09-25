@@ -34,9 +34,14 @@ Parked Content, Queue, Facebook, Targets, and Health routes use the same hierarc
 cards, but their rollout state and server-side posting guards remain unchanged. Sign-in, empty,
 error, confirmation, and destructive-action states use the same visual language and touch targets.
 
+**Relay archive reproducibility, 25 September 2026:** Packaging normalizes the three delivered
+Windows scripts to CRLF while preserving their bytes and PowerShell UTF-8 BOM. The candidate pins
+the clean-checkout archive; the earlier `e749be84...7439ff` archive remains historical evidence.
+Final committed-source rebuild, quality and acceptance checks remain required.
+
 **Current source candidate, 25 September 2026:** Browser `0.3.27` / Relay `20`, candidate
 `20260925-browser-0.3.27-relay-20-cold-start-tls-profiles-cft`, replaces the abandoned
-`0.3.26` tuple. Its Relay archive is pinned to `e749be84...7439ff`; the prior v20 archive
+`0.3.26` tuple. Its Relay archive is pinned to `c66a3935...5526b`; the prior v20 archive
 `9cc71eba...26d69` failed terminal update handoff and must not be packaged. Final committed-source
 validation, exact artifact provenance, two Browser builds and clean-VM acceptance remain required.
 Distribution and operator promotion remain **HOLD**. See the workspace

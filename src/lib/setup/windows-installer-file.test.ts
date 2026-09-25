@@ -1,10 +1,19 @@
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { openWindowsInstaller, readWindowsInstallerFile } from "./windows-installer-file";
 
-afterEach(() => delete process.env.MKT_BROWSER_INSTALLER_PATH);
+const originalInstallerPath = process.env.MKT_BROWSER_INSTALLER_PATH;
+const fixtureDirectories: string[] = [];
+
+afterEach(() => {
+  if (originalInstallerPath === undefined) delete process.env.MKT_BROWSER_INSTALLER_PATH;
+  else process.env.MKT_BROWSER_INSTALLER_PATH = originalInstallerPath;
+  for (const directory of fixtureDirectories.splice(0)) {
+    rmSync(directory, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
+  }
+});
 
 describe("readWindowsInstallerFile", () => {
   it("reports a missing configured artifact instead of falling back silently", () => {
@@ -14,6 +23,7 @@ describe("readWindowsInstallerFile", () => {
 
   it("opens and measures the configured installer from one file handle", async () => {
     const dir = mkdtempSync(path.join(os.tmpdir(), "mkt-installer-"));
+    fixtureDirectories.push(dir);
     const file = path.join(dir, "MKTBrowser-win-x64.exe");
     writeFileSync(file, Buffer.from("installer"));
     process.env.MKT_BROWSER_INSTALLER_PATH = file;
