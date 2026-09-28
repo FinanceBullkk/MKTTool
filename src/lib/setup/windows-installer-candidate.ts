@@ -18,11 +18,11 @@ type WindowsInstallerCandidatePublicationState = Readonly<{
 
 /** Candidate identity; changing any payload field requires a new release freeze. */
 export const WINDOWS_INSTALLER_CANDIDATE = Object.freeze({
-  id: "20260925-browser-0.3.27-relay-20-cold-start-tls-profiles-cft",
-  browserVersion: "0.3.27",
-  relayVersion: 20,
-  relaySha256: "c66a39353252ffa7b6ad9b936f5aad02634c729560f3b49793f4cbfe5b55526b",
-  relaySizeBytes: 35123164,
+  id: "20260928-browser-0.3.28-relay-21-self-service-onboarding-cft",
+  browserVersion: "0.3.28",
+  relayVersion: 21,
+  relaySha256: "45f6e669da892f002c63c58ffe92d8f05a17229797833b0c763efd4e088d3ed0",
+  relaySizeBytes: 35123253,
   engineKind: "cft",
   engineChannel: "chrome-for-testing",
   engineVersion: "152.0.7977.64",

@@ -24,7 +24,7 @@ describe("reviewed Windows profile-manager candidate", () => {
     expect(() => assertWindowsInstallerCandidateArtifacts(relay, engine)).not.toThrow();
     expect(WINDOWS_INSTALLER_R2_KEY).toBe(`MKTBrowser-${candidate.id}.exe`);
     expect(WINDOWS_INSTALLER_R2_KEY).not.toBe("MKTBrowser-win-x64.exe");
-    expect(candidate.relayVersion).toBe(20);
+    expect(candidate.relayVersion).toBe(21);
     expect(candidate.promotionStatus).toBe("eligible");
     expect(WINDOWS_INSTALLER_PROFILE_ACTION_RELAY_FLOOR).toBe(
       Math.max(
