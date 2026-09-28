@@ -39,13 +39,14 @@ Windows scripts to CRLF while preserving their bytes and PowerShell UTF-8 BOM. T
 the clean-checkout archive; the earlier `e749be84...7439ff` archive remains historical evidence.
 Final committed-source rebuild, quality and acceptance checks remain required.
 
-**Current source candidate, 25 September 2026:** Browser `0.3.27` / Relay `20`, candidate
-`20260925-browser-0.3.27-relay-20-cold-start-tls-profiles-cft`, replaces the abandoned
-`0.3.26` tuple. Its Relay archive is pinned to `c66a3935...5526b`; the prior v20 archive
-`9cc71eba...26d69` failed terminal update handoff and must not be packaged. Final committed-source
-validation, exact artifact provenance, two Browser builds and clean-VM acceptance remain required.
-Distribution and operator promotion remain **HOLD**. See the workspace
-[checkpoint plan](../plans/260924-0114-relay-cold-start-tls-profiles/plan.md).
+**Current source candidate, 29 September 2026:** Browser `0.3.29` / Relay `21`, candidate
+`20260929-browser-0.3.29-relay-21-self-service-onboarding-cft`, carries local-only operator-key
+self-enrollment. Relay v21 archive `45f6e669...8d3ed0` is published and full-read verified. The
+independently built 0.3.28 payloads matched but were rejected before publication because the
+installed payload omitted the fork MIT license and retained Electron's copyright metadata. Final
+0.3.29 quality, two-build comparison, immutable installer publication, production deployment and
+second-PC onboarding acceptance remain required. Distribution stays **HOLD** until those gates
+close. See the workspace [self-service onboarding plan](../plans/260928-2219-full-team-self-service-onboarding/plan.md).
 
 **Historical Browser candidate, 22 September 2026:** candidate
 `20260922-browser-0.3.24-relay-18-fast-profile-reuse-cft` pins a locally built and smoke-verified
