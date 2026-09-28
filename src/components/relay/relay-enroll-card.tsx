@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { SetupPrimaryStateCard } from "@/components/setup/setup-primary-state-card";
 import { SetupSupportDetails } from "@/components/setup/setup-support-details";
+import { useOperatorKeySelfEnrollment } from "@/components/setup/use-operator-key-self-enrollment";
 import { configureRelay, receiveOperatorKey } from "@/lib/relay/relay-browser-client";
 import type { RelayHealth } from "@/lib/relay/relay-endpoints";
 import { probeSetupRelay } from "@/lib/setup/setup-relay-probe";
@@ -13,7 +14,6 @@ import {
   type SetupRelayHealth,
 } from "@/lib/setup/setup-state-machine";
 import { currentSetupUpdateState } from "@/lib/setup/setup-update-state";
-import { AdminBootstrapButton } from "@/components/setup/admin-bootstrap-button";
 import { enrollThisMachine } from "@/lib/tickets/relay-enrollment-actions";
 import {
   completeOperatorKeyDelivery,
@@ -27,7 +27,7 @@ export function RelayEnrollCard({
   viewer,
   onDownloadRelay,
 }: {
-  viewer: { userId: string; email: string; isAdmin: boolean };
+  viewer: { userId: string; email: string };
   onDownloadRelay?: () => void;
 }) {
   const [relay, setRelay] = useState<SetupRelayHealth>({ status: "unchecked" });
@@ -44,6 +44,11 @@ export function RelayEnrollCard({
     setRelay((current) => current.status === "responded"
       ? { status: "responded", health: { ...current.health, configured: true } } : current);
   }, []);
+  const selfEnrollment = useOperatorKeySelfEnrollment({
+    deviceId: health?.deviceId ?? null,
+    onMessage: setDetail,
+    onReady: markReady,
+  });
 
   const deliverGrant = useCallback(async (deviceId: string) => {
     if (delivering.current) return;
@@ -222,7 +227,7 @@ export function RelayEnrollCard({
 
   useEffect(() => {
     const deviceId = health?.deviceId;
-    if (verdict.state !== "Waiting for administrator approval" || !deviceId) return;
+    if (verdict.state !== "Enter operator key" || !deviceId) return;
     const timer = setInterval(() => void deliverGrant(deviceId), POLL_MS);
     return () => clearInterval(timer);
   }, [deliverGrant, health?.deviceId, verdict.state]);
@@ -249,15 +254,18 @@ export function RelayEnrollCard({
         verdict={verdict}
         health={health}
         email={viewer.email}
-        busy={busy}
+        busy={busy || selfEnrollment.busy}
         detail={detail}
         onDownloadRelay={onDownloadRelay}
-        onAction={verdict.action.kind === "CONFIRM" && health ? bindThisPc : confirmThisPc}
+        onAction={
+          verdict.action.kind === "SELF_ENROLL"
+            ? selfEnrollment.start
+            : verdict.action.kind === "CONFIRM" && health
+              ? bindThisPc
+              : confirmThisPc
+        }
       />
       <SetupSupportDetails health={health} />
-      {viewer.isAdmin && verdict.state === "Waiting for administrator approval" && health?.deviceId ? (
-        <AdminBootstrapButton deviceId={health.deviceId} onReady={markReady} />
-      ) : null}
     </div>
   );
 }

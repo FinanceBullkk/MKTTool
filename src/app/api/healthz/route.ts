@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db/prisma-client";
 import { readRelayRelease } from "@/lib/relay/relay-release-file";
 import { readRelayReleaseR2Config } from "@/lib/relay/relay-release-r2";
 import { RELAY_VERSION } from "@/lib/relay/relay-endpoints";
+import { readExpectedOperatorKeyFingerprint } from "@/lib/crypto/operator-key-fingerprint";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -24,13 +25,14 @@ const RELEASE_CHECK_TIMEOUT_MS = 3_000;
  *
  * This route intentionally has no auth wrapper and never returns account,
  * proxy, ticket, or secret data. A healthy response means the process can
- * reach Postgres and has the exact Relay release metadata it is configured to
- * serve. Failures return 503 so Railway does not keep routing to a half-ready
- * container; no migration or repair is attempted here.
+ * reach Postgres, has the exact Relay release metadata it is configured to serve, and has the
+ * non-reversible operator-key verifier required for self-onboarding. Failures return 503 so
+ * Railway does not keep routing to a half-ready container; no migration or repair is attempted.
  */
 export async function GET(): Promise<NextResponse> {
   const [database, release] = await Promise.all([checkDatabase(), checkRelease()]);
-  const ready = database.ok && release.ok;
+  const operatorKeyFingerprint = checkOperatorKeyFingerprint();
+  const ready = database.ok && release.ok && operatorKeyFingerprint.ok;
   const body = {
     ok: ready,
     status: ready ? "ready" : "not_ready",
@@ -38,6 +40,7 @@ export async function GET(): Promise<NextResponse> {
       database: database.ok ? "ok" : "failed",
       releaseMetadata: release.ok ? "ok" : "failed",
       r2: release.r2Configured ? (release.ok ? "ok" : "failed") : "not_configured",
+      operatorKeyFingerprint: operatorKeyFingerprint.ok ? "ok" : "failed",
     },
     relayVersion: release.version,
     releaseSource: release.source,
@@ -51,6 +54,16 @@ export async function GET(): Promise<NextResponse> {
       "x-content-type-options": "nosniff",
     },
   });
+}
+
+function checkOperatorKeyFingerprint(): { ok: boolean } {
+  try {
+    readExpectedOperatorKeyFingerprint();
+    return { ok: true };
+  } catch (cause) {
+    logCheckFailure("operator-key fingerprint", cause);
+    return { ok: false };
+  }
 }
 
 

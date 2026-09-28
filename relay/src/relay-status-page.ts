@@ -174,14 +174,14 @@ function renderProblems(problems: ConfigProblem[], webOrigin: string): string {
       Relay, verifies the signed-in owner, registers this PC, and sends configuration back without
       requiring manual key or JSON copying.</li>
 </ol>
-<p><strong>The server never has the operator secret.</strong> An administrator authorizes a sealed
-   grant for this PC; the local Relay receives and stores it without exposing the secret to the
-   server.</p>
+<p><strong>The server never has the operator secret.</strong> The signed-in owner may authorize local
+   entry from Setup, or an administrator may issue a recipient-sealed recovery grant. In both paths
+   the local Relay stores the key without exposing it to the server.</p>
 <p class="muted">Configuration takes effect immediately; restarting the Relay is not required.</p>
 
 <details><summary class="muted">Recovery or legacy: enter an operator key manually</summary>
-<p class="muted">Use the manual form only for recovery or a legacy first-device bootstrap when the
-   guided setup page cannot complete the sealed-grant flow.</p>
+<p class="muted">Use the manual form only after the authenticated Setup page authorizes this PC.
+   Retrieve the key from the team Vaultwarden collection, not from chat.</p>
 </details>
 
 <details><summary class="muted">Legacy recovery: edit <code>${escapeHtml(CONFIG_FILE)}</code></summary>

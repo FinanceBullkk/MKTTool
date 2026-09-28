@@ -105,12 +105,17 @@ describe("operator key delivery actions", () => {
     });
   });
 
-  it("rejects wrong owner and revoked devices before minting", async () => {
+  it("rejects wrong owner, revoked, and retiring devices before minting", async () => {
     const target = await grantedDevice();
     await prisma.relayDevice.update({ where: { id: target.id }, data: { userId: "other" } });
     const form = new FormData(); form.set("deviceId", target.id);
     expect((await readOperatorKeyDelivery(null, form)).ok).toBe(false);
     await prisma.relayDevice.update({ where: { id: target.id }, data: { userId: ACTOR.userId, revokedAt: new Date() } });
+    expect((await readOperatorKeyDelivery(null, form)).ok).toBe(false);
+    await prisma.relayDevice.update({
+      where: { id: target.id },
+      data: { revokedAt: null, retirementId: "retirement-in-progress" },
+    });
     expect((await readOperatorKeyDelivery(null, form)).ok).toBe(false);
   });
 
@@ -147,6 +152,27 @@ describe("operator key delivery actions", () => {
     const form = new FormData();
     form.set("deviceId", target.id); form.set("grantId", "grant-1"); form.set("generation", "1"); form.set("proof", proof);
     expect((await completeOperatorKeyDelivery(null, form)).ok).toBe(true);
+  });
+
+  it("does not complete a sealed grant after device retirement starts", async () => {
+    const target = await grantedDevice();
+    const proof = "retiring-proof";
+    await prisma.relayDevice.update({
+      where: { id: target.id },
+      data: {
+        operatorKeyCompletionHash: hashGrantCompletionProof(proof),
+        retirementId: "retirement-in-progress",
+      },
+    });
+    const form = new FormData();
+    form.set("deviceId", target.id);
+    form.set("grantId", "grant-1");
+    form.set("generation", "1");
+    form.set("proof", proof);
+
+    expect((await completeOperatorKeyDelivery(null, form)).ok).toBe(false);
+    expect((await prisma.relayDevice.findUniqueOrThrow({ where: { id: target.id } })).operatorKeyReadyAt)
+      .toBeNull();
   });
 
   it("serializes a normal Ready commit with the global bootstrap lock", async () => {

@@ -42,11 +42,12 @@ export const readOperatorKeyDelivery = guardedAction(async function readOperator
     return { ok: false, message: "This PC belongs to a different signed-in user." };
   }
   if (device.revokedAt) return { ok: false, message: "This PC has been revoked." };
+  if (device.retirementId) return { ok: false, message: "This PC is being retired." };
   if (device.operatorKeyReadyAt) return { ok: true, message: "This PC is ready.", state: "already" };
   if (device.operatorKeyGrant && !hasGrant(device)) {
     return { ok: false, message: "This pending grant is from an older server version. Ask an administrator to issue a new grant." };
   }
-  if (!hasGrant(device)) return { ok: true, message: "Waiting for administrator approval.", state: "waiting" };
+  if (!hasGrant(device)) return { ok: true, message: "No sealed recovery grant is pending.", state: "waiting" };
 
   const now = new Date();
   if (!device.operatorKeyDeliveryAuthorization || !device.operatorKeyDeliveryExpiresAt || device.operatorKeyDeliveryExpiresAt <= now) {
@@ -82,6 +83,7 @@ export const readOperatorKeyDelivery = guardedAction(async function readOperator
         id: device.id,
         userId: actor.userId,
         revokedAt: null,
+        retirementId: null,
         operatorKeyReadyAt: null,
         operatorKeyGrantId: device.operatorKeyGrantId,
         operatorKeyGrantGeneration: device.operatorKeyGrantGeneration,
@@ -103,6 +105,7 @@ export const readOperatorKeyDelivery = guardedAction(async function readOperator
   if (!device) return { ok: false, message: "This PC is not registered." };
   if (device.userId !== actor.userId) return { ok: false, message: "This PC belongs to a different signed-in user." };
   if (device.revokedAt) return { ok: false, message: "This PC has been revoked." };
+  if (device.retirementId) return { ok: false, message: "This PC is being retired." };
   if (device.operatorKeyReadyAt) return { ok: true, message: "This PC is ready.", state: "already" };
   if (!device || !hasAuthorizedGrant(device)) return { ok: false, message: "Grant authorization could not be prepared." };
   return {
@@ -121,11 +124,14 @@ export const completeOperatorKeyDelivery = guardedAction(async function complete
   const parsed = completionSchema.safeParse(formToObject(formData));
   if (!parsed.success) return { ok: false, message: firstError(parsed.error) };
   const result = await prisma.$transaction(async (tx): Promise<ActionResult> => {
-    // Serialize every transition to Ready with first-device bootstrap's global invariant.
+    // Serialize every operator-key transition to Ready under the shared device lock.
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(40304)`;
     const device = await tx.relayDevice.findUnique({ where: { id: parsed.data.deviceId } });
     if (!device) return { ok: false, message: "This PC is not registered." };
     if (device.userId !== actor.userId) return { ok: false, message: "This PC belongs to another user." };
+    if (device.revokedAt || device.retirementId) {
+      return { ok: false, message: "This PC is unavailable for operator-key delivery." };
+    }
     const decision = decideOperatorKeyCompletion(device, parsed.data);
     if (!decision.ok) return decision;
     if (decision.already) return { ok: true, message: "This PC is already ready." };
@@ -139,6 +145,7 @@ export const completeOperatorKeyDelivery = guardedAction(async function complete
         operatorKeyCompletionHash: device.operatorKeyCompletionHash,
         operatorKeyReadyAt: null,
         revokedAt: null,
+        retirementId: null,
       },
       data: {
         operatorKeyGrant: null,

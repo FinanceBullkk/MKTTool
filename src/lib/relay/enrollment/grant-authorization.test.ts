@@ -51,7 +51,7 @@ describe("grant authorization", () => {
     expect(() => verifyGrantAuthorization(signed, keys.publicKey, 150_000)).toThrow(/sync windows/i);
   });
 
-  it("uses the five-minute lifetime supplied by the ADMIN bootstrap issuer", () => {
+  it("uses the five-minute lifetime supplied by the local-entry issuer", () => {
     const signed = issueGrantAuthorization(
       { ...delivery, kind: "bootstrap", authorizationId: "bootstrap-1" },
       keys.privateKey,

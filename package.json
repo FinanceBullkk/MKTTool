@@ -29,6 +29,7 @@
     "proxies:import": "tsx --env-file=.env scripts/import-proxies-from-provider-list.ts",
     "proxies:import-sqlite": "tsx --env-file=.env scripts/import-proxies-from-sqlite-backup.ts",
     "vault:keygen": "tsx scripts/generate-vault-key.ts",
+    "vault:operator-fingerprint": "tsx --env-file-if-exists=.env scripts/derive-operator-key-fingerprint.ts",
     "keys:server-keygen": "tsx scripts/generate-server-signing-key.ts",
     "keys:server-pubkey": "tsx scripts/show-server-public-key.ts",
     "keys:relay-keygen": "tsx scripts/generate-relay-device-key.ts",

@@ -21,14 +21,17 @@ export function SetupPrimaryStateCard({
   onDownloadRelay?: () => void;
   onAction: () => void;
 }) {
-  const buttonAction = verdict.action.kind === "CONFIRM" || verdict.action.kind === "RETRY";
+  const buttonAction =
+    verdict.action.kind === "CONFIRM" ||
+    verdict.action.kind === "RETRY" ||
+    verdict.action.kind === "SELF_ENROLL";
   const downloadAction = verdict.action.href === "/setup#download" && onDownloadRelay;
   const pendingLabel = health ? "Saving this PC..." : "Checking this PC...";
   const ready = verdict.state === "Ready";
   const waiting =
     verdict.state === "Starting" ||
     verdict.state === "Unable to verify" ||
-    verdict.state === "Waiting for administrator approval";
+    verdict.state === "Enter operator key";
   const needsRepair = verdict.state === "Needs repair";
   const StateIcon = ready ? CircleCheck : needsRepair ? TriangleAlert : waiting ? CircleDashed : MonitorCog;
   const tone = ready

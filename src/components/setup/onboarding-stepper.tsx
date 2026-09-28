@@ -11,10 +11,12 @@ import type { SetupChecklist } from "@/lib/setup/setup-checklist";
 export function OnboardingStepper({
   viewer,
   checklist,
+  browserDownloadSection,
   relayDownloadSection,
 }: {
   viewer: { userId: string; email: string; isAdmin: boolean };
   checklist: SetupChecklist;
+  browserDownloadSection: ReactNode;
   relayDownloadSection: ReactNode;
 }) {
   const [activeStep, setActiveStep] = useState<1 | 2 | 3>(1);
@@ -30,18 +32,18 @@ export function OnboardingStepper({
   return (
     <PageShell>
       <PageHeading
-        title="Set up this Relay PC"
-        description="Install → register → handoff"
-        eyebrow="Three-step setup"
+        title="Set up this Windows PC"
+        description="Install → register → unlock"
+        eyebrow="Three-step onboarding"
         icon={MonitorCog}
       />
 
-      <nav aria-label="Relay PC setup progress" className="mb-6 grid gap-3 md:grid-cols-3">
+      <nav aria-label="Windows PC setup progress" className="mb-6 grid gap-3 md:grid-cols-3">
         <StepButton
           number={1}
           active={activeStep === 1}
-          title="Install Relay"
-          description="Install package"
+          title="Install MKT Browser"
+          description="Browser + Relay"
           onClick={() => selectStep(1)}
         />
         <StepButton
@@ -62,10 +64,16 @@ export function OnboardingStepper({
 
       {activeStep === 1 ? (
         <div className="space-y-4">
-          {relayDownloadSection}
+          {browserDownloadSection}
+          <details className="rounded-xl border border-white/[0.08] bg-white/[0.025]">
+            <summary className="flex min-h-11 cursor-pointer list-none items-center px-4 text-sm font-medium text-neutral-300 marker:content-none">
+              Standalone Relay download for repair
+            </summary>
+            <div className="border-t border-white/[0.08] p-4">{relayDownloadSection}</div>
+          </details>
           <div className="flex justify-end pt-1">
             <NextButton
-              label="I installed Relay - register this PC"
+              label="I installed MKT Browser - register this PC"
               onClick={() => selectStep(2)}
             />
           </div>
@@ -76,7 +84,7 @@ export function OnboardingStepper({
         <div id="register" className="scroll-mt-6 space-y-4">
           <RelayEnrollCard viewer={viewer} onDownloadRelay={() => selectStep(1)} />
           <div className="flex flex-col-reverse gap-3 pt-1 sm:flex-row sm:items-center sm:justify-between">
-            <BackButton label="Install Relay" onClick={() => selectStep(1)} />
+            <BackButton label="Install MKT Browser" onClick={() => selectStep(1)} />
             <NextButton label="Review workspace handoff" onClick={() => selectStep(3)} />
           </div>
         </div>
@@ -89,12 +97,11 @@ export function OnboardingStepper({
           <details className="rounded-xl border border-white/[0.08] bg-white/[0.025]">
             <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 px-4 text-sm font-medium text-neutral-300 marker:content-none">
               <Info size={16} className="text-sky-300" />
-              Why MKT Browser is not included here
+              Product boundary
             </summary>
             <p className="border-t border-white/[0.08] px-4 py-3 text-xs leading-5 text-neutral-400">
-              MKT Browser is not distributed from this page and is not required to install Relay,
-              register a Relay PC, or receive nick and proxy assignments. It remains in the
-              separate Browser rollout lane; this setup does not imply identity-isolation approval.
+              MKT Browser is a local profile manager with proxy binding. Installing it does not
+              establish unique fingerprints, identity isolation, or real-account safety.
             </p>
           </details>
 

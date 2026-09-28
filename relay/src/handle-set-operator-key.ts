@@ -19,11 +19,12 @@
 import type { IncomingMessage } from "node:http";
 import { RELAY_ORIGIN } from "../../src/lib/relay/relay-endpoints";
 import { describePlaceholderSecret } from "../../src/lib/crypto/placeholder-secret-detection";
+import { fingerprintOperatorKey } from "../../src/lib/crypto/operator-key-fingerprint";
 import type { RelayResponseBody } from "./relay-http-server";
 import { writeRelayConfig } from "./relay-config";
-import { RELAY_SECRET_NAMES, type SecureStore } from "./secure-store";
+import type { SecureStore } from "./secure-store";
 import type { BootstrapAuthorizationBroker } from "./bootstrap-authorization";
-import { writeOperatorGrantState } from "./operator-grant-state";
+import { readOperatorGrantState, writeOperatorGrantState } from "./operator-grant-state";
 
 /** Cùng con số với `VAULT_KEY_HEX_LENGTH` phía máy chủ. */
 const VAULT_KEY_HEX_LENGTH = 64;
@@ -143,10 +144,13 @@ export function handleSetOperatorKey(
 }
 
 function readBootstrapState(store: SecureStore): Record<string, unknown> | null {
-  const raw = store.read(RELAY_SECRET_NAMES.operatorGrantState);
-  if (!raw) return null;
-  const state = JSON.parse(raw) as { kind?: unknown; grantId?: unknown; generation?: unknown; completionProof?: unknown };
-  return state.kind === "bootstrap" && typeof state.grantId === "string" && typeof state.generation === "number" && typeof state.completionProof === "string"
-    ? { grantId: state.grantId, generation: state.generation, proof: state.completionProof }
+  const state = readOperatorGrantState(store);
+  return state?.kind === "bootstrap"
+    ? {
+        grantId: state.grantId,
+        generation: state.generation,
+        proof: state.completionProof,
+        keyFingerprint: fingerprintOperatorKey(state.operatorKey),
+      }
     : null;
 }

@@ -3,13 +3,14 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 describe("setup page composition", () => {
-  it("keeps Relay download, current-PC enrollment, and the workspace checklist on one route", () => {
+  it("keeps Browser/Relay downloads, current-PC enrollment, and the checklist on one route", () => {
     const page = readFileSync(path.join(process.cwd(), "src/app/setup/page.tsx"), "utf8");
     const stepper = readFileSync(
       path.join(process.cwd(), "src/components/setup/onboarding-stepper.tsx"),
       "utf8",
     );
 
+    expect(page).toContain("<BrowserDownloadSection");
     expect(page).toContain("<RelayDownloadSection");
     expect(page).toContain("loadSetupChecklist()");
     expect(stepper).toContain("<RelayEnrollCard");
@@ -37,22 +38,28 @@ describe("setup page composition", () => {
     expect(source).not.toContain("checklist.nextStepId === null && downloadable");
   });
 
-  it("makes Relay the setup entry point and keeps Browser outside distribution", () => {
+  it("makes the combined Browser installer the setup entry point", () => {
     const source = readFileSync(
       path.join(process.cwd(), "src/components/setup/onboarding-stepper.tsx"),
       "utf8",
     );
 
-    expect(source).toContain('title="Install Relay"');
+    const browserSection = readFileSync(
+      path.join(process.cwd(), "src/components/setup/browser-download-section.tsx"),
+      "utf8",
+    );
+
+    expect(source).toContain('title="Install MKT Browser"');
     expect(source).toContain('title="Register this PC"');
     expect(source).toContain('title="Confirm handoff"');
-    expect(source).toContain("I installed Relay - register this PC");
+    expect(source).toContain("I installed MKT Browser - register this PC");
     expect(source).toContain('onDownloadRelay={() => selectStep(1)}');
     expect(source).toContain('id="register"');
     expect(source).toContain('id="handoff"');
-    expect(source).toContain("MKT Browser is not distributed from this page");
+    expect(source).toContain("Standalone Relay download for repair");
+    expect(source).toContain("profile manager with proxy binding");
     expect(source).not.toContain("installerDownloadUrl");
-    expect(source).not.toContain("/api/setup/windows-installer");
+    expect(browserSection).toContain('href="/api/setup/windows-installer"');
   });
 
   it("does not make Browser health a Relay PC registration gate", () => {

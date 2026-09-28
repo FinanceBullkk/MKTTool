@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { handleReadBootstrapCompletion } from "./handle-read-bootstrap-completion";
 import { InMemorySecureStore } from "./in-memory-secure-store";
 import { writeOperatorGrantState } from "./operator-grant-state";
+import { fingerprintOperatorKey } from "../../src/lib/crypto/operator-key-fingerprint";
 
 const request = (origin: string) => ({ headers: { origin } }) as IncomingMessage;
 
@@ -13,7 +14,11 @@ describe("handleReadBootstrapCompletion", () => {
       v: 1, kind: "bootstrap", operatorKey: "c4".repeat(32), generation: 1,
       grantId: "bootstrap-1", grantHash: "aa".repeat(32), completionProof: "proof",
     });
-    expect(handleReadBootstrapCompletion(request("https://app.example"), "https://app.example", store)).toMatchObject({ ok: true, proof: "proof" });
+    expect(handleReadBootstrapCompletion(request("https://app.example"), "https://app.example", store)).toMatchObject({
+      ok: true,
+      proof: "proof",
+      keyFingerprint: fingerprintOperatorKey("c4".repeat(32)),
+    });
     expect(handleReadBootstrapCompletion(request("https://evil.example"), "https://app.example", store).ok).toBe(false);
   });
 

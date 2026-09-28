@@ -68,12 +68,14 @@ describe("setup flow links", () => {
   it("keeps the download anchor targeted by every setup link", () => {
     // Không có `id="download"` thì mọi `#download` ở trên rơi vào đầu trang, và người tới từ dải
     // "cầu nối bản cũ" phải tự dò xuống — im lặng, không có gì hỏng để mà thấy.
-    expect(doc("src", "components", "setup", "relay-download-section.tsx")).toContain('id="download"');
+    expect(doc("src", "components", "setup", "browser-download-section.tsx")).toContain('id="download"');
   });
 
-  it("renders the anchored Relay download section on the setup page", () => {
+  it("renders the anchored Browser download and standalone Relay repair sections", () => {
     const page = doc("src", "app", "setup", "page.tsx");
+    expect(page).toContain('import { BrowserDownloadSection }');
     expect(page).toContain('import { RelayDownloadSection }');
+    expect(page).toContain("<BrowserDownloadSection");
     expect(page).toContain("<RelayDownloadSection");
   });
 
@@ -85,9 +87,10 @@ describe("setup flow links", () => {
     expect(page).toContain("/setup#download");
   });
 
-  it("uses the existing authenticated Relay release channel", () => {
-    const section = doc("src", "components", "setup", "relay-download-section.tsx");
-    expect(section).toContain('href="/api/relay/download"');
-    expect(section).not.toContain("/api/setup/windows-installer");
+  it("uses the authenticated immutable Browser and Relay release channels", () => {
+    const relay = doc("src", "components", "setup", "relay-download-section.tsx");
+    const browser = doc("src", "components", "setup", "browser-download-section.tsx");
+    expect(relay).toContain('href="/api/relay/download"');
+    expect(browser).toContain('href="/api/setup/windows-installer"');
   });
 });

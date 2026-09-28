@@ -189,9 +189,9 @@ export function setupStateMachine(input: SetupStateMachineInput): SetupStateResu
 
   if (!input.device.operatorKeyReady) {
     return result(
-      "Waiting for administrator approval",
-      { kind: "WAIT", label: "Waiting for administrator approval" },
-      "Setup is saved. You can close this page; there is nothing else to do.",
+      "Enter operator key",
+      { kind: "SELF_ENROLL", label: "Open Relay and enter team key" },
+      "Retrieve the operator key from the team Vaultwarden, then paste it only into Relay on this PC.",
     );
   }
 

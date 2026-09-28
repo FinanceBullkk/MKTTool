@@ -5,7 +5,7 @@ export type SetupState =
   | "Unable to verify"
   | "Sign in"
   | "Confirm this PC"
-  | "Waiting for administrator approval"
+  | "Enter operator key"
   | "Ready"
   | "Needs repair";
 
@@ -13,6 +13,7 @@ export type SetupActionKind =
   | "WAIT"
   | "SIGN_IN"
   | "CONFIRM"
+  | "SELF_ENROLL"
   | "ADMIN"
   | "RECOVER"
   | "RETRY"

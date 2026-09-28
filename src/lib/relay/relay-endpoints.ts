@@ -148,6 +148,7 @@ export interface BootstrapCompletionReply extends RelayReply {
   grantId?: string;
   generation?: number;
   proof?: string;
+  keyFingerprint?: string;
 }
 
 export interface DeviceRetirementRequest {
@@ -270,7 +271,7 @@ export const RELAY_PROFILE_WORK_TIMEOUT_MS = 60_000;
  * tăng bằng tay: tự sinh theo git hash thì nó đổi ở mọi lượt build, và một số đổi liên tục thì
  * cảnh báo "bản cũ" kêu liên tục cho tới lúc không ai còn nhìn.
  */
-export const RELAY_VERSION = 20;
+export const RELAY_VERSION = 21;
 
 /**
  * A bootstrap listener can answer before protected Relay state is available. It must never be

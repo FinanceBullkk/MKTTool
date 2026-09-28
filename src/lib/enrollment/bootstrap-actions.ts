@@ -5,7 +5,11 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import type { ActionResult } from "@/lib/actions/action-result";
 import { firstError, formToObject } from "@/lib/accounts/vault-form-schemas";
-import { adminAction } from "@/lib/auth/guarded-action";
+import { guardedAction } from "@/lib/auth/guarded-action";
+import {
+  operatorKeyFingerprintMatches,
+  readExpectedOperatorKeyFingerprint,
+} from "@/lib/crypto/operator-key-fingerprint";
 import { prisma } from "@/lib/db/prisma-client";
 import { issueGrantAuthorization } from "@/lib/relay/enrollment/grant-authorization";
 import { hashGrantCompletionProof } from "@/lib/relay/enrollment/grant-digests";
@@ -19,33 +23,40 @@ export interface BootstrapAuthorizationResult extends ActionResult {
   authorization?: string;
 }
 
-export const mintBootstrapAuthorization = adminAction(async function mintBootstrapAuthorization(
-  _actor,
+function configuredFingerprintResult():
+  | { ok: true; fingerprint: string }
+  | { ok: false; message: string } {
+  try {
+    return { ok: true, fingerprint: readExpectedOperatorKeyFingerprint() };
+  } catch {
+    return {
+      ok: false,
+      message:
+        "Operator-key verification is not configured on MKTTool. Contact an administrator before entering the key.",
+    };
+  }
+}
+
+export const mintBootstrapAuthorization = guardedAction(async function mintBootstrapAuthorization(
+  actor,
   _prev: BootstrapAuthorizationResult | null,
   formData: FormData,
 ): Promise<BootstrapAuthorizationResult> {
+  const configured = configuredFingerprintResult();
+  if (!configured.ok) return configured;
   const parsed = deviceSchema.safeParse(formToObject(formData));
   if (!parsed.success) return { ok: false, message: firstError(parsed.error) };
   return prisma.$transaction(async (tx) => {
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(40304)`;
     const device = await tx.relayDevice.findUnique({ where: { id: parsed.data.deviceId } });
     if (!device || device.revokedAt || device.retirementId) {
-      return { ok: false, message: "This PC is unavailable for bootstrap." };
+      return { ok: false, message: "This PC is unavailable for operator-key setup." };
+    }
+    if (device.userId !== actor.userId) {
+      return { ok: false, message: "You can enter the operator key only for your own Relay PC." };
     }
     if (device.operatorKeyReadyAt) return { ok: false, message: "This PC is already ready." };
-    const readyCount = await tx.relayDevice.count({ where: { operatorKeyReadyAt: { not: null }, revokedAt: null } });
-    if (readyCount > 0) return { ok: false, message: "Bootstrap is only available before the first ready device." };
     const now = new Date();
-    const selected = await tx.relayDevice.findFirst({
-      where: {
-        id: { not: device.id }, revokedAt: null, bootstrapAuthorizationId: { not: null },
-        bootstrapAuthorizationExpiresAt: { gt: now }, bootstrapAuthorizationUsedAt: null,
-      },
-    });
-    if (selected) return { ok: false, message: "Another PC is already selected for first-device bootstrap." };
-    if (device.bootstrapAuthorization && device.bootstrapAuthorizationExpiresAt && device.bootstrapAuthorizationExpiresAt > now && !device.bootstrapAuthorizationUsedAt) {
-      return { ok: true, message: "Existing bootstrap authorization is still active.", authorization: device.bootstrapAuthorization };
-    }
 
     const proof = randomBytes(32).toString("base64url");
     const completion = sealForDevice({ proof }, device.publicKey);
@@ -66,23 +77,34 @@ export const mintBootstrapAuthorization = adminAction(async function mintBootstr
       },
     });
     if (committed.count === 0) {
-      return { ok: false, message: "This PC became unavailable before bootstrap was authorized." };
+      return { ok: false, message: "This PC became unavailable before key entry was authorized." };
     }
-    return { ok: true, message: "Bootstrap authorized for five minutes.", authorization };
+    return { ok: true, message: "Operator-key entry authorized for five minutes.", authorization };
   });
 });
 
-export const completeBootstrap = adminAction(async function completeBootstrap(
-  _actor,
+export const completeBootstrap = guardedAction(async function completeBootstrap(
+  actor,
   _prev: ActionResult | null,
   formData: FormData,
 ): Promise<ActionResult> {
-  const parsed = z.object({ deviceId: z.string(), grantId: z.string(), generation: z.coerce.number().int(), proof: z.string() }).safeParse(formToObject(formData));
+  const configured = configuredFingerprintResult();
+  if (!configured.ok) return configured;
+  const parsed = z.object({
+    deviceId: z.string(),
+    grantId: z.string(),
+    generation: z.coerce.number().int(),
+    proof: z.string(),
+    keyFingerprint: z.string().regex(/^[0-9a-f]{64}$/),
+  }).safeParse(formToObject(formData));
   if (!parsed.success) return { ok: false, message: firstError(parsed.error) };
   const result = await prisma.$transaction(async (tx): Promise<ActionResult> => {
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(40304)`;
     const device = await tx.relayDevice.findUnique({ where: { id: parsed.data.deviceId } });
     if (!device) return { ok: false, message: "This PC is unavailable." };
+    if (device.userId !== actor.userId) {
+      return { ok: false, message: "You can complete operator-key setup only for your own Relay PC." };
+    }
     if (
       device.operatorKeyCompletedGrantId === parsed.data.grantId &&
       device.operatorKeyCompletedGeneration === parsed.data.generation
@@ -90,23 +112,26 @@ export const completeBootstrap = adminAction(async function completeBootstrap(
     if (
       device.bootstrapAuthorizationId !== parsed.data.grantId ||
       device.operatorKeyGrantGeneration !== parsed.data.generation ||
-      device.revokedAt || device.bootstrapAuthorizationUsedAt || !device.operatorKeyCompletionHash ||
+      device.revokedAt || device.retirementId || device.bootstrapAuthorizationUsedAt ||
+      !device.bootstrapAuthorizationExpiresAt || device.bootstrapAuthorizationExpiresAt <= new Date() ||
+      !device.operatorKeyCompletionHash ||
       hashGrantCompletionProof(parsed.data.proof) !== device.operatorKeyCompletionHash
-    ) return { ok: false, message: "Bootstrap completion proof is invalid or no longer current." };
-
-    const readyElsewhere = await tx.relayDevice.count({
-      where: { id: { not: device.id }, operatorKeyReadyAt: { not: null }, revokedAt: null },
-    });
-    if (readyElsewhere > 0) {
-      return { ok: false, message: "Bootstrap ended because another PC became ready first." };
+    ) return { ok: false, message: "Operator-key completion proof is invalid or no longer current." };
+    if (!operatorKeyFingerprintMatches(parsed.data.keyFingerprint, configured.fingerprint)) {
+      return {
+        ok: false,
+        message:
+          "The entered key does not match the current team operator key. Copy it again from Vaultwarden and retry.",
+      };
     }
 
     const committed = await tx.relayDevice.updateMany({
       where: {
-        id: device.id, revokedAt: null, operatorKeyReadyAt: null,
+        id: device.id, revokedAt: null, retirementId: null, operatorKeyReadyAt: null,
         bootstrapAuthorizationId: parsed.data.grantId,
         operatorKeyGrantGeneration: parsed.data.generation,
         bootstrapAuthorizationUsedAt: null,
+        bootstrapAuthorizationExpiresAt: { gt: new Date() },
         operatorKeyCompletionHash: device.operatorKeyCompletionHash,
       },
       data: {
@@ -122,7 +147,7 @@ export const completeBootstrap = adminAction(async function completeBootstrap(
         current?.operatorKeyCompletedGrantId === parsed.data.grantId &&
         current.operatorKeyCompletedGeneration === parsed.data.generation
       ) return { ok: true, message: "This PC is already ready." };
-      return { ok: false, message: "Bootstrap completion proof is no longer current." };
+      return { ok: false, message: "Operator-key completion proof is no longer current." };
     }
     return { ok: true, message: "This PC is ready." };
   });

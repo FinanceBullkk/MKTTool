@@ -25,6 +25,7 @@ import { relayPublicKeyToHex } from "../../src/lib/tickets/relay-device-key";
 import { sealForDevice } from "../../src/lib/tickets/ticket-sealed-box";
 import { BootstrapAuthorizationBroker } from "./bootstrap-authorization";
 import { readOperatorGrantState } from "./operator-grant-state";
+import { fingerprintOperatorKey } from "../../src/lib/crypto/operator-key-fingerprint";
 
 /**
  * Khóa giả nhưng phải trông như hàng thật: từ FINDING C33 handler từ chối khuôn mẫu điền tạm, và
@@ -209,5 +210,38 @@ describe("handleSetOperatorKey", () => {
       () => 1_002, consumedGeneration,
     );
     expect(() => restarted.authorize(authorization)).toThrow(/consumed/i);
+  });
+
+  it("returns only a fingerprint, never the operator key, after authorized local entry", () => {
+    const home = makeHome({ deviceId: "device-1", serverPublicKey: "a1".repeat(32) });
+    const store = new InMemorySecureStore();
+    const device = generateKeyPairSync("x25519");
+    const signer = generateKeyPairSync("ed25519");
+    const publicKey = relayPublicKeyToHex(device.publicKey);
+    const proof = "bootstrap-proof";
+    const completion = sealForDevice({ proof }, publicKey);
+    const authorization = issueGrantAuthorization({
+      kind: "bootstrap", authorizationId: "bootstrap-1", deviceId: "device-1",
+      recipientPublicKey: publicKey, grantId: "bootstrap-1", generation: 1,
+      grantHash: "aa".repeat(32), completionHash: hashGrantCompletionProof(proof),
+      completionEphemeralPublicKey: completion.ephemeralPublicKey, completionSealed: completion.sealed,
+    }, signer.privateKey, 1_000, 300_000);
+    const broker = new BootstrapAuthorizationBroker(
+      () => "device-1", publicKey, device.privateKey, () => signer.publicKey, () => 1_001,
+    );
+    broker.authorize(authorization);
+
+    const result = handleSetOperatorKey(
+      { headers: { origin: RELAY_ORIGIN } } as IncomingMessage,
+      JSON.stringify({ vaultKeyOperator: OPERATOR_KEY }),
+      { home, secureStore: store, bootstrap: broker, onConfigured: () => ({ ok: true, message: "Saved." }) },
+    );
+
+    expect(result).toMatchObject({
+      ok: true,
+      proof,
+      keyFingerprint: fingerprintOperatorKey(OPERATOR_KEY),
+    });
+    expect(JSON.stringify(result)).not.toContain(OPERATOR_KEY);
   });
 });

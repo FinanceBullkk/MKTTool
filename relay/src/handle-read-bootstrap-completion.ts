@@ -1,5 +1,6 @@
 import type { IncomingMessage } from "node:http";
 import type { RelayResponseBody } from "./relay-http-server";
+import { fingerprintOperatorKey } from "../../src/lib/crypto/operator-key-fingerprint";
 import { readOperatorGrantState } from "./operator-grant-state";
 import type { SecureStore } from "./secure-store";
 
@@ -21,5 +22,6 @@ export function handleReadBootstrapCompletion(
     grantId: state.grantId,
     generation: state.generation,
     proof: state.completionProof,
+    keyFingerprint: fingerprintOperatorKey(state.operatorKey),
   };
 }

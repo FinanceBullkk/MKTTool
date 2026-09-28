@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   queryRaw: vi.fn(),
@@ -25,10 +25,13 @@ const GOOD_RELEASE = {
 describe("GET /api/healthz", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.stubEnv("VAULT_KEY_OPERATOR_FINGERPRINT", "b".repeat(64));
     mocks.queryRaw.mockResolvedValue([{ ok: 1 }]);
     mocks.readRelease.mockResolvedValue(GOOD_RELEASE);
     mocks.readR2Config.mockReturnValue(null);
   });
+
+  afterEach(() => vi.unstubAllEnvs());
 
   it("returns a non-sensitive ready response without authentication", async () => {
     const response = await GET();
@@ -40,7 +43,12 @@ describe("GET /api/healthz", () => {
       status: "ready",
       relayVersion: RELAY_VERSION,
       releaseSource: "r2",
-      checks: { database: "ok", releaseMetadata: "ok", r2: "not_configured" },
+      checks: {
+        database: "ok",
+        releaseMetadata: "ok",
+        r2: "not_configured",
+        operatorKeyFingerprint: "ok",
+      },
     });
     expect(body).not.toHaveProperty("account");
     expect(body).not.toHaveProperty("proxy");
@@ -78,6 +86,20 @@ describe("GET /api/healthz", () => {
     expect(JSON.stringify(body)).not.toContain("redacted");
   });
 
+  it("fails readiness without exposing a missing operator-key verifier", async () => {
+    vi.stubEnv("VAULT_KEY_OPERATOR_FINGERPRINT", "");
+
+    const response = await GET();
+    const body = (await response.json()) as Record<string, unknown>;
+
+    expect(response.status).toBe(503);
+    expect(body).toMatchObject({
+      ok: false,
+      checks: { operatorKeyFingerprint: "failed" },
+    });
+    expect(JSON.stringify(body)).not.toContain("VAULT_KEY_OPERATOR_FINGERPRINT");
+  });
+
   // Sự cố 30/08/2026 chạy nhiều giờ mà không để lại dòng log nào, vì hai catch ở đây nuốt sạch
   // nguyên nhân. Thân phản hồi vẫn phải sạch, nhưng log máy chủ thì phải có.
   it("logs the cause on the server without exposing it in the response body", async () => {
@@ -113,7 +135,12 @@ describe("GET /api/healthz", () => {
     expect(body).toMatchObject({
       ok: true,
       status: "ready",
-      checks: { database: "ok", releaseMetadata: "ok", r2: "ok" },
+      checks: {
+        database: "ok",
+        releaseMetadata: "ok",
+        r2: "ok",
+        operatorKeyFingerprint: "ok",
+      },
     });
   });
 });

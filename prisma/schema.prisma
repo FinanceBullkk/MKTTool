@@ -782,17 +782,16 @@ model RelayDevice {
   /// `operatorKeyGrant` bị **xóa** — hộp đã tới nơi thì giữ lại chỉ là thêm một thứ để rò nếu
   /// có ngày bản sao lưu lọt ra ngoài.
   ///
-  /// Vì sao là "máy tự báo" chứ không phải "đã giao xong": có **hai** đường để một máy có khóa —
-  /// được cấp, và người dùng dán tay ở trang trạng thái của cầu nối (đường bootstrap, và là đường
-  /// duy nhất cho chiếc máy ĐẦU TIÊN, vì lúc đó chưa có cầu nối nào khác để bọc từ đó). Máy chủ
-  /// không thấy được đường thứ hai. Nên cột này ghi đúng thứ nó biết — *"máy đã báo là có"* — chứ
-  /// không suy ra từ việc đã cấp hay chưa. Sổ nói sai về việc một máy đã sẵn sàng hay chưa thì
-  /// tệ hơn là sổ không nói gì.
+  /// A PC can receive a recipient-sealed ADMIN grant or let its signed-in owner paste the shared
+  /// operator key directly into local Relay. The second path sends only a domain-separated key
+  /// fingerprint plus recipient-bound completion proof to the server. This timestamp therefore
+  /// means the server verified the completion ceremony; it never means the server received the key.
   operatorKeyReadyAt DateTime?
   operatorKeyCompletedGrantId String?
   operatorKeyCompletedGeneration Int?
 
-  /// Latest first-device bootstrap ceremony. A newer generation supersedes an older authorization.
+  /// Latest local operator-key entry ceremony. Names retain "bootstrap" for schema compatibility;
+  /// a newer generation supersedes an older authorization for the same PC.
   bootstrapAuthorizationId String?
   bootstrapAuthorization String?
   bootstrapAuthorizationExpiresAt DateTime?

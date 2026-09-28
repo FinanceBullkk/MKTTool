@@ -13,15 +13,14 @@ const BUTTON_CLASS =
   "brand-btn inline-flex min-h-11 items-center justify-center rounded-xl px-4 text-sm font-semibold";
 
 /**
- * The authenticated Relay release stays on `/setup` so operators can download and enroll a PC in
- * one uninterrupted journey. Browser distribution is deliberately not part of this component.
+ * Standalone Relay remains available for repair when the combined Browser installer is unsuitable.
  */
 export async function RelayDownloadSection() {
   const release = await readRelayRelease(RELAY_VERSION);
   const checksum = await relayArchiveChecksum(release);
 
   return (
-    <section id="download" className="scroll-mt-6">
+    <section id="relay-download" className="scroll-mt-6">
       <Card
         title={release.available ? `Relay v${release.version} for Windows` : "Relay for Windows"}
         description="Install or update Relay on the Windows PC you are setting up."

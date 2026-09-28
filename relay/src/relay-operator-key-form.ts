@@ -20,14 +20,14 @@
 /** Đường mà form gửi tới. Khai ở đây để script nội tuyến và bảng route không lệch nhau. */
 export function renderOperatorKeyForm(path: string, hasKey: boolean, bootstrapAuthorized: boolean, webOrigin: string): string {
   if (!hasKey && !bootstrapAuthorized) {
-    return `<h2>Operator key bootstrap</h2>
-<p class="muted">An authenticated administrator must start the five-minute bootstrap from the MKTTool setup page before this form is enabled.</p>`;
+    return `<h2>Operator key setup</h2>
+<p class="muted">Return to the authenticated MKTTool setup page and authorize this PC before this form is enabled.</p>`;
   }
   return `<h2>${hasKey ? "Replace the operator key" : "Paste the operator key"}</h2>
 <p>${
     hasKey
       ? "This PC already has a key. Paste again only when an administrator has just rotated the key for the whole team."
-      : "This is the only value that must be entered by hand — <strong>the server does not hold this key to send down</strong>, which is the entire point of the design. Ask an administrator for it through the shared password manager, not through chat."
+      : "This is the only value that must be entered by hand — <strong>the server does not hold this key to send down</strong>, which is the entire point of the design. Copy it from the team Vaultwarden item, never from chat."
   }</p>
 <form id="opform">
   <label>Operator key (64 hex characters)<br>
@@ -59,7 +59,8 @@ export function renderOperatorKeyForm(path: string, hasKey: boolean, bootstrapAu
         // hình cũ bên dưới một dòng "đã lưu" là mời người ta tin vào thứ không còn đúng.
         if (body.ok && body.proof && window.opener) {
           window.opener.postMessage({ type: "mkttool-bootstrap-complete", grantId: body.grantId,
-            generation: body.generation, proof: body.proof }, ${JSON.stringify(webOrigin)});
+            generation: body.generation, proof: body.proof,
+            keyFingerprint: body.keyFingerprint }, ${JSON.stringify(webOrigin)});
         }
         if (body.ok) setTimeout(function () { location.reload(); }, 1200);
       })

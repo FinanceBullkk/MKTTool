@@ -47,7 +47,7 @@ describe("setupStateMachine", () => {
     ["Sign in", { session: { status: "signed-out" } }],
     ["Confirm this PC", { relay: { status: "unchecked" } }],
     [
-      "Waiting for administrator approval",
+      "Enter operator key",
       { device: { ...BASE.device, operatorKeyReady: false } },
     ],
     ["Ready", {}],
@@ -189,14 +189,15 @@ describe("setupStateMachine", () => {
     expect(output.message).toContain("Relay on this PC is older");
   });
 
-  it("keeps waiting as a durable success when registration exists but approval does not", () => {
+  it("offers self-service key entry when registration exists but the key is not verified", () => {
     const output = derive({
       device: { ...BASE.device, operatorKeyReady: false },
       relay: { status: "responded", health: { ...HEALTHY, configured: false } },
     });
 
-    expect(output.state).toBe("Waiting for administrator approval");
-    expect(output.action.kind).toBe("WAIT");
+    expect(output.state).toBe("Enter operator key");
+    expect(output.action.kind).toBe("SELF_ENROLL");
+    expect(output.message).toContain("Vaultwarden");
   });
 
   it("routes a legacy pending grant to explicit administrator recovery", () => {
