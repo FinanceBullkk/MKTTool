@@ -32,13 +32,13 @@ export function OnboardingStepper({
   return (
     <PageShell>
       <PageHeading
-        title="Set up this Windows PC"
+        title="Set up this Relay PC"
         description="Install → register → unlock"
         eyebrow="Three-step onboarding"
         icon={MonitorCog}
       />
 
-      <nav aria-label="Windows PC setup progress" className="mb-6 grid gap-3 md:grid-cols-3">
+      <nav aria-label="Relay PC setup progress" className="mb-6 grid gap-3 md:grid-cols-3">
         <StepButton
           number={1}
           active={activeStep === 1}

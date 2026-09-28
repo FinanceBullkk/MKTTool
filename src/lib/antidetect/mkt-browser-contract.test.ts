@@ -166,14 +166,16 @@ describe("MKT Browser compatibility verdict", () => {
    * làm không cài nổi trình duyệt trên máy có cầu nối mới hơn. Hợp đồng *dữ liệu* giữa hai bên
    * không đổi, `browserContract` vẫn là 4.
    *
-   * Relay 20 pairs with Browser contract 6. Contract 6 adds the local-install readiness snapshot;
+   * Relay 21 pairs with Browser contract 6. Contract 6 adds the local-install readiness snapshot;
    * older contracts remain supported but cannot claim profile-operation readiness without it.
+   * Relay 21 adds operator-key self-enrollment on the Web/Relay bootstrap path, so it does not
+   * require a new Browser contract version.
    */
   it("pins the Relay release paired with the current Browser contract", () => {
     expect({
       browserContract: MKT_BROWSER_SUPPORTED_CONTRACT_VERSIONS.at(-1),
       relayVersion: RELAY_VERSION,
-    }).toEqual({ browserContract: 6, relayVersion: 20 });
+    }).toEqual({ browserContract: 6, relayVersion: 21 });
   });
 
   it("accepts a device on a supported contract version", () => {
