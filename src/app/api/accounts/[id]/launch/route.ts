@@ -42,16 +42,14 @@
  * mình biết còn hơn ghi thứ nghe kể.
  */
 import { NextResponse } from "next/server";
+import { issueLockedProfileLaunchTicket } from "@/lib/accounts/profile-launch-ticket-issuance";
 import { getStatusPresentation } from "@/lib/accounts/account-status";
-import { ProxyConfigError, buildProxyConfig } from "@/lib/antidetect/proxy-config-builder";
 import { AUDIT_ACTIONS } from "@/lib/audit/audit-log-actions";
 import { guardedRoute } from "@/lib/auth/guarded-route";
 import { prisma } from "@/lib/db/prisma-client";
 import { CROSS_ORIGIN_MESSAGE, isSameOrigin } from "@/lib/http/same-origin-guard";
 import { checkProxyLiveness } from "@/lib/proxies/proxy-liveness-check";
-import { issueTicket } from "@/lib/tickets/ticket-issuer";
 import { resolveNickDeviceRecipient } from "@/lib/tickets/ticket-recipient-lookup";
-import { TICKET_KINDS } from "@/lib/tickets/ticket-types";
 
 export const runtime = "nodejs";
 
@@ -135,47 +133,24 @@ export const POST = guardedRoute(async function POST(
     return NextResponse.json({ ok: false, message: recipient.message }, { status: 409 });
   }
 
-  let ticket: string;
-  try {
-    const proxyConfig = buildProxyConfig(proxy);
-    ticket = issueTicket(
-      {
-        kind: TICKET_KINDS.LAUNCH_PROFILE,
-        accountId: id,
-        antidetectProfileId,
-        proxyLabel: proxy.label,
-        proxy: proxyConfig,
-      },
-      recipient.recipient,
-    );
-  } catch (error) {
-    const message =
-      error instanceof ProxyConfigError
-        ? error.message
-        : "Could not create the browser-profile launch ticket. Check the server logs.";
-    return NextResponse.json({ ok: false, message }, { status: 502 });
+  const issued = await issueLockedProfileLaunchTicket({
+    actor,
+    account,
+    proxy,
+    recipient: recipient.recipient,
+  });
+  if (!issued.ok) {
+    return NextResponse.json({ ok: false, message: issued.message }, { status: issued.status });
   }
-
-  await prisma.$transaction([
-    prisma.account.update({ where: { id }, data: { lastActionAt: new Date() } }),
-    prisma.auditLog.create({
-      data: {
-        accountId: id,
-        action: AUDIT_ACTIONS.PROFILE_LAUNCH_TICKET_ISSUED,
-        detail: `proxy ${proxy.label} (${proxy.protocol}) -> Relay PC "${recipient.recipient.deviceName}"`,
-        actorId: actor.userId,
-      },
-    }),
-  ]);
 
   return NextResponse.json({
     ok: true,
-    ticket,
-    deviceName: recipient.recipient.deviceName,
+    ticket: issued.ticket,
+    deviceName: issued.deviceName,
     // Câu này nói về phép đo của MÁY CHỦ. Việc đẩy proxy và mở profile có thành công không thì
     // cầu nối trả lời, và giao diện ghép hai câu lại.
     message:
-      `Proxy ${proxy.label} (${proxy.country}, ${proxy.protocol}) passed the tool check: ${liveness.message} ` +
+      `Proxy ${issued.proxyLabel} (${issued.proxyCountry}, ${issued.proxyProtocol}) passed the tool check: ${liveness.message} ` +
       `This measurement came from the tool, not the browser. The first time you open a new browser ` +
       `profile, confirm its address again at ipinfo.io.`,
   });

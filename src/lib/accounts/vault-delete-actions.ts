@@ -13,6 +13,7 @@ import { revalidatePath } from "next/cache";
 import type { ActionResult } from "@/lib/actions/action-result";
 import { adminAction, guardedAction } from "@/lib/auth/guarded-action";
 import { requireNickOwner } from "@/lib/auth/require-actor";
+import { lockAccountForDeletion } from "@/lib/db/account-ticket-row-locks";
 import { prisma } from "@/lib/db/prisma-client";
 import { describeUnexpectedDbError } from "@/lib/db/prisma-error-helpers";
 import { blockDeleteWhenReferenced } from "@/lib/db/reference-guard";
@@ -82,35 +83,86 @@ export const deleteAccount = guardedAction(async function deleteAccount(
 ): Promise<ActionResult> {
   await requireNickOwner(actor, accountId);
 
-  const account = await prisma.account.findUnique({
+  const snapshot = await prisma.account.findUnique({
     where: { id: accountId },
-    include: {
-      proxy: { select: { label: true } },
-      _count: {
-        select: { jobs: true, interactions: true, facebookConnections: true, facebookPages: true },
-      },
-    },
+    select: { updatedAt: true },
   });
-  if (!account) return { ok: false, message: "Nick not found. Return to the nick vault and try again." };
+  if (!snapshot) return { ok: false, message: "Nick not found. Return to the nick vault and try again." };
 
-  const blocked = blockDeleteWhenReferenced(
-    `nick "${account.username}"`,
-    [
-      { label: "job", count: account._count.jobs },
-      { label: "recorded interactions", count: account._count.interactions },
-      { label: "Facebook connections", count: account._count.facebookConnections },
-      { label: "Facebook Pages administered by this nick", count: account._count.facebookPages },
-    ],
-    'If this nick is no longer used, change its status to "Dead" instead. Its history must remain ' +
-      "so the rules can still count limits and promotional ratios for the other nicks.",
-  );
-  if (blocked) return { ok: false, message: blocked.message };
-
+  let outcome:
+    | { kind: "deleted"; username: string; proxyLabel: string | null }
+    | { kind: "rejected"; message: string };
   try {
-    await prisma.account.delete({ where: { id: accountId } });
+    outcome = await prisma.$transaction(async (tx): Promise<typeof outcome> => {
+      await lockAccountForDeletion(tx, accountId);
+      const account = await tx.account.findUnique({
+        where: { id: accountId },
+        include: {
+          proxy: { select: { label: true } },
+          _count: {
+            select: {
+              jobs: true,
+              interactions: true,
+              facebookConnections: true,
+              facebookPages: true,
+            },
+          },
+        },
+      });
+      if (!account) {
+        return { kind: "rejected", message: "Nick not found. Return to the nick vault and try again." };
+      }
+      if (account.updatedAt.getTime() !== snapshot.updatedAt.getTime()) {
+        return {
+          kind: "rejected",
+          message: "The nick changed while deletion was being prepared. Reload the page and review it again.",
+        };
+      }
+      if (actor.role !== "ADMIN" && account.ownerId !== actor.userId) {
+        return {
+          kind: "rejected",
+          message:
+            account.ownerId === null
+              ? `Nick "${account.username}" has not been assigned to anyone. Ask an administrator to assign a nick owner first.`
+              : `Nick "${account.username}" belongs to another operator. Only its owner can delete it.`,
+        };
+      }
+
+      const blocked = blockDeleteWhenReferenced(
+        `nick "${account.username}"`,
+        [
+          { label: "job", count: account._count.jobs },
+          { label: "recorded interactions", count: account._count.interactions },
+          { label: "Facebook connections", count: account._count.facebookConnections },
+          { label: "Facebook Pages administered by this nick", count: account._count.facebookPages },
+        ],
+        'If this nick is no longer used, change its status to "Dead" instead. Its history must remain ' +
+          "so the rules can still count limits and promotional ratios for the other nicks.",
+      );
+      if (blocked) return { kind: "rejected", message: blocked.message };
+
+      const deleted = await tx.account.deleteMany({
+        where:
+          actor.role === "ADMIN"
+            ? { id: accountId, updatedAt: account.updatedAt }
+            : { id: accountId, ownerId: actor.userId, updatedAt: account.updatedAt },
+      });
+      if (deleted.count !== 1) {
+        return {
+          kind: "rejected",
+          message: "The nick changed while deletion was being prepared. Reload the page and review it again.",
+        };
+      }
+      return {
+        kind: "deleted",
+        username: account.username,
+        proxyLabel: account.proxy?.label ?? null,
+      };
+    });
   } catch (error) {
     return { ok: false, message: describeUnexpectedDbError(error, "delete the nick") };
   }
+  if (outcome.kind === "rejected") return { ok: false, message: outcome.message };
 
   // AuditLog cố ý giữ lại: accountId của nó không có ràng buộc khóa ngoại, và nhật ký thao tác
   // nhạy cảm phải sống lâu hơn thứ nó ghi lại, nếu không xóa nick là xóa luôn dấu vết.
@@ -118,9 +170,9 @@ export const deleteAccount = guardedAction(async function deleteAccount(
   return {
     ok: true,
     message:
-      `Nick "${account.username}" deleted. ` +
-      (account.proxy
-        ? `Proxy "${account.proxy.label}" can now be assigned to another nick.`
+      `Nick "${outcome.username}" deleted. ` +
+      (outcome.proxyLabel
+        ? `Proxy "${outcome.proxyLabel}" can now be assigned to another nick.`
         : "Return to the nick vault to continue."),
   };
 });

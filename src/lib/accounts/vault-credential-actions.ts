@@ -41,17 +41,16 @@
  * một lần lộ tốt hơn đếm thiếu.
  */
 import type { ActionResult } from "@/lib/actions/action-result";
-import { AUDIT_ACTIONS } from "@/lib/audit/audit-log-actions";
 import { guardedAction } from "@/lib/auth/guarded-action";
 import { type Actor, requireNickOwner } from "@/lib/auth/require-actor";
 import { prisma } from "@/lib/db/prisma-client";
-import { issueTicket } from "@/lib/tickets/ticket-issuer";
+import { issueLockedAccountSecretTicket } from "@/lib/tickets/locked-account-secret-ticket";
 import { checkTicketRateLimit } from "@/lib/tickets/ticket-rate-limit";
 import {
   resolveNickDeviceRecipient,
   resolveTicketRecipient,
 } from "@/lib/tickets/ticket-recipient-lookup";
-import { TICKET_KINDS, type CredentialField, type SignedTicket } from "@/lib/tickets/ticket-types";
+import type { CredentialField, SignedTicket } from "@/lib/tickets/ticket-types";
 
 /**
  * Tấm vé kèm tên máy nhận.
@@ -104,7 +103,15 @@ export const requestCredentialTicket = guardedAction(async function requestCrede
 
   const account = await prisma.account.findUnique({
     where: { id: accountId },
-    select: { username: true, passwordEnc: true, emailPasswordEnc: true, deviceId: true },
+    select: {
+      id: true,
+      username: true,
+      ownerId: true,
+      passwordEnc: true,
+      emailPasswordEnc: true,
+      deviceId: true,
+      updatedAt: true,
+    },
   });
   if (!account) return { ok: false, message: "Nick not found. Return to the nick vault and try again." };
 
@@ -127,27 +134,12 @@ export const requestCredentialTicket = guardedAction(async function requestCrede
   const recipient = await pickRecipient(actor, accountId, account.deviceId, deviceId);
   if (!recipient.ok) return { ok: false, message: recipient.message };
 
-  const ticket = issueTicket(
-    {
-      kind: TICKET_KINDS.CREDENTIAL,
-      accountId,
-      field,
-      // Nguyên văn cột trong database. Máy chủ chuyển tiếp chứ không mở — nó không có khóa.
-      credentialCiphertext: ciphertext,
-    },
-    recipient.recipient,
-  );
-
-  await prisma.auditLog.create({
-    data: {
-      accountId,
-      action: AUDIT_ACTIONS.CREDENTIAL_REVEALED,
-      detail: `${field} → Relay PC "${recipient.recipient.deviceName}"`,
-      actorId: actor.userId,
-    },
+  return issueLockedAccountSecretTicket({
+    actor,
+    account,
+    recipient: recipient.recipient,
+    request: { kind: "credential", field },
   });
-
-  return { ticket, deviceName: recipient.recipient.deviceName };
 });
 
 /** Phát vé để cầu nối sinh mã OTP. Cùng ba lớp chặn với `requestCredentialTicket`. */
@@ -163,7 +155,13 @@ export const requestOtpTicket = guardedAction(async function requestOtpTicket(
 
   const account = await prisma.account.findUnique({
     where: { id: accountId },
-    select: { totpSecretEnc: true, deviceId: true },
+    select: {
+      id: true,
+      ownerId: true,
+      totpSecretEnc: true,
+      deviceId: true,
+      updatedAt: true,
+    },
   });
   if (!account) return { ok: false, message: "Nick not found. Return to the nick vault and try again." };
 
@@ -179,23 +177,10 @@ export const requestOtpTicket = guardedAction(async function requestOtpTicket(
   const recipient = await pickRecipient(actor, accountId, account.deviceId, deviceId);
   if (!recipient.ok) return { ok: false, message: recipient.message };
 
-  const ticket = issueTicket(
-    {
-      kind: TICKET_KINDS.OTP,
-      accountId,
-      totpSecretCiphertext: account.totpSecretEnc,
-    },
-    recipient.recipient,
-  );
-
-  await prisma.auditLog.create({
-    data: {
-      accountId,
-      action: AUDIT_ACTIONS.OTP_GENERATED,
-      detail: `Relay PC "${recipient.recipient.deviceName}"`,
-      actorId: actor.userId,
-    },
+  return issueLockedAccountSecretTicket({
+    actor,
+    account,
+    recipient: recipient.recipient,
+    request: { kind: "otp" },
   });
-
-  return { ticket, deviceName: recipient.recipient.deviceName };
 });

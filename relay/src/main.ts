@@ -20,6 +20,7 @@ import { handleCompatibilityRollback } from "./handle-compatibility-rollback";
 import { handleCompatibilityUpdate } from "./handle-compatibility-update";
 import { handleLicenseCapacityRefresh } from "./handle-license-capacity-refresh";
 import { BootstrapAuthorizationBroker } from "./bootstrap-authorization";
+import { selectOperatorKeyBootstrapBroker } from "./operator-key-bootstrap-selection";
 import { readOperatorGrantState } from "./operator-grant-state";
 import { handleProfilesRequest } from "./handle-profiles";
 import { handleTicketRequest } from "./handle-ticket";
@@ -267,7 +268,7 @@ async function main(): Promise<void> {
           : handleSetOperatorKey(request, body, {
               home,
               secureStore,
-              bootstrap: state.vaultKeyOperator ? undefined : bootstrap,
+              bootstrap: selectOperatorKeyBootstrapBroker(Boolean(state.vaultKeyOperator), bootstrap),
               onConfigured: reloadConfig,
             }),
       [RELAY_PATHS.authorizeBootstrap]: (request, body) =>

@@ -101,3 +101,46 @@ describe("delete nick ownership boundary", () => {
     expect((await deleteAccount(orphan)).ok).toBe(true);
   });
 });
+
+describe("delete nick concurrency", () => {
+  it("does not delete a nick whose ownership transfers after the initial check", async () => {
+    const accountId = await seedAccount(OWNER.userId);
+    actor = OWNER;
+    const changed = Promise.withResolvers<void>();
+    const release = Promise.withResolvers<void>();
+    const transfer = prisma.$transaction(async (tx) => {
+      await tx.account.update({
+        where: { id: accountId },
+        data: { ownerId: OTHER.userId },
+      });
+      changed.resolve();
+      await release.promise;
+    });
+    await changed.promise;
+
+    const deleting = deleteAccount(accountId);
+    try {
+      await vi.waitFor(async () => {
+        const waiting = await prisma.$queryRaw<{ waiting: boolean }[]>`
+          SELECT EXISTS (
+            SELECT 1 FROM pg_stat_activity
+            WHERE datname = current_database() AND pid <> pg_backend_pid()
+              AND wait_event_type = 'Lock'
+              AND query LIKE '%FROM "Account"%FOR UPDATE%'
+          ) AS waiting`;
+        expect(waiting[0].waiting).toBe(true);
+      }, { timeout: 2000, interval: 20 });
+    } finally {
+      release.resolve();
+      await transfer;
+    }
+
+    await expect(deleting).resolves.toMatchObject({
+      ok: false,
+      message: expect.stringContaining("changed"),
+    });
+    await expect(prisma.account.findUniqueOrThrow({ where: { id: accountId } })).resolves.toMatchObject({
+      ownerId: OTHER.userId,
+    });
+  });
+});

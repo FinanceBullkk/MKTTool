@@ -1,5 +1,23 @@
 # Project changelog
 
+## 2026-09-29 - Full-codebase audit source repairs
+
+- Preserve an active Relay bootstrap authorization when an existing operator key is replaced.
+  Linearize credential, OTP, profile-launch ticket, and nick-deletion decisions with transactional
+  row locks, sequential transaction-client rechecks, compare-and-delete/update guards, and atomic
+  audit writes.
+- Stream profile archive encryption and import with AES-256-GCM, explicit size/count limits,
+  authenticated publication, private staging, and startup reclamation after an interrupted import.
+  Restore archived extension references disabled and warn the operator before re-enabling them.
+- Bound engine metadata, licensed range probes, runtime archives, and Web Store downloads across
+  response headers, body idle gaps, output finalization, and synchronous request-start failures.
+- Source gates pass: MKTTool full suite 258 files / 2,480 tests, including the targeted PostgreSQL
+  concurrency set at 3 files / 29 tests and the PostgreSQL restore and rate-limit contracts; Relay
+  bootstrap 74/74, typecheck, lint, secret scan, and production dependency audit. Browser archive
+  25/25, MKB-01 79/79, MKB-03, typecheck, lint, and production dependency audit also pass. Builds,
+  packaging, clean-VM, second-PC, unfamiliar-operator and canary evidence remain OPEN. No push,
+  deployment, publication or promotion occurred; `G2-IDENTITY=FAIL` is unchanged.
+
 ## 2026-09-25 - Deterministic Relay package scripts
 
 - Normalize the three delivered Windows scripts to CRLF before packaging, preserving all other

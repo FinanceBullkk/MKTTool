@@ -304,6 +304,120 @@ describe("rejection paths", () => {
   });
 });
 
+describe("ticket issuance concurrency", () => {
+  it("rejects an owner transfer that commits after the initial authorization check", async () => {
+    const changed = Promise.withResolvers<void>();
+    const release = Promise.withResolvers<void>();
+    const transfer = prisma.$transaction(async (tx) => {
+      await tx.account.update({
+        where: { id: accountId },
+        data: { ownerId: NGUOI_KHAC_ID },
+      });
+      changed.resolve();
+      await release.promise;
+    });
+    await changed.promise;
+
+    const requesting = requestCredentialTicket(accountId, "password");
+    try {
+      await vi.waitFor(async () => {
+        const waiting = await prisma.$queryRaw<{ waiting: boolean }[]>`
+          SELECT EXISTS (
+            SELECT 1 FROM pg_stat_activity
+            WHERE datname = current_database() AND pid <> pg_backend_pid()
+              AND wait_event_type = 'Lock'
+              AND query LIKE '%FROM "Account"%FOR NO KEY UPDATE%'
+          ) AS waiting`;
+        expect(waiting[0].waiting).toBe(true);
+      }, { timeout: 2000, interval: 20 });
+    } finally {
+      release.resolve();
+      await transfer;
+    }
+
+    await expect(requesting).resolves.toMatchObject({
+      ok: false,
+      message: expect.stringContaining("changed"),
+    });
+    expect(await prisma.auditLog.count()).toBe(0);
+  });
+
+  it("rejects a Relay PC reassignment that commits before ticket signing", async () => {
+    const changed = Promise.withResolvers<void>();
+    const release = Promise.withResolvers<void>();
+    const transfer = prisma.$transaction(async (tx) => {
+      await tx.relayDevice.update({
+        where: { id: deviceId },
+        data: { userId: NGUOI_KHAC_ID },
+      });
+      changed.resolve();
+      await release.promise;
+    });
+    await changed.promise;
+
+    const requesting = requestCredentialTicket(accountId, "password");
+    try {
+      await vi.waitFor(async () => {
+        const waiting = await prisma.$queryRaw<{ waiting: boolean }[]>`
+          SELECT EXISTS (
+            SELECT 1 FROM pg_stat_activity
+            WHERE datname = current_database() AND pid <> pg_backend_pid()
+              AND wait_event_type = 'Lock'
+              AND query LIKE '%FROM "RelayDevice"%FOR NO KEY UPDATE%'
+          ) AS waiting`;
+        expect(waiting[0].waiting).toBe(true);
+      }, { timeout: 2000, interval: 20 });
+    } finally {
+      release.resolve();
+      await transfer;
+    }
+
+    await expect(requesting).resolves.toMatchObject({
+      ok: false,
+      message: expect.stringContaining("changed"),
+    });
+    expect(await prisma.auditLog.count()).toBe(0);
+  });
+
+  it("rejects a Relay PC key rotation that commits before ticket signing", async () => {
+    const replacement = generateRelayDeviceKeyPair();
+    const changed = Promise.withResolvers<void>();
+    const release = Promise.withResolvers<void>();
+    const rotation = prisma.$transaction(async (tx) => {
+      await tx.relayDevice.update({
+        where: { id: deviceId },
+        data: { publicKey: replacement.publicKeyHex },
+      });
+      changed.resolve();
+      await release.promise;
+    });
+    await changed.promise;
+
+    const requesting = requestCredentialTicket(accountId, "password");
+    try {
+      await vi.waitFor(async () => {
+        const waiting = await prisma.$queryRaw<{ waiting: boolean }[]>`
+          SELECT EXISTS (
+            SELECT 1 FROM pg_stat_activity
+            WHERE datname = current_database() AND pid <> pg_backend_pid()
+              AND wait_event_type = 'Lock'
+              AND query LIKE '%FROM "RelayDevice"%FOR NO KEY UPDATE%'
+          ) AS waiting`;
+        expect(waiting[0].waiting).toBe(true);
+      }, { timeout: 2000, interval: 20 });
+    } finally {
+      release.resolve();
+      await rotation;
+    }
+
+    await expect(requesting).resolves.toMatchObject({
+      ok: false,
+      message: expect.stringContaining("changed"),
+    });
+    expect(await prisma.auditLog.count()).toBe(0);
+  });
+});
+
 /**
  * Hạn nhịp: một phiên bị trộm không rút sạch kho trong vài giây.
  *
