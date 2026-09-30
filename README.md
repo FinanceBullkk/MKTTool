@@ -39,12 +39,13 @@ Windows scripts to CRLF while preserving their bytes and PowerShell UTF-8 BOM. T
 the clean-checkout archive; the earlier `e749be84...7439ff` archive remains historical evidence.
 Final committed-source rebuild, quality and acceptance checks remain required.
 
-**Current source candidate, 29 September 2026:** Browser `0.3.29` / Relay `21`, candidate
-`20260929-browser-0.3.29-relay-21-self-service-onboarding-cft`, carries local-only operator-key
-self-enrollment. Relay v21 archive `45f6e669...8d3ed0` is published and full-read verified. The
+**Current source candidate, 30 September 2026:** Browser `0.3.30` / Relay `22`, candidate
+`20260930-browser-0.3.30-relay-22-self-service-onboarding-cft`, carries local-only operator-key
+self-enrollment plus the latest Relay bootstrap and account-ticket hardening. Relay v22 archive
+`43a49411...b494c` is published and full-read verified. The
 independently built 0.3.28 payloads matched but were rejected before publication because the
 installed payload omitted the fork MIT license and retained Electron's copyright metadata. Final
-0.3.29 quality, two-build comparison, immutable installer publication, production deployment and
+0.3.30 quality, two-build comparison, immutable installer publication, production deployment and
 second-PC onboarding acceptance remain required. Distribution stays **HOLD** until those gates
 close. See the workspace [self-service onboarding plan](../plans/260928-2219-full-team-self-service-onboarding/plan.md).
 

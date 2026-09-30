@@ -1,5 +1,16 @@
 # Project changelog
 
+## 2026-09-30 - Relay 22 and Browser 0.3.30 candidate freeze
+
+- Freeze Relay 22 after the bootstrap and account-ticket security repairs. Two local production-
+  origin builds match exactly: archive `43a49411...b494c` (35,123,331 bytes) and executable
+  `55cc1b51...0d78d` (94,621,184 bytes); the packaged executable smoke passes.
+- Publish immutable `MKTTool-Relay-v22.zip` and full-read verify its exact size and SHA-256 from R2.
+  Pin Browser `0.3.30` candidate
+  `20260930-browser-0.3.30-relay-22-self-service-onboarding-cft` to those bytes.
+- Browser full quality, two isolated installer builds, normalized-payload comparison, clean-VM,
+  unfamiliar-operator, second-PC, canary, production deploy, and promotion remain OPEN.
+
 ## 2026-09-29 - Full-codebase audit source repairs
 
 - Preserve an active Relay bootstrap authorization when an existing operator key is replaced.
