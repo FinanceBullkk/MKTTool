@@ -1,6 +1,17 @@
 # Lộ trình phát triển
 
-**Updated:** 25 September 2026
+**Updated:** 2 October 2026
+
+## Team distribution checkpoint - 2 October 2026
+
+Browser 0.3.30 / Relay v22 Build A and pilot compatibility sequence 33 are published to
+immutable R2 keys with full byte read-back. Railway still approves Browser 0.3.29 and runs
+hotfix Web `34354b9` / Relay v21. The candidate Web branch now preserves that approved
+download and selects the correct retained v18 manifests for sequences 26-31 and v20 for sequence
+32; it has not been
+deployed. Local tests and source checks do not close exact clean-VM CFT activation, physical
+operator onboarding, proxy recovery, or seven elapsed canary days. Team distribution remains
+HOLD. See the [workspace audit](../../plans/reports/audit-261002-2008-msi-team-readiness.md).
 
 ## Relay archive normalization - 25 September 2026
 

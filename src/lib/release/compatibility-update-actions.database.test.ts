@@ -8,6 +8,7 @@ const releaseFixture = vi.hoisted(() => ({ read: vi.fn() }));
 vi.mock("@/lib/relay/relay-compatibility-manifest-file", () => ({
   readRelayCompatibilityRelease: releaseFixture.read,
   compatibilitySequenceForFrom: vi.fn(() => 1),
+  relayVersionForCompatibilitySequence: vi.fn(() => 18),
 }));
 
 /**

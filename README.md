@@ -1,5 +1,13 @@
 # MKTTool
 
+**Current release checkpoint, 2 October 2026:** Production Web runs security hotfix
+`34354b9` with Relay v21 and the approved Browser 0.3.29 installer. The Browser 0.3.30 /
+Relay v22 pilot installer and signed compatibility sequence 33 are published to immutable R2
+keys and fully read back, but operator promotion is **HOLD**. The candidate Web source preserves
+the approved 0.3.29 download while selecting v18 for retained sequences 26-31, v20 for
+sequence 32, and v22 for pilot sequence 33. That source has not been deployed. Exact clean-VM activation,
+unfamiliar-operator onboarding, and the seven-day canary remain open.
+
 MKTTool is the team's nick vault and posting-safety console. It manages browser-backed Reddit and
 TikTok nicks plus Facebook Page identities, while keeping nick, proxy, browser profile, and Relay PC
 ownership explicit. Browser profile and proxy controls are operational boundaries; they are not a
@@ -44,9 +52,10 @@ Final committed-source rebuild, quality and acceptance checks remain required.
 self-enrollment plus the latest Relay bootstrap and account-ticket hardening. Relay v22 archive
 `43a49411...b494c` is published and full-read verified. The
 independently built 0.3.28 payloads matched but were rejected before publication because the
-installed payload omitted the fork MIT license and retained Electron's copyright metadata. Final
-0.3.30 quality, two-build comparison, immutable installer publication, production deployment and
-second-PC onboarding acceptance remain required. Distribution stays **HOLD** until those gates
+installed payload omitted the fork MIT license and retained Electron's copyright metadata. The
+0.3.30 MSI quality and two-build comparison passed on 2 October; immutable pilot publication also
+passed. Production deployment, exact installed activation and second-PC onboarding acceptance
+remain required. Distribution stays **HOLD** until those gates
 close. See the workspace [self-service onboarding plan](../plans/260928-2219-full-team-self-service-onboarding/plan.md).
 
 **Historical Browser candidate, 22 September 2026:** candidate

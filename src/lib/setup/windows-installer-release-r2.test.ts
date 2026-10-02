@@ -61,6 +61,9 @@ const STALE_RELAY_VERSIONS = [
 ] as const;
 
 const APPROVED_TUPLE_ENV = "MKT_WINDOWS_INSTALLER_APPROVED_TUPLE_JSON";
+const RETAINED_ID = "20260929-browser-0.3.29-relay-21-self-service-onboarding-cft";
+const RETAINED_SHA = "fd3bb30eada3fcd6db2046e9935cb3579121e7ad8a9a7041414ba7c9e9906238";
+const RETAINED_SIZE = 148990003;
 
 function info(metadata = COMPLETE_METADATA, sizeBytes = BYTES.length) {
   return {
@@ -89,6 +92,44 @@ afterEach(() => {
 });
 
 describe("R2 Windows installer tuple", () => {
+  it("keeps serving the exact approved prior installer during candidate acceptance", async () => {
+    const metadata = {
+      ...COMPLETE_METADATA,
+      "candidate-id": RETAINED_ID,
+      "browser-version": "0.3.29",
+      "bundled-relay-version": "21",
+      sha256: RETAINED_SHA,
+      "signing-exception-expires-at": "2099-01-01T00:00:00.000Z",
+    };
+    vi.stubEnv(APPROVED_TUPLE_ENV, JSON.stringify({ sizeBytes: RETAINED_SIZE, metadata }));
+    mocks.headObject.mockResolvedValue(info(metadata, RETAINED_SIZE));
+
+    const release = await readWindowsInstallerRelease();
+
+    expect(mocks.headObject).toHaveBeenCalledWith({
+      config: CONFIG,
+      key: `MKTBrowser-${RETAINED_ID}.exe`,
+    });
+    expect(release.metadataComplete).toBe(true);
+    expect(release.objectKey).toBe(`MKTBrowser-${RETAINED_ID}.exe`);
+  });
+
+  it("does not select a retained object from an approval with changed bytes", async () => {
+    const metadata = {
+      ...COMPLETE_METADATA,
+      "candidate-id": RETAINED_ID,
+      "browser-version": "0.3.29",
+      "bundled-relay-version": "21",
+      sha256: "a".repeat(64),
+    };
+    vi.stubEnv(APPROVED_TUPLE_ENV, JSON.stringify({ sizeBytes: RETAINED_SIZE, metadata }));
+
+    const release = await readWindowsInstallerRelease();
+
+    expect(mocks.headObject).toHaveBeenCalledWith({ config: CONFIG, key: `MKTBrowser-${WINDOWS_INSTALLER_CANDIDATE.id}.exe` });
+    expect(release.metadataComplete).toBe(false);
+  });
+
   it("accepts the explicitly approved current Relay tuple", async () => {
     const release = await readWindowsInstallerRelease();
 

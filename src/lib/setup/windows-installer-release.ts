@@ -65,6 +65,15 @@ export interface WindowsInstallerApprovedTuple {
 /** Candidate-specific key; the public download filename and authenticated route stay stable. */
 export const WINDOWS_INSTALLER_R2_KEY = `MKTBrowser-${EXPECTED_WINDOWS_INSTALLER_CANDIDATE_ID}.exe`;
 
+/** Keep the previously approved download available while the new candidate is being accepted. */
+const RETAINED_WINDOWS_INSTALLER = Object.freeze({
+  candidateId: "20260929-browser-0.3.29-relay-21-self-service-onboarding-cft",
+  browserVersion: "0.3.29",
+  relayVersion: 21,
+  sha256: "fd3bb30eada3fcd6db2046e9935cb3579121e7ad8a9a7041414ba7c9e9906238",
+  sizeBytes: 148990003,
+});
+
 /** Phiên bản MKT Browser, dạng chuỗi tự do (semver). Máy chủ chỉ hiển thị, không so sánh. */
 export { WINDOWS_INSTALLER_METADATA_KEYS } from "./windows-installer-release-metadata";
 export const WINDOWS_INSTALLER_VERSION_METADATA_KEY = "browser-version";
@@ -98,6 +107,7 @@ export function parseBundledRelayVersion(raw: string | undefined): number | null
 export interface WindowsInstallerRelease {
   available: boolean;
   source?: "r2" | "disk";
+  objectKey?: string;
   sizeBytes?: number;
   /** Mốc phát hành. Trên đĩa là mốc sửa file; trên R2 là mốc ghi object. */
   publishedAt?: Date;
@@ -143,11 +153,12 @@ export async function readWindowsInstallerRelease(): Promise<WindowsInstallerRel
 }
 
 async function readFromR2(config: R2Config): Promise<WindowsInstallerRelease> {
-  const expectedPath = `R2 bucket "${config.bucket}", object "${WINDOWS_INSTALLER_R2_KEY}"`;
+  const objectKey = selectedWindowsInstallerR2Key();
+  const expectedPath = `R2 bucket "${config.bucket}", object "${objectKey}"`;
   // Lỗi mạng và lỗi cấu hình KHÔNG được biến thành "chưa có gói" — cùng lý lẽ với gói cầu nối:
   // hai chuyện đó dẫn tới hai việc phải làm khác hẳn nhau, và câu "chưa phát hành" sẽ cử người
   // quản trị đi dựng lại một gói vốn đã nằm sẵn trên ngăn.
-  const info = await headObject({ config, key: WINDOWS_INSTALLER_R2_KEY });
+  const info = await headObject({ config, key: objectKey });
   if (!info) {
     const metadata = emptyWindowsInstallerReleaseMetadata();
     return { available: false, expectedPath, ...metadataToReleaseFields(metadata) };
@@ -160,11 +171,28 @@ async function readFromR2(config: R2Config): Promise<WindowsInstallerRelease> {
   return {
     available: true,
     source: "r2",
+    objectKey,
     sizeBytes: info.sizeBytes,
     publishedAt: info.lastModified,
     ...metadataToReleaseFields(metadata, staleFields),
     expectedPath,
   };
+}
+
+function selectedWindowsInstallerR2Key(): string {
+  const approval = readWindowsInstallerApprovedTuple();
+  const approved = approval.tuple;
+  if (
+    approved &&
+    approved.sizeBytes === RETAINED_WINDOWS_INSTALLER.sizeBytes &&
+    approved.metadata.candidateId === RETAINED_WINDOWS_INSTALLER.candidateId &&
+    approved.metadata.browserVersion === RETAINED_WINDOWS_INSTALLER.browserVersion &&
+    approved.metadata.bundledRelayVersion === RETAINED_WINDOWS_INSTALLER.relayVersion &&
+    approved.metadata.installerSha256 === RETAINED_WINDOWS_INSTALLER.sha256
+  ) {
+    return `MKTBrowser-${RETAINED_WINDOWS_INSTALLER.candidateId}.exe`;
+  }
+  return WINDOWS_INSTALLER_R2_KEY;
 }
 
 function readFromDisk(): WindowsInstallerRelease {
@@ -348,13 +376,19 @@ function staleReleaseFields(
   now: Date | number = Date.now(),
 ): string[] {
   const stale: string[] = [];
-  if (metadata.browserVersion !== EXPECTED_WINDOWS_INSTALLER_VERSION) {
+  const retained =
+    metadata.candidateId === RETAINED_WINDOWS_INSTALLER.candidateId &&
+    metadata.browserVersion === RETAINED_WINDOWS_INSTALLER.browserVersion &&
+    metadata.bundledRelayVersion === RETAINED_WINDOWS_INSTALLER.relayVersion &&
+    metadata.installerSha256 === RETAINED_WINDOWS_INSTALLER.sha256 &&
+    sizeBytes === RETAINED_WINDOWS_INSTALLER.sizeBytes;
+  if (!retained && metadata.browserVersion !== EXPECTED_WINDOWS_INSTALLER_VERSION) {
     stale.push("stale-browser-version");
   }
-  if (metadata.candidateId !== EXPECTED_WINDOWS_INSTALLER_CANDIDATE_ID) {
+  if (!retained && metadata.candidateId !== EXPECTED_WINDOWS_INSTALLER_CANDIDATE_ID) {
     stale.push("stale-candidate-id");
   }
-  if (metadata.bundledRelayVersion !== WINDOWS_INSTALLER_CANDIDATE.relayVersion) {
+  if (!retained && metadata.bundledRelayVersion !== WINDOWS_INSTALLER_CANDIDATE.relayVersion) {
     stale.push("stale-bundled-relay-version");
   }
 
@@ -418,7 +452,10 @@ async function spoolVerifiedR2Installer(
   const temporaryDirectory = await mkdtemp(path.join(os.tmpdir(), "mkt-installer-r2-"));
   const temporaryFile = path.join(temporaryDirectory, WINDOWS_INSTALLER_FILE_NAME);
   try {
-    const remote = await getObject({ config, key: WINDOWS_INSTALLER_R2_KEY });
+    if (!release.objectKey || release.objectKey !== selectedWindowsInstallerR2Key()) {
+      throw new Error("The approved installer key changed between listing and download.");
+    }
+    const remote = await getObject({ config, key: release.objectKey });
     const remoteNow = Date.now();
     const remoteMetadata = parseWindowsInstallerReleaseMetadata(remote.info.metadata, {
       now: remoteNow,

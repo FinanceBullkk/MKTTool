@@ -11,8 +11,8 @@ import { prisma } from "@/lib/db/prisma-client";
 import {
   compatibilitySequenceForFrom,
   readRelayCompatibilityRelease,
+  relayVersionForCompatibilitySequence,
 } from "@/lib/relay/relay-compatibility-manifest-file";
-import { RELAY_VERSION } from "@/lib/relay/relay-endpoints";
 import { issueTicket } from "@/lib/tickets/ticket-issuer";
 import { loadServerSigningKeys } from "@/lib/tickets/server-signing-key";
 import { TICKET_KINDS, type SignedTicket } from "@/lib/tickets/ticket-types";
@@ -55,6 +55,7 @@ export const issueCompatibilityUpdateTicket = adminAction(
           message: `Set ${COMPATIBILITY_SMOKE_OBSERVER_PROXY_LABEL_ENV} to the dedicated no-login ObserverProxy label.`,
         };
       }
+      const targetSequence = compatibilitySequenceForFrom(parsed.data.currentSequence);
       const [device, observerProxy, release] = await Promise.all([
         prisma.relayDevice.findUnique({
           where: { id: parsed.data.deviceId },
@@ -62,8 +63,8 @@ export const issueCompatibilityUpdateTicket = adminAction(
         }),
         prisma.observerProxy.findUnique({ where: { label } }),
         readRelayCompatibilityRelease(
-          RELAY_VERSION,
-          compatibilitySequenceForFrom(parsed.data.currentSequence),
+          relayVersionForCompatibilitySequence(targetSequence),
+          targetSequence,
         ),
       ]);
       if (!device) return { ok: false, message: "This PC is not registered." };

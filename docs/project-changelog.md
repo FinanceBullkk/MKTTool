@@ -1,5 +1,24 @@
 # Project changelog
 
+## 2026-10-02 - Candidate-only Windows publication and retained download continuity
+
+- Published and full-read verified the exact Browser 0.3.30 Build A installer at its immutable
+  candidate key: SHA-256 `2144a3c2472a7ac746561200cd7d172f2937e00f1207491a0dabc86c0615c34f`,
+  148,993,705 bytes. Signed and
+  published pilot compatibility sequence 33 with five matching artifacts and revocations;
+  all seven objects were full-read verified. Neither action changed Railway's approved tuple.
+- Preserve the exact approved Browser 0.3.29 / Relay v21 installer download while this candidate
+  is tested. Select the retained R2 object only when the deployment approval matches its frozen
+  ID, version, Relay version, size, and SHA-256. Keep the full GET hash check.
+- Route compatibility sequences 26-31 to their actual immutable Relay v18 releases, sequence
+  32 to v20, and sequence 33 to v22. The previous Web v21 code looked for the retained sequences
+  under v21, where no manifests exist. R2 read-back validated signed v18 sequences 26/31 and
+  v22 sequence 33. An initial v22 sequence 32 was uploaded before detecting its collision with
+  an older v20 sequence 32; those immutable v22 keys are quarantined and must never be activated.
+- This source correction is awaiting exact dependency build and full machine quality on MSI.
+  Production remains on hotfix `34354b9` / Relay v21; clean-VM activation, operator onboarding,
+  second-PC journey, and canary remain open.
+
 ## 2026-09-30 - Relay 22 and Browser 0.3.30 candidate freeze
 
 - Freeze Relay 22 after the bootstrap and account-ticket security repairs. Two local production-

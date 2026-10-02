@@ -8,8 +8,8 @@ import { prisma } from "@/lib/db/prisma-client";
 import {
   compatibilitySequenceForFrom,
   readRelayCompatibilityRelease,
+  relayVersionForCompatibilitySequence,
 } from "@/lib/relay/relay-compatibility-manifest-file";
-import { RELAY_VERSION } from "@/lib/relay/relay-endpoints";
 
 const requestSchema = z.object({
   deviceId: z.string().min(1, "Device is required."),
@@ -32,14 +32,15 @@ export const previewCompatibilityUpdate = adminAction(
     if (!parsed.success) return { ok: false, message: firstError(parsed.error) };
 
     try {
+      const targetSequence = compatibilitySequenceForFrom(parsed.data.currentSequence);
       const [device, release] = await Promise.all([
         prisma.relayDevice.findUnique({
           where: { id: parsed.data.deviceId },
           select: { revokedAt: true },
         }),
         readRelayCompatibilityRelease(
-          RELAY_VERSION,
-          compatibilitySequenceForFrom(parsed.data.currentSequence),
+          relayVersionForCompatibilitySequence(targetSequence),
+          targetSequence,
         ),
       ]);
       if (!device) return { ok: false, message: "This PC is not registered." };

@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   compatibilitySequenceForFrom,
   readRelayCompatibilityRevocations,
+  relayVersionForCompatibilitySequence,
 } from "./relay-compatibility-manifest-file";
 
 const roots: string[] = [];
@@ -33,6 +34,13 @@ describe("trusted compatibility revocations", () => {
 });
 
 describe("compatibility target selection", () => {
+  it("selects the release version bound to each immutable sequence", () => {
+    expect(relayVersionForCompatibilitySequence(26)).toBe(18);
+    expect(relayVersionForCompatibilitySequence(31)).toBe(18);
+    expect(relayVersionForCompatibilitySequence(32)).toBe(20);
+    expect(relayVersionForCompatibilitySequence(33)).toBe(22);
+    expect(() => relayVersionForCompatibilitySequence(0)).toThrow(/invalid/);
+  });
   it("selects an explicit target for each current sequence", () => {
     process.env.RELAY_COMPATIBILITY_SEQUENCE_BY_FROM = JSON.stringify({ 0: 25, 21: 24, 22: 23 });
 

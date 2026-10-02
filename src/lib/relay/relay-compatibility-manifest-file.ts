@@ -24,7 +24,18 @@ import { readRelayRelease, readRelayReleaseFromDisk, relayReleaseDir } from "./r
 
 export const RELAY_COMPATIBILITY_MANIFEST_NAME = "MKTTool-Relay.compatibility.json";
 export const RELAY_COMPATIBILITY_SEQUENCE_BY_FROM_ENV = "RELAY_COMPATIBILITY_SEQUENCE_BY_FROM";
+/** Sequence 32 was published for Relay v20; the first unambiguous v22 target is 33. */
+export const FIRST_RELAY_V22_COMPATIBILITY_SEQUENCE = 33;
 const MAX_MANIFEST_BYTES = 1024 * 1024;
+
+export function relayVersionForCompatibilitySequence(sequence: number): number {
+  if (!Number.isSafeInteger(sequence) || sequence <= 0) {
+    throw new Error("The compatibility target sequence is invalid.");
+  }
+  if (sequence <= 31) return 18;
+  if (sequence === 32) return 20;
+  return 22;
+}
 
 export function relayCompatibilityManifestPath(): string {
   return (
