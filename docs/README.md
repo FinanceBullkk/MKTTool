@@ -1,94 +1,50 @@
-# Tài liệu MKTTool — bắt đầu từ đâu
+# MKTTool documentation — where to start
 
-**Updated:** 13 September 2026
+**Updated:** 31 October 2026
 
-## Current product direction
+The repository is post-surgery: an internal identity vault, proxy vault, Relay PC registry, and
+signed-ticket launch into MKT Browser profiles. The posting surface was **removed** (not parked) on
+31 October 2026 — see the [PDR](project-overview-pdr.md) and the `2026-10-31` entry in the
+[changelog](project-changelog.md). Documents describing the removed surface live in
+[archive/](archive/README.md) and are records, not instructions.
 
-Start with the [8 September accepted product decision](project-overview-pdr.md#product-direction-decision---8-september-2026):
-MKT Browser is a browser profile manager with proxy binding. Priorities are Proxy vault, Relay
-handoff, and reliable manual profile operations; antidetect/identity-engine research is closed.
-The [release boundary](internal-beta-release.md) distinguishes this direction from Browser rollout
-approval, and the [roadmap](development-roadmap.md) records current delivery priorities.
+Tra theo câu hỏi bạn đang có — look up by the question you actually have:
 
-## Current release entry point
-
-For the operator-facing boundary, start with the [team-ready rollout guide](team-ready-rollout.md).
-The MKTTool Web shared-workspace surface is deployed and verified; the Browser 0.3.23 candidate is
-on HOLD and the accepted 0.3.17 tuple is historical evidence only. Lane C is CLOSED because there is
-no CloakBrowser channel. The older plans linked below remain historical context.
-
-Repo này có 12+ file tài liệu. Đừng đọc hết. Tra theo câu hỏi bạn đang có:
-
-| Bạn muốn biết | Đọc file |
+| You want to know | Read |
 |---|---|
-| **Team-ready scope and onboarding** | [team-ready-rollout.md](team-ready-rollout.md) — current Web/Relay handoff, Browser hold, and owner actions |
-| **Dùng công cụ hằng ngày** (legacy reference) | [huong-dan-van-hanh-cho-team.md](huong-dan-van-hanh-cho-team.md) — older screens retained for record lookup |
-| **Internal beta boundary and Browser release** | [internal-beta-release.md](internal-beta-release.md) — current hold, historical tuple, and open gates |
-| Cài và chạy công cụ, dùng từng màn hình | [../README.md](../README.md) — cẩm nang vận hành, đọc trước tiên |
-| Deferred macOS reference (not v1) | [macos-development-setup.md](macos-development-setup.md) — retained for MKB-07, not the current demo path |
-| Dự án giải quyết vấn đề gì, cho ai, không làm gì | [project-overview-pdr.md](project-overview-pdr.md) |
-| "Shadowban", "cold-start", "proxy quan sát viên" nghĩa là gì | [domain-glossary.md](domain-glossary.md) |
-| UI gọi nick, profile trình duyệt và máy Relay thế nào | [ui-glossary.md](ui-glossary.md) |
-| Làm tới đâu rồi, tiếp theo làm gì, cái gì đang chặn | [development-roadmap.md](development-roadmap.md) |
-| Đã đổi những gì, ngày nào | [project-changelog.md](project-changelog.md) |
-| Đưa web lên máy chủ thật (Railway) | [deployment-guide.md](deployment-guide.md) |
-| Production backups, R2, and restore proof | [runbooks/database-restore.md](runbooks/database-restore.md) (current); [database-backup-and-restore.md](database-backup-and-restore.md) (historical reference) |
-| Cảnh báo khi production chết | [runbooks/uptime-alerting.md](runbooks/uptime-alerting.md) — đang chạy (UptimeRobot); diễn tập lần 1 PASS 02/09/2026 |
-| Hệ thống chạy ở đâu, phụ thuộc cái gì, hỏng thì hỏng thế nào | [system-architecture.md](system-architecture.md) |
-| MKT Browser contract, verified Windows slices, and what v1 still owes | [plan MKT Browser](../plans/260810-0244-mkt-browser-noi-bo/plan.md) |
-| Code nằm ở đâu, luồng nào gọi file nào | [codebase-summary.md](codebase-summary.md) |
-| Quy ước viết code, test, commit trước khi đóng góp | [code-standards.md](code-standards.md) |
-| Run the offline release-root and delegated-key ceremony | [release-signing-key-ceremony.md](release-signing-key-ceremony.md) |
+| Install, run, commands, tests, deploy in brief | [../README.md](../README.md) — the operations readme, read first |
+| What the product is, for whom, what it refuses to do | [project-overview-pdr.md](project-overview-pdr.md) |
+| Where it runs, what trusts what, how it fails | [system-architecture.md](system-architecture.md) |
+| Where the code lives, which flow calls what | [codebase-summary.md](codebase-summary.md) |
+| What "nick", "Relay PC", "ticket", "vault zone" mean and why | [domain-glossary.md](domain-glossary.md) |
+| The exact user-facing labels and their code boundaries | [ui-glossary.md](ui-glossary.md) |
+| Coding, testing, and commit conventions | [code-standards.md](code-standards.md) |
+| Current state, what is green, open follow-ups | [development-roadmap.md](development-roadmap.md) |
+| What changed, on which date | [project-changelog.md](project-changelog.md) |
+| Deploying to Railway, variables, health verification | [deployment-guide.md](deployment-guide.md) |
+| Production backups, restore proof | [runbooks/database-restore.md](runbooks/database-restore.md); background in [database-backup-and-restore.md](database-backup-and-restore.md) |
+| Alerting when production dies | [runbooks/uptime-alerting.md](runbooks/uptime-alerting.md) |
+| Rolling back a Railway deployment (human-approved) | [runbooks/release-rollback.md](runbooks/release-rollback.md) |
+| Rotating vault keys / the release token after exposure | [credential-rotation-runbook.md](credential-rotation-runbook.md) |
+| Developing the web app on macOS (deferred MKB-07 reference) | [macos-development-setup.md](macos-development-setup.md) |
+| What the removed surface looked like | [archive/](archive/README.md) and git history |
 
-## Ba vai, ba đường đọc
+## Three reading paths
 
-**Bạn MKT sắp dùng công cụ:** bắt đầu với [team-ready-rollout.md](team-ready-rollout.md). Mở
-[huong-dan-van-hanh-cho-team.md](huong-dan-van-hanh-cho-team.md) only for historical screen details;
-its posting and Browser sections are not current rollout instructions.
+**A new operator on the team:** start with [../README.md](../README.md), then
+[project-overview-pdr.md](project-overview-pdr.md) for the boundaries, and keep
+[ui-glossary.md](ui-glossary.md) open in a tab.
 
-**Dev mới nhận repo:** [project-overview-pdr.md](project-overview-pdr.md) →
+**A new developer on the repo:** [project-overview-pdr.md](project-overview-pdr.md) →
 [system-architecture.md](system-architecture.md) → [codebase-summary.md](codebase-summary.md) →
-[code-standards.md](code-standards.md). Mở [domain-glossary.md](domain-glossary.md) sẵn ở tab bên.
+[code-standards.md](code-standards.md), with [domain-glossary.md](domain-glossary.md) in a tab.
 
-**Người quyết định (PM/lead):** [project-overview-pdr.md](project-overview-pdr.md) →
-[development-roadmap.md](development-roadmap.md) → mục *Đã kiểm chứng bằng thực tế* cuối
-[../README.md](../README.md).
+**The decision maker:** [project-overview-pdr.md](project-overview-pdr.md) →
+[development-roadmap.md](development-roadmap.md) → the `2026-10-31` entry in
+[project-changelog.md](project-changelog.md).
 
-## Bản thiết kế chi tiết từng giai đoạn
+## Historical plans
 
-Đặc tả thi công nằm ở [plans/260801-2030-multi-account-posting-console/](../plans/260801-2030-multi-account-posting-console/plan.md):
-mỗi giai đoạn một file, kèm yêu cầu, kiến trúc, các bước, tiêu chí nghiệm thu.
-
-**Quy ước:** file trong `plans/` là bản ghi tại thời điểm lập kế hoạch + phần "đã làm khác kế
-hoạch" bổ sung sau. Không viết lại lịch sử ở đó. Trạng thái mới nhất luôn ở
-[development-roadmap.md](development-roadmap.md).
-
-The desktop branch has its own specification at
-[plans/260810-0244-mkt-browser-noi-bo/](../plans/260810-0244-mkt-browser-noi-bo/plan.md): target
-architecture, the MCP contract, the install/create/launch/transfer/update flows, and the MKB-00 →
-MKB-05 roadmap. Since 10 August 2026 v1 commits to **Windows x64 only**; MKB-06 holds the later
-redesign and MKB-07 holds macOS Apple Silicon.
-
-## Báo cáo rà soát & kiểm chứng
-
-Bằng chứng cho các tuyên bố "đã chạy thật" — không phải tài liệu thiết kế:
-
-| Báo cáo | Nội dung |
-|---|---|
-| [audit — bàn giao team dùng thử](../plans/reports/audit-260803-0627-ban-giao-team-dung-thu.md) | Rà soát chức năng/nghiệp vụ trước khi giao team, 03/08/2026 |
-| [security review](../plans/reports/security-review-260803-0443-phase-03-va-toan-he-thong.md) | Rà soát bảo mật Phase 03 + toàn hệ thống |
-| [code review toàn codebase](../plans/reports/code-review-260803-0303-toan-bo-codebase.md) | Rà soát chất lượng mã, 03/08/2026 |
-| [Chặng C — đẩy proxy](../plans/reports/chang-c-260802-1443-proxy-push-verification.md) | Đo thật: proxy vào đúng profile, phát hiện rò WebRTC |
-| [MKB-W02 Windows internal clean break](../../MKTBrowser/docs/mkb-w02-windows-internal-clean-break.md) | Owned desktop/consumer contract, packaged scan, port independence, and disposable lifecycle evidence |
-| [Phản biện đánh giá rủi ro](../plans/reports/review-260801-1951-gemini-risk-assessment-critique.md) | Phản biện bản phân tích rủi ro cũ — nguồn gốc của quyết định xoay hướng |
-
-## Tài liệu bản cũ
-
-[archive/](archive/README.md) giữ hai tài liệu trước khi xoay hướng (tháng 7/2026: 50+ nick,
-Twitter/X, VPS + Docker). **Không dùng làm căn cứ cho quyết định hiện tại** — file
-[archive/README.md](archive/README.md) giải thích rõ đã bỏ gì và vì sao.
-
-The same directory also contains older sections of the [project changelog](project-changelog.md),
-split by date so the live file and every archive remain below 800 lines. They are still history of
-the current product, unlike the two superseded design documents; they are only old enough to stay
-out of the daily reading path.
+Detailed phase specifications live under `plans/` in the workspace. Those files are records of
+decisions at the time they were written, plus appended "what was done differently" notes — they are
+not rewritten. For current status, always use [development-roadmap.md](development-roadmap.md).

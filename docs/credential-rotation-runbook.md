@@ -34,8 +34,8 @@ thử là một bản sao chưa biết dùng được.
 
 1. Tạo cặp khoá mới trong Cloudflare R2, **giữ cặp cũ còn sống**.
 2. Cập nhật biến trên Railway, đợi deploy xong.
-3. Xác minh: `GET /api/healthz` phải trả `"r2":"ok"`; tải lại manifest sequence đang hoạt động và
-   một artifact, đối chiếu kích thước và SHA-256.
+3. Xác minh: `GET /api/healthz` phải trả `"r2":"ok"`; tải lại gói Relay đang phát hành từ R2,
+   đối chiếu kích thước và SHA-256.
 4. Chỉ khi bước 3 xanh mới thu hồi cặp cũ ở Cloudflare.
 
 Hỏng thì: publish và backup gãy. Sửa bằng cách trả lại cặp cũ.

@@ -1,10 +1,15 @@
 # UI glossary
 
-**Updated:** 8 September 2026
+**Updated:** 31 October 2026
 
 This glossary fixes the user-facing vocabulary for the identity workspace. It changes display
 copy only: Prisma models, database columns, TypeScript domain names, and routes keep their current
 names.
+
+> Labels belonging to the surface removed on 31 October 2026 (posting queue, rules, health checks,
+> content library, Facebook Pages) were dropped from this glossary. The historical tables, including
+> the Vietnamese-to-English migration ledger for those surfaces, are preserved in git history and in
+> the archived documents.
 
 ## Canonical terms
 
@@ -12,11 +17,11 @@ names.
 |---|---|---|
 | **nick** | A Reddit, Facebook, or TikTok identity record stored in the shared vault. A nick lives on its social platform; it is not local browser data. | Prisma model `Account`; route `/accounts` |
 | **browser profile** (*profile trình duyệt*) | Browser data stored locally on one PC, including the browser workspace and its local state. It is not a vault record and is not proof of identity isolation. | `Account.antidetectProfileId`; MKT Browser local storage |
-| **MKT Browser** | The browser profile manager with proxy binding for MKTTool. It provides local profile storage and human-controlled lifecycle operations through Relay. It makes no antidetect, unique-fingerprint, or account-safety promise. | Existing MKT Browser product name, local MCP contract, and `src/lib/antidetect/` identifiers remain unchanged |
+| **MKT Browser** | The browser profile manager with proxy binding for MKTTool. It provides local profile storage and human-controlled lifecycle operations through Relay. It makes no antidetect, unique-fingerprint, or account-safety promise. | Existing MKT Browser product name, local MCP contract, and `src/lib/antidetect/` identifiers |
 | **Relay PC** (*máy Relay*) | The registered operator PC that receives and consumes encrypted tickets for a nick. | Prisma model `RelayDevice`; route `/relay-devices` |
 | **nick owner** (*người phụ trách*) | The teammate assigned to a nick. This person is the only non-administrator who can request the nick password or OTP. | `Account.ownerId` |
-| **Nick assignment** (*phân công cụm*) | The paired owner and Relay PC assignment for one nick. The Relay PC must belong to the nick owner. | `Account.ownerId` plus `Account.deviceId` |
-| **writing voice** (*giọng viết*) | A human-authored note describing how the nick should write. It guides the operator; it is not an automated rule input. | `Account.voice` |
+| **nick assignment** (*phân công cụm*) | The paired owner and Relay PC assignment for one nick. The Relay PC must belong to the nick owner. | `Account.ownerId` plus `Account.deviceId` |
+| **writing voice** (*giọng viết*) | A human-authored note describing how the nick should write. It guides the operator; it is not an automated input. | `Account.voice` |
 | **content focus** (*mảng nội dung*) | A human-authored note describing the subjects the nick normally covers. | `Account.contentAngle` |
 | **first sign-in** (*đăng nhập lần đầu*) | The operator-confirmed first successful sign-in inside the nick's browser profile. | `Account.firstLoginAt` |
 | **readiness** (*kiểm tra thao tác*) | Whether the nick has the configuration, ownership, and current status required for its next operation. A waiting state is distinct from missing setup. | `describeAccountReadiness()` |
@@ -24,56 +29,40 @@ names.
 | **ticket** (*vé*) | A short-lived, single-use encrypted instruction issued to one Relay PC. The browser transports it but cannot read its contents. | `src/lib/tickets`; `TicketEnvelope` |
 | **operator key** (*khóa vùng operator*) | The key held by Relay that opens nick credentials on an authorized Relay PC. The server stores only a sealed grant for the receiving PC. | `VAULT_KEY_OPERATOR`; `RelayDevice.operatorKeyGrant` |
 | **Relay PC revocation** (*thu hồi máy*) | The irreversible action that blocks a Relay PC from receiving new tickets. It does not erase secrets already stored on that PC. | `RelayDevice.revokedAt`; route `/relay-devices` |
-| **posting queue** (*hàng đợi*) | The schedule of posting jobs and their current rule verdicts. | Route `/queue`; Prisma model `PostJob` |
-| **posting target** (*đích đăng*) | The subreddit, Facebook Group, or Facebook Page that a job would publish to. | Prisma model `PlatformTarget` |
-| **posting rules** (*bộ luật*) | The safety checks evaluated for a proposed posting job. Each rule returns Allow, Warning, or Block with a user-readable reason. | `src/lib/rules` |
-| **rule verdict** (*kết luận luật*) | The stored result of one posting rule, including its level and explanation. | `PostJob.ruleVerdicts`; `RuleResult` |
-| **value post** (*bài hữu ích*) | A non-promotional contribution counted toward a target's promotional ratio. | Content type `VALUE` |
-| **promotional post** (*bài quảng cáo*) | A post that promotes the team's product or service and consumes promotional-ratio capacity. | Content type `PROMO` |
-| **thread collision** (*đụng độ thread*) | Two nicks under the same operation touching the same thread, which is a non-overridable coordination risk. | Rule `thread-collision`; `Interaction.threadKey` |
-| **health check** (*lần dò sức khỏe*) | An outside-visibility check used to detect stale, hidden, checkpointed, or untracked nick activity. | Prisma model `HealthCheck`; route `/health` |
-| **content library** (*kho content*) | The team-authored source items available to the posting queue and duplicate-content rules. | Prisma model `ContentItem`; route `/content` |
-| **Facebook Page** (*Fanpage*) | An owned Facebook Page connected through the official Graph API. Use `Facebook Page`, not `Fanpage`, in English UI copy. | Prisma model `FacebookPage`; route `/facebook` |
-| **parked workflow** (*phạm vi đã gác*) | A retained, history-only workflow outside the current team rollout scope. Its routes remain visible, but posting actions fail closed. | `ROLLOUT_PLATFORMS`; `parkedPlatformMessage()` |
 
 `Relay` or *cầu nối Relay* names the background software running on a **Relay PC**. Do not use
 those software terms as another name for the PC itself.
 
 ## Scope labels
 
-- Use **Workspace overview** only for Home, where nick counts, local Relay PC state, and next actions
-  are summarized together.
+- Use **Workspace overview** only for Home, where nick counts, local Relay PC state, and next
+  actions are summarized together.
 - Use **Nick vault** for `/accounts`, where every visible shared nick is managed.
-- Use **My nicks** (*nick của tôi*) only when the data is actually filtered to the current owner. Do not imply
-  this scope from a team-wide query.
+- Use **My nicks** (*nick của tôi*) only when the data is actually filtered to the current owner. Do
+  not imply this scope from a team-wide query.
 - Use **browser profile** in browser-runtime actions such as create, open, transfer, or local
   readiness. Do not shorten it to `profile` where that could be read as a nick record.
-- Describe **MKT Browser** as a **browser profile manager with proxy binding**, following the
-  [8 September product decision](project-overview-pdr.md#product-direction-decision---8-september-2026).
-  A `Ready` state describes the next technical operation; it never certifies identity isolation.
+- Describe **MKT Browser** as a **browser profile manager with proxy binding**. A `Ready` state
+  describes the next technical operation; it never certifies identity isolation.
 - Use **Relay PC** for the registered PC. Use `Relay` only for the software or protocol.
 
-## Display-label migration
+## Relay version and connection labels
 
-### Browser startup and profile setup candidate - 8 September 2026
+Profile actions fail closed, and the label must say which measured condition failed — never a
+guessed one:
 
-These labels describe source under verification, not an installed-user delivery claim.
-
-| Before or condition | Label and next action |
+| Condition | Label rule |
 |---|---|
-| Every rejected profile-list request said `Relay update required` | Use that label only for a measured Relay version below the effective create-profile floor, currently 13. |
-| Current Relay cannot reach Browser | **MKT Browser is not connected**; open MKT Browser on this PC, then **Check again**. |
-| Relay transport or local-network permission failure | **Relay is not reachable on this PC** or **Local PC access needs checking**; explain the local action without claiming an update is required. |
-| Browser contract, engine, capability, recovery, or capacity failure | Name the measured Browser condition and give its safe next action; unknown is neither Ready nor outdated. |
-| Retry the profile readiness check | **Check again** rechecks health and profile inventory; **Checking...** disables duplicate retries. It does not create a profile or issue a ticket. |
-| Close the normal Windows manager with a usable tray | Hide the manager; browser profiles stay open. **Open MKT Browser** returns to that manager. |
-| Explicit tray action | **Quit MKT Browser** closes browser profiles; Relay stays running for vault operations. **Check Relay** explicitly retries the installed companion check. |
+| Relay version below the effective create-profile floor | **Relay update required** — the only situation where that label is allowed. The fix is reinstalling the current package from `/setup`; there is no self-update anymore. |
+| Current Relay cannot reach MKT Browser | **MKT Browser is not connected**; open MKT Browser on this PC, then **Check again**. |
+| Relay transport or local-network permission failure | **Relay is not reachable on this PC** or **Local PC access needs checking**; describe the local action without claiming an update is required. |
+| Browser contract, engine, capability, or capacity failure | Name the measured Browser condition and give its safe next action; an unknown state is neither Ready nor outdated. |
+| Retry the readiness check | **Check again** rechecks health and profile inventory; **Checking...** disables duplicate retries. It does not create a profile or issue a ticket. |
 
 Profile-setup messages come from reviewed local states, never raw Relay/provider errors, tokens,
-paths, or configuration details. Relay v16 satisfies the version floor but is not proof that
-MKT Browser is ready. Desktop labels apply only to normal packaged Windows sessions.
+paths, or configuration details.
 
-### Relay cleanup recovery - 8 September 2026
+## Relay cleanup recovery labels
 
 | Label | Meaning and boundary |
 |---|---|
@@ -84,136 +73,3 @@ MKT Browser is ready. Desktop labels apply only to normal packaged Windows sessi
 
 After successful cleanup/finalization, tell the operator to **restart Relay**, return to **Setup**,
 and register a **new Relay identity**. Never describe this as restoring the revoked registration.
-`RECOVER` is a recovery action; it does not grant authorization. The signed protocol and Relay
-v11+ floor are unchanged.
-
-### Existing display-label mappings
-
-| Before | After |
-|---|---|
-| `Kênh / Profiles` on `/` | `Home` |
-| No `/accounts` navigation item | `Nick vault` |
-| `All profiles` | `Workspace overview` |
-| `New profile` | `Manage nick vault` |
-| `No profiles yet` / `Create first profile` | `No nicks match this view` / `Manage nick vault` |
-| Header `Search profiles, tags, urls...` | Home `Search nicks by username, voice, proxy, or notes...` |
-| Header `Ctrl K` shortcut badge | Removed until a real shortcut exists |
-| Header `running / total` summary | Removed; accurate nick and local browser profile counts stay inside Home |
-| `Tài khoản` | `Nick vault` |
-| `Profile & channel` | `Nick` |
-| `Máy / Relay` | `Relay PCs` |
-| `Device` | `Relay PC` |
-| Fabricated fallback `Local PC` | `Relay PC not assigned` |
-| `running` / `idle` | `Open on this Relay PC` / `Not open on this Relay PC` |
-| `Thiết lập Máy Vận Hành (MKT Setup)` | `Set up this Relay PC` |
-| `Bước 2: Kết nối Relay hiện tại` | `Register this PC` |
-| `Tạo hồ sơ TikTok mới` | `Create TikTok nick` |
-| `Tên Profile / Kênh` | `Nick username` |
-| `Tạo profile & lưu cấu hình` | `Create TikTok nick` |
-| `Profile antidetect` / `Id profile antidetect` | `Browser profile` / `Browser profile ID` |
-| `Máy giữ profile` | `Relay PC` |
-| `Mở profile` | `Open browser profile` |
-| `Danh sách — N nick` | `All nicks - N` |
-| `Chưa có nick nào` | `No nicks in the team vault` |
-| `Kiểm tra thao tác` | `Readiness` |
-| `Nền tảng` | `Platform` |
-| `Trạng thái` | `Status` |
-| `Giọng viết` | `Writing voice` |
-| `Mảng nội dung` | `Content focus` |
-| `Tuổi nick` | `Nick age` |
-| `Người phụ trách` | `Nick owner` |
-| `Phân công cụm` | `Nick assignment` |
-| `Đăng nhập lần đầu` | `First sign-in` |
-| `Email gốc` | `Original email` |
-| `Mật khẩu nick` | `Nick password` |
-| `Mật khẩu Google` | `Google password` |
-| `Mật khẩu email` | `Email password` |
-| `Mã 2 lớp của Google` | `Google 2FA secret` |
-| `Cold-start tới ngày` | `Cold-start until` |
-| `Ngày tạo nick trên nền tảng` | `Platform creation date` |
-| `Ngày mua` | `Purchase date` |
-| `Ghi chú mua` | `Purchase notes` |
-| `Lý do cách ly` | `Quarantine reason` |
-| `Thêm nick` | `Add nick` |
-| `Sửa nick` | `Edit nick` |
-| `Xóa nick` | `Delete nick` |
-| `Thao tác` | `Actions` |
-| `Thông tin` | `Details` |
-| `Nhật ký gần đây` | `Recent activity` |
-| `Đủ điều kiện cấu hình` | `Configuration ready` |
-| `Đang chờ` | `Waiting` |
-| `Chưa dùng được` | `Not ready` |
-| `Đã chết` | `Dead` |
-| `Dính checkpoint` | `Checkpointed` |
-| `Bị ẩn` | `Shadowbanned` |
-| `Đang cold-start` | `Cold-start` |
-| `Khỏe` | `Healthy` |
-| `Nhãn` | `Label` |
-| `Giao thức` | `Protocol` |
-| `Mật khẩu` | `Password` |
-| `Quốc gia` | `Country` |
-| `Loại` | `Type` |
-| `Ghi chú` | `Notes` |
-| `Tên` | `Name` |
-| `Máy chạy cầu nối` | `Relay PCs` |
-| `Cầu nối` when naming the software | `Relay` |
-| `Khóa operator` | `Operator key` |
-| `Cấp khóa` / `Cấp lại khóa` | `Grant operator key` / `Grant operator key again` |
-| `Thu hồi máy` | `Revoke Relay PC` |
-| `Thêm Proxy` / `Sửa proxy` / `Xóa` | `Add proxy` / `Edit proxy` / `Delete proxy` |
-| `Proxies & Network` | `Proxy vault` |
-| `Chưa gắn Profile` / `Đang gắn Profile` | `Not assigned to a nick` / `Assigned to a nick` |
-| `Profile Đang Gắn` | `Assigned nick` |
-| `Dân cư tĩnh (ISP)` | `Static ISP` |
-| `Kiểm` / `Đo tốc độ (1 MB)` | `Check` / `Measure speed (1 MB)` |
-| `Karma tối thiểu` | `Minimum karma` |
-| `Tuổi nick tối thiểu (ngày)` | `Minimum nick age (days)` |
-| `Tỷ lệ promo` | `Promotional ratio` |
-| `Sub cho phép đăng link` | `Subreddit allows link posts` |
-| `Đang dùng` | `Active` |
-| `Cài đặt` | `Settings` |
-| `Hàng đợi` | `Posting queue` |
-| `Xếp lịch đăng` | `Schedule a post` |
-| `Đích đăng` | `Posting target` |
-| `Bộ luật` | `Posting rules` |
-| `Kết luận luật` / `verdict` | `Rule verdict` |
-| `Bài hữu ích` | `Value post` |
-| `Bài quảng cáo` | `Promotional post` |
-| `Đụng độ thread` | `Thread collision` |
-| `Kết quả dò gần nhất` | `Latest health check` |
-| `Đăng được` / `Cân nhắc` / `Bị chặn` | `Can post` / `Consider` / `Blocked` |
-| `Kho content` | `Content library` |
-| `Thêm content` / `Sửa content` | `Add content` / `Edit content` |
-| `Fanpage` | `Facebook Page` |
-| `Kết nối nick Facebook` | `Connect Facebook nick` |
-| `Nick quản trị` | `Administrator nick` |
-| `Chờ đăng` / `Đang đăng` / `Đã đăng` | `Pending` / `Posting` / `Posted` |
-| `Lỗi` / `Bỏ qua` | `Failed` / `Skipped` |
-| `Đang tạm gác` | `Parked` |
-| `Quay lại kho nick` | `Return to the nick vault` |
-| `Dùng được` / `Đang đóng` | `Available` / `Closed` |
-| `Chú ý` / `Đang hỏng` | `Attention` / `Broken` |
-| `Xóa thật` / `Thôi` | `Delete permanently` / `Cancel` |
-| `proxy không dùng được` | `unusable proxy` |
-| `nick có cụm đã hỏng` | `nick has a broken assignment` |
-| `Quản trị viên gán lại cụm` | `An administrator reassigns the nick` |
-| `nick chưa dùng được vì còn thiếu cấu hình` | `nick is not ready because configuration is missing` |
-| `trang Chuẩn bị` | `Setup page` |
-| `Sao lưu ra ngoài Railway` | `Off-Railway backup` |
-| `nick cần xử lý tay` | `nick needs manual attention` |
-
-Audit-log `detail` text is display copy too, and reads as `<actor email> <detail>`:
-
-| Before | After |
-|---|---|
-| `gỡ chủ của nick` | `removed the nick owner` |
-| `giao nick cho …` | `assigned the nick to …` |
-| `gỡ ghim khỏi máy …` | `unpinned the nick from Relay PC …` |
-| `ghim nick vào máy …` | `pinned the nick to Relay PC …` |
-| `chuyển nick từ máy … sang máy …` | `moved the nick from Relay PC … to Relay PC …` |
-| `khai đã đăng nhập được nick vào profile của nó` | `confirmed the nick signed in to its browser profile` |
-| `tạo profile … trên máy …` | `created browser profile … on Relay PC …` |
-| `trạng thái` / `không gắn` / `không có` | `status` / `unassigned` / `none` |
-
-Audit `action` enum values are unchanged; only the human-readable `detail` is translated. Rows
-written before this change keep their original Vietnamese text.

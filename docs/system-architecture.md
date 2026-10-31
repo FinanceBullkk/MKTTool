@@ -1,346 +1,180 @@
-# Kiến trúc hệ thống
+# System architecture
 
-**Updated:** 22 September 2026
+**Updated:** 31 October 2026
 
-Tài liệu này trả lời: hệ thống **chạy ở đâu**, **tin ai**, **phụ thuộc gì**, và **hỏng thì hỏng
-thế nào**. Code nằm ở đâu thì tra [codebase-summary.md](codebase-summary.md); thuật ngữ tra
-[domain-glossary.md](domain-glossary.md).
+This document answers: where the system **runs**, what it **trusts**, what it **depends on**, and
+**how it fails**. For where the code lives, see [codebase-summary.md](codebase-summary.md); for
+vocabulary, [domain-glossary.md](domain-glossary.md).
 
 ---
 
-## Release/consolidation boundaries — 30 August 2026
-
-- **Trusted proxy:** the Web service resolves client IPs only from an explicitly configured,
-  validated proxy-header/CIDR policy. Untrusted forwarding headers are ignored; rate-limit keys do
-  not silently collapse every operator behind one proxy.
-- **Database-backed rate limits:** Better Auth limits are persisted in PostgreSQL and exercised by
-  racing workers. A local green test is not a production observation until the deployed service is
-  checked with two distinct client addresses.
-- **Durable spent-ticket journal:** Relay ticket use is append/validate/replay-protected across clean
-  restart and forced termination. Invalid journal state is fail-closed; it never falls back to an
-  in-memory replay guard.
-- **One-seat boundary:** the CloakBrowser licence is consumed on the operator machine, never by the
-  server. The server issues scoped tickets; the local Relay holds operator secrets and the Browser
-  owns profile data. One account maps to one static proxy, managed profile, and Relay device.
-- **Readiness/provenance:** `/api/healthz` is an unauthenticated, bounded readiness signal for the
-  Web deployment and reports database/release checks. `emit-release-provenance.cjs` attests a clean
-  Browser source tree, but neither signal is a signature, vendor assertion, or identity-isolation
-  evidence.
-- **Lane separation:** the MKTTool Web deployment does not require the Browser five-artifact tuple.
-  P4a can ship independently; P4b remains the Browser/Relay/engine contract. `G2-IDENTITY` is FAIL
-  on the recorded licensed-engine collisions, so this architecture makes no stealth or identity-
-  isolation claim. Lane C is closed because there is no CloakBrowser channel.
-
-## 1. Hình dung tổng thể
+## 1. Overview
 
 ```mermaid
 flowchart LR
-    subgraph Server["MÁY CHỦ (Railway / Docker / VPS)"]
+    subgraph Server["SERVER (Railway / Docker)"]
         direction TB
-        NextJS["Next.js<br/>(phát vé ký Ed25519)"]
-        DB[("PostgreSQL<br/>(Kho dữ liệu chung)")]
-        Playwright["Playwright"]
-        ProxyQuanSat["Proxy quan sát viên"]
-        GraphAPI["Graph API"]
-        FB["Facebook Fanpage"]
-        Config["data/ (ảnh chụp, sao lưu)<br/>.env (VAULT_KEY_SERVER + TICKET_SIGNING_KEY)"]
+        NextJS["Next.js<br/>(issues Ed25519-signed tickets)"]
+        DB[("PostgreSQL<br/>(shared vault)")]
+        R2[("Cloudflare R2<br/>(Relay releases + installer,<br/>nightly DB backups)")]
+        Env[".env (VAULT_KEY_SERVER,<br/>TICKET_SIGNING_KEY)"]
 
         NextJS --> DB
-        DB --> Playwright
-        Playwright --> ProxyQuanSat
-        DB --> GraphAPI
-        GraphAPI --> FB
-
-        style Config fill:#f9f9f9,stroke:#333,stroke-dasharray: 5 5
+        NextJS --> R2
     end
 
-    subgraph Client["MÁY BÀN CỦA TEAM (Nhiều máy)"]
+    subgraph Client["OPERATOR PC (several)"]
         direction TB
-        Browser["Trình duyệt<br/>(Đăng nhập Google)"]
-        Relay["Cầu nối (Relay .exe)<br/>(chứa VAULT_KEY_OPERATOR)"]
-        MktBrowser["MKT Browser<br/>MCP 127.0.0.1:47822"]
-        ProxyTinh["Proxy tĩnh"]
-        Reddit["Reddit / TikTok"]
+        Browser["Team browser<br/>(Google sign-in)"]
+        Relay["Relay bridge (Windows SEA exe)<br/>holds VAULT_KEY_OPERATOR"]
+        MktBrowser["MKT Browser<br/>MCP 127.0.0.1:47822<br/>(CloakBrowser engine)"]
+        ProxyTinh["The nick's static proxy"]
 
-        Browser -- "chuyển vé qua<br/>127.0.0.1:47821" --> Relay
+        Browser -- "POST 127.0.0.1:47821" --> Relay
         Relay --> MktBrowser
         MktBrowser --> ProxyTinh
-        ProxyTinh --> Reddit
     end
 
-    Browser -- "gọi API qua HTTPS" --> NextJS
+    Browser -- "HTTPS (app + ticket handoff)" --> NextJS
 ```
 
-**Mô hình phân tán (Team nhiều người).**
-- **Máy chủ** chạy trên mạng thật (Railway/VPS bằng Docker), lo tính toán, bộ luật, dò shadowban, đăng Fanpage và quản lý toàn bộ dữ liệu chung.
-- **Operator device:** runs the normal browser, **Relay**, and MKT Browser. Relay decrypts operator
-  secrets and calls the authenticated MKT Browser MCP endpoint. Windows x64 is the only v1, demo,
-  pilot, and rollout platform; macOS is deferred to MKB-07 behind the same trust boundaries.
+- **The server** computes, stores, authorizes, and signs. It never opens an operator-zone secret:
+  it issues sealed, recipient-bound tickets it cannot itself decrypt, and writes the audit trail.
+- **The Relay bridge** runs on each operator PC, listens only on `127.0.0.1:47821`, verifies ticket
+  signatures and replay protection, decrypts operator-zone secrets, applies the nick's proxy, and
+  calls the authenticated MKT Browser MCP endpoint on loopback `47822`.
+- **Profile data and cookies stay on the operator PC.** The server holds no browser data, and the
+  browser-profile ID is meaningless without the machine that owns it — that is why every ticket
+  routes to `Account.deviceId`, not to whoever pressed the button.
 
-Ba đường ra internet đi qua **ba IP khác nhau và không được lẫn**: nick đi bằng proxy tĩnh của chính nó (từ máy bàn), bộ dò đi bằng proxy quan sát viên (từ máy chủ), Graph API đi bằng IP máy chủ. Lẫn đường nào cũng phá đúng thứ nó đang bảo vệ.
+Account traffic leaves only through that account's bound static proxy. A proxy failure stops the
+operation; it never selects another proxy, profile, device, or account.
 
-TikTok belongs to the browser-profile path, not the posting pipeline. TikTok accounts use the same
-account → static proxy → managed profile → Relay device ownership boundary as Reddit, but their
-current action is human-controlled profile use only. These ownership and routing controls do not
-prove browser identity isolation. `TARGET_PLATFORMS` still excludes TikTok, so
-the queue, posting rules, warmup, and publishing paths do not silently activate for it.
+> **"Relay" does not mean an edge proxy here.** It exposes no public tunnel, no target-forwarding
+> API, no proxy pool. It verifies recipient-bound tickets, opens operator-domain secrets locally,
+> and calls MKT Browser on loopback.
 
-> **Current W02 boundary:** production Relay constructs `MktBrowserAdapter` and calls the owned
-> contract on loopback port `47822` by default. The path remains
-> `Web → Relay → authenticated MCP → MKT Browser`; operator keys stay in Relay and profiles/cookies
-> stay on the operator device. There is no MultiZen provider or configuration fallback.
+## 2. Trust boundaries
 
-> **Current managed boundary:** source contract version `6` retains idempotent create, atomic launch,
-> managed-profile locking, operation diagnostics, and no MCP profile deletion. It adds
-> `install-readiness-v1`: Browser returns a synchronous, fail-closed snapshot while one bounded
-> Windows ownership inspection runs in the background. Only a current `ready` snapshot advertises
-> `local-install-ready-v1`; `checking`, unavailable, failed, stale, and malformed observations block
-> inventory, create, and launch at the Relay boundary. It also retains sanitized licence
-> availability/freshness plus an authenticated explicit refresh. The prepared 0.3.24 tuple carries
-> contract 5 and a locally built, smoke-verified Relay v18 artifact; it is immutable historical
-> evidence, not a contract-6 candidate, and is not published or accepted. Installed 0.3.23 remains
-> contract 4 / Relay v17 historical evidence. Relay preserves
-> ticket `jti` as
-> `operationId`, calls `launch_managed_profile`, and accepts the result only when correlation matches.
-> The Browser persists and reads back the requested proxy before Chromium starts; a running session
-> is returned only when its active proxy matches. Ordinary direct launch, delete, export, and
-> proxy/fingerprint edits are blocked for managed profiles.
-
-> **Token and health boundary:** the token discovered from the current Windows user data root grants
-> profile management only. It cannot list or call page-read, page-control, cookie, or raw-CDP tools,
-> and the build issues no page-control token. Relay `/health` reports live Browser, app, engine,
-> contract, capability, and local-install snapshot state for this PC without waiting for a slow
-> ownership inspection. Historical device enrollment, a generic browser transport failure, and a
-> pending snapshot are not readiness; list/create/launch stop until the current runtime is
-> operational. `timeout` and `indeterminate` transport outcomes require a manual check rather than
-> claiming a denied permission or stopped Relay.
-
-> **Setup conflict boundary:** the combined installer persists its read-only conflict detector beside
-> MKT Browser. `get_runtime_info` adds `local-install-ready-v1` only when that detector verifies the
-> expected Browser and Relay ownership, ports `47821`/`47822`, MultiZen process state, and startup
-> entries. The Relay-first `/setup` journey no longer consumes this Browser capability: Relay PC
-> registration and identity-workspace handoff can complete without distributing Browser. Browser
-> profile operations retain their managed-capability checks, so this UX separation does not grant
-> Browser readiness, rollout approval, or identity-isolation approval.
-
-> **P0 rollout boundary:** current source can make a bounded count-only vendor observation before
-> admission and can refresh it explicitly through Web → Relay → authenticated MCP. The observation
-> is aggregate, expires after five seconds, and never confirms a specific lease release. Local
-> ownership/recovery remains authoritative; unknown or stale state fails closed. The capability
-> `license-capacity-v1` stays unadvertised until live integration acceptance. Packaged contention,
-> real proxy/DNS/WebRTC, native fingerprint A/B/C, human login/input, second-PC, and canary remain open.
-
-> **“Relay” does not mean an edge proxy here.** It exposes no public tunnel, target-forwarding API,
-> or proxy pool. It verifies recipient-bound tickets, opens operator-domain secrets locally, and calls
-> MKT Browser on loopback. Account traffic leaves only through that account's bound static proxy; a
-> failure stops the operation instead of selecting another proxy, profile, device, or account.
-
-## 2. Vòng đời một bài đăng — và vòng phản hồi nuôi bộ luật
-
-```mermaid
-flowchart LR
-  C["ContentItem<br/>kho content"] --> J["PostJob"]
-  A["Account<br/>nick"] --> J
-  T["PlatformTarget<br/>đích đăng"] --> J
-  J --> R{"10 luật"}
-  R -->|BLOCK| X["Bị chặn<br/>nêu rõ luật nào"]
-  R -->|"ALLOW / WARN"| P["PENDING<br/>chờ đăng"]
-  P --> M["Đăng tay<br/>mở profile · copy · dán"]
-  M --> D["Đã đăng + link<br/>markJobPosted"]
-  D --> I["Interaction<br/>tự ghi khi đánh dấu"]
-  I -.->|"luật 8: đụng độ thread"| R
-  D -.->|"luật 4, 6: giãn cách, tỷ lệ 9:1"| R
-  C -.->|"luật 7: trùng nội dung 30 ngày"| R
-```
-
-Đường liền là một bài đi từ trái sang phải. **Ba đường đứt mới là thứ đáng nhớ**: chúng chạy
-ngược về bộ luật, và chúng là lý do bộ luật ngày càng chính xác thay vì đứng yên.
-
-Hệ quả trực tiếp: **quên bấm "Đã đăng" là cắt cả ba đường ngược cùng lúc.** Job nằm mãi ở
-`PENDING`, không có `Interaction` nào được ghi, và với bộ luật thì bài đó **chưa từng tồn tại** —
-nick khác đụng đúng thread ấy sẽ được cho qua, giãn cách đếm sai, tỷ lệ 9:1 đếm thiếu. Không có
-thông báo lỗi nào cho tình huống này, vì đứng từ trong app nhìn ra thì không có gì hỏng cả. Đó là
-lý do nút "Đã đăng" được đặt ngay tại thẻ nhắc việc ở trang Hôm nay chứ không bắt đổi trang.
-
-Cùng lý do đó, content gõ thẳng ở trang xếp lịch vẫn phải được lưu thành `ContentItem` thật:
-luật 7 so bài mới với kho trong 30 ngày, content không vào kho thì mỗi bài viết thẳng lại xóa
-một mẩu trí nhớ của luật ấy. Lưu **sau** khi chấm luật, để bài không tự so trùng với chính nó.
-
-## 3. Ranh giới tin cậy
-
-| Ranh giới | Cách canh |
+| Boundary | How it is guarded |
 |---|---|
-| **Mạng** | Nghe mọi card mạng từ 05/08/2026 — cờ `-H 127.0.0.1` đã bỏ vì công cụ phải phục vụ cả team. Hàng rào chuyển hẳn sang tầng đăng nhập |
-| **Đăng nhập** | Google OAuth (Better Auth) + danh sách trắng `ALLOWED_EMAILS`. Kiểm ở **mọi request** chứ không chỉ lúc tạo tài khoản — gỡ email khỏi `.env` rồi khởi động lại là mất quyền ngay, kể cả đang mở sẵn tab |
-| **Trang** | `src/proxy.ts` (Next 16 đổi tên từ `middleware.ts`) chặn mọi trang trước khi nó kịp hỏi database; chưa đăng nhập thì chuyển hướng về `/login`. **Bắt buộc `runtime: "nodejs"`** — mặc định edge không nạp được Prisma và mọi trang thành 500. Kiểm phiên thật chứ không ngó cookie, để người vừa bị gỡ khỏi `ALLOWED_EMAILS` mất quyền ngay |
-| **Lối vào** | Mọi export trong file `"use server"` và mọi method trong `route.ts` phải bọc `guardedAction`/`guardedRoute`. Gác nằm ở **chữ ký**, không nằm trong thân hàm, nên không nhánh nào bỏ qua được; `guarded-entry-points.test.ts` kiểm bằng hình dạng mã nguồn và `NOT_YET_GUARDED` phải rỗng |
-| **Bí mật của nick** | `requireNickOwner`: máy chủ chỉ cấp **vé mã hóa** chứa mật khẩu/OTP cho đúng chủ nick hoặc ADMIN. Chặn ở **tầng dữ liệu**, không phải ẩn nút. Tầm nhìn thông tin thì **không chia**: luật đụng độ thread phải nêu đúng tên nick của đồng nghiệp mới dùng được. Mật khẩu thật chỉ xuất hiện ở Cầu nối trên máy của đúng người đó. |
-| **Proxy assignment** | `updateAccount` compares the normalized `proxyId` with the stored value and calls `requireAdmin(actor)` only when the proxy actually changes. OPERATOR retains karma, status, voice, and browser-profile ID edits; only ADMIN receives the editable proxy control, while the server remains the real enforcement point. |
-| **Route handler trong `api/`** | Đối chiếu `Origin`/`Host` (`same-origin-guard.ts`) — chặn trang khác trong cùng trình duyệt gọi sang |
-| **Credential** | Mã hóa AES-256-GCM trước khi ghi. 8 cột ở 5 bảng, khai trong `encrypted-field-registry.ts` kèm **vùng khóa** từng cột (`server` = máy chủ mở được, `operator` = 3 cột credential của `Account`). Test đọc thẳng `schema.prisma` để bắt cột `*Enc` khai thiếu **và** khai lệch vùng so với dấu `vault:*` trong schema. Mặc định của `encryptCredential` là khóa `server`; cột vùng operator phải truyền `loadVaultKey("operator")` rõ ràng |
-| **Khóa mã hóa** | Hai khóa hoàn toàn tách biệt: `VAULT_KEY_SERVER` nằm ở máy chủ (giữ proxy + token FB), và `VAULT_KEY_OPERATOR` nằm ở cầu nối trên máy nhân viên (giữ bí mật nick). Chiếm được máy chủ cũng không thể mở nổi mật khẩu nick nào vì khóa không hề tồn tại ở đó. |
-| **Bí mật lọt ra log** | Mật khẩu proxy chỉ tồn tại dạng trần trong lời gọi phát vé; token Facebook đi qua `redactTokens()` trước mọi thông báo lỗi |
-| **Nhật ký** | `AuditLog` ghi mọi thao tác nhạy cảm: mở profile, xem credential, ghi đè luật, đăng Fanpage, phát vé ký |
-| **Assignment audit** | Proxy and browser-profile ID changes append ID-only before → after values to `ACCOUNT_UPDATED` inside the account-write transaction. Proxy endpoints and credentials are never recorded. |
+| **Network** | The web app listens on the platform's routing; the only local listener is the Relay on `127.0.0.1:47821`, which accepts loopback connections only |
+| **Sign-in** | Google OAuth (Better Auth) + the `ALLOWED_EMAILS` allowlist, checked on **every request**, not only at sign-in. Removing an email takes effect immediately, even for an open tab |
+| **Pages** | `src/proxy.ts` (Next 16 renamed `middleware.ts`) checks the real session against the allowlist before a page can query the database. Requires `runtime: "nodejs"` — the edge default cannot load Prisma, and every page would 500 |
+| **Entry points** | Every export in a `"use server"` file and every method in a `route.ts` is wrapped by `guardedAction`/`guardedRoute`. The guard lives in the function signature, not the body, so no branch can skip it; `guarded-entry-points.test.ts` enforces the shape |
+| **Nick secrets** | `requireNickOwner`: the server issues a sealed ticket containing the password/OTP only to the nick's owner or an ADMIN. Enforcement is at the data layer, not by hiding buttons. There is no second UI path that bypasses it |
+| **Proxy vault** | ADMIN-only for add/edit/delete/bandwidth probes; liveness checks are cheap (KBs) and open to everyone |
+| **Route handlers** | `POST` routes in `api/` compare `Origin` with `Host` (`same-origin-guard.ts`) — Next does this for server actions but not for route handlers |
+| **Credentials** | AES-256-GCM before the database. Column→zone mapping lives in `encrypted-field-registry.ts`; a test reads `schema.prisma` and fails if a `*Enc` column is missing from the registry or declares the wrong `vault:*` zone |
+| **Encryption keys** | Two fully separated zones: `VAULT_KEY_SERVER` on the server (proxy passwords, API tokens); `VAULT_KEY_OPERATOR` on operator PCs inside Relay (nick passwords, emails, TOTP). Keys live in environment variables / Relay config, never in the database |
+| **Secrets in logs** | Passwords exist in plaintext only in the ticket-issuance call path on the operator PC; provider errors pass through token redaction before display or `AuditLog` |
+| **Audit trail** | `AuditLog` records every sensitive action — credential reveal, profile launch, ticket issuance, key grant, revocation — with the actor and the receiving PC |
 
-### Relay device lifecycle boundary
+Trusted-proxy handling: client IPs are resolved only from an explicitly configured, validated
+proxy-header/CIDR policy; untrusted forwarding headers are ignored, and rate-limit keys do not
+silently collapse every operator behind one proxy. Better Auth rate limits are persisted in
+PostgreSQL.
+
+## 3. Ticket and relay boundary
+
+The ticket is the only thing the server ever hands out to a device:
+
+- **Ed25519 signature** over a recipient-sealed payload. The public key is derived from the seed;
+  there is no way to configure a mismatched pair. Relay verifies the signature **before** decoding
+  anything.
+- **Sealed box**: one keypair per ticket → X25519 → HKDF → AES-256-GCM to the receiving PC's
+  registered public key. The server stores a box it cannot open.
+- **~30 seconds of life, single use.** The spent-ticket journal lives in the Relay, is appended and
+  validated before the operation, and survives restart and forced termination. Invalid journal state
+  fails closed; it never falls back to an in-memory guard.
+- **Per-kind version floor.** Every ticket kind carries a minimum Relay version; the general
+  security floor is 13, and profile create/launch require a newer floor because they need
+  capabilities old builds cannot prove. An outdated Relay is told exactly that.
+- **Rate limiting** on credential-reveal tickets caps how fast a stolen session could drain
+  secrets; the audit log makes the attempt visible.
+
+Relay device lifecycle:
 
 | Path | Authority and ordering | Local data result |
 |---|---|---|
-| Repair/reinstall | No server state change | Preserve Relay identity, Browser profiles, tokens, and MultiZen |
-| Normal uninstall | Remove only owned binaries, processes, shortcuts, autostart, and firewall state | Preserve all identity-bearing data, including a pre-existing Relay |
-| Planned ADMIN retirement | Revoke and unpin on the server first; issue a short-lived signed authorization bound to `deviceId + publicKey + finalizationPublicKey`; validate recipient proof; persist a durable signed completion receipt | Remove Relay keys/config/grant state; retain non-secret rollback/tombstone guards; preserve Browser and MultiZen data |
-| Owner cleanup after revocation | Begin, complete, and finalize only the signed-in owner's exact already-revoked record; recheck access under the transaction advisory lock at every server entry point; never unpin accounts | Use the same signed recipient proof, durable receipt, and local cleanup/finalization protocol; preserve Browser and MultiZen data |
-| Lost/unreachable PC | Revoke immediately and rotate `VAULT_KEY_OPERATOR` when exposure is plausible | No remote-wipe claim; local Relay and Browser state may remain |
+| Repair/reinstall | No server state change | Preserve Relay identity and profiles |
+| Normal uninstall | Remove only owned binaries, processes, shortcuts, autostart, firewall state | Preserve identity-bearing data |
+| ADMIN retirement | Revoke and unpin on the server first; short-lived signed authorization bound to `deviceId + publicKey + finalizationPublicKey`; durable signed completion receipt | Remove Relay keys/config/grant state; preserve profile data |
+| Owner cleanup after revocation | Begin/complete/finalize only the signed-in owner's exact already-revoked record; never unpin accounts | Same signed protocol; profiles preserved |
+| Lost/unreachable PC | Revoke immediately; rotate `VAULT_KEY_OPERATOR` if exposure is plausible | No remote-wipe claim; local state may remain |
 
-ADMIN retains active retirement and account unpinning. Owner cleanup cannot revoke an active PC,
-change ownership, or restore a revoked identity. The local device ID/public-key match and Relay v11+
-floor remain mandatory. Setup offers `RECOVER` for an exact owned revoked binding; other conflicts
-remain `ADMIN`. A pending protected receipt routes to recovery without proving owner match; server
-authorization still applies. Successful finalization closes Relay; restart and Setup create a fresh
-identity through normal enrollment. Validation/deployment status lives in the
-[owner-cleanup checkpoint](development-roadmap.md#relay-owner-cleanup---8-september-2026).
+Revocation blocks new tickets immediately. It does not reach data already on the revoked PC's disk
+— that gap is covered by rotating the operator key, not by pretending the disk was wiped.
 
-Relay writes a DPAPI-protected receipt before crossing the local deletion boundary. While that
-receipt exists, startup enters retirement recovery before key generation or enrollment and exposes
-only health, receipt-authorized idempotent cleanup retry, and signed finalization. A non-secret
-rollback-floor marker and legacy tombstone remain, so older Relay artifacts cannot recreate an
-identity while recovery is pending. Each retirement has a one-use
-finalization signing key whose public half is sealed into the local receipt. The encrypted private
-seed is erased when the server stores the durable completion receipt, so normal ticket-key rotation
-cannot strand recovery and cannot mint another completion afterward. Browser profile deletion belongs
-to an independent in-app Browser lifecycle because profile cookies are not Relay-owned. It is absent
-from MCP, requires a typed full-profile-id confirmation, refuses active lifecycle work, and deletes
-only the owned profile directory plus its database row. Retryable pending state reports partial
-cleanup without touching Relay, device credentials, the Browser token, settings, or MultiZen.
+Relay updates are **reinstall-only** since the self-update platform was removed on 31 October 2026:
+an outdated Relay is directed to reinstall the current package from `/setup`. There is no signed
+compatibility-update machinery, no sequence pinning, and no release-authority ceremony anymore.
 
-### Browser startup coordination candidate - 8 September 2026
+## 4. Where data lives
 
-Normal packaged Windows Browser launch acquires the canonical-root instance lock before opening
-settings, tokens, SQLite, or lease state. Browser checks the fixed current-user Relay installation;
-only a verified owned executable may be started. Conflicts fail closed without killing processes,
-rewriting configuration, issuing tickets, or repairing ownership. Relay stays an independent
-process, not a supervised service or a background retirement-restart loop.
-
-A usable tray changes manager close into hide; explicit Quit starts once-only profile/control
-cleanup and cancels pending companion work, leaving Relay available for vault operations. Windows
-session-end enters the same cleanup path, without promising completion before forced OS termination.
-Tray failure preserves normal visible-window close behavior. Development, disposable roots, and
-compatibility smoke do not enter this lifecycle.
-
-The combined installer makes Browser the sole owned login entry and restores standalone Relay
-startup on uninstall if Relay is retained. Only exact-target owned shortcuts may change. Existing
-device identity, secrets, profile data, Relay v16, and signed authorization remain unchanged.
-
-Web profile setup reads Relay health and profile inventory, verifies the measured create-profile
-version floor (currently 13), and evaluates Browser runtime separately. Retry is read-only; unknown
-or malformed responses never become Ready or an unsupported update claim. Operator copy uses
-reviewed states, not raw runtime errors. Source is under verification; the frozen installer tuple
-is unchanged and a new candidate needs separate acceptance before delivery. See the
-[startup checkpoint](development-roadmap.md#single-entry-browser-startup---8-september-2026).
-
-### Compatibility-set release authority
-
-The Windows installer pins the Ed25519 root public key copied from the verified physical ceremony
-evidence. The offline root signs delegation and revocation statements; the delegated key signs
-compatibility manifests. R2 stores immutable bytes but grants no release authority. Private root
-backups, their passphrase, and the DPAPI-protected delegated private key never enter either repository,
-CI, Railway, or R2.
-
-Protected local state records the highest accepted manifest sequence, a secure-store rollback floor,
-and exactly one retained rollback sequence. Relay, MKT Browser, the control contract, and the pinned
-engine activate as one tuple. Interrupted activation must converge after restart to either the entire
-new tuple or the entire retained tuple; mixed-version execution is forbidden. Release metadata cannot
-authorize a downgrade. The only monotonic exception is a one-use ADMIN rollback authorization naming
-the retained sequence at or above the secure-store floor.
-
-Compatibility artifact staging uses Node's normal TLS verification with redirects rejected, bounded
-header/body/whole-download work, and signed size/hash/control-contract checks. Download failures
-cross the Relay boundary as fixed TLS, timeout, network, HTTP, size, hash, or local-I/O codes; raw
-URLs, headers, provider errors, and filesystem paths do not leave the process. A disposable Node SEA
-fixture can add a disposable CA only to its explicit test child; production and helper children scrub
-inherited `NODE_OPTIONS`, `NODE_EXTRA_CA_CERTS`, `NODE_USE_SYSTEM_CA`, and
-`NODE_TLS_REJECT_UNAUTHORIZED`.
-
-## 4. Nơi dữ liệu nằm
-
-| Thứ | Ở đâu | Sao lưu thế nào | Mất thì sao |
+| Thing | Where | Backed up | If lost |
 |---|---|---|---|
-| Nick, proxy, content, job, tương tác, nhật ký | Postgres (`mkttool_dev` dưới máy dev, Postgres của Railway trên máy chủ) | Hai lớp: **app tự đẩy lên Cloudflare R2 mỗi đêm** + `npm run db:backup:remote` (người quản trị kéo về máy mình, và chạy trước mỗi deploy đổi cấu trúc DB). Sao lưu ổ đĩa Railway **cố ý không dùng** — đòi gói Pro, mà bản sao lại nằm cùng tài khoản với bản gốc. Dưới máy dev: `npm run db:backup` | Mất toàn bộ lịch sử → bộ luật mù, cho qua bài lẽ ra phải chặn |
-| Mật khẩu, TOTP secret, token Facebook | cùng database, dạng ciphertext | như trên | – |
-| `VAULT_KEY_SERVER` / `VAULT_KEY_OPERATOR` | `.env` | **Password manager, thủ công** | Mất khóa = mất vĩnh viễn credential của vùng đó. Không có đường khôi phục |
-| Ảnh chụp lúc dò | `data/screenshots/` | không | Chỉ mất bằng chứng hình ảnh; bản ghi kết luận vẫn còn |
-| Bản sao lưu | Bucket R2 (lượt tự động) + `data/backups/` của máy quản trị | – | Bản sao **cố ý không nằm cùng nhà với bản gốc**: trong container `data/backups/` là ổ tạm, mất theo mỗi lần deploy |
-| File khóa lượt dò | `data/health-check.lock` | – | Trạng thái máy đang chạy, không phải dữ liệu dự án |
-| Profile/cookie/browser settings của nick | Kho cục bộ của app profile trên đúng máy operator; target ở Application Support trên Mac hoặc LocalAppData trên Windows | Hiện chưa có sao lưu tập trung; plan MKT Browser chỉ cho export mã hóa và import có kiểm soát | Mất máy có thể mất phiên đăng nhập/profile; thu hồi vé không xóa từ xa dữ liệu đã nằm trên ổ đĩa. Local storage is not identity-isolation proof |
+| Nicks, proxies, audit log | Postgres (local dev DB / Railway Postgres) | Two layers: nightly app-managed dump to Cloudflare R2 + `npm run db:backup:remote` pulled by an admin. `npm run db:backup` for the local machine. Railway's own disk backups are deliberately unused: same account as the original is not a backup | Full vault history |
+| Passwords, emails, TOTP seeds | Same database, as ciphertext | Same | The ciphertext survives; whether it is readable depends on the keys |
+| `VAULT_KEY_SERVER` / `VAULT_KEY_OPERATOR` | Server `.env` / Relay config on each PC | **Password manager, manual** | Permanent loss of that zone's data. No recovery path, by design |
+| Backups | R2 bucket (automatic) + admin's `data/backups/` | – | Deliberately **not** stored next to the original: inside the container `data/backups/` is ephemeral |
+| Browser profile / cookies / login state | MKT Browser local storage on the owning PC | None centrally; device transfer is a gated MKT Browser capability | Losing the PC may lose the profile's logged-in sessions. Revocation does not erase the disk |
 
-Toàn bộ `data/` và `.env` đều nằm trong `.gitignore`. Repo **không bao giờ** chứa credential.
+`data/` and `.env` are gitignored. The repository never contains credentials, and
+`npm run ci:secret-scan` checks the tree.
 
-## 5. Phụ thuộc bên ngoài và cách chúng hỏng
+## 5. External dependencies and how they fail
 
-| Phụ thuộc | Dùng để | Hỏng thì biểu hiện | Xử lý đã cài sẵn |
+| Dependency | Used for | Failure mode | Built-in response |
 |---|---|---|---|
-| **MKT Browser** (authenticated local MCP, default `127.0.0.1:47822`) | Open browser profiles and apply their static proxies | HTTP 401/403, desktop app stopped, contract/engine/CPU mismatch, or missing WebRTC containment | One transport re-handshake is allowed; proxy/tool failures remain fail-closed. MKB-02 enforces managed controls and token separation. MKB-03 now also requires exact per-engine outbound UDP protection before any proxied Windows launch; the installer owns elevation and stable runtime paths. BrowserLeaks/runtime-update retest, engine pinning, signed updates/rollback, and installer recovery remain gates; Mac arm64 belongs to MKB-07 |
-| **Proxy tĩnh** (nhà cung cấp) | Đường ra của từng nick | Egress probe unavailable, empty, malformed, or different from the assigned route | Managed launch fails closed before success. Real in-browser equality plus DNS/WebRTC evidence remains a rollout gate rather than an assumption from the probe alone |
-| **Proxy quan sát viên** | Dò shadowban | Chưa nhập thì `npm run health` dừng ngay từ đầu | Cố ý dừng: dò bằng IP nhà còn tệ hơn không dò |
-| **HTML `old.reddit.com`** | Nguồn dữ liệu dò shadowban + karma | Reddit đổi giao diện → parser hỏng | Hỏng thì kết luận **`ERROR` ("Không dò được")**, tuyệt đối không bao giờ là `HEALTHY`. `npm run health:smoke` đối chiếu Reddit thật |
-| **Facebook Graph API** | Đăng Fanpage | Token hết hạn/bị thu hồi | Chấm sức khỏe token **trước khi gọi mạng**; Facebook từ chối thì ghi `tokenValid=false` ngay |
-| **Chromium của Playwright** | Phiên trình duyệt sạch để dò | Chưa cài | `npx playwright install chromium` |
+| **MKT Browser** (authenticated local MCP, `127.0.0.1:47822`) | Create and open browser profiles, apply their static proxies | HTTP 401/403, desktop app stopped, contract/engine mismatch, missing WebRTC containment | Fail closed. Without a discoverable token, Relay can still reveal secrets but profile actions stop with a configuration error |
+| **Static proxy provider** | Each nick's route to its platform | Liveness probe unavailable, or exit IP equals the operator's IP | Profile launch fails closed. The five probe verdicts (alive, dead, no IP change, country mismatch, uncheckable) each have distinct copy, and "not checked yet" is never rendered as healthy |
+| **Cloudflare R2** | Relay/installer distribution; nightly backups | Download route unavailable; backup upload fails | The download page states what it looked for instead of pretending; a failed nightly backup is recorded as failed and surfaced on the workspace overview |
+| **Google OAuth** | Sign-in | Client misconfiguration | The app refuses to start without the required auth variables rather than running unauthenticated |
 
-Không phụ thuộc nào có phương án dự phòng tự động, và đó là chủ ý: mỗi lần hỏng đều **dừng và
-nói rõ**, không đoán tiếp. Cả bốn cái chết thầm lặng nguy hiểm nhất — mở profile thiếu proxy, dò
-bằng IP nhà, kết luận "khỏe" khi thật ra không đọc được, đăng bằng token đã chết — đều bị chặn
-bằng một đường dừng hẳn chứ không phải một cảnh báo.
+No dependency has an automatic fallback, deliberately: each failure **stops and says so** instead
+of guessing. The dangerous silent failures — a profile launched without its proxy, a "healthy"
+verdict produced by a broken check, secrets revealed to the wrong machine — are all prevented by a
+hard stop rather than a warning.
 
-## 6. Kiến trúc phần mềm — ba quyết định định hình mọi thứ
+## 6. Software architecture — decisions that shape everything
 
-**1. Mỗi luật an toàn là một hàm thuần `(ctx: RuleContext) => RuleVerdict`.**
-Toàn bộ việc hỏi database gom ở `rule-context-builder.ts`. Thêm luật mới = thêm một file + một
-dòng trong `rules-engine.ts`. Test được không cần database. Đây là lý do phần giá trị nhất của
-dự án cũng là phần dễ sửa nhất.
+**1. The browser-profile runtime sits behind an adapter boundary.** Production profile actions go
+through Relay, which constructs `MktBrowserAdapter` against the owned MKT Browser contract on
+loopback `47822`. `mktBrowserUrl` and `mktBrowserToken` in `relay-config.json` exist only as
+explicit development overrides; retired provider names are not read as fallbacks. AdsPower remains
+a secondary compatibility adapter for tests, not a rollout path.
 
-**2. The browser-profile runtime sits behind `AntidetectAdapter`.** MKTTool retains the MKT Browser
-and AdsPower implementations for server/test selection, while production profile actions go through
-Relay. Relay deliberately constructs `MktBrowserAdapter`, discovers the bearer token from MKT
-Browser's Windows data root on demand, accepts `mktBrowserToken` only as a development override, and
-uses `mktBrowserUrl` only as an explicit loopback override. It does not inspect retired provider or
-configuration names. When MKT Browser exposes `atomic-launch-v1`, Relay uses the provider-owned
-persist/verify/launch operation; the two-call fallback is restricted to older builds where the tool
-is absent.
+**2. Tickets carry authorization; the database carries truth.** The server validates session,
+ownership, and revocation at issuance; the Relay validates signature, version floor, and replay at
+consumption. Neither side trusts the other's check, and each side's checks are independently
+tested.
 
-**3. Ràng buộc nghiệp vụ ép ở tầng database, không ở tầng UI.** `antidetectProfileId @unique`,
-`proxyId @unique`, `@@unique([platform, username])` — quy tắc "1 nick = 1 proxy = 1 profile cấu hình"
-không lách được kể cả khi viết sai code ứng dụng. UI chỉ giải thích lỗi cho dễ hiểu; nó không biến
-cấu hình thành bằng chứng cô lập danh tính.
+**3. Business constraints are enforced at the database layer.** `antidetectProfileId @unique`,
+`proxyId @unique`, `@@unique([platform, username])` — the "1 nick = 1 proxy = 1 profile" rule
+cannot be bypassed even by an application bug. The UI only explains violations in readable words.
 
-Hệ quả của cả ba: phần khó thay đổi nhất (schema) giữ thứ quan trọng nhất (ràng buộc sở hữu và
-đường ra),
-phần dễ thay đổi nhất (file luật) giữ thứ hay đổi nhất (kinh nghiệm vận hành).
+**4. Account writes use optimistic concurrency.** Nick edit and owner/PC assignment forms carry the
+record's `updatedAt` revision; a stale save is rejected whole, with no audit row and no rule
+recheck. This bounds the two account write paths, not the whole app.
 
-## 7. Vì sao không chọn cái khác
+## 7. Why not the alternatives
 
-| Đã chọn | Thay vì | Lý do |
+| Chosen | Instead of | Reason |
 |---|---|---|
-| Máy bàn, một tiến trình | VPS + Docker + microservices | Antidetect browser là app desktop. 1 người dùng, 1 máy — mọi lớp hạ tầng thêm vào đều là chi phí không đổi lấy gì |
-| Postgres + Prisma | SQLite một file | SQLite từng đúng khi chỉ có 1 người dùng 1 máy, và đã chạy như vậy tới 04/08/2026. Đổi khi chốt làm web chung cho team — một file trên một máy không phục vụ được 5-6 người ở 5-6 nơi |
-| Server actions của Next.js | REST/GraphQL API riêng | Không có client thứ hai. API tách ra chỉ để tự gọi mình là công vô ích |
-| Reddit qua trình duyệt | Reddit API | API free cấm mục đích thương mại; API thương mại ~$12k/tháng |
-| Facebook Pages qua Graph API | Tự động hóa trình duyệt | Miễn phí, hợp lệ, không bao giờ bị khóa vì vi phạm chính sách tự động hóa |
-| Facebook Group đăng tay | Groups API | Meta khai tử `publish_to_groups` từ 04/2024. Không tool nào làm được nữa |
-| Proxy tĩnh tính theo IP | Proxy dân cư tính theo GB | Bản cũ ước tính ~5,4 triệu/tháng tiền băng thông; IP đổi liên tục còn phá ràng buộc 1 nick : 1 IP |
-| Playwright cho bộ dò | Dò qua chính antidetect browser | Dò phải đi bằng IP khác và phiên sạch. Dùng lại profile của nick là tự nhìn mình trong gương |
+| Postgres + Prisma | One-file SQLite | SQLite was correct for one user on one machine, until 04/08/2026. A file on one machine cannot serve 5-6 people in 5-6 places |
+| Next.js server actions | A separate REST/GraphQL API | There is no second client. Splitting an API out to call it from the same app is ceremony |
+| Plain `Dockerfile` | Provider-specific config | The same image must run on Railway, Render, Fly, or a VPS; lock-in is discovered on the day you want to leave |
+| Static ISP proxies per IP | Rotating residential per GB | Rotating IPs change constantly, which breaks 1 nick : 1 IP by construction |
+| Windows SEA Relay | A server-side browser controller | Profile data and the operator key must stay on the operator's machine; a server-driven browser would collapse both trust boundaries |
 
-Chi tiết bối cảnh từng quyết định ở [project-overview-pdr.md](project-overview-pdr.md),
-[plan gốc](../plans/260801-2030-multi-account-posting-console/plan.md) và
-[plan MKT Browser](../plans/260810-0244-mkt-browser-noi-bo/plan.md).
+## 8. If scale changes
 
-## 8. Đường lớn lên nếu quy mô đổi
+Not now. Recorded so the debate does not restart from zero:
 
-Không làm bây giờ. Ghi lại để lần sau khỏi tranh luận lại từ đầu:
-
-| Nếu | Phải đổi gì |
+| If | What changes |
 |---|---|
-| Nhiều người dùng chung một bản | **Đã xong** — hệ thống hiện tại đã là web chung. Database chuyển sang Postgres, đăng nhập bằng Google OAuth, phân quyền ADMIN/OPERATOR, và kho danh tính đã tách hai vùng khóa với cầu nối (Relay) giải mã độc lập trên máy trạm. |
-| Chạy 24/7 không ai ngồi máy | Cần hàng đợi việc thật (không phải bảng `PostJob`) + máy luôn bật. Nhưng xem lại mục "không làm" ở PDR trước đã |
-| Trên 20 nick | Antidetect browser trên máy bàn hết chỗ; cần VPS có GUI hoặc nhiều máy. Chi phí proxy tăng tuyến tính |
-| Thêm nền tảng mới | Thêm giá trị vào `platform-family.ts`; đích chưa có bộ đăng tự động sẽ tự rơi vào nhắc việc đăng tay — không im lặng biến mất |
+| More people join | Allowlist and roles already exist; the work is operator onboarding, not architecture |
+| Above ~20 nicks | Per-PC profile storage fills up; more machines, more Relay registrations. Proxy cost grows linearly |
+| New platform added to the vault | Add the platform value and its account-field validation; browser-backed platforms inherit the full proxy/profile/PC/owner chain by construction |
+| Posting ever returns | It is an owner decision that starts from git history, with its own acceptance criteria — and the boundaries in [project-overview-pdr.md](project-overview-pdr.md) apply |

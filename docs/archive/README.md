@@ -1,5 +1,28 @@
 # docs/archive — Tài liệu bản cũ
 
+## Archived on 31 October 2026 — the workspace surgery batch
+
+The 31 October 2026 surgery removed the posting surface, the release ceremony machinery, and the
+Relay self-update platform from the code. The documents below described only that removed surface;
+they are moved here so history is retained without pretending they are current instructions.
+
+| File | What it was |
+|---|---|
+| [`internal-beta-release.md`](internal-beta-release.md) | The Browser release lane boundary: candidates, compatibility sequences, operator-promotion gates up to 2 October 2026 |
+| [`team-ready-rollout.md`](team-ready-rollout.md) | The pre-surgery team handoff guide, including the Browser distribution hold |
+| [`huong-dan-van-hanh-cho-team.md`](huong-dan-van-hanh-cho-team.md) | Vietnamese daily operations guide; its posting, health-check, and Facebook sections describe removed flows |
+| [`release-signing-key-ceremony.md`](release-signing-key-ceremony.md) | The offline release-root and delegated-key ceremony for the removed compatibility-update platform |
+| [`relay-floor-migration.md`](relay-floor-migration.md) | Runbook for migrating Relay PCs across compatibility floors using the removed self-update machinery |
+
+**Do not follow these as instructions.** They are records of decisions and procedures for machinery
+that no longer exists in the repository. Relay updates are now reinstall-only from `/setup`, and
+posting features are removed, not parked — see [project-overview-pdr.md](../project-overview-pdr.md)
+and the `2026-10-31` entry in [project-changelog.md](../project-changelog.md).
+
+---
+
+The rest of this page describes the **older** archive batches (in Vietnamese, kept as written).
+
 Thư mục này có **hai loại file, đừng lẫn chúng với nhau**:
 
 | File | Là gì |
