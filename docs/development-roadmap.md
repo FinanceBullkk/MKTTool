@@ -36,7 +36,9 @@ decryption, setup, and the authenticated R2 download path.
 
 ## Known follow-ups
 
-1. **Railway service restore.** The production URL currently returns 404; the Railway service is
+1. **~~Railway service restore~~ RESOLVED differently (31 Oct 2026):** the owner retired Railway
+   entirely. Hosting is now the owner's machine over Tailscale (see docs/deployment-guide.md).
+2. **Railway service restore (historical).** The production URL returned 404; the Railway service is
    not wired to this repository. Restore the service, confirm it deploys from `master`, and verify
    `/api/healthz` reports `ready` with database, releaseMetadata, and r2 checks `ok` on the exact
    deployed SHA. Until that is done there is no running production, and the "push to master deploys

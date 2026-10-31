@@ -7,35 +7,22 @@ This file defines how Codex should work in the MKTTool repository.
 > deploy, trigger CI, use real credentials and live accounts, decide vendor and source licence
 > matters, and spawn subagents or workflows on its own initiative, without asking first.
 
-## Pushing this repository deploys production
+## Hosting: Railway is retired (31 October 2026)
 
-**A push to `master` here is a production deployment.** When the Railway service is wired to this
-repository (it is currently returning 404 and needs restoring — see the roadmap), the GitHub source
-integration builds and releases whatever lands on `master`, with no workflow, no approval and no
-separate step. There is nothing to trigger and nothing to forget — it simply happens. The warning
-is currently dormant, not false.
+The owner retired the Railway deployment on 31 October 2026. The web app runs on the owner's
+machine against its local PostgreSQL, reachable by the team over Tailscale; GitHub is backup and
+history only. A push to `master` deploys nothing.
 
-On 14 September 2026 eight deployments went out this way in a single session. The person pushing
-reported the work as "pushed" each time, which was true and incomplete: production had shipped.
-Nothing broke, because every commit touched only `scripts/`, `relay/` and `docs/`, and the Next.js
-server imports none of those. That was luck about file scope, not a control.
+Before pushing:
 
-So, before pushing:
+- Run the quality stage for whatever `src/`/`app/` change you made: `npm run typecheck`,
+  `npm run lint`, the relevant tests, and `npm run build`.
+- After pushing, there is no deployment to verify. The only runtime to check is the locally
+  running web app (`/api/healthz` must report `ready` with `database`, `releaseMetadata` and
+  `r2` all `ok`).
 
-- If the change touches `src/` or `app/`, treat the push as a release. Run the quality stage first.
-- After pushing, verify rather than assume — the workspace `AGENTS.md` requires the exact deployed
-  SHA to be checked:
-
-```powershell
-git rev-parse HEAD                                     # must equal origin/master
-railway deployment list | Select-Object -First 3       # newest must be SUCCESS
-Invoke-WebRequest https://mkttool-web-production.up.railway.app/api/healthz -UseBasicParsing
-```
-
-Health must report `ready` with `database`, `releaseMetadata` and `r2` all `ok`.
-
-- A change meant for the *next* release candidate still goes live the moment it is pushed here.
-  There is no staging branch. If that is not what you want, do not push it yet.
+The 14 September 2026 lesson is kept as history: eight pushes in one session silently shipped
+production through the old Railway integration. The integration is gone, not excused.
 
 ## Working approach
 
