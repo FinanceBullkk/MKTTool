@@ -12,7 +12,6 @@ import {
   ed25519PublicKeyRejection,
   SMALL_ORDER_Y_COORDINATES,
 } from "./ed25519-point-validation.mjs";
-import { publicKeyFromHex as releasePublicKeyFromHex } from "../../../scripts/release-authority/release-authority-key-primitives.mjs";
 import { publicKeyFromHex as ticketPublicKeyFromHex } from "../tickets/server-signing-key";
 
 const P = (1n << 255n) - 19n;
@@ -198,16 +197,17 @@ describe("Ed25519 public key point validation", () => {
   });
 
   /**
-   * C3 asked for one fix across both key-import paths. Asserting each one separately is the only
-   * way that stays true if someone later gives one of them its own validation.
+   * The guard must sit inside the key-import path itself, not next to it. The release-authority
+   * import path (`scripts/release-authority/release-authority-key-primitives.mjs`) shared this
+   * enforcement until the compatibility-update platform it served was removed; the ticket path is
+   * the one public-key import left, so it is asserted on its own — if a second import path ever
+   * appears, give it its own assertion here rather than trusting this one.
    */
-  it("is enforced by both public key import paths", () => {
+  it("is enforced by the ticket public key import path", () => {
     for (const yHex of SMALL_ORDER_Y_COORDINATES) {
-      expect(() => releasePublicKeyFromHex(yHex)).toThrow(/small-order point/i);
       expect(() => ticketPublicKeyFromHex(yHex)).toThrow(/small-order Ed25519 point/i);
     }
     const nonCanonical = encodeY(P + 1n);
-    expect(() => releasePublicKeyFromHex(nonCanonical)).toThrow(/non-canonical/i);
     expect(() => ticketPublicKeyFromHex(nonCanonical)).toThrow(/non-canonical encoding/i);
   });
 });

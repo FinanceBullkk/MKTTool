@@ -38,7 +38,6 @@ describe("Phase 2 navigation and vocabulary contract", () => {
     const styles = read("src/app/globals.css");
     const shell = read("src/components/mktbrowser-ui/AppShell.tsx");
     const topBar = read("src/components/mktbrowser-ui/TopBar.tsx");
-    const alertTray = read("src/components/layout/ops-alert-tray-client.tsx");
 
     expect(styles).toContain("--mkt-canvas-width: 100rem");
     expect(styles).toContain("--mkt-frame-width: 72rem");
@@ -47,7 +46,6 @@ describe("Phase 2 navigation and vocabulary contract", () => {
     expect(styles).toContain("width: min(100%, var(--mkt-frame-width))");
     expect(shell).toContain('className="app-canvas flex h-[100dvh]');
     expect(topBar).toContain('className="app-frame flex items-center gap-3.5"');
-    expect(alertTray).toContain('className="app-frame z-10');
   });
 
   it("uses the shared icon-first metric language on operational index pages", () => {

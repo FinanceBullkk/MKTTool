@@ -79,8 +79,6 @@ export async function runRetirementRecoveryServer(
       [RELAY_PATHS.receiveOperatorKey]: retirementBlocked,
       [RELAY_PATHS.authorizeBootstrap]: retirementBlocked,
       [RELAY_PATHS.bootstrapCompletion]: retirementBlocked,
-      [RELAY_PATHS.compatibilityUpdate]: retirementBlocked,
-      [RELAY_PATHS.compatibilityRollback]: retirementBlocked,
     }),
   });
   await listenOnLoopback(server);

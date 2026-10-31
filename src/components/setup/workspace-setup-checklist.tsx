@@ -130,17 +130,6 @@ export function WorkspaceSetupChecklist({
         }
         pendingMessage="Complete these required handoff steps in order. The first unfinished step is highlighted below; this checklist does not depend on Browser installer availability or prove identity isolation."
       />
-
-      {checklist.posting.inRolloutScope ? (
-        <ChecklistSection
-          section={checklist.posting}
-          isAdmin={isAdmin}
-          headingId="posting-setup-heading"
-          title="Posting preparation"
-          completeMessage="Posting preparation is complete for the current rollout scope."
-          pendingMessage="Posting is back in rollout scope. Complete these steps separately from the identity workspace handoff."
-        />
-      ) : null}
     </div>
   );
 }

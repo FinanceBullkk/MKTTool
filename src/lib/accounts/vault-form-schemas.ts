@@ -10,10 +10,8 @@
  * `validatePlatformAccountFields()` chứ không qua hai bản sao — xem chú thích ở đó.
  */
 import { z } from "zod";
-import { CONTENT_TYPES } from "@/lib/content/content-types";
 import { isEncryptedCredentialShape } from "@/lib/crypto/credential-encryption";
 import { parseDateTimeInput, parseLocalDateInput } from "@/lib/format/vietnamese-date-format";
-import { TARGET_PLATFORMS } from "@/lib/platforms/platform-family";
 import { ACCOUNT_STATUSES } from "./account-status";
 
 /** Chuỗi rỗng từ form thành undefined để zod xử lý optional cho đúng. */
@@ -334,39 +332,4 @@ export function accountUpdateSchemaFor(platform: string) {
 
 // ─── Đích đăng ───────────────────────────────────────────────────────────────
 
-const targetShape = {
-  name: z.string().min(1, "Posting target name is required. Enter a name and try again."),
-  url: z.string().url("The URL is invalid. Enter a complete URL and try again."),
-  minKarma: z.coerce.number().int().min(0).default(0),
-  minAccountAgeDays: z.coerce.number().int().min(0).default(0),
-  promoRatio: z.coerce.number().int().min(0).default(9),
-  allowsLinks: z.coerce.boolean().default(true),
-  notes: optionalText,
-};
 
-export const targetCreateSchema = z.object({
-  ...targetShape,
-  platform: z.enum(TARGET_PLATFORMS),
-});
-
-/** `platform` cố định sau khi tạo, cùng lý do với nick — xem chú thích ở accountShape. */
-export const targetUpdateSchema = z.object({
-  ...targetShape,
-  id: requiredId,
-  active: z.coerce.boolean().default(true),
-});
-
-// ─── Content ─────────────────────────────────────────────────────────────────
-
-const contentItemShape = {
-  title: z.string().min(1, "Content title is required. Enter a title and try again."),
-  body: z.string().min(1, "Content body is required. Enter the content and try again."),
-  type: z.enum(CONTENT_TYPES),
-  authorName: z
-    .string()
-    .min(1, "Author name is required. Enter it so the content can be traced later."),
-  linksText: z.string().optional(),
-};
-
-export const contentItemCreateSchema = z.object(contentItemShape);
-export const contentItemUpdateSchema = z.object({ ...contentItemShape, id: requiredId });

@@ -1,249 +1,133 @@
 # MKTTool product requirements
 
-**Updated:** 8 September 2026 | **Delivery status:** [development-roadmap.md](development-roadmap.md)
+**Updated:** 31 October 2026 | **Delivery status:** [development-roadmap.md](development-roadmap.md)
 
-## Product direction decision - 8 September 2026
+## What MKTTool is now
 
-**Status: ACCEPTED by the workspace owner in the 8 September 2026 conversation.**
-MKTTool prioritizes the shared nick vault, Proxy vault, and Relay PC operations. MKT Browser is a
-**browser profile manager with proxy binding**: local browser data, assigned proxy, explicit
-owner/PC, and human-controlled create/open/close operations. These are operational controls;
-the product makes no antidetect, unique-fingerprint, identity-isolation, or account-safety promise.
+MKTTool is an internal identity vault and posting-safety console for a small, known team (five to
+six people). It manages the team's social-account records (**nicks**) with their encrypted
+credentials, the **static proxies** each nick is bound to, and the **Relay PCs** that own each
+nick's local MKT Browser profile. Opening a profile issues a short-lived Ed25519-signed ticket
+through the local Relay on the operator's own PC, which applies the nick's proxy and launches the
+profile on the CloakBrowser engine.
 
-### Investment and scope
+The product makes three promises and refuses to pretend to make a fourth:
 
-- Close active antidetect/identity-engine research, custom Chromium fingerprint patches, and
-  further Brave/Cloak identity experiments. Lane C remains **CLOSED**, with no delivery date or
-  vendor-contact task. Preserve existing evidence and runtime code for maintenance and reference.
-- Prioritize Proxy vault reliability and assignment, Relay enrollment and authorized handoff, then
-  dependable manual browser-profile lifecycle. Security and compatibility maintenance remain valid
-  work; the research closure does not freeze dependency security updates.
-- Keep Reddit/Facebook posting workflows outside team rollout and TikTok posting automation parked.
-  Existing routes, data, adapters, and platform guards retain their contracts.
-- A future commercial engine/provider is an option only under a separate owner decision supported
-  by API compatibility, licensing, and measured acceptance evidence. Reuse the existing adapter
-  boundary if selected; this decision starts no procurement, contact, or integration work.
+1. Ownership is explicit: every browser-backed nick has one responsible person and one Relay PC.
+2. Secrets are protected: operator-zone secrets decrypt only on the operator's own PC.
+3. Technical readiness is truthful: a nick that has not had its first human login reports exactly
+   that, and a proxy that was never checked is never shown as healthy.
 
-### Current use and release boundary
+It does **not** promise identity isolation. `G2-IDENTITY=FAIL` remains the recorded result of the
+licensed-engine collision measurements. Proxy binding, profile pinning, and one-record-per-nick
+constraints are operational controls; they are not evidence that two accounts cannot be linked.
 
-The shared vault, proxy ownership, and Relay PC registry remain the team surface. Relay-first
-onboarding is independent of Browser availability. MKT Browser use remains a bounded, admin-led
-technical demonstration with disposable data, one profile at a time, and human login/input.
-Low-risk manual workflows are a possible later release scope, not blanket permission for real
-accounts. The current Browser draft is not approved for team distribution or real-account use.
+## The 31 October 2026 surgery
 
-`G2-IDENTITY=FAIL` remains the recorded result; accepting this direction does not relabel it as a
-pass. Browser installer/provenance, real proxy/DNS/WebRTC, recovery on the release artifact,
-second-PC/operator, and canary evidence remain separate release requirements. Any future scope
-change must define its own acceptance criteria without erasing historical failures. See
-[internal beta boundary](internal-beta-release.md).
+The repository was cut back to the surfaces the team actually runs. Three cuts, all visible in git
+history (parent of the surgery commit on branch `surgery/261031`):
 
-### Delivery priorities and acceptance
+- **The posting surface was removed, not parked.** Content library, posting queue, the ten-rule
+  safety engine, the shadowban/health observer with its observer proxies, posting targets, and the
+  Facebook Pages publisher (Graph API client and OAuth flow) are deleted from the code. This is a
+  code-removal decision, not a rollout-scope decision like the 2 September 2026 withdrawal, which
+  kept the code and hid the routes. Re-entering any platform means rebuilding from git history
+  under an explicit owner decision — there is no hidden switch.
+- **Release ceremony machinery was removed.** The offline release-signing key ceremony, signed
+  compatibility sequences, sequence pinning, and anti-downgrade/rollback tooling are gone.
+- **The Relay self-update platform was removed.** Relay updates by reinstalling the current
+  package from `/setup`.
 
-| Order | Work | Evidence needed |
+What remains in scope: the nick vault, the proxy vault, the Relay PC registry, ticket-based launch
+and secret reveal, Relay enrollment and revocation, setup/onboarding, backups, and the
+authenticated R2 distribution of the Relay package.
+
+## Prior direction still in force - 8 September 2026
+
+The owner accepted MKT Browser as a **browser profile manager with proxy binding**: local browser
+data, an assigned proxy, an explicit owner/PC, and human-controlled create/open/close operations.
+Antidetect/identity-engine research, custom Chromium fingerprint work, and further Brave/Cloak
+identity experiments are closed. Lane C remains **CLOSED** — there is no CloakBrowser channel, and
+no vendor contact or new engine integration is scheduled. Accepting that direction does not relabel
+`G2-IDENTITY=FAIL` as a pass.
+
+The 2 September 2026 decision withdrew Reddit and Facebook from the team rollout scope. After the
+31 October surgery that boundary is enforced by absence: the posting code no longer exists.
+
+## Who uses it
+
+| Role | People | What they do |
 |---|---|---|
-| 1 | Proxy vault and shared ownership | Verified inventory/import/check behavior, ADMIN-only proxy changes, and correct nick/PC ownership |
-| 2 | Relay handoff | Operator can install, register, receive approval, and use authorized actions on the assigned PC |
-| 3 | Manual browser-profile reliability | Correct local profile and proxy, observed egress/DNS/WebRTC, fail-closed launch, close/recovery, and understandable errors |
-| 4 | Controlled Browser release | An identified artifact, passing hosted CI and clean-machine/operator checks, documented allowed use and rollback, and explicit release decision |
+| Operators | 4-5 | Run the vault day to day: record nicks, attach proxies, create and open profiles, keep ownership current |
+| Administrator | 1 | Everything operators do, plus: assign nick owner and Relay PC, register/revoke Relay PCs, grant operator keys, own the proxy vault |
 
-These are priorities and acceptance criteria, not new PASS claims. Progress is maintained in the
-roadmap. Success is reliable administration and correct profile/PC/proxy operations; posting volume,
-account survival, and fingerprint uniqueness are not current delivery targets.
+Sign-in is Google OAuth behind an explicit email allowlist. There is no self-registration: Google
+proves that a person owns an email address; it does not prove that the person belongs to the team.
 
-## Historical product rationale and targets
+## Scope boundaries
 
-The sections below retain earlier product assumptions and engineering decisions. The 8 September
-decision above and the 2 September platform withdrawal supersede their posting targets, combined
-Browser onboarding requirements, budgets, and future-work promises where they conflict. They are
-not instructions to reopen those workstreams.
-
-Tài liệu này trả lời "vì sao" và "phạm vi tới đâu". Chi tiết thi công nằm ở
-[plan công cụ gốc](../plans/260801-2030-multi-account-posting-console/plan.md),
-[plan Web chung](../plans/260804-1752-web-chung-cho-team-phan-tan/plan.md) và
-[plan MKT Browser](../plans/260810-0244-mkt-browser-noi-bo/plan.md).
-Thuật ngữ tra ở [domain-glossary.md](domain-glossary.md); mục lục tài liệu ở [docs/README.md](README.md).
-
----
-
-## 1. Vấn đề
-
-The marketing team manages multiple Reddit and TikTok browser profiles plus Facebook Pages. The
-browser-backed identities have exactly **two failure classes**:
-
-| Cách chết | Nguyên nhân | Phần nào lo |
-|---|---|---|
-| **Bị nhận ra là cùng một người** | Nhiều nick dùng chung IP, chung vân tay trình duyệt, chung thói quen | Kho danh tính (Phase 01) + antidetect browser |
-| **Bị nhận ra là đang spam** | Đăng nội dung na ná giữa các nick, đăng dồn dập, toàn quảng cáo, nhiều nick đụng cùng một bài | Bộ luật an toàn (Phase 02) |
-
-Nguyên nhân shadowban số 1 là cách thứ hai, không phải cách thứ nhất. Vì vậy phần lớn giá trị của
-công cụ nằm ở bộ luật, không nằm ở kỹ thuật giả vân tay.
-
-## 2. Ai dùng
-
-| Vai | Số người | Làm gì |
-|---|---|---|
-| MKT specialist | **1** | Vận hành toàn bộ: nhập nick, xếp lịch, đăng, theo dõi sức khỏe |
-| Người viết content | 3 | Viết bài ở pipeline riêng, đưa sang công cụ |
-
-Giai đoạn 1 công cụ chạy trên **máy bàn của bạn MKT**, nghe localhost, không đăng nhập. Từ
-05/08/2026 nó thành web chung cho team: đăng nhập Google, danh sách trắng email, hai vai trò
-(ADMIN / OPERATOR) và nick có người phụ trách.
-
-## 3. Quy mô giai đoạn 1
-
-- 5-8 nick Reddit *(nền tảng chính, ~80% công sức)*
-- TikTok profiles for profile-local, human-controlled browser use; this is not identity-isolation
-  evidence and no TikTok posting volume is approved
-- 1-3 Fanpage Facebook *(qua Graph API chính thức)*
-- 2-3 nick Facebook cá nhân *(để quản trị Page và seeding group thủ công)*
-- Mục tiêu vận hành: **15-20 bài/ngày trong khoảng 1 tiếng**
-
-## 4. Phạm vi KHÔNG làm
-
-Đây là phần quan trọng nhất của tài liệu. Những ranh giới dưới đây giữ dự án không trượt thành
-spam farm — thứ vừa vô đạo đức vừa chết nhanh.
-
-| Không làm | Vì sao |
+| Not in scope | Why |
 |---|---|
-| **Auto-DM / nhắn tin hàng loạt** | Là spam theo mọi định nghĩa, và là đường ngắn nhất tới khóa vĩnh viễn |
-| **Reply hijacking** — nhảy vào thread người khác để quảng cáo | Phá hoại cộng đồng, mod ghét nhất |
-| **AI sinh nội dung** | Team tự viết. Nội dung AI hàng loạt là thứ Reddit đang săn |
-| **Tự giải captcha** | Gặp captcha nghĩa là nick ĐÃ bị nghi ngờ. Tự giải để chui vào tiếp biến cảnh báo mềm thành khóa vĩnh viễn |
-| **Tự động đăng Facebook Group** | Groups API bị Meta khai tử 04/2024. Không tool nào làm được nữa. Group đăng tay |
-| **Bot chạy 24/7 không người giám sát** | Phase 05 là "bán tự động": máy soạn sẵn, người bấm nút cuối |
-| **TikTok warmup or posting automation** | The 19 August rescope activated identity/profile management only. Content, scheduling, warmup, and posting remain parked until separately planned and approved |
-| **Dùng chung proxy giữa các nick** | Ràng buộc 1:1 do database ép, không lách được |
-| **Đưa nick thật lên proxy datacenter giá rẻ** | Proxy rẻ để test kỹ thuật thì được, đưa nick thật vào là giết nick |
+| **Any automated posting** (Reddit, Facebook, TikTok, or otherwise) | Removed on 31 October 2026. The tool records ownership and readiness; it does not post. If posting is ever rebuilt, the boundaries below apply |
+| **Auto-DM, bulk messaging, reply hijacking, automated CAPTCHA solving, unsupervised 24/7 bot behavior** | Spam by every definition, and the fastest route to permanent bans. This boundary outlives any feature set |
+| **AI-generated bulk content** | The team writes its own content. Bulk AI content is exactly what platforms hunt |
+| **Reusing one proxy across nicks** | The 1:1 invariant is enforced by the database, not by discipline |
+| **Cheap datacenter proxies for real accounts** | Fine for technical checks; fatal for real identities |
+| **Identity-isolation claims or antidetect engineering** | Research closed 8 September 2026; `G2-IDENTITY=FAIL` stands |
+| **macOS Relay or Browser builds** | Windows x64 only for v1; macOS stays deferred (MKB-07) |
 
-Nếu sau này có ai đề xuất thêm một trong các mục trên, đây là nơi ghi lý do đã từ chối.
+## Core decisions that still stand
 
-## 5. Quyết định cốt lõi
+1. **Web-first, shared.** Postgres + Prisma, Google sign-in with an allowlist, two roles. A
+   single-machine SQLite tool could not serve five or six people in five or six places.
+2. **Operator secrets never live on the server.** Two vault key zones (`VAULT_KEY_SERVER`,
+   `VAULT_KEY_OPERATOR`); the operator zone decrypts only inside the local Relay. Stealing the
+   whole server must not open a single nick password.
+3. **The server issues tickets, not capabilities.** An Ed25519-signed, recipient-sealed, ~30-second,
+   single-use payload is the only thing the server hands out. The browser is a courier that cannot
+   read it.
+4. **Profiles are driven through the local Relay, not from the server.** The path is
+   Web → Relay → authenticated MCP → MKT Browser on loopback `47822`. Relay listens only on
+   `127.0.0.1:47821`.
+5. **Business constraints are enforced at the database layer** (`@unique` bindings), not in the UI.
+   The UI explains errors; it does not relax them.
+6. **Windows x64 only for the Relay and MKT Browser v1.** Unsigned internal installer; the audience
+   is five or six known operators on machines the project administers.
+7. **English for every project artifact** (decided 10 August 2026). Direct conversation with the
+   owner may stay Vietnamese; existing Vietnamese artifacts are legacy.
+8. **TikTok is an identity scope, not a posting scope** (decided 19 August 2026). TikTok accounts
+   are valid vault records with the same proxy/profile/PC/owner boundaries; no content, scheduling,
+   or publishing behavior exists for them.
 
-1. **Console trước, tự động sau.** Giá trị nằm ở quản lý danh tính + bộ luật (90% lợi ích,
-   20% công sức, gần như 0 rủi ro), không nằm ở bot chạy 24/7.
-2. **Chạy trên desktop, chưa cần VPS.** Antidetect browser là app desktop → bỏ được
-   Docker/Xvfb/VPS ở giai đoạn 1.
-3. **Reddit bắt buộc dùng browser.** API miễn phí cấm mục đích thương mại; API thương mại ~$12k/tháng.
-4. **Facebook Pages dùng Graph API chính thức.** Miễn phí, hợp lệ, không bao giờ bị khóa vì
-   vi phạm chính sách tự động hóa.
-5. ~~**SQLite + Prisma**, không Postgres/Redis. Một người dùng, một máy.~~
-   **Đổi 04/08/2026: Postgres + Prisma.** Quyết định gốc đúng với giả định "một người dùng,
-   một máy"; giả định đó hết hiệu lực khi chốt bàn giao cho 5-6 người ở 5-6 nơi. Vẫn không Redis.
-6. **Control account browsers through local MCP, not Playwright.** MultiZen proved the behavior on
-   02/08/2026; W01 preserved it as a rollback checkpoint, and W02 moved active first-party package,
-   preload, MCP, adapter, and configuration identities to the owned **MKT Browser** contract on
-   configurable default port `47822`. Profiles/cookies stay off the server, and v1 does not fork
-   Chromium — see
-   [kế hoạch MKT Browser](../plans/260810-0244-mkt-browser-noi-bo/plan.md).
-7. **Nhưng bộ dò shadowban thì dùng Playwright trực tiếp** (Phase 03) — hai việc trái ngược
-   nhau nên đi hai đường. Đăng bài cần *giả làm người có danh tính*; dò shadowban cần *đúng là
-   một người lạ vô danh*: chưa đăng nhập, IP khác hẳn, không vân tay nào của nick. Mở nó bằng
-   chính profile antidetect của nick là tự nhìn mình trong gương rồi kết luận người ngoài cũng
-   thấy vậy.
-8. **MKT Browser does not replace Relay, but v1 must ship them as one Windows installation.** A
-   normal operator gets one authenticated download, signs in, confirms the detected PC, and reaches
-   `Waiting for administrator approval` or `Ready` without handling keys, tokens, ports, paths,
-   archives, localhost pages, or commands. This presentation does not collapse trust boundaries:
-   Relay keeps the operator key and verifies/replay-protects tickets; Electron only stores and runs
-   profiles. First-device key bootstrap is a separate ADMIN-only local ceremony.
-9. **Windows x64 is the only platform MKT Browser v1 commits to (decided 10 August 2026).** macOS
-   Apple Silicon — native arm64, a signed and notarized DMG, and the Relay as a LaunchAgent helper
-   with Keychain storage — moves to MKB-07 after v1. Mac hardware exists, so this is a priority
-   choice, not a hardware limit. The Relay keeps a shared core behind thin OS adapters so adding
-   macOS later does not reopen the core. V1 retains the MultiZen UX/UI; redesign waits for real
-   usage feedback.
-10. **English is the only language for project artifacts from 10 August 2026 onward.** This
-    includes code comments, UI and error copy, documentation, plans, tests, installers, release
-    notes, and commit messages. Direct conversation with the project owner may remain Vietnamese.
-11. **No Windows code-signing certificate (decided 12 August 2026).** v1 ships unsigned. The
-    audience is five or six known internal operators on machines the project already administers,
-    so a recurring certificate cost is not justified. The team accepts one SmartScreen
-    click-through, and MKB-03 must announce that prompt on screen with a marked screenshot before
-    it appears — a surprised operator still fails the gate. Release authority is unaffected: it was
-    always carried by the project's own offline manifest root key, not by Authenticode, so signed
-    manifests, sequence pinning, anti-downgrade, and rollback all stand. The accepted gap is that
-    the installer binary itself is backed only by a checksum served from the same host, so a
-    compromised release host could hand a brand-new device a different installer before any local
-    state is pinned. An internal PKI was considered and rejected: pushing a private root to six
-    unmanaged WORKGROUP machines needs an administrator on each one and still would not clear
-    SmartScreen. Revisit if distribution ever reaches outside the known team.
-12. **TikTok is an identity scope, not a posting scope (decided 19 August 2026).** TikTok accounts
-    use the same static-proxy, managed-profile, Relay-device, and human-login boundaries as Reddit.
-    They are valid account records and visible in the profile console, but they are intentionally
-    absent from `TARGET_PLATFORMS`; no TikTok content, queue, warmup, or publishing behavior follows.
+## Invariants
 
-## 6. Nguyên tắc bất di bất dịch
+> **Every browser-backed nick has exactly 1 static proxy, 1 managed browser profile, 1 Relay PC,
+> and 1 responsible operator.** This is an ownership and data-binding invariant enforced by the
+> database (`Account.proxyId` and `Account.antidetectProfileId` are `@unique`; the device binding
+> is checked at assignment and again before ticket issuance). It is not a uniqueness guarantee for
+> the fingerprint and not identity-isolation evidence.
 
-> **Every browser-backed Reddit or TikTok account has exactly 1 static proxy, 1 managed
-> browser profile, 1 Relay device, and 1 responsible operator.** This is an ownership and data-binding
-> invariant; it does not certify a unique fingerprint.
+Facebook accounts used only to administer Pages may leave the proxy and profile fields empty —
+there is no browser in that workflow. The database still prevents two accounts from sharing a real
+proxy; it simply does not require one where no browser exists.
 
-Database ép hai nick không thể dùng chung proxy/profile (`Account.proxyId` và
-`Account.antidetectProfileId` đều `@unique`). Quan hệ chủ nick/máy giữ được kiểm lại ở các action
-và trước lúc phát vé; một người hoặc một máy vẫn có thể phụ trách nhiều nick.
+## What "done" means for the current scope
 
-## 7. Tiêu chí thành công
-
-| Tiêu chí | Đo bằng |
+| Criterion | Measured by |
 |---|---|
-| 6/8 nick Reddit sống, không shadowban sau 8 tuần | Bộ dò shadowban (Phase 03) |
-| Đăng 15-20 bài/ngày trong ~1 tiếng | Bấm giờ thực tế |
-| **0 lần đăng trùng nội dung giữa 2 nick cùng nền tảng** | Luật 7 chặn được, đếm số lần chặn |
-| Quy được lead thật về từng nick | Số liệu Phase 03 |
+| Vault records are complete and truthful | Every active nick has owner, proxy, profile, and PC assigned or an explicit reason why not |
+| Relay handoff works for a new operator | Install from `/setup`, register, get approval, receive operator key, complete a real launch — without copying keys or editing JSON |
+| Secrets stay in their zones | Server cannot decrypt operator-zone columns; audits record every reveal and launch |
+| Recovery works | Revocation blocks new tickets; operator-key rotation completes; backups restore into a disposable database |
 
-## 8. Ràng buộc
+Posting volume, account survival, and fingerprint uniqueness are not current delivery targets and
+must not be presented as such.
 
-**Ngân sách**
+## Open questions
 
-| Khoản | Một lần | Hàng tháng |
-|---|---|---|
-| Nick Reddit cổ (8) | 2-5 triệu | – |
-| Nick Facebook (3) | 1-3 triệu | – |
-| Proxy tĩnh (11 IP) | – | ~700k |
-| MKT Browser + engine ngoài | Chứng thư ký Windows: **0đ** — chốt 12/08/2026 không mua. Apple Developer chưa chốt, thuộc MKB-07 | Chưa chốt — engine mới nhất có thể cần subscription |
-| Thay nick hao hụt | – | ~500k-1tr |
-| **Tổng** | **3-8 triệu + chi phí fork/ký chưa chốt** | **~1,2-1,7 triệu + engine nếu có** |
-
-**Thời gian — không rút ngắn được**
-
-Nick mua về phải **cold-start 14 ngày** (chỉ đọc, cấm đăng) trước khi dùng thật. Đây là đồng hồ
-thực, không có cách nào đi tắt. Phần mềm xong sớm không giúp gì cho khoản chờ này.
-
-## 9. Rủi ro lớn nhất
-
-1. **Nguồn nick kém** — nick mua về chết trong 2 tuần đầu. Giảm thiểu: mua thử 2 nick trước,
-   sống mới mua tiếp.
-2. **Content không đủ nuôi** — 3 người không viết nổi cho nhiều nick. Đã hạ quy mô xuống 5-8.
-3. **Mod Reddit là người thật** — không có giải pháp kỹ thuật nào. Phụ thuộc hoàn toàn vào
-   chất lượng nội dung và tỷ lệ đóng góp hữu ích.
-4. **Luật quá chặt → người dùng ghi đè liên tục → bộ luật thành vô dụng.** Giảm thiểu: ngưỡng
-   để trong bảng `RuleConfig` chỉnh được; theo dõi số lần ghi đè, cao thì nới.
-
-## 10. Lộ trình
-
-| # | Giai đoạn | Trạng thái |
-|---|---|---|
-| 0 | Chuẩn bị & kiểm chứng khả thi | 🔄 Chặng B + C đạt 02/08/2026; còn mua proxy/nick + cold-start |
-| 0B | Internal MKT Browser | 🟡 Windows x64 is the only v1/demo platform; MKB-00/W01/W02/01/01E/02 verified; MKB-03 installer/onboarding and MKB-04 pilot/canary still gate real accounts and rollout; retain upstream UX/UI in v1 |
-| 0C | TikTok identity console | 🟡 Account/profile/manual-browser scope implemented 19/08/2026; content, scheduling, warmup, posting, real-account use, and rollout remain out of scope or gated |
-| 1 | Kho danh tính | ✅ 01/08/2026 |
-| 2 | Hàng đợi content + bộ luật an toàn | ✅ 02/08/2026 |
-| 3 | Theo dõi sức khỏe tài khoản | ✅ 03/08/2026 — bộ dò đọc được Reddit thật. Proxy quan sát viên đã có và kiểm sống trên máy chủ (06/08/2026); **vẫn chưa chạy với nick thật** vì kho trên máy chủ chưa có nick Reddit |
-| 4 | Facebook Pages publisher *(độc lập, làm lúc nào cũng được)* | ✅ 03/08/2026 — đã đăng thật lên Fanpage qua Graph API |
-| 5 | Bán tự động đăng Reddit | ⬜ |
-
-> **Chưa có bộ đặt lịch tự động, và đó là chủ ý.** "Xếp lịch" = ghi giờ dự kiến + chấm luật;
-> đến giờ bài **không** tự lên. Fanpage phải bấm "Đăng lên Page", Reddit và Group đăng tay.
-> Phase 05 cũng sẽ là "bán tự động": máy soạn sẵn, người bấm nút cuối — xem mục 4.
-
-## Câu hỏi chưa có lời giải
-
-- Ngưỡng luật hiện lấy theo kinh nghiệm chung, chưa có số liệu thật của chính đàn nick này.
-  Phase 03 đã xong nên đã có chỗ để đo, và proxy quan sát viên đã sẵn sàng từ 06/08/2026 — nhưng
-  chưa có nick thật để dò nên vẫn chưa có số liệu để quyết siết hay nới.
-- Chưa chốt 2-3 subreddit mục tiêu và luật cụ thể của từng sub (việc của Phase 00 bước 1).
-- Chưa đo được "xếp 15 bài trong 15 phút" vì chưa có người dùng thật chạy quy trình đầy đủ.
-- ~~Mục 2 ghi rõ công cụ phục vụ **1 người**.~~ Web chung, đăng nhập, phân quyền, hai vùng khóa và
-  Cầu nối đã hoàn tất; phần desktop riêng cho team nay đi theo
-  [plan MKT Browser](../plans/260810-0244-mkt-browser-noi-bo/plan.md).
+- Real operator onboarding for the 5-6 person team has not been run against the post-surgery
+  product; the setup journey needs one end-to-end pass with a person who did not build it.
+- The Railway service is currently 404 and needs to be restored and re-verified against the exact
+  deployed SHA (see the [roadmap](development-roadmap.md)).
+- Relay updates are reinstall-only after the self-update platform removal; whether that is
+  acceptable operational friction for every operator PC is untested in practice.

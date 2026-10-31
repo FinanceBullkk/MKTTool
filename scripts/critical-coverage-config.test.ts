@@ -81,13 +81,12 @@ describe("hợp đồng sàn coverage đường trọng yếu", () => {
       expect(workflow).toContain("  workflow_dispatch:");
       expect(workflow).not.toMatch(/^  (?:push|pull_request|schedule):/m);
     }
-    expect(read("scripts/ci/local-release-config.cjs")).toContain('"test:critical-coverage"');
-    expect(read("scripts/ci/local-release-runner.cjs")).toContain("releaseApproved: false");
     expect(workflowSource).not.toMatch(/\bself-hosted\b/);
 
     const runsOn = [...workflowSource.matchAll(/^\s*runs-on:\s*(.+)$/gm)].map((match) => match[1]);
-    // `check`, `contracts`, `secret-scan`, `dependency-audit`, and post-merge deployment
-    // verification are Linux lanes; the packaged Relay acceptance job is the single Windows lane.
+    // `check`, `contracts`, `secret-scan`, and `dependency-audit` are Linux lanes; the packaged
+    // Relay acceptance job is the single Windows lane. The local-release runner lanes that used to
+    // appear here were removed together with the release ceremony.
     expect(runsOn).toHaveLength(6);
     expect(runsOn.filter((value) => value === "ubuntu-latest")).toHaveLength(5);
     expect(runsOn.filter((value) => value === "windows-latest")).toHaveLength(1);

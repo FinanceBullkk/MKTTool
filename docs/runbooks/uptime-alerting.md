@@ -53,12 +53,6 @@ Sự cố 30/08 là 503 **ngắt quãng**. Báo động ngay lần đầu sẽ �
 báo động bị tắt thì tệ hơn không có. Hai lần liên tiếp lọc được nhiễu một-lượt mà vẫn bắt được
 đúng kiểu hỏng đã từng xảy ra thật.
 
-### ⚠️ Đừng trỏ vào `/api/health/run`
-
-Đó là bộ dò sức khỏe **của nick**, không phải của dịch vụ: nó đòi xác thực (sẽ trả 401 và báo động
-giả liên tục) và mỗi lượt gọi là một lượt chạy việc thật. Nhầm hai đường này đã từng làm hỏng cấu
-hình healthcheck trước đây — xem `deployment-guide.md` bước 7.
-
 ## Nội dung cảnh báo cần có
 
 Đủ để người bị đánh thức biết phải làm gì mà không cần mở laptop trước:

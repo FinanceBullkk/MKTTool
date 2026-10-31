@@ -76,22 +76,6 @@ describe("reviewTicketPayload", () => {
     ).toBe(TICKET_KINDS.OTP);
   });
 
-  it("accepts a sealed compatibility update payload and validates its no-login proxy", () => {
-    const payload = reviewTicketPayload(TICKET_KINDS.COMPATIBILITY_UPDATE, {
-      manifest: { schemaVersion: 1 },
-      revocations: [],
-      authorization: { schemaVersion: 1 },
-      smokeProfile: {
-        proxyLabel: "Observer 1",
-        proxyCountry: "US",
-        proxy: LAUNCH.proxy,
-      },
-    });
-    expect(payload.kind).toBe(TICKET_KINDS.COMPATIBILITY_UPDATE);
-    if (payload.kind !== TICKET_KINDS.COMPATIBILITY_UPDATE) return;
-    expect(payload.smokeProfile.proxyLabel).toBe("Observer 1");
-  });
-
   it("từ chối loại bí mật lạ", () => {
     expect(() =>
       reviewTicketPayload(TICKET_KINDS.CREDENTIAL, {

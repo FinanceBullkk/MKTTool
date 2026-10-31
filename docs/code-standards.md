@@ -1,10 +1,9 @@
-# Quy ước viết code
+# Code standards
 
-**Cập nhật:** 10/08/2026
+**Updated:** 31 October 2026
 
-Quy ước đã dùng thật trong repo này, không phải mong muốn. Sửa code theo tài liệu này thì phần
-sau khớp phần trước. Kiến trúc tổng thể ở [system-architecture.md](system-architecture.md),
-bản đồ file ở [codebase-summary.md](codebase-summary.md).
+Conventions that are actually used in this repository, not aspirations. Architecture is in
+[system-architecture.md](system-architecture.md); the file map is [codebase-summary.md](codebase-summary.md).
 
 ---
 
@@ -18,128 +17,135 @@ Existing Vietnamese files are legacy. Do not add new Vietnamese content. When an
 maintained section is materially changed, translate that section or document to English; do not
 rewrite historical records merely to make their language look current.
 
-## 2. File
+## 2. Files
 
-- **kebab-case**, tên dài mô tả đúng việc: `facebook-token-health.ts`, không phải `fbHealth.ts`.
-  Tên dài để tìm bằng Grep ra ngay, không phải mở file mới biết nó làm gì.
-- **Dưới 200 dòng.** Vượt thì tách theo ranh giới nghiệp vụ, không tách cho đủ chỉ tiêu.
-- **Một khái niệm một file.** Mỗi luật an toàn một file (`rule-daily-cap.ts`), mỗi adapter một
-  file. Kiểu dùng chung ở file riêng (`action-result.ts`) chứ không nằm nhờ file khác — import
-  từ file không liên quan là một câu đánh lạc hướng cho người đọc sau.
+- **kebab-case**, named for the thing it does: `account-readiness.ts`, not `accReady.ts`. Long,
+  specific names exist so Grep finds the file instead of the reader opening every candidate.
+- **Under 200 lines.** Past that, split at a genuine responsibility boundary — not to hit a quota.
+- **One concept per file.** One action domain per file, one adapter per file. Shared types live in
+  their own file (`action-result.ts`), never as a rider on an unrelated module.
 
-## 3. Server action
+## 3. Server actions
 
-Mọi server action trả về `ActionResult { ok: boolean; message: string }` (`lib/actions/action-result.ts`).
-`message` is an English sentence shown directly to the user: **state what happened and what to do
-next**, rather than exposing a technical error code.
+Every server action returns `ActionResult { ok: boolean; message: string }`
+(`lib/actions/action-result.ts`). `message` is an English sentence shown directly to the user:
+**state what happened and what to do next**, rather than exposing a technical error code.
 
-Đặt tên theo động từ + đối tượng: `createAccount`, `publishJobToPage`, `markJobPosted`.
-Nhóm theo nghiệp vụ trong `lib/<miền>/`, không gom hết vào một file `actions.ts`.
+Name actions verb + object: `createAccount`, `assignAccountCluster`, `revokeRelayDevice`. Group by
+domain under `lib/<domain>/`; do not pile everything into one `actions.ts`.
 
-## 4. Hàm thuần ở chỗ có quyết định
+## 4. Pure functions where decisions live
 
-Chỗ nào có logic đáng để test thì tách thành hàm thuần, không lẫn với I/O:
+Wherever logic is worth testing, split the decision from the I/O:
 
-| Hàm thuần | Lớp có I/O bọc ngoài |
+| Pure function | I/O wrapper around it |
 |---|---|
-| `rule-*.ts` — mỗi luật `(ctx) => verdict` | `rule-context-builder.ts` hỏi database |
-| `reddit-profile-parser.ts` đọc HTML | `reddit-shadowban-prober.ts` mở trình duyệt |
-| `facebook-token-health.ts`, `facebook-post-payload.ts` | `facebook-graph-client.ts` gọi mạng |
+| `account-readiness.ts` verdicts | server actions that load the account |
+| `proxy-liveness-verdict.ts` | the probe that makes the network request |
+| `ticket-sealed-box.ts` crypto steps | `ticket-issuer.ts` and the Relay's consumer |
 
-Nhờ vậy phần lớn test không cần database, không cần mạng, không cần token thật.
+This is why most tests need no database, no network, and no real tokens.
 
-## 5. Test
+## 5. Tests
 
-| Đuôi file | Nghĩa | Ghi chú |
+Three suites, three different needs:
+
+| Command | Needs | Covers |
 |---|---|---|
-| `*.test.ts` | Không chạm database | Chạy nhanh, chạy được ở mọi nơi |
-| `*.database.test.ts` | Chạm Postgres thật | Dùng chung database `TEST_DATABASE_URL`, mỗi file `deleteMany()` trước |
+| `npm run test:no-db` | Nothing | Fast, non-destructive logic tests; runs anywhere |
+| `npm run test:relay` | Nothing locally (guarded tests engage on Windows, which is where CI runs it) | The Relay bridge under `relay/src/` |
+| `npm test` | `TEST_DATABASE_URL` pointing at a `*_test` database | Everything, including PostgreSQL database tests |
 
-`fileParallelism: false` — cố ý. Các file database dùng chung một database; chạy song song sẽ đỏ
-ngẫu nhiên, và cái đắt nhất không phải vài giây mà là việc nó dạy người đọc quen "chạy lại là xanh".
+File suffixes: `*.test.ts` never touches the database; `*.database.test.ts` touches real Postgres
+and calls `deleteMany()` first. `fileParallelism: false` is deliberate — database files share one
+database, and parallel runs fail randomly, which trains people to believe "rerun until green".
 
-`TEST_DATABASE_URL` **bắt buộc** và phải trỏ vào database tên kết thúc bằng `_test` —
-`vitest.global-setup.ts` `DROP SCHEMA` không hỏi lại trước mỗi lượt chạy, nên `assertIsTestDatabase()`
-từ chối mọi tên khác. Cố ý không có giá trị mặc định: một mặc định kiểu `localhost/mkttool_test`
-trên máy người khác sẽ âm thầm trỏ vào chỗ họ không ngờ tới.
+`TEST_DATABASE_URL` is **required** and must end in `_test` — the global setup runs `DROP SCHEMA`
+without asking, so `assertIsTestDatabase()` rejects every other name. There is deliberately no
+default value: a default like `localhost/mkttool_test` would silently point at somewhere the
+reader did not expect on someone else's machine.
 
-**Không mock thứ đang cần kiểm chứng.** Bộ dò Reddit có `npm run health:smoke` đối chiếu HTML
-Reddit thật — chính nó bắt được 2 lỗi parser mà test mock đã cho qua.
+**Do not mock what you are trying to verify.** A mocked provider proves the mock works. Where a
+real-world check exists (`vault:smoke` against a live database, `relay:verify` against the packaged
+executable), run it — those checks exist because mocked tests alone passed things that were broken.
 
-**Mỗi giai đoạn có một smoke test** chạy được không cần nick thật: `vault:smoke`, `rules:smoke`,
-`health:smoke`, `facebook:smoke`. Thêm tính năng lớn thì thêm vào đó.
+## 6. Comments
 
-## 6. Chú thích
+Comments answer **"why"**, not "what". Prefer explaining:
 
-Chú thích trả lời **"vì sao"**, không kể lại code đang làm gì. Ưu tiên giải thích:
+- why the step order cannot be swapped (apply the proxy **before** opening the profile),
+- why a threshold is that number,
+- why a failure path must stop outright instead of warning,
+- why the more obvious alternative was **not** taken.
 
-- vì sao thứ tự các bước không đảo được (đẩy proxy **trước** khi mở profile),
-- vì sao một ngưỡng là con số đó (Jaccard 0.70),
-- vì sao một đường thất bại phải dừng hẳn thay vì cảnh báo,
-- vì sao đã **không** chọn cách hiển nhiên hơn.
+Business knowledge behind a decision belongs in [domain-glossary.md](domain-glossary.md); the code
+points there.
 
-Kiến thức nghiệp vụ đứng sau ngưỡng số thì ghi ở [domain-glossary.md](domain-glossary.md), trong
-code chỉ trỏ tới.
+## 7. Constraints and errors
 
-## 7. Ràng buộc và lỗi
+- **Business constraints are enforced at the database** (`@unique`, `@@unique`), not only in the UI.
+- **Do not swallow errors.** A failed decryption, probe, or provider call reports and stops. A
+  truthful "unknown" must be distinguishable from "fine" — an unreadable state is never rendered as
+  healthy.
+- **Deletion is blocked while anything references the record** (`reference-guard.ts`), with a
+  message that names the blocker.
+- **Redact secrets from every error path** — external APIs echo back the parameters you sent. A new
+  `*Enc` column must be declared in `encrypted-field-registry.ts`, or `vault:rekey` will miss it.
+  The column must carry a `// vault:server` or `// vault:operator` marker in `schema.prisma` and be
+  registered in the right zone; the zone is a per-column decision and a test enforces it. At
+  encryption time, `encryptCredential` defaults to the `server` key, so an `operator`-zone column
+  **must** pass `loadVaultKey("operator")` explicitly. Wrong-zone data is unrecoverable.
 
-- **Ràng buộc nghiệp vụ ép ở database** (`@unique`, `@@unique`), không chỉ ép ở UI.
-- **Không nuốt lỗi.** Giải mã hỏng, đẩy proxy hỏng, parser hỏng — đều báo và dừng. Kết luận
-  "không biết" phải khác kết luận "ổn": bộ dò không đọc được HTML thì trả `ERROR`, không bao giờ
-  trả `HEALTHY`.
-- **Xóa bị chặn khi còn tham chiếu** (`reference-guard.ts`), kèm câu nói rõ vướng gì.
-- **Che bí mật trong mọi thông báo lỗi** — API bên ngoài hay vọng lại nguyên tham số đã gửi.
-  Thêm cột `*Enc` mới thì khai vào `encrypted-field-registry.ts`, nếu không `vault:rekey` sẽ bỏ sót.
-  Cột mới phải mang dấu `// vault:server` hoặc `// vault:operator` trong `schema.prisma` và khai
-  đúng vùng đó ở registry — vùng khóa là quyết định phải nghĩ cho từng cột, test bắt nếu bỏ trống.
-  Lúc mã hóa: mặc định của `encryptCredential` là khóa vùng `server`, nên cột vùng `operator`
-  **phải** truyền `loadVaultKey("operator")` vào. Sai khóa thì dữ liệu ghi ra không ai mở lại được.
-
-## 8. Trước khi commit
+## 8. Before you commit
 
 ```bash
-npm run lint        # phải sạch tuyệt đối: 0 lỗi, 0 cảnh báo
+npm run lint            # must be clean: 0 errors, 0 warnings
 npm run typecheck
-npm test
+npm run test:no-db
+npm test                # needs the *_test database
 npm run build
+npm run ci:secret-scan
 ```
 
-Đúng bốn lệnh này chạy trong [CI](../.github/workflows/ci.yml) trên mọi push và pull request.
-Chạy trước ở máy thì không phải đợi CI báo đỏ.
+`npm run test:relay` for anything touching `relay/`. Run the narrowest relevant suite first; run
+all of the above before declaring work complete. Never ignore, weaken, skip, or rewrite a
+legitimate failing test to obtain a pass.
 
-**Không bao giờ commit:** `.env`, file trong `data/` (nhất là `data/backups/` — bản `pg_dump`
-chứa toàn bộ ciphertext), khóa, token, mật khẩu.
-`.gitignore` đã chặn sẵn — đừng dùng `git add -f` để lách.
+**Never commit:** `.env`, anything under `data/` (especially `data/backups/` — a `pg_dump` contains
+the full ciphertext), keys, tokens, passwords. `.gitignore` already blocks these — do not use
+`git add -f` around it.
 
-## 9. Commit message
+## 9. Commit messages
 
-Use Conventional Commits in English and describe the **outcome**, not the editing action:
+Conventional Commits in English, describing the **outcome**, not the editing action:
 
 ```
-feat(health): remove screenshots older than 30 days after each run
-fix(facebook): preserve posted jobs when the status callback fails
+feat(vault): add optimistic concurrency to account writes
+fix(relay): fail closed on invalid spent-ticket journal state
 ```
 
-Scope theo miền nghiệp vụ: `vault`, `rules`, `queue`, `health`, `facebook`, `antidetect`, `db`,
-`security`, `ui`, `scripts`.
+Scopes follow the domain: `vault`, `relay`, `tickets`, `proxies`, `accounts`, `setup`, `r2`,
+`backup`, `db`, `security`, `ui`, `scripts`.
 
-## 10. Đổi database
+## 10. Database changes
 
-1. Sửa `prisma/schema.prisma`
-2. `npm run db:migrate` — sinh migration (lệnh của người phát triển)
-3. Commit **cả** file migration lẫn schema
+1. Edit `prisma/schema.prisma`
+2. `npm run db:migrate` — generate the migration (developer command)
+3. Commit **both** the migration folder and the schema
 
-Người nhận bản mới chạy `npm run db:upgrade` (sao lưu trước rồi mới áp), **không** chạy
-`db:migrate` — lệnh đó có thể đề nghị dựng lại database từ đầu, tức xóa sạch kho danh tính.
+Recipients upgrade with `npm run db:upgrade` (backs up first, then applies) — **never** with
+`db:migrate`, which may prompt, create new migrations, and in some situations offer to rebuild the
+database from scratch. That offer, accepted, deletes the vault.
 
-## 11. Cập nhật tài liệu cùng lúc với code
+## 11. Update documentation together with code
 
-| Đổi gì | Cập nhật file nào |
+| Change | Update |
 |---|---|
-| Thêm/sửa file trong `src/` | [codebase-summary.md](codebase-summary.md) |
-| Thêm khái niệm nghiệp vụ, đổi ngưỡng luật | [domain-glossary.md](domain-glossary.md) |
-| Xong một giai đoạn, đổi trạng thái | [development-roadmap.md](development-roadmap.md) + file phase tương ứng |
-| Đổi hành vi người dùng thấy được | [../README.md](../README.md) + [project-changelog.md](project-changelog.md) |
-| Đổi phạm vi, thêm/bỏ điều "không làm" | [project-overview-pdr.md](project-overview-pdr.md) |
+| Adding/changing files under `src/` or `relay/` | [codebase-summary.md](codebase-summary.md) |
+| Adding a domain concept | [domain-glossary.md](domain-glossary.md) |
+| Changing user-visible behavior | [../README.md](../README.md) + [project-changelog.md](project-changelog.md) |
+| Changing scope or boundaries | [project-overview-pdr.md](project-overview-pdr.md) |
+| Changing delivery status | [development-roadmap.md](development-roadmap.md) |
 
-Tài liệu lệch code còn tệ hơn không có tài liệu: nó khiến người đọc tin vào thứ đã sai.
+Documentation that disagrees with the code is worse than no documentation: it makes the reader trust
+something that is already wrong.

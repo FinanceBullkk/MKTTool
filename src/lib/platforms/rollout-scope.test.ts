@@ -11,8 +11,6 @@
  * Chặn thật thì đã có test hành vi ở `post-job-actions.database.test.ts` chạy qua cơ sở dữ
  * liệu thật.
  */
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it } from "vitest";
@@ -96,30 +94,5 @@ describe("rollout scope", () => {
     expect(markup).toContain("posting is unavailable");
     expect(markup).toContain('href="/accounts"');
     expect(markup).not.toContain("current TikTok scope");
-  });
-});
-
-describe("posting entry-point rollout guards", () => {
-  const read = (relative: string) => readFileSync(join(process.cwd(), relative), "utf8");
-
-  it("guards the Facebook Page publish path", () => {
-    const source = read("src/lib/facebook/facebook-publish-action.ts");
-    expect(source).toContain("isPlatformInRolloutScope");
-    expect(source).toContain("if (!isPlatformInRolloutScope(job.target.platform))");
-  });
-
-  it("guards the job scheduling path", () => {
-    const source = read("src/lib/queue/post-job-actions.ts");
-    expect(source).toContain("isPlatformInRolloutScope");
-    expect(source).toContain("if (!isPlatformInRolloutScope(scheduledTarget.platform))");
-  });
-
-  it("checks rollout scope before calling the Graph API", () => {
-    const source = read("src/lib/facebook/facebook-publish-action.ts");
-    const guard = source.indexOf("isPlatformInRolloutScope(job.target.platform)");
-    const publish = source.indexOf("publishToPage(");
-    expect(guard).toBeGreaterThan(-1);
-    expect(publish).toBeGreaterThan(-1);
-    expect(guard).toBeLessThan(publish);
   });
 });

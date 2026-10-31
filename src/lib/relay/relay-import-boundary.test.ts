@@ -22,17 +22,6 @@ import { describe, expect, it } from "vitest";
 
 const RELAY_SOURCE_DIR = path.join(process.cwd(), "relay", "src");
 
-const SHARED_RELEASE_CONTRACTS = new Set([
-  "../../src/lib/release/compatibility-artifact-paths",
-  "../../src/lib/release/compatibility-control-contract",
-  "../../src/lib/release/compatibility-manifest",
-  "../../src/lib/release/compatibility-manifest-crypto",
-  "../../src/lib/release/compatibility-manifest-schema",
-  "../../src/lib/release/compatibility-update-authorization",
-  "../../src/lib/release/release-root-trust",
-  "../../src/lib/release/rollback-authorization",
-]);
-
 /**
  * Thứ `relay/` không được đụng tới, kèm lý do — câu này đi thẳng vào thông báo test đỏ, vì
  * người đọc nó đang ở giữa một việc khác và cần biết ngay vì sao bị chặn.
@@ -101,18 +90,13 @@ describe("relay/ import boundary", () => {
   });
 
   it("reuses src/lib only through relative paths and approved shared directories", () => {
-    // Release reuse is restricted to audited pure contract files, not the server-side directory.
     const allowedDirectory = /\.\.\/\.\.\/src\/lib\/(tickets|crypto|relay|totp|antidetect)\//;
 
     const offenders = files.flatMap((file) => {
       return importLines(readFileSync(file, "utf8"))
         .filter((line) => {
           const source = /["'](\.\.\/\.\.\/src\/lib\/[^"']+)["']/.exec(line)?.[1];
-          return (
-            source !== undefined &&
-            !allowedDirectory.test(source) &&
-            !SHARED_RELEASE_CONTRACTS.has(source)
-          );
+          return source !== undefined && !allowedDirectory.test(source);
         })
         .map((line) => `${path.relative(process.cwd(), file)}: ${line.trim()}`);
     });

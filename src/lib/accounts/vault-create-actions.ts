@@ -22,9 +22,7 @@ import {
   accountCreateSchema,
   firstError,
   formToObject,
-  normalizeCheckbox,
   proxyCreateSchema,
-  targetCreateSchema,
 } from "./vault-form-schemas";
 
 /**
@@ -153,38 +151,5 @@ export const createAccount = guardedAction(async function createAccount(
     message:
       `Nick "${parsed.data.username}" added. Open its details page to create a browser profile; ` +
       `the nick cannot open in its own browser until that profile exists.`,
-  };
-});
-
-export const createTarget = guardedAction(async function createTarget(
-  _actor,
-  _prev: ActionResult | null,
-  formData: FormData,
-): Promise<ActionResult> {
-  const raw = formToObject(formData);
-  normalizeCheckbox(raw, "allowsLinks");
-
-  const parsed = targetCreateSchema.safeParse(raw);
-  if (!parsed.success) return { ok: false, message: firstError(parsed.error) };
-
-  try {
-    await prisma.platformTarget.create({ data: parsed.data });
-  } catch (error) {
-    if (!isUniqueConstraintError(error)) {
-      return {
-        ok: false,
-        message: describeUnexpectedDbError(error, "add the posting target"),
-      };
-    }
-    return {
-      ok: false,
-      message: `Posting target "${parsed.data.name}" already exists on this platform. Use the existing target or choose another name.`,
-    };
-  }
-
-  revalidatePath("/targets");
-  return {
-    ok: true,
-    message: `Posting target "${parsed.data.name}" added. It is now available for scheduling.`,
   };
 });

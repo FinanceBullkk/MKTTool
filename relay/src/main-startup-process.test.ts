@@ -223,7 +223,7 @@ describe("Relay bootstrap process", () => {
     });
   });
 
-  it("accepts a compatibility handoff when the child exits immediately after its acknowledgement", async () => {
+  it("accepts a startup handoff when the child exits immediately after its acknowledgement", async () => {
     const fixture = await launchFixture("handoff");
     await writeFile(fixture.releasePath, "release\n", "utf8");
 

@@ -1,6 +1,4 @@
 import { MonitorCheck, Settings2 } from "lucide-react";
-import { RelayCompatibilityRollbackButton } from "@/components/relay/relay-compatibility-rollback-button";
-import { RelayCompatibilityUpdateButton } from "@/components/relay/relay-compatibility-update-button";
 import { RelayDeviceIdCell } from "@/components/relay/relay-device-id-cell";
 import type { RelayDeviceListItem } from "@/components/relay/relay-device-list-types";
 import { RelayDeviceRetirementButton } from "@/components/relay/relay-device-retirement-button";
@@ -152,16 +150,6 @@ export function RelayActiveDeviceList({
                             alreadyReady={Boolean(device.operatorKeyReadyAt)}
                           />
                         ) : null}
-                        <RelayCompatibilityUpdateButton
-                          deviceId={device.id}
-                          deviceName={device.name}
-                          devicePublicKey={device.publicKey}
-                        />
-                        <RelayCompatibilityRollbackButton
-                          deviceId={device.id}
-                          deviceName={device.name}
-                          devicePublicKey={device.publicKey}
-                        />
                         <RelayDeviceRevokeButton
                           action={revokeRelayDevice.bind(null, device.id)}
                           deviceName={device.name}

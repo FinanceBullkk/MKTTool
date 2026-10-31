@@ -85,8 +85,6 @@ export function createRelayStartupServer(options: {
       [RELAY_PATHS.receiveOperatorKey]: blocked,
       [RELAY_PATHS.retireDevice]: blocked,
       [RELAY_PATHS.finalizeDeviceRetirement]: blocked,
-      [RELAY_PATHS.compatibilityUpdate]: blocked,
-      [RELAY_PATHS.compatibilityRollback]: blocked,
     }),
   });
 }
@@ -128,7 +126,7 @@ export async function startRelayStartupBootstrap(options: RelayStartupBootstrapO
     try {
       child.disconnect();
     } catch {
-      // The child can exit immediately after acknowledging a compatibility handoff.
+      // The child can exit immediately after acknowledging the activation handoff.
     }
   };
   const closeBootstrap = async (): Promise<void> => {

@@ -23,8 +23,6 @@ import {
   type RelayRouteCapability,
 } from "./relay-route-policy";
 import { handleAuthorizeBootstrap } from "./handle-authorize-bootstrap";
-import { handleCompatibilityRollback } from "./handle-compatibility-rollback";
-import { handleCompatibilityUpdate } from "./handle-compatibility-update";
 import { handleConfigure } from "./handle-configure";
 import { handleEncryptForVault } from "./handle-encrypt-for-vault";
 import { handleFinalizeDeviceRetirement } from "./handle-finalize-device-retirement";
@@ -63,8 +61,6 @@ const CAPABILITY_ENFORCEMENT: Record<RelayRouteCapability, EnforcementKind> = {
   "admin-bootstrap-completion-read": "caller-origin",
   "device-retirement": "caller-origin",
   "device-retirement-finalize": "caller-origin",
-  "compatibility-update": "caller-origin",
-  "compatibility-rollback": "caller-origin",
 };
 
 function request(origin: string): IncomingMessage {
@@ -152,18 +148,6 @@ const CALLER_ORIGIN_INVOKERS: Record<string, OriginInvoker> = {
   "device-retirement-finalize": (origin) =>
     handleFinalizeDeviceRetirement(request(origin), "{}", {
       ...stub<Parameters<typeof handleFinalizeDeviceRetirement>[2]>(),
-      allowedOrigin: WEB_ORIGIN,
-    }),
-
-  "compatibility-update": (origin) =>
-    handleCompatibilityUpdate(request(origin), "{}", {
-      ...stub<Parameters<typeof handleCompatibilityUpdate>[2]>(),
-      allowedOrigin: WEB_ORIGIN,
-    }),
-
-  "compatibility-rollback": (origin) =>
-    handleCompatibilityRollback(request(origin), "{}", {
-      ...stub<Parameters<typeof handleCompatibilityRollback>[2]>(),
       allowedOrigin: WEB_ORIGIN,
     }),
 };

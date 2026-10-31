@@ -25,19 +25,13 @@ import {
   describeUnexpectedDbError,
   isUniqueConstraintError,
 } from "@/lib/db/prisma-error-helpers";
-import {
-  describeRecheck,
-  recheckJobsMatching,
-} from "@/lib/queue/recheck-jobs-batch";
 import { isQuarantinedStatus } from "./account-status";
 import {
   accountUpdateSchema,
   firstError,
   formToObject,
-  normalizeCheckbox,
   proxyUpdateSchema,
   STALE_ACCOUNT_WRITE_MESSAGE,
-  targetUpdateSchema,
   validatePlatformAccountFields,
 } from "./vault-form-schemas";
 
@@ -225,55 +219,10 @@ export const updateAccount = guardedAction(async function updateAccount(
 
   if (!didUpdate) return { ok: false, message: STALE_ACCOUNT_WRITE_MESSAGE };
 
-  // Karma, trạng thái và cold-start đều là đầu vào của luật 1, 2 và 3.
-  const recheck = await recheckJobsMatching({ accountId: id });
-
   revalidatePath("/accounts");
   revalidatePath(`/accounts/${id}`);
-  revalidatePath("/queue");
   return {
     ok: true,
-    message: `Nick "${data.username}" saved.${describeRecheck(recheck)}`,
-  };
-});
-
-export const updateTarget = guardedAction(async function updateTarget(
-  _actor,
-  _prev: ActionResult | null,
-  formData: FormData,
-): Promise<ActionResult> {
-  const raw = formToObject(formData);
-  normalizeCheckbox(raw, "allowsLinks");
-  normalizeCheckbox(raw, "active");
-
-  const parsed = targetUpdateSchema.safeParse(raw);
-  if (!parsed.success) return { ok: false, message: firstError(parsed.error) };
-
-  const { id, ...data } = parsed.data;
-
-  try {
-    await prisma.platformTarget.update({ where: { id }, data });
-  } catch (error) {
-    if (isUniqueConstraintError(error)) {
-      return {
-        ok: false,
-        message: `Posting target "${data.name}" already exists on this platform. Use the existing target or choose another name.`,
-      };
-    }
-    return {
-      ok: false,
-      message: describeUnexpectedDbError(error, "update the posting target"),
-    };
-  }
-
-  // minKarma, minAccountAgeDays, promoRatio và allowsLinks là đầu vào của luật 3, 6 và 9.
-  const recheck = await recheckJobsMatching({ targetId: id });
-
-  revalidatePath("/targets");
-  revalidatePath(`/targets/${id}`);
-  revalidatePath("/queue");
-  return {
-    ok: true,
-    message: `Posting target "${data.name}" saved.${describeRecheck(recheck)}`,
+    message: `Nick "${data.username}" saved.`,
   };
 });

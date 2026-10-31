@@ -1,5 +1,32 @@
 # Project changelog
 
+## 2026-10-31 - Workspace surgery
+
+- Cut the repository back to the recorded product scope (internal identity vault, proxy vault,
+  Relay PC registry, signed-ticket launch through the local Relay) in three passes on branch
+  `surgery/261031`:
+  - **Out-of-scope posting surface removed, not parked.** Deleted the content library, posting
+    queue, the ten-rule safety engine, the shadowban/health observer with its observer proxies,
+    posting targets, and the Facebook Pages publisher with its OAuth flow. Unlike the
+    2 September 2026 scope withdrawal (which kept the code and hid the routes), this removal is
+    enforced by absence; re-entry would start from git history under an explicit owner decision.
+  - **Release ceremony machinery removed.** Deleted the offline release-signing key ceremony, the
+    signed compatibility sequences, sequence pinning, anti-downgrade/rollback tooling, and the
+    release-authority and local-validation runner scripts they depended on.
+  - **Relay self-update platform removed.** Relay no longer stages or activates signed
+    compatibility updates; the fix for an outdated Relay is reinstalling the current package from
+    `/setup`.
+- Moved the documents that only describe the removed surface into `docs/archive/` (internal beta
+  boundary, team-ready rollout, the Vietnamese team operations guide, the release-signing key
+  ceremony, the Relay compatibility-floor migration runbook) and rewrote the living documentation
+  set (README, PDR, architecture, glossaries, standards, roadmap, deployment guide) for the
+  post-surgery product. History is archived, not deleted.
+- Verification on the surgery commit: `npm run typecheck` 0 errors; `npm run test:no-db`
+  1625/1625; `npm run test:relay` 430/430; full `npm test` 1847/1847 against the dedicated `*_test`
+  PostgreSQL database; `npm run build` 15 routes. These are local source-scope results; the
+  Railway service is currently 404 and its restore, plus real operator onboarding for the 5-6
+  person team, remain open follow-ups recorded in the roadmap.
+
 ## 2026-10-02 - Candidate-only Windows publication and retained download continuity
 
 - Published and full-read verified the exact Browser 0.3.30 Build A installer at its immutable
@@ -245,7 +272,7 @@
   the handoff even though the parked routes and historical implementation remain in the repository.
 - Mark Browser `0.3.23` promotion `HOLD / NO-GO`; retain the accepted `0.3.17` / Relay `17` tuple as
   historical evidence only because the current source and deployment approval are not the same tuple.
-- Add the current [team-ready rollout guide](team-ready-rollout.md) and require the owner to confirm
+- Add the current [team-ready rollout guide](archive/team-ready-rollout.md) and require the owner to confirm
   the actual `ALLOWED_EMAILS` roster before onboarding people.
 
 ## 2026-09-13 - Exact installer lifecycle and credential follow-up
@@ -502,7 +529,7 @@ the archive location.
 - **Hosted blocker:** run `34002472571` attempt 5 again failed artifact upload on quota after package
   build; packaged-contract skipped and PR #17 stays unmerged. Organization-admin quota/access action
   is required before another retry. Local/VM passes do not replace GitHub Actions.
-- **Release boundary:** the [new local candidate](./internal-beta-release.md#finishing-pass---8-september-2026)
+- **Release boundary:** the [new local candidate](archive/internal-beta-release.md#finishing-pass---8-september-2026)
   is unsigned, unattested, and unpublished. Historical tuples remain unchanged; Browser distribution
   and real accounts remain NO-GO, Lane C stays CLOSED, and `G2-IDENTITY=FAIL` remains recorded.
 
@@ -719,7 +746,7 @@ The release is a controlled Windows x64 beta: admin-led enrollment, one profile 
 login/posting, and no token/key copying. Broad Browser rollout remains NO-GO: G1 input, G2 network,
 G3 licence, G4 operator, and G5 canary remain open, while G2 identity remains FAIL. Custom Chromium,
 the prebuilt-engine orchestrator, macOS, concurrency, updater/signing, and posting automation are
-deferred. See [internal-beta-release.md](internal-beta-release.md).
+deferred. See [internal-beta-release.md](archive/internal-beta-release.md).
 
 ## 27 August 2026 - Real power-cycle recovery passes and closes G3
 

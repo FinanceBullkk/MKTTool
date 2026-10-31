@@ -21,10 +21,6 @@ import { buildRelayIdentity } from "./relay-identity";
 import type { RelayAntidetect } from "./relay-antidetect";
 import { AntidetectNotConfiguredError } from "./relay-antidetect";
 import { publicKeyToHex, signingKeysFromSeed } from "../../src/lib/tickets/server-signing-key";
-import {
-  completeCompatibilityTransition,
-  withCompatibilityTransitionPreparationLock,
-} from "./compatibility-transition-preparation-lock";
 
 // Hạt giống thật, cố định: `parseSigningSeed` từ chối khuôn mẫu điền tạm (FINDING C2), nên
 // một chuỗi kiểu "11".repeat(32) không còn dựng được khóa. Cố định chứ không ngẫu nhiên vì test
@@ -190,31 +186,6 @@ describe("handleTicketRequest — vé mở profile", () => {
 
     expect(result.ok).toBe(true);
     expect(calls).toEqual(["launchProfileWithProxy"]);
-  });
-
-  it("refuses a new profile mutation after compatibility handoff becomes durable", async () => {
-    const home = `${RELAY_HOME}-${Date.now()}`;
-    const { identity, recipient } = relaySetup();
-    const { adapter, calls } = fakeAdapter();
-    await withCompatibilityTransitionPreparationLock(home, async () => undefined);
-
-    try {
-      const result = await handleTicketRequest(
-        requestBody(issueTicket(launchPayload(), recipient)),
-        {
-          identity,
-          antidetect: fakeAntidetect(adapter),
-          home,
-          notConfiguredMessage: "not configured",
-        },
-      );
-
-      expect(result).toMatchObject({ ok: false });
-      expect(result.message).toMatch(/compatibility transition/i);
-      expect(calls).toEqual([]);
-    } finally {
-      completeCompatibilityTransition(home);
-    }
   });
 
   it("đẩy proxy hỏng thì KHÔNG mở profile — mở ra là nick chạy bằng IP nhà", async () => {
