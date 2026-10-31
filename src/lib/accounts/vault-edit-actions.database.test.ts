@@ -1,12 +1,13 @@
 /**
  * Sửa và xóa trong kho danh tính, chạy trên Postgres thật (xem vitest.global-setup.ts).
  *
- * Ba nhóm khẳng định, đều là chỗ hỏng thì hỏng âm thầm:
+ * Hai nhóm khẳng định, đều là chỗ hỏng thì hỏng âm thầm:
  *  1. Ô bí mật để trống phải GIỮ NGUYÊN giá trị cũ. Hỏng ở đây là mỗi lần sửa karma là một
  *     lần mất mật khẩu nick — mà chỉ lộ ra lúc cần đăng nhập.
- *  2. Sửa xong phải chấm lại job đang chờ. Hỏng ở đây là verdict cũ nằm im trong hàng đợi,
- *     trông y hệt verdict đúng.
- *  3. Xóa phải bị chặn khi còn dữ liệu trỏ tới. Hỏng ở đây là mất lịch sử nuôi bộ luật.
+ *  2. Xóa phải bị chặn khi còn dữ liệu trỏ tới. Hỏng ở đây là mất lịch sử nuôi bộ luật.
+ *
+ * (Nhóm thứ ba cũ — "sửa xong phải chấm lại job đang chờ" — đã đi cùng pipeline đăng bài bị
+ * gỡ bỏ: không còn PostJob thì không còn verdict nào nằm im trong hàng đợi để phải chấm lại.)
  */
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -62,35 +63,24 @@ const encryptForOperator = (plaintext: string) =>
   encryptCredential(plaintext, loadVaultKey("operator"));
 const decryptAsOperator = (encoded: string) =>
   decryptCredential(encoded, loadVaultKey("operator"));
-const { deleteAccount, deleteProxy, deleteTarget } = await import("./vault-delete-actions");
-const { updateAccount, updateProxy, updateTarget } = await import("./vault-update-actions");
-const { deleteContentItem, updateContentItem } = await import(
-  "@/lib/content/content-item-actions"
-);
+const { deleteAccount, deleteProxy } = await import("./vault-delete-actions");
+const { updateAccount, updateProxy } = await import("./vault-update-actions");
 
-const SCHEDULED_AT = new Date("2026-09-10T09:00:00+07:00");
 const INITIAL_ACCOUNT_UPDATED_AT = new Date("2026-01-01T00:00:00.000Z");
 
 interface Seeded {
   proxyId: string;
   accountId: string;
   accountRevision: string;
-  targetId: string;
-  contentId: string;
-  jobId: string;
 }
 
 async function clearAll() {
-  await prisma.interaction.deleteMany();
-  await prisma.postJob.deleteMany();
-  await prisma.contentItem.deleteMany();
+  await prisma.auditLog.deleteMany();
   await prisma.account.deleteMany();
   await prisma.proxy.deleteMany();
-  await prisma.platformTarget.deleteMany();
-  await prisma.auditLog.deleteMany();
 }
 
-/** Một nick khỏe, một sub dễ tính, một bài hữu ích đã xếp lịch và đang PENDING. */
+/** Một nick khỏe gắn một proxy, chưa trỏ đi đâu cả — mọi nhóm test dưới đều bắt đầu từ đây. */
 async function seed(): Promise<Seeded> {
   const proxy = await prisma.proxy.create({
     data: {
@@ -120,29 +110,11 @@ async function seed(): Promise<Seeded> {
       updatedAt: INITIAL_ACCOUNT_UPDATED_AT,
     },
   });
-  const target = await prisma.platformTarget.create({
-    data: { platform: "REDDIT", name: "r/thu", url: "https://reddit.com/r/thu", minKarma: 100 },
-  });
-  const content = await prisma.contentItem.create({
-    data: { title: "Bài hữu ích", body: "Nội dung ban đầu", type: "VALUE", authorName: "team" },
-  });
-  const job = await prisma.postJob.create({
-    data: {
-      contentItemId: content.id,
-      accountId: account.id,
-      targetId: target.id,
-      scheduledAt: SCHEDULED_AT,
-      status: "PENDING",
-    },
-  });
 
   return {
     proxyId: proxy.id,
     accountId: account.id,
     accountRevision: account.updatedAt.toISOString(),
-    targetId: target.id,
-    contentId: content.id,
-    jobId: job.id,
   };
 }
 
@@ -163,20 +135,6 @@ function accountForm(seeded: Seeded, overrides: Record<string, string> = {}): Fo
     status: "ALIVE",
     karma: "500",
     revision: seeded.accountRevision,
-    ...overrides,
-  });
-}
-
-function targetForm(seeded: Seeded, overrides: Record<string, string> = {}): FormData {
-  return form({
-    id: seeded.targetId,
-    name: "r/thu",
-    url: "https://reddit.com/r/thu",
-    minKarma: "100",
-    minAccountAgeDays: "0",
-    promoRatio: "9",
-    allowsLinks: "on",
-    active: "on",
     ...overrides,
   });
 }
@@ -385,21 +343,6 @@ describe("quarantine reason follows quarantine status", () => {
  * vì sao. Hai test đầu canh đúng chỗ đó.
  */
 describe("platform-specific proxy and browser profile behavior", () => {
-  async function makeFacebookAccount() {
-    return prisma.account.create({
-      data: {
-        platform: "FACEBOOK",
-        username: "trang-fb",
-        passwordEnc: encryptForOperator("mk"),
-        emailAddress: "fb@example.test",
-        emailPasswordEnc: encryptForOperator("mk"),
-        antidetectProfileId: "profile-cu",
-        proxyId: null,
-        status: "ALIVE",
-      },
-    });
-  }
-
   it("actually removes a Facebook nick's proxy instead of silently retaining it", async () => {
     const proxy = await prisma.proxy.create({
       data: {
@@ -444,7 +387,17 @@ describe("platform-specific proxy and browser profile behavior", () => {
   });
 
   it("allows the removed proxy to be assigned to another nick", async () => {
-    const fb = await makeFacebookAccount();
+    const fb = await prisma.account.create({
+      data: {
+        platform: "FACEBOOK",
+        username: "trang-fb",
+        passwordEnc: encryptForOperator("mk"),
+        emailAddress: "fb@example.test",
+        emailPasswordEnc: encryptForOperator("mk"),
+        proxyId: null,
+        status: "ALIVE",
+      },
+    });
     await updateAccount(
       null,
       form({
@@ -492,72 +445,8 @@ describe("platform-specific proxy and browser profile behavior", () => {
   });
 });
 
-describe("pending jobs are rechecked after updates", () => {
-  it("blocks a job when target minimum karma rises above the nick's karma", async () => {
-    const result = await updateTarget(null, targetForm(seeded, { minKarma: "9000" }));
-
-    expect(result.ok).toBe(true);
-    expect(result.message).toContain("Rechecked 1 pending job");
-    expect(result.message).toContain("moved to Blocked");
-
-    const job = await prisma.postJob.findUniqueOrThrow({ where: { id: seeded.jobId } });
-    expect(job.status).toBe("BLOCKED");
-    expect(job.ruleVerdicts).toContain("BLOCK");
-  });
-
-  it("blocks a job when nick karma falls below the target threshold", async () => {
-    const result = await updateAccount(null, accountForm(seeded, { karma: "0" }));
-
-    expect(result.ok).toBe(true);
-    const job = await prisma.postJob.findUniqueOrThrow({ where: { id: seeded.jobId } });
-    expect(job.status).toBe("BLOCKED");
-  });
-
-  it("blocks a job when the nick status changes to dead", async () => {
-    await updateAccount(null, accountForm(seeded, { status: "DEAD" }));
-
-    const job = await prisma.postJob.findUniqueOrThrow({ where: { id: seeded.jobId } });
-    expect(job.status).toBe("BLOCKED");
-  });
-
-  it("blocks a job under the 9:1 ratio rule when content becomes promotional", async () => {
-    const result = await updateContentItem(
-      null,
-      form({
-        id: seeded.contentId,
-        title: "Bài hữu ích",
-        body: "Nội dung đã sửa hẳn",
-        type: "PROMO",
-        authorName: "team",
-      }),
-    );
-
-    expect(result.ok).toBe(true);
-    const job = await prisma.postJob.findUniqueOrThrow({ where: { id: seeded.jobId } });
-    expect(job.status).toBe("BLOCKED");
-    expect(job.ruleVerdicts).toContain("Promotional ratio");
-  });
-
-  it("keeps a job PENDING after a harmless update", async () => {
-    const result = await updateTarget(null, targetForm(seeded, { notes: "mod dễ tính" }));
-
-    expect(result.ok).toBe(true);
-    const job = await prisma.postJob.findUniqueOrThrow({ where: { id: seeded.jobId } });
-    expect(job.status).toBe("PENDING");
-  });
-
-  it("does not recheck a posted job because terminal status is final", async () => {
-    await prisma.postJob.update({ where: { id: seeded.jobId }, data: { status: "POSTED" } });
-
-    await updateTarget(null, targetForm(seeded, { minKarma: "9000" }));
-
-    const job = await prisma.postJob.findUniqueOrThrow({ where: { id: seeded.jobId } });
-    expect(job.status).toBe("POSTED");
-  });
-});
-
 describe("optimistic concurrency during nick updates", () => {
-  it("rejects a stale revision without writing the account, audit log, or verdict", async () => {
+  it("rejects a stale revision without writing the account or audit log", async () => {
     const staleRevision = seeded.accountRevision;
 
     const winner = await updateAccount(
@@ -568,10 +457,6 @@ describe("optimistic concurrency during nick updates", () => {
 
     const accountAfterWinner = await prisma.account.findUniqueOrThrow({
       where: { id: seeded.accountId },
-    });
-    const jobAfterWinner = await prisma.postJob.findUniqueOrThrow({
-      where: { id: seeded.jobId },
-      select: { status: true, ruleVerdicts: true },
     });
     const auditsAfterWinner = await prisma.auditLog.count({
       where: { accountId: seeded.accountId },
@@ -594,15 +479,10 @@ describe("optimistic concurrency during nick updates", () => {
     const accountAfterLoser = await prisma.account.findUniqueOrThrow({
       where: { id: seeded.accountId },
     });
-    const jobAfterLoser = await prisma.postJob.findUniqueOrThrow({
-      where: { id: seeded.jobId },
-      select: { status: true, ruleVerdicts: true },
-    });
 
     expect(accountAfterLoser.karma).toBe(accountAfterWinner.karma);
     expect(accountAfterLoser.status).toBe(accountAfterWinner.status);
     expect(accountAfterLoser.updatedAt).toEqual(accountAfterWinner.updatedAt);
-    expect(jobAfterLoser).toEqual(jobAfterWinner);
     expect(await prisma.auditLog.count({ where: { accountId: seeded.accountId } })).toBe(
       auditsAfterWinner,
     );
@@ -618,35 +498,7 @@ describe("deletion is blocked while referenced data remains", () => {
     expect(await prisma.proxy.count()).toBe(1);
   });
 
-  it("does not delete a nick with a job", async () => {
-    const result = await deleteAccount(seeded.accountId);
-
-    expect(result.ok).toBe(false);
-    expect(result.message).toContain("1 job");
-    expect(await prisma.account.count()).toBe(1);
-  });
-
-  it("does not delete a posting target with a job", async () => {
-    const result = await deleteTarget(seeded.targetId);
-
-    expect(result.ok).toBe(false);
-    expect(result.message).toContain("1 job");
-    expect(await prisma.platformTarget.count()).toBe(1);
-  });
-
-  it("does not delete scheduled content", async () => {
-    const result = await deleteContentItem(seeded.contentId);
-
-    expect(result.ok).toBe(false);
-    expect(result.message).toContain("1 scheduled job");
-    expect(await prisma.contentItem.count()).toBe(1);
-  });
-
   it("deletes records in dependency order after references are removed", async () => {
-    await prisma.postJob.deleteMany();
-
-    expect((await deleteContentItem(seeded.contentId)).ok).toBe(true);
-    expect((await deleteTarget(seeded.targetId)).ok).toBe(true);
     expect((await deleteAccount(seeded.accountId)).ok).toBe(true);
     // Nick đi rồi thì proxy mới hết bị trỏ tới.
     expect((await deleteProxy(seeded.proxyId)).ok).toBe(true);
@@ -656,7 +508,6 @@ describe("deletion is blocked while referenced data remains", () => {
   });
 
   it("retains AuditLog after nick deletion", async () => {
-    await prisma.postJob.deleteMany();
     await prisma.auditLog.create({
       data: { accountId: seeded.accountId, action: "CREDENTIAL_REVEALED", detail: "password" },
     });

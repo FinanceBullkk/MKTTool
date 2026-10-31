@@ -10,7 +10,6 @@ const { loadVaultKey } = await import("@/lib/crypto/encryption-key-loader");
 const { loadSetupChecklist } = await import("./setup-checklist");
 
 const HA_ID = "user-ha";
-const rolloutScopeBefore = process.env.ROLLOUT_PLATFORMS;
 
 async function stateOf(id: string) {
   const { handoff } = await loadSetupChecklist();
@@ -53,21 +52,14 @@ async function seedNick(fields: { username: string; ownerId?: string; deviceId?:
 }
 
 beforeEach(async () => {
-  delete process.env.ROLLOUT_PLATFORMS;
   await prisma.auditLog.deleteMany();
-  await prisma.postJob.deleteMany();
-  await prisma.contentItem.deleteMany();
-  await prisma.platformTarget.deleteMany();
   await prisma.account.deleteMany();
   await prisma.proxy.deleteMany();
-  await prisma.observerProxy.deleteMany();
   await prisma.relayDevice.deleteMany();
   await prisma.user.deleteMany();
 });
 
 afterAll(async () => {
-  if (rolloutScopeBefore === undefined) delete process.env.ROLLOUT_PLATFORMS;
-  else process.env.ROLLOUT_PLATFORMS = rolloutScopeBefore;
   await prisma.$disconnect();
 });
 
@@ -77,18 +69,14 @@ describe("empty vault", () => {
 
     expect(checklist.handoff.doneCount).toBe(0);
     expect(checklist.handoff.steps.every((step) => step.state === "todo")).toBe(true);
-    expect(checklist.posting.steps.every((step) => step.state === "todo")).toBe(true);
     // Cầu nối đứng đầu vì chưa có nó thì không tạo nổi một nick có bí mật.
     expect(checklist.handoff.nextStepId).toBe("relay");
-    expect(checklist.posting.nextStepId).toBe("targets");
-    expect(checklist.posting.inRolloutScope).toBe(false);
   });
 
   it("gives every step a reason and a destination", async () => {
     const checklist = await loadSetupChecklist();
-    const steps = [...checklist.handoff.steps, ...checklist.posting.steps];
 
-    for (const step of steps) {
+    for (const step of checklist.handoff.steps) {
       expect(step.why.length).toBeGreaterThan(20);
       expect(step.href.startsWith("/")).toBe(true);
       expect(step.status.length).toBeGreaterThan(0);
@@ -125,59 +113,6 @@ describe("steps complete as vault state changes", () => {
     });
 
     expect((await stateOf("relay")).state).toBe("todo");
-  });
-
-  it("does not count an inactive observer proxy as available", async () => {
-    await prisma.observerProxy.create({
-      data: {
-        label: "Observer1",
-        host: "9.9.9.9",
-        port: 8080,
-        username: "u",
-        passwordEnc: encryptCredential("p", loadVaultKey("server")),
-        country: "US",
-        active: false,
-      },
-    });
-
-    expect((await stateOf("observer")).state).toBe("todo");
-  });
-});
-
-describe("handoff and posting boundary", () => {
-  it("completes handoff without a posting target, content item, or job", async () => {
-    await prisma.user.create({
-      data: { id: HA_ID, name: "Ha", email: "ha@mkttool.local", updatedAt: new Date() },
-    });
-    const device = await prisma.relayDevice.create({
-      data: { name: "Laptop Dell", userId: HA_ID, publicKey: "f".repeat(64) },
-    });
-    await prisma.observerProxy.create({
-      data: {
-        label: "Observer1",
-        host: "9.9.9.9",
-        port: 8080,
-        username: "u",
-        passwordEnc: encryptCredential("p", loadVaultKey("server")),
-        country: "US",
-        active: true,
-      },
-    });
-    await seedNick({ username: "anna", ownerId: HA_ID, deviceId: device.id });
-
-    const checklist = await loadSetupChecklist();
-
-    expect(checklist.handoff.nextStepId).toBeNull();
-    expect(checklist.handoff.doneCount).toBe(checklist.handoff.steps.length);
-    expect(checklist.posting.nextStepId).toBe("targets");
-    expect(checklist.posting.doneCount).toBe(0);
-  });
-
-  it("shows the posting branch only when at least one platform is reopened", async () => {
-    expect((await loadSetupChecklist()).posting.inRolloutScope).toBe(false);
-
-    process.env.ROLLOUT_PLATFORMS = "FACEBOOK_PAGE";
-    expect((await loadSetupChecklist()).posting.inRolloutScope).toBe(true);
   });
 });
 

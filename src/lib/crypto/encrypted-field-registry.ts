@@ -36,7 +36,6 @@ export interface EncryptedModel {
 
 export const ENCRYPTED_MODELS: readonly EncryptedModel[] = [
   { model: "Proxy", fields: [{ name: "passwordEnc", domain: "server" }] },
-  { model: "ObserverProxy", fields: [{ name: "passwordEnc", domain: "server" }] },
   {
     model: "Account",
     fields: [
@@ -45,8 +44,6 @@ export const ENCRYPTED_MODELS: readonly EncryptedModel[] = [
       { name: "totpSecretEnc", domain: "operator" },
     ],
   },
-  { model: "FacebookConnection", fields: [{ name: "accessTokenEnc", domain: "server" }] },
-  { model: "FacebookPage", fields: [{ name: "accessTokenEnc", domain: "server" }] },
   {
     model: "RelayDevice",
     fields: [{ name: "retirementFinalizationKeyEnc", domain: "server" }],

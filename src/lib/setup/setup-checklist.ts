@@ -21,7 +21,6 @@
  */
 import { prisma } from "@/lib/db/prisma-client";
 import { describeAccountReadiness } from "@/lib/accounts/account-readiness";
-import { isPostingFullyParked } from "@/lib/platforms/rollout-scope";
 
 export type SetupStepState = "done" | "todo" | "partial";
 
@@ -50,8 +49,6 @@ export interface SetupChecklistSection {
 export interface SetupChecklist {
   /** Các bước đủ để bàn giao kho danh tính, không phụ thuộc pipeline đăng bài. */
   handoff: SetupChecklistSection;
-  /** Giữ riêng để hiện lại khi ít nhất một nền tảng quay vào phạm vi bàn giao. */
-  posting: SetupChecklistSection & { inRolloutScope: boolean };
 }
 
 function plural(count: number, unit: string, empty: string): string {
@@ -68,11 +65,10 @@ function summarize(steps: SetupStep[]): SetupChecklistSection {
 }
 
 export async function loadSetupChecklist(): Promise<SetupChecklist> {
-  const [devices, proxies, observerProxies, accounts, targets, contentCount, jobCount] =
+  const [devices, proxies, accounts] =
     await Promise.all([
       prisma.relayDevice.count({ where: { revokedAt: null } }),
       prisma.proxy.count(),
-      prisma.observerProxy.count({ where: { active: true } }),
       prisma.account.findMany({
         where: { status: { not: "DEAD" } },
         select: {
@@ -87,9 +83,6 @@ export async function loadSetupChecklist(): Promise<SetupChecklist> {
           device: { select: { userId: true, revokedAt: true } },
         },
       }),
-      prisma.platformTarget.count({ where: { active: true } }),
-      prisma.contentItem.count(),
-      prisma.postJob.count(),
     ]);
 
   // Một nick chỉ tính là "gán cụm xong" khi không còn chặn nào thuộc nhóm cụm. Đếm theo phép
@@ -120,16 +113,6 @@ export async function loadSetupChecklist(): Promise<SetupChecklist> {
       adminOnly: true,
     },
     {
-      id: "observer",
-      title: "Add an observer proxy",
-      state: observerProxies > 0 ? "done" : "todo",
-      status: plural(observerProxies, "active observer proxies", "No active observer proxy"),
-      why: "Shadowban checks need an outsider view through a separate IP and provider from nick proxies.",
-      href: "/proxies",
-      linkLabel: "Add an observer proxy",
-      adminOnly: true,
-    },
-    {
       id: "accounts",
       title: "Add nicks",
       state: accounts.length > 0 ? "done" : "todo",
@@ -155,41 +138,7 @@ export async function loadSetupChecklist(): Promise<SetupChecklist> {
     },
   ];
 
-  const postingSteps: SetupStep[] = [
-    {
-      id: "targets",
-      title: "Add publishing targets",
-      state: targets > 0 ? "done" : "todo",
-      status: plural(targets, "active targets", "No active targets"),
-      why: "Each subreddit needs its real posting rules, including karma, nick age, and link limits.",
-      href: "/targets",
-      linkLabel: "Add a target",
-    },
-    {
-      id: "content",
-      title: "Add content",
-      state: contentCount > 0 ? "done" : "todo",
-      status: plural(contentCount, "content items", "No content items"),
-      why: "Content must be in the workspace before safety rules can detect duplicate text.",
-      href: "/content",
-      linkLabel: "Add content",
-    },
-    {
-      id: "queue",
-      title: "Schedule the first post",
-      state: jobCount > 0 ? "done" : "todo",
-      status: plural(jobCount, "scheduled jobs", "No post has been scheduled"),
-      why: "The first scheduled job verifies the complete setup because safety rules run before it can be saved.",
-      href: "/queue/new",
-      linkLabel: "Schedule a post",
-    },
-  ];
-
   return {
     handoff: summarize(handoffSteps),
-    posting: {
-      ...summarize(postingSteps),
-      inRolloutScope: !isPostingFullyParked(),
-    },
   };
 }

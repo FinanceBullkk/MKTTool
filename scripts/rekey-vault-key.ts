@@ -10,7 +10,7 @@
  *   npm run vault:rekey -- --domain=operator --new-key=<hex> --apply
  *
  * Từ GĐ3 kho có hai vùng khóa (xem encrypted-field-registry.ts) nên PHẢI nói rõ xoay vùng nào:
- *   --domain=server    mật khẩu proxy + token Facebook, khóa ở VAULT_KEY_SERVER
+ *   --domain=server    mật khẩu proxy + khóa finalization của Relay, khóa ở VAULT_KEY_SERVER
  *   --domain=operator  mật khẩu / email / TOTP của nick, khóa ở VAULT_KEY_OPERATOR
  *
  * Cũng chính lệnh này là đường TÁCH hai vùng lần đầu: đặt cả hai biến bằng khóa cũ cho app chạy
@@ -83,24 +83,6 @@ async function collectProxies(oldKey: Buffer): Promise<WriteFactory[]> {
   });
 }
 
-async function collectObserverProxies(oldKey: Buffer): Promise<WriteFactory[]> {
-  const rows = await prisma.observerProxy.findMany({
-    select: { id: true, label: true, passwordEnc: true },
-  });
-  return rows.map((row) => {
-    const password = decryptOrExplain(
-      row.passwordEnc,
-      oldKey,
-      `mật khẩu proxy quan sát viên "${row.label}"`,
-    );
-    return (newKey) =>
-      prisma.observerProxy.update({
-        where: { id: row.id },
-        data: { passwordEnc: encryptCredential(password, newKey) },
-      });
-  });
-}
-
 async function collectAccounts(oldKey: Buffer): Promise<WriteFactory[]> {
   const rows = await prisma.account.findMany({
     select: {
@@ -132,34 +114,6 @@ async function collectAccounts(oldKey: Buffer): Promise<WriteFactory[]> {
   });
 }
 
-async function collectFacebookConnections(oldKey: Buffer): Promise<WriteFactory[]> {
-  const rows = await prisma.facebookConnection.findMany({
-    select: { id: true, name: true, accessTokenEnc: true },
-  });
-  return rows.map((row) => {
-    const token = decryptOrExplain(row.accessTokenEnc, oldKey, `token nick FB "${row.name}"`);
-    return (newKey) =>
-      prisma.facebookConnection.update({
-        where: { id: row.id },
-        data: { accessTokenEnc: encryptCredential(token, newKey) },
-      });
-  });
-}
-
-async function collectFacebookPages(oldKey: Buffer): Promise<WriteFactory[]> {
-  const rows = await prisma.facebookPage.findMany({
-    select: { id: true, name: true, accessTokenEnc: true },
-  });
-  return rows.map((row) => {
-    const token = decryptOrExplain(row.accessTokenEnc, oldKey, `Page token "${row.name}"`);
-    return (newKey) =>
-      prisma.facebookPage.update({
-        where: { id: row.id },
-        data: { accessTokenEnc: encryptCredential(token, newKey) },
-      });
-  });
-}
-
 async function collectRelayDevices(oldKey: Buffer): Promise<WriteFactory[]> {
   const rows = await prisma.relayDevice.findMany({
     where: { retirementFinalizationKeyEnc: { not: null } },
@@ -181,13 +135,7 @@ async function collectRelayDevices(oldKey: Buffer): Promise<WriteFactory[]> {
 
 /** Bảng phân công: vùng nào thì gom những bảng nào. Chia sai ở đây là xoay nhầm khóa cho cột. */
 const COLLECTORS: Record<VaultDomain, ((oldKey: Buffer) => Promise<WriteFactory[]>)[]> = {
-  server: [
-    collectProxies,
-    collectObserverProxies,
-    collectFacebookConnections,
-    collectFacebookPages,
-    collectRelayDevices,
-  ],
+  server: [collectProxies, collectRelayDevices],
   operator: [collectAccounts],
 };
 
@@ -198,7 +146,7 @@ function readDomainArg(): VaultDomain {
     throw new RekeyError(
       `Thiếu hoặc sai --domain (nhận được ${raw ? `"${raw}"` : "không có gì"}). ` +
         "Kho có hai vùng khóa, phải nói rõ xoay vùng nào:\n" +
-        "  --domain=server    mật khẩu proxy + token Facebook\n" +
+        "  --domain=server    mật khẩu proxy + khóa finalization của Relay\n" +
         "  --domain=operator  mật khẩu / email / TOTP của nick",
     );
   }

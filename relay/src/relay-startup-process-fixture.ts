@@ -111,7 +111,7 @@ void run().catch(async () => {
     try {
       await notifyRelayStartupFailure(startupId);
     } catch {
-      // The parent may already have exited after a deliberate compatibility handoff.
+      // The parent may already have exited after a deliberate startup handoff.
     }
   }
   process.exitCode = 1;

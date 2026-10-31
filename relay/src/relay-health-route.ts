@@ -1,38 +1,16 @@
 import os from "node:os";
 import type {
   RelayBrowserHealth,
-  RelayCompatibilityUpdateHealth,
   RelayStartupState,
 } from "../../src/lib/relay/relay-endpoints";
 import type { ConfigProblem } from "./relay-config";
 import type { DeviceRetirementReceipt } from "./device-retirement-receipt";
 import type { RelayResponseBody, RelayRoute } from "./relay-http-server";
-import type { CompatibilityUpdateState } from "./update-state";
-import { describeCompatibilityUpdateHealth } from "./compatibility-update-health";
 
 interface CurrentRelayState {
   problems: ConfigProblem[];
   webOrigin: string;
   deviceId: string | null;
-}
-
-export interface CompatibilityUpdateHealthSnapshot {
-  value: RelayCompatibilityUpdateHealth | undefined;
-}
-
-/**
- * Compatibility state is protected by DPAPI and can require a PowerShell child process. Read it
- * during isolated startup initialization; the operational health route only consults this snapshot.
- */
-export function createCompatibilityUpdateHealthSnapshot(
-  readState: () => CompatibilityUpdateState | null,
-): CompatibilityUpdateHealthSnapshot {
-  try {
-    return { value: describeCompatibilityUpdateHealth(readState()) };
-  } catch {
-    // Update and rollback handlers still re-read their protected state and fail closed.
-    return { value: undefined };
-  }
 }
 
 export function createRelayStartupHealth(startupState: RelayStartupState): RelayResponseBody {
@@ -66,7 +44,6 @@ export function createRelayHealthRoute(options: {
   notConfiguredMessage(): string;
   pendingRetirement(): DeviceRetirementReceipt | null;
   retirementHealth(receipt: DeviceRetirementReceipt): RelayResponseBody;
-  compatibilityUpdate: CompatibilityUpdateHealthSnapshot;
   startupState?: () => RelayStartupState | null;
   machineName?: () => string;
 }): RelayRoute {
@@ -89,9 +66,6 @@ export function createRelayHealthRoute(options: {
       webOrigin: state.webOrigin,
       antidetectReady: browser.ready,
       browser,
-      ...(options.compatibilityUpdate.value
-        ? { compatibilityUpdate: options.compatibilityUpdate.value }
-        : {}),
     };
   };
 }

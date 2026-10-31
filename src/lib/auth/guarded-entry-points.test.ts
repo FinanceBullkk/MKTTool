@@ -136,7 +136,10 @@ describe("all route handlers are guarded", () => {
   );
 
   it("finds route handlers", () => {
-    expect(routeFiles.length).toBeGreaterThan(3);
+    // Sàn này chỉ để bắt lỗi đường dẫn quét được 0 file — không phải đếm chính số route.
+    // Phần lớn route (compatibility update, release provenance, health run, rules preview,
+    // facebook oauth) đã bị gỡ cùng pipeline đăng bài, còn 3 route được gác.
+    expect(routeFiles.length).toBeGreaterThan(2);
   });
 
   it.each(routeFiles.map((file) => [file.relativePath, file] as const))("%s", (_name, file) => {

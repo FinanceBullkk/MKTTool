@@ -16,8 +16,6 @@ import { handleAuthorizeBootstrap } from "./handle-authorize-bootstrap";
 import { handleReadBootstrapCompletion } from "./handle-read-bootstrap-completion";
 import { handleRetireDevice } from "./handle-retire-device";
 import { handleFinalizeDeviceRetirement } from "./handle-finalize-device-retirement";
-import { handleCompatibilityRollback } from "./handle-compatibility-rollback";
-import { handleCompatibilityUpdate } from "./handle-compatibility-update";
 import { handleLicenseCapacityRefresh } from "./handle-license-capacity-refresh";
 import { BootstrapAuthorizationBroker } from "./bootstrap-authorization";
 import { selectOperatorKeyBootstrapBroker } from "./operator-key-bootstrap-selection";
@@ -52,19 +50,10 @@ import {
   runRetirementRecoveryServer,
 } from "./device-retirement-recovery-server";
 import type { DeviceRetirementReceipt } from "./device-retirement-receipt";
-import { handleWindowsCompatibilityStartup } from "./windows-compatibility-startup";
-import { handoffPreparedCompatibilityUpdate } from "./compatibility-update-handoff";
-import { readCompatibilityUpdateState } from "./update-state";
-import { resolveWindowsCompatibilityInstallation } from "./windows-compatibility-installation";
-import { WindowsCompatibilityUpdatePlatform } from "./windows-compatibility-update-platform";
-import {
-  createCompatibilityUpdateHealthSnapshot,
-  createRelayHealthRoute,
-} from "./relay-health-route";
+import { createRelayHealthRoute } from "./relay-health-route";
 import {
   awaitRelayStartupActivation,
   notifyRelayStartupFailure,
-  notifyRelayStartupHandoff,
   notifyRelayStartupListening,
   readRelayStartupChildId,
   startRelayStartupBootstrap,
@@ -169,18 +158,11 @@ async function main(): Promise<void> {
     await notifyRelayStartupListening(startupChildId);
     return;
   }
-  if (await handleWindowsCompatibilityStartup(home, secureStore)) {
-    await notifyRelayStartupHandoff(startupChildId);
-    return;
-  }
   migrateRelaySecrets(home, secureStore, RELAY_VERSION);
   const keypair = loadOrCreateDeviceKeypair(home, secureStore);
   migrateRelaySecrets(home, secureStore, RELAY_VERSION);
 
   let state = loadState(home, keypair, secureStore);
-  const compatibilityUpdateHealth = createCompatibilityUpdateHealthSnapshot(() =>
-    readCompatibilityUpdateState(secureStore),
-  );
   let pendingRetirement: DeviceRetirementReceipt | null = null;
   const bootstrap = new BootstrapAuthorizationBroker(
     () => state.deviceId,
@@ -252,7 +234,6 @@ async function main(): Promise<void> {
         notConfiguredMessage,
         pendingRetirement: () => pendingRetirement,
         retirementHealth,
-        compatibilityUpdate: compatibilityUpdateHealth,
       }),
       [RELAY_PATHS.configure]: (request, body) =>
         pendingRetirement
@@ -373,65 +354,8 @@ async function main(): Promise<void> {
           secureStore,
           onFinalized: () => server.close(),
         }),
-      [RELAY_PATHS.compatibilityUpdate]: (request, body) =>
-        pendingRetirement
-          ? retirementBlocked()
-          : handleCompatibilityUpdate(request, body, {
-              allowedOrigin: state.webOrigin || null,
-              home,
-              store: secureStore,
-              identity: state.identity,
-              antidetect: state.antidetect,
-              createPlatform: () => {
-                const installation = resolveWindowsCompatibilityInstallation();
-                return new WindowsCompatibilityUpdatePlatform({
-                  installation,
-                  hasOpenProfiles: async () => {
-                    const profiles = await state.antidetect.getAdapter().listProfiles();
-                    return profiles.some((profile) => profile.isRunning === true);
-                  },
-                });
-              },
-              serverPublicKeyHex: state.serverPublicKeyHex,
-              deviceId: state.deviceId,
-              onPrepared: scheduleCompatibilityUpdateHandoff,
-            }),
-      [RELAY_PATHS.compatibilityRollback]: (request, body) => {
-        return pendingRetirement
-          ? retirementBlocked()
-          : handleCompatibilityRollback(request, body, {
-              allowedOrigin: state.webOrigin || null,
-              home,
-              store: secureStore,
-              createPlatform: () => {
-                const installation = resolveWindowsCompatibilityInstallation();
-                return new WindowsCompatibilityUpdatePlatform({
-                  installation,
-                  hasOpenProfiles: async () => {
-                    const profiles = await state.antidetect.getAdapter().listProfiles();
-                    return profiles.some((profile) => profile.isRunning === true);
-                  },
-                });
-              },
-              serverPublicKeyHex: state.serverPublicKeyHex,
-              deviceId: state.deviceId,
-              onPrepared: scheduleCompatibilityUpdateHandoff,
-            });
-      },
     }),
   });
-
-  function scheduleCompatibilityUpdateHandoff(): void {
-    compatibilityUpdateHealth.value = undefined;
-    setTimeout(() => {
-      void handoffPreparedCompatibilityUpdate({
-        server,
-        home,
-        executablePath: process.execPath,
-        startupChildId,
-      });
-    }, 100);
-  }
 
   let shuttingDown = false;
   const shutdown = (): void => {

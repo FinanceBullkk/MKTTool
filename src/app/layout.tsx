@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Fira_Code, Fira_Sans } from "next/font/google";
 import { AppShell } from "@/components/mktbrowser-ui/AppShell";
-import { OpsAlertTray } from "@/components/layout/ops-alert-tray";
 import { SessionBadge } from "@/components/auth/session-badge";
 import { readActor } from "@/lib/auth/require-actor";
 import { prisma } from "@/lib/db/prisma-client";
@@ -65,7 +64,6 @@ async function SignedInShell({ children }: { children: React.ReactNode }) {
       relayName={relayStatusLabel(activeDevice)}
       sessionBadge={<SessionBadge />}
     >
-      <OpsAlertTray />
       {children}
     </AppShell>
   );

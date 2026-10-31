@@ -187,8 +187,7 @@ export function readVaultKeyPosture(env: VaultKeyEnv = process.env): VaultKeyPos
  * cấu hình nhìn giống hệt lúc đã tách xong.
  *
  * Dòng `console.warn` này chỉ tới được người đang mở terminal — tức là chỉ lúc chạy máy mình.
- * Trên Railway nó in một lần lúc khởi động rồi trôi. Nên **đường tới người dùng thật là khay
- * cảnh báo vận hành** (`src/lib/ops-alerts/`), còn dòng này giữ lại cho lúc chạy dưới máy.
+ * Trên Railway nó in một lần lúc khởi động rồi trôi. Dòng này giữ lại cho lúc chạy dưới máy.
  */
 function warnOnceIfKeysIdentical(): void {
   if (warnedAboutIdenticalKeys) return;

@@ -16,7 +16,6 @@ import { requireNickOwner } from "@/lib/auth/require-actor";
 import { lockAccountForDeletion } from "@/lib/db/account-ticket-row-locks";
 import { prisma } from "@/lib/db/prisma-client";
 import { describeUnexpectedDbError } from "@/lib/db/prisma-error-helpers";
-import { blockDeleteWhenReferenced } from "@/lib/db/reference-guard";
 
 /**
  * Chỉ ADMIN.
@@ -99,14 +98,6 @@ export const deleteAccount = guardedAction(async function deleteAccount(
         where: { id: accountId },
         include: {
           proxy: { select: { label: true } },
-          _count: {
-            select: {
-              jobs: true,
-              interactions: true,
-              facebookConnections: true,
-              facebookPages: true,
-            },
-          },
         },
       });
       if (!account) {
@@ -127,19 +118,6 @@ export const deleteAccount = guardedAction(async function deleteAccount(
               : `Nick "${account.username}" belongs to another operator. Only its owner can delete it.`,
         };
       }
-
-      const blocked = blockDeleteWhenReferenced(
-        `nick "${account.username}"`,
-        [
-          { label: "job", count: account._count.jobs },
-          { label: "recorded interactions", count: account._count.interactions },
-          { label: "Facebook connections", count: account._count.facebookConnections },
-          { label: "Facebook Pages administered by this nick", count: account._count.facebookPages },
-        ],
-        'If this nick is no longer used, change its status to "Dead" instead. Its history must remain ' +
-          "so the rules can still count limits and promotional ratios for the other nicks.",
-      );
-      if (blocked) return { kind: "rejected", message: blocked.message };
 
       const deleted = await tx.account.deleteMany({
         where:
@@ -174,48 +152,5 @@ export const deleteAccount = guardedAction(async function deleteAccount(
       (outcome.proxyLabel
         ? `Proxy "${outcome.proxyLabel}" can now be assigned to another nick.`
         : "Return to the nick vault to continue."),
-  };
-});
-
-export const deleteTarget = guardedAction(async function deleteTarget(
-  _actor,
-  targetId: string,
-): Promise<ActionResult> {
-  const target = await prisma.platformTarget.findUnique({
-    where: { id: targetId },
-    include: {
-      _count: { select: { jobs: true, interactions: true } },
-      facebookPage: { select: { name: true } },
-    },
-  });
-  if (!target) {
-    return {
-      ok: false,
-      message: "Posting target not found. Return to the target list and try again.",
-    };
-  }
-
-  const blocked = blockDeleteWhenReferenced(
-    `posting target "${target.name}"`,
-    [
-      { label: "job", count: target._count.jobs },
-      { label: "recorded interactions", count: target._count.interactions },
-      { label: "connected Facebook Page", count: target.facebookPage ? 1 : 0 },
-    ],
-    'If this target is no longer used, clear "Active" instead. It will disappear from scheduling ' +
-      "while its history remains available to the rules.",
-  );
-  if (blocked) return { ok: false, message: blocked.message };
-
-  try {
-    await prisma.platformTarget.delete({ where: { id: targetId } });
-  } catch (error) {
-    return { ok: false, message: describeUnexpectedDbError(error, "delete the posting target") };
-  }
-
-  revalidatePath("/targets");
-  return {
-    ok: true,
-    message: `Posting target "${target.name}" deleted. It is no longer available for scheduling.`,
   };
 });

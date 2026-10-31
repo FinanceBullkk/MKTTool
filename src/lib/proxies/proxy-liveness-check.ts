@@ -43,11 +43,10 @@ async function directExitIp(): Promise<ProbeOutcome> {
 }
 
 /**
- * Đo một proxy. KHÔNG ghi database — bên gọi quyết định ghi vào bảng nào.
+ * Đo một proxy. KHÔNG ghi database — bên gọi quyết định ghi vào cột nào.
  *
- * Tách khỏi phần ghi vì có hai loại proxy ở hai bảng khác nhau (`Proxy` của nick và
- * `ObserverProxy` của bộ dò) mà phép đo thì y hệt. Chép phép đo ra hai bản là hai chỗ để
- * lệch nhau, và lệch ở đây nghĩa là cùng một proxy cho hai kết luận khác nhau tùy đường vào.
+ * Tách khỏi phần ghi để phép đo không dính vào đường ghi duy nhất còn lại (`Proxy` của nick):
+ * cùng một phép đo thử lại được mà không phải ghi gì cả.
  *
  * Không bao giờ ném lỗi: mọi hỏng hóc đều thành một kết luận.
  */
@@ -78,7 +77,7 @@ export async function measureProxyLiveness(proxy: ProxyRecordForCheck): Promise<
   return evaluateProxyLiveness({ throughProxy, direct, declaredCountry: proxy.country });
 }
 
-/** Bốn cột kết quả, giống hệt nhau ở cả hai bảng. */
+/** Bốn cột kết quả của bảng `Proxy`. */
 function checkColumns(liveness: ProxyLiveness) {
   return {
     lastCheckedAt: new Date(),
@@ -92,21 +91,6 @@ function checkColumns(liveness: ProxyLiveness) {
 export async function checkProxyLiveness(proxy: ProxyRecordForCheck): Promise<ProxyLiveness> {
   const liveness = await measureProxyLiveness(proxy);
   await prisma.proxy.update({ where: { id: proxy.id }, data: checkColumns(liveness) });
-  return liveness;
-}
-
-/**
- * Đo proxy quan sát viên rồi ghi kết quả.
- *
- * Đặt cạnh hàm trên có chủ ý: hai đường ghi phải nhìn thấy nhau. Nhưng hậu quả khi hỏng thì
- * KHÁC HẲN — proxy của nick chết là mất một nick, proxy quan sát viên chết là mù cả đàn, vì
- * mọi kết luận shadowban đều nhìn qua đúng một IP này.
- */
-export async function checkObserverProxyLiveness(
-  proxy: ProxyRecordForCheck,
-): Promise<ProxyLiveness> {
-  const liveness = await measureProxyLiveness(proxy);
-  await prisma.observerProxy.update({ where: { id: proxy.id }, data: checkColumns(liveness) });
   return liveness;
 }
 
