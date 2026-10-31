@@ -34,7 +34,7 @@ retained as records, not instructions.
 
 The web app is Next.js 16 (App Router) + TypeScript + Prisma 7 on PostgreSQL, with Better Auth
 Google sign-in behind an explicit email allowlist (`ALLOWED_EMAILS`, with `ADMIN_EMAILS` as the
-admin subset) and two roles, ADMIN and OPERATOR. It runs on Railway from a plain `Dockerfile`.
+admin subset) and two roles, ADMIN and OPERATOR. It runs on the owner's machine over Tailscale (Railway was retired on 31 October 2026).
 The [`relay/`](relay/) directory builds a separate Windows x64 bridge as a Node SEA executable; it
 listens only on `127.0.0.1:47821`, holds `VAULT_KEY_OPERATOR`, verifies the server's Ed25519 ticket
 signatures, and calls the authenticated MKT Browser MCP endpoint on `127.0.0.1:47822` to create and
@@ -44,7 +44,7 @@ Cloudflare R2 stores the published Relay package and installer for authenticated
 `/setup`, and the nightly database backups.
 
 ```
-Browser (Google sign-in) ──HTTPS──> Next.js on Railway ──> PostgreSQL (vault)
+Browser (Google sign-in) ──Tailscale──> Next.js on the host machine ──> PostgreSQL (vault)
                                           │
                                           │ Ed25519-signed ticket, bound to one PC,
                                           │ ~30 s, single-use
@@ -134,22 +134,7 @@ run — the honest result is the deliverable.
 
 ## Deploy
 
-**A push to `master` is a production deployment.** When the Railway service is wired to this
-repository, the GitHub integration builds and releases whatever lands on `master` — no workflow to
-trigger, no approval step, nothing to forget. If that is not what you want, do not push yet.
-
-After pushing, verify rather than assume:
-
-```
-git rev-parse HEAD        # must equal origin/master
-<app-url>/api/healthz     # HTTP 200, status "ready", database/releaseMetadata/r2 all "ok"
-```
-
-`/api/healthz` is deliberately unauthenticated and returns no account, proxy, or ticket data. A
-healthy response means the process can reach Postgres, holds the exact Relay release metadata it is
-configured to serve, and has the operator-key fingerprint verifier required for self-onboarding.
-Note: the Railway service is currently returning 404 and needs to be restored/re-wired — see the
-[roadmap](docs/development-roadmap.md).
+**A push to `master` deploys nothing (31 October 2026).** Railway is retired; the app runs on the owner's machine over Tailscale. GitHub is backup and history only.
 
 Backups run nightly to R2 when `BACKUP_DAILY_AT` plus the four `R2_*` variables are set (all four
 or none). Before any schema-changing deploy, run `npm run db:backup:remote` — `prisma migrate deploy`
@@ -225,7 +210,7 @@ Start from the [docs index](docs/README.md). The short version:
 | [docs/code-standards.md](docs/code-standards.md) | Conventions before you contribute |
 | [docs/development-roadmap.md](docs/development-roadmap.md) | Current state, what is green, open follow-ups |
 | [docs/project-changelog.md](docs/project-changelog.md) | Dated change log |
-| [docs/deployment-guide.md](docs/deployment-guide.md) | Railway deployment, variables, verification |
+| [docs/deployment-guide.md](docs/deployment-guide.md) | local hosting (Tailscale), verification, distribution |
 | [docs/runbooks/](docs/runbooks/) | Backup/restore proof, uptime alerting, deploy rollback |
 | [docs/archive/](docs/archive/README.md) | Removed-surface docs, kept as history — not instructions |
 
